@@ -1,0 +1,25 @@
+# our main function
+Function mainfunction
+-locals 2
+-local 0 io
+-local 1 3
+-closures 2
+-closure 1 abc
+-parameters 1
+-parameter 0 param!
+	# var console = require("console");
+	PushString "console"
+	Require
+	Store 1
+.label1
+	# console.log("hello world!");
+	PushString "hello world"
+	PushString "log"
+	Load 1
+	LoadElement
+	PushFunction mainfunction
+	CallFunctionNoReturn 1
+	
+	jump label1
+	pushfloat -255
+	Return
