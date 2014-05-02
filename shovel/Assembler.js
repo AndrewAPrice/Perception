@@ -199,7 +199,9 @@ var instructions = {
 	"jumpiffalse": {special: true}, // 105,106,107 (8/16/32)
 	"jumpifnull": {special: true}, // 108,109,110 (8/16/32)
 	"jumpifnotnull": {special: true}, // 111,112,113 (8/16/32)
-	"require": {opcode: 114, special: false}
+	"require": {opcode: 114, special: false},
+	"loadparameter": {special: true}, // 115,116,117 (8/16/32)
+	"storeparameter": {special: true}, // 118,119,120
 
 };
 
@@ -789,6 +791,44 @@ var handleFunction = function(funcHeader) {
 						jumpFixUps.push(i); // save this jump for us to fix up later
 						
 						jumps++;
+						break;
+					case "loadparameter": // 115,116,117 (8/16/32)
+						if(operands.length != 1)
+							errorMessage(i, "loadparameter takes 1 argument.");
+
+						var op = parseInt(operands[0]);
+						if(op < 0)
+							errorMessage(i, "loadparameter must take a positive number.");
+						if(op >= 4294967296)
+							errorMessage(i, "loadparameter argument must be less than 2^32.");
+						if(op >= 65536) {
+							lines[i] = [117, op & 255, (op >> 8) & 255, (op >> 16) & 255, (op >> 24) & 255];
+						} else if(op >= 256) {
+							lines[i] = [116, op & 255, (op >> 8) & 255];
+
+						} else {
+							lines[i] = [115, op];
+						}
+						bytes += lines[i].length;
+						break;
+					case "storeparameter":// 118,119,120
+						if(operands.length != 1)
+							errorMessage(i, "storeparameter takes 1 argument.");
+
+						var op = parseInt(operands[0]);
+						if(op < 0)
+							errorMessage(i, "storeparameter must take a positive number.");
+						if(op >= 4294967296)
+							errorMessage(i, "storeparameter argument must be less than 2^32.");
+						if(op >= 65536) {
+							lines[i] = [200, op & 255, (op >> 8) & 255, (op >> 16) & 255, (op >> 24) & 255];
+						} else if(op >= 256) {
+							lines[i] = [119, op & 255, (op >> 8) & 255];
+
+						} else {
+							lines[i] = [118, op];
+						}
+						bytes += lines[i].length;
 						break;
 					default:
 						errorMessage(i, "Internal error - no case for special instruction " + inst + ".");
