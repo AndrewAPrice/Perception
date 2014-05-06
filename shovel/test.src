@@ -1,0 +1,4 @@
+//123.3
+function(hello) {
+	return "abc";/* abc++fds-- 48; -120;*/
+}
