@@ -8,6 +8,7 @@ There are multiple kinds of literals. They are indicated by their uppercase.
 - UNSIGNED - An unsigned integer contains the digits 0 to 9. An unsigned integer may also be a character, in which case it begins and ends with a single quote, and the UTF-8 representation of character between the quotes is used. The same escape characters that are acceptable in a string are also acceptable as characters.
 - FLOAT - A decimal number contains the digits 0 to 9 and includes a decimal point. Floating point numbers must start with a number, not a decimal point.
 - IDENTIFIER - An identifier begins with a non-digit character (excluding the special characters), and may include further any characters (digits and non-digits), excluding the following special characters: !%^&*()-+=[]{}|\:;"'/?<>,.
+- EOF - The end of the file.
 
 White spaces are ignored unless they are part of a string.
 
