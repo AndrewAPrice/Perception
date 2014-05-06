@@ -4,7 +4,7 @@ Shovel is a dynamically typed high level language. Tools related to Shovel go in
 
 # Status
 - The assembler is done.
-- No high level compiler yet.
+- The compiler is in progress.
 - No virtual machine yet.
 
 # What's all this Javascript?
