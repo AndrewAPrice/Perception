@@ -1,11 +1,11 @@
 // lexical parser - parses a string (or file) containing Shovel source code into a series of tokens
 // usage:
-// var parser = require('./parser.js').parseFile('test.src');
+// var lexer = require('./parser.js').parseFile('test.src');
 //
-// parser.peekToken() - returns the next token
-// parser.nextToken() - read the next token and return it
-// parser.getToken() - get the current token (same as the last result from nextToken)
-// parser.getValue() - returns the value attached to the token
+// lexer.peekToken() - returns the next token
+// lexer.nextToken() - read the next token and return it
+// lexer.getToken() - get the current token (same as the last result from nextToken)
+// lexer.getValue() - returns the value attached to the token
 //
 // a token is a literal if it is a STRING, CHAR, INTEGER, FLOAT, IDENTIFIER
 // if it's a literal call parser.getValue() to get the value of it
@@ -74,7 +74,8 @@ exports.parseString = function(str) {
 	var isKeyword = function(str) {
 		switch(str) {
 			case "new": case "delete": case "for": case "while": case "do": case "break": case "continue": case "return": case "goto": case "switch":
-			case "function": case "signed": case "unsigned": case "float": case "boolean": case "float": case "default":
+			case "function": case "signed": case "unsigned": case "float": case "boolean": case "float": case "default": case "foreach": case "as":
+			case "in": case "true": case "false": case "null": case "boolean":
 			return true;
 			default:
 			return false;
@@ -412,6 +413,7 @@ exports.parseFile = function(filepath) {
 	return exports.parseString(fs.readFileSync(filepath, 'utf8'));
 };
 
+/*
 var parser = exports.parseFile('test.src');
 while(parser.peekToken() != 'EOF') {
 	var token = parser.nextToken();
@@ -419,3 +421,4 @@ while(parser.peekToken() != 'EOF') {
 		token += " " + parser.getValue();
 	console.log(token);
 }
+*/
