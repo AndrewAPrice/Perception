@@ -32,16 +32,16 @@ Curved brackets groups together subexpressions, usually when working with pipes.
 The entry rule the whole file is 'main'.
 
 ````
-- break_statement: 'break' identifier ';'
-- continue_statement: 'continue' identifier ';'
-- label_statement: '.' identifier ':' statement
-- goto_statement: 'goto' identifier ';'
+- break_statement: 'break' IDENTIFIER ';'
+- continue_statement: 'continue' IDENTIFIER ';'
+- label_statement: '.' IDENTIFIER ':' statement
+- goto_statement: 'goto' IDENTIFIER ';'
 - return: 'return' [expression] ';'
-- var_statement: 'var' identifier ['=' expression] {','} ';'
+- var_statement: 'var' IDENTIFIER ['=' expression] {','} ';'
 - while_statement: 'while' '(' expression ')' statement
 - delete_statement: 'delete' lvalue ';'
 - do_statement: 'do' statement 'while' '(' expression ')' ';'
-- foreach_statement: 'foreach' '(' ('var') identifier 'in' lvalue ')' statement
+- foreach_statement: 'foreach' '(' ('var') IDENTIFIER 'in' lvalue ')' statement
 - for_statement: 'for' '(' (var_statement|expression_statement) expression_statement multi_expression ')' statement
 - multi_expression: [expression {',' expression}]
 - if_statement: 'if' '(' expression ')' statement ['else' statement]
@@ -49,14 +49,14 @@ The entry rule the whole file is 'main'.
 - switch_case: ('case' literal|'default') ':' statement
 - compound_statement: '{' { statements } '}'
 - function_expression: 'function' '(' [IDENTIFIER {',' IDENTIFIER}] ')'
-- object_field: (identifier | string_literal) ':' expression
+- object_field: (IDENTIFIER | STRING) ':' expression
 - object_expression: '{' [object_field {',' object_field}] '}'
 - array_expression: '[' [expression {',' expression}] ']'
 - new_expression: 'new' ('<' expression '>' | '[' expression ']')
 - require_expression: 'require' '(' expression ')'
 - primary_expression: IDENTIFIER|literal|function_expression|require_expression|'(' expression ')'|new_expression|array_expression|object_expression
 - literal: UNSIGNED|FLOAT|STRING|true|false|null
-- lvalue: primary_expression {('[' expression ']'|'.' identifier|'(' parameter_expression_list ')'|'<'('float'|'signed'|'unsigned')',UNSIGNED,expression'>'}
+- lvalue: primary_expression {('[' expression ']'|'.' IDENTIFIER|'(' parameter_expression_list ')'|'<'('float'|'signed'|'unsigned')',UNSIGNED,expression'>'}
 - parameter_expression_list = [expression {',' expression}]
 - postfix_expression: lvalue ('++' | '--')
 - unary_expression: ('-'|'+'|'!'|'++'|'--') postfix_expression
