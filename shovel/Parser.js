@@ -2,19 +2,221 @@
 
 var Lexer = require('./Lexer.js');
 
+var showTokens = true;
+
 var error = function(lexer, message) {
-	console.log('Error - lexer: ' + message);
+	if(showTokens)
+		console.log('Error - lexer: ' + message + " (Current token: " + lexer.getToken() + " Next token: " + lexer.peekToken() + ")");
+	else
+		console.log('Error - lexer: ' + message);
+
+	process.exit(-1);
 };
+
+// debugging mode, no optimizations, don't flatten the stack, output column numbers everywhere
+var debug = false;
 
 // parse
 var parse = function(lexer) {
 	var functions = []; // array of functions, add to this as we parse
 
+	var currentFunction = -1;
+
+	var currentScope = null;
+
 	// enter a new scope
-	var enterScope = function() {};
+	var enterScope = function() {
+		var parent = currentScope;
+		currentScope = {
+			parentScope: currentScope,
+			variables: {}, // variables, the key is the variable name
+			variableNames: [], // array of variable names, in the order in which they were added
+			children: [],
+			functionId: currentFunction // the function this scope is part of, used to determine if variables are defined in a closure
+		};
+
+		if(parent != null)
+			parent.children.push(currentScope);
+	};
 
 	// leave a scope
-	var leaveScope = function() {};
+	var leaveScope = function() {
+		currentScope = currentScope.parentScope;
+	};
+
+	// create a parameter and add it to the local scope
+	var declareVariable = function(name, parameter, type, literal) {
+		if(currentScope.variables[name] !== undefined) {
+			if(parameter)
+				error(lexer, "A variable by the name of '" + name +"' is being defined multiple times in the same scope.");
+			else
+				error(lexer, "The name '" + name + "' is being used for multiple parameters.");
+		}
+
+		currentScope.variables[name] = {
+			closure: false, // true if accessed by another function and should be made a closure
+			constant: false, // false if it's assigned when it's not declared
+			parameter: parameter, // true if this is a parameter and not a local variable
+			// if a closure is also a parameter, it should be demoted to the child (with '.' prefixed because that's not a valid identifier character)
+			// then copied when opened
+			type: type, // the parameter's type
+			literal: literal // if we are a literal
+		};
+
+		currentScope.variableNames.push(name);
+	};
+
+	// touch a variable - determines if a variable exists, if it is used for writing, if it is a closure
+	var touchVariable = function(name, writing) {
+		// walk backwards through the scopes until we find the variable
+		var scope = currentScope;
+		while(scope !== null) {
+			var v = scope.variables[name];
+
+			if(v !== undefined) {
+				// we found a variable by that name
+				if(writing) {
+					// if we are assigning to it, remove any constant info attached to it
+					v['type'] = '?';
+					v.literal = null;
+				}
+
+				if(scope.functionId != currentFunction)
+					v.closure = true; // this variable is a closure because we're accessing it outside of the function it was defined in
+
+				return; // quit, because we found it
+			}
+			scope = scope.parentScope;
+		}
+
+		error(lexer, "No variable by the name of '" + name + "' has been declared.");
+	};
+
+	// enter a function
+	var enterFunction = function(params) {
+		// add default function
+		functions.push({
+			labels: {}, // for jumping to
+			labelRefs: [], // that want to jump places
+			rootScope: null, // the root scope
+			parameters: [],
+			previousFunction: currentFunction, // reference when leaving the function
+			statements: null,
+			functionId: functions.length
+		});
+
+		currentFunction = functions.length - 1;
+		enterScope();
+
+		functions[currentFunction].rootScope = currentScope;
+		
+		// add parameters to the current scope
+		for(var i = 0; i < params.length; i++)
+			declareVariable(params[i], true);
+
+		// enter a new scope (hiding parameters in the parent scope)
+		enterScope();
+	};
+
+	// leave a function,
+	var leaveFunction = function() {
+		var f = functions[currentFunction];
+
+		// check label references
+		for(var i = 0; i < f.labelRefs.length; i++) {
+			if(f.labels[f.labelRefs[i].destination] === undefined)
+				error(lexer, "The label '"+ f.labelRefs[i].destination + "' is undefined.");
+		}
+
+		currentScope = f.rootScope.parentScope; // leave back to the scope we we're in just before declaring the function
+
+		currentFunction = functions[currentFunction].previousFunction;
+
+		// scan the scope of this function
+		var s = scanScope(f);
+		f.numLocals = s.locals;
+		f.numClosures = s.closures; 
+	};
+
+	// scan the scope - it figures out how many local/closure variables to allocate,
+	// and what their variable number is
+	var scanScope = function(f) {
+		// temporary variables while scanning through our scopes
+		// max closures
+		var totalClosures = 0;
+		// deepest local variable
+		var deepestLocal = 0;
+
+		var scanRecursive = function(scope, localDepth) {
+			if(debug) // in debug compilation we'll give every local variable it's own scope
+						// in release compilation we will shrink the local variables to only it's deepest size
+						// so different scopes can use the same local variable stack
+				localDepth = deepestLocal;
+
+			for(var i = 0; i < scope.variableNames.length; i++) {
+				var v = scope.variables[scope.variableNames[i]];
+				if(v.closure) {
+					v.stackNumber = totalClosures;
+					totalClosures++;
+				} else {
+					v.stackNumber = localDepth;
+					localDepth++;
+				}
+			}
+
+			if(localDepth > deepestLocal)
+				deepestLocal = localDepth; // new deepest
+
+			for(var i = 0; i < scope.children.length; i++)
+				if(scope.children[0].functionId == f.functionId)
+				scanRecursive(scope.children[i], localDepth);
+		};
+
+		var scope = f.rootScope;
+
+		// scan the parameters first (root scope)
+		var closure = [];
+
+		for(var i = 0; i < scope.variableNames.length; i++) {
+			var v = scope.variables[scope.variableNames[i]];
+			if(v.closure) {
+				// this parameter is a closure, copy it to the child so other functions can access it
+				v.stackNumber = totalClosures;
+
+				scope.children[0].variables["." + scope.variables[i]] = {
+					closure: true,
+					constant: false,
+					parameter: false,
+					type: undefined,
+					literal: undefined,
+					stackNumber: totalClosures
+				};
+
+				// put a copy statement at the start of the statement
+				f.statements.splice(0, 0, {
+					operation: "copyParameter",
+					local: deepestLocal,
+					closure: totalClosures
+				});
+
+				totalClosures++;
+
+				deepestLocal++; // parameter is also on stack list
+			} else {
+				v.stackNumber = deepestLocal;
+				deepestLocal++;
+			}
+
+		};
+
+		// scan children recursively
+		scanRecursive(scope.children[0], deepestLocal);
+
+		console.log("Deepest local: " + deepestLocal + " Closures: " + totalClosures);
+
+		return {locals: deepestLocal, closures: totalClosures};
+	};
+
 
 	// break_statement: 'break' identifier ';'
 	var break_statement = function() {
@@ -29,10 +231,14 @@ var parse = function(lexer) {
 		if(lexer.nextToken() !== ';')
 			error(lexer, "Expected ';' after the break identifier.");
 
-		return {
+		var _break = {
 			operation: "break",
 			destination: destination
 		};
+
+		functions[currentFunction].labelRefs.push(_break);
+
+		return _break;
 	};
 
 	// continue_statement: 'continue' identifier ';'
@@ -48,10 +254,13 @@ var parse = function(lexer) {
 		if(lexer.nextToken() !== ';')
 			error(lexer, "Expected ';' after the continue identifier.");
 
-		return {
+		var _continue = {
 			operation: "continue",
 			destination: destination
 		};
+
+		functions[currentFunction].labelRefs.push(_continue);
+		return _continue;
 	};
 
 	// label_statement: '.' identifier ':' statement
@@ -61,16 +270,25 @@ var parse = function(lexer) {
 
 		if(lexer.nextToken() !== 'IDENTIFIER')
 			error(lexer, "Expected an identifier after '.'.");
-		var label = lexer.getValue();
+		var l = lexer.getValue();
 
 		if(lexer.nextToken() !== ':')
-			error(lexer, "Expected ':' after the label name.");
+			error(lexer, "Expected ':' after the label name. ");
 
-		var stmt = statement;
-		return {
+		var stmt = statement();
+
+		var label = {
 			operation: "label",
-			label: label
+			label: l,
+			statement: stmt
 		};
+
+		if(functions[currentFunction].labels[l] !== undefined)
+			error(lexer, "The label '"+l+"' is defined multiple times!");
+
+		functions[currentFunction].labels[l] = label;
+
+		return label;
 	};
 
 	// goto_statement: 'goto' identifier ';'
@@ -86,10 +304,14 @@ var parse = function(lexer) {
 		if(lexer.nextToken() !== ';')
 			error(lexer, "Expected ';' after the goto identifier.");
 
-		return {
+		var _goto = {
 			operation: "goto",
 			destination: destination
 		};
+
+		functions[currentFunction].labelRefs.push(_goto);
+
+		return _goto;
 	};
 
 	// return: 'return' [expression] ';'
@@ -117,9 +339,9 @@ var parse = function(lexer) {
 
 		var variables = [];
 
-		do(		
+		do {
 			if(lexer.nextToken() !== 'IDENTIFIER')
-				error(lexer, "Expected an identifier when declaring a variable.");
+				error(lexer, "Expected an identifier when declaring a variable. " + lexer.getToken());
 
 			var name = lexer.getValue();
 			var value = null;
@@ -133,9 +355,11 @@ var parse = function(lexer) {
 				name: name,
 				value: value
 			});
-		} while (lexer.nextToken() !== ',');
 
-		if(lexer.getToken() != ')')
+			declareVariable(name, false, undefined, undefined);//type, literal);
+		} while (lexer.nextToken() === ',');
+
+		if(lexer.getToken() !== ';')
 			error(lexer, "Expected the 'var' statement to end with ';'.");
 
 		return {
@@ -225,11 +449,14 @@ var parse = function(lexer) {
 
 			declareIterator = true;
 			iteratorName = lexer.getValue();
-			// todo: declare it
+
+			declareVariable(iteratorName, false, null, null);
 		} else if(lexer.getToken() === "IDENTIFIER") {
 			iteratorName = lexer.getValue();
 			declareIterator = false;
+
 			// todo: check if it exists
+			touchVariable(iteratorName, true);
 		} else
 			error(lexer, "Expected 'var' or an identifier at the start of the foreach.");
 
@@ -275,7 +502,7 @@ var parse = function(lexer) {
 			// we have oneach expressions
 			oneach.push(expression());
 
-			while(lexer.getToken() === ',')
+			while(lexer.nextToken() === ',')
 				oneach.push(expression());
 
 			if(lexer.getToken() !== ')')
@@ -394,7 +621,7 @@ var parse = function(lexer) {
 		var statements = [];
 		enterScope();
 		while(lexer.peekToken() !== '}') {
-			statements.push(statement);
+			statements.push(statement());
 		}
 		lexer.nextToken();
 		leaveScope();
@@ -405,7 +632,7 @@ var parse = function(lexer) {
 		};
 	};
 
-	// function_expression: 'function' '(' [identifier {',' identifier}] ')'
+	// function_expression: 'function' '(' [identifier {',' identifier}] ')' (statement | '{' statements '}')
 	var function_expression = function() {
 		if(lexer.nextToken() !== 'function')
 			error(lexer, "Expected 'function'.");
@@ -417,13 +644,13 @@ var parse = function(lexer) {
 		if(lexer.peekToken() !== ')') {
 			// we have parameters
 
-			if(lexer.nextToken() !=== 'IDENTIFIER')
+			if(lexer.nextToken() !== 'IDENTIFIER')
 				error(lexer, "Expecting an indentifier as the function's parameter's name.");
 
 			parameters.push(lexer.getValue());
 
 			while(lexer.nextToken() === ',') {
-				if(lexer.nextToken() !=== 'IDENTIFIER')
+				if(lexer.nextToken() !== 'IDENTIFIER')
 					error(lexer, "Expecting an indentifier as the function's parameter's name.");
 
 				parameters.push(lexer.getValue());
@@ -431,23 +658,27 @@ var parse = function(lexer) {
 
 			if(lexer.getToken() !== ')')
 				error(lexer, "Expecting a ',' or ')' at the end of the function parameters.");
-			}
 		}
 		else
 			lexer.nextToken(); // skip over the )
 
 
-		enterScope();
+		enterFunction(parameters);
 
-		var expr = statement();
+		var stmts = []
 
-		leaveScope();
+		if(lexer.peekToken() === '{') {
+			// block of statements
+			lexer.nextToken();
+			while(lexer.peekToken() !== '}') {
+				stmts.push(statement());
+			}
+			lexer.nextToken();
+		} else // just one statement
+			stmts.push(statement());
+		functions[currentFunction].statements = stmts;
 
-		// todo:
-		// enter function
-		// do something with parameters
-		// push it
-		// leave function
+		leaveFunction();
 	};
 
 	// object_field: (identifier | string_literal) ':' expression
@@ -580,10 +811,13 @@ var parse = function(lexer) {
 		var t = lexer.peekToken();
 		if(t === 'IDENTIFIER') {
 			lexer.nextToken();
-			// todo: check if variable exists
+
+			var name = lexer.getValue();
+			// check if variable exists
+			touchVariable(name, true);
 			return {
 				operation: "variable_access",
-				name: lexer.getValue()
+				name: name
 			};
 		} else if(t === 'UNSIGNED') {
 			lexer.nextToken();
@@ -638,16 +872,16 @@ var parse = function(lexer) {
 		else if(t === '{')
 			return object_expression();
 		else
-			error(lexer, "Unexpected token.");
+			error(lexer, "Unexpected token: " + t);
 	};
 
-	// lvalue: primary_expression {('[' expression ']'|'.' identifier|'(' parameter_expression_list ')'|'<'('float'|'signed'|'unsigned')','unsigned',expression'>'}
+	// lvalue: primary_expression {('[' expression ']'|'.' identifier|'(' parameter_expression_list ')'|'<|'('float'|'signed'|'unsigned')',UNSIGNED,expression'|>''}
 	// parameter_expression_list = [expression {',' expression}]
 	var lvalue = function() {
 		var left = primary_expression();
 
 		var t = lexer.peekToken();
-		while(t === '[' || t === '.' || t === '<' || t === '(') {
+		while(t === '[' || t === '.' || t === '<|' || t === '(') {
 			lexer.nextToken();
 
 			if(t === '[') { // array access
@@ -661,7 +895,6 @@ var parse = function(lexer) {
 					element: expression
 				};
 			} else if(t === '.') { // property access
-				var property = expression();
 				if(lexer.nextToken() !== 'IDENTIFIER')
 					error(lexer, "Expecting an identifier after '.' when refering to a property.");
 
@@ -692,7 +925,7 @@ var parse = function(lexer) {
 					_function: left,
 					parameters: parameters
 				};
-			} else if(t === '<') { // buffer access
+			} else if(t === '<|') { // buffer access
 				var type = lexer.nextToken();
 				if(type !== 'float' && type !== 'signed' && type === 'unsigned')
 					error(lexer, "Buffer access can only be of types float, signed, or unsigned.");
@@ -701,23 +934,29 @@ var parse = function(lexer) {
 					error(lexer, "Expecting ',' after the value type in the buffer access.");
 
 				if(lexer.nextToken() !== 'UNSIGNED')
-					error(lexer, "Expecting an buffer access size as an unsigned integer.");
+					error(lexer, "Expecting a buffer access size as an unsigned integer.");
 
 				var size = lexer.getValue();
-				if(size !== 8 && size !== 16 && size !== 32 && size !== 64)
+				if(size !== '8' && size !== '16' && size !== '32' && size !== '64')
 					error(lexer, "Buffer access can only be of sizes 8, 16, 32, or 64-bits.");
 
-				if(size === 8 && type === 'float')
+				if(size === '8' && type === 'float')
 					error(lexer, "8-bit float is not valid for buffer access.");
 
-				if(lexer.nextToken() !== '>')
-					error(lexer, "Expecting '>' to close a buffer access.");
+				if(lexer.nextToken() !== ',')
+					error(lexer, "Expecting ',' after the value size in the buffer access.");
+
+				var addr = expression();
+
+				if(lexer.nextToken() !== '|>')
+					error(lexer, "Expecting '|>' to close a buffer access.");
 
 				left = {
 					operation: "buffer_access",
 					buffer: left,
 					type: type,
-					size: size
+					size: size,
+					address: addr
 				};
 			} else
 				error(lexer, "Internal compiler error in Parser.parse.lvalue().");
@@ -735,10 +974,15 @@ var parse = function(lexer) {
 		var t = lexer.peekToken();
 		if(t === '++' || t === '--') {
 			lexer.nextToken();
+
+			// touch variable
+			if(left.operation == "variable_access")
+				touchVariable(left['name'], true);
+
 			return {
 				operation: "postfix_expression",
 				operator: t,
-				expression: left;
+				expression: left
 			};
 		} else
 			return left;
@@ -747,9 +991,12 @@ var parse = function(lexer) {
 	// unary_expression: ('-'|'+'|'!'|'++'|'--') postfix_expression
 	var unary_expression = function() {
 		var t = lexer.peekToken();
-		if(t === '-' || t === '+' || t === '!' || t === '+' || t === '-') {
+		if(t === '-' || t === '+' || t === '!' || t === '++' || t === '--') {
 			lexer.nextToken();
 			var right = postfix_expression();
+
+			if(right.operation == "variable_access")
+				touchVariable(right['name'], true);
 
 			return {
 				operation: "unary_expression",
@@ -775,7 +1022,8 @@ var parse = function(lexer) {
 				expression: left,
 				type: t
 			};
-		}
+		} else
+			return left;
 	};
 
 	// multiplicative_expression: cast_expression {('*'|'/'|'%') cast_expression}
@@ -923,12 +1171,14 @@ var parse = function(lexer) {
 	// assignment_operator: '='|'*='|'/='|'%='|'+='|'-='|'<<='|'>>='|'<<<='|'>>>='|'&='|'|='|'^='
 	var assignment_expression = function() {
 		var left = conditional_expression();
-
 		var t = lexer.peekToken();
 		if(t === '=' || t === '*=' || t === '/=' || t === '%=' || t === '+=' || t === '-=' || t === '<<=' || t === '>>=' ||
 			t === '<<<=' || t === '>>>=' || t === '&=' || t === '|=' || t === '^=') {
-			if(left.type !=== 'lvalue')
-				console.log("The value being assigned left of the '" + t + '" is not an lvalue.');
+			if(left.operation !== 'variable_access' && left.operation !== 'array_access' && left.operation !== 'property_access' && left.operation !== 'buffer_access')
+				error(lexer, "The value being assigned left of the '" + t + "' is not an assignable lvalue.");
+
+			if(left.operation === 'variable_access')
+				touchVariable(left.name, true);
 
 			lexer.nextToken();
 			var right = conditional_expression();
@@ -943,7 +1193,6 @@ var parse = function(lexer) {
 	};
 
 	// expression: assignment_expression
-	//  {',' assignment_expression}
 	var expression = function() {
 		return assignment_expression();
 	};
@@ -959,7 +1208,7 @@ var parse = function(lexer) {
 
 		var exp = expression();
 		if(lexer.nextToken() !== ';')
-			error("Expecting the expression to end with ';'.");
+			error(lexer, "Expecting the expression to end with ';'.");
 
 		return exp;
 	};
@@ -1002,18 +1251,23 @@ var parse = function(lexer) {
 	// main: {statement} EOF
 	var main = function() {
 		var statements = [];
-		if(lexer.peekToken() !== 'EOF') { // loop until end of the file
+		while(lexer.peekToken() !== 'EOF') { // loop until end of the file
 			var s = statement();
 			if(s !== null)
 				statements.push(s);
 		}
 
+		functions[currentFunction].statements = statements;
+
 		// add statements to first function
-		console.log(statements);
+		//console.log(statements);
+		//console.log(currentScope);
 	};
 
 	// read the main/body
+	enterFunction(["exports"]);
 	main();
+	leaveFunction();
 
 	return functions;
 };
@@ -1027,3 +1281,5 @@ exports.parseFile = function(path) {
 exports.parseString = function(str) {
 	return parse(Lexer.parseString(str));
 };
+
+exports.parseFile('test.src');

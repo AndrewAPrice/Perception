@@ -40,7 +40,7 @@ exports.parseString = function(str) {
 	};
 
 	var backChar = function() {
-		if(pos == 0 || pos == str.length) // can't go before 0, also was never incremented at the end
+		if(pos == 0) // can't go before 0
 			return;
 		pos--;
 		col--;
@@ -75,7 +75,7 @@ exports.parseString = function(str) {
 		switch(str) {
 			case "new": case "delete": case "for": case "while": case "do": case "break": case "continue": case "return": case "goto": case "switch":
 			case "function": case "signed": case "unsigned": case "float": case "boolean": case "float": case "default": case "foreach": case "as":
-			case "in": case "true": case "false": case "null": case "boolean":
+			case "in": case "true": case "false": case "null": case "boolean": case "var":
 			return true;
 			default:
 			return false;
@@ -130,7 +130,7 @@ exports.parseString = function(str) {
 		}
 
 		if(isNumber(c)) { // positive number (unsigned literal or float)
-			nextToken = "INTEGER";
+			nextToken = "UNSIGNED";
 			
 			while(isNumber(c) || c == '.') {
 				nextRealValue += c; // append to number
@@ -151,7 +151,7 @@ exports.parseString = function(str) {
 		}
 
 		if(c == "'") { // character literal
-			nextToken = "CHAR";
+			nextToken = "UNSIGNED";
 
 			while(true) {
 				c = nextCharacter();
@@ -313,6 +313,8 @@ exports.parseString = function(str) {
 				nextToken = '||';
 			else if(c == '=')
 				nextToken = '|=';
+			else if(c == '>')
+				nextToken = '|>';
 			else {
 				backChar();
 				nextToken = '|';
@@ -348,8 +350,66 @@ exports.parseString = function(str) {
 			return;
 		}
 
+		if(c == '<') {
+			c = nextCharacter();
+			if(c == '|')
+				nextToken = "<|";
+			else if(c == '=')
+				nextToken = "<=";
+			else if(c == '<') { // <<
+				c = nextCharacter();
+
+				if(c == '<') { // <<<
+					c = nextCharacter();
+					if(c == '=')
+						nextToken = "<<<=";
+					else {
+						backChar();
+						nextToken = '<<<';
+					}
+				} else if(c == '=')
+					nextToken = '<<=';
+				else {
+					backChar();
+					nextToken = '<<';
+				}
+			} else {
+				backChar();
+				nextToken = '<';
+			}
+			return;
+		}
+
+		if(c == '>') {
+			c = nextCharacter();
+			if(c == '=')
+				nextToken = ">=";
+			else if(c == '>') { // <<
+				c = nextCharacter();
+
+				if(c == '>') { // <<<
+					c = nextCharacter();
+					if(c == '=')
+						nextToken = ">>>=";
+					else {
+						backChar();
+						nextToken = '>>>';
+					}
+				} else if(c == '=')
+					nextToken = '>>=';
+				else {
+					backChar();
+					nextToken = '>>';
+				}
+			} else {
+				backChar();
+				nextToken = '>';
+			}
+			return;
+		}
+
 		/*if(c == '[' || c == ']' || c == '\\' || c == ':' || c == ';' || c == '(' || c == ')' || c == '{' || c == '}' ||
-			c == '?' || c == '<' || c == '>' || c == ',' || c == '.'*/
+			c == '?' || c == ',' || c == '.'*/
 		if(isSymbol(c)) { // standalone tokens
 			nextToken = c; // already on the buffer
 			return;
@@ -377,7 +437,7 @@ exports.parseString = function(str) {
 
 	// peek the next token
 	parser.peekToken = function() {
-		return token;
+		return nextToken;
 	};
  
 	// get the next token and make it the current token

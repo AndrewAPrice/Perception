@@ -56,7 +56,7 @@ The entry rule the whole file is 'main'.
 - require_expression: 'require' '(' expression ')'
 - primary_expression: IDENTIFIER|literal|function_expression|require_expression|'(' expression ')'|new_expression|array_expression|object_expression
 - literal: UNSIGNED|FLOAT|STRING|true|false|null
-- lvalue: primary_expression {('[' expression ']'|'.' IDENTIFIER|'(' parameter_expression_list ')'|'<'('float'|'signed'|'unsigned')',UNSIGNED,expression'>'}
+- lvalue: primary_expression {('[' expression ']'|'.' IDENTIFIER|'(' parameter_expression_list ')'|'\'('float'|'signed'|'unsigned')',UNSIGNED,expression'\'}
 - parameter_expression_list = [expression {',' expression}]
 - postfix_expression: lvalue ('++' | '--')
 - unary_expression: ('-'|'+'|'!'|'++'|'--') postfix_expression
