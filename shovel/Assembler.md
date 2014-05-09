@@ -95,6 +95,7 @@ Opcode|Instruction|Input|Outputs|Notes
 2|Divide|A,B|Result|Divides A by B. Calls the property "/" on an object.
 3|Multiply|A,B|Result|Multiples A and B together. Calls the property "*" on an object.
 4|Modulo|A,B|Result|Divides A by B and returns the remainder. Calls the property "%" on an object.
+122|Invert|A|Result|Inverts the sign of A.
 5|Increment|A|Result|Increments A by one. Calls the property "++" on an object.
 6|Decrement|A|Result|Decreases A by one. Calls the property "--" on an object.
 &nbsp;|**Bit Operations**|||
@@ -139,33 +140,33 @@ Opcode|Instruction|Input|Outputs|Notes
 52|LoadBufferUnsigned&lt;16&gt;|Address,Buffer|Value|Loads a 16-bit unsigned integer (little endien) from a buffer at [address] bytes in.
 53|LoadBufferUnsigned&lt;32&gt;|Address,Buffer|Value|Loads a 32-bit unsigned integer (little endien) from a buffer at [address] bytes in.
 54|LoadBufferUnsigned&lt;64&gt;|Address,Buffer|Value|Loads a 64-bit unsigned integer (little endien) from a buffer at [address] bytes in.
-55|SaveBufferUnsigned&lt;8&gt;|Value,Address,Buffer||Saves an 8-bit unsigned integer to a buffer at [address] bytes in.
-56|SaveBufferUnsigned&lt;16&gt;|Value,Address,Buffer||Saves a 16-bit unsigned integer (little endien) to a buffer at [address] bytes in.
-57|SaveBufferUnsigned&lt;32&gt;|Value,Address,Buffer||Saves a 32-bit unsigned integer (little endien) to a buffer at [address] bytes in.
-58|SaveBufferUnsigned&lt;64&gt;|Value,Address,Buffer||Saves a 64-bit unsigned integer (little endien) to a buffer at [address] bytes in.
+55|StoreBufferUnsigned&lt;8&gt;|Value,Address,Buffer||Saves an 8-bit unsigned integer to a buffer at [address] bytes in.
+56|StoreBufferUnsigned&lt;16&gt;|Value,Address,Buffer||Saves a 16-bit unsigned integer (little endien) to a buffer at [address] bytes in.
+57|StoreBufferUnsigned&lt;32&gt;|Value,Address,Buffer||Saves a 32-bit unsigned integer (little endien) to a buffer at [address] bytes in.
+58|StoreBufferUnsigned&lt;64&gt;|Value,Address,Buffer||Saves a 64-bit unsigned integer (little endien) to a buffer at [address] bytes in.
 59|LoadBufferSigned&lt;8&gt;|Address,Buffer|Value|Loads an 8-bit signed integer (two's compliment) from a buffer at [address] bytes in.
 60|LoadBufferSigned&lt;16&gt;|Address,Buffer|Value|Loads a 16-bit signed integer (two's compliment, little endien) from a buffer at [address] bytes in.
 61|LoadBufferSigned&lt;32&gt;|Address,Buffer|Value|Loads a 32-bit signed integer (two's compliment, little endien) from a buffer at [address] bytes in.
 62|LoadBufferSigned&lt;64&gt;|Address,Buffer|Value|Loads a 64-bit signed integer (two's compliment, little endien) from a buffer at [address] bytes in.
-63|SaveBufferSigned&lt;8&gt;|Value,Address,Buffer||Saves an 8-bit signed integer (two's compliment) to a buffer at [address] bytes in.
-64|SaveBufferSigned&lt;16&gt;|Value,Address,Buffer||Saves a 16-bit signed integer (two's compliment, little endien) to a buffer at [address] bytes in.
-65|SaveBufferSigned&lt;32&gt;|Value,Address,Buffer||Saves a 32-bit signed integer (two's compliment, little endien) to a buffer at [address] bytes in.
-66|SaveBufferSigned&lt;64&gt;|Value,Address,Buffer||Saves a 64-bit signed integer (two's compliment, little endien) to a buffer at [address] bytes in.
+63|StoreBufferSigned&lt;8&gt;|Value,Address,Buffer||Saves an 8-bit signed integer (two's compliment) to a buffer at [address] bytes in.
+64|StoreBufferSigned&lt;16&gt;|Value,Address,Buffer||Saves a 16-bit signed integer (two's compliment, little endien) to a buffer at [address] bytes in.
+65|StoreBufferSigned&lt;32&gt;|Value,Address,Buffer||Saves a 32-bit signed integer (two's compliment, little endien) to a buffer at [address] bytes in.
+66|StoreBufferSigned&lt;64&gt;|Value,Address,Buffer||Saves a 64-bit signed integer (two's compliment, little endien) to a buffer at [address] bytes in.
 67|LoadBufferFloat&lt;16&gt;|Address,Buffer|Value|Loads a 16-bit floating point number from a buffer at [address] bytes in.
 68|LoadBufferFloat&lt;32&gt;|Address,Buffer|Value|Loads a 32-bit floating point number from a buffer at [address] bytes in.
 69|LoadBufferFloat&lt;64&gt;|Address,Buffer|Value|Loads a 64-bit floating point number from a buffer at [address] bytes in.
-70|SaveBufferFloat&lt;16&gt;|Value,Address,Buffer||Saves a 16-bit floating point number to a buffer at [address] bytes in.
-71|SaveBufferFloat&lt;32&gt;|Value,Address,Buffer||Saves a 32-bit floating point number to a buffer at [address] bytes in.
-72|SaveBufferFloat&lt;64&gt;|Value,Address,Buffer||Saves a 64-bit floating point number to a buffer at [address] bytes in.
+70|StoreBufferFloat&lt;16&gt;|Value,Address,Buffer||Saves a 16-bit floating point number to a buffer at [address] bytes in.
+71|StoreBufferFloat&lt;32&gt;|Value,Address,Buffer||Saves a 32-bit floating point number to a buffer at [address] bytes in.
+72|StoreBufferFloat&lt;64&gt;|Value,Address,Buffer||Saves a 64-bit floating point number to a buffer at [address] bytes in.
 &nbsp;|**Integers**|||
 73/74/75/76|PushInteger [x]||Value|Pushes the integer [x] onto the stack.
 77|ToInteger|A|Value|Converts A to an integer. Arrays, objects, and strings are converted to the number of elements they have.
 &nbsp;|**Unsigned Integers**|||
 78/79/80/81|PushUnsignedInteger[x]||Value|Pushes the unsigned integer [x] onto the stack.
 82|ToUnsignedInteger|A|Value|Converts A to an unsigned integer. Arrays, objects, and strings are converted to the number of elements they have.
-&nbsp;|**Floating Point Numberss**|||
+&nbsp;|**Floating Point Numbers**|||
 83|PushFloat [x]||Value|Pushes the floating point number [x] onto the stack.
-84|ToFloat|Value\value|Converts the value to a floating point number. Arrays, objects, and strings are converted to the number of elements they have.
+84|ToFloat|Value|value|Converts the value to a floating point number. Arrays, objects, and strings are converted to the number of elements they have.
 &nbsp;|**Booleans**|||
 85|PushTrue||Value|Pushes a boolean with the value of true onto the stack.
 86|PushFalse||Value|Pushes a boolean with the value of false onto the stack.
@@ -173,6 +174,7 @@ Opcode|Instruction|Input|Outputs|Notes
 87|PushNull||Value|Pushes a null value onto the stack.
 &nbsp;|**Strings**|||
 88/89/90|PushString [string]||Value|Pushes a string containing the text [string] onto the stack.
+121|ToString|A|Value|Converts A to a string. Floats, unsigned, and signed integers convert to their base 10 representation, buffers are converted to their base 64 representation, while objects and arrays are converted to their JSON encoding.
 &nbsp;|**Functions**|||
 91|PushFunction [function]||Value|Pushes a function with the name [function] and the current closure stack onto the stack.
 92/93|CallFunction [parameters]|[Parameters] Function|ReturnValue|Calls a function. The operand [parameters] specifies the number of parameters that you have pushed to the stack. If you do not push enough parameters, they will appear as null values to the calling function, and if you push too many - they will simply be dropped off the stack. The function's return value is pushed onto the stack - if the function does not return anything, a null value will be pushed onto the stack.

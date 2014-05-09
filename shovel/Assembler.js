@@ -27,8 +27,8 @@ else {
 
 if(invalidParams) {
 	console.log("Usage is: node Assembler.js -d -v input output");
-	console.log(" -d Optional parameter to include debugging information. This will grow the file!");
-	console.log(" -v Optional parameter");
+	console.log(" -d Include debugging information. This will grow the file!");
+	console.log(" -v Be verbose about each step!");
 	console.log(" input - Path to the input assembly source (must be 2nd to last parameter).");
 	console.log(" output - Path to where to output the binary data (must be last parameter).");
 	process.exit(-1);
@@ -122,6 +122,7 @@ var instructions = {
 	"divide": {opcode: 2, special: false},
 	"multiply": {opcode: 3, special: false},
 	"modulo": {opcode: 4, special: false},
+	"invert": {opcode: 122, special: false},
 	"increment": {opcode: 5, special: false},
 	"decrement": {opcode: 6, special: false},
 	"xor": {opcode: 7, special: false},
@@ -160,24 +161,24 @@ var instructions = {
 	"loadbufferunsigned[16]": {opcode: 52, special: false},
 	"loadbufferunsigned[32]": {opcode: 53, special: false},
 	"loadbufferunsigned[16]": {opcode: 54, special: false},
-	"savebufferunsigned[8]": {opcode: 55, special: false},
-	"savebufferunsigned[16]": {opcode: 56, special: false},
-	"savebufferunsigned[32]": {opcode: 57, special: false},
-	"savebufferunsigned[16]": {opcode: 58, special: false},
+	"storebufferunsigned[8]": {opcode: 55, special: false},
+	"storebufferunsigned[16]": {opcode: 56, special: false},
+	"storebufferunsigned[32]": {opcode: 57, special: false},
+	"storebufferunsigned[16]": {opcode: 58, special: false},
 	"loadbuffersigned[8]": {opcode: 59, special: false},
 	"loadbuffersigned[16]": {opcode: 60, special: false},
 	"loadbuffersigned[32]": {opcode: 61, special: false},
 	"loadbuffersigned[16]": {opcode: 62, special: false},
-	"savebuffersigned[8]": {opcode: 63, special: false},
-	"savebuffersigned[16]": {opcode: 64, special: false},
-	"savebuffersigned[32]": {opcode: 65, special: false},
-	"savebuffersigned[16]": {opcode: 66, special: false},
+	"storebuffersigned[8]": {opcode: 63, special: false},
+	"storebuffersigned[16]": {opcode: 64, special: false},
+	"storebuffersigned[32]": {opcode: 65, special: false},
+	"storebuffersigned[16]": {opcode: 66, special: false},
 	"loadbufferfloat[16]": {opcode: 67, special: false},
 	"loadbufferfloat[32]": {opcode: 68, special: false},
 	"loadbufferfloat[16]": {opcode: 69, special: false},
-	"savebufferfloat[16]": {opcode: 70, special: false},
-	"savebufferfloat[32]": {opcode: 71, special: false},
-	"savebufferfloat[16]": {opcode: 72, special: false},
+	"storebufferfloat[16]": {opcode: 70, special: false},
+	"storebufferfloat[32]": {opcode: 71, special: false},
+	"storebufferfloat[16]": {opcode: 72, special: false},
 	"pushinteger": {special: true}, // 73,74,75,76 (8/16/32/64)
 	"tointeger": {opcode: 77, special: false},
 	"pushunsignedinteger": {special: true}, // 78,79,80,81 (8/16/32/64)
@@ -188,6 +189,7 @@ var instructions = {
 	"pushfalse": {opcode: 86, special: false},
 	"pushnull": {opcode: 87, special: false},
 	"pushstring": {special: true}, // 88,89,90 (8/16/32)
+	"tostring": {opcode: 121, special: false},
 	"pushfunction": {special: true}, // 91
 	"callfunction": {special: true}, // 92,93 (8/16)
 	"callfunctionnoreturn": {special: true}, // 94,95 (8/16)
@@ -202,8 +204,7 @@ var instructions = {
 	"require": {opcode: 114, special: false},
 	"loadparameter": {special: true}, // 115,116,117 (8/16/32)
 	"storeparameter": {special: true}, // 118,119,120
-
-};
+}; // total: 121 - increment this when adding new opcodes
 
 // parses an operand to extract the string, returns null if somethings invalid
 var parseString = function(l, instr, index) {
