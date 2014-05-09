@@ -1,20 +1,57 @@
 // parses a string (or file) containing Shovel source code into an abstract syntax tree
 
 var Lexer = require('./Lexer.js');
+var fs = require('fs');
+
+// check arguments
+var invalidParams = false;
+var inputFile = null;
+var outputFile = null;
+// debugging mode, no optimizations, don't flatten the stack, output column numbers everywhere
+var debug = false;
+// verbose mode?
+var verbose = false;
+// show tokens
+var showTokens = false;
+
+if(process.argv.length < 4)
+	invalidParams = true;
+else {
+	for(var i = 2; i < process.argv.length - 2; i++) {
+		switch(process.argv[i]) {
+			case "-d": debug = true; break;
+			case "-v": verbose = true; break;
+			default: console.log("Unknown parameter " + process.argv[i] + "."); invalidParams = true; break;
+		}
+	}
+
+	if(!invalidParams) {
+		// last two parameters are input and output files
+		inputFile = process.argv[process.argv.length - 2];
+		outputFile = process.argv[process.argv.length - 1];
+	}
+}
+
+if(invalidParams) {
+	console.log("Usage is: node Assembler.js -d -v input output");
+	console.log(" -d Optional parameter to include debugging information and skip optimizations. This will grow the file!");
+	console.log(" -v Be verbose about each step!");
+	console.log(" -t Show lexical tokens on errors.");
+	console.log(" input - Path to the input Shovel source (must be 2nd to last parameter).");
+	console.log(" output - Path to where to output the assembly code (must be last parameter).");
+	process.exit(-1);
+}
 
 var showTokens = true;
 
 var error = function(lexer, message) {
 	if(showTokens)
-		console.log('Error - lexer: ' + message + " (Current token: " + lexer.getToken() + " Next token: " + lexer.peekToken() + ")");
+		console.log('Error - parser: ' + message + " (Current token: " + lexer.getToken() + " Next token: " + lexer.peekToken() + ")");
 	else
-		console.log('Error - lexer: ' + message);
+		console.log('Error - parser: ' + message);
 
 	process.exit(-1);
 };
-
-// debugging mode, no optimizations, don't flatten the stack, output column numbers everywhere
-var debug = false;
 
 // parse
 var parse = function(lexer) {
@@ -23,6 +60,8 @@ var parse = function(lexer) {
 	var currentFunction = -1;
 
 	var currentScope = null;
+
+	var labelNum = 0; // increments as we make labels
 
 	// enter a new scope
 	var enterScope = function() {
@@ -53,43 +92,62 @@ var parse = function(lexer) {
 				error(lexer, "The name '" + name + "' is being used for multiple parameters.");
 		}
 
-		currentScope.variables[name] = {
+		var v = {
 			closure: false, // true if accessed by another function and should be made a closure
 			constant: false, // false if it's assigned when it's not declared
 			parameter: parameter, // true if this is a parameter and not a local variable
 			// if a closure is also a parameter, it should be demoted to the child (with '.' prefixed because that's not a valid identifier character)
 			// then copied when opened
 			type: type, // the parameter's type
-			literal: literal // if we are a literal
+			literal: literal, // if we are a literal
+			functionId: currentFunction
 		};
 
+		currentScope.variables[name] = v;
+
 		currentScope.variableNames.push(name);
+
+		return v;
 	};
 
 	// touch a variable - determines if a variable exists, if it is used for writing, if it is a closure
 	var touchVariable = function(name, writing) {
-		// walk backwards through the scopes until we find the variable
-		var scope = currentScope;
-		while(scope !== null) {
-			var v = scope.variables[name];
-
-			if(v !== undefined) {
-				// we found a variable by that name
-				if(writing) {
-					// if we are assigning to it, remove any constant info attached to it
-					v['type'] = '?';
-					v.literal = null;
-				}
-
-				if(scope.functionId != currentFunction)
-					v.closure = true; // this variable is a closure because we're accessing it outside of the function it was defined in
-
-				return; // quit, because we found it
+		if(typeof name === "object") {
+			// passing in an object
+			if(writing) {
+				// if we are assigning to it, remove any constant info attached to it
+				name['type'] = '?';
+				name.literal = null;
 			}
-			scope = scope.parentScope;
-		}
 
-		error(lexer, "No variable by the name of '" + name + "' has been declared.");
+			if(name.functionId != currentFunction)
+				name.closure = true; // this variable is a closure because we're accessing it outside of the function it was defined in
+
+		} else {
+			// passing in a name
+			// walk backwards through the scopes until we find the variable
+			var scope = currentScope;
+			while(scope !== null) {
+				var v = scope.variables[name];
+
+				if(v !== undefined) {
+					// we found a variable by that name
+					if(writing) {
+						// if we are assigning to it, remove any constant info attached to it
+						v['type'] = '?';
+						v.literal = null;
+					}
+
+					if(scope.functionId != currentFunction)
+						v.closure = true; // this variable is a closure because we're accessing it outside of the function it was defined in
+
+					return v; // quit, because we found it
+				}
+				scope = scope.parentScope;
+			}
+
+			error(lexer, "No variable by the name of '" + name + "' has been declared.");
+		}
 	};
 
 	// enter a function
@@ -102,7 +160,8 @@ var parse = function(lexer) {
 			parameters: [],
 			previousFunction: currentFunction, // reference when leaving the function
 			statements: null,
-			functionId: functions.length
+			functionId: functions.length,
+			// if there's a .replacedBy property then we should use that property when compiling
 		});
 
 		currentFunction = functions.length - 1;
@@ -124,8 +183,27 @@ var parse = function(lexer) {
 
 		// check label references
 		for(var i = 0; i < f.labelRefs.length; i++) {
-			if(f.labels[f.labelRefs[i].destination] === undefined)
-				error(lexer, "The label '"+ f.labelRefs[i].destination + "' is undefined.");
+			var node = f.labelRefs[i];
+			var label = f.labels[node.destination];
+
+			if(label === undefined)
+				error(lexer, "The label '"+ node.destination + "' is undefined.");
+
+			var type = node.operation;
+			if(type == "continue") {
+				if(label.continueLabel === undefined)
+					error(lexer, "The label '" + node.destination + "' is not a control statement that can be continued.");
+				node.operation = "goto";
+				node.destination = label.continueLabel;
+			} else if(type == "break") {
+			 	if(label.breakLabel === undefined)
+					error(lexer, "The label '" + node.destination + "' is not a control statement that can be broken.");
+
+				node.operation = "goto";
+				node.destination = label.breakLabel;
+			} else
+				// normal goto
+				node.destination = label.label;
 		}
 
 		currentScope = f.rootScope.parentScope; // leave back to the scope we we're in just before declaring the function
@@ -136,6 +214,9 @@ var parse = function(lexer) {
 		var s = scanScope(f);
 		f.numLocals = s.locals;
 		f.numClosures = s.closures; 
+
+		if(verbose)
+			console.log("Leaving function - locals: " + f.numLocals + ", closures: " + f.numClosures);
 	};
 
 	// scan the scope - it figures out how many local/closure variables to allocate,
@@ -183,7 +264,8 @@ var parse = function(lexer) {
 				// this parameter is a closure, copy it to the child so other functions can access it
 				v.stackNumber = totalClosures;
 
-				scope.children[0].variables["." + scope.variables[i]] = {
+
+				v.replacedBy = scope.children[0].variables["." + scope.variables[i]] = {
 					closure: true,
 					constant: false,
 					parameter: false,
@@ -212,7 +294,7 @@ var parse = function(lexer) {
 		// scan children recursively
 		scanRecursive(scope.children[0], deepestLocal);
 
-		console.log("Deepest local: " + deepestLocal + " Closures: " + totalClosures);
+		// console.log("Deepest local: " + deepestLocal + " Closures: " + totalClosures);
 
 		return {locals: deepestLocal, closures: totalClosures};
 	};
@@ -279,9 +361,16 @@ var parse = function(lexer) {
 
 		var label = {
 			operation: "label",
-			label: l,
-			statement: stmt
+			label: labelNum,
+			statement: stmt,
 		};
+
+		labelNum++;
+
+		if(stmt.operation == "do" || stmt.operation == "for" || stmt.operation == "while" || stmt.operation == "foreach") {
+			label.continueLabel = stmt.continueLabel;
+			label.breakLabel = stmt.breakLabel;
+		}
 
 		if(functions[currentFunction].labels[l] !== undefined)
 			error(lexer, "The label '"+l+"' is defined multiple times!");
@@ -337,7 +426,7 @@ var parse = function(lexer) {
 		if(lexer.nextToken() !== 'var')
 			error(lexer, "Expected 'var'.");
 
-		var variables = [];
+		var assignments = [];
 
 		do {
 			if(lexer.nextToken() !== 'IDENTIFIER')
@@ -345,18 +434,24 @@ var parse = function(lexer) {
 
 			var name = lexer.getValue();
 			var value = null;
+			var v = declareVariable(name, false, undefined, undefined);//type, literal);
 
 			if(lexer.peekToken() === '=') {
 				// contains a value
 				lexer.nextToken();
 				value = expression();
-			}
-			variables.push({
-				name: name,
+
+			assignments.push({
+				operation: "assignment",
+				target: {
+						operation: "variable_access",
+						variable: v
+					},
+				operator: '=',
 				value: value
 			});
 
-			declareVariable(name, false, undefined, undefined);//type, literal);
+			}
 		} while (lexer.nextToken() === ',');
 
 		if(lexer.getToken() !== ';')
@@ -364,7 +459,7 @@ var parse = function(lexer) {
 
 		return {
 			operation: 'var',
-			variables: variables
+			assignments: assignments
 		};
 	};
 
@@ -383,10 +478,20 @@ var parse = function(lexer) {
 
 		var stmt = statement();
 
+		var bodyLabel = labelNum;
+		labelNum++;
+		var continueLabel = labelNum;
+		labelNum++;
+		var breakLabel = labelNum;
+		labelNum++;
+
 		return {
 			operation: "while",
 			condition: cond,
-			statement: stmt
+			statement: stmt,
+			bodyLabel: bodyLabel,
+			continueLabel: continueLabel,
+			breakLabel: breakLabel
 		};
 	};
 
@@ -396,6 +501,8 @@ var parse = function(lexer) {
 			error(lexer, "Expected 'delete'.");
 
 		var obj = lvalue();
+		if(lvalue.operation !== "array_access" && lvalue !== "property_access")
+			error(lexer, "Delete only works on elements or properties elements.");
 		return {
 			operation: "delete",
 			object: obj
@@ -425,10 +532,19 @@ var parse = function(lexer) {
 		if(lexer.nextToken() !== ";")
 			error(lexer, "Expected ';' at the end of the do-while.");
 
+		var bodyLabel = labelNum;
+		labelNum++;
+		var continueLabel = labelNum;
+		labelNum++;
+		var breakLabel = labelNum;
+		labelNum++;
 		return {
 			operation: "do",
 			statement: stmt,
-			condition: cond
+			condition: cond,
+			bodyLabel: bodyLabel,
+			continueLabel: continueLabel,
+			breakLabel: breakLabel
 		};
 	};
 
@@ -440,23 +556,21 @@ var parse = function(lexer) {
 		if(lexer.nextToken() !== '(')
 			error(lexer, "Expected '(' after 'foreach'.");
 
-		var iteratorName, declareIterator;
+		var publicIterator, declareIterator;
 
 		enterScope();
+
 		if(lexer.nextToken() === "var") {
 			if(lexer.nextToken() !== 'IDENTIFIER')
 				error(lexer, "Expected an identifier after 'var' at the start of the foreach.");
 
 			declareIterator = true;
-			iteratorName = lexer.getValue();
 
-			declareVariable(iteratorName, false, null, null);
+			publicIterator = declareVariable(lexer.getValue(), false, null, null);
 		} else if(lexer.getToken() === "IDENTIFIER") {
-			iteratorName = lexer.getValue();
 			declareIterator = false;
 
-			// todo: check if it exists
-			touchVariable(iteratorName, true);
+			publicIterator = touchVariable(lexer.getValue(), true);
 		} else
 			error(lexer, "Expected 'var' or an identifier at the start of the foreach.");
 
@@ -467,13 +581,25 @@ var parse = function(lexer) {
 		leaveScope();
 
 		var stmt = statement();
+		var bodyLabel = labelNum;
+		labelNum++;
+		var continueLabel = labelNum;
+		labelNum++;
+		var breakLabel = labelNum;
+		labelNum++;
 
 		return {
 			operation: "foreach",
-			iteratorName: iteratorName,
+			internalIterator: declareVariable(".iterator", false, null, null), // must generate an iterator behind the foreach loop
+			internalObjCounter: declareVariable(".objCount", false, null, null),
+			internalObj: declareVariable(".obj", false, null, null),
+			publicIterator: publicIterator,
 			declareIterator: declareIterator,
 			object: obj,
-			statement: stmt
+			statement: stmt,
+			bodyLabel: bodyLabel,
+			continueLabel: continueLabel,
+			breakLabel: breakLabel
 		};
 	};
 
@@ -516,12 +642,20 @@ var parse = function(lexer) {
 		leaveScope();
 		leaveScope();
 
+		var continueLabel = labelNum;
+		labelNum++;
+		var breakLabel = labelNum;
+		labelNum++;
+
 		return {
 			operation: "for",
 			initializer: initializer,
 			condition: condition,
 			oneach: oneach,
-			body: stmt
+			body: stmt,
+			bodyLabel: bodyLabel,
+			continueLabel: continueLabel,
+			breakLabel: breakLabel
 		};
 	};
 
@@ -550,10 +684,18 @@ var parse = function(lexer) {
 			elseStatement = statement();
 		}
 
+		var elseLabel = labelNum;
+		labelNum++;
+		var endLabel = labelNum;
+		labelNum++;
+
 		return {
 			operation: "if",
+			condition: cond,
 			thenStatement: thenStatement,
-			elseStatement: elseStatement
+			elseStatement: elseStatement,
+			elseLabel: elseLabel,
+			endLabel: endLabel
 		};
 	};
 
@@ -585,11 +727,14 @@ var parse = function(lexer) {
 					error(lexer, "Expected ':' after the case literal in the switch.");
 
 				enterScope();
-				var exp = expression();
+				var stmt = statement();
 				leaveScope();
+				var endLabel = labelNum;
+				labelNum++;
 
 				cases.push({value: val,
-					expression: exp});
+					statement: stmt,
+					endLabel: endLabel});
 
 			} else if(lexer.getToken() == "default") {
 				if(defaultCase !== null)
@@ -599,17 +744,22 @@ var parse = function(lexer) {
 					error(lexer, "Expected ':' after 'default' in the switch.");
 
 				enterScope();
-				defaultCase = expression();
+				defaultCase = statement();
 				leaveScope();
 			} else
 				error(lexer, "Expected 'case', 'default', or '}' in the body of the switch cases.");
 		}
 
+
+		var endLabel = labelNum;
+		labelNum++;
+
 		return {
 			operation: "switch",
 			condition: cond,
 			cases: cases,
-			defaultCase: defaultCase
+			defaultCase: defaultCase,
+			endLabel: endLabel
 		};
 	};
 
@@ -645,13 +795,13 @@ var parse = function(lexer) {
 			// we have parameters
 
 			if(lexer.nextToken() !== 'IDENTIFIER')
-				error(lexer, "Expecting an indentifier as the function's parameter's name.");
+				error(lexer, "Expecting an identifier as the function's parameter's name.");
 
 			parameters.push(lexer.getValue());
 
 			while(lexer.nextToken() === ',') {
 				if(lexer.nextToken() !== 'IDENTIFIER')
-					error(lexer, "Expecting an indentifier as the function's parameter's name.");
+					error(lexer, "Expecting an identifier as the function's parameter's name.");
 
 				parameters.push(lexer.getValue());
 			}
@@ -676,9 +826,16 @@ var parse = function(lexer) {
 			lexer.nextToken();
 		} else // just one statement
 			stmts.push(statement());
+
+		var func = currentFunction;
 		functions[currentFunction].statements = stmts;
 
 		leaveFunction();
+
+		return {
+			operation: "function_literal",
+			functionId: func
+		};
 	};
 
 	// object_field: (identifier | string_literal) ':' expression
@@ -770,7 +927,7 @@ var parse = function(lexer) {
 				operation: "new_buffer",
 				size: size,
 				type: "buffer"
-			}
+			};
 		} else if(t === '[') {
 			var size = expression();
 
@@ -781,7 +938,7 @@ var parse = function(lexer) {
 				operation: "new_array",
 				size: size,
 				type: "array"
-			}
+			};
 		} else
 			error(lexer, "Expecting '<' or '[' after 'new'.");
 	};
@@ -814,10 +971,10 @@ var parse = function(lexer) {
 
 			var name = lexer.getValue();
 			// check if variable exists
-			touchVariable(name, true);
+			variable = touchVariable(name, true);
 			return {
 				operation: "variable_access",
-				name: name
+				variable: variable
 			};
 		} else if(t === 'UNSIGNED') {
 			lexer.nextToken();
@@ -831,6 +988,13 @@ var parse = function(lexer) {
 			return {
 				operation: "literal",
 				type: "float",
+				value: lexer.getValue()
+			};
+		} else if(t == 'STRING') {
+			lexer.nextToken();
+			return {
+				operation: "literal",
+				type: "string",
 				value: lexer.getValue()
 			};
 		} else if(t === 'true') {
@@ -882,7 +1046,7 @@ var parse = function(lexer) {
 
 		var t = lexer.peekToken();
 		while(t === '[' || t === '.' || t === '<|' || t === '(') {
-			lexer.nextToken();
+			lexer.nextToken();	
 
 			if(t === '[') { // array access
 				var exp = expression();
@@ -976,8 +1140,10 @@ var parse = function(lexer) {
 			lexer.nextToken();
 
 			// touch variable
-			if(left.operation == "variable_access")
-				touchVariable(left['name'], true);
+			if(left.operation === "variable_access")
+				touchVariable(left.variable, true);
+			else if(left.operation !== "array_access" && left.operation !== "property_access" && left.operation !== "buffer_access")
+				error(lexer, "Postfix expressions can only operate on non-static lvalues.");
 
 			return {
 				operation: "postfix_expression",
@@ -996,7 +1162,9 @@ var parse = function(lexer) {
 			var right = postfix_expression();
 
 			if(right.operation == "variable_access")
-				touchVariable(right['name'], true);
+				touchVariable(right.variable, true);
+			else if(left.operation !== "array_access" && left.operation !== "property_access" && left.operation !== "buffer_access")
+				error(lexer, "Unary modifiers can only operate on non-static lvalues.");
 
 			return {
 				operation: "unary_expression",
@@ -1059,6 +1227,7 @@ var parse = function(lexer) {
 				operator: t,
 				right: right
 			};
+			t = lexer.peekToken();
 		}
 		return left;
 	};
@@ -1134,12 +1303,16 @@ var parse = function(lexer) {
 
 			var right = logical_expression();
 
+			var breakLabel = labelNum;
+			labelNum++;
+
 			return {
 				operation: "logical_expression",
 				left: left,
 				operator: t,
-				right: right
-			}
+				right: right,
+				breakLabel: breakLabel
+			};
 
 		} else
 			return left;
@@ -1157,11 +1330,18 @@ var parse = function(lexer) {
 				error(lexer, "Conditional '?:' was expecting ':'.")
 			var falseExp = conditional_expression();
 
+		var elseLabel = labelNum;
+		labelNum++;
+		var endLabel = labelNum;
+		labelNum++;
+
 			return {
 				operation: "inline_if",
 				condition: left,
 				trueExpression: trueExp,
-				falseExpression: falseExp
+				falseExpression: falseExp,
+				elseLabel: elseLabel,
+				endLabel: endLabel
 			};
 		} else
 			return left;
@@ -1178,7 +1358,7 @@ var parse = function(lexer) {
 				error(lexer, "The value being assigned left of the '" + t + "' is not an assignable lvalue.");
 
 			if(left.operation === 'variable_access')
-				touchVariable(left.name, true);
+				touchVariable(left.variable, true);
 
 			lexer.nextToken();
 			var right = conditional_expression();
@@ -1186,8 +1366,8 @@ var parse = function(lexer) {
 				operation: "assignment",
 				target: left,
 				operator: t,
-				value: expression
-			}
+				value: right
+			};
 		} else
 			return left;
 	};
@@ -1272,6 +1452,1065 @@ var parse = function(lexer) {
 	return functions;
 };
 
+peepHoleOptimizations = function(instructions) {
+
+};
+
+// quotes and encodes a string
+var encodeString = function(str) {
+	var out = '"';
+
+	for(var i = 0; i < str.length; i++) {
+		var c = str[i];
+		if(c == '\n')
+			out += "\\n";
+		else if(c == '\r')
+			out += "\\r";
+		else if(c =='\t')
+			out += "\\t";
+		else if(c == "\\")
+			out += "\\\\";
+		else if(c == '"')
+			out += '\\"';
+		else
+			out += c;
+	}
+
+	out += '"';
+	return out;
+};
+
+// compile a file
+exports.compile = function(funcs) {
+	var f = fs.createWriteStream(outputFile);
+
+	// compile each function
+	for(var i = 0; i < funcs.length; i++) {
+		var thisFunc = funcs[i];
+
+		var instructions = [];
+
+		// get a closure variable's stack number
+		var getClosureNumber = function(v) {
+			var func = i;
+
+			var toAdd = 0; // number to add to the closure variable
+
+			while(func != v.functionId) { // loop until we get into that function
+				toAdd += funcs[func].numClosures;
+				func = funcs[func].previousFunction;
+			}
+
+			return toAdd + v.stackNumber;
+		};
+
+
+
+		// node - node to compile
+		// expectReturn - if we are expecting something to be returned
+		var compileNode = function(node, expectReturn) {
+//			if(debug)
+//				instructions.push("#" + node.operation);
+
+			switch(node.operation) {
+				// {operation: "copyParameter", local: deepestLocal, closure: totalClosures}
+				case "copyParameter":
+					instructions.push("Load " + node.local);
+					instructions.push("StoreClosure " + node.closure);
+					break;
+				// {operation: "label",label: l, statement: stmt }
+				case "label":
+					instructions.push(".l" + node.label);
+					compileNode(node.statement);
+					break;
+				// {operation: "goto", destination: destination }
+				case "goto":
+					instructions.push("Jump l" + node.destination);
+					break;
+				// {operation: "return",value: value }
+				case "return":
+					if(node.value !== null) {
+						compileNode(node.value);
+						instructions.push("Return");
+					} else
+						instructions.push("ReturnNull");
+					break;
+				// {operation: 'var',assignments: assignments };
+				case "var":
+					for(var j = 0; j < node.assignments.length; j++)
+						compileNode(node.assignments[j]);
+					break;
+				// {operation: "while",condition: cond,statement: stmt, bodyLabel: bodyLabel, continueLabel: continueLabel, breakLabel: breakLabel }
+				case "while":
+					instructions.push(".l" + node.bodyLabel);
+					instructions.push("Jump l" + node.continueLabel);
+					compileNode(node.statement);
+
+					instructions.push(".l" + node.continueLabel);
+					compileNode(node.condition, true);
+					instructions.push("JumpIfTrue l" + node.bodyLabel);
+
+					instructions.push(".l" + node.breakLabel);
+					break;
+				// {operation: "delete",object: obj }
+				case "delete":
+					if(node.obj.operation == "array_access") {
+						// {operation: "array_access", array: left, element: expression}
+						compileNode(node.obj.element, true);
+						compileNode(node.obj.array, true);
+					} else if(node.obj.operation == "property_access") {
+						// {operation: "property_access", object: left, identifier: lexer.getValue() };
+						instructions.push("PushString " + encodeString(node.obj.identifier));
+						compileNode(node.obj.object);
+					} else {
+						console.log("Internal error when compiling, delete expecting array_access or property_access, not '" + obj.operation + "'.");
+						process.exit(-1);
+					}
+					instructions.push("DeleteElement");
+					break;
+				// {operation: "do", statement: stmt, condition: cond, bodyLabel: bodyLabel, continueLabel: continueLabel, breakLabel: breakLabel }
+				case "do":
+					instructions.push(".l" + node.bodyLabel);
+					compileNode(node.statement);
+					instructions.push(".l" + node.continueLabel);
+					compileNode(node.condition, true);
+					instructions.push("JumpIfTrue l" + node.bodyLabel);
+					instructions.push(".l" + node.breakLabel);
+					break;
+				// {operation: "foreach", internalIterator: internalIterator, internalObjCounter: objCount, internalObj: obj, publicIterator: publicIterator, declareIterator: declareIterator, object: obj, statement: stmt, bodyLabel: bodyLabel, continueLabel: continueLabel, breakLabel: breakLabel }
+				case "foreach":
+					/*
+					a foreach loop is essentially:
+					.iterator = 0;
+					.objCount = obj._items;
+					.obj = obj;
+					while(.iterator < obj._items) {
+						publiciterator = obj._get(.iterator);
+
+						// statements
+
+						.iterator++;
+					}
+
+					compiles to:
+					.iterator = 0;
+					.obj = obj;
+					.objCount = obj._items;
+					jump .continueLabel
+					publiciterator = items.obj_items
+					.bodyLabel:
+					statements
+
+					
+					.continueLabel
+					.iterator++;
+					if iterator < obj._items
+					jumpiftrue .bodyLabel
+					.breakLabel
+					*/
+
+					// .iterator = 0
+					instructions.push("PushUnsigned 0");
+					instructions.push("Store " + node.internalIterator.stackNumber);
+					
+					instructions.push('PushString "_items"');
+					// .obj = obj, keep copy of .obj on stack
+					compileNode(node.obj, true);
+					instructions.push("Grab 0");
+					instructions.push("Store " + node.internalObj.stackNumber);
+					// .objCount obj._items
+					instructions.push("LoadElement");
+					instructions.push("Store " + node.internalObjCounter.stackNumber);
+
+					instructions.push("Jump l" + node.continueLabel);
+
+					instructions.push(".l" + node.bodyLabel);
+					// publiciterator = obj._get(.objCount)
+					instructions.push("Load " + node.internalIterator.stackNumber);
+					instructions.push('PushString "_get"');
+					instructions.push("Load " + node.internalObj.stackNumber);
+					instructions.push("LoadElement");
+					instructions.push("CallFunction 1");
+
+					// save the public iterator to whatever variable they specified
+					while(node.publicIterator.replaceBy !== undefined)
+						node.publicIterator = node.publicIterator.replaceBy;
+					if(node.publicIterator.closure)
+						instructions.push("StoreClosure " + getClosureNumber(node.publicIterator));
+					else
+						// local variable
+						instructions.push("Store " + node.publicIterator.stackNumber);
+
+					instructions.push("Store " + node.publicIterator.stackNumber);
+
+					compileNode(node.statement, true);
+
+					// continue:
+
+					instructions.push(".l" + node.continueLabel);
+
+
+					//	.iterator++;
+					instructions.push("Load " + node.internalIterator.stackNumber);
+					instructions.push("Increment");
+					instructions.push("Grab 0");
+					instructions.push("Save " + node.internalIterator.stackNumber);
+
+					//	if iterator < obj._items
+					instructions.push("Load " + node.internalObjCounter.stackNumber);
+					instructions.push("LessThan");
+					//	jumpiftrue .bodyLabel.
+					instructions.push("JumpIfTrue l" + node.bodyLabel);
+
+					instructions.push(".l" + node.breakLabel);
+
+					// args, func 0
+
+
+					break;
+				// {operation: "for", initializer: initializer, condition: condition, oneach: oneach, body: stmt, bodyLabel: bodyLabel, continueLabel: continueLabel, breakLabel: breakLabel }
+				case "for":
+					compileNode(node.initializer);
+
+					instructions.push(".l" + node.bodyLabel);
+					compileNode(node.condition, true);
+					instructions.push("JumpIfFalse l" + node.breakLabel);
+
+					compileNode(node.stmt);
+
+					instructions.push(".l" + node.continueLabel);
+					for(var j = 0; j < node.oneach.length; j++)
+						compileNode(node.oneach[j]);
+					instructions.push("Jump l" + node.bodyLabel);
+
+					compileNode.push(".l" + node.breakLabel);
+					break;
+				// {operation: "if", condition: cond, thenStatement: thenStatement, elseStatement: elseStatement, elseLabel: elseLabel, endLabel: endLabel  }
+				case "if":
+					compileNode(node.condition, true);
+					if(node.elseStatement === null) {
+						instructions.push("JumpIfFalse l" + node.endLabel);
+						compileNode(node.thenStatement);
+						instructions.push(".l" + node.endLabel);
+					} else {
+						instructions.push("JumpIfFalse l" + node.elseLabel);
+						compileNode(node.thenStatement);
+						instructions.push("Jump l" + node.endLabel);
+
+						instructions.push(".l" + node.elseLabel);
+						compileNode(node.elseStatement);
+						instructions.push(".l" + node.endLabel);
+					}
+
+					break;
+				// {operation: "switch", condition: cond, cases: cases, defaultCase: defaultCase, endLabel: endLabel }
+				case "switch":
+					compileNode(node.cond, true);
+
+					// keep the condition on the stack as we go through each case
+					for(var j = 0; j < node.cases.length; j++) {
+						// {value: val, statement: stmt, endLabel: endLabel});
+						var c = node.c[j];
+
+						// duplicate the condition, so if we fail we can save it for the next case statement
+						instructions.push("Grab 0");
+						compileNode(c.value, true);
+						// jump to the next case if false
+						instructions.push("JumpIfFalse l" + c.endLabel);
+
+						instructions.push("Pop"); // pop our duplicate condition if case is true, because we don't need it anymore (and beside, keeping
+												  // values on the stack between statements can break gotos!)
+						compileNode(c.statement);
+
+						if(j != node.cases.length - 1 || node.defaultCase !== null) {
+							// jump out of the switch statement, we can ignore this if we don't have a default case and we're the last case
+							instructions.push("Jump l" + node.endLabel);
+						}
+					}
+
+					if(node.defaultCase !== null)
+						compileNode(node.defaultCase);
+
+					instructions.push(".l" + endLabel);
+
+					break;
+				// {operation: "compound_statement", statements: statements }
+				case "compound_statement":
+					for(var j = 0; j < node.statements.length; j++)
+						compileNode(node.statements[j]);
+					break;
+				// { operation: "function_literal", functionId: func }
+				case "function_literal":
+					instructions.push("PushFunction f" + node.functionId);
+					break;
+				// {operation: "object_literal", type: "object", fields: fields }
+				case "object_literal":
+					instructions.push("NewObject");
+
+					// add each item to the array
+					for(var j = 0; j < node.fields.length; j++) {
+						// { name: name, expression: exp }
+						compileNode(node.fields[j].expression, true);
+						instructions.push("PushString " + encodeString(node.fields[j].name));
+						// stack is: 0 - index, 1 - value, 2 - object, duplicate object to the front
+						instructions.push("Grab 2");
+						instructions.push("SaveElement");
+					}
+					break;
+				// {operation: "array_literal", type: "array", values: values }
+				case "array_literal":
+					instructions.push("PushUnsignedInteger " + node.values.length);
+					instructions.push("NewArray");
+
+					// add each item to the array
+					for(var j = 0; j < node.values.length; j++) {
+						compileNode(node.values[j], true);
+						instructions.push("PushUnsignedInteger " + j);
+						// stack is: 0 - index, 1 - value, 2 - array, duplicate array to the front
+						instructions.push("Grab 2");
+						instructions.push("SaveElement");
+					}
+					break;
+				// {operation: "new_buffer", size: size, type: "buffer" }
+				case "new_buffer":
+					compileNode(node.size, true);
+					instructions.push("NewBuffer");
+					break;
+				// {operation: "new_array", size: size, type: "array" }
+				case "new_array":
+					compileNode(node.size, true);
+					instructions.push("NewArray");
+					break;
+				// {operation: "require", path: exp }
+				case "require":
+					compileNode(node.path, true);
+					instructions.push("Require");
+					break;
+				// {operation: "variable_access", variable: variable }
+				case "variable_access":
+					while(node.variable.replaceBy !== undefined)
+						node.variable = node.variable.replaceBy;
+
+					if(node.variable.closure) 
+						instructions.push("LoadClosure " + getClosureNumber(node.variable));
+					else
+						// local variable
+						instructions.push("Load " + node.variable.stackNumber);
+					break;
+				// {operation: "literal", type: "unsigned|float|string|boolean|null", value: lexer.getValue() }
+				case "literal":
+					switch(node.type) {
+						case "float":
+							instructions.push("PushFloat " + node.value);
+							break;
+						case "signed":
+							instructions.push("PushInteger " + node.value);
+							break;
+						case "unsigned":
+							instructions.push("PushUnsignedInteger " + node.value);
+							break;
+						case "string":
+							instructions.push("PushString " + encodeString(node.value));
+							break;
+						case "boolean":
+							if(node.value == "true")
+								instructions.push("PushTrue");
+							else
+								instructions.push("PushFalse");
+							break;
+						case "null":
+							instructions.push("PushNull");
+							break;
+						default:
+							console.log("Internal error when compiling, don't know how to handle literal type '" + node.type +"'.");
+							process.exit(-1);
+							break;
+					}
+					break;
+				// {operation: "array_access", array: left, element: expression}
+				case "array_access":
+					compileNode(node.element, true);
+					compileNode(node.array, true);
+					instructions.push("LoadElement");
+					break;
+				// {operation: "property_access", object: left, identifier: lexer.getValue() };
+				case "property_access":
+					instructions.push("PushString " + encodeString(node.identifier));
+					compileNode(node.object, true);
+					instructions.push("LoadElement");
+					break;
+				// {operation: "function_call", _function: left, parameters: parameters };
+				case "function_call":
+					for(var j = 0; j < node.parameters.length; j++)
+						compileNode(node.parameters[j], true);
+
+					compileNode(node._function, true);
+
+					if(expectReturn)
+						instructions.push("CallFunction " + node.parameters.length);
+					else
+						instructions.push("CallFunctionNoReturn " + node.parameters.length);
+					break;
+				// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
+				case "buffer_access":
+					compileNode(node.address, true);
+					compileNode(node.buffer, true);
+					instructions.push("LoadBuffer" + node.type + "<" + node.size + ">");
+					break;
+				// {operation: "postfix_expression", operator: "++|--", expression: left}
+				case "postfix_expression":
+					// grab the value
+					var node2 = node.expression;
+
+					switch(node2.operation) {
+						// {operation: "variable_access", variable: variable }
+						case "variable_access":
+							while(node2.variable.replaceBy !== undefined)
+								node2.variable = node2.variable.replaceBy;
+
+							if(node2.variable.closure)
+								instructions.push("LoadClosure " + getClosureNumber(node2.variable));
+							else
+								// local variable
+								instructions.push("Load " + node2.variable.stackNumber);
+							break;
+						// {operation: "array_access", array: left, element: expression}
+						case "array_access":
+							compileNode(node2.element, true);
+							compileNode(node2.array, true);
+							// save element/array for when we write back
+							instructions.push("Grab 1");
+							instructions.push("Grab 1");
+							
+							instructions.push("LoadElement");
+							break;
+						// {operation: "property_access", object: left, identifier: lexer.getValue() };
+						case "property_access":
+							instructions.push("PushString " + encodeString(node2.identifier));
+							compileNode(node2.object, true);
+							// save string/object for when we write back
+							instructions.push("Grab 1");
+							instructions.push("Grab 1");
+
+							instructions.push("LoadElement");
+							break;
+						// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
+						case "buffer_access":
+							compileNode(node2.address, true);
+							compileNode(node2.buffer, true);
+							// save address/buffer for when we write back
+							instructions.push("Grab 1");
+							instructions.push("Grab 1");
+									
+							instructions.push("LoadBuffer" + node2.type + "<" + node.size + ">");
+							break;
+						default:
+							console.log("Internal error when compiling, postfix modifier on non-static lvalue '" + node2.operator +"'.");
+							break;
+					}
+
+					if(expectReturn) // duplicate it before we modify it, so we return the origional value
+						instructions.push("Grab 0");
+
+					if(node.operator == "++")
+						instructions.push("Increment");
+					else if(node.operator == "--")
+						instructions.push("Decrement");
+					else {
+						console.log("Internal error when compiling, don't know how to handle postfix operator '" + node.operator +"'.");
+						process.exit(-1);
+					}
+
+					if(expectReturn) {
+						// we expect to return
+						if(node2.operation !== "variable_access") {
+							// we want to shuffle stack
+							// 		FROM	TO
+							// 3	Element	OldVal
+							// 2	Object	Value
+							// 1	OldVal	Element
+							// 0	Value	Object
+
+							instructions.push("Swap 2 0");
+							// 0 object, 1 oldval, 2 value, 3 element
+							instructions.push("Swap 1, 3");
+							// 0 object, 1 element, 2 value, 3 oldval
+						}
+
+					} else {
+						// don't care about returning it
+						if(node2.operation !== "variable_access") {
+							// we want to shuffle stack
+							// 		FROM	TO
+							// 2	Element	Value
+							// 1	Object	Element
+							// 0	Value	Object
+
+						instructions.push("Swap 2 0");
+						// 0 element, 1 object, 2 value
+						instructions.push("Swap 0 1");
+						// 0 object, 1 element, 2 value
+						}
+					}
+							
+					// save the value back
+					switch(node2.operation) {
+						// {operation: "variable_access", variable: variable }
+						case "variable_access":
+							while(node2.variable.replaceBy !== undefined)
+								node2.variable = node2.variable.replaceBy;
+								if(node2.variable.closure)
+									instructions.push("StoreClosure " + getClosureNumber(node2.variable));
+								else
+									// local variable
+									instructions.push("Store " + node2.variable.stackNumber);
+							break;
+						// {operation: "array_access", array: left, element: expression}
+						// {operation: "property_access", object: left, identifier: lexer.getValue() };
+						case "array_access":
+						case "property_access":
+							instructions.push("StoreElement");
+							instructions.push("StoreElement");
+							break;
+						// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
+						case "buffer_access":
+							instructions.push("StoreBuffer" + node2.type + "<" + node.size + ">");
+							break;
+						default:
+							console.log("Internal error when compiling, postfix modifier on non-static lvalue '" + node2.operator +"'.");
+							break;
+					}
+					break;
+				// {operation: "unary_expression", operator: "-|+|!|++|--", expression: right}
+				case "unary_expression":
+					switch(node.operator) {
+						case "-":
+							compileNode(node.right, true);
+							instructions.push("Invert");
+							break;
+						case "+":
+							compileNode(node.right, true);
+							break;
+						case "++":
+						case "--":
+							// grab the value
+							var node2 = node.expression;
+
+							switch(node2.operation) {
+								// {operation: "variable_access", variable: variable }
+								case "variable_access":
+									while(node2.variable.replaceBy !== undefined)
+										node2.variable = node2.variable.replaceBy;
+
+									if(node2.variable.closure)
+										instructions.push("LoadClosure " + getClosureNumber(node2.variable));
+									else
+										// local variable
+										instructions.push("Load " + node2.variable.stackNumber);
+									break;
+								// {operation: "array_access", array: left, element: expression}
+								case "array_access":
+									compileNode(node2.element, true);
+									compileNode(node2.array, true);
+
+									// save element/array for when we write back
+									instructions.push("Grab 1");
+									instructions.push("Grab 1");
+									
+									instructions.push("LoadElement");
+									break;
+								// {operation: "property_access", object: left, identifier: lexer.getValue() };
+								case "property_access":
+									instructions.push("PushString " + encodeString(node2.identifier));
+									compileNode(node2.object, true);
+									// save string/object for when we write back
+									instructions.push("Grab 1");
+									instructions.push("Grab 1");
+
+									instructions.push("LoadElement");
+									break;
+								// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
+								case "buffer_access":
+									compileNode(node2.address, true);
+									compileNode(node2.buffer, true);
+									// save address/buffer for when we write back
+									instructions.push("Grab 1");
+									instructions.push("Grab 1");
+									
+									instructions.push("LoadBuffer" + node2.type + "<" + node.size + ">");
+									break;
+								default:
+									console.log("Internal error when compiling, unary modifier on non-static lvalue '" + node2.operator +"'.");
+									break;
+							}
+
+							if(node.operator == "++")
+								instructions.push("Increment");
+							else
+								instructions.push("Decrement");
+
+							if(expectReturn) {
+								// we expect to return
+								if(node2.operation === "variable_access")
+									instructions.push("Grab 0");
+								else {
+									// we want to shuffle stack
+									// 		FROM	TO
+									// 3	----	Value
+									// 2	Element	Value
+									// 1	Object	Element
+									// 0	Value	Object
+
+									instructions.push("Grab 0");
+									// 0 value, 1 value, 2 object, 3 element
+									instructions.push("Swap 2 0");
+									// 0 object, 1 value, 2 value, 3 element
+									instructions.push("Swap 1, 3");
+									// 0 object, 2 element, 3 value, 4 value
+								}
+
+							} else {
+								// don't care about returning it
+								if(node2.operation !== "variable_access") {
+									// we want to shuffle stack
+									// 		FROM	TO
+									// 2	Element	Value
+									// 1	Object	Element
+									// 0	Value	Object
+
+								instructions.push("Swap 2 0");
+								// 0 element, 1 object, 2 value
+								instructions.push("Swap 0 1");
+								// 0 object, 1 element, 2 value
+							}
+							}
+							
+							// save the value back
+							switch(node2.operation) {
+								// {operation: "variable_access", variable: variable }
+								case "variable_access":
+									while(node2.variable.replaceBy !== undefined)
+										node2.variable = node2.variable.replaceBy;
+
+									if(node2.variable.closure)
+										instructions.push("StoreClosure " + getClosureNumber(node2.variable));
+									else
+										// local variable
+										instructions.push("Store " + node2.variable.stackNumber);
+									break;
+								// {operation: "array_access", array: left, element: expression}
+								// {operation: "property_access", object: left, identifier: lexer.getValue() };
+								case "array_access":
+								case "property_access":
+									instructions.push("StoreElement");
+									instructions.push("StoreElement");
+									break;
+								// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
+								case "buffer_access":
+									instructions.push("StoreBuffer" + node2.type + "<" + node.size + ">");
+									break;
+								default:
+									console.log("Internal error when compiling, unary modifier on non-static lvalue '" + node2.operator +"'.");
+									break;
+							}
+							break;
+						default:
+							console.log("Internal error when compiling, don't know how to handle unary operator '" + node.operator +"'.");
+							process.exit(-1);
+							break;
+					}
+					break;
+				// {operation: "cast", expression: left, type: "float|signed|unsigned|string|boolean"}
+				case "cast":
+					compileNode(node.left, true);
+					switch(node.type) {
+						case "float":
+							instructions.push("ToFloat");
+							break;
+						case "signed":
+							instructions.push("ToInteger");
+							break;
+						case "unsigned":
+							instructions.push("ToUnsignedInteger");
+							break;
+						case "string":
+							instructions.push("ToString");
+							break;
+						case "boolean":
+							instructions.push("IsTrue");
+							break;
+						default:
+							console.log("Internal error when compiling, don't know how to handle cast type '" + node.type +"'.");
+							process.exit(-1);
+							break;
+					}
+					break;
+				// {operation: "math", left: left, operator: "*|/|%|+|-|<<|>>|<<<|>>>|&| | |^", right: right }
+				case "math":
+					compileNode(node.left, true);
+					compileNode(node.right, true);
+					switch(node.operator) {
+						case "*":
+							instructions.push("Multiply");
+							break;
+						case "/":
+							instructions.push("Divide");
+							break;
+						case "%":
+							instructions.push("Modulo");
+							break;
+						case "+":
+							instructions.push("Add");
+							break;
+						case "-":
+							instructions.push("Subtract");
+							break;
+						case "<<":
+							instructions.push("ShiftLeft");
+							break;
+						case ">>":
+							instructions.push("ShiftRight");
+							break;
+						case "<<<":
+							instructions.push("RotateLeft");
+							break;
+						case ">>>":
+							instructions.push("RotateRight");
+							break;
+						case "&":
+							instructions.push("And");
+							break;
+						case "|":
+							instructions.push("Or");
+							break;
+						case "^":
+							instructions.push("Xor");
+							break;
+						default:
+							console.log("Internal error when compiling, don't know how to handle math operator '" + node.operator +"'.");
+							process.exit(-1);
+							break;
+					}
+					break;
+				// {operation; 'comparison", left: left, operator: "<|>|<=|>=|==|!=", right: right }
+				case "comparison":
+					compileNode(node.left, true);
+					compileNode(node.right, true);
+					switch(node.operator) {
+						case "<":
+							instructions.push("LessThan");
+							break;
+						case ">":
+							instructions.push("GreaterThan");
+							break;
+						case "<=":
+							instructions.push("LessThanOrEquals");
+							break;
+						case ">=":
+							instructions.push("GreaterThanOrEquals");
+							break;
+						case "==":
+							instructions.push("Equals");
+							break;
+						case "!=":
+							instructions.push("NotEquals");
+							break;
+						default:
+							console.log("Internal error when compiling, don't know how to handle comparison operator '" + node.operator +"'.");
+							process.exit(-1);
+							break;
+					}
+					break;
+				// {operation: "logical_expression", left: left, operator: "&&| || |^^", right: right, breakLabel: breakLabel }
+				case "logical_expression":
+					switch(node.operator) {
+						case "&&":
+							compilerNode(node.left, true);
+							instructions.push("JumpIfFalse .l" + node.breakLabel);
+							compilerNode(node.right, true);
+							instructions.push(".l" + node.breakLabel);
+						break;
+						case "||":
+							compilerNode(node.left, true);
+							instructions.push("JumpIfTrue .l" + node.breakLabel);
+							compilerNode(node.right, true);
+							instructions.push(".l" + node.breakLabel);
+						break;
+						case "^^":
+							compilerNode(node.left, true);
+							compilerNode(node.right, true);
+							instructions.push("Xor");
+						break;
+						default:
+							console.log("Internal error when compiling, don't know how to handle logical expression operator '" + node.operator +"'.");
+							process.exit(-1);
+							break;
+					}
+					break;
+				// {operation: "inline_if", condition: left, trueExpression: trueExp, falseExpression: falseExp, elseLabel: elseLabel, endLabel: endLabel }
+				case "inline_if":
+					compileNode(node.condition, true);
+					instructions.push("JumpIfFalse l" + node.elseLabel);
+					compileNode(node.trueExpression, true);
+					instructions.push("Jump l" + node.endLabel);
+					instructions.push(".l" + node.elseLabel);
+					compileNode(node.falseExpression, true);
+					instructions.push(".l" + node.endLabel);
+					break;
+				// {operation: "assignment", target: left, operator: "=|*=|/=|%=|+=|-=|<<=|>>=|<<<=|>>>=|&=| |= |^=", value: expression }
+				case "assignment":
+					if(node.operator == '=') {
+						compileNode(node.value, true);
+
+						if(expectReturn)
+							instructions.push("Grab 0");
+						var t = node.target;
+
+						// just save the expression
+						switch(t.operation) {
+								// {operation: "variable_access", variable: variable }
+								case "variable_access":
+									while(t.variable.replaceBy !== undefined)
+										t.variable = t.variable.replaceBy;
+
+									if(t.variable.closure)
+										instructions.push("StoreClosure " + getClosureNumber(t.variable));
+									else
+										// local variable
+										instructions.push("Store " + t.variable.stackNumber);
+									break;
+								// {operation: "array_access", array: left, element: expression}
+								case "array_access":
+									compileNode(t.element, true);
+									compileNode(t.array, true);
+
+									// save element/array for when we write back
+									//instructions.push("Grab 1");
+									//instructions.push("Grab 1");
+									
+									instructions.push("StoreElement");
+									break;
+								// {operation: "property_access", object: left, identifier: lexer.getValue() };
+								case "property_access":
+									instructions.push("PushString " + encodeString(t.identifier));
+									compileNode(t.object, true);
+									// save string/object for when we write back
+									//instructions.push("Grab 1");
+									//instructions.push("Grab 1");
+
+									instructions.push("StoreElement");
+									break;
+								// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
+								case "buffer_access":
+									compileNode(t.address, true);
+									compileNode(t.buffer, true);
+									// save address/buffer for when we write back
+									//instructions.push("Grab 1");
+									//instructions.push("Grab 1");
+									
+									instructions.push("StoreBuffer" + t.type + "<" + node.size + ">");
+									break;
+								default:
+									console.log("Internal error when compiling, assignment on non-static lvalue '" + t.operator +"'.");
+									break;
+							}
+					} else { /////// an assignment other than =
+						// grab the value
+						var node2 = node.expression;
+
+						switch(node2.operation) {
+							// {operation: "variable_access", variable: variable }
+							case "variable_access":
+								while(node2.variable.replaceBy !== undefined)
+									node2.variable = node2.variable.replaceBy;
+
+								if(node2.variable.closure)
+									instructions.push("LoadClosure " + getClosureNumber(node2.variable));
+								else
+									// local variable
+									instructions.push("Load " + node2.variable.stackNumber);
+								break;
+							// {operation: "array_access", array: left, element: expression}
+							case "array_access":
+								compileNode(node2.element, true);
+								compileNode(node2.array, true);
+
+								// save element/array for when we write back
+								instructions.push("Grab 1");
+								instructions.push("Grab 1");
+									
+								instructions.push("LoadElement");
+								break;
+							// {operation: "property_access", object: left, identifier: lexer.getValue() };
+							case "property_access":
+								instructions.push("PushString " + encodeString(node2.identifier));
+								compileNode(node2.object, true);
+								// save string/object for when we write back
+								instructions.push("Grab 1");
+								instructions.push("Grab 1");
+
+								instructions.push("LoadElement");
+								break;
+							// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
+							case "buffer_access":
+								compileNode(node2.address, true);
+								compileNode(node2.buffer, true);
+								// save address/buffer for when we write back
+								instructions.push("Grab 1");
+								instructions.push("Grab 1");
+									
+								instructions.push("LoadBuffer" + node2.type + "<" + node.size + ">");
+								break;
+							default:
+								console.log("Internal error when compiling, unary modifier on non-static lvalue '" + node2.operator +"'.");
+								break;
+						}
+
+						// get the new value
+						compileNode(node.value, true);
+
+						switch(node.operator) {
+							case "*=":
+								instructions.push("Multiply");
+								break;
+							case "/=":
+								instructions.push("Divide");
+								break;
+							case "%=":
+								instructions.push("Modulo");
+								break;
+							case "+=":
+								instructions.push("Add");
+								break;
+							case "-=":
+								instructions.push("Subtract");
+								break;
+							case "<<=":
+								instructions.push("ShiftLeft");
+								break;
+							case ">>=":
+								instructions.push("ShiftRight");
+								break;
+							case "<<<=":
+								instructions.push("RotateLeft");
+								break;
+							case ">>>=":
+								instructions.push("RotateRight");
+								break;
+							case "&=":
+								instructions.push("And");
+								break;
+							case "|=":
+								instructions.push("Or");
+								break;
+							case "^=":
+								instructions.push("Xor");
+								break;
+							default:
+								console.log("Internal error when compiling, unknown assignment operator '" + node.operator +"'.");
+								break;
+						}
+
+						if(expectReturn) {
+							// we expect to return
+							if(node2.operation === "variable_access")
+								instructions.push("Grab 0");
+							else {
+								// we want to shuffle stack
+								// 		FROM	TO
+								// 3	----	Value
+								// 2	Element	Value
+								// 1	Object	Element
+								// 0	Value	Object
+
+								instructions.push("Grab 0");
+								// 0 value, 1 value, 2 object, 3 element
+								instructions.push("Swap 2 0");
+								// 0 object, 1 value, 2 value, 3 element
+								instructions.push("Swap 1, 3");
+								// 0 object, 2 element, 3 value, 4 value
+							}
+
+						} else {
+							// don't care about returning it
+							if(node2.operation !== "variable_access") {
+								// we want to shuffle stack
+								// 		FROM	TO
+								// 2	Element	Value
+								// 1	Object	Element
+								// 0	Value	Object
+
+							instructions.push("Swap 2 0");
+							// 0 element, 1 object, 2 value
+							instructions.push("Swap 0 1");
+							// 0 object, 1 element, 2 value
+							}
+						}
+							
+						// save the value back
+						switch(node2.operation) {
+							// {operation: "variable_access", variable: variable }
+							case "variable_access":
+								while(node2.variable.replaceBy !== undefined)
+									node2.variable = node2.variable.replaceBy;
+
+								if(node2.variable.closure)
+									instructions.push("StoreClosure " + getClosureNumber(node2.variable));
+								else
+									// local variable
+									instructions.push("Store " + node2.variable.stackNumber);
+								break;
+							// {operation: "array_access", array: left, element: expression}
+							// {operation: "property_access", object: left, identifier: lexer.getValue() };
+							case "array_access":
+							case "property_access":
+								instructions.push("StoreElement");
+								instructions.push("StoreElement");
+								break;
+							// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
+							case "buffer_access":
+								instructions.push("StoreBuffer" + node2.type + "<" + node.size + ">");
+								break;
+							default:
+								console.log("Internal error when compiling, unary modifier on non-static lvalue '" + node2.operator +"'.");
+								break;
+						}
+						// {operation: "variable_access", variable: variable }
+						// {operation: "array_access", array: left, element: expression}
+						// {operation: "property_access", object: left, identifier: lexer.getValue() };
+						// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
+					}
+					break;
+				case "nop": // a removed instruction
+					break;
+				default:
+					console.log("Internal error when compiling, don't know how to handle '" + node.operation +"'.");
+					process.exit(-1);
+					break;
+			};
+		};
+
+
+		f.write("Function f" + i + "\n");
+		f.write("-locals " + thisFunc.numLocals + "\n");
+		f.write("-closures " + thisFunc.numClosures + "\n");
+
+		for(var j = 0; j < thisFunc.statements.length; j++)
+			compileNode(thisFunc.statements[j]);
+
+		if(!debug) {
+			if(verbose)
+				console.log("Performing peep hole optimizations");
+			peepHoleOptimizations();
+		}
+
+		if(verbose)
+			console.log("Outputing assembly to file");
+		for(var j = 0; j < instructions.length; j++)
+			f.write(instructions[j] + "\n");
+	}
+};
+
 // parse a file
 exports.parseFile = function(path) {
 	return parse(Lexer.parseFile(path));
@@ -1282,4 +2521,12 @@ exports.parseString = function(str) {
 	return parse(Lexer.parseString(str));
 };
 
-exports.parseFile('test.src');
+if(verbose)
+	console.log("Reading in source file.");
+
+var funcs = exports.parseFile(inputFile);
+
+if(verbose)
+	console.log("Compiling functions.");
+
+exports.compile(funcs);
