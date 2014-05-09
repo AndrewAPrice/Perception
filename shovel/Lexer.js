@@ -75,7 +75,7 @@ exports.parseString = function(str) {
 		switch(str) {
 			case "new": case "delete": case "for": case "while": case "do": case "break": case "continue": case "return": case "goto": case "switch":
 			case "function": case "signed": case "unsigned": case "float": case "boolean": case "float": case "default": case "foreach": case "as":
-			case "in": case "true": case "false": case "null": case "boolean": case "var":
+			case "in": case "true": case "false": case "null": case "boolean": case "var": case "require":
 			return true;
 			default:
 			return false;
@@ -290,7 +290,7 @@ exports.parseString = function(str) {
 				backChar();
 			}*/ else {
 				backChar();
-				nextToken = '-';
+				nextToken = '+';
 			}
 
 			return;
