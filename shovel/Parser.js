@@ -1742,6 +1742,8 @@ exports.compile = function(funcs) {
 				// { operation: "function_literal", functionId: func }
 				case "function_literal":
 					instructions.push("PushFunction f" + node.functionId);
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "object_literal", type: "object", fields: fields }
 				case "object_literal":
@@ -1756,6 +1758,8 @@ exports.compile = function(funcs) {
 						instructions.push("Grab 2");
 						instructions.push("SaveElement");
 					}
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "array_literal", type: "array", values: values }
 				case "array_literal":
@@ -1770,21 +1774,29 @@ exports.compile = function(funcs) {
 						instructions.push("Grab 2");
 						instructions.push("SaveElement");
 					}
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "new_buffer", size: size, type: "buffer" }
 				case "new_buffer":
 					compileNode(node.size, true);
 					instructions.push("NewBuffer");
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "new_array", size: size, type: "array" }
 				case "new_array":
 					compileNode(node.size, true);
 					instructions.push("NewArray");
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "require", path: exp }
 				case "require":
 					compileNode(node.path, true);
 					instructions.push("Require");
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "variable_access", variable: variable }
 				case "variable_access":
@@ -1796,6 +1808,9 @@ exports.compile = function(funcs) {
 					else
 						// local variable
 						instructions.push("Load " + node.variable.stackNumber);
+
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "literal", type: "unsigned|float|string|boolean|null", value: lexer.getValue() }
 				case "literal":
@@ -1826,22 +1841,30 @@ exports.compile = function(funcs) {
 							process.exit(-1);
 							break;
 					}
+
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "array_access", array: left, element: expression}
 				case "array_access":
 					compileNode(node.element, true);
 					compileNode(node.array, true);
 					instructions.push("LoadElement");
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "property_access", object: left, identifier: lexer.getValue() };
 				case "property_access":
 					instructions.push("PushString " + encodeString(node.identifier));
 					compileNode(node.object, true);
 					instructions.push("LoadElement");
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "function_call", _function: left, parameters: parameters };
 				case "function_call":
-					for(var j = 0; j < node.parameters.length; j++)
+					// push the functions onto the stack in reverse order
+					for(var j = node.parameters.length - 1; j >= 0; j--)
 						compileNode(node.parameters[j], true);
 
 					compileNode(node._function, true);
@@ -1856,6 +1879,8 @@ exports.compile = function(funcs) {
 					compileNode(node.address, true);
 					compileNode(node.buffer, true);
 					instructions.push("LoadBuffer" + node.type + "<" + node.size + ">");
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "postfix_expression", operator: "++|--", expression: left}
 				case "postfix_expression":
@@ -1987,9 +2012,13 @@ exports.compile = function(funcs) {
 						case "-":
 							compileNode(node.right, true);
 							instructions.push("Invert");
+							if(!expectReturn)
+								instructions.push("Pop");
 							break;
 						case "+":
 							compileNode(node.right, true);
+							if(!expectReturn)
+								instructions.push("Pop");
 							break;
 						case "++":
 						case "--":
@@ -2144,6 +2173,8 @@ exports.compile = function(funcs) {
 							process.exit(-1);
 							break;
 					}
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "math", left: left, operator: "*|/|%|+|-|<<|>>|<<<|>>>|&| | |^", right: right }
 				case "math":
@@ -2191,6 +2222,8 @@ exports.compile = function(funcs) {
 							process.exit(-1);
 							break;
 					}
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation; 'comparison", left: left, operator: "<|>|<=|>=|==|!=", right: right }
 				case "comparison":
@@ -2220,18 +2253,22 @@ exports.compile = function(funcs) {
 							process.exit(-1);
 							break;
 					}
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "logical_expression", left: left, operator: "&&| || |^^", right: right, breakLabel: breakLabel }
 				case "logical_expression":
 					switch(node.operator) {
 						case "&&":
 							compilerNode(node.left, true);
+							instructions.push("Grab 0");
 							instructions.push("JumpIfFalse .l" + node.breakLabel);
 							compilerNode(node.right, true);
 							instructions.push(".l" + node.breakLabel);
 						break;
 						case "||":
 							compilerNode(node.left, true);
+							instructions.push("Grab 0");
 							instructions.push("JumpIfTrue .l" + node.breakLabel);
 							compilerNode(node.right, true);
 							instructions.push(".l" + node.breakLabel);
@@ -2246,6 +2283,8 @@ exports.compile = function(funcs) {
 							process.exit(-1);
 							break;
 					}
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "inline_if", condition: left, trueExpression: trueExp, falseExpression: falseExp, elseLabel: elseLabel, endLabel: endLabel }
 				case "inline_if":
@@ -2256,6 +2295,8 @@ exports.compile = function(funcs) {
 					instructions.push(".l" + node.elseLabel);
 					compileNode(node.falseExpression, true);
 					instructions.push(".l" + node.endLabel);
+					if(!expectReturn)
+						instructions.push("Pop");
 					break;
 				// {operation: "assignment", target: left, operator: "=|*=|/=|%=|+=|-=|<<=|>>=|<<<=|>>>=|&=| |= |^=", value: expression }
 				case "assignment":
