@@ -1,9 +1,9 @@
 # Assembler
 
-The assembler takes a Shovel assembly code and compiles it into Shovel bytecode.
+The assembler takes a Turkey assembly code and compiles it into Turkey bytecode.
 
 ## Usage
-Shovel takes a file containing assembly code as input and produces a module containing bytecode.
+The assembler takes a file containing assembly code as input and produces a module containing bytecode.
 
 Usage is:
 node Assembler.js -v -d [input] [output]
@@ -65,7 +65,7 @@ Labels begin with a '.' and appear on their own line. You do not need to place a
 Pass the -d parameter to the assembler for it to assemble in debugging information into the module. This will make your module file many times larger.
 
 ## Types
-Variables do not contain a type, only the values that are assigned to them. The type system matches the Shovel types. These are the follwing types:
+Variables do not contain a type, only the values that are assigned to them. The type system matches the Turkey types. These are the follwing types:
 
 Type|Description
 ----|-----------
@@ -84,7 +84,7 @@ native function|A native function pointer. It can be called similar to a functio
 Closures (the environment attached to function pointers), objects, arrays, and buffers are garbage collected.
 
 ## Instructions
-Below are a list of instructions and their bytecode representation. The Shovel virtual machine is a stack based virtual
+Below are a list of instructions and their bytecode representation. The Turkey virtual machine is a stack based virtual
 machine. There is also a local variable, heap-allocated closure stack, and call stack. Below is a table of instructions. Most instructions operate purely on the stackbut some (such as jumping or pushing values to the stack) take operands. Instructions are case sensitive in the assembler.
 
 Opcode|Instruction|Input|Outputs|Notes
