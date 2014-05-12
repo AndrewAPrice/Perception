@@ -50,6 +50,32 @@ var errorMessage = function(line, message) {
 	process.exit(-1);
 }
 
+var globalStringTable = {}; // table of strings - key: string, value: {index, start, len}
+var globalStrings = []; // array of strings
+var globalCurrentStringTableLength = 0; // current string table length in bytes
+
+var addString = function(str) {
+	// look if this string is already in the string table
+	var entry = globalStringTable[str];
+	if(entry !== undefined)
+		return entry.index;
+
+	// add this string to the string table
+	var len = str.length;
+	var index = globalStrings.length;
+	globalStringTable[str] = {
+		index: index,
+		start: globalCurrentStringTableLength,
+		len: len
+	};
+
+	globalStrings.push(str);
+
+	globalCurrentStringTableLength += len;
+
+	return index;
+};
+
 var lineColumns; // an array of columns containing which column each line starts on, used for debugging
 
 // find functions within file
@@ -215,14 +241,13 @@ var parseString = function(l, instr, index) {
 
 	while(index < instr.length && !stopparsing) {
 		var c = instr[index];
-
 		if(!instring) {
 			if(c === '"') {
 				instring = true;
 				foundstring = true;
 			} else if(c === '#') { // comment
 				stopparsing = true;
-			} else if(c !== ' ' && c !== '\t') {
+			} else if(c !== ' ' && c !== '\t' && c !== '\n' && c !== '\r') {
 				errorMessage(l, "Encounted a bad character instead of a string.");
 			}
 		} else {
@@ -713,24 +738,19 @@ var handleFunction = function(funcHeader) {
 						bytes += lines[i].length;
 						break;
 					case "pushstring": // 88,89,90 (8/16/32)
-						operands = parseString(i, lines[i], line.toLowerCase().indexOf('pushstring') + 'pushstring'.length + 1);
+						var str = parseString(i, lines[i], line.toLowerCase().indexOf('pushstring') + 'pushstring'.length + 1);
 
-						var length = operands.length;
+						var index = addString(str);
+						console.log("index " + index);
+
 						var l;
-						if(length > 65536) {
-							l = [90, length & 255, (length >> 8) & 255, (length >> 16) & 255, (length >> 24) & 255];
-						} else if(length > 256) {
-							l = [89, length & 255, (length >> 8) & 255];
+						if(index >= 65536) {
+							l = [90, index & 255, (index >> 8) & 255, (index >> 16) & 255, (index >> 24) & 255];
+						} else if(index >= 256) {
+							l = [89, index & 255, (index >> 8) & 255];
 						} else {
-							l = [88, length];
+							l = [88, index];
 						}
-
-						// push each char
-						for(var j = 0; j < length; j++) {
-							buffer.write(operands[j], 0);
-							l.push(buffer.readUInt8(0));
-						}
-
 
 						lines[i] = l;
 						bytes += lines[i].length;
@@ -1027,7 +1047,8 @@ var writeFileHeader = function() {
 	var iconSize = 0;
 	var functionHeaderStart = iconStart + iconSize;
 	var codeBlockStart = functionHeaderStart + 24 * functions.length;
-	var debugBlockStart = codeBlockStart + totalCodeSize;
+	var stringTableStart = codeBlockStart + totalCodeSize;
+	var debugBlockStart =  stringTableStart + 8 * globalStrings.length + globalCurrentStringTableLength;
 
 	// write the magic key 12SHOVEL
 	writeUInt32(0x48533231);
@@ -1048,6 +1069,10 @@ var writeFileHeader = function() {
 	writeUInt32(codeBlockStart); // pointer
 	writeUInt32(totalCodeSize); // size
 
+	// string table
+	writeUInt32(stringTableStart); // string table start
+	writeUInt32(globalStrings.length); // string table entries
+
 	// debug block
 	writeUInt32(debugBlockStart); // pointer
 	writeUInt32(debugBlockSize); // size
@@ -1056,7 +1081,6 @@ var writeFileHeader = function() {
 // write the function header out to disk
 var writeFunctionHeaders = function(funcHeader) {
 	// function header is 24 bytes per function
-
 	writeUInt32(funcHeader.startAddr); // start address into code block
 	writeUInt32(funcHeader.codeLength); // length of the code block
 	writeUInt32(funcHeader.debugBlock); // pointer to a debug block, if present
@@ -1078,6 +1102,20 @@ var writeFunction = function(func) {
 		for(var j = 0; j < line.length; j++)
 			writeByte(line[j]); // write it to the file
 	}
+};
+
+// write out the string table
+var writeStringTable = function() {
+	// write out the indices/length of each string
+	for(var i = 0; i < globalStrings.length; i++) {
+		var strEntry = globalStringTable[globalStrings[i]];
+		writeUInt32(strEntry.start);
+		writeUInt32(strEntry.len);
+	}
+
+	// write out the strings
+	for(var i = 0; i < globalStrings.length; i++)
+		writeString(globalStrings[i]);
 };
 
 var writeDebugBlock = function(func) {
@@ -1136,7 +1174,6 @@ var writeDebugBlock = function(func) {
 
   	// write string table
   	writeString(func.stringTable);
-
 };
 
 var buffer = new Buffer(8); // 8-byte buffer for temp stuff
@@ -1177,8 +1214,12 @@ if(verbose)
 for(var i = 0; i < functions.length; i++)
 	writeFunction(functions[i]);
 
+if(verbose)
+	console.log("Pass 4 - Writing out string table");
+writeStringTable();
+
 if(debug) {
-	console.log("Pass 4 - Writing out debugging information");
+	console.log("Pass 5 - Writing out debugging information");
 	for(var i = 0; i < functions.length; i++)
 		writeDebugBlock(functions[i]);
 }
