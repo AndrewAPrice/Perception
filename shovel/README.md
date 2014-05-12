@@ -1,6 +1,6 @@
 # Shovel
 
-Shovel is a dynamically typed high level language. Tools related to Shovel go in here.
+Shovel is a dynamically typed high level language. Shovel compiles to Turkey assembly language, which runs on the Turkey virtual machine. Tools related to Shovel go in here. The assembler is also here (rather than the Turkey directory which is exclusively the virtual machine) because it is part of the build process.
 
 # Status
 - The assembler is done.
