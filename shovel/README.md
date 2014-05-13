@@ -5,13 +5,7 @@ Shovel is a dynamically typed high level language. Shovel compiles to Turkey ass
 # Status
 - The assembler is done.
 - The compiler is done. There are no optimizations yet.
-- No virtual machine yet.
-
-# What's all this Javascript?
-
-A lot of these tools are written in Javascript. I wrote these tools in Javascript (specifically to run under Node.js) because Javascript is very close in syntax and functionality to Shovel. Once the toolchain and virtual machine are mature enough, I plan to port these tools natively to Shovel, creating a self hosting system.
-
-I try to avoid using Javascript features (like prototypes) that are currently not planned for Shovel.
+- See the Turkey directory for progress on the virtual machine.
 
 # Documentation
 Check out the MD files for documentation.
