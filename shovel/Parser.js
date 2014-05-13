@@ -1582,9 +1582,9 @@ exports.compile = function(funcs) {
 					/*
 					a foreach loop is essentially:
 					.iterator = 0;
-					.objCount = obj._items;
+					.objCount = obj._properties;
 					.obj = obj;
-					while(.iterator < obj._items) {
+					while(.iterator < .objCount) {
 						publiciterator = obj._get(.iterator);
 
 						// statements
