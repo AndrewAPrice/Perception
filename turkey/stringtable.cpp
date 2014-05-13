@@ -41,7 +41,7 @@ TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, uns
 		hash = CityHash64WithSeed(string, length, (uint64)length);
 
 	/* look for this in the hash table */
-	unsigned int index = hash % table.length;
+	unsigned int index = fast_mod(hash, table.length);
 	TurkeyString *s = table.strings[index];
 	while(s != 0) {
 		if(s->length == length && turkey_memory_compare(string, s->string, length))
@@ -51,12 +51,13 @@ TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, uns
 	}
 
 	/* not found, add it to the hash table */
-	if(table.count >= table.length)
-		turkey_stringtable_resize(table);
+	if(table.count >= table.length) {
+		turkey_stringtable_grow(table);
+		index = fast_mod(hash, table.length);
+	}
 
 	table.count++;
 
-	index = hash & table.length;
 	TurkeyString *s = (TurkeyString *)turkey_allocate_memory(sizeof TurkeyString);
 	s->string = (char *)turkey_allocate_memory(length);
 	turkey_memory_copy(s->string, string, length);
@@ -76,7 +77,7 @@ TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, uns
 	return s;
 }
 
-void turkey_stringtable_resize(TurkeyStringTable &table) {
+void turkey_stringtable_grow(TurkeyStringTable &table) {
 	/* double the size of the string table */
 	unsigned int new_size = table.length * 2;
 	TurkeyString **new_strings = (TurkeyString **)turkey_allocate_memory((sizeof (TurkeyString*)) * new_size);
@@ -94,7 +95,7 @@ void turkey_stringtable_resize(TurkeyStringTable &table) {
 			s = s->next; /* point to the next string before we do anything, as ->next will can change as we rehash */
 
 			str->prev = 0;
-			unsigned int index = str->hash % new_size;
+			unsigned int index = fast_mod(str->hash, new_size);
 
 			/* add it to the new hash table */
 			str->next = new_strings[index];
@@ -117,7 +118,7 @@ void turkey_stringtable_removestring(TurkeyStringTable &table, TurkeyString *str
 	if(string->prev != 0)
 		string->prev->next = string->next;
 	else {
-		unsigned int index = string->hash % table.length;
+		unsigned int index = fast_mod(string->hash, table.length);
 		table.strings[index] = string->next;
 	}
 
