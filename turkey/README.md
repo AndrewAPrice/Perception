@@ -12,21 +12,29 @@ The Turkey assembler (that compiled Turkey assembly into Turkey bytecode) is fou
 
 See shovel/Assembler.md for information on the VM's instructions, opcodes, and the basics of how it runs.
 
+## Debugging
+Turkey will eventually have two modes that the VM can run in (these can be specified during initialization):
+- Debugging mode: This version interpretes the bytecode. Designed for Shovel code that has been compiled and assembled with the debugging flag. This version will be noticeably slower, but we will be able to set breakpoints, single step through code, know exactly what line of code we are executing from the origional source code, and the value of our variables.
+- Non-debugging mode: This version ignores debugging information and JIT compiles code to native modes.
+
 ## Todo
-- Objects
-- Functions
-- Meta properties for objects, elements, and buffers
--- array.resize(newsize)
--- array.allocate(newamount)
--- array.length
--- array.insert(index, val)
--- array.remove(start, count)
--- array.splice(start, count)
--- buffer.clone()
--- buffer.dispose()
--- buffer.length
--- buffer.resize(newsize)
--- object._get(property)
--- object._propeties
--- string.length
--- string.substring(start, count)
+- Load binary
+- Get it running bytecode
+
+- Meta properties for objects, elements, and buffers:
+- array.resize(newsize)
+- array.allocate(newamount)
+- array.length
+- array.insert(index, val)
+- array.remove(start, count)
+- array.splice(start, count)
+- buffer.clone()
+- buffer.dispose()
+- buffer.length
+- buffer.resize(newsize)
+- object._get(propertyindex)
+- object._propeties
+- string.length
+- string.substring(start, count)
+
+- Add a JIT compiler
