@@ -24,8 +24,8 @@ void turkey_gc_cleanup(TurkeyVM *vm) {
 
 	delete_everything(collector.arrays, TurkeyArray, turkey_array_delete, vm);
 	delete_everything(collector.buffers, TurkeyBuffer, turkey_buffer_delete, vm);
-	// todo - function_pointers
-	// todo - objects
+	delete_everything(collector.function_pointers, TurkeyFunctionPointer, turkey_functionpointer_delete, vm);
+	delete_everything(collector.objects, TurkeyObject, turkey_object_delete, vm);
 	#undef delete_everything
 		
 	/* don't collect strings as we expect the string table to clean up its own business */
@@ -122,9 +122,8 @@ void turkey_gc_collect(TurkeyVM *vm) {
 
 	clean_up(collector.arrays, TurkeyArray, turkey_array_delete, vm);
 	clean_up(collector.buffers, TurkeyBuffer, turkey_buffer_delete, vm);
-	// todo - buffers
-	// todo - function_pointers
-	// todo - objects
+	clean_up(collector.function_pointers, TurkeyFunctionPointer, turkey_functionpointer_delete, vm);
+	clean_up(collector.objects, TurkeyObject, turkey_object_delete, vm);
 	clean_up(collector.strings, TurkeyString, turkey_stringtable_removestring, vm->string_table);
 	#undef mark_array
 }
