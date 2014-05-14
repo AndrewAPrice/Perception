@@ -67,6 +67,6 @@ createButton("Click Me", function(event) {
 ## Future Features
 What features should be in future versions of Shovel?
 
-Shovel is dynamically typed, this makes it tough to optimize. The language right now is very simple, but it's also very flexibly.
-
-We could add a type system, this would make it much easier to optimize, especially by an eventual JIT compiler.
+- Constant objects. A constant object would be object where you can read but cannot set the properties. You can read variables, call functions, but you can't set any properties. Any object can be cast as a constant object, but it cannot be cast back. This would make it safe to pass objects (especially objects that act as interfaces) to untrusted subcomponents that are allowed to call, but not touch, the object.
+- Functional calls. A functional call is a call to a function that has no side effects. Its output is entirely dependent on its input. The compiler can completely optimize away functional calls or combine them. How can the runtime or compiler determine if a function is purely functional in a dynamically typed language? Perhaps the responsibility lies on the programmer to tell us which function calls are functional, e.g.: a standard function call is myFunc(a, b), but a functional call could be myFunc(|a, b|).
+- Exceptions. Some way of catching runtime errors, as well as errors thrown by the code itself.
