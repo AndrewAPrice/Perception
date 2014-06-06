@@ -71,7 +71,7 @@ void turkey_object_set_property(TurkeyVM *vm, TurkeyObject *object, TurkeyString
 		index = fast_mod(name->hash, object->size);
 	}
 
-	TurkeyObjectProperty *prop = (TurkeyObjectProperty *)turkey_allocate_memory(sizeof TurkeyObjectProperty);
+	prop = (TurkeyObjectProperty *)turkey_allocate_memory(sizeof TurkeyObjectProperty);
 	prop->next = object->properties[index];
 	prop->key = name;
 	prop->value = value;
