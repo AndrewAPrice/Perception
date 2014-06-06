@@ -42,7 +42,7 @@ void turkey_stack_pop(TurkeyStack &stack, TurkeyVariable &value) {
 }
 
 /* 0 is the bottom of the stack, indices are backwards */
-void turkey_get(TurkeyStack &stack, unsigned int position, TurkeyVariable &value) {
+void turkey_stack_get(TurkeyStack &stack, unsigned int position, TurkeyVariable &value) {
 	if(position >= (stack.position - stack.top)) {
 		value.type = TT_Null;
 		return;
@@ -52,7 +52,7 @@ void turkey_get(TurkeyStack &stack, unsigned int position, TurkeyVariable &value
 }
 
 /* 0 is the bottom of the stack, indices are backwards */
-void turkey_set(TurkeyStack &stack, unsigned int position, const TurkeyVariable &value) {
+void turkey_stack_set(TurkeyStack &stack, unsigned int position, const TurkeyVariable &value) {
 	if(position >= (stack.position - stack.top))
 		return;
 
