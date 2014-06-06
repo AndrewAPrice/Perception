@@ -7,6 +7,8 @@ TurkeyClosure *turkey_closure_create(TurkeyVM *vm, TurkeyClosure *parent, unsign
 	closure->count = variables;
 	closure->parent = parent;
 	closure->variables = (TurkeyVariable *)turkey_allocate_memory((sizeof TurkeyVariable) * variables);
+
+	return closure;
 }
 
 void turkey_closure_delete(TurkeyVM *vm, TurkeyClosure *closure) {
