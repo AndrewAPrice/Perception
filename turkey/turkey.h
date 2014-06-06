@@ -58,7 +58,7 @@ typedef unsigned int (*TurkeyNativeFunction)(TurkeyVM *vm, void *closure, unsign
 
 /****** Virtual Machines -
  TurkeyVMs are unique instances of the virtual machine, many can be running simultaniously.
-*******/
+ *******/
 
 /* Initializes a Turkey VM */
 extern TurkeyVM *turkey_init(TurkeySettings *settings);
@@ -67,6 +67,7 @@ extern void turkey_cleanup(TurkeyVM *vm);
 
 /* Loads a file and runs its main function - pushes it's exports object */
 extern void turkey_require(TurkeyVM *vm, unsigned int index);
+extern void turkey_require(TurkeyVM *vm);
 
 /* Registers an internal module. When Shovel/Turkey code calls require, it checks to see if there's an internal module to return first
    - if there is then 'obj' passed here is returned, otherwise it loads a physical file on disk. */

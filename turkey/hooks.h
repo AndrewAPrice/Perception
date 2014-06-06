@@ -1,5 +1,9 @@
 #ifndef HOOKS_H
 #define HOOKS_H
+
+struct TurkeyVM;
+struct TurkeyString;
+
 /* Implement these functions if you want to port Turkey */
 /* Opens a file and returns a pointer, and the size of the pointer.
    It needs to be freed by calling turkey_free_memory(). */
@@ -25,5 +29,7 @@ extern void turkey_memory_clear(void *dest, size_t size);
 
 /* Print string to buffer (sprintf_s), size is both buffer size, and outputs the string length */
 extern void turkey_print_string(char *buffer, size_t &size, const char *format, ...);
+
+extern TurkeyString *turkey_relative_to_absolute_path(TurkeyVM *vm, TurkeyString *relativePath);
 
 #endif

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include "../hooks.h"
+#include "../turkey_internal.h"
 
 void *turkey_loadfile(const char *path, size_t &size) {
 	/* open the file */
@@ -55,3 +56,10 @@ void turkey_print_string(char *buffer, size_t &size, const char *format, ...) {
 	size = strlen(buffer);
 }
 
+extern TurkeyString *turkey_relative_to_absolute_path(TurkeyVM *vm, TurkeyString *relativePath) {
+	char path[512];
+	_fullpath(path, relativePath->string, 512);
+	size_t len = strnlen_s(path, 512);
+
+	return turkey_stringtable_newstring(vm, path, len);
+}

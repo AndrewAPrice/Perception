@@ -30,7 +30,7 @@ void turkey_cleanup(TurkeyVM *vm) {
 		turkey_free_memory(vm->function_array.functions);
 
 	if(vm->module_array.count > 0)
-		turkey_free_memory(vm->module_array.functions);
+		turkey_free_memory(vm->module_array.modules);
 
 	turkey_free_memory(vm);
 };

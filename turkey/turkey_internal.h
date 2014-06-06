@@ -121,7 +121,19 @@ struct TurkeyModule {
 
 struct TurkeyModuleArray {
 	unsigned int count; /* number of loaded modules */
-	TurkeyModule *functions; /* array of loaded modules */
+	TurkeyModule *modules; /* array of loaded modules */
+};
+
+
+struct TurkeyLoadedModule {
+	TurkeyString *Name; /* the name of the module */
+	TurkeyVariable ReturnVariable; /* the variable to return when the module is 'require'd */
+	TurkeyLoadedModule *Next; /* next module in the linked list */
+};
+
+struct TurkeyLoadedModules {
+	TurkeyLoadedModule *external_modules; /* linked list of modules that were loaded via file */
+	TurkeyLoadedModule *internal_modules; /* linked list of modules that were internally registered */
 };
 
 struct TurkeyGarbageCollector {
@@ -145,6 +157,7 @@ struct TurkeyVM {
 	TurkeyStack variable_stack; /* the variable stack, for operations */
 	TurkeyStack local_stack; /* the local stack, that functions store variables into */
 	TurkeyGarbageCollector garbage_collector;
+	TurkeyLoadedModules loaded_modules;
 
 	unsigned long long int current_function_index; /* index of the currently executing function, 0 is invalid and means returning to native code */
 	unsigned long long int current_byteindex; /* index of the currently executing bytecode */
@@ -218,6 +231,11 @@ extern void turkey_gc_register_buffer(TurkeyGarbageCollector &collector, TurkeyB
 extern void turkey_gc_register_array(TurkeyGarbageCollector &collector, TurkeyArray *arr);
 extern void turkey_gc_register_object(TurkeyGarbageCollector &collector, TurkeyObject *object);
 extern void turkey_gc_register_function_pointer(TurkeyGarbageCollector &collector, TurkeyFunctionPointer *closure);
+
+/* module.cpp */
+extern void turkey_module_init(TurkeyVM *vm);
+extern void turkey_module_cleanup(TurkeyVM *vm);
+extern TurkeyVariable turkey_module_load_file(TurkeyVM *vm, TurkeyString *file);
 
 /* object.cpp */
 extern TurkeyObject *turkey_object_new(TurkeyVM *vm);
