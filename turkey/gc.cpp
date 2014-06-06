@@ -101,7 +101,9 @@ void turkey_gc_collect(TurkeyVM *vm) {
 
 	#undef mark_array
 
-	/* work up the call stack and mark everything reachable */
+	/* work up through the local stack and mark everything reachable */
+	/* work up through the parameter stack and mark everything reachable */
+	/* work through interpreter states and mark everything reachable */
 
 	/* cleanup everything unmarked */
 	#define clean_up(_IT_, _CAST_, _HANDLER_,_PARAM_) iterator = _IT_; \
