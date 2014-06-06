@@ -1,11 +1,11 @@
-#include "../turkey.h"
+#include "../turkey_internal.h"
 #include <stdio.h>
 
 unsigned int console_log(TurkeyVM *vm, void *closure, unsigned int argc) {
 	for(unsigned int i = 0; i < argc; i++) {
-		if(turkey_get_type(vm, i) == TT_String) {
-			const char *str = turkey_get_string(vm, i);
-			printf("%s\n", str);
+		TurkeyVariable var = turkey_get(vm, i);
+		if(var.type == TT_String) {
+			printf("%.*s\n", var.string->string, var.string->length);
 		}
 	}
 
