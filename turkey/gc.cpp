@@ -138,7 +138,10 @@ void turkey_gc_hold(TurkeyVM *vm, TurkeyVariable &variable) {
 
 	TurkeyGarbageCollectedObject *obj = (TurkeyGarbageCollectedObject *)variable.array;
 
-	if(obj->hold == 0) {
+	turkey_gc_hold(vm, obj, variable.type);
+}
+
+void turkey_gc_hold(TurkeyVM *vm, TurkeyGarbageCollectedObject *obj, TurkeyType type) {if(obj->hold == 0) {
 		/* not yet held, so we need to remove it from the gc list */
 		if(obj->gc_next != 0)
 			obj->gc_next->gc_prev = obj->gc_prev;
@@ -148,7 +151,7 @@ void turkey_gc_hold(TurkeyVM *vm, TurkeyVariable &variable) {
 		else {
 			TurkeyGarbageCollector &collector = vm->garbage_collector;
 			
-			switch(variable.type) {
+			switch(type) {
 			case TT_Array:
 				collector.arrays = (TurkeyArray *)obj->gc_next;
 				break;
@@ -179,13 +182,17 @@ void turkey_gc_unhold(TurkeyVM *vm, TurkeyVariable &variable) {
 		return;
 
 	TurkeyGarbageCollectedObject *obj = (TurkeyGarbageCollectedObject *)variable.array;
+	turkey_gc_unhold(vm, obj, variable.type);
+}
+
+void turkey_gc_unhold(TurkeyVM *vm, TurkeyGarbageCollectedObject *obj, TurkeyType type) {
 	if(obj->hold == 1) {
 		/* last thing holding the object is releasing it, add it back to the gc list */
 		obj->gc_prev = 0;
 
 		TurkeyGarbageCollector &collector = vm->garbage_collector;
 
-		switch(variable.type) {
+		switch(type) {
 		case TT_Array:
 			obj->gc_next = collector.arrays;
 			collector.arrays = (TurkeyArray *)obj;
