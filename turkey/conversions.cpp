@@ -8,42 +8,29 @@ TurkeyString *turkey_to_string(TurkeyVM *vm, TurkeyVariable &var_in) {
 
 	switch(var_in.type) {
 	case TT_Array:
-		c = "array";
-		len = 5;
-		break;
+		return vm->string_table.s_array;
 	case TT_Boolean:
-		if(var_in.boolean_value) {
-			c = "true";
-			len = 4;
-		} else {
-			c = "false";
-			len = 5;
-		}
-		break;
+		if(var_in.boolean_value)
+			return vm->string_table.s_true;
+		else
+			return vm->string_table.s_false;
 	case TT_Buffer:
-		c = "buffer";
-		len = 6;
+		return vm->string_table.s_buffer;
 	case TT_Float:
 		len = 128;
 		turkey_print_string(temp, len, "%f", var_in.float_value);
 		break;
 	case TT_Null:
 	default:
-		c = "null";
-		len = 4;
-		break;
+		return vm->string_table.s_null;
 	case TT_FunctionPointer:
-		c = "function";
-		len = 8;
-		break;
+		return vm->string_table.s_function;
 	case TT_Unsigned:
 		len = 128;
 		turkey_print_string(temp, len, "%lu", var_in.unsigned_value);
 		break;
 	case TT_Object:
-		c = "object";
-		len = 6;
-		break;
+		return vm->string_table.s_object;
 	case TT_Signed:
 		len = 128;
 		turkey_print_string(temp, len, "%li", var_in.unsigned_value);

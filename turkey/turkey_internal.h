@@ -35,6 +35,43 @@ struct TurkeyStringTable {
 	TurkeyString **strings; /* array of string pointers */
 	unsigned int count; /* number of items in the string table */
 	unsigned int length; /* length of the string table */
+
+	/* some static strings, used in the VM */
+	TurkeyString *s_true;
+	TurkeyString *s_false;
+
+	TurkeyString *s_boolean;
+	TurkeyString *s_unsigned;
+	TurkeyString *s_signed;
+	TurkeyString *s_float;
+	TurkeyString *s_null;
+	TurkeyString *s_object;
+	TurkeyString *s_array;
+	TurkeyString *s_buffer;
+	TurkeyString *s_function;
+	TurkeyString *s_string;
+
+	/* string symbols */
+	TurkeyString *ss_add;
+	TurkeyString *ss_subtract;
+	TurkeyString *ss_divide;
+	TurkeyString *ss_multiply;
+	TurkeyString *ss_modulo;
+	TurkeyString *ss_increment;
+	TurkeyString *ss_decrement;
+	TurkeyString *ss_xor;
+	TurkeyString *ss_and;
+	TurkeyString *ss_or;
+	TurkeyString *ss_not;
+	TurkeyString *ss_shift_left;
+	TurkeyString *ss_shift_right;
+	TurkeyString *ss_rotate_left;
+	TurkeyString *ss_rotate_right;
+	TurkeyString *ss_less_than;
+	TurkeyString *ss_greater_than;
+	TurkeyString *ss_less_than_or_equals;
+	TurkeyString *ss_greater_than_or_equals;
+	TurkeyString *ss_invert;
 };
 
 struct TurkeyFunctionPointer : TurkeyGarbageCollectedObject {
@@ -113,17 +150,17 @@ struct TurkeyFunctionArray {
 };
 
 struct TurkeyModule {
-	unsigned long long int function_offset; /* offets to add to push functions for this module */
-	unsigned long long int function_count; /* number of functions this module has in the function table */
-	unsigned long long int string_offset; /* offsets to add to push strings for this module */
-	unsigned long long int string_count; /* number of strings this module has in the string table */
-};
+	TurkeyFunction **functions; /* array of function pointers (from this loaded module) */
+	unsigned int function_count; /* number of functions this module has in the function table */
+	
+	void *code_block; /* pointer to the code block */
+	unsigned int code_block_size; /* size of the code block */
 
-struct TurkeyModuleArray {
-	unsigned int count; /* number of loaded modules */
-	TurkeyModule *modules; /* array of loaded modules */
-};
+	TurkeyString **strings; /* array of strings pointers (hardcoded into the loaded module) */
+	unsigned int string_count; /* number of strings this module has in the string array */
 
+	TurkeyModule *next; /* next module, linked list */
+};
 
 struct TurkeyLoadedModule {
 	TurkeyString *Name; /* the name of the module */
@@ -147,20 +184,31 @@ struct TurkeyGarbageCollector {
 	unsigned long long int items; /* number of allocated items */
 };
 
+struct TurkeyInterpreterState {
+	TurkeyInterpreterState *parent; /* parent state */
+	unsigned int local_stack_top; /* top of the local stack */
+	unsigned int local_parameter_top; /* top of the local parameter stack */
+	TurkeyClosure *closure; /* the current closure */
+	TurkeyFunction *function; /* the current function */
+	bool executing; /* continue executing? return sets this to false */
+	size_t code_ptr; /* code pointer */
+	size_t code_start; /* start of the current code block */
+	size_t code_end; /* end of the current code block */
+};
+
 struct TurkeyVM {
 	bool debug; /* no jit */
 
-	TurkeyModuleArray module_array; /* number of loaded modules */
+	TurkeyModule *modules; /* loaded modules */
 	TurkeyStringTable string_table; /* table of strings */
 	TurkeyFunctionArray function_array; /* array of functions */
 	TurkeyCallStack call_stack; /* the call stack */
 	TurkeyStack variable_stack; /* the variable stack, for operations */
 	TurkeyStack local_stack; /* the local stack, that functions store variables into */
 	TurkeyGarbageCollector garbage_collector;
-	TurkeyLoadedModules loaded_modules;
+	TurkeyLoadedModules loaded_modules; /* loaded modules and their files */
 
-	unsigned long long int current_function_index; /* index of the currently executing function, 0 is invalid and means returning to native code */
-	unsigned long long int current_byteindex; /* index of the currently executing bytecode */
+	TurkeyInterpreterState *interpreter_state; /* pointer to the current interpreter state */
 };
 
 /* array.cpp */
@@ -232,10 +280,14 @@ extern void turkey_gc_register_array(TurkeyGarbageCollector &collector, TurkeyAr
 extern void turkey_gc_register_object(TurkeyGarbageCollector &collector, TurkeyObject *object);
 extern void turkey_gc_register_function_pointer(TurkeyGarbageCollector &collector, TurkeyFunctionPointer *closure);
 
+/* interpreter.cpp */
+extern void turkey_interpreter_init(TurkeyVM *vm);
+extern void turkey_interpreter_cleanup(TurkeyVM *vm);
+
 /* module.cpp */
 extern void turkey_module_init(TurkeyVM *vm);
 extern void turkey_module_cleanup(TurkeyVM *vm);
-extern TurkeyVariable turkey_module_load_file(TurkeyVM *vm, TurkeyString *file);
+extern TurkeyVariable turkey_module_load_file(TurkeyVM *vm, TurkeyString *filepath);
 
 /* object.cpp */
 extern TurkeyObject *turkey_object_new(TurkeyVM *vm);
@@ -260,6 +312,10 @@ extern void turkey_stringtable_cleanup(TurkeyStringTable &table);
 extern TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, unsigned int length);
 extern void turkey_stringtable_grow(TurkeyStringTable &table);
 extern void turkey_stringtable_removestring(TurkeyStringTable &table, TurkeyString *string);
+
+/* instructions.cpp */
+extern TurkeyInstructionHandler turkey_interpreter_operations[256];
+
 
 /* utilities */
 /* fast hash if size is a power of two */
