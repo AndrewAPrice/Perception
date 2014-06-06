@@ -18,6 +18,9 @@
     <Filter Include="external\cityhash">
       <UniqueIdentifier>{0562e54b-c69e-42b4-baaf-e6ae71d85725}</UniqueIdentifier>
     </Filter>
+    <Filter Include="external\half">
+      <UniqueIdentifier>{4af3ee80-7813-40ae-b811-af19f0dadd10}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -41,6 +44,30 @@
     <ClCompile Include="..\external\cityhash\city.cpp">
       <Filter>external\cityhash</Filter>
     </ClCompile>
+    <ClCompile Include="..\array.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\gc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\object.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\functionpointer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\closure.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\stack_helpers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\conversions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\turkey.h">
@@ -54,6 +81,9 @@
     </ClInclude>
     <ClInclude Include="..\external\cityhash\city.h">
       <Filter>external\cityhash</Filter>
+    </ClInclude>
+    <ClInclude Include="..\external\half\half.hpp">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

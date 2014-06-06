@@ -66,9 +66,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\array.cpp" />
+    <ClCompile Include="..\buffer.cpp" />
     <ClCompile Include="..\callstack.cpp" />
+    <ClCompile Include="..\closure.cpp" />
+    <ClCompile Include="..\conversions.cpp" />
     <ClCompile Include="..\external\cityhash\city.cpp" />
+    <ClCompile Include="..\functionpointer.cpp" />
+    <ClCompile Include="..\gc.cpp" />
+    <ClCompile Include="..\object.cpp" />
     <ClCompile Include="..\stack.cpp" />
+    <ClCompile Include="..\stack_helpers.cpp" />
     <ClCompile Include="..\stringtable.cpp" />
     <ClCompile Include="..\turkey.cpp" />
     <ClCompile Include="hooks.cpp" />
@@ -76,6 +84,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\external\cityhash\city.h" />
+    <ClInclude Include="..\external\half\half.hpp" />
     <ClInclude Include="..\hooks.h" />
     <ClInclude Include="..\turkey.h" />
     <ClInclude Include="..\turkey_internal.h" />
