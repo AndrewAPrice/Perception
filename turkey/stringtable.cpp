@@ -34,11 +34,11 @@ TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, uns
 	TurkeyStringTable &table = vm->string_table;
 
 	/* hash the string */
-	uint64 hash;
+	unsigned int hash;
 	if(length > 512) // 128-bit hash on long functions
-		hash = Hash128to64(CityHash128(string, length));
+		hash = (unsigned int)Hash128to64(CityHash128(string, length));
 	else // 64-bit has on short functions
-		hash = CityHash64WithSeed(string, length, (uint64)length);
+		hash = (unsigned int)CityHash64WithSeed(string, length, (uint64)length);
 
 	/* look for this in the hash table */
 	unsigned int index = fast_mod(hash, table.length);
@@ -58,7 +58,7 @@ TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, uns
 
 	table.count++;
 
-	TurkeyString *s = (TurkeyString *)turkey_allocate_memory(sizeof TurkeyString);
+	s = (TurkeyString *)turkey_allocate_memory(sizeof TurkeyString);
 	s->string = (char *)turkey_allocate_memory(length);
 	turkey_memory_copy(s->string, string, length);
 	s->length = length;
