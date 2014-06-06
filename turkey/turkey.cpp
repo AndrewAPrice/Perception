@@ -8,12 +8,10 @@ TurkeyVM *turkey_init(TurkeySettings *settings) {
 	vm->current_byteindex = 0;
 	vm->current_function_index = 0;
 
+	turkey_module_init(vm);
 	turkey_stack_init(vm->local_stack);
 	turkey_stack_init(vm->variable_stack);
 	turkey_callstack_init(vm->call_stack);
-
-	vm->function_array.count = 0;
-	vm->module_array.count = 0;
 
 	turkey_stringtable_init(vm->string_table);
 
@@ -26,11 +24,7 @@ void turkey_cleanup(TurkeyVM *vm) {
 	turkey_stack_cleanup(vm->variable_stack);
 	turkey_callstack_cleanup(vm->call_stack);
 
-	if(vm->function_array.count > 0)
-		turkey_free_memory(vm->function_array.functions);
-
-	if(vm->module_array.count > 0)
-		turkey_free_memory(vm->module_array.modules);
-
+	turkey_module_cleanup(vm);
+	
 	turkey_free_memory(vm);
 };

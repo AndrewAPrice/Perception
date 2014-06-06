@@ -13,11 +13,12 @@ struct TurkeySettings {
 };
 
 enum TurkeyType {
-	TT_Null = 0,
-	TT_Boolean = 1,
-	TT_Unsigned = 2,
-	TT_Signed = 3,
-	TT_Float = 4,
+	TT_Boolean = 0,
+	TT_Unsigned = 1,
+	TT_Signed = 2,
+	TT_Float = 3,
+
+	TT_Null = 4,
 	TT_Object = 5,
 	TT_Array = 6,
 	TT_Buffer = 7,
@@ -56,6 +57,8 @@ struct TurkeyVariable {
 /* native functions */
 typedef unsigned int (*TurkeyNativeFunction)(TurkeyVM *vm, void *closure, unsigned int argc);
 
+typedef void (*TurkeyInstructionHandler)(TurkeyVM *vm);
+
 /****** Virtual Machines -
  TurkeyVMs are unique instances of the virtual machine, many can be running simultaniously.
  *******/
@@ -81,6 +84,10 @@ extern void turkey_gc_hold(TurkeyVM *vm, TurkeyVariable &variable);
 extern void turkey_gc_hold(TurkeyVM *vm, TurkeyGarbageCollectedObject *obj, TurkeyType type);
 extern void turkey_gc_unhold(TurkeyVM *vm, TurkeyVariable &variable);
 extern void turkey_gc_unhold(TurkeyVM *vm, TurkeyGarbageCollectedObject *ob, TurkeyType typej);
+
+/* interpreter.cpp */
+extern TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr, size_t argc);
+extern void turkey_call_function_no_return(TurkeyVM *vm, TurkeyFunctionPointer *funcptr, size_t argc);
 
 
 /****** variables *******/
@@ -114,9 +121,6 @@ extern TurkeyVariable turkey_get_element(TurkeyVM *vm, unsigned int ind_obj, uns
 extern void turkey_set_element(TurkeyVM *vm, unsigned int ind_obj, unsigned int ind_key, unsigned int ind_val);
 extern void turkey_delete_element(TurkeyVM *vm, unsigned int ind_obj, unsigned int ind_key);
 
-/***** functions *****/
-extern void turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *func, size_t argc);
-
 /***** conversions *****/
 /* conversions.cpp */
 extern TurkeyString *turkey_to_string(TurkeyVM *vm, TurkeyVariable &var_in);
@@ -132,5 +136,7 @@ extern void turkey_debug_continue(TurkeyVM *vm);
 extern void turkey_add_breakpoint(TurkeyVM *vm, TurkeyObject *obj, unsigned int byte);
 extern void turkey_remove_breakpoint(TurkeyVM *vm, unsigned int byte);
 */
+
+#define TURKEY_IS_TYPE_NUMBER(type) (type <= 4)
 
 #endif

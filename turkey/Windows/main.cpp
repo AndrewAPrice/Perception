@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 unsigned int console_log(TurkeyVM *vm, void *closure, unsigned int argc) {
-	for(unsigned int i = 0; i < argc; i++) {
+	for(int i = (int)argc - 1; i >= 0; i--) {
 		TurkeyVariable var = turkey_get(vm, i);
 		if(var.type == TT_String) {
 			printf("%.*s\n", var.string->string, var.string->length);
