@@ -7,7 +7,7 @@ struct TurkeyString;
 /* Implement these functions if you want to port Turkey */
 /* Opens a file and returns a pointer, and the size of the pointer.
    It needs to be freed by calling turkey_free_memory(). */
-extern void *turkey_loadfile(const char *path, size_t &size);
+extern void *turkey_load_file(TurkeyString *path, size_t &size);
 
 /* Allocate some memory and return a pointer to it. */
 extern void *turkey_allocate_memory(size_t size);

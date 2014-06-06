@@ -5,10 +5,20 @@
 #include "../hooks.h"
 #include "../turkey_internal.h"
 
-void *turkey_loadfile(const char *path, size_t &size) {
+void *turkey_load_file(TurkeyString *path, size_t &size) {
+	/* create a temporary null terminated string */
+	char *str = (char *)malloc(path->length + 1);
+	memcpy_s(str, path->length + 1, path->string, path->length);
+	str[path->length] = '\0';
+
 	/* open the file */
 	FILE *f;
-	fopen_s(&f, path, "r");
+	if(fopen_s(&f, str, "r") != 0) {
+		free(str);
+		return 0;
+	}
+	free(str);
+
 	fseek(f, 0, SEEK_END);
 	size = (size_t)ftell(f);
 	fseek(f, 0, SEEK_SET);
