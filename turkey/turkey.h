@@ -4,12 +4,8 @@
 
 struct TurkeyVM;
 
-struct TurkeyObject {
-	unsigned char params;
-	unsigned int value;
-};
-
 struct TurkeyFunctionPointer;
+struct TurkeyGarbageCollectedObject;
 
 struct TurkeySettings {
 	// Use debug settings? Can handle breakpoints, 
@@ -39,6 +35,8 @@ struct TurkeyArray;
 struct TurkeyFunctionPointer;
 struct TurkeyObject;
 struct TurkeyBuffer;
+struct TurkeyFunction;
+struct TurkeyModule;
 
 struct TurkeyVariable {
 	TurkeyType type;
@@ -68,20 +66,24 @@ extern TurkeyVM *turkey_init(TurkeySettings *settings);
 extern void turkey_cleanup(TurkeyVM *vm);
 
 /* Loads a file and runs its main function - pushes it's exports object */
-extern void turkey_require(TurkeyVM *vm, unsigned int inded);
+extern void turkey_require(TurkeyVM *vm, unsigned int index);
 
 /* Registers an internal module. When Shovel/Turkey code calls require, it checks to see if there's an internal module to return first
    - if there is then 'obj' passed here is returned, otherwise it loads a physical file on disk. */
 extern void turkey_register_module(TurkeyVM *vm, unsigned int ind_moduleName, unsigned int ind_obj);
 
+/* gc.cpp */
 /* invoke the garbage collector */
 extern void turkey_gc_collect(TurkeyVM *vm);
 /* Places a hold on an object - when saving references in native code - so garbage collector doesn't clean them up */
 extern void turkey_gc_hold(TurkeyVM *vm, TurkeyVariable &variable);
+extern void turkey_gc_hold(TurkeyVM *vm, TurkeyGarbageCollectedObject *obj, TurkeyType type);
 extern void turkey_gc_unhold(TurkeyVM *vm, TurkeyVariable &variable);
+extern void turkey_gc_unhold(TurkeyVM *vm, TurkeyGarbageCollectedObject *ob, TurkeyType typej);
 
 
 /****** variables *******/
+/* stack_helpers.cpp */
 extern void turkey_push_string(TurkeyVM *vm, const char *string);
 extern void turkey_push_string_l(TurkeyVM *vm, const char *string, unsigned int length);
 extern void turkey_push_object(TurkeyVM *vm);
@@ -89,40 +91,38 @@ extern void turkey_push_buffer(TurkeyVM *vm, size_t size);
 extern void turkey_push_buffer_wrapper(TurkeyVM *vm, size_t size, void *c);
 extern void turkey_push_array(TurkeyVM *vm, size_t size);
 extern void turkey_push_native_function(TurkeyVM *vm, TurkeyNativeFunction func, void *closure);
-extern void turkey_push_function(TurkeyVM *vm, TurkeyFunctionPointer *func);
 extern void turkey_push_boolean(TurkeyVM *vm, bool val);
 extern void turkey_push_signed_integer(TurkeyVM *vm, signed long long int val);
 extern void turkey_push_unsigned_integer(TurkeyVM *vm, unsigned long long int val);
 extern void turkey_push_float(TurkeyVM *vm, double val);
-extern void turkey_push_null();
+extern void turkey_push_null(TurkeyVM *vm);
+extern void turkey_push(TurkeyVM *vm, TurkeyVariable &variable);
 
 extern void turkey_grab(TurkeyVM *vm, unsigned int index);
-extern void turkey_pop(TurkeyVM *vm);
+extern TurkeyVariable turkey_pop(TurkeyVM *vm);
+extern void turkey_pop_no_return(TurkeyVM *vm);
 extern void turkey_swap(TurkeyVM *vm, unsigned int ind1, unsigned int ind2);
 
-extern size_t turkey_get_type(TurkeyVM *vm, unsigned int index);
-
-/* Extract fields out of variables */
-extern double turkey_get_double(TurkeyVM *vm, unsigned int index);
-extern bool turkey_get_bool(TurkeyVM *vm, unsigned int index);
-extern unsigned long long int turkey_get_unsigned_integer(TurkeyVM *vm, unsigned int index);
-extern signed long long int turkey_get_signed_integer(TurkeyVM *vm, unsigned int index);
-extern const char *turkey_get_string(TurkeyVM *vm, unsigned int index); /* if you pop this off the stack and the GC is called, then your char* may be dangle */
-extern TurkeyFunctionPointer *turkey_get_function(TurkeyVM *vm, unsigned int index);
-
-
-/***** functions *****/
-extern void turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *func, size_t argc);
+extern TurkeyVariable turkey_get(TurkeyVM *vm, unsigned int index);
+extern void turkey_set(TurkeyVM *vm, unsigned int index, TurkeyVariable &var);
 
 /**** objects/arrays ****/
 /* grabs an element and pushes it on the stack */
-extern void turkey_get_element(TurkeyVM *vm, unsigned int ind_obj, unsigned int ind_key);
+extern TurkeyVariable turkey_get_element(TurkeyVM *vm, unsigned int ind_obj, unsigned int ind_key);
 /* calls the Shovel equivilent of obj[key] = val; */
 extern void turkey_set_element(TurkeyVM *vm, unsigned int ind_obj, unsigned int ind_key, unsigned int ind_val);
 extern void turkey_delete_element(TurkeyVM *vm, unsigned int ind_obj, unsigned int ind_key);
 
-/**** buffers ****/
+/***** functions *****/
+extern void turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *func, size_t argc);
 
+/***** conversions *****/
+/* conversions.cpp */
+extern TurkeyString *turkey_to_string(TurkeyVM *vm, TurkeyVariable &var_in);
+extern unsigned long long int turkey_to_unsigned(TurkeyVM *vm, TurkeyVariable &var_in);
+extern long long int turkey_to_signed(TurkeyVM *vm, TurkeyVariable &var_in);
+extern double turkey_to_float(TurkeyVM *vm, TurkeyVariable &var_in);
+extern bool turkey_to_boolean(TurkeyVM *vm, TurkeyVariable &var_in);
 
 /***** debugging ****/
 /*

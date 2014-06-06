@@ -25,7 +25,7 @@ struct TurkeyClosure {
 struct TurkeyString : TurkeyGarbageCollectedObject {
 	char *string;
 	unsigned int length;
-	unsigned long long int hash;
+	unsigned int hash;
 	TurkeyString *next; /* next string in a chain */
 	TurkeyString *prev; /* previous string in a chain */
 };
@@ -38,8 +38,17 @@ struct TurkeyStringTable {
 };
 
 struct TurkeyFunctionPointer : TurkeyGarbageCollectedObject {
-	TurkeyFunction *function; /* the function to call */
-	TurkeyClosure *closure; /* the closure */
+	union {
+		struct managed_t {
+			TurkeyFunction *function; /* the function to call */
+			TurkeyClosure *closure; /* the closure */
+		} managed;
+		struct native_t {
+			TurkeyNativeFunction function;
+			void *closure;
+		} native;
+	};
+	bool is_native; /* is this a native function? */
 };
 
 struct TurkeyArray : TurkeyGarbageCollectedObject {
@@ -68,7 +77,6 @@ struct TurkeyObject : TurkeyGarbageCollectedObject {
 };
 
 struct TurkeyFunction {
-	TurkeyNativeFunction native_function; /* 0 if this is a vm function */
 	TurkeyModule *module; /* module this is from */
 	void *start; /* pointer to the start of the bytecode for this function */
 	void *end; /* pointer beyond the last bytecode for this function */
@@ -189,6 +197,9 @@ extern void turkey_callstack_init(TurkeyCallStack &stack);
 extern void turkey_callstack_cleanup(TurkeyCallStack &stack);
 extern TurkeyCallStackEntry *turkey_callstack_push(TurkeyCallStack &stack);
 extern TurkeyCallStackEntry *turkey_callstack_pop(TurkeyCallStack &stack);
+extern void turkey_stack_pop_no_return(TurkeyStack &stack);
+extern void turkey_stack_get(TurkeyStack &stack, unsigned int position, TurkeyVariable &value);
+extern void turkey_stack_set(TurkeyStack &stack, unsigned int position, const TurkeyVariable &value);
 
 /* closure.cpp */
 extern TurkeyClosure *turkey_closure_create(TurkeyVM *vm, TurkeyClosure *parent, unsigned int variables);
@@ -196,6 +207,7 @@ extern void turkey_closure_delete(TurkeyVM *vm, TurkeyClosure *closure);
 
 /* functionpointer.cpp */
 extern TurkeyFunctionPointer *turkey_functionpointer_new(TurkeyVM *vm, TurkeyFunction *function, TurkeyClosure *closure);
+extern TurkeyFunctionPointer *turkey_functionpointer_new_native(TurkeyVM *vm, TurkeyNativeFunction function, void *closure);
 extern void turkey_functionpointer_delete(TurkeyVM *vm, TurkeyFunctionPointer *funcptr);
 
 /* gc.cpp */
@@ -227,7 +239,7 @@ extern void turkey_set(TurkeyStack &stack, unsigned int position, const TurkeyVa
 /* stringtable.cpp */
 extern void turkey_stringtable_init(TurkeyStringTable &table);
 extern void turkey_stringtable_cleanup(TurkeyStringTable &table);
-extern TurkeyString *turkey_stringtable_newstring(TurkeyStringTable &table, const char *string, unsigned int length);
+extern TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, unsigned int length);
 extern void turkey_stringtable_grow(TurkeyStringTable &table);
 extern void turkey_stringtable_removestring(TurkeyStringTable &table, TurkeyString *string);
 
@@ -236,7 +248,6 @@ extern void turkey_stringtable_removestring(TurkeyStringTable &table, TurkeyStri
 inline unsigned int fast_mod(unsigned int hash, unsigned int size) {
 	/* size be a power of two */
 	assert((size & (size - 1)) == 0);
-
 	return hash & (size - 1);
 }
 
