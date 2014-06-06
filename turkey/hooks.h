@@ -23,4 +23,7 @@ extern bool turkey_memory_compare(const void *a, const void *b, size_t size);
 /* Clear a block of memory */
 extern void turkey_memory_clear(void *dest, size_t size);
 
+/* Print string to buffer (sprintf_s), size is both buffer size, and outputs the string length */
+extern void turkey_print_string(char *buffer, size_t &size, const char *format, ...);
+
 #endif
