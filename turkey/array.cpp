@@ -3,7 +3,7 @@
 
 TurkeyArray *turkey_array_new(TurkeyVM *vm, unsigned int size) {
 	if(size == 0)
-		size == 1;
+		size = 1;
 
 	TurkeyArray *arr = (TurkeyArray *)turkey_allocate_memory(sizeof TurkeyArray);
 	arr->allocated = size;
@@ -15,6 +15,8 @@ TurkeyArray *turkey_array_new(TurkeyVM *vm, unsigned int size) {
 
 	/* register with the gc */
 	turkey_gc_register_array(vm->garbage_collector, arr);
+
+	return arr;
 }
 
 /* release the memory used by the array, called from the garbage collector */
@@ -41,7 +43,7 @@ void turkey_array_grow(TurkeyVM *vm, TurkeyArray *arr) {
 	new_size |= new_size >> 4;
 	new_size |= new_size >> 8;
 	new_size |= new_size >> 16;
-	new_size |= new_size >> 32;
+//	new_size |= new_size >> 32;
 	new_size++;
 
 	/* double it if it's already a power of two */
