@@ -133,3 +133,30 @@ void turkey_object_delete_property(TurkeyVM *vm, TurkeyObject *object, TurkeyStr
 
 	/* not found, nothing to delete */
 }
+
+void turkey_object_call_operator(TurkeyVM *vm, TurkeyObject *object, TurkeyString *oper, TurkeyVariable &operand) {
+	TurkeyVariable var = turkey_object_get_property(vm, object, oper);
+	TurkeyVariable ret;
+
+	if(var.type != TT_FunctionPointer)
+		ret.type = TT_Null;
+	else {
+		turkey_stack_push(vm->variable_stack, operand);
+		ret = turkey_call_function(vm, var.function, 1);
+	}
+
+	turkey_stack_push(vm->variable_stack, ret);
+}
+
+void turkey_object_call_operator(TurkeyVM *vm, TurkeyObject *object, TurkeyString *oper) {
+	TurkeyVariable var = turkey_object_get_property(vm, object, oper);
+	TurkeyVariable ret;
+
+	if(var.type != TT_FunctionPointer)
+		ret.type = TT_Null;
+	else {
+		ret = turkey_call_function(vm, var.function, 0);
+	}
+
+	turkey_stack_push(vm->variable_stack, ret);
+}
