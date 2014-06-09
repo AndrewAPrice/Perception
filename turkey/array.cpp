@@ -11,11 +11,48 @@ TurkeyArray *turkey_array_new(TurkeyVM *vm, unsigned int size) {
 	arr->elements = (TurkeyVariable *)turkey_allocate_memory((sizeof TurkeyVariable) * size);
 
 	for(unsigned int i = 0; i < size; i++)
-		arr->elements[0].type = TT_Null;
+		arr->elements[i].type = TT_Null;
 
 	/* register with the gc */
 	turkey_gc_register_array(vm->garbage_collector, arr);
+	return arr;
+}
 
+TurkeyArray *turkey_array_append(TurkeyVM *vm, TurkeyArray *a, TurkeyArray *b) {
+	turkey_gc_hold(vm, a, TT_Array);
+	turkey_gc_hold(vm, b, TT_Array);
+
+	unsigned int length = a->allocated + b->allocated;
+	if(length == 0)
+		length = 1;
+
+	unsigned int size = length - 1;
+	size |= size >> 1;
+	size |= size >> 2;
+	size |= size >> 4;
+	size |= size >> 8;
+	size |= size >> 16;
+	size++;
+
+	TurkeyArray *arr = (TurkeyArray *)turkey_allocate_memory(sizeof TurkeyArray);
+	arr->allocated = length;
+	arr->length = size;
+	arr->elements = (TurkeyVariable *)turkey_allocate_memory((sizeof TurkeyVariable) * size);
+
+	for(unsigned int i = 0; i < a->allocated && i < size; i++)
+		arr->elements[i] = a->elements[i];
+
+	for(unsigned int i = a->allocated; i < a->allocated + b->allocated && i < size; i++)
+		arr->elements[i] = b->elements[i - a->allocated];
+
+	for(unsigned int i = a->allocated + b->allocated; i < size; i++)
+		arr->elements[i].type = TT_Null;
+
+	turkey_gc_unhold(vm, a, TT_Array);
+	turkey_gc_unhold(vm, b, TT_Array);
+	
+	/* register with the gc */
+	turkey_gc_register_array(vm->garbage_collector, arr);
 	return arr;
 }
 
@@ -43,7 +80,6 @@ void turkey_array_grow(TurkeyVM *vm, TurkeyArray *arr) {
 	new_size |= new_size >> 4;
 	new_size |= new_size >> 8;
 	new_size |= new_size >> 16;
-//	new_size |= new_size >> 32;
 	new_size++;
 
 	/* double it if it's already a power of two */
