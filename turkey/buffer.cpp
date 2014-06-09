@@ -31,6 +31,28 @@ TurkeyBuffer *turkey_buffer_new_native(TurkeyVM *vm, void *ptr, size_t size) {
 	return buffer;
 }
 
+TurkeyBuffer *turkey_buffer_append(TurkeyVM *vm, TurkeyBuffer *a, TurkeyBuffer *b) {
+	turkey_gc_hold(vm, a, TT_Buffer);
+	turkey_gc_hold(vm, b, TT_Buffer);
+
+	TurkeyBuffer *buffer = (TurkeyBuffer *)turkey_allocate_memory(sizeof TurkeyBuffer);
+
+	size_t size = a->size + b->size;
+
+	buffer->disposed = false;
+	buffer->native = false;
+	buffer->ptr = turkey_allocate_memory(size);
+	buffer->size = size;
+
+	turkey_memory_copy(buffer->ptr, a->ptr, a->size);
+	turkey_memory_copy((void *)((size_t)buffer->ptr + a->size), b->ptr, b->size);
+
+	turkey_gc_unhold(vm, a, TT_Buffer);
+	turkey_gc_unhold(vm, b, TT_Buffer);
+
+	return buffer;
+}
+
 void turkey_buffer_delete(TurkeyVM *vm, TurkeyBuffer *buffer) {
 	/* cannot release a native pointer */
 	if(!buffer->native && !buffer->disposed)
