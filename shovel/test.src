@@ -1,4 +1,10 @@
-//123.3
-function(hello) {
-	return "abc";/* abc++fds-- 48; -120;*/
+var console = require("console");
+var a = 0;
+var incrementA = function() {
+	a++;
+};
+
+while(a < 10) {
+	incrementA();
+	console.log("Hello world #" + a);
 }

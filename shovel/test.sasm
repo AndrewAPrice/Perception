@@ -1,25 +1,33 @@
-# our main function
-Function mainfunction
--locals 2
--local 0 io
--local 1 3
--closures 2
--closure 1 abc
--parameters 1
--parameter 0 param!
-	# var console = require("console");
-	PushString "console"
-	Require
-	Store 1
-.label1
-	# console.log("hello world!");
-	PushString "hello world"
-	PushString "log"
-	Load 1
-	LoadElement
-	PushFunction mainfunction
-	CallFunctionNoReturn 1
-	
-	jump label1
-	pushfloat -255
-	Return
+Function f0
+-locals 3
+-closures 1
+PushString "console"
+Require
+Store 1
+PushUnsignedInteger 0
+StoreClosure 0
+PushFunction f1
+Store 2
+Jump l1
+.l0
+Load 2
+CallFunctionNoReturn 0
+PushString "Hello world #"
+LoadClosure 0
+Add
+PushString "log"
+Load 1
+LoadElement
+CallFunctionNoReturn 1
+.l1
+LoadClosure 0
+PushUnsignedInteger 10
+LessThan
+JumpIfTrue l0
+.l2
+Function f1
+-locals 0
+-closures 0
+LoadClosure 0
+Increment
+StoreClosure 0
