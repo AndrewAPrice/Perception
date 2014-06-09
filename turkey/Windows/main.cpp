@@ -1,7 +1,7 @@
 #include "../turkey_internal.h"
 #include <stdio.h>
 
-unsigned int console_log(TurkeyVM *vm, void *closure, unsigned int argc) {
+TurkeyVariable console_log(TurkeyVM *vm, void *closure, unsigned int argc) {
 	for(int i = (int)argc - 1; i >= 0; i--) {
 		TurkeyVariable var = turkey_get(vm, i);
 		if(var.type == TT_String) {
@@ -9,7 +9,9 @@ unsigned int console_log(TurkeyVM *vm, void *closure, unsigned int argc) {
 		}
 	}
 
-	return 0;
+	TurkeyVariable var;
+	var.type = TT_Null;
+	return var;
 };
 
 void main() {

@@ -45,7 +45,7 @@ struct TurkeyVariable {
 		double float_value;
 		signed long long int signed_value;
 		unsigned long long int unsigned_value;
-		char boolean_value;
+		bool boolean_value;
 		TurkeyString *string;
 		TurkeyArray *array;
 		TurkeyFunctionPointer *function;
@@ -55,7 +55,7 @@ struct TurkeyVariable {
 };
 
 /* native functions */
-typedef unsigned int (*TurkeyNativeFunction)(TurkeyVM *vm, void *closure, unsigned int argc);
+typedef TurkeyVariable (*TurkeyNativeFunction)(TurkeyVM *vm, void *closure, unsigned int argc);
 
 typedef void (*TurkeyInstructionHandler)(TurkeyVM *vm);
 
