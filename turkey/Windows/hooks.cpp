@@ -69,9 +69,15 @@ void turkey_print_string(char *buffer, size_t &size, const char *format, ...) {
 
 extern TurkeyString *turkey_relative_to_absolute_path(TurkeyVM *vm, TurkeyString *relativePath) {
 	char path[512];
-	_fullpath(path, relativePath->string, 512);
-	size_t len = strnlen_s(path, 512);
 
+	char *str_temp = (char *)malloc(relativePath->length + 1);
+	memcpy(str_temp, relativePath->string, relativePath->length);
+	str_temp[relativePath->length] = '\0';
+
+	_fullpath(path, str_temp, 512);
+	free(str_temp);
+
+	size_t len = strnlen_s(path, 512);
 	return turkey_stringtable_newstring(vm, path, len);
 }
 

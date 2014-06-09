@@ -271,8 +271,8 @@ extern TurkeyFunctionPointer *turkey_functionpointer_new_native(TurkeyVM *vm, Tu
 extern void turkey_functionpointer_delete(TurkeyVM *vm, TurkeyFunctionPointer *funcptr);
 
 /* gc.cpp */
-extern void turkey_gc_init(TurkeyGarbageCollector &collector);
-extern void turkey_gc_cleanup(TurkeyGarbageCollector &collector);
+extern void turkey_gc_init(TurkeyVM *vm);
+extern void turkey_gc_cleanup(TurkeyVM *vm);
 extern void turkey_gc_register_string(TurkeyGarbageCollector &collector, TurkeyString *string);
 extern void turkey_gc_register_buffer(TurkeyGarbageCollector &collector, TurkeyBuffer *buffer);
 extern void turkey_gc_register_array(TurkeyGarbageCollector &collector, TurkeyArray *arr);

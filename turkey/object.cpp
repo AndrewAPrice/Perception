@@ -76,7 +76,7 @@ void turkey_object_set_property(TurkeyVM *vm, TurkeyObject *object, TurkeyString
 	prop->key = name;
 	prop->value = value;
 
-	object->properties[index] = prop->next;
+	object->properties[index] = prop;
 	object->count++;
 }
 

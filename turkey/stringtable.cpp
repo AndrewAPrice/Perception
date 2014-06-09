@@ -9,8 +9,8 @@ void turkey_stringtable_init(TurkeyVM *vm) {
 	vm->string_table.length = 64;
 	vm->string_table.strings = (TurkeyString **)turkey_allocate_memory((sizeof (TurkeyString*)) * vm->string_table.length);
 
-	for(unsigned int i = 0; i < vm->string_table.count; i++)
-		vm->string_table.strings[0] = 0;
+	for(unsigned int i = 0; i < vm->string_table.length; i++)
+		vm->string_table.strings[i] = 0;
 
 	/* initialize the strings */
 	

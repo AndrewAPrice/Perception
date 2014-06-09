@@ -963,6 +963,7 @@ void turkey_instruction_load_element(TurkeyVM *vm) {
 		element = turkey_object_get_property(vm, b.object, turkey_to_string(vm, key));
 		turkey_gc_unhold(vm, b.object, TT_Object);
 		}
+		break;
 	case TT_String: {
 		unsigned long long int pos = turkey_to_unsigned(vm, key);
 		if(pos >= b.string->length)
@@ -1546,7 +1547,7 @@ void turkey_instruction_call_function_8(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
 		return;
 
-	size_t argv = (size_t)*(unsigned char *)vm->interpreter_state->code_ptr;
+	size_t argc = (size_t)*(unsigned char *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr++;
 
 	TurkeyVariable func;
@@ -1555,11 +1556,11 @@ void turkey_instruction_call_function_8(TurkeyVM *vm) {
 	TurkeyVariable returnVar;
 
 	if(func.type == TT_FunctionPointer)
-		returnVar = turkey_call_function(vm, func.function, argv);
+		returnVar = turkey_call_function(vm, func.function, argc);
 	else {
-		while(argv > 0) {
+		while(argc > 0) {
 			turkey_stack_pop_no_return(vm->variable_stack);
-			argv--;
+			argc--;
 		}
 
 		returnVar.type = TT_Null;
@@ -1572,7 +1573,7 @@ void turkey_instruction_call_function_16(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr + 1>= vm->interpreter_state->code_end)
 		return;
 
-	size_t argv = (size_t)*(unsigned short *)vm->interpreter_state->code_ptr;
+	size_t argc = (size_t)*(unsigned short *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr += 2;
 
 	TurkeyVariable func;
@@ -1581,11 +1582,11 @@ void turkey_instruction_call_function_16(TurkeyVM *vm) {
 	TurkeyVariable returnVar;
 
 	if(func.type == TT_FunctionPointer)
-		returnVar = turkey_call_function(vm, func.function, argv);
+		returnVar = turkey_call_function(vm, func.function, argc);
 	else {
-		while(argv > 0) {
+		while(argc > 0) {
 			turkey_stack_pop_no_return(vm->variable_stack);
-			argv--;
+			argc--;
 		}
 
 		returnVar.type = TT_Null;
@@ -1598,18 +1599,18 @@ void turkey_instruction_call_function_no_return_8(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
 		return;
 
-	size_t argv = (size_t)*(unsigned char *)vm->interpreter_state->code_ptr;
+	size_t argc = (size_t)*(unsigned char *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr++;
 
 	TurkeyVariable func;
 	turkey_stack_pop(vm->variable_stack, func);
 
 	if(func.type == TT_FunctionPointer)
-		turkey_call_function_no_return(vm, func.function, argv);
+		turkey_call_function_no_return(vm, func.function, argc);
 	else {
-		while(argv > 0) {
+		while(argc > 0) {
 			turkey_stack_pop_no_return(vm->variable_stack);
-			argv--;
+			argc--;
 		}
 	}
 }
@@ -1618,18 +1619,18 @@ void turkey_instruction_call_function_no_return_16(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr + 1>= vm->interpreter_state->code_end)
 		return;
 
-	size_t argv = (size_t)*(unsigned short *)vm->interpreter_state->code_ptr;
+	size_t argc = (size_t)*(unsigned short *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr += 2;
 
 	TurkeyVariable func;
 	turkey_stack_pop(vm->variable_stack, func);
 
 	if(func.type == TT_FunctionPointer)
-		turkey_call_function(vm, func.function, argv);
+		turkey_call_function(vm, func.function, argc);
 	else {
-		while(argv > 0) {
+		while(argc > 0) {
 			turkey_stack_pop_no_return(vm->variable_stack);
-			argv--;
+			argc--;
 		}
 	}
 }

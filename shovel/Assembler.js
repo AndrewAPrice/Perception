@@ -895,6 +895,7 @@ var handleFunction = function(funcHeader) {
 					fixUp[0] = 100;
 				else
 					fixUp[0] = 101;
+				break;
 			case "jumpiftrue": // 102,103,104 (8/16/32)
 				if(jumpSize == 1)
 					fixUp[0] = 102;
@@ -902,6 +903,7 @@ var handleFunction = function(funcHeader) {
 					fixUp[0] = 103;
 				else
 					fixUp[0] = 104;
+				break;
 			case "jumpiffalse": // 105,106,107 (8/16/32)
 				if(jumpSize == 1)
 					fixUp[0] = 105;
@@ -909,6 +911,7 @@ var handleFunction = function(funcHeader) {
 					fixUp[0] = 106;
 				else
 					fixUp[0] = 107;
+				break;
 			case "jumpifnull": // 108,109,110 (8/16/32)
 				if(jumpSize == 1)
 					fixUp[0] = 108;
@@ -916,6 +919,7 @@ var handleFunction = function(funcHeader) {
 					fixUp[0] = 109;
 				else
 					fixUp[0] = 110;
+				break;
 			case "jumpifnotnull": // 111,112,113 (8/16/32)
 				if(jumpSize == 1)
 					fixUp[0] = 111;
@@ -1043,7 +1047,7 @@ var writeString = function(str) {
 // write the file header out to disk
 var writeFileHeader = function() {
 	// header sizes for calculating the offsets into the file
-	var iconStart = 42; // header size
+	var iconStart = 50; // header size
 	var iconSize = 0;
 	var functionHeaderStart = iconStart + iconSize;
 	var codeBlockStart = functionHeaderStart + 24 * functions.length;

@@ -82,7 +82,7 @@ void turkey_require(TurkeyVM *vm, unsigned int index) {
 
 void turkey_require(TurkeyVM *vm) {
 	TurkeyVariable name;
-	turkey_stack_pop(vm->local_stack, name);
+	turkey_stack_pop(vm->variable_stack, name);
 
 	TurkeyVariable ret;
 	ret.type = TT_Null;
@@ -144,7 +144,7 @@ void turkey_require(TurkeyVM *vm) {
 	}
 
 	turkey_gc_unhold(vm, strName, TT_String);
-	turkey_stack_push(vm->local_stack, ret);
+	turkey_stack_push(vm->variable_stack, ret);
 	
 }
 
@@ -153,8 +153,8 @@ void turkey_require(TurkeyVM *vm) {
 void turkey_register_module(TurkeyVM *vm, unsigned int ind_moduleName, unsigned int ind_obj) {
 	TurkeyVariable name, obj;
 
-	turkey_stack_get(vm->local_stack, ind_moduleName, name);
-	turkey_stack_get(vm->local_stack, ind_obj, obj);
+	turkey_stack_get(vm->variable_stack, ind_moduleName, name);
+	turkey_stack_get(vm->variable_stack, ind_obj, obj);
 
 	TurkeyString *strName = turkey_to_string(vm, name);
 	turkey_gc_hold(vm, strName, TT_String);
@@ -188,7 +188,7 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 		// allocate the code block
 		module->code_block = turkey_allocate_memory(code_block_length);
 		module->code_block_size = code_block_length;
-		turkey_memory_copy(module->code_block, (void *)((size_t)file + code_block_start), file_size);
+		turkey_memory_copy(module->code_block, (void *)((size_t)file + code_block_start), code_block_length);
 
 		// allocate function headers
 		module->functions = (TurkeyFunction **)turkey_allocate_memory(sizeof(TurkeyFunction *) * functions);
@@ -230,7 +230,7 @@ void load_string_table_from_file(TurkeyVM *vm, TurkeyModule *module,
 			return;
 		}
 
-		module->string_count = string_table_length;	
+		module->string_count = string_table_entries;	
 		module->strings = (TurkeyString **) turkey_allocate_memory(sizeof (TurkeyString *) * string_table_entries);
 
 		unsigned int strings_start = string_table_start + string_table_length;

@@ -1,6 +1,7 @@
 #include "turkey_internal.h"
 
-void turkey_gc_init(TurkeyGarbageCollector &collector) {
+void turkey_gc_init(TurkeyVM *vm) {
+	TurkeyGarbageCollector &collector = vm->garbage_collector;
 	collector.arrays = 0;
 	collector.buffers = 0;
 	collector.function_pointers = 0;
@@ -39,7 +40,6 @@ void turkey_gc_register_string(TurkeyGarbageCollector &collector, TurkeyString *
 	string->gc_next = collector.strings;
 	collector.strings = string;
 	collector.items++;
-	
 }
 
 void turkey_gc_register_buffer(TurkeyGarbageCollector &collector, TurkeyBuffer *buffer) {

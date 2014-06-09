@@ -25,6 +25,7 @@ TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr
 
 	TurkeyInterpreterState state;
 	state.parent = vm->interpreter_state;
+	state.function = func;
 	vm->interpreter_state = &state;
 
 	// set up closures
@@ -62,9 +63,10 @@ TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr
 	vm->variable_stack.top = vm->variable_stack.position;
 
 	// start executing
-	while(state.executing && state.code_end > state.code_ptr && state.code_ptr > state.code_start) {
+	while(state.executing && state.code_start <= state.code_ptr && state.code_ptr < state.code_end) {
 		// call this instruction
-		turkey_interpreter_operations[*(unsigned char *)state.code_ptr++](vm);
+		unsigned char bytecode = *(unsigned char *)state.code_ptr++;
+		turkey_interpreter_operations[bytecode](vm);
 	}
 
 	// get the return value

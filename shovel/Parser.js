@@ -1542,8 +1542,8 @@ exports.compile = function(funcs) {
 					break;
 				// {operation: "while",condition: cond,statement: stmt, bodyLabel: bodyLabel, continueLabel: continueLabel, breakLabel: breakLabel }
 				case "while":
-					instructions.push(".l" + node.bodyLabel);
 					instructions.push("Jump l" + node.continueLabel);
+					instructions.push(".l" + node.bodyLabel);
 					compileNode(node.statement);
 
 					instructions.push(".l" + node.continueLabel);
