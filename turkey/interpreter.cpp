@@ -12,7 +12,12 @@ void turkey_interpreter_cleanup(TurkeyVM *vm) {
 TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr, size_t argc) {
 	if(funcptr->is_native) {
 		// native function call
-		return;
+		TurkeyVariable var = funcptr->native.function(vm, funcptr->native.closure, argc);
+		while(argc > 0) {
+			turkey_stack_pop_no_return(vm->variable_stack);
+			argc--;
+		}
+		return var;
 	}
 
 	// call managed function
@@ -33,18 +38,52 @@ TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr
 	state.code_end = (size_t)func->end;
 	state.executing = true;
 
-	// create space for local variables
-
 	// copy parameters
+	unsigned int callee_parameter_stack_top = vm->parameter_stack.top;
+	vm->parameter_stack.top = vm->parameter_stack.position;
+
+	for(size_t i = 0; i < argc; i++) {
+		TurkeyVariable var;
+		turkey_stack_pop(vm->variable_stack, var);
+		turkey_stack_push(vm->parameter_stack, var);
+	}
+	
+	// create space for local stack
+	unsigned int callee_local_stack_top = vm->local_stack.top;
+	vm->local_stack.top = vm->local_stack.position;
+	TurkeyVariable nullVar;
+	nullVar.type = TT_Null;
+
+	for(size_t i = 0; i < func->locals; i++)
+		turkey_stack_push(vm->local_stack, nullVar);
+	
+	// new variable stack
+	unsigned int callee_variable_stack_top = vm->variable_stack.top;
+	vm->variable_stack.top = vm->variable_stack.position;
 
 	// start executing
-	while(state.executing && state.code_end > state.code_ptr > state.code_start) {
+	while(state.executing && state.code_end > state.code_ptr && state.code_ptr > state.code_start) {
 		// call this instruction
 		turkey_interpreter_operations[*(unsigned char *)state.code_ptr++](vm);
 	}
 
+	// get the return value
+	TurkeyVariable ret;
+	turkey_stack_pop(vm->variable_stack, ret);
+
 	// return to the parent state
+	vm->parameter_stack.position = vm->parameter_stack.top;
+	vm->parameter_stack.top = callee_parameter_stack_top;
+
+	vm->local_stack.position = vm->local_stack.top;
+	vm->local_stack.top = callee_local_stack_top;
+
+	vm->variable_stack.position = vm->variable_stack.top;
+	vm->variable_stack.top = callee_variable_stack_top;
+
 	vm->interpreter_state = state.parent;
+
+	return ret;
 }
 
 void turkey_call_function_no_return(TurkeyVM *vm, TurkeyFunctionPointer *funcptr, size_t argc) {
