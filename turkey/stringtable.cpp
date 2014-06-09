@@ -15,46 +15,55 @@ void turkey_stringtable_init(TurkeyVM *vm) {
 	/* initialize the strings */
 	
 	/* some static strings, used in the VM */
-	vm->string_table.s_true = turkey_stringtable_newstring(vm, "true", 4);
-	vm->string_table.s_false = turkey_stringtable_newstring(vm, "false", 5);
+	turkey_gc_hold(vm, vm->string_table.s_true = turkey_stringtable_newstring(vm, "true", 4), TT_String);
+	turkey_gc_hold(vm, vm->string_table.s_false = turkey_stringtable_newstring(vm, "false", 5), TT_String);
 
-	vm->string_table.s_boolean = turkey_stringtable_newstring(vm, "boolean", 7);
-	vm->string_table.s_unsigned = turkey_stringtable_newstring(vm, "unsigned", 8);
-	vm->string_table.s_signed = turkey_stringtable_newstring(vm, "signed", 6);
-	vm->string_table.s_float = turkey_stringtable_newstring(vm, "float", 5);
-	vm->string_table.s_null = turkey_stringtable_newstring(vm, "null", 4);
-	vm->string_table.s_object = turkey_stringtable_newstring(vm, "object", 6);
-	vm->string_table.s_array  = turkey_stringtable_newstring(vm, "array", 5);
-	vm->string_table.s_buffer = turkey_stringtable_newstring(vm, "buffer", 6);
-	vm->string_table.s_function = turkey_stringtable_newstring(vm, "function", 8);
-	vm->string_table.s_string = turkey_stringtable_newstring(vm, "string", 6);
+	turkey_gc_hold(vm, vm->string_table.s_boolean = turkey_stringtable_newstring(vm, "boolean", 7), TT_String);
+	turkey_gc_hold(vm, vm->string_table.s_unsigned = turkey_stringtable_newstring(vm, "unsigned", 8), TT_String);
+	turkey_gc_hold(vm, vm->string_table.s_signed = turkey_stringtable_newstring(vm, "signed", 6), TT_String);
+	turkey_gc_hold(vm, vm->string_table.s_float = turkey_stringtable_newstring(vm, "float", 5), TT_String);
+	turkey_gc_hold(vm, vm->string_table.s_null = turkey_stringtable_newstring(vm, "null", 4), TT_String);
+	turkey_gc_hold(vm, vm->string_table.s_object = turkey_stringtable_newstring(vm, "object", 6), TT_String);
+	turkey_gc_hold(vm, vm->string_table.s_array  = turkey_stringtable_newstring(vm, "array", 5), TT_String);
+	turkey_gc_hold(vm, vm->string_table.s_buffer = turkey_stringtable_newstring(vm, "buffer", 6), TT_String);
+	turkey_gc_hold(vm, vm->string_table.s_function = turkey_stringtable_newstring(vm, "function", 8), TT_String);
+	turkey_gc_hold(vm, vm->string_table.s_string = turkey_stringtable_newstring(vm, "string", 6), TT_String);
 
 	/* string symbols */
-	vm->string_table.ss_add = turkey_stringtable_newstring(vm, "+", 1);
-	vm->string_table.ss_subtract = turkey_stringtable_newstring(vm, "-", 1);
-	vm->string_table.ss_divide = turkey_stringtable_newstring(vm, "/", 1);
-	vm->string_table.ss_multiply = turkey_stringtable_newstring(vm, "*", 1);
-	vm->string_table.ss_modulo = turkey_stringtable_newstring(vm, "%", 1);
-	vm->string_table.ss_increment = turkey_stringtable_newstring(vm, "++", 2);
-	vm->string_table.ss_decrement = turkey_stringtable_newstring(vm, "--", 2);
-	vm->string_table.ss_xor = turkey_stringtable_newstring(vm, "^", 1);
-	vm->string_table.ss_and = turkey_stringtable_newstring(vm, "&", 1);
-	vm->string_table.ss_or = turkey_stringtable_newstring(vm, "|", 1);
-	vm->string_table.ss_not = turkey_stringtable_newstring(vm, "!", 1);
-	vm->string_table.ss_shift_left = turkey_stringtable_newstring(vm, "<<", 2);
-	vm->string_table.ss_shift_right = turkey_stringtable_newstring(vm, ">>", 2);
-	vm->string_table.ss_rotate_left = turkey_stringtable_newstring(vm, "<<<", 3);
-	vm->string_table.ss_rotate_right = turkey_stringtable_newstring(vm, ">>>", 3);
-	vm->string_table.ss_less_than = turkey_stringtable_newstring(vm, "<", 1);
-	vm->string_table.ss_greater_than = turkey_stringtable_newstring(vm, ">", 1);
-	vm->string_table.ss_less_than_or_equals = turkey_stringtable_newstring(vm, "<=", 2);
-	vm->string_table.ss_greater_than_or_equals = turkey_stringtable_newstring(vm, ">=", 2);
+	turkey_gc_hold(vm, vm->string_table.ss_blank = turkey_stringtable_newstring(vm, "", 0), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_opening_bracket = turkey_stringtable_newstring(vm, "[", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_closing_bracket = turkey_stringtable_newstring(vm, "]", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_opening_brace = turkey_stringtable_newstring(vm, "{", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_closing_brace = turkey_stringtable_newstring(vm, "}", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_colon = turkey_stringtable_newstring(vm, ":", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_comma = turkey_stringtable_newstring(vm, ",", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_doublequote = turkey_stringtable_newstring(vm, "\"", 1), TT_String);
+
+	turkey_gc_hold(vm, vm->string_table.ss_add = turkey_stringtable_newstring(vm, "+", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_subtract = turkey_stringtable_newstring(vm, "-", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_divide = turkey_stringtable_newstring(vm, "/", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_multiply = turkey_stringtable_newstring(vm, "*", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_modulo = turkey_stringtable_newstring(vm, "%", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_increment = turkey_stringtable_newstring(vm, "++", 2), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_decrement = turkey_stringtable_newstring(vm, "--", 2), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_xor = turkey_stringtable_newstring(vm, "^", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_and = turkey_stringtable_newstring(vm, "&", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_or = turkey_stringtable_newstring(vm, "|", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_not = turkey_stringtable_newstring(vm, "!", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_shift_left = turkey_stringtable_newstring(vm, "<<", 2), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_shift_right = turkey_stringtable_newstring(vm, ">>", 2), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_rotate_left = turkey_stringtable_newstring(vm, "<<<", 3), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_rotate_right = turkey_stringtable_newstring(vm, ">>>", 3), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_less_than = turkey_stringtable_newstring(vm, "<", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_greater_than = turkey_stringtable_newstring(vm, ">", 1), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_less_than_or_equals = turkey_stringtable_newstring(vm, "<=", 2), TT_String);
+	turkey_gc_hold(vm, vm->string_table.ss_greater_than_or_equals = turkey_stringtable_newstring(vm, ">=", 2), TT_String);
 }
 
-void turkey_stringtable_cleanup(TurkeyStringTable &table) {
+void turkey_stringtable_cleanup(TurkeyVM *vm) {
 	/* deallocate each string */
-	for(unsigned int i = 0; i < table.length; i++) {
-		TurkeyString *s = table.strings[i];
+	for(unsigned int i = 0; i < vm->string_table.length; i++) {
+		TurkeyString *s = vm->string_table.strings[i];
 		/* each string at this hash entry */
 		while(s != 0) {
 			TurkeyString *str = s;
@@ -65,7 +74,7 @@ void turkey_stringtable_cleanup(TurkeyStringTable &table) {
 		}
 	}
 
-	turkey_free_memory(table.strings);
+	turkey_free_memory(vm->string_table.strings);
 }
 
 TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, unsigned int length) {
