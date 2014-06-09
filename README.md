@@ -7,7 +7,7 @@ Shovel and Turkey are being developed seperately from Perception, so that they m
 
 ## Directory Structure
 - Shovel - Tools related to the Shovel language build system - compiler, assembler
-- Turkey - The Turky virtual machine
+- Turkey - The Turkey virtual machine
 - Perception - The Perception kernel will eventually go in here.
 
 ## Todo
