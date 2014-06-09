@@ -32,4 +32,6 @@ extern void turkey_print_string(char *buffer, size_t &size, const char *format, 
 
 extern TurkeyString *turkey_relative_to_absolute_path(TurkeyVM *vm, TurkeyString *relativePath);
 
+extern double turkey_float_modulo(double a, double b);
+
 #endif

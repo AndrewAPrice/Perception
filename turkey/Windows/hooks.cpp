@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <math.h>
 #include "../hooks.h"
 #include "../turkey_internal.h"
 
@@ -72,4 +73,8 @@ extern TurkeyString *turkey_relative_to_absolute_path(TurkeyVM *vm, TurkeyString
 	size_t len = strnlen_s(path, 512);
 
 	return turkey_stringtable_newstring(vm, path, len);
+}
+
+double turkey_float_modulo(double a, double b) {
+	return fmod(a, b);
 }
