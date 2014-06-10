@@ -18,6 +18,7 @@ void main() {
 	/* create the vm */
 	TurkeySettings settings;
 	settings.debug = true;
+	settings.tag = 0;
 
 	TurkeyVM *vm = turkey_init(&settings);
 
@@ -39,6 +40,9 @@ void main() {
 	turkey_push_string(vm, "../../shovel/test.bin");
 	turkey_require(vm); /* loaded test.bin and pops off test.bin's exports */
 	turkey_pop(vm); /* pops off path */
+	printf("Before: %i\n", vm->garbage_collector.items);
+	turkey_gc_collect(vm);
+	printf("After: %i\n", vm->garbage_collector.items);
 	
 	/* cleanup the vm */
 	turkey_cleanup(vm);

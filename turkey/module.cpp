@@ -18,7 +18,7 @@ void turkey_module_cleanup(TurkeyVM *vm) {
 			turkey_gc_unhold(vm, current->Name, TT_String);
 			turkey_gc_unhold(vm, current->ReturnVariable);
 
-			turkey_free_memory(current);
+			turkey_free_memory(vm->tag, current, sizeof TurkeyLoadedModule);
 
 			current = next;
 		}
@@ -30,7 +30,7 @@ void turkey_module_cleanup(TurkeyVM *vm) {
 			turkey_gc_unhold(vm, current->Name, TT_String);
 			turkey_gc_unhold(vm, current->ReturnVariable);
 
-			turkey_free_memory(current);
+			turkey_free_memory(vm->tag, current, sizeof TurkeyLoadedModule);
 
 			current = next;
 		}
@@ -45,16 +45,16 @@ void turkey_module_cleanup(TurkeyVM *vm) {
 		while(current != 0) {
 			next = current->next;
 			if(current->code_block != 0)
-				turkey_free_memory(current->code_block);
+				turkey_free_memory(vm->tag, current->code_block, current->code_block_size);
 
 			if(current->functions != 0) {
 				for(unsigned int i = 0; i < current->function_count; i++) {
 					if(current->functions[i] != 0) {
-						turkey_free_memory(current->functions[i]);
+						turkey_free_memory(vm->tag, current->functions[i], sizeof TurkeyFunction);
 					}
 				}
 
-				turkey_free_memory(current->functions);
+				turkey_free_memory(vm->tag, current->functions, sizeof(TurkeyFunction *) * current->function_count);
 			}
 
 			if(current->strings != 0) {
@@ -64,10 +64,10 @@ void turkey_module_cleanup(TurkeyVM *vm) {
 					}
 				}
 				
-				turkey_free_memory(current->strings);
+				turkey_free_memory(vm->tag, current->strings, sizeof (TurkeyString *) * current->string_count);
 			}
 
-			turkey_free_memory(current);
+			turkey_free_memory(vm->tag, current, sizeof TurkeyModule);
 			current = next;
 		}
 	}
@@ -113,7 +113,7 @@ void turkey_require(TurkeyVM *vm) {
 			// if it's not already loaded
 			if(!found) {
 				// add this module first before loading the file - this is important to prevent recursive loading
-				TurkeyLoadedModule *module = (TurkeyLoadedModule *)turkey_allocate_memory(sizeof TurkeyLoadedModule);
+				TurkeyLoadedModule *module = (TurkeyLoadedModule *)turkey_allocate_memory(vm->tag, sizeof TurkeyLoadedModule);
 				module->Name = absPath; // absPath is already being heald
 				module->ReturnVariable = ret;
 				module->Next = vm->loaded_modules.external_modules;
@@ -144,7 +144,7 @@ void turkey_require(TurkeyVM *vm) {
 	}
 
 	turkey_gc_unhold(vm, strName, TT_String);
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 	
 }
 
@@ -161,7 +161,7 @@ void turkey_register_module(TurkeyVM *vm, unsigned int ind_moduleName, unsigned 
 	turkey_gc_hold(vm, obj);
 
 	// create a module
-	TurkeyLoadedModule *module = (TurkeyLoadedModule *)turkey_allocate_memory(sizeof TurkeyLoadedModule);
+	TurkeyLoadedModule *module = (TurkeyLoadedModule *)turkey_allocate_memory(vm->tag, sizeof TurkeyLoadedModule);
 	module->Name = strName;
 	module->ReturnVariable = obj;
 	module->Next = vm->loaded_modules.internal_modules;
@@ -186,12 +186,12 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 		}
 
 		// allocate the code block
-		module->code_block = turkey_allocate_memory(code_block_length);
+		module->code_block = turkey_allocate_memory(vm->tag, code_block_length);
 		module->code_block_size = code_block_length;
 		turkey_memory_copy(module->code_block, (void *)((size_t)file + code_block_start), code_block_length);
 
 		// allocate function headers
-		module->functions = (TurkeyFunction **)turkey_allocate_memory(sizeof(TurkeyFunction *) * functions);
+		module->functions = (TurkeyFunction **)turkey_allocate_memory(vm->tag, sizeof(TurkeyFunction *) * functions);
 		module->function_count = functions;
 
 		for(unsigned int i = 0; i < functions; i++) {
@@ -206,7 +206,7 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 				// cannot fit in the code block
 				module->functions[i] = 0;
 			} else {
-				TurkeyFunction *function = (TurkeyFunction *)turkey_allocate_memory(sizeof TurkeyFunction);
+				TurkeyFunction *function = (TurkeyFunction *)turkey_allocate_memory(vm->tag, sizeof TurkeyFunction);
 				
 				function->module = module;
 				function->start = (void *)((size_t)module->code_block + start_addr);
@@ -231,7 +231,7 @@ void load_string_table_from_file(TurkeyVM *vm, TurkeyModule *module,
 		}
 
 		module->string_count = string_table_entries;	
-		module->strings = (TurkeyString **) turkey_allocate_memory(sizeof (TurkeyString *) * string_table_entries);
+		module->strings = (TurkeyString **) turkey_allocate_memory(vm->tag, sizeof (TurkeyString *) * string_table_entries);
 
 		unsigned int strings_start = string_table_start + string_table_length;
 
@@ -256,31 +256,31 @@ TurkeyVariable turkey_module_load_file(TurkeyVM *vm, TurkeyString *filepath) {
 
 	// load the file
 	size_t file_size;
-	void *file = turkey_load_file(filepath, file_size);
+	void *file = turkey_load_file(vm->tag, filepath, file_size);
 	if(file == 0) return ret; // couldn't load file
 
 	if(file_size < 42) { // not enough room for a header
-		turkey_free_memory(file);
+		turkey_free_memory(vm->tag, file, file_size);
 		return ret;
 	}
 
 	// read the magic key '12SHOVEL'
 	if(*(unsigned int *)file != 0x48533231 || *(unsigned int *)((size_t)file + 4) != 0x4C45564F) {
 		// magic key is bad
-		turkey_free_memory(file);
+		turkey_free_memory(vm->tag, file, file_size);
 		return ret;
 	}
 
 	if(*(unsigned short *)((size_t)file + 8) != 0) {
 		// unknown version
-		turkey_free_memory(file);
+		turkey_free_memory(vm->tag, file, file_size);
 		return ret;
 	}
 
 	// skip over the icon, 10, 14
 
 	// create module in memory
-	TurkeyModule *module = (TurkeyModule *)turkey_allocate_memory(sizeof(TurkeyModule));
+	TurkeyModule *module = (TurkeyModule *)turkey_allocate_memory(vm->tag, sizeof TurkeyModule);
 	module->next = 0;
 	vm->modules = module;
 
@@ -297,7 +297,7 @@ TurkeyVariable turkey_module_load_file(TurkeyVM *vm, TurkeyString *filepath) {
 	load_string_table_from_file(vm, module, string_table_start, string_table_entries, file, file_size);
 
 	// unload the file
-	turkey_free_memory(file);
+	turkey_free_memory(vm->tag, file, file_size);
 
 	// execute the first function
 	if(module->function_count >= 1) {

@@ -7,16 +7,16 @@ struct TurkeyString;
 /* Implement these functions if you want to port Turkey */
 /* Opens a file and returns a pointer, and the size of the pointer.
    It needs to be freed by calling turkey_free_memory(). */
-extern void *turkey_load_file(TurkeyString *path, size_t &size);
+extern void *turkey_load_file(void *tag, TurkeyString *path, size_t &size);
 
 /* Allocate some memory and return a pointer to it. */
-extern void *turkey_allocate_memory(size_t size);
+extern void *turkey_allocate_memory(void *tag, size_t size);
 
 /* Free some memory */
-extern void turkey_free_memory(void *mem);
+extern void turkey_free_memory(void *tag, void *mem, size_t size);
 
 /* Realloctes memory */
-extern void *turkey_reallocate_memory(void *mem, size_t new_size);
+extern void *turkey_reallocate_memory(void *tag, void *mem, size_t old_size, size_t new_size);
 
 /* Copy memory from source to destination */
 extern void turkey_memory_copy(void *dest, const void *src, size_t size);

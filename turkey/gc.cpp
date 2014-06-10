@@ -1,9 +1,16 @@
 #include "turkey_internal.h"
+#ifdef DEBUG
+#include <stdio.h> /* for assert */
+#endif
 
 #define IS_GC_OBJECT(var) (var.type > TT_Null)
 
 void turkey_gc_init(TurkeyVM *vm) {
 	TurkeyGarbageCollector &collector = vm->garbage_collector;
+#ifdef DEBUG
+	collector.items_on_hold = 0;
+#endif
+
 	collector.arrays = 0;
 	collector.buffers = 0;
 	collector.function_pointers = 0;
@@ -14,9 +21,13 @@ void turkey_gc_init(TurkeyVM *vm) {
 	collector.items = 0;
 }
 
-void turkey_gc_cleanup(TurkeyVM *vm) {	
+void turkey_gc_cleanup(TurkeyVM *vm) {
 	TurkeyGarbageCollector &collector = vm->garbage_collector;
 	TurkeyGarbageCollectedObject *iterator, *next;
+
+#ifdef DEBUG
+	assert(collector.items_on_hold == 0);
+#endif
 
 	/* delete everything */
 	#define delete_everything(_IT_, _CAST_, _HANDLER_,_PARAM_) iterator = _IT_; \
@@ -241,7 +252,7 @@ void turkey_gc_collect(TurkeyVM *vm) {
 	clean_up(collector.buffers, TurkeyBuffer, turkey_buffer_delete, vm);
 	clean_up(collector.function_pointers, TurkeyFunctionPointer, turkey_functionpointer_delete, vm);
 	clean_up(collector.objects, TurkeyObject, turkey_object_delete, vm);
-	clean_up(collector.strings, TurkeyString, turkey_stringtable_removestring, vm->string_table);
+	clean_up(collector.strings, TurkeyString, turkey_stringtable_removestring, vm);
 	clean_up(collector.closures, TurkeyClosure, turkey_closure_delete, vm);
 	#undef mark_array
 }
@@ -294,6 +305,10 @@ void turkey_gc_hold(TurkeyVM *vm, TurkeyGarbageCollectedObject *obj, TurkeyType 
 		}
 
 		obj->hold = 1;
+#ifdef DEBUG
+		if(type != TT_String)
+			vm->garbage_collector.items_on_hold++;
+#endif
 	} else
 		obj->hold++;
 }
@@ -311,6 +326,7 @@ void turkey_gc_unhold(TurkeyVM *vm, TurkeyGarbageCollectedObject *obj, TurkeyTyp
 	if(obj->hold == 1) {
 		/* last thing holding the object is releasing it, add it back to the gc list */
 		obj->gc_prev = 0;
+		obj->hold = 0;
 
 		TurkeyGarbageCollector &collector = vm->garbage_collector;
 
@@ -345,6 +361,10 @@ void turkey_gc_unhold(TurkeyVM *vm, TurkeyGarbageCollectedObject *obj, TurkeyTyp
 			if(collector.closures != 0) collector.closures->gc_prev = obj;
 			collector.closures = (TurkeyClosure *)obj;
 		}
+#ifdef DEBUG
+		if(type != TT_String)
+			collector.items_on_hold--;
+#endif
 	} else
 		obj->hold--;
 }

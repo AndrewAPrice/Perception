@@ -46,7 +46,7 @@ TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr
 	for(size_t i = 0; i < argc; i++) {
 		TurkeyVariable var;
 		turkey_stack_pop(vm->variable_stack, var);
-		turkey_stack_push(vm->parameter_stack, var);
+		turkey_stack_push(vm, vm->parameter_stack, var);
 	}
 	
 	// create space for local stack
@@ -56,7 +56,7 @@ TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr
 	nullVar.type = TT_Null;
 
 	for(size_t i = 0; i < func->locals; i++)
-		turkey_stack_push(vm->local_stack, nullVar);
+		turkey_stack_push(vm, vm->local_stack, nullVar);
 	
 	// new variable stack
 	unsigned int callee_variable_stack_top = vm->variable_stack.top;

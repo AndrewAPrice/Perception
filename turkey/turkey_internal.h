@@ -79,7 +79,6 @@ struct TurkeyStringTable {
 	TurkeyString *ss_greater_than;
 	TurkeyString *ss_less_than_or_equals;
 	TurkeyString *ss_greater_than_or_equals;
-	TurkeyString *ss_invert;
 };
 
 struct TurkeyFunctionPointer : TurkeyGarbageCollectedObject {
@@ -176,6 +175,10 @@ struct TurkeyGarbageCollector {
 	TurkeyClosure *closures;
 
 	unsigned long long int items; /* number of allocated items */
+	#ifdef DEBUG
+	/* items on hold are not collected by the gc, this can cause memory leaks if cleanup the GC without unholding all objects */
+	size_t items_on_hold;
+	#endif
 };
 
 struct TurkeyInterpreterState {
@@ -193,6 +196,7 @@ struct TurkeyInterpreterState {
 
 struct TurkeyVM {
 	bool debug; /* no jit */
+	void *tag; /* tag when running multiple instances of the VM */
 
 	TurkeyModule *modules; /* loaded modules */
 	TurkeyStringTable string_table; /* table of strings */
@@ -213,7 +217,6 @@ extern void turkey_array_delete(TurkeyVM *vm, TurkeyArray *arr);
 extern void turkey_array_push(TurkeyVM *vm, TurkeyArray *arr, const TurkeyVariable &variable);
 extern void turkey_array_grow(TurkeyVM *vm, TurkeyArray *arr);
 extern void turkey_array_allocate(TurkeyVM *vm, TurkeyArray *arr, unsigned int size);
-extern void turkey_array_resize(TurkeyVM *vm, TurkeyArray *arr, unsigned int size);
 extern TurkeyVariable turkey_array_get_element(TurkeyVM *vm, TurkeyArray *arr, unsigned int index);
 extern void turkey_array_set_element(TurkeyVM *vm, TurkeyArray *arr, unsigned int index, const TurkeyVariable &variable);
 extern void turkey_array_remove(TurkeyVM *vm, TurkeyArray *arr, unsigned int start, unsigned int count);
@@ -301,9 +304,9 @@ extern void turkey_object_call_operator(TurkeyVM *vm, TurkeyObject *object, Turk
 extern void turkey_object_call_operator(TurkeyVM *vm, TurkeyObject *object, TurkeyString *oper);
 
 /* stack.cpp */
-extern void turkey_stack_init(TurkeyStack &stack);
-extern void turkey_stack_cleanup(TurkeyStack &stack);
-extern void turkey_stack_push(TurkeyStack &stack, const TurkeyVariable &value);
+extern void turkey_stack_init(TurkeyVM *vm, TurkeyStack &stack);
+extern void turkey_stack_cleanup(TurkeyVM *vm, TurkeyStack &stack);
+extern void turkey_stack_push(TurkeyVM *vm, TurkeyStack &stack, const TurkeyVariable &value);
 extern void turkey_stack_pop_no_return(TurkeyStack &stack);
 extern void turkey_stack_pop(TurkeyStack &stack, TurkeyVariable &value);
 extern void turkey_stack_get(TurkeyStack &stack, unsigned int position, TurkeyVariable &value);
@@ -321,8 +324,8 @@ extern TurkeyString *turkey_string_substring(TurkeyVM *vm, TurkeyString *str, un
 extern void turkey_stringtable_init(TurkeyVM *vm);
 extern void turkey_stringtable_cleanup(TurkeyVM *vm);
 extern TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, unsigned int length);
-extern void turkey_stringtable_grow(TurkeyStringTable &table);
-extern void turkey_stringtable_removestring(TurkeyStringTable &table, TurkeyString *string);
+extern void turkey_stringtable_grow(TurkeyVM *vm);
+extern void turkey_stringtable_removestring(TurkeyVM *vm, TurkeyString *string);
 
 /* instructions.cpp */
 extern TurkeyInstructionHandler turkey_interpreter_operations[256];

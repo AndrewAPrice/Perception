@@ -20,7 +20,7 @@ TurkeyString *turkey_string_escape(TurkeyVM *vm, TurkeyString *str) {
 	}
 
 	// copy the string into it
-	char *strbuffer = (char *)turkey_allocate_memory(strlength);
+	char *strbuffer = (char *)turkey_allocate_memory(vm->tag, strlength);
 	char *ptr = strbuffer;
 	*ptr = '"';
 	ptr++;
@@ -43,7 +43,7 @@ TurkeyString *turkey_string_escape(TurkeyVM *vm, TurkeyString *str) {
 
 	TurkeyString *str_out = turkey_stringtable_newstring(vm, strbuffer, strlength);
 
-	turkey_free_memory(strbuffer);
+	turkey_free_memory(vm->tag, strbuffer, strlength);
 
 	return str_out;
 }
@@ -52,14 +52,14 @@ TurkeyString *turkey_string_append(TurkeyVM *vm, TurkeyString *stra, TurkeyStrin
 	turkey_gc_hold(vm, stra, TT_String);
 	turkey_gc_hold(vm, strb, TT_String);
 
-	char *buffer = (char *)turkey_allocate_memory(stra->length + strb->length);
+	char *buffer = (char *)turkey_allocate_memory(vm->tag, stra->length + strb->length);
 
 	turkey_memory_copy(buffer, stra->string, stra->length);
 	turkey_memory_copy((char *)((size_t)buffer + stra->length), strb->string, strb->length);
 
 	TurkeyString *str = turkey_stringtable_newstring(vm, buffer, stra->length + strb->length);
 
-	turkey_free_memory(buffer);
+	turkey_free_memory(vm->tag, buffer, stra->length + strb->length);
 	turkey_gc_unhold(vm, stra, TT_String);
 	turkey_gc_unhold(vm, strb, TT_String);
 

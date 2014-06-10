@@ -2,14 +2,18 @@
 #include "hooks.h"
 
 TurkeyObject *turkey_object_new(TurkeyVM *vm) {
-	TurkeyObject *object = (TurkeyObject *)turkey_allocate_memory(sizeof TurkeyObject);
+	TurkeyObject *object = (TurkeyObject *)turkey_allocate_memory(vm->tag, sizeof TurkeyObject);
 	object->count = 0;
 	object->size = 2;
-	object->properties = (TurkeyObjectProperty **)turkey_allocate_memory((sizeof (TurkeyObjectProperty *)) * object->size);
+	object->properties = (TurkeyObjectProperty **)turkey_allocate_memory(vm->tag, (sizeof (TurkeyObjectProperty *)) * object->size);
 
 	/* clear hash */
 	for(unsigned int i = 0; i < object->size; i++)
 		object->properties[i] = 0;
+
+	
+	/* register with the gc */
+	turkey_gc_register_object(vm->garbage_collector, object);
 
 	return object;
 }
@@ -20,13 +24,13 @@ void turkey_object_delete(TurkeyVM *vm, TurkeyObject *object) {
 		TurkeyObjectProperty *prop = object->properties[i];
 		while(prop != 0) {
 			TurkeyObjectProperty *next = prop->next;
-			turkey_free_memory(prop);
+			turkey_free_memory(vm->tag, prop, sizeof TurkeyObjectProperty);
 			prop = next;
 		}
 	}
 
-	turkey_free_memory(object->properties);
-	turkey_free_memory(object);
+	turkey_free_memory(vm->tag, object->properties, (sizeof (TurkeyObjectProperty *)) * object->size);
+	turkey_free_memory(vm->tag, object, sizeof TurkeyObject);
 }
 
 TurkeyVariable turkey_object_get_property(TurkeyVM *vm, TurkeyObject *object, TurkeyString *name) {
@@ -71,7 +75,7 @@ void turkey_object_set_property(TurkeyVM *vm, TurkeyObject *object, TurkeyString
 		index = fast_mod(name->hash, object->size);
 	}
 
-	prop = (TurkeyObjectProperty *)turkey_allocate_memory(sizeof TurkeyObjectProperty);
+	prop = (TurkeyObjectProperty *)turkey_allocate_memory(vm->tag, sizeof TurkeyObjectProperty);
 	prop->next = object->properties[index];
 	prop->key = name;
 	prop->value = value;
@@ -82,7 +86,7 @@ void turkey_object_set_property(TurkeyVM *vm, TurkeyObject *object, TurkeyString
 
 void turkey_object_grow(TurkeyVM *vm, TurkeyObject *object) {
 	unsigned int new_size = object->size * 2;
-	TurkeyObjectProperty **new_properties = (TurkeyObjectProperty **)turkey_allocate_memory((sizeof (TurkeyObjectProperty *)) * new_size);
+	TurkeyObjectProperty **new_properties = (TurkeyObjectProperty **)turkey_allocate_memory(vm->tag, (sizeof (TurkeyObjectProperty *)) * new_size);
 
 	/* clear new hash table */
 	for(unsigned int i = 0; i < new_size; i++)
@@ -104,7 +108,7 @@ void turkey_object_grow(TurkeyVM *vm, TurkeyObject *object) {
 	}
 	
 	/* release the old hash table */
-	turkey_free_memory(object->properties);
+	turkey_free_memory(vm->tag, object->properties, (sizeof (TurkeyObjectProperty *)) * object->size);
 	object->properties = object->properties;
 	object->size = new_size;
 }
@@ -123,7 +127,7 @@ void turkey_object_delete_property(TurkeyVM *vm, TurkeyObject *object, TurkeyStr
 			else
 				object->properties[index] = prop->next;
 
-			turkey_free_memory(prop);
+			turkey_free_memory(vm->tag, prop, sizeof TurkeyObjectProperty);
 			return;
 		}
 
@@ -141,11 +145,11 @@ void turkey_object_call_operator(TurkeyVM *vm, TurkeyObject *object, TurkeyStrin
 	if(var.type != TT_FunctionPointer)
 		ret.type = TT_Null;
 	else {
-		turkey_stack_push(vm->variable_stack, operand);
+		turkey_stack_push(vm, vm->variable_stack, operand);
 		ret = turkey_call_function(vm, var.function, 1);
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_object_call_operator(TurkeyVM *vm, TurkeyObject *object, TurkeyString *oper) {
@@ -158,5 +162,5 @@ void turkey_object_call_operator(TurkeyVM *vm, TurkeyObject *object, TurkeyStrin
 		ret = turkey_call_function(vm, var.function, 0);
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }

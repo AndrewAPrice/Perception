@@ -7,7 +7,7 @@ void turkey_stringtable_init(TurkeyVM *vm) {
 
 	vm->string_table.count = 0;
 	vm->string_table.length = 64;
-	vm->string_table.strings = (TurkeyString **)turkey_allocate_memory((sizeof (TurkeyString*)) * vm->string_table.length);
+	vm->string_table.strings = (TurkeyString **)turkey_allocate_memory(vm->tag, (sizeof (TurkeyString*)) * vm->string_table.length);
 
 	for(unsigned int i = 0; i < vm->string_table.length; i++)
 		vm->string_table.strings[i] = 0;
@@ -69,12 +69,12 @@ void turkey_stringtable_cleanup(TurkeyVM *vm) {
 			TurkeyString *str = s;
 			s = s->next; /* point to the next string before we do anything, as ->next will can change as we unallocate it*/
 
-			turkey_free_memory(str->string);
-			turkey_free_memory(str);
+			turkey_free_memory(vm->tag, str->string, str->length);
+			turkey_free_memory(vm->tag, str, sizeof TurkeyString);
 		}
 	}
 
-	turkey_free_memory(vm->string_table.strings);
+	turkey_free_memory(vm->tag, vm->string_table.strings, (sizeof (TurkeyString*)) * vm->string_table.length);
 }
 
 TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, unsigned int length) {
@@ -99,14 +99,14 @@ TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, uns
 
 	/* not found, add it to the hash table */
 	if(table.count >= table.length) {
-		turkey_stringtable_grow(table);
+		turkey_stringtable_grow(vm);
 		index = fast_mod(hash, table.length);
 	}
 
 	table.count++;
 
-	s = (TurkeyString *)turkey_allocate_memory(sizeof TurkeyString);
-	s->string = (char *)turkey_allocate_memory(length);
+	s = (TurkeyString *)turkey_allocate_memory(vm->tag, sizeof TurkeyString);
+	s->string = (char *)turkey_allocate_memory(vm->tag, length);
 	turkey_memory_copy(s->string, string, length);
 	s->length = length;
 	s->hash = hash;
@@ -124,10 +124,11 @@ TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, uns
 	return s;
 }
 
-void turkey_stringtable_grow(TurkeyStringTable &table) {
+void turkey_stringtable_grow(TurkeyVM *vm) {
+	TurkeyStringTable &table = vm->string_table;
 	/* double the size of the string table */
 	unsigned int new_size = table.length * 2;
-	TurkeyString **new_strings = (TurkeyString **)turkey_allocate_memory((sizeof (TurkeyString*)) * new_size);
+	TurkeyString **new_strings = (TurkeyString **)turkey_allocate_memory(vm->tag, (sizeof (TurkeyString*)) * new_size);
 
 	/* initialize it blank */
 	for(unsigned int i = 0; i < new_size; i++)
@@ -154,27 +155,28 @@ void turkey_stringtable_grow(TurkeyStringTable &table) {
 		}
 	}
 
-	turkey_free_memory(table.strings);
+	turkey_free_memory(vm->tag, table.strings, (sizeof (TurkeyString*)) * table.length);
 	table.strings = new_strings;
 	table.length = new_size;
 }
 
 /* removes a string - invoked by the garbage collector */
-void turkey_stringtable_removestring(TurkeyStringTable &table, TurkeyString *string) {
+void turkey_stringtable_removestring(TurkeyVM *vm, TurkeyString *string) {
+
 	/* remove us from the hash table */
 	if(string->prev != 0)
 		string->prev->next = string->next;
 	else {
-		unsigned int index = fast_mod(string->hash, table.length);
-		table.strings[index] = string->next;
+		unsigned int index = fast_mod(string->hash, vm->string_table.length);
+		vm->string_table.strings[index] = string->next;
 	}
 
 	if(string->next != 0)
 		string->next->prev = string->prev;
 
-	table.count--;
+	vm->string_table.count--;
 
 	/* free the memory */
-	turkey_free_memory(string->string);
-	turkey_free_memory(string);
+	turkey_free_memory(vm->tag, string->string, string->length);
+	turkey_free_memory(vm->tag, string, sizeof TurkeyString);
 }

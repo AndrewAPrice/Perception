@@ -1,24 +1,25 @@
 #include "turkey_internal.h"
 #include "hooks.h"
 
-void turkey_stack_init(TurkeyStack &stack) {
+void turkey_stack_init(TurkeyVM *vm, TurkeyStack &stack) {
 	stack.top = 0;
 	stack.position = 0;
 	stack.length = 16; /* initial stack size */
 
-	stack.variables = (TurkeyVariable *)turkey_allocate_memory((sizeof TurkeyVariable) * stack.length);
+	stack.variables = (TurkeyVariable *)turkey_allocate_memory(vm->tag, (sizeof TurkeyVariable) * stack.length);
 }
 
-void turkey_stack_cleanup(TurkeyStack &stack) {
-	turkey_free_memory(stack.variables);
+void turkey_stack_cleanup(TurkeyVM *vm, TurkeyStack &stack) {
+	turkey_free_memory(vm->tag, stack.variables, (sizeof TurkeyVariable) * stack.length);
 }
 
-void turkey_stack_push(TurkeyStack &stack, const TurkeyVariable &value) {
+void turkey_stack_push(TurkeyVM *vm, TurkeyStack &stack, const TurkeyVariable &value) {
 	if(stack.length == stack.position) {
 		/* not enough room to push a variable on */
 		unsigned int newLength = stack.length * 2;
 
-		stack.variables = (TurkeyVariable *)turkey_reallocate_memory(stack.variables,(sizeof TurkeyVariable) * newLength);
+		stack.variables = (TurkeyVariable *)turkey_reallocate_memory(vm->tag, stack.variables,
+			(sizeof TurkeyVariable) * stack.length, (sizeof TurkeyVariable) * newLength);
 		stack.length = newLength;
 	}
 	

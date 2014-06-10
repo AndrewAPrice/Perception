@@ -15,42 +15,42 @@ void turkey_push_string_l(TurkeyVM *vm, const char *string, unsigned int length)
 	TurkeyVariable var;
 	var.type = TT_String;
 	var.string = turkey_stringtable_newstring(vm, string, length);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_push_object(TurkeyVM *vm) {
 	TurkeyVariable var;
 	var.type = TT_Object;
 	var.object = turkey_object_new(vm);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_push_buffer(TurkeyVM *vm, size_t size) {
 	TurkeyVariable var;
 	var.type = TT_Buffer;
 	var.buffer = turkey_buffer_new(vm, size);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_push_buffer_wrapper(TurkeyVM *vm, size_t size, void *c) {
 	TurkeyVariable var;
 	var.type = TT_Buffer;
 	var.buffer = turkey_buffer_new_native(vm, c, size);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_push_array(TurkeyVM *vm, size_t size) {
 	TurkeyVariable var;
 	var.type = TT_Array;
 	var.array = turkey_array_new(vm, size);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_push_native_function(TurkeyVM *vm, TurkeyNativeFunction func, void *closure) {
 	TurkeyVariable var;
 	var.type = TT_FunctionPointer;
 	var.function = turkey_functionpointer_new_native(vm, func, closure);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 
@@ -58,44 +58,44 @@ void turkey_push_boolean(TurkeyVM *vm, bool val) {
 	TurkeyVariable var;
 	var.type = TT_Boolean;
 	var.boolean_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_push_signed_integer(TurkeyVM *vm, signed long long int val) {
 	TurkeyVariable var;
 	var.type = TT_Signed;
 	var.signed_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_push_unsigned_integer(TurkeyVM *vm, unsigned long long int val) {
 	TurkeyVariable var;
 	var.type = TT_Unsigned;
 	var.unsigned_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_push_float(TurkeyVM *vm, double val) {
 	TurkeyVariable var;
 	var.type = TT_Float;
 	var.float_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_push_null(TurkeyVM *vm) {
 	TurkeyVariable var;
 	var.type = TT_Null;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_push(TurkeyVM *vm, TurkeyVariable &variable) {
-	turkey_stack_push(vm->variable_stack, variable);
+	turkey_stack_push(vm, vm->variable_stack, variable);
 }
 
 void turkey_grab(TurkeyVM *vm, unsigned int index) {
 	TurkeyVariable var;
 	turkey_stack_get(vm->variable_stack, index, var);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 TurkeyVariable turkey_pop(TurkeyVM *vm) {

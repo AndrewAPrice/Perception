@@ -5,10 +5,10 @@ TurkeyArray *turkey_array_new(TurkeyVM *vm, unsigned int size) {
 	if(size == 0)
 		size = 1;
 
-	TurkeyArray *arr = (TurkeyArray *)turkey_allocate_memory(sizeof TurkeyArray);
+	TurkeyArray *arr = (TurkeyArray *)turkey_allocate_memory(vm->tag, sizeof TurkeyArray);
 	arr->allocated = size;
 	arr->length = size;
-	arr->elements = (TurkeyVariable *)turkey_allocate_memory((sizeof TurkeyVariable) * size);
+	arr->elements = (TurkeyVariable *)turkey_allocate_memory(vm->tag, (sizeof TurkeyVariable) * size);
 
 	for(unsigned int i = 0; i < size; i++)
 		arr->elements[i].type = TT_Null;
@@ -34,10 +34,10 @@ TurkeyArray *turkey_array_append(TurkeyVM *vm, TurkeyArray *a, TurkeyArray *b) {
 	size |= size >> 16;
 	size++;
 
-	TurkeyArray *arr = (TurkeyArray *)turkey_allocate_memory(sizeof TurkeyArray);
-	arr->allocated = length;
-	arr->length = size;
-	arr->elements = (TurkeyVariable *)turkey_allocate_memory((sizeof TurkeyVariable) * size);
+	TurkeyArray *arr = (TurkeyArray *)turkey_allocate_memory(vm->tag, sizeof TurkeyArray);
+	arr->allocated = size;
+	arr->length = length;
+	arr->elements = (TurkeyVariable *)turkey_allocate_memory(vm->tag, (sizeof TurkeyVariable) * size);
 
 	for(unsigned int i = 0; i < a->allocated && i < size; i++)
 		arr->elements[i] = a->elements[i];
@@ -58,8 +58,8 @@ TurkeyArray *turkey_array_append(TurkeyVM *vm, TurkeyArray *a, TurkeyArray *b) {
 
 /* release the memory used by the array, called from the garbage collector */
 void turkey_array_delete(TurkeyVM *vm, TurkeyArray *arr) {
-	turkey_free_memory(arr->elements);
-	turkey_free_memory(arr);
+	turkey_free_memory(vm->tag, arr->elements, (sizeof TurkeyVariable) * arr->allocated);
+	turkey_free_memory(vm->tag, arr, sizeof TurkeyVariable);
 }
 
 void turkey_array_push(TurkeyVM *vm, TurkeyArray *arr, const TurkeyVariable &variable) {
@@ -86,7 +86,8 @@ void turkey_array_grow(TurkeyVM *vm, TurkeyArray *arr) {
 	if(new_size == arr->allocated)
 		new_size *= 2;
 
-	arr->elements = (TurkeyVariable *)turkey_reallocate_memory(arr->elements, (sizeof TurkeyVariable) * new_size);
+	arr->elements = (TurkeyVariable *)turkey_reallocate_memory(vm->tag, arr->elements,
+		(sizeof TurkeyVariable) * arr->allocated, (sizeof TurkeyVariable) * new_size);
 
 	/* initialize the new elements to null */
 	for(unsigned int i = arr->allocated; i < new_size; i++)
@@ -100,7 +101,8 @@ void turkey_array_allocate(TurkeyVM *vm, TurkeyArray *arr, unsigned int size) {
 	if(size == 0)
 		size = 1;
 
-	arr->elements = (TurkeyVariable *)turkey_reallocate_memory(arr->elements, (sizeof TurkeyVariable) * size);
+	arr->elements = (TurkeyVariable *)turkey_reallocate_memory(vm->tag, arr->elements,
+		(sizeof TurkeyVariable) * arr->allocated, (sizeof TurkeyVariable) * size);
 	
 	/* initialize the new elements to null */
 	for(unsigned int i = arr->allocated; i < size; i++)
@@ -111,19 +113,6 @@ void turkey_array_allocate(TurkeyVM *vm, TurkeyArray *arr, unsigned int size) {
 	/* prune the length if we no longer have this allocated */
 	if(arr->length > arr->allocated)
 		arr->length = arr->allocated;
-}
-
-void turkey_array_resize(TurkeyVM *vm, TurkeyArray *arr, unsigned int size) {
-	/* resize the allocated amount and change the number of elements in the array */
-	if(size == 0)
-		size = 1;
-		
-	/* initialize the new elements to null */
-	for(unsigned int i = arr->allocated; i < size; i++)
-		arr->elements[i].type = TT_Null;
-
-	arr->allocated = size;
-	arr->length = size;
 }
 
 TurkeyVariable turkey_array_get_element(TurkeyVM *vm, TurkeyArray *arr, unsigned int index) {
@@ -139,7 +128,7 @@ TurkeyVariable turkey_array_get_element(TurkeyVM *vm, TurkeyArray *arr, unsigned
 void turkey_array_set_element(TurkeyVM *vm, TurkeyArray *arr, unsigned int index, const TurkeyVariable &variable) {
 	/* do we need to allocate more memory? */
 	if(index > arr->allocated)
-		turkey_array_resize(vm, arr, index + 1);
+		turkey_array_allocate(vm, arr, index + 1);
 
 	if(index >= arr->length)
 		arr->length = index + 1;

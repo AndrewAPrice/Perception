@@ -6,7 +6,9 @@
 #include "../hooks.h"
 #include "../turkey_internal.h"
 
-void *turkey_load_file(TurkeyString *path, size_t &size) {
+size_t alloc_size = 0;
+
+void *turkey_load_file(void *tag, TurkeyString *path, size_t &size) {
 	/* create a temporary null terminated string */
 	char *str = (char *)malloc(path->length + 1);
 	memcpy_s(str, path->length + 1, path->string, path->length);
@@ -31,18 +33,26 @@ void *turkey_load_file(TurkeyString *path, size_t &size) {
 	/* close the file */
 	fclose(f);
 
+	alloc_size += size;
+
 	return ptr;
 }
 
-void *turkey_allocate_memory(size_t size) {
+void *turkey_allocate_memory(void *tag, size_t size) {
+	alloc_size += size;
+	printf("Allocated %i now %i\n", size, alloc_size);
 	return malloc(size);
 }
 
-void turkey_free_memory(void *mem) {
+void turkey_free_memory(void *tag, void *mem, size_t size) {
 	free(mem);
+	alloc_size -= size;
+	printf("Freed %i now %i\n", size, alloc_size);
 }
 
-void *turkey_reallocate_memory(void *mem, size_t new_size) {
+void *turkey_reallocate_memory(void *tag, void *mem, size_t old_size, size_t new_size) {
+	alloc_size -= old_size;
+	alloc_size += new_size;
 	return realloc(mem, new_size);
 }
 

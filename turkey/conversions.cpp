@@ -41,7 +41,7 @@ TurkeyString *turkey_to_string(TurkeyVM *vm, TurkeyVariable &var_in) {
 		TurkeyBuffer *buf = var_in.buffer;
 		turkey_gc_hold(vm, buf, TT_Buffer);
 		
-		char *str = (char *)turkey_allocate_memory(buf->size * 2 + 2);
+		char *str = (char *)turkey_allocate_memory(vm->tag, buf->size * 2 + 2);
 
 		char *ptr = str;
 		*ptr = '<';
@@ -61,7 +61,7 @@ TurkeyString *turkey_to_string(TurkeyVM *vm, TurkeyVariable &var_in) {
 		*ptr = ']';
 
 		TurkeyString *toReturn = turkey_stringtable_newstring(vm, str, buf->size * 2 + 2);
-		turkey_free_memory(str);
+		turkey_free_memory(vm->tag, str, buf->size * 2 + 2);
 		turkey_gc_unhold(vm, buf, TT_Buffer);
 		
 		return vm->string_table.s_buffer; }

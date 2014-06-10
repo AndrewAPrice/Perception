@@ -10,6 +10,7 @@ struct TurkeyGarbageCollectedObject;
 struct TurkeySettings {
 	// Use debug settings? Can handle breakpoints, 
 	bool debug;
+	void *tag;
 };
 
 enum TurkeyType {

@@ -50,7 +50,7 @@ void turkey_instruction_add(TurkeyVM *vm) {
 		break; }
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_subtract(TurkeyVM *vm) {
@@ -82,7 +82,7 @@ void turkey_instruction_subtract(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_divide(TurkeyVM *vm) {
@@ -111,7 +111,7 @@ void turkey_instruction_divide(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_multiply(TurkeyVM *vm) {
@@ -140,7 +140,7 @@ void turkey_instruction_multiply(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_modulo(TurkeyVM *vm) {
@@ -169,7 +169,7 @@ void turkey_instruction_modulo(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_increment(TurkeyVM *vm) {
@@ -197,7 +197,7 @@ void turkey_instruction_increment(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_decrement(TurkeyVM *vm) {
@@ -225,7 +225,7 @@ void turkey_instruction_decrement(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_xor(TurkeyVM *vm) {
@@ -258,7 +258,7 @@ void turkey_instruction_xor(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_and(TurkeyVM *vm) {
@@ -291,7 +291,7 @@ void turkey_instruction_and(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_or(TurkeyVM *vm) {
@@ -324,7 +324,7 @@ void turkey_instruction_or(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_not(TurkeyVM *vm) {
@@ -357,7 +357,7 @@ void turkey_instruction_not(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_shift_left(TurkeyVM *vm) {
@@ -388,7 +388,7 @@ void turkey_instruction_shift_left(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_shift_right(TurkeyVM *vm) {
@@ -419,7 +419,7 @@ void turkey_instruction_shift_right(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_rotate_left(TurkeyVM *vm) {
@@ -448,7 +448,7 @@ void turkey_instruction_rotate_left(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_rotate_right(TurkeyVM *vm) {
@@ -476,7 +476,7 @@ void turkey_instruction_rotate_right(TurkeyVM *vm) {
 		return;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_is_null(TurkeyVM *vm) {
@@ -486,7 +486,7 @@ void turkey_instruction_is_null(TurkeyVM *vm) {
 	var.boolean_value = !turkey_to_boolean(vm, var);
 	var.type = TT_Boolean;
 
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_is_not_null(TurkeyVM *vm) {
@@ -496,7 +496,7 @@ void turkey_instruction_is_not_null(TurkeyVM *vm) {
 	var.boolean_value = turkey_to_boolean(vm, var);
 	var.type = TT_Boolean;
 
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_equals(TurkeyVM *vm) {
@@ -525,7 +525,7 @@ void turkey_instruction_equals(TurkeyVM *vm) {
 
 	out.type = TT_Boolean;
 
-	turkey_stack_push(vm->variable_stack, out);
+	turkey_stack_push(vm, vm->variable_stack, out);
 }
 
 void turkey_instruction_not_equals(TurkeyVM *vm) {
@@ -554,7 +554,7 @@ void turkey_instruction_not_equals(TurkeyVM *vm) {
 
 	out.type = TT_Boolean;
 
-	turkey_stack_push(vm->variable_stack, out);
+	turkey_stack_push(vm, vm->variable_stack, out);
 }
 
 void turkey_instruction_less_than(TurkeyVM *vm) {
@@ -585,7 +585,7 @@ void turkey_instruction_less_than(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_greater_than(TurkeyVM *vm) {
@@ -616,7 +616,7 @@ void turkey_instruction_greater_than(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_less_than_or_equals(TurkeyVM *vm) {
@@ -647,7 +647,7 @@ void turkey_instruction_less_than_or_equals(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_greater_than_or_equals(TurkeyVM *vm) {
@@ -678,7 +678,7 @@ void turkey_instruction_greater_than_or_equals(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_is_true(TurkeyVM *vm) {
@@ -691,7 +691,7 @@ void turkey_instruction_is_true(TurkeyVM *vm) {
 	ret.type = TT_Boolean;
 	ret.boolean_value = _a;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_is_false(TurkeyVM *vm) {
@@ -704,7 +704,7 @@ void turkey_instruction_is_false(TurkeyVM *vm) {
 	ret.type = TT_Boolean;
 	ret.boolean_value = !_a;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_pop(TurkeyVM *vm) {
@@ -763,7 +763,7 @@ void turkey_instruction_load_8(TurkeyVM *vm) {
 
 	TurkeyVariable var;
 	turkey_stack_get(vm->local_stack, a, var);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_load_16(TurkeyVM *vm) {
@@ -775,7 +775,7 @@ void turkey_instruction_load_16(TurkeyVM *vm) {
 
 	TurkeyVariable var;
 	turkey_stack_get(vm->local_stack, a, var);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_load_32(TurkeyVM *vm) {
@@ -787,7 +787,7 @@ void turkey_instruction_load_32(TurkeyVM *vm) {
 
 	TurkeyVariable var;
 	turkey_stack_get(vm->local_stack, a, var);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_store_8(TurkeyVM *vm) {
@@ -871,7 +871,7 @@ void turkey_instruction_load_closure_8(TurkeyVM *vm) {
 
 	TurkeyVariable var;
 	turkey_closure_get(vm, a, var);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_load_closure_16(TurkeyVM *vm) {
@@ -883,7 +883,7 @@ void turkey_instruction_load_closure_16(TurkeyVM *vm) {
 
 	TurkeyVariable var;
 	turkey_closure_get(vm, a, var);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_load_closure_32(TurkeyVM *vm) {
@@ -895,7 +895,7 @@ void turkey_instruction_load_closure_32(TurkeyVM *vm) {
 
 	TurkeyVariable var;
 	turkey_closure_get(vm, a, var);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_store_closure_8(TurkeyVM *vm) {
@@ -941,7 +941,7 @@ void turkey_instruction_new_array(TurkeyVM *vm) {
 	TurkeyVariable ret;
 	ret.type = TT_Array;
 	ret.array = turkey_array_new(vm, (unsigned int)turkey_to_unsigned(vm, a));
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_load_element(TurkeyVM *vm) {
@@ -975,7 +975,7 @@ void turkey_instruction_load_element(TurkeyVM *vm) {
 		break; }
 	}
 
-	turkey_stack_push(vm->variable_stack, element);
+	turkey_stack_push(vm, vm->variable_stack, element);
 }
 
 void turkey_instruction_save_element(TurkeyVM *vm) {
@@ -1005,7 +1005,7 @@ void turkey_instruction_new_object(TurkeyVM *vm) {
 	TurkeyVariable ret;
 	ret.type = TT_Object;
 	ret.object = turkey_object_new(vm);
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_delete_element(TurkeyVM *vm) {
@@ -1028,7 +1028,7 @@ void turkey_instruction_new_buffer(TurkeyVM *vm) {
 	TurkeyVariable ret;
 	ret.type = TT_Buffer;
 	ret.buffer = turkey_buffer_new(vm, (unsigned int)turkey_to_unsigned(vm, a));
-	turkey_stack_push(vm->variable_stack, a);
+	turkey_stack_push(vm, vm->variable_stack, a);
 }
 
 void turkey_instruction_load_buffer_unsigned_8(TurkeyVM *vm) {
@@ -1043,7 +1043,7 @@ void turkey_instruction_load_buffer_unsigned_8(TurkeyVM *vm) {
 	} else
 		ret.type = TT_Null;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_load_buffer_unsigned_16(TurkeyVM *vm) {
@@ -1058,7 +1058,7 @@ void turkey_instruction_load_buffer_unsigned_16(TurkeyVM *vm) {
 	} else
 		ret.type = TT_Null;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_load_buffer_unsigned_32(TurkeyVM *vm) {
@@ -1074,7 +1074,7 @@ void turkey_instruction_load_buffer_unsigned_32(TurkeyVM *vm) {
 	} else
 		ret.type = TT_Null;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_load_buffer_unsigned_64(TurkeyVM *vm) {
@@ -1089,7 +1089,7 @@ void turkey_instruction_load_buffer_unsigned_64(TurkeyVM *vm) {
 	} else
 		ret.type = TT_Null;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_store_buffer_unsigned_8(TurkeyVM *vm) {
@@ -1144,7 +1144,7 @@ void turkey_instruction_load_buffer_signed_8(TurkeyVM *vm) {
 	} else
 		ret.type = TT_Null;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_load_buffer_signed_16(TurkeyVM *vm) {
@@ -1159,7 +1159,7 @@ void turkey_instruction_load_buffer_signed_16(TurkeyVM *vm) {
 	} else
 		ret.type = TT_Null;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_load_buffer_signed_32(TurkeyVM *vm) {
@@ -1174,7 +1174,7 @@ void turkey_instruction_load_buffer_signed_32(TurkeyVM *vm) {
 	} else
 		ret.type = TT_Null;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_load_buffer_signed_64(TurkeyVM *vm) {
@@ -1189,7 +1189,7 @@ void turkey_instruction_load_buffer_signed_64(TurkeyVM *vm) {
 	} else
 		ret.type = TT_Null;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_store_buffer_signed_8(TurkeyVM *vm) {
@@ -1244,7 +1244,7 @@ void turkey_instruction_load_buffer_float_16(TurkeyVM *vm) {
 	} else
 		ret.type = TT_Null;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_load_buffer_float_32(TurkeyVM *vm) {
@@ -1259,7 +1259,7 @@ void turkey_instruction_load_buffer_float_32(TurkeyVM *vm) {
 	} else
 		ret.type = TT_Null;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_load_buffer_float_64(TurkeyVM *vm) {
@@ -1274,7 +1274,7 @@ void turkey_instruction_load_buffer_float_64(TurkeyVM *vm) {
 	} else
 		ret.type = TT_Null;
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_store_buffer_float_16(TurkeyVM *vm) {
@@ -1317,7 +1317,7 @@ void turkey_instruction_push_integer_8(TurkeyVM *vm) {
 	TurkeyVariable var;
 	var.type = TT_Signed;
 	var.signed_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_push_integer_16(TurkeyVM *vm) {
@@ -1330,7 +1330,7 @@ void turkey_instruction_push_integer_16(TurkeyVM *vm) {
 	TurkeyVariable var;
 	var.type = TT_Signed;
 	var.signed_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_push_integer_32(TurkeyVM *vm) {
@@ -1343,7 +1343,7 @@ void turkey_instruction_push_integer_32(TurkeyVM *vm) {
 	TurkeyVariable var;
 	var.type = TT_Signed;
 	var.signed_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_push_integer_64(TurkeyVM *vm) {
@@ -1356,7 +1356,7 @@ void turkey_instruction_push_integer_64(TurkeyVM *vm) {
 	TurkeyVariable var;
 	var.type = TT_Signed;
 	var.signed_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_to_integer(TurkeyVM *vm) {
@@ -1366,7 +1366,7 @@ void turkey_instruction_to_integer(TurkeyVM *vm) {
 	var.signed_value = turkey_to_signed(vm, var);
 	var.type = TT_Signed;
 
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_push_unsigned_integer_8(TurkeyVM *vm) {
@@ -1379,7 +1379,7 @@ void turkey_instruction_push_unsigned_integer_8(TurkeyVM *vm) {
 	TurkeyVariable var;
 	var.type = TT_Unsigned;
 	var.unsigned_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_push_unsigned_integer_16(TurkeyVM *vm) {
@@ -1392,7 +1392,7 @@ void turkey_instruction_push_unsigned_integer_16(TurkeyVM *vm) {
 	TurkeyVariable var;
 	var.type = TT_Unsigned;
 	var.unsigned_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_push_unsigned_integer_32(TurkeyVM *vm) {
@@ -1405,7 +1405,7 @@ void turkey_instruction_push_unsigned_integer_32(TurkeyVM *vm) {
 	TurkeyVariable var;
 	var.type = TT_Unsigned;
 	var.unsigned_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_push_unsigned_integer_64(TurkeyVM *vm) {
@@ -1418,7 +1418,7 @@ void turkey_instruction_push_unsigned_integer_64(TurkeyVM *vm) {
 	TurkeyVariable var;
 	var.type = TT_Unsigned;
 	var.unsigned_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_to_unsigned_integer(TurkeyVM *vm) {
@@ -1428,7 +1428,7 @@ void turkey_instruction_to_unsigned_integer(TurkeyVM *vm) {
 	var.unsigned_value = turkey_to_unsigned(vm, var);
 	var.type = TT_Unsigned;
 
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_push_float(TurkeyVM *vm) {
@@ -1441,7 +1441,7 @@ void turkey_instruction_push_float(TurkeyVM *vm) {
 	TurkeyVariable var;
 	var.type = TT_Float;
 	var.float_value = val;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_to_float(TurkeyVM *vm) {
@@ -1451,7 +1451,7 @@ void turkey_instruction_to_float(TurkeyVM *vm) {
 	var.float_value = turkey_to_float(vm, var);
 	var.type = TT_Float;
 
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_push_true(TurkeyVM *vm) {
@@ -1482,7 +1482,7 @@ void turkey_instruction_push_string_8(TurkeyVM *vm) {
 		var.type = TT_String;
 		var.string = module->strings[a];
 	}
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_push_string_16(TurkeyVM *vm) {
@@ -1501,7 +1501,7 @@ void turkey_instruction_push_string_16(TurkeyVM *vm) {
 		var.type = TT_String;
 		var.string = module->strings[a];
 	}
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_push_string_32(TurkeyVM *vm) {
@@ -1520,7 +1520,7 @@ void turkey_instruction_push_string_32(TurkeyVM *vm) {
 		var.type = TT_String;
 		var.string = module->strings[a];
 	}
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_push_function(TurkeyVM *vm) {
@@ -1540,7 +1540,7 @@ void turkey_instruction_push_function(TurkeyVM *vm) {
 		ret.function = turkey_functionpointer_new(vm, module->functions[func_ind], vm->interpreter_state->closure);
 	}
 	
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 void turkey_instruction_call_function_8(TurkeyVM *vm) {
@@ -1566,7 +1566,7 @@ void turkey_instruction_call_function_8(TurkeyVM *vm) {
 		returnVar.type = TT_Null;
 	}
 
-	turkey_stack_push(vm->variable_stack, returnVar);
+	turkey_stack_push(vm, vm->variable_stack, returnVar);
 }
 
 void turkey_instruction_call_function_16(TurkeyVM *vm) {
@@ -1592,7 +1592,7 @@ void turkey_instruction_call_function_16(TurkeyVM *vm) {
 		returnVar.type = TT_Null;
 	}
 
-	turkey_stack_push(vm->variable_stack, returnVar);
+	turkey_stack_push(vm, vm->variable_stack, returnVar);
 }
 
 void turkey_instruction_call_function_no_return_8(TurkeyVM *vm) {
@@ -1638,7 +1638,7 @@ void turkey_instruction_call_function_no_return_16(TurkeyVM *vm) {
 void turkey_instruction_return_null(TurkeyVM *vm) {
 	TurkeyVariable var;
 	var.type = TT_Null;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 	vm->interpreter_state->executing = false;
 }
 
@@ -1670,7 +1670,7 @@ void turkey_instruction_get_type(TurkeyVM *vm) {
 	var.type = TT_String;
 	var.string = str;
 
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_jump_8(TurkeyVM *vm) {
@@ -1866,7 +1866,7 @@ void turkey_instruction_load_parameter_8(TurkeyVM *vm) {
 
 	TurkeyVariable var;
 	turkey_stack_get(vm->parameter_stack, a, var);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_load_parameter_16(TurkeyVM *vm) {
@@ -1878,7 +1878,7 @@ void turkey_instruction_load_parameter_16(TurkeyVM *vm) {
 
 	TurkeyVariable var;
 	turkey_stack_get(vm->parameter_stack, a, var);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_load_parameter_32(TurkeyVM *vm) {
@@ -1890,7 +1890,7 @@ void turkey_instruction_load_parameter_32(TurkeyVM *vm) {
 
 	TurkeyVariable var;
 	turkey_stack_get(vm->parameter_stack, a, var);
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_store_parameter_8(TurkeyVM *vm) {
@@ -1934,7 +1934,7 @@ void turkey_instruction_to_string(TurkeyVM *vm) {
 	turkey_stack_pop(vm->variable_stack, var);
 	switch(var.type) {
 	case TT_String:
-		turkey_stack_push(vm->variable_stack, var);
+		turkey_stack_push(vm, vm->variable_stack, var);
 		return; // do nothing
 	case TT_Buffer:
 	case TT_Object:
@@ -1948,7 +1948,7 @@ void turkey_instruction_to_string(TurkeyVM *vm) {
 	}
 
 	var.type = TT_String;
-	turkey_stack_push(vm->variable_stack, var);
+	turkey_stack_push(vm, vm->variable_stack, var);
 }
 
 void turkey_instruction_invert(TurkeyVM *vm) {
@@ -1980,7 +1980,7 @@ void turkey_instruction_invert(TurkeyVM *vm) {
 		break;
 	}
 
-	turkey_stack_push(vm->variable_stack, ret);
+	turkey_stack_push(vm, vm->variable_stack, ret);
 }
 
 TurkeyInstructionHandler turkey_interpreter_operations[256] = {
