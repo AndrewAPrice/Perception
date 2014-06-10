@@ -85,14 +85,11 @@
     <ClInclude Include="..\hooks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\turkey_internal.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\external\cityhash\city.h">
       <Filter>external\cityhash</Filter>
     </ClInclude>
     <ClInclude Include="..\external\half\half.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>external\half</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
