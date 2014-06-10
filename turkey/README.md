@@ -6,7 +6,7 @@ Turkey is a stack-based virtual machine. It is designed to run the Shovel langua
 - hooks.h - Hooks into the system. Implement this if you want to port Turkey to a new platform.
 
 ## Subdirectories
-- Windows - Windows specific code in here, and a Visual Studio project.
+- Windows - Windows specific code in here, and a Visual Studio project. There is a main.cpp and hooks.cpp showing how you can use the Turkey VM standalone. Use the 'Test' configuration in Visual Studio to compile Turkey as a standalone program instead of a library.
 
 The Turkey assembler (that compiled Turkey assembly into Turkey bytecode) is found in the Shovel folder (despite being part of Turkey not Shovel) because the rest of the build tools are in there. This folder is exclusively for the Virtual Machine - it's a cleaner directory structure.
 
