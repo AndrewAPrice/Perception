@@ -49,6 +49,7 @@ void turkey_gc_cleanup(TurkeyVM *vm) {
 
 void turkey_gc_register_string(TurkeyGarbageCollector &collector, TurkeyString *string) {
 	string->hold = 0;
+	string->marked = false;
 	string->gc_prev = 0;
 	if(collector.strings != 0)
 		collector.strings->gc_prev = string;
@@ -59,6 +60,7 @@ void turkey_gc_register_string(TurkeyGarbageCollector &collector, TurkeyString *
 
 void turkey_gc_register_buffer(TurkeyGarbageCollector &collector, TurkeyBuffer *buffer) {
 	buffer->hold = 0;
+	buffer->marked = false;
 	buffer->gc_prev = 0;
 	if(collector.buffers != 0)
 		collector.buffers->gc_prev = buffer;
@@ -69,6 +71,7 @@ void turkey_gc_register_buffer(TurkeyGarbageCollector &collector, TurkeyBuffer *
 
 void turkey_gc_register_array(TurkeyGarbageCollector &collector, TurkeyArray *arr) {
 	arr->hold = 0;
+	arr->marked = false;
 	arr->gc_prev = 0;
 	if(collector.arrays != 0)
 		collector.arrays->gc_prev = arr;
@@ -79,6 +82,7 @@ void turkey_gc_register_array(TurkeyGarbageCollector &collector, TurkeyArray *ar
 
 void turkey_gc_register_object(TurkeyGarbageCollector &collector, TurkeyObject *object) {
 	object->hold = 0;
+	object->marked = false;
 	object->gc_prev = 0;
 	if(collector.objects != 0)
 		collector.objects->gc_prev = object;
@@ -89,6 +93,7 @@ void turkey_gc_register_object(TurkeyGarbageCollector &collector, TurkeyObject *
 
 void turkey_gc_register_function_pointer(TurkeyGarbageCollector &collector, TurkeyFunctionPointer *function_pointer) {
 	function_pointer->hold = 0;
+	function_pointer->marked = false;
 	function_pointer->gc_prev = 0;
 	if(collector.function_pointers != 0)
 		collector.function_pointers->gc_prev = function_pointer;
@@ -99,6 +104,7 @@ void turkey_gc_register_function_pointer(TurkeyGarbageCollector &collector, Turk
 
 void turkey_gc_register_closure(TurkeyGarbageCollector &collector, TurkeyClosure *closure) {
 	closure->hold = 0;
+	closure->marked = false;
 	closure->gc_prev = 0;
 	if(collector.closures != 0)
 		collector.closures->gc_prev = closure;
@@ -199,7 +205,7 @@ void turkey_gc_collect(TurkeyVM *vm) {
 	TurkeyGarbageCollectedObject *iterator, *next;
 
 	/* unmarked everything except those held by native code*/
-	#define mark_array(_IT_) iterator = _IT_; \
+	/*#define mark_array(_IT_) iterator = _IT_; \
 		while(iterator != 0) { \
 			iterator->marked = false; \
 			iterator = iterator->gc_next; \
@@ -211,7 +217,7 @@ void turkey_gc_collect(TurkeyVM *vm) {
 	mark_array(collector.objects)
 	mark_array(collector.strings)
 
-	#undef mark_array
+	#undef mark_array*/
 
 	/* work up through the stacks and mark everything reachable */
 	turkey_gc_mark_stack(vm, vm->parameter_stack);
@@ -235,7 +241,9 @@ void turkey_gc_collect(TurkeyVM *vm) {
 	#define clean_up(_IT_, _CAST_, _HANDLER_,_PARAM_) iterator = _IT_; \
 		while(iterator != 0) { \
 			next = iterator->gc_next; \
-			if(!iterator->marked) { \
+			if(iterator->marked) \
+				iterator->marked = false; \
+			else { \
 				if(iterator->gc_next != 0) \
 					iterator->gc_next->gc_prev = iterator->gc_prev; \
 				if(iterator->gc_prev != 0) \
