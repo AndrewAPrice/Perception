@@ -17,13 +17,14 @@ enum TurkeyType {
 	TT_Unsigned = 1,
 	TT_Signed = 2,
 	TT_Float = 3,
+	TT_Null = 4, // all objects beyond null are garbage collected
 
-	TT_Null = 4,
 	TT_Object = 5,
 	TT_Array = 6,
 	TT_Buffer = 7,
 	TT_FunctionPointer = 8,
 	TT_String = 9,
+	TT_Closure = 10 // used internally
 	// 11
 	// 12
 	// 13

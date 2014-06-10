@@ -2,12 +2,14 @@
 #include "hooks.h"
 
 TurkeyFunctionPointer *turkey_functionpointer_new(TurkeyVM *vm, TurkeyFunction *function, TurkeyClosure *closure) {
-	closure->references++;
 
 	TurkeyFunctionPointer *funcptr = (TurkeyFunctionPointer *)turkey_allocate_memory(sizeof TurkeyFunctionPointer);
 	funcptr->is_native = false;
 	funcptr->managed.function = function;
 	funcptr->managed.closure = closure;
+
+	/* register with the gc */
+	turkey_gc_register_function_pointer(vm->garbage_collector, funcptr);
 
 	return funcptr;
 }
@@ -22,12 +24,5 @@ TurkeyFunctionPointer *turkey_functionpointer_new_native(TurkeyVM *vm, TurkeyNat
 }
 
 void turkey_functionpointer_delete(TurkeyVM *vm, TurkeyFunctionPointer *funcptr) {
-	if(!funcptr->is_native) {
-		/* dereference the closure */
-		funcptr->managed.closure->references--;
-		if(funcptr->managed.closure->references == 0)
-			turkey_closure_delete(vm, funcptr->managed.closure);
-	}
-
 	turkey_free_memory(funcptr);
 }

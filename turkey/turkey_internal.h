@@ -15,10 +15,9 @@ struct TurkeyGarbageCollectedObject {
 	TurkeyGarbageCollectedObject *gc_prev;
 };
 
-struct TurkeyClosure {
+struct TurkeyClosure: TurkeyGarbageCollectedObject {
 	TurkeyClosure *parent; /* parent closure, look in here if it's not found in this closure */
 	unsigned int count; /* number of variables */
-	unsigned int references; /* references to this closure - closures are referenced counted, not by the garbage collector but must be deleted it falls to 0 */
 	TurkeyVariable *variables; /* array of variables*/
 };
 
@@ -174,6 +173,7 @@ struct TurkeyGarbageCollector {
 	TurkeyArray *arrays;
 	TurkeyObject *objects;
 	TurkeyFunctionPointer *function_pointers;
+	TurkeyClosure *closures;
 
 	unsigned long long int items; /* number of allocated items */
 };
@@ -277,7 +277,8 @@ extern void turkey_gc_register_string(TurkeyGarbageCollector &collector, TurkeyS
 extern void turkey_gc_register_buffer(TurkeyGarbageCollector &collector, TurkeyBuffer *buffer);
 extern void turkey_gc_register_array(TurkeyGarbageCollector &collector, TurkeyArray *arr);
 extern void turkey_gc_register_object(TurkeyGarbageCollector &collector, TurkeyObject *object);
-extern void turkey_gc_register_function_pointer(TurkeyGarbageCollector &collector, TurkeyFunctionPointer *closure);
+extern void turkey_gc_register_function_pointer(TurkeyGarbageCollector &collector, TurkeyFunctionPointer *function_pointer);
+extern void turkey_gc_register_closure(TurkeyGarbageCollector &collector, TurkeyClosure *closure);
 
 /* interpreter.cpp */
 extern void turkey_interpreter_init(TurkeyVM *vm);

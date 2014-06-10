@@ -1,5 +1,7 @@
 #include "turkey_internal.h"
 
+#define IS_GC_OBJECT(var) (var.type > TT_Null)
+
 void turkey_gc_init(TurkeyVM *vm) {
 	TurkeyGarbageCollector &collector = vm->garbage_collector;
 	collector.arrays = 0;
@@ -7,6 +9,7 @@ void turkey_gc_init(TurkeyVM *vm) {
 	collector.function_pointers = 0;
 	collector.objects = 0;
 	collector.strings = 0;
+	collector.closures = 0;
 
 	collector.items = 0;
 }
@@ -27,6 +30,7 @@ void turkey_gc_cleanup(TurkeyVM *vm) {
 	delete_everything(collector.buffers, TurkeyBuffer, turkey_buffer_delete, vm);
 	delete_everything(collector.function_pointers, TurkeyFunctionPointer, turkey_functionpointer_delete, vm);
 	delete_everything(collector.objects, TurkeyObject, turkey_object_delete, vm);
+	delete_everything(collector.closures, TurkeyClosure, turkey_closure_delete, vm);
 	#undef delete_everything
 		
 	/* don't collect strings as we expect the string table to clean up its own business */
@@ -82,6 +86,103 @@ void turkey_gc_register_function_pointer(TurkeyGarbageCollector &collector, Turk
 	collector.items++;
 }
 
+void turkey_gc_register_closure(TurkeyGarbageCollector &collector, TurkeyClosure *closure) {
+	closure->hold = 0;
+	closure->gc_prev = 0;
+	if(collector.closures != 0)
+		collector.closures->gc_prev = closure;
+	closure->gc_next = collector.closures;
+	collector.closures = closure;
+	collector.items++;
+}
+
+/* helpers while the GC is marking */
+void turkey_gc_mark_closure(TurkeyVM *vm, TurkeyClosure *closure);
+
+void turkey_gc_mark_variable(TurkeyVM *vm, TurkeyVariable &var) {
+	/* caller has already done the IS_GC_OBJECT check, ignore TT_Closure because they can't be variables */
+
+	switch(var.type) {
+	case TT_Array: {
+		TurkeyArray *arr = var.array;
+		for(unsigned int i = 0; i < arr->length; i++) {
+			if(IS_GC_OBJECT(arr->elements[i])) {
+				if(!arr->elements[i].object->marked)
+					turkey_gc_mark_variable(vm, arr->elements[i]);
+			}
+		}
+		break; }
+	case TT_Buffer: {
+		TurkeyBuffer *buffer = var.buffer;
+		buffer->marked = true;
+		break; }
+	case TT_FunctionPointer: {
+		TurkeyFunctionPointer *func = var.function;
+		func->marked = true;
+
+		if(!func->is_native && func->managed.closure && !func->managed.closure->marked)
+			turkey_gc_mark_closure(vm, func->managed.closure);
+
+		break; }
+	case TT_Object: {
+		TurkeyObject *obj = var.object;
+
+		/* scan every item in the object */
+		for(unsigned int i = 0; i < obj->size; i++) {
+			TurkeyObjectProperty *prop = obj->properties[i];
+			while(prop != 0) {
+				if(!prop->key->marked)
+					prop->key->marked = true;
+
+				if(IS_GC_OBJECT(prop->value)) {
+					if(!prop->value.object->marked)
+						turkey_gc_mark_variable(vm, prop->value);
+				}
+
+				prop = prop->next;
+			}
+		}
+		break; }
+	case TT_String: {
+		TurkeyString *string = var.string;
+		string->marked = true;
+		break; }
+	}
+}
+
+void turkey_gc_mark_stack(TurkeyVM *vm, TurkeyStack &stack) {
+	for(unsigned int i = 0; i < stack.position; i++) {
+		if(IS_GC_OBJECT(stack.variables[i])) {
+			if(!stack.variables[i].object->marked)
+				turkey_gc_mark_variable(vm, stack.variables[i]);
+		}
+	}
+}
+
+void turkey_gc_mark_closure(TurkeyVM *vm, TurkeyClosure *closure) {
+	closure->marked = true;
+
+	for(unsigned int i = 0; i < closure->count; i++) {
+		if(IS_GC_OBJECT(closure->variables[i])) {
+			if(!closure->variables[i].object->marked)
+				turkey_gc_mark_variable(vm, closure->variables[i]);
+		}
+	}
+
+	if(closure->parent && !closure->parent->marked)
+		turkey_gc_mark_closure(vm, closure->parent);
+}
+
+void turkey_gc_mark_loaded_modules(TurkeyVM *vm, TurkeyLoadedModule *module) {
+	while(module != 0) {
+		if(IS_GC_OBJECT(module->ReturnVariable)) {
+			if(!module->ReturnVariable.object->marked)
+				turkey_gc_mark_variable(vm, module->ReturnVariable);
+		}
+		module = module->Next;
+	}
+}
+
 void turkey_gc_collect(TurkeyVM *vm) {
 	TurkeyGarbageCollector &collector = vm->garbage_collector;
 	TurkeyGarbageCollectedObject *iterator, *next;
@@ -90,7 +191,7 @@ void turkey_gc_collect(TurkeyVM *vm) {
 	#define mark_array(_IT_) iterator = _IT_; \
 		while(iterator != 0) { \
 			iterator->marked = false; \
-			iterator->gc_next; \
+			iterator = iterator->gc_next; \
 		}
 
 	mark_array(collector.arrays)
@@ -101,9 +202,23 @@ void turkey_gc_collect(TurkeyVM *vm) {
 
 	#undef mark_array
 
-	/* work up through the local stack and mark everything reachable */
-	/* work up through the parameter stack and mark everything reachable */
-	/* work through interpreter states and mark everything reachable */
+	/* work up through the stacks and mark everything reachable */
+	turkey_gc_mark_stack(vm, vm->parameter_stack);
+	turkey_gc_mark_stack(vm, vm->variable_stack);
+	turkey_gc_mark_stack(vm, vm->local_stack);
+
+	/* work through the interpreter stack marking the closures */
+	TurkeyInterpreterState *interpreterState = vm->interpreter_state;
+	while(interpreterState != 0) {
+		TurkeyClosure *closure = interpreterState->closure;
+		if(!closure->marked)
+			turkey_gc_mark_closure(vm, closure);
+		interpreterState = interpreterState->parent;
+	}
+
+	/* work through the loaded modules */
+	turkey_gc_mark_loaded_modules(vm, vm->loaded_modules.external_modules);
+	turkey_gc_mark_loaded_modules(vm, vm->loaded_modules.internal_modules);
 
 	/* cleanup everything unmarked */
 	#define clean_up(_IT_, _CAST_, _HANDLER_,_PARAM_) iterator = _IT_; \
@@ -117,7 +232,7 @@ void turkey_gc_collect(TurkeyVM *vm) {
 				else \
 					_IT_ = (_CAST_ *)iterator->gc_next; \
 				collector.items--; \
-				_HANDLER_(_PARAM_,(_CAST_ *)_IT_); \
+				_HANDLER_(_PARAM_,(_CAST_ *)iterator); \
 			} \
 			iterator = next; \
 		}
@@ -127,6 +242,7 @@ void turkey_gc_collect(TurkeyVM *vm) {
 	clean_up(collector.function_pointers, TurkeyFunctionPointer, turkey_functionpointer_delete, vm);
 	clean_up(collector.objects, TurkeyObject, turkey_object_delete, vm);
 	clean_up(collector.strings, TurkeyString, turkey_stringtable_removestring, vm->string_table);
+	clean_up(collector.closures, TurkeyClosure, turkey_closure_delete, vm);
 	#undef mark_array
 }
 
@@ -134,8 +250,7 @@ void turkey_gc_collect(TurkeyVM *vm) {
 void turkey_gc_hold(TurkeyVM *vm, TurkeyVariable &variable) {
 	
 	/* make sure it's an allocated object */
-	if(variable.type != TT_Array && variable.type != TT_Buffer && variable.type != TT_FunctionPointer
-		&& variable.type != TT_Object && variable.type != TT_String)
+	if(!IS_GC_OBJECT(variable))
 		return;
 
 	TurkeyGarbageCollectedObject *obj = (TurkeyGarbageCollectedObject *)variable.array;
@@ -143,7 +258,8 @@ void turkey_gc_hold(TurkeyVM *vm, TurkeyVariable &variable) {
 	turkey_gc_hold(vm, obj, variable.type);
 }
 
-void turkey_gc_hold(TurkeyVM *vm, TurkeyGarbageCollectedObject *obj, TurkeyType type) {if(obj->hold == 0) {
+void turkey_gc_hold(TurkeyVM *vm, TurkeyGarbageCollectedObject *obj, TurkeyType type) {
+	if(obj->hold == 0) {
 		/* not yet held, so we need to remove it from the gc list */
 		if(obj->gc_next != 0)
 			obj->gc_next->gc_prev = obj->gc_prev;
@@ -169,7 +285,12 @@ void turkey_gc_hold(TurkeyVM *vm, TurkeyGarbageCollectedObject *obj, TurkeyType 
 			case TT_String:
 				collector.strings = (TurkeyString *)obj->gc_next;
 				break;
+			case TT_Closure:
+				collector.closures = (TurkeyClosure *)obj->gc_next;
+				break;
 			}
+
+			obj->gc_prev = 0;
 		}
 
 		obj->hold = 1;
@@ -179,8 +300,7 @@ void turkey_gc_hold(TurkeyVM *vm, TurkeyGarbageCollectedObject *obj, TurkeyType 
 
 void turkey_gc_unhold(TurkeyVM *vm, TurkeyVariable &variable) {
 	/* make sure it's an allocated object */
-	if(variable.type != TT_Array && variable.type != TT_Buffer && variable.type != TT_FunctionPointer
-		&& variable.type != TT_Object && variable.type != TT_String)
+	if(!IS_GC_OBJECT(variable))
 		return;
 
 	TurkeyGarbageCollectedObject *obj = (TurkeyGarbageCollectedObject *)variable.array;
@@ -197,24 +317,33 @@ void turkey_gc_unhold(TurkeyVM *vm, TurkeyGarbageCollectedObject *obj, TurkeyTyp
 		switch(type) {
 		case TT_Array:
 			obj->gc_next = collector.arrays;
+			if(collector.arrays != 0) collector.arrays->gc_prev = obj;
 			collector.arrays = (TurkeyArray *)obj;
 			break;
 		case TT_Buffer:
 			obj->gc_next = collector.buffers;
+			if(collector.buffers != 0) collector.buffers->gc_prev = obj;
 			collector.buffers = (TurkeyBuffer *)obj;
 			break;
 		case TT_FunctionPointer:
 			obj->gc_next = collector.function_pointers;
+			if(collector.function_pointers != 0) collector.function_pointers->gc_prev = obj;
 			collector.function_pointers = (TurkeyFunctionPointer *)obj;
 			break;
 		case TT_Object:
 			obj->gc_next = collector.objects;
+			if(collector.objects != 0) collector.objects->gc_prev = obj;
 			collector.objects = (TurkeyObject *)obj;
 			break;
 		case TT_String:
 			obj->gc_next = collector.strings;
+			if(collector.strings != 0) collector.strings->gc_prev = obj;
 			collector.strings = (TurkeyString *)obj;
 			break;
+		case TT_Closure:
+			obj->gc_next = collector.closures;
+			if(collector.closures != 0) collector.closures->gc_prev = obj;
+			collector.closures = (TurkeyClosure *)obj;
 		}
 	} else
 		obj->hold--;
