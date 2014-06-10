@@ -1,5 +1,5 @@
 #include "hooks.h"
-#include "turkey_internal.h"
+#include "turkey.h"
 
 TurkeyString *turkey_string_escape(TurkeyVM *vm, TurkeyString *str) {
 	turkey_gc_hold(vm, str, TT_String);

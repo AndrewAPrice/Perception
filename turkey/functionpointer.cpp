@@ -1,4 +1,4 @@
-#include "turkey_internal.h"
+#include "turkey.h"
 #include "hooks.h"
 
 TurkeyFunctionPointer *turkey_functionpointer_new(TurkeyVM *vm, TurkeyFunction *function, TurkeyClosure *closure) {

@@ -1,4 +1,4 @@
-#include "turkey_internal.h"
+#include "turkey.h"
 #include "hooks.h"
 
 TurkeyArray *turkey_array_new(TurkeyVM *vm, unsigned int size) {

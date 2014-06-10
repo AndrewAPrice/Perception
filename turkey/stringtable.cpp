@@ -1,4 +1,4 @@
-#include "turkey_internal.h"
+#include "turkey.h"
 #include "hooks.h"
 #include "external/cityhash/city.h"
 

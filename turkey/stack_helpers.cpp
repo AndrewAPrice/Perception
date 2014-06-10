@@ -1,4 +1,4 @@
-#include "turkey_internal.h"
+#include "turkey.h"
 #include "hooks.h"
 
 void turkey_push_string(TurkeyVM *vm, const char *string) {

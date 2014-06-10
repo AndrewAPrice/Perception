@@ -1,4 +1,5 @@
-#include "../turkey_internal.h"
+#ifdef TEST
+#include "../turkey.h"
 #include <stdio.h>
 
 TurkeyVariable console_log(TurkeyVM *vm, void *closure, unsigned int argc) {
@@ -47,3 +48,4 @@ void main() {
 	/* cleanup the vm */
 	turkey_cleanup(vm);
 };
+#endif

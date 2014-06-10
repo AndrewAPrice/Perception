@@ -1,4 +1,4 @@
-#include "turkey_internal.h"
+#include "turkey.h"
 #include "hooks.h"
 
 TurkeyString *turkey_to_string(TurkeyVM *vm, TurkeyVariable &var_in) {

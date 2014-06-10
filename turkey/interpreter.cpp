@@ -1,5 +1,5 @@
 #include "hooks.h"
-#include "turkey_internal.h"
+#include "turkey.h"
 
 void turkey_interpreter_init(TurkeyVM *vm) {
 	vm->interpreter_state = 0;

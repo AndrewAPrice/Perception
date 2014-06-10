@@ -1,5 +1,5 @@
 #include "hooks.h"
-#include "turkey_internal.h"
+#include "turkey.h"
 
 // do nothing
 void turkey_instruction_nop(TurkeyVM *vm) {

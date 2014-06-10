@@ -1,4 +1,4 @@
-#include "turkey_internal.h"
+#include "turkey.h"
 #ifdef DEBUG
 #include <stdio.h> /* for assert */
 #endif

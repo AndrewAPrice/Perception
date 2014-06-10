@@ -1,10 +1,11 @@
+#ifdef TEST
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
 #include "../hooks.h"
-#include "../turkey_internal.h"
+#include "../turkey.h"
 
 size_t alloc_size = 0;
 
@@ -40,14 +41,14 @@ void *turkey_load_file(void *tag, TurkeyString *path, size_t &size) {
 
 void *turkey_allocate_memory(void *tag, size_t size) {
 	alloc_size += size;
-	printf("Allocated %i now %i\n", size, alloc_size);
+	//printf("Allocated %i now %i\n", size, alloc_size);
 	return malloc(size);
 }
 
 void turkey_free_memory(void *tag, void *mem, size_t size) {
 	free(mem);
 	alloc_size -= size;
-	printf("Freed %i now %i\n", size, alloc_size);
+	//printf("Freed %i now %i\n", size, alloc_size);
 }
 
 void *turkey_reallocate_memory(void *tag, void *mem, size_t old_size, size_t new_size) {
@@ -94,3 +95,4 @@ extern TurkeyString *turkey_relative_to_absolute_path(TurkeyVM *vm, TurkeyString
 double turkey_float_modulo(double a, double b) {
 	return fmod(a, b);
 }
+#endif
