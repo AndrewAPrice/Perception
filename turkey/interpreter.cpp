@@ -38,28 +38,27 @@ TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr
 	state.code_start = state.code_ptr = (size_t)func->start;
 	state.code_end = (size_t)func->end;
 	state.executing = true;
+	
+	// set up a local stack
+	unsigned int caller_local_stack_top = vm->local_stack.top;
+	vm->local_stack.top = vm->local_stack.position;
 
-	// copy parameters
-	unsigned int callee_parameter_stack_top = vm->parameter_stack.top;
-	vm->parameter_stack.top = vm->parameter_stack.position;
+	// push on the local variables, fill them with nulls initially
+	TurkeyVariable var;
+	var.type = TT_Null;
 
-	for(size_t i = 0; i < argc; i++) {
-		TurkeyVariable var;
+	for(size_t i = 0; i < func->locals + func->parameters; i++)
+		turkey_stack_push(vm, vm->local_stack, var);
+	
+	// copy parameters from caller's variable stack to our local stack
+	for(unsigned int i = 0, j = argc-1; i < argc; i++, j--) {
 		turkey_stack_pop(vm->variable_stack, var);
-		turkey_stack_push(vm, vm->parameter_stack, var);
+		if(j < func->parameters)
+			turkey_stack_set(vm->local_stack, j, var);
 	}
 	
-	// create space for local stack
-	unsigned int callee_local_stack_top = vm->local_stack.top;
-	vm->local_stack.top = vm->local_stack.position;
-	TurkeyVariable nullVar;
-	nullVar.type = TT_Null;
-
-	for(size_t i = 0; i < func->locals; i++)
-		turkey_stack_push(vm, vm->local_stack, nullVar);
-	
 	// new variable stack
-	unsigned int callee_variable_stack_top = vm->variable_stack.top;
+	unsigned int caller_variable_stack_top = vm->variable_stack.top;
 	vm->variable_stack.top = vm->variable_stack.position;
 
 	// start executing
@@ -74,14 +73,11 @@ TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr
 	turkey_stack_pop(vm->variable_stack, ret);
 
 	// return to the parent state
-	vm->parameter_stack.position = vm->parameter_stack.top;
-	vm->parameter_stack.top = callee_parameter_stack_top;
-
 	vm->local_stack.position = vm->local_stack.top;
-	vm->local_stack.top = callee_local_stack_top;
+	vm->local_stack.top = caller_local_stack_top;
 
 	vm->variable_stack.position = vm->variable_stack.top;
-	vm->variable_stack.top = callee_variable_stack_top;
+	vm->variable_stack.top = caller_variable_stack_top;
 
 	vm->interpreter_state = state.parent;
 

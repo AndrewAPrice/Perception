@@ -32,7 +32,7 @@ void turkey_stack_pop_no_return(TurkeyStack &stack) {
 		stack.position--;
 }
 
-void turkey_stack_pop(TurkeyStack &stack, TurkeyVariable &value) {
+	void turkey_stack_pop(TurkeyStack &stack, TurkeyVariable &value) {
 	if(stack.position == stack.top) {
 		value.type = TT_Null;
 		return;

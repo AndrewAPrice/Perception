@@ -1856,7 +1856,7 @@ void turkey_instruction_jump_if_not_null_32(TurkeyVM *vm) {
 void turkey_instruction_require(TurkeyVM *vm) {
 	turkey_require(vm);
 }
-
+/*
 void turkey_instruction_load_parameter_8(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
 		return;
@@ -1927,7 +1927,7 @@ void turkey_instruction_store_parameter_32(TurkeyVM *vm) {
 	TurkeyVariable var;
 	turkey_stack_pop(vm->variable_stack, var);
 	turkey_stack_set(vm->parameter_stack, a, var);
-}
+}*/
 
 void turkey_instruction_to_string(TurkeyVM *vm) {
 	TurkeyVariable var;
@@ -2099,12 +2099,12 @@ TurkeyInstructionHandler turkey_interpreter_operations[256] = {
 	turkey_instruction_jump_if_not_null_16, // 112
 	turkey_instruction_jump_if_not_null_32, // 113
 	turkey_instruction_require, // 114
-	turkey_instruction_load_parameter_8, // 115
-	turkey_instruction_load_parameter_16, // 116
-	turkey_instruction_load_parameter_32, // 117
-	turkey_instruction_store_parameter_8, // 118
-	turkey_instruction_store_parameter_16, // 119
-	turkey_instruction_store_parameter_32, // 120
+	turkey_instruction_nop, // turkey_instruction_load_parameter_8, // 115
+	turkey_instruction_nop, // turkey_instruction_load_parameter_16, // 116
+	turkey_instruction_nop, // turkey_instruction_load_parameter_32, // 117
+	turkey_instruction_nop, // turkey_instruction_store_parameter_8, // 118
+	turkey_instruction_nop, // turkey_instruction_store_parameter_16, // 119
+	turkey_instruction_nop, // turkey_instruction_store_parameter_32, // 120
 	turkey_instruction_to_string, // 121
 	turkey_instruction_invert, // 122
 	turkey_instruction_nop, // 123

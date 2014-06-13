@@ -11,7 +11,7 @@ TurkeyVM *turkey_init(TurkeySettings *settings) {
 	turkey_module_init(vm);
 	turkey_stack_init(vm, vm->local_stack);
 	turkey_stack_init(vm, vm->variable_stack);
-	turkey_stack_init(vm, vm->parameter_stack);
+	// turkey_stack_init(vm, vm->parameter_stack);
 
 	turkey_stringtable_init(vm);
 
@@ -23,7 +23,7 @@ void turkey_cleanup(TurkeyVM *vm) {
 	turkey_stringtable_cleanup(vm);
 	turkey_stack_cleanup(vm, vm->local_stack);
 	turkey_stack_cleanup(vm, vm->variable_stack);
-	turkey_stack_cleanup(vm, vm->parameter_stack);
+	// turkey_stack_cleanup(vm, vm->parameter_stack);
 
 	turkey_interpreter_cleanup(vm);
 	turkey_gc_cleanup(vm);
