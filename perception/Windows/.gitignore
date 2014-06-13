@@ -1,0 +1,7 @@
+/Debug/
+/Test-Debug/
+/Release/
+/Test-Release/
+*.opensdf
+*.sdf
+*.v11.suo

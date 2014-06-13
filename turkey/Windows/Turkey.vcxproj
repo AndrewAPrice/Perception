@@ -149,7 +149,6 @@
     <ClCompile Include="..\interpreter.cpp" />
     <ClCompile Include="..\module.cpp" />
     <ClCompile Include="..\object.cpp" />
-    <ClCompile Include="..\perception.cpp" />
     <ClCompile Include="..\stack.cpp" />
     <ClCompile Include="..\stack_helpers.cpp" />
     <ClCompile Include="..\string.cpp" />
