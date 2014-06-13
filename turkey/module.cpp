@@ -172,7 +172,7 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 	unsigned int function_header_start, unsigned int functions,
 	unsigned int code_block_start, unsigned int code_block_length,
 	void *file, size_t file_size) {
-		unsigned int function_table_length = functions * 6 * 4;
+		unsigned int function_table_length = functions * 5 * 4;
 		if(function_header_start + function_table_length > file_size ||
 			code_block_start + code_block_length > file_size ||
 			functions == 0
@@ -194,13 +194,14 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 		module->functions = (TurkeyFunction **)turkey_allocate_memory(vm->tag, sizeof(TurkeyFunction *) * functions);
 		module->function_count = functions;
 
+		unsigned int start_addr = 0;
+
 		for(unsigned int i = 0; i < functions; i++) {
-			unsigned int start_addr = *(unsigned int *)((size_t)file + function_header_start + i * 6 * 4);
-			unsigned int code_length = *(unsigned int *)((size_t)file + function_header_start + i * 6 * 4 + 4);
+			unsigned int code_length = *(unsigned int *)((size_t)file + function_header_start + i * 5 * 4);
 			// skip debug block
-			unsigned int parameters = *(unsigned int *)((size_t)file + function_header_start + i * 6 * 4 + 12);
-			unsigned int local_vars = *(unsigned int *)((size_t)file + function_header_start + i * 6 * 4 + 16);
-			unsigned int closure_vars = *(unsigned int *)((size_t)file + function_header_start + i * 6 * 4 + 20);
+			unsigned int parameters = *(unsigned int *)((size_t)file + function_header_start + i * 5 * 4 + 8);
+			unsigned int local_vars = *(unsigned int *)((size_t)file + function_header_start + i * 5 * 4 + 12);
+			unsigned int closure_vars = *(unsigned int *)((size_t)file + function_header_start + i * 5 * 4 + 16);
 
 			if(start_addr + code_length > code_block_length) {
 				// cannot fit in the code block
@@ -216,13 +217,15 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 				function->closures = closure_vars;
 				module->functions[i] = function;
 			}
+
+			start_addr += code_length;
 		}
 }
 
 void load_string_table_from_file(TurkeyVM *vm, TurkeyModule *module,
 	unsigned int string_table_start, unsigned int string_table_entries,
 	void *file, size_t file_size) {
-		unsigned int string_table_length = string_table_entries * 8;
+		unsigned int string_table_length = string_table_entries * 4;
 		if(string_table_start + string_table_length > file_size || string_table_entries == 0) {
 			// string table cannot fit in the file!
 			module->string_count = 0;
@@ -233,12 +236,10 @@ void load_string_table_from_file(TurkeyVM *vm, TurkeyModule *module,
 		module->string_count = string_table_entries;	
 		module->strings = (TurkeyString **) turkey_allocate_memory(vm->tag, sizeof (TurkeyString *) * string_table_entries);
 
-		unsigned int strings_start = string_table_start + string_table_length;
-
+		unsigned int str_start = string_table_start + string_table_length;
 		// add each string
 		for(unsigned int i = 0; i < string_table_entries; i++) {
-			unsigned int str_start = strings_start + *(unsigned int *)((size_t)file + string_table_start + i * 8);
-			unsigned int str_len = *(unsigned int *)((size_t)file + string_table_start + i * 8 + 4);
+			unsigned int str_len = *(unsigned int *)((size_t)file + string_table_start + i * 4);
 			if(str_start > file_size || str_start + str_len > file_size) {
 				module->strings[i] = 0; // no string here
 			} else {
@@ -246,6 +247,7 @@ void load_string_table_from_file(TurkeyVM *vm, TurkeyModule *module,
 				turkey_gc_hold(vm, str, TT_String);
 				module->strings[i] = str;
 			}
+			str_start += str_len;
 		}
 }
 
@@ -259,7 +261,7 @@ TurkeyVariable turkey_module_load_file(TurkeyVM *vm, TurkeyString *filepath) {
 	void *file = turkey_load_file(vm->tag, filepath, file_size);
 	if(file == 0) return ret; // couldn't load file
 
-	if(file_size < 42) { // not enough room for a header
+	if(file_size < 26) { // not enough room for a header
 		turkey_free_memory(vm->tag, file, file_size);
 		return ret;
 	}
@@ -277,22 +279,20 @@ TurkeyVariable turkey_module_load_file(TurkeyVM *vm, TurkeyString *filepath) {
 		return ret;
 	}
 
-	// skip over the icon, 10, 14
-
 	// create module in memory
 	TurkeyModule *module = (TurkeyModule *)turkey_allocate_memory(vm->tag, sizeof TurkeyModule);
 	module->next = 0;
 	vm->modules = module;
 
-	unsigned int function_header_start = *(unsigned int *)((size_t)file + 18);
-	unsigned int functions = *(unsigned int *)((size_t)file + 22);
-	unsigned int code_block_start = *(unsigned int *)((size_t)file + 26);
-	unsigned int code_block_length = *(unsigned int *)((size_t)file + 30);
+	unsigned int function_header_start = 26;
+	unsigned int functions = *(unsigned int *)((size_t)file + 10);
+	unsigned int code_block_start = function_header_start + functions * 20;
+	unsigned int code_block_length = *(unsigned int *)((size_t)file + 14);
 
 	read_functions_from_file(vm, module, function_header_start, functions, code_block_start, code_block_length, file, file_size);
 
-	unsigned int string_table_start = *(unsigned int *)((size_t)file + 34);
-	unsigned int string_table_entries = *(unsigned int *)((size_t)file + 38);
+	unsigned int string_table_start = code_block_start + code_block_length;
+	unsigned int string_table_entries = *(unsigned int *)((size_t)file + 18);
 
 	load_string_table_from_file(vm, module, string_table_start, string_table_entries, file, file_size);
 
@@ -300,7 +300,7 @@ TurkeyVariable turkey_module_load_file(TurkeyVM *vm, TurkeyString *filepath) {
 	turkey_free_memory(vm->tag, file, file_size);
 
 	// execute the first function
-	if(module->function_count >= 1) {
+	if(module->function_count >= 1 && module->functions[0] != 0) {
 		TurkeyFunctionPointer function_ptr;
 		function_ptr.is_native = false;
 		function_ptr.managed.function = module->functions[0];

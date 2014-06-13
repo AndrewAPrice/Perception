@@ -1046,46 +1046,31 @@ var writeString = function(str) {
 
 // write the file header out to disk
 var writeFileHeader = function() {
-	// header sizes for calculating the offsets into the file
-	var iconStart = 50; // header size
-	var iconSize = 0;
-	var functionHeaderStart = iconStart + iconSize;
-	var codeBlockStart = functionHeaderStart + 24 * functions.length;
-	var stringTableStart = codeBlockStart + totalCodeSize;
-	var debugBlockStart =  stringTableStart + 8 * globalStrings.length + globalCurrentStringTableLength;
+	// header size is 26 bytes;
 
-	// write the magic key 12SHOVEL
+    // write the magic key 12SHOVEL
 	writeUInt32(0x48533231);
 	writeUInt32(0x4C45564F);
 
 	// write the version code
 	writeUInt16(0);
 
-	// icon
-	writeUInt32(iconStart); // pointer
-	writeUInt32(iconSize); // size
-
 	// function header pointer
-	writeUInt32(functionHeaderStart); // pointer
 	writeUInt32(functions.length); // number of functions
 
 	// code block
-	writeUInt32(codeBlockStart); // pointer
 	writeUInt32(totalCodeSize); // size
 
 	// string table
-	writeUInt32(stringTableStart); // string table start
 	writeUInt32(globalStrings.length); // string table entries
 
 	// debug block
-	writeUInt32(debugBlockStart); // pointer
 	writeUInt32(debugBlockSize); // size
 };
 
 // write the function header out to disk
 var writeFunctionHeaders = function(funcHeader) {
-	// function header is 24 bytes per function
-	writeUInt32(funcHeader.startAddr); // start address into code block
+	// function header is 20 bytes per function
 	writeUInt32(funcHeader.codeLength); // length of the code block
 	writeUInt32(funcHeader.debugBlock); // pointer to a debug block, if present
 	writeUInt32(funcHeader.parameters); // number of input parameters
@@ -1113,7 +1098,6 @@ var writeStringTable = function() {
 	// write out the indices/length of each string
 	for(var i = 0; i < globalStrings.length; i++) {
 		var strEntry = globalStringTable[globalStrings[i]];
-		writeUInt32(strEntry.start);
 		writeUInt32(strEntry.len);
 	}
 
@@ -1133,6 +1117,7 @@ var writeDebugBlock = function(func) {
 	// start col, end col, a pointer for each parameter, local, closure variable - start/length
 	// string pointers are 6 bytes (32 bit pointer, 16 bit length)
 
+    // todo: compress debug block
 	writeUInt32(debuggingBlockHeader); // start of the code columns
 	writeUInt32(func.nameStart);
 	writeUInt16(func.nameLength);
