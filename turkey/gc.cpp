@@ -33,7 +33,7 @@ void turkey_gc_cleanup(TurkeyVM *vm) {
 	#define delete_everything(_IT_, _CAST_, _HANDLER_,_PARAM_) iterator = _IT_; \
 		while(iterator != 0) { \
 			next = iterator->gc_next; \
-			_HANDLER_(_PARAM_,(_CAST_ *)_IT_); \
+			_HANDLER_(_PARAM_,(_CAST_ *)iterator); \
 			iterator = next; \
 		}
 
@@ -220,7 +220,7 @@ void turkey_gc_collect(TurkeyVM *vm) {
 	#undef mark_array*/
 
 	/* work up through the stacks and mark everything reachable */
-	turkey_gc_mark_stack(vm, vm->parameter_stack);
+	// turkey_gc_mark_stack(vm, vm->parameter_stack);
 	turkey_gc_mark_stack(vm, vm->variable_stack);
 	turkey_gc_mark_stack(vm, vm->local_stack);
 
