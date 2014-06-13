@@ -8,6 +8,8 @@
 #include "../turkey.h"
 
 size_t alloc_size = 0;
+size_t amount_since_last_alloc = 0;
+const size_t gc_alloc_threshold = 4 * 1024 * 1024; /* call the GC every time we allocate 4 mb */
 
 void *turkey_load_file(void *tag, TurkeyString *path, size_t &size) {
 	/* create a temporary null terminated string */
@@ -41,6 +43,11 @@ void *turkey_load_file(void *tag, TurkeyString *path, size_t &size) {
 
 void *turkey_allocate_memory(void *tag, size_t size) {
 	alloc_size += size;
+	amount_since_last_alloc += size;
+	if(amount_since_last_alloc >= gc_alloc_threshold) {
+		amount_since_last_alloc = 0;
+		turkey_gc_collect((TurkeyVM *)tag);
+	}
 	//printf("Allocated %i now %i\n", size, alloc_size);
 	return malloc(size);
 }
@@ -54,6 +61,16 @@ void turkey_free_memory(void *tag, void *mem, size_t size) {
 void *turkey_reallocate_memory(void *tag, void *mem, size_t old_size, size_t new_size) {
 	alloc_size -= old_size;
 	alloc_size += new_size;
+
+	
+	if(new_size > old_size) {
+		amount_since_last_alloc += new_size - old_size;
+		if(amount_since_last_alloc >= gc_alloc_threshold) {
+			amount_since_last_alloc = 0;
+			turkey_gc_collect((TurkeyVM *)tag);
+		}
+	}
+
 	return realloc(mem, new_size);
 }
 
