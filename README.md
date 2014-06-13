@@ -6,9 +6,10 @@ the virtual machine which runs the compiled Shovel code. Perception is an operat
 Shovel and Turkey are being developed seperately from Perception, so that they may be embedded into any system or application.
 
 ## Directory Structure
-- Shovel - Tools related to the Shovel language build system - compiler, assembler
-- Turkey - The Turkey virtual machine
-- Perception - The Perception kernel will eventually go in here.
+- fs - The root file system.
+- shovel - Tools related to the Shovel language build system - compiler, assembler
+- turkey - The Turkey virtual machine
+- perception - The Perception kernel will eventually go in here.
 
 ## Todo
 This is a very high level to-do list. Near goals:

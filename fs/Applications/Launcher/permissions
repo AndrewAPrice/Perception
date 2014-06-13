@@ -1,0 +1,9 @@
+launch_programs=1
+send_messages=0
+run_background=0
+write_executables=0
+write_assets=0
+read_documents=1
+write_documents=1
+read_everything=1
+write_everything=1

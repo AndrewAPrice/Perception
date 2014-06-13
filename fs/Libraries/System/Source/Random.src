@@ -1,0 +1,25 @@
+exports = {};
+
+
+exports.createGenerator = function(seed) {
+	if(seed == null)
+		seed = 123123; // replace with some time function
+	else
+		seed = (unsigned)seed;
+
+	var randomGenerator = {};
+	
+	var max = 4294967296;
+
+	randomGenerator.max = max;
+	randomGenerator.getSeed = seed();
+
+	randomGenerator.random = function() {
+		seed += (seed * seed) | 5;
+		return (seed >>> 32) / max;
+	};
+
+	return randomGenerator;
+};
+
+return exports;
