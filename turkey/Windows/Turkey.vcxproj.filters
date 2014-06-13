@@ -1,0 +1,96 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\external\cityhash\city.cpp">
+      <Filter>external\cityhash</Filter>
+    </ClCompile>
+    <ClCompile Include="hooks.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="..\array.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\buffer.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\closure.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\conversions.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\functionpointer.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\gc.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\instructions.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\interpreter.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\module.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\object.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\stack.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\stack_helpers.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\string.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\stringtable.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\turkey.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\perception.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\external\cityhash\city.h">
+      <Filter>external\cityhash</Filter>
+    </ClInclude>
+    <ClInclude Include="..\external\half\half.hpp">
+      <Filter>external\half</Filter>
+    </ClInclude>
+    <ClInclude Include="..\hooks.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\turkey.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Windows">
+      <UniqueIdentifier>{9c28c56d-87d2-4370-8c03-55fd4b4afac9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source">
+      <UniqueIdentifier>{461edf9c-e2b9-4ae8-b26b-434036b20d5c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="external">
+      <UniqueIdentifier>{b1245981-d3bf-4764-958a-8c52fdb333b6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="external\cityhash">
+      <UniqueIdentifier>{cafdd8a5-26a2-4e04-93fe-ad99e0eb5f6b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="external\half">
+      <UniqueIdentifier>{2b2975b0-36b5-40b3-ba24-b2710db8c0ea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers">
+      <UniqueIdentifier>{7e962330-be66-402a-975c-1428d4d67f14}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
