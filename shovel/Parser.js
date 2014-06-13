@@ -161,6 +161,9 @@ var parse = function(lexer) {
 			previousFunction: currentFunction, // reference when leaving the function
 			statements: null,
 			functionId: functions.length,
+			numParams: 0, // number of parameters
+			numLocals: 0,
+            numClosures: 0
 			// if there's a .replacedBy property then we should use that property when compiling
 		});
 
@@ -212,6 +215,7 @@ var parse = function(lexer) {
 
 		// scan the scope of this function
 		var s = scanScope(f);
+		f.numParams = s.params;
 		f.numLocals = s.locals;
 		f.numClosures = s.closures; 
 
@@ -227,6 +231,8 @@ var parse = function(lexer) {
 		var totalClosures = 0;
 		// deepest local variable
 		var deepestLocal = 0;
+
+		var totalParams = 0;
 
 		var scanRecursive = function(scope, localDepth) {
 			if(debug) // in debug compilation we'll give every local variable it's own scope
@@ -258,12 +264,13 @@ var parse = function(lexer) {
 		// scan the parameters first (root scope)
 		var closure = [];
 
+		totalParams += scope.variableNames.length;
+
 		for(var i = 0; i < scope.variableNames.length; i++) {
-			var v = scope.variables[scope.variableNames[i]];
+		    var v = scope.variables[scope.variableNames[i]];
 			if(v.closure) {
 				// this parameter is a closure, copy it to the child so other functions can access it
 				v.stackNumber = totalClosures;
-
 
 				v.replacedBy = scope.children[0].variables["." + scope.variables[i]] = {
 					closure: true,
@@ -284,6 +291,7 @@ var parse = function(lexer) {
 				totalClosures++;
 
 				deepestLocal++; // parameter is also on stack list
+                
 			} else {
 				v.stackNumber = deepestLocal;
 				deepestLocal++;
@@ -296,7 +304,7 @@ var parse = function(lexer) {
 
 		// console.log("Deepest local: " + deepestLocal + " Closures: " + totalClosures);
 
-		return {locals: deepestLocal, closures: totalClosures};
+		return { locals: deepestLocal - totalParams, closures: totalClosures, params: totalParams };
 	};
 
 
@@ -917,11 +925,11 @@ var parse = function(lexer) {
 			error(lexer, "Expecting 'new'.");
 
 		var t = lexer.nextToken();
-		if(t === '<') {
+		if(t === '<|') {
 			var size = expression();
 
-			if(lexer.nextToken() !== '>')
-				error(lexer, "Expecting '>' to close the 'new'.");
+			if(lexer.nextToken() !== '|>')
+				error(lexer, "Expecting '|>' to close the 'new'.");
 
 			return {
 				operation: "new_buffer",
@@ -1445,7 +1453,7 @@ var parse = function(lexer) {
 	};
 
 	// read the main/body
-	enterFunction(["exports"]);
+	enterFunction([]);//["exports"]);
 	main();
 	leaveFunction();
 
@@ -1530,7 +1538,7 @@ exports.compile = function(funcs) {
 				// {operation: "return",value: value }
 				case "return":
 					if(node.value !== null) {
-						compileNode(node.value);
+						compileNode(node.value, true);
 						instructions.push("Return");
 					} else
 						instructions.push("ReturnNull");
@@ -1864,7 +1872,7 @@ exports.compile = function(funcs) {
 				// {operation: "function_call", _function: left, parameters: parameters };
 				case "function_call":
 					// push the functions onto the stack in reverse order
-					for(var j = node.parameters.length - 1; j >= 0; j--)
+				    for (var j = 0; j < node.parameters.length; j++)
 						compileNode(node.parameters[j], true);
 
 					compileNode(node._function, true);
@@ -2533,8 +2541,12 @@ exports.compile = function(funcs) {
 
 
 		f.write("Function f" + i + "\n");
-		f.write("-locals " + thisFunc.numLocals + "\n");
-		f.write("-closures " + thisFunc.numClosures + "\n");
+        if(thisFunc.numLocals > 0)
+		    f.write("-locals " + thisFunc.numLocals + "\n");
+        if(thisFunc.numClosures > 0)
+            f.write("-closures " + thisFunc.numClosures + "\n");
+        if(thisFunc.numParams > 0)
+            f.write("-parameters " + thisFunc.numParams + "\n");
 
 		for(var j = 0; j < thisFunc.statements.length; j++)
 			compileNode(thisFunc.statements[j]);
