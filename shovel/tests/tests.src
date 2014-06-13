@@ -9,7 +9,7 @@ var fibonacci_test = function() {
 	};
 
 	Test.begin("Recursive Fibonacci");
-	var result = fib(5);//fib(35);
+	var result = fib(35);
 	Test.end(result);
 };
 
