@@ -119,11 +119,9 @@ Opcode|Instruction|Input|Outputs|Notes
 &nbsp;|**Stack Manipulation**|||
 25|Pop|A||Pops a value off the stack and discards it.
 26|PopMany [count]|[count]||Pops [count]-number (up to 255) values off the stack and discards them.
-30/31/32|Load [variable]||Result|Grabs a value [count]-positions up the stack and duplicates it at the bottom of the stack.
-33/34/35|Store [variable]|A||Stores a variable [count]-positions up the stack.
+27/28/29|Grab [count]||Value|Grabs an element [count] up the stack and pushes it to the bottom.
+33/34/35|Store [count]|Value||Pops a value of the stack and stores it [count] positions up the stack. [count] is an index into the stack after the value to store has been popped.
 36/37/38|Swap [a] [b]|||Swaps two two elements in the stack [A] and [B] positions up.
-39/40/41|LoadClosure [variable]||Result|Loads a closure variable - where [variable] is the variable number (from 0) - onto the stack.
-42/43/44|StoreClosure [variable]|A||Stores A into a closure variable - where [variable] is the variable number (from 0).
 &nbsp;|**Arrays**|||
 45|NewArray|Size|Array|Create an array with the size preallocated.
 46|LoadElement|Key,Array|Result|Returns an element from an object (where [key] is the property), an array (where [key] is an index), or a character as an integer in a string (where[key] is the position of the character). Returns null if the key cannot be found.
@@ -169,6 +167,7 @@ Opcode|Instruction|Input|Outputs|Notes
 86|PushFalse||Value|Pushes a boolean with the value of false onto the stack.
 &nbsp;|**Nulls**|||
 87|PushNull||Value|Pushes a null value onto the stack.
+30|PushManyNulls [count]||[count]|Pushes [count]-number (up to 255) nulls to the stack.
 &nbsp;|**Strings**|||
 88/89/90|PushString [string]||Value|Pushes a string containing the text [string] onto the stack.
 121|ToString|A|Value|Converts A to a string. Floats, unsigned, and signed integers convert to their base 10 representation, buffers are converted to their base 64 representation, while objects and arrays are converted to their JSON encoding.

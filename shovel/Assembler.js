@@ -172,7 +172,6 @@ var instructions = {
 	"pop": {opcode: 25, special: false},
 	"popmany": {special: true}, // 26
 	"grab": {special: true}, // 27,28,29 (8/16/32)
-	"load": {special: true}, // 30,31,32 (8/16/32)
 	"store": {special: true}, // 33,34,35 (8/16/32)
 	"swap": {special: true}, // 36,37,38 (8/16/32)
 	"loadclosure": {special: true}, // 39,40,41 (8/16/32)
@@ -214,6 +213,7 @@ var instructions = {
 	"pushtrue": {opcode: 85, special: false},
 	"pushfalse": {opcode: 86, special: false},
 	"pushnull": {opcode: 87, special: false},
+	"pushmanynulls": {opcode: 30, special: true},
 	"pushstring": {special: true}, // 88,89,90 (8/16/32)
 	"tostring": {opcode: 121, special: false},
 	"pushfunction": {special: true}, // 91
@@ -736,7 +736,20 @@ var handleFunction = function(funcHeader) {
 						lines[i] = [83, buffer.readUInt8(0), buffer.readUInt8(1), buffer.readUInt8(2), buffer.readUInt8(3),
 							buffer.readUInt8(4),buffer.readUInt8(5),buffer.readUInt8(6),buffer.readUInt8(7)];
 						bytes += lines[i].length;
-						break;
+						br
+					case "pushmanynulls": // 30
+						if(operands.length != 1)
+							errorMessage(i, "pushmanynulls takes 1 argument.");
+
+						var op = parseInt(operands[0]);
+						if(op < 0)
+							errorMessage(i, "pushmanynulls must take a positive number.");
+						if(op >= 256)
+							errorMessage(i, "pushmanynulls must take an argument less than 256.");
+
+						lines[i] = [30, op];
+						bytes += lines[i].length;
+						break;eak;
 					case "pushstring": // 88,89,90 (8/16/32)
 						var str = parseString(i, lines[i], line.toLowerCase().indexOf('pushstring') + 'pushstring'.length + 1);
 

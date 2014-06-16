@@ -33,8 +33,6 @@ Grab 0
 PushUnsignedInteger 1
 LessThanOrEquals
 JumpIfFalse l1
-Grab 0
-Store 0
 Return
 .l1
 Grab 0

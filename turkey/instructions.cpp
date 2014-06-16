@@ -753,6 +753,20 @@ void turkey_instruction_grab_32(TurkeyVM *vm) {
 	
 	turkey_grab(vm, grab);
 }
+
+
+
+void turkey_instruction_push_many_nulls(TurkeyVM *vm) {
+	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
+		return;
+
+	size_t nulls = (size_t)*(char *)vm->interpreter_state->code_ptr;
+	vm->interpreter_state->code_ptr++;
+
+	for(;nulls > 0; nulls--)
+		turkey_push_null(vm);
+}
+
 /*
 void turkey_instruction_load_8(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
@@ -1466,7 +1480,7 @@ void turkey_instruction_push_null(TurkeyVM *vm) {
 	turkey_push_null(vm);
 }
 
-void turkey_instruction_push_string_8(TurkeyVM *vm) {
+void tuprkey_instruction_push_string_8(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
 		return;
 
@@ -2014,7 +2028,7 @@ TurkeyInstructionHandler turkey_interpreter_operations[256] = {
 	turkey_instruction_grab_8, // 27
 	turkey_instruction_grab_16, // 28
 	turkey_instruction_grab_32, // 29
-	turkey_instruction_nop, //turkey_instruction_load_8, // 30
+	turkey_instruction_push_many_nulls, //turkey_instruction_load_8, // 30
 	turkey_instruction_nop, //turkey_instruction_load_16, // 31
 	turkey_instruction_nop, //turkey_instruction_load_32, // 32
 	turkey_instruction_store_8, // 33

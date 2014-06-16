@@ -1478,7 +1478,52 @@ var parse = function(lexer) {
 };
 
 peepHoleOptimizations = function(instructions) {
+	for(var i = 0; i < instructions.length; i++) {
+		switch(instructions[i]) {
+			case "Grab 0": // Store 0, Grab 0 -> []
+				if(i + 1 < instructions.length && instructions[i + 1] == "Store 0") {
+					instructions[i] = null;
+					i++;
+					instructions[i] = null;
+				}
+			break;
+			case "PushNull":
+				if(i + 1 < instructions.length) {
+					// PushNull, Return -> ReturnNull
+					if(instructions[i + 1] == "Return") {
+						instructions[i] = "ReturnNull";
+						i++;
+						instrucitons[i] = "";
+					} else if(instructions[i + 1] == "PushNull") { // PushNull, PushNull -> PushManyNull
+						var nulls = 2;
+						instructions[i + 1] = null;
+						var j = i + 2;
+						while(j < instructions.length && instructions[j] == "PushNull") {
+							nulls++;
+							instructions[j] = null;
+							j++;
+						}
 
+						while(nulls > 0) {
+							if(nulls > 255) {
+								instructions[i] = "PushManyNulls 255"
+								nulls -= 255;
+								i++; // go to the next instruction to replace
+							} else {
+								if(nulls == 1)
+									instructions[i] = "PushNull";
+								else
+									instructions[i] = "PushManyNulls " + nulls;
+								nulls = 0;
+							}
+						}
+						i = j - 1;
+					}
+				}
+			break;
+		}
+	}
+	
 };
 
 // quotes and encodes a string
@@ -1570,7 +1615,10 @@ exports.compile = function(funcs) {
 								instructions.push("PopMany 255");
 								numToPop -= 255;
 							} else {
-								instructions.push("PopMany " + numToPop);
+								if(numToPop == 1)
+									instructions.push("Pop");
+								else
+									instructions.push("PopMany " + numToPop);
 								numToPop = 0;
 							}
 						}
@@ -1583,7 +1631,10 @@ exports.compile = function(funcs) {
 								instructions.push("PopMany 255");
 								numToPop -= 255;
 							} else {
-								instructions.push("PopMany " + numToPop);
+								if(numToPop == 1)
+									instructions.push("Pop");
+								else
+									instructions.push("PopMany " + numToPop);
 								numToPop = 0;
 							}
 						}
@@ -2604,8 +2655,20 @@ exports.compile = function(funcs) {
             f.write("-parameters " + thisFunc.numParams + "\n");
 
         // initialize temp variables to null
-        for(var j = 0; j < thisFunc.numLocals; j++)
-        	instructions.push("PushNull");
+        var j = thisFunc.numLocals;
+        while(j > 0) {
+        	if(j > 255) {
+        		instructions.push("PushManyNulls 255");
+        		j -= 255;
+        	} else {
+        		if(j == 1)
+        			instructions.push("PushNull");
+        		else
+        			instructions.push("PushManyNulls " + j);
+        		j = 0;
+        	}
+        }
+        	
 
 		for(var j = 0; j < thisFunc.statements.length; j++)
 			compileNode(thisFunc.statements[j], 0);
@@ -2613,13 +2676,14 @@ exports.compile = function(funcs) {
 		if(!debug) {
 			if(verbose)
 				console.log("Performing peep hole optimizations");
-			peepHoleOptimizations();
+			peepHoleOptimizations(instructions);
 		}
 
 		if(verbose)
 			console.log("Outputing assembly to file");
 		for(var j = 0; j < instructions.length; j++)
-			f.write(instructions[j] + "\n");
+			if(instructions[j] != null)
+				f.write(instructions[j] + "\n");
 	}
 };
 
