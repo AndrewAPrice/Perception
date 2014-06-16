@@ -259,6 +259,20 @@ var parse = function(lexer) {
 				scanRecursive(scope.children[i], localDepth);
 		};
 
+
+		var invert = function(scope) {
+			for(var i = 0; i < scope.variableNames.length; i++) {
+				var v = scope.variables[scope.variableNames[i]];
+				if(!v.closure)
+					v.stackNumber = deepestLocal - v.stackNumber - 1;
+			}
+
+
+			for(var i = 0; i < scope.children.length; i++)
+				if(scope.children[0].functionId == f.functionId)
+						invert(scope.children[i]);
+		};
+
 		var scope = f.rootScope;
 
 		// scan the parameters first (root scope)
@@ -297,10 +311,13 @@ var parse = function(lexer) {
 				deepestLocal++;
 			}
 
-		};
+		}
 
 		// scan children recursively
 		scanRecursive(scope.children[0], deepestLocal);
+
+		// invert the stack position so 0 refers to the deepest,
+		invert(scope);
 
 		// console.log("Deepest local: " + deepestLocal + " Closures: " + totalClosures);
 
@@ -1513,23 +1530,27 @@ exports.compile = function(funcs) {
 		};
 
 
-
 		// node - node to compile
+		// stackdepth - how deep the local stack is (excluding parameters)
 		// expectReturn - if we are expecting something to be returned
-		var compileNode = function(node, expectReturn) {
+		var compileNode = function(node, stackDepth, expectReturn) {
 //			if(debug)
 //				instructions.push("#" + node.operation);
+			if(node == null || stackDepth == null) {
+				console.log("compileNode: node or stackDepth is null.");
+				process.exit(-1);
+			}
 
 			switch(node.operation) {
 				// {operation: "copyParameter", local: deepestLocal, closure: totalClosures}
 				case "copyParameter":
-					instructions.push("Load " + node.local);
+					instructions.push("Grab " + (stackDepth + thisFunc.numLocals + thisFunc.numParams - node.local - 1));
 					instructions.push("StoreClosure " + node.closure);
 					break;
 				// {operation: "label",label: l, statement: stmt }
 				case "label":
 					instructions.push(".l" + node.label);
-					compileNode(node.statement);
+					compileNode(node.statement, stackDepth);
 					break;
 				// {operation: "goto", destination: destination }
 				case "goto":
@@ -1538,24 +1559,50 @@ exports.compile = function(funcs) {
 				// {operation: "return",value: value }
 				case "return":
 					if(node.value !== null) {
-						compileNode(node.value, true);
+						compileNode(node.value, 0, true);
+						
+						// move us to the top
+						instructions.push("Store " + (stackDepth + thisFunc.numParams + thisFunc.numLocals - 1));
+
+						var numToPop = stackDepth + thisFunc.numParams + thisFunc.numLocals1;
+						while(numToPop > 0) {
+							if(numToPop >= 255) {
+								instructions.push("PopMany 255");
+								numToPop -= 255;
+							} else {
+								instructions.push("PopMany " + numToPop);
+								numToPop = 0;
+							}
+						}
+
 						instructions.push("Return");
-					} else
+					} else {
+						var numToPop = stackDepth + thisFunc.numParams + thisFunc.numLocals;
+						while(numToPop > 0) {
+							if(numToPop >= 255) {
+								instructions.push("PopMany 255");
+								numToPop -= 255;
+							} else {
+								instructions.push("PopMany " + numToPop);
+								numToPop = 0;
+							}
+						}
 						instructions.push("ReturnNull");
+					}
 					break;
 				// {operation: 'var',assignments: assignments };
 				case "var":
 					for(var j = 0; j < node.assignments.length; j++)
-						compileNode(node.assignments[j]);
+						compileNode(node.assignments[j], stackDepth);
 					break;
 				// {operation: "while",condition: cond,statement: stmt, bodyLabel: bodyLabel, continueLabel: continueLabel, breakLabel: breakLabel }
 				case "while":
 					instructions.push("Jump l" + node.continueLabel);
 					instructions.push(".l" + node.bodyLabel);
-					compileNode(node.statement);
+					compileNode(node.statement, stackDepth);
 
 					instructions.push(".l" + node.continueLabel);
-					compileNode(node.condition, true);
+					compileNode(node.condition, stackDepth, true);
 					instructions.push("JumpIfTrue l" + node.bodyLabel);
 
 					instructions.push(".l" + node.breakLabel);
@@ -1564,12 +1611,12 @@ exports.compile = function(funcs) {
 				case "delete":
 					if(node.obj.operation == "array_access") {
 						// {operation: "array_access", array: left, element: expression}
-						compileNode(node.obj.element, true);
-						compileNode(node.obj.array, true);
+						compileNode(node.obj.element, stackDepth, true);
+						compileNode(node.obj.array, stackDepth + 1, true);
 					} else if(node.obj.operation == "property_access") {
 						// {operation: "property_access", object: left, identifier: lexer.getValue() };
 						instructions.push("PushString " + encodeString(node.obj.identifier));
-						compileNode(node.obj.object);
+						compileNode(node.obj.object, stackDepth = 1, true);
 					} else {
 						console.log("Internal error when compiling, delete expecting array_access or property_access, not '" + obj.operation + "'.");
 						process.exit(-1);
@@ -1579,14 +1626,15 @@ exports.compile = function(funcs) {
 				// {operation: "do", statement: stmt, condition: cond, bodyLabel: bodyLabel, continueLabel: continueLabel, breakLabel: breakLabel }
 				case "do":
 					instructions.push(".l" + node.bodyLabel);
-					compileNode(node.statement);
+					compileNode(node.statement, stackDepth);
 					instructions.push(".l" + node.continueLabel);
-					compileNode(node.condition, true);
+					compileNode(node.condition, stackDepth, true);
 					instructions.push("JumpIfTrue l" + node.bodyLabel);
 					instructions.push(".l" + node.breakLabel);
 					break;
 				// {operation: "foreach", internalIterator: internalIterator, internalObjCounter: objCount, internalObj: obj, publicIterator: publicIterator, declareIterator: declareIterator, object: obj, statement: stmt, bodyLabel: bodyLabel, continueLabel: continueLabel, breakLabel: breakLabel }
 				case "foreach":
+					console.log("Foreach not implemented yet.");
 					/*
 					a foreach loop is essentially:
 					.iterator = 0;
@@ -1617,7 +1665,7 @@ exports.compile = function(funcs) {
 					.breakLabel
 					*/
 
-					// .iterator = 0
+					/*// .iterator = 0
 					instructions.push("PushUnsigned 0");
 					instructions.push("Store " + node.internalIterator.stackNumber);
 					
@@ -1673,47 +1721,46 @@ exports.compile = function(funcs) {
 					instructions.push(".l" + node.breakLabel);
 
 					// args, func 0
-
-
+					*/
 					break;
 				// {operation: "for", initializer: initializer, condition: condition, oneach: oneach, body: stmt, bodyLabel: bodyLabel, continueLabel: continueLabel, breakLabel: breakLabel }
 				case "for":
-					compileNode(node.initializer);
+					compileNode(node.initializer, stackDepth);
 
 					instructions.push(".l" + node.bodyLabel);
-					compileNode(node.condition, true);
+					compileNode(node.condition, stackDepth, true);
 					instructions.push("JumpIfFalse l" + node.breakLabel);
 
-					compileNode(node.stmt);
+					compileNode(node.stmt, stackDepth);
 
 					instructions.push(".l" + node.continueLabel);
 					for(var j = 0; j < node.oneach.length; j++)
-						compileNode(node.oneach[j]);
+						compileNode(node.oneach[j], stackDepth);
 					instructions.push("Jump l" + node.bodyLabel);
 
-					compileNode.push(".l" + node.breakLabel);
+					instructions.push(".l" + node.breakLabel);
 					break;
 				// {operation: "if", condition: cond, thenStatement: thenStatement, elseStatement: elseStatement, elseLabel: elseLabel, endLabel: endLabel  }
 				case "if":
-					compileNode(node.condition, true);
+					compileNode(node.condition, stackDepth, true);
 					if(node.elseStatement === null) {
 						instructions.push("JumpIfFalse l" + node.endLabel);
-						compileNode(node.thenStatement);
+						compileNode(node.thenStatement, stackDepth);
 						instructions.push(".l" + node.endLabel);
 					} else {
 						instructions.push("JumpIfFalse l" + node.elseLabel);
-						compileNode(node.thenStatement);
+						compileNode(node.thenStatement, stackDepth);
 						instructions.push("Jump l" + node.endLabel);
 
 						instructions.push(".l" + node.elseLabel);
-						compileNode(node.elseStatement);
+						compileNode(node.elseStatement, stackDepth);
 						instructions.push(".l" + node.endLabel);
 					}
 
 					break;
 				// {operation: "switch", condition: cond, cases: cases, defaultCase: defaultCase, endLabel: endLabel }
 				case "switch":
-					compileNode(node.cond, true);
+					compileNode(node.cond, stackDepth, true);
 
 					// keep the condition on the stack as we go through each case
 					for(var j = 0; j < node.cases.length; j++) {
@@ -1722,13 +1769,13 @@ exports.compile = function(funcs) {
 
 						// duplicate the condition, so if we fail we can save it for the next case statement
 						instructions.push("Grab 0");
-						compileNode(c.value, true);
+						compileNode(c.value, stackDepth + 1, true);
 						// jump to the next case if false
 						instructions.push("JumpIfFalse l" + c.endLabel);
 
 						instructions.push("Pop"); // pop our duplicate condition if case is true, because we don't need it anymore (and beside, keeping
 												  // values on the stack between statements can break gotos!)
-						compileNode(c.statement);
+						compileNode(c.statement, stackDepth);
 
 						if(j != node.cases.length - 1 || node.defaultCase !== null) {
 							// jump out of the switch statement, we can ignore this if we don't have a default case and we're the last case
@@ -1737,7 +1784,7 @@ exports.compile = function(funcs) {
 					}
 
 					if(node.defaultCase !== null)
-						compileNode(node.defaultCase);
+						compileNode(node.defaultCase, stackDepth);
 
 					instructions.push(".l" + endLabel);
 
@@ -1745,7 +1792,7 @@ exports.compile = function(funcs) {
 				// {operation: "compound_statement", statements: statements }
 				case "compound_statement":
 					for(var j = 0; j < node.statements.length; j++)
-						compileNode(node.statements[j]);
+						compileNode(node.statements[j], stackDepth);
 					break;
 				// { operation: "function_literal", functionId: func }
 				case "function_literal":
@@ -1760,7 +1807,7 @@ exports.compile = function(funcs) {
 					// add each item to the array
 					for(var j = 0; j < node.fields.length; j++) {
 						// { name: name, expression: exp }
-						compileNode(node.fields[j].expression, true);
+						compileNode(node.fields[j].expression, stackDepth + 1, true);
 						instructions.push("PushString " + encodeString(node.fields[j].name));
 						// stack is: 0 - index, 1 - value, 2 - object, duplicate object to the front
 						instructions.push("Grab 2");
@@ -1776,7 +1823,7 @@ exports.compile = function(funcs) {
 
 					// add each item to the array
 					for(var j = 0; j < node.values.length; j++) {
-						compileNode(node.values[j], true);
+						compileNode(node.values[j], stackDepth + 1, true);
 						instructions.push("PushUnsignedInteger " + j);
 						// stack is: 0 - index, 1 - value, 2 - array, duplicate array to the front
 						instructions.push("Grab 2");
@@ -1787,21 +1834,21 @@ exports.compile = function(funcs) {
 					break;
 				// {operation: "new_buffer", size: size, type: "buffer" }
 				case "new_buffer":
-					compileNode(node.size, true);
+					compileNode(node.size, stackDepth, true);
 					instructions.push("NewBuffer");
 					if(!expectReturn)
 						instructions.push("Pop");
 					break;
 				// {operation: "new_array", size: size, type: "array" }
 				case "new_array":
-					compileNode(node.size, true);
+					compileNode(node.size, stackDepth, true);
 					instructions.push("NewArray");
 					if(!expectReturn)
 						instructions.push("Pop");
 					break;
 				// {operation: "require", path: exp }
 				case "require":
-					compileNode(node.path, true);
+					compileNode(node.path, stackDepth, true);
 					instructions.push("Require");
 					if(!expectReturn)
 						instructions.push("Pop");
@@ -1815,7 +1862,7 @@ exports.compile = function(funcs) {
 						instructions.push("LoadClosure " + getClosureNumber(node.variable));
 					else
 						// local variable
-						instructions.push("Load " + node.variable.stackNumber);
+						instructions.push("Grab " + (node.variable.stackNumber + stackDepth));
 
 					if(!expectReturn)
 						instructions.push("Pop");
@@ -1855,8 +1902,8 @@ exports.compile = function(funcs) {
 					break;
 				// {operation: "array_access", array: left, element: expression}
 				case "array_access":
-					compileNode(node.element, true);
-					compileNode(node.array, true);
+					compileNode(node.element, stackDepth, true);
+					compileNode(node.array, stackDepth + 1, true);
 					instructions.push("LoadElement");
 					if(!expectReturn)
 						instructions.push("Pop");
@@ -1864,7 +1911,7 @@ exports.compile = function(funcs) {
 				// {operation: "property_access", object: left, identifier: lexer.getValue() };
 				case "property_access":
 					instructions.push("PushString " + encodeString(node.identifier));
-					compileNode(node.object, true);
+					compileNode(node.object, stackDepth + 1, true);
 					instructions.push("LoadElement");
 					if(!expectReturn)
 						instructions.push("Pop");
@@ -1873,9 +1920,9 @@ exports.compile = function(funcs) {
 				case "function_call":
 					// push the functions onto the stack in reverse order
 				    for (var j = 0; j < node.parameters.length; j++)
-						compileNode(node.parameters[j], true);
+						compileNode(node.parameters[j], stackDepth + j, true);
 
-					compileNode(node._function, true);
+					compileNode(node._function, stackDepth + node.parameters.length, true);
 
 					if(expectReturn)
 						instructions.push("CallFunction " + node.parameters.length);
@@ -1884,8 +1931,8 @@ exports.compile = function(funcs) {
 					break;
 				// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
 				case "buffer_access":
-					compileNode(node.address, true);
-					compileNode(node.buffer, true);
+					compileNode(node.address, stackDepth, true);
+					compileNode(node.buffer, stackDepth + 1, true);
 					instructions.push("LoadBuffer" + node.type + "<" + node.size + ">");
 					if(!expectReturn)
 						instructions.push("Pop");
@@ -1905,12 +1952,12 @@ exports.compile = function(funcs) {
 								instructions.push("LoadClosure " + getClosureNumber(node2.variable));
 							else
 								// local variable
-								instructions.push("Load " + node2.variable.stackNumber);
+								instructions.push("Grab " + (node2.variable.stackNumber + stackDepth));
 							break;
 						// {operation: "array_access", array: left, element: expression}
 						case "array_access":
-							compileNode(node2.element, true);
-							compileNode(node2.array, true);
+							compileNode(node2.element, stackDepth, true);
+							compileNode(node2.array, stackDepth + 1, true);
 							// save element/array for when we write back
 							instructions.push("Grab 1");
 							instructions.push("Grab 1");
@@ -1920,7 +1967,7 @@ exports.compile = function(funcs) {
 						// {operation: "property_access", object: left, identifier: lexer.getValue() };
 						case "property_access":
 							instructions.push("PushString " + encodeString(node2.identifier));
-							compileNode(node2.object, true);
+							compileNode(node2.object, stackDepth + 1, true);
 							// save string/object for when we write back
 							instructions.push("Grab 1");
 							instructions.push("Grab 1");
@@ -1929,8 +1976,8 @@ exports.compile = function(funcs) {
 							break;
 						// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
 						case "buffer_access":
-							compileNode(node2.address, true);
-							compileNode(node2.buffer, true);
+							compileNode(node2.address, stackDepth, true);
+							compileNode(node2.buffer, stackDepth + 1, true);
 							// save address/buffer for when we write back
 							instructions.push("Grab 1");
 							instructions.push("Grab 1");
@@ -1996,7 +2043,7 @@ exports.compile = function(funcs) {
 									instructions.push("StoreClosure " + getClosureNumber(node2.variable));
 								else
 									// local variable
-									instructions.push("Store " + node2.variable.stackNumber);
+									instructions.push("Store " + (node2.variable.stackNumber + stackDepth - 1));
 							break;
 						// {operation: "array_access", array: left, element: expression}
 						// {operation: "property_access", object: left, identifier: lexer.getValue() };
@@ -2018,13 +2065,13 @@ exports.compile = function(funcs) {
 				case "unary_expression":
 					switch(node.operator) {
 						case "-":
-							compileNode(node.right, true);
+							compileNode(node.right, stackDepth, true);
 							instructions.push("Invert");
 							if(!expectReturn)
 								instructions.push("Pop");
 							break;
 						case "+":
-							compileNode(node.right, true);
+							compileNode(node.right, stackDepth, true);
 							if(!expectReturn)
 								instructions.push("Pop");
 							break;
@@ -2043,12 +2090,12 @@ exports.compile = function(funcs) {
 										instructions.push("LoadClosure " + getClosureNumber(node2.variable));
 									else
 										// local variable
-										instructions.push("Load " + node2.variable.stackNumber);
+										instructions.push("Grab " + (node2.variable.stackNumber + stackDepth));
 									break;
 								// {operation: "array_access", array: left, element: expression}
 								case "array_access":
-									compileNode(node2.element, true);
-									compileNode(node2.array, true);
+									compileNode(node2.element, stackDepth, true);
+									compileNode(node2.array, stackDepth + 1, true);
 
 									// save element/array for when we write back
 									instructions.push("Grab 1");
@@ -2059,7 +2106,7 @@ exports.compile = function(funcs) {
 								// {operation: "property_access", object: left, identifier: lexer.getValue() };
 								case "property_access":
 									instructions.push("PushString " + encodeString(node2.identifier));
-									compileNode(node2.object, true);
+									compileNode(node2.object, stackDepth + 1, true);
 									// save string/object for when we write back
 									instructions.push("Grab 1");
 									instructions.push("Grab 1");
@@ -2068,8 +2115,8 @@ exports.compile = function(funcs) {
 									break;
 								// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
 								case "buffer_access":
-									compileNode(node2.address, true);
-									compileNode(node2.buffer, true);
+									compileNode(node2.address, stackDepth, true);
+									compileNode(node2.buffer, stackDepth + 1, true);
 									// save address/buffer for when we write back
 									instructions.push("Grab 1");
 									instructions.push("Grab 1");
@@ -2133,7 +2180,7 @@ exports.compile = function(funcs) {
 										instructions.push("StoreClosure " + getClosureNumber(node2.variable));
 									else
 										// local variable
-										instructions.push("Store " + node2.variable.stackNumber);
+										instructions.push("Store " + (node2.variable.stackNumber + stackDepth - 1));
 									break;
 								// {operation: "array_access", array: left, element: expression}
 								// {operation: "property_access", object: left, identifier: lexer.getValue() };
@@ -2159,7 +2206,7 @@ exports.compile = function(funcs) {
 					break;
 				// {operation: "cast", expression: left, type: "float|signed|unsigned|string|boolean"}
 				case "cast":
-					compileNode(node.left, true);
+					compileNode(node.left, stackDepth, true);
 					switch(node.type) {
 						case "float":
 							instructions.push("ToFloat");
@@ -2186,8 +2233,8 @@ exports.compile = function(funcs) {
 					break;
 				// {operation: "math", left: left, operator: "*|/|%|+|-|<<|>>|<<<|>>>|&| | |^", right: right }
 				case "math":
-					compileNode(node.left, true);
-					compileNode(node.right, true);
+					compileNode(node.left, stackDepth, true);
+					compileNode(node.right, stackDepth + 1, true);
 					switch(node.operator) {
 						case "*":
 							instructions.push("Multiply");
@@ -2235,8 +2282,8 @@ exports.compile = function(funcs) {
 					break;
 				// {operation; 'comparison", left: left, operator: "<|>|<=|>=|==|!=", right: right }
 				case "comparison":
-					compileNode(node.left, true);
-					compileNode(node.right, true);
+					compileNode(node.left, stackDepth, true);
+					compileNode(node.right, stackDepth + 1, true);
 					switch(node.operator) {
 						case "<":
 							instructions.push("LessThan");
@@ -2268,22 +2315,24 @@ exports.compile = function(funcs) {
 				case "logical_expression":
 					switch(node.operator) {
 						case "&&":
-							compilerNode(node.left, true);
+							compileNode(node.left, stackDepth, true);
 							instructions.push("Grab 0");
 							instructions.push("JumpIfFalse .l" + node.breakLabel);
-							compilerNode(node.right, true);
+							instructions.push("Pop");
+							compileNode(node.right, stackDepth, true);
 							instructions.push(".l" + node.breakLabel);
 						break;
 						case "||":
-							compilerNode(node.left, true);
+							compileNode(node.left, stackDepth, true);
 							instructions.push("Grab 0");
 							instructions.push("JumpIfTrue .l" + node.breakLabel);
-							compilerNode(node.right, true);
+							instructions.pop("Pop");
+							compileNode(node.right, stackDepth, true);
 							instructions.push(".l" + node.breakLabel);
 						break;
 						case "^^":
-							compilerNode(node.left, true);
-							compilerNode(node.right, true);
+							compileNode(node.left, stackDepth, true);
+							compileNode(node.right, stackDepth + 1, true);
 							instructions.push("Xor");
 						break;
 						default:
@@ -2296,12 +2345,12 @@ exports.compile = function(funcs) {
 					break;
 				// {operation: "inline_if", condition: left, trueExpression: trueExp, falseExpression: falseExp, elseLabel: elseLabel, endLabel: endLabel }
 				case "inline_if":
-					compileNode(node.condition, true);
+					compileNode(node.condition, stackDepth, true);
 					instructions.push("JumpIfFalse l" + node.elseLabel);
-					compileNode(node.trueExpression, true);
+					compileNode(node.trueExpression, stackDepth, true);
 					instructions.push("Jump l" + node.endLabel);
 					instructions.push(".l" + node.elseLabel);
-					compileNode(node.falseExpression, true);
+					compileNode(node.falseExpression, stackDepth, true);
 					instructions.push(".l" + node.endLabel);
 					if(!expectReturn)
 						instructions.push("Pop");
@@ -2309,10 +2358,13 @@ exports.compile = function(funcs) {
 				// {operation: "assignment", target: left, operator: "=|*=|/=|%=|+=|-=|<<=|>>=|<<<=|>>>=|&=| |= |^=", value: expression }
 				case "assignment":
 					if(node.operator == '=') {
-						compileNode(node.value, true);
-
-						if(expectReturn)
+						compileNode(node.value, stackDepth, true);
+						stackDepth++;
+						if(expectReturn) {
 							instructions.push("Grab 0");
+							stackDepth++;
+						}
+
 						var t = node.target;
 
 						// just save the expression
@@ -2326,12 +2378,12 @@ exports.compile = function(funcs) {
 										instructions.push("StoreClosure " + getClosureNumber(t.variable));
 									else
 										// local variable
-										instructions.push("Store " + t.variable.stackNumber);
+										instructions.push("Store " + (t.variable.stackNumber + stackDepth - 1));
 									break;
 								// {operation: "array_access", array: left, element: expression}
 								case "array_access":
-									compileNode(t.element, true);
-									compileNode(t.array, true);
+									compileNode(t.element, stackDepth, true);
+									compileNode(t.array, stackDepth + 1, true);
 
 									// save element/array for when we write back
 									//instructions.push("Grab 1");
@@ -2342,7 +2394,7 @@ exports.compile = function(funcs) {
 								// {operation: "property_access", object: left, identifier: lexer.getValue() };
 								case "property_access":
 									instructions.push("PushString " + encodeString(t.identifier));
-									compileNode(t.object, true);
+									compileNode(t.object, stackDepth + 1, true);
 									// save string/object for when we write back
 									//instructions.push("Grab 1");
 									//instructions.push("Grab 1");
@@ -2351,8 +2403,8 @@ exports.compile = function(funcs) {
 									break;
 								// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
 								case "buffer_access":
-									compileNode(t.address, true);
-									compileNode(t.buffer, true);
+									compileNode(t.address, stackDepth, true);
+									compileNode(t.buffer, stackDepth + 1, true);
 									// save address/buffer for when we write back
 									//instructions.push("Grab 1");
 									//instructions.push("Grab 1");
@@ -2377,36 +2429,39 @@ exports.compile = function(funcs) {
 									instructions.push("LoadClosure " + getClosureNumber(node2.variable));
 								else
 									// local variable
-									instructions.push("Load " + node2.variable.stackNumber);
+									instructions.push("Grab " + (node2.variable.stackNumber + stackDepth));
 								break;
 							// {operation: "array_access", array: left, element: expression}
 							case "array_access":
-								compileNode(node2.element, true);
-								compileNode(node2.array, true);
+								compileNode(node2.element, stackDepth, true);
+								compileNode(node2.array, stackDepth + 1, true);
 
 								// save element/array for when we write back
 								instructions.push("Grab 1");
 								instructions.push("Grab 1");
+								stackDepth += 2;
 									
 								instructions.push("LoadElement");
 								break;
 							// {operation: "property_access", object: left, identifier: lexer.getValue() };
 							case "property_access":
 								instructions.push("PushString " + encodeString(node2.identifier));
-								compileNode(node2.object, true);
+								compileNode(node2.object, stackDepth + 1, true);
 								// save string/object for when we write back
 								instructions.push("Grab 1");
 								instructions.push("Grab 1");
+								stackDepth += 2;
 
 								instructions.push("LoadElement");
 								break;
 							// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
 							case "buffer_access":
-								compileNode(node2.address, true);
-								compileNode(node2.buffer, true);
+								compileNode(node2.address, stackDepth, true);
+								compileNode(node2.buffer, stackDepth + 1, true);
 								// save address/buffer for when we write back
 								instructions.push("Grab 1");
 								instructions.push("Grab 1");
+								stackDepth += 2;
 									
 								instructions.push("LoadBuffer" + node2.type + "<" + node.size + ">");
 								break;
@@ -2416,7 +2471,7 @@ exports.compile = function(funcs) {
 						}
 
 						// get the new value
-						compileNode(node.value, true);
+						compileNode(node.value, stackDepth, true);
 
 						switch(node.operator) {
 							case "*=":
@@ -2507,7 +2562,7 @@ exports.compile = function(funcs) {
 									instructions.push("StoreClosure " + getClosureNumber(node2.variable));
 								else
 									// local variable
-									instructions.push("Store " + node2.variable.stackNumber);
+									instructions.push("Store " + (node2.variable.stackNumber + stackDepth - 1));
 								break;
 							// {operation: "array_access", array: left, element: expression}
 							// {operation: "property_access", object: left, identifier: lexer.getValue() };
@@ -2541,15 +2596,19 @@ exports.compile = function(funcs) {
 
 
 		f.write("Function f" + i + "\n");
-        if(thisFunc.numLocals > 0)
-		    f.write("-locals " + thisFunc.numLocals + "\n");
+//        if(thisFunc.numLocals > 0)
+//		    f.write("-locals " + thisFunc.numLocals + "\n");
         if(thisFunc.numClosures > 0)
             f.write("-closures " + thisFunc.numClosures + "\n");
         if(thisFunc.numParams > 0)
             f.write("-parameters " + thisFunc.numParams + "\n");
 
+        // initialize temp variables to null
+        for(var j = 0; j < thisFunc.numLocals; j++)
+        	instructions.push("PushNull");
+
 		for(var j = 0; j < thisFunc.statements.length; j++)
-			compileNode(thisFunc.statements[j]);
+			compileNode(thisFunc.statements[j], 0);
 
 		if(!debug) {
 			if(verbose)

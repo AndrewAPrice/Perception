@@ -32,7 +32,6 @@ Anything above the first function is ignored. Function names must be unique (as 
 Metadata is unique to a function, and specifies metadata about the function or to control the assembler. You can use it for describing parameters, variables, and debugging information. Metadata starts with a '-' symbol followed by a name and the parameters. For example:
 ```
 Function somename
-   -locals 5 # allocate 5 local variables on the stack
    -parameters 3 # function expects 3 parameters
 ```
 
@@ -44,7 +43,6 @@ All metadata values reset when the next function begins.
 
 Metadata|Description
 --------|-----------
--locals [num]|Specifies the number of local variables the function uses. If this property is not provided it is assumed to be 0.
 -closures [num]|Specifies the number of closure variables the function uses. If this property is not provided it is assumed to be 0.
 -parameters [num|Specifies the number of parameters the function takes. If this property is not provided it is assumed to be 0.
 
@@ -121,9 +119,8 @@ Opcode|Instruction|Input|Outputs|Notes
 &nbsp;|**Stack Manipulation**|||
 25|Pop|A||Pops a value off the stack and discards it.
 26|PopMany [count]|[count]||Pops [count]-number (up to 255) values off the stack and discards them.
-27/28/29|Grab [count]||Result|Grabs a value up [count]-positions up the stack and duplicates it at the bottom of the stack.
-30/31/32|Load [variable]||Result|Loads local variable - where [variable] is the variable number (from 0) - onto the stack.
-33/34/35|Store [variable]|A||Stores A into a local variable - where [variable] is the variable number (from 0).
+30/31/32|Load [variable]||Result|Grabs a value [count]-positions up the stack and duplicates it at the bottom of the stack.
+33/34/35|Store [variable]|A||Stores a variable [count]-positions up the stack.
 36/37/38|Swap [a] [b]|||Swaps two two elements in the stack [A] and [B] positions up.
 39/40/41|LoadClosure [variable]||Result|Loads a closure variable - where [variable] is the variable number (from 0) - onto the stack.
 42/43/44|StoreClosure [variable]|A||Stores A into a closure variable - where [variable] is the variable number (from 0).
@@ -191,9 +188,6 @@ Opcode|Instruction|Input|Outputs|Notes
 111/112/113|JumpIfNotNull [label]|A||Jumps execution to [label] if A is not null.
 &nbsp;|**Loading**|||
 114|Require|A|Value|Loads a module called [A] (which may be a library name or path to a compiled module) and calls its first function. Whatever that function returns is pushed onto the stack.
-&nbsp;|**Parameters**|||
-115/116/117|LoadParameter [parameters]||Value|Pushes a parameter - where [parameter] is the parameter's number from 0- onto the stack. If the calling function did not pass that parameter then a null value will be pushed onto the stack.
-118/119/120|StoreParameter [parameters]|A||Stores A into a parameter - where [parameter] is the parameter's number from 0. This does not affect the calling function, merely acts as temporary storage.
 
 Some instructions have multiple opcodes because the operands can be of multiple sizes (such as 8-bit or 16-bit) and the assembler chooses the most appropriate form for the context provided. They are not functionally different - it only compresses the assembled bytecode where appropriate.
 

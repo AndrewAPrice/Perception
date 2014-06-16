@@ -411,7 +411,7 @@ var handleFunction = function(funcHeader) {
 
 					funcHeader.parameters = op;
 					break;
-				case '-locals': // specifies the number of local variables
+				/* case '-locals': // specifies the number of local variables
 					if(operands.length != 1)
 						errorMessage(i, "-locals takes 1 argument.");
 
@@ -419,7 +419,7 @@ var handleFunction = function(funcHeader) {
 					if(op < 0)
 						errorMessage(i, "-locals must take a positive number.");
 					funcHeader.localVariables = op;
-					break;
+					break; */
 				case '-closures': // specifies the number of closure variables
 					if(operands.length != 1)
 						errorMessage(i, "-closures takes 1 argument.");
@@ -576,7 +576,7 @@ var handleFunction = function(funcHeader) {
 						}
 						bytes += lines[i].length;
 						break;
-					case "load": // 30,31,32 (8/16/32)
+				/*	case "load": // 30,31,32 (8/16/32)
 						if(operands.length != 1)
 							errorMessage(i, "load takes 1 argument.");
 
@@ -594,8 +594,8 @@ var handleFunction = function(funcHeader) {
 							lines[i] = [30, op];
 						}
 						bytes += lines[i].length;
-						break;
-					case "store": // 33,34,35 (8/16/32)
+						break;*/
+				    case "store": //  30,31,32 (8/16/32)
 						if(operands.length != 1)
 							errorMessage(i, "store takes 1 argument.");
 
@@ -813,7 +813,7 @@ var handleFunction = function(funcHeader) {
 						
 						jumps++;
 						break;
-					case "loadparameter": // 115,116,117 (8/16/32)
+					/* case "loadparameter": // 115,116,117 (8/16/32)
 						if(operands.length != 1)
 							errorMessage(i, "loadparameter takes 1 argument.");
 
@@ -850,7 +850,7 @@ var handleFunction = function(funcHeader) {
 							lines[i] = [118, op];
 						}
 						bytes += lines[i].length;
-						break;
+						break; */
 					default:
 						errorMessage(i, "Internal error - no case for special instruction " + inst + ".");
 				}

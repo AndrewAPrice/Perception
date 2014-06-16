@@ -753,7 +753,7 @@ void turkey_instruction_grab_32(TurkeyVM *vm) {
 	
 	turkey_grab(vm, grab);
 }
-
+/*
 void turkey_instruction_load_8(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
 		return;
@@ -788,7 +788,7 @@ void turkey_instruction_load_32(TurkeyVM *vm) {
 	TurkeyVariable var;
 	turkey_stack_get(vm->local_stack, a, var);
 	turkey_stack_push(vm, vm->variable_stack, var);
-}
+}*/
 
 void turkey_instruction_store_8(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
@@ -799,7 +799,7 @@ void turkey_instruction_store_8(TurkeyVM *vm) {
 
 	TurkeyVariable var;
 	turkey_stack_pop(vm->variable_stack, var);
-	turkey_stack_set(vm->local_stack, a, var);
+	turkey_stack_set(vm->variable_stack, a, var);
 }
 
 void turkey_instruction_store_16(TurkeyVM *vm) {
@@ -811,7 +811,7 @@ void turkey_instruction_store_16(TurkeyVM *vm) {
 
 	TurkeyVariable var;
 	turkey_stack_pop(vm->variable_stack, var);
-	turkey_stack_set(vm->local_stack, a, var);
+	turkey_stack_set(vm->variable_stack, a, var);
 }
 
 void turkey_instruction_store_32(TurkeyVM *vm) {
@@ -823,7 +823,7 @@ void turkey_instruction_store_32(TurkeyVM *vm) {
 
 	TurkeyVariable var;
 	turkey_stack_pop(vm->variable_stack, var);
-	turkey_stack_set(vm->local_stack, a, var);
+	turkey_stack_set(vm->variable_stack, a, var);
 }
 
 void turkey_instruction_swap_8(TurkeyVM *vm) {
@@ -1463,7 +1463,7 @@ void turkey_instruction_push_false(TurkeyVM *vm) {
 }
 
 void turkey_instruction_push_null(TurkeyVM *vm) {
-	turkey_push_null(false);
+	turkey_push_null(vm);
 }
 
 void turkey_instruction_push_string_8(TurkeyVM *vm) {
@@ -2014,9 +2014,9 @@ TurkeyInstructionHandler turkey_interpreter_operations[256] = {
 	turkey_instruction_grab_8, // 27
 	turkey_instruction_grab_16, // 28
 	turkey_instruction_grab_32, // 29
-	turkey_instruction_load_8, // 30
-	turkey_instruction_load_16, // 31
-	turkey_instruction_load_32, // 32
+	turkey_instruction_nop, //turkey_instruction_load_8, // 30
+	turkey_instruction_nop, //turkey_instruction_load_16, // 31
+	turkey_instruction_nop, //turkey_instruction_load_32, // 32
 	turkey_instruction_store_8, // 33
 	turkey_instruction_store_16, // 34
 	turkey_instruction_store_32, // 35

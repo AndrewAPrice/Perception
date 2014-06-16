@@ -222,7 +222,7 @@ void turkey_gc_collect(TurkeyVM *vm) {
 	/* work up through the stacks and mark everything reachable */
 	// turkey_gc_mark_stack(vm, vm->parameter_stack);
 	turkey_gc_mark_stack(vm, vm->variable_stack);
-	turkey_gc_mark_stack(vm, vm->local_stack);
+	// turkey_gc_mark_stack(vm, vm->local_stack);
 
 	/* work through the interpreter stack marking the closures */
 	TurkeyInterpreterState *interpreterState = vm->interpreter_state;

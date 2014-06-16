@@ -341,7 +341,7 @@ struct TurkeyVM {
 	TurkeyStringTable string_table; /* table of strings */
 	TurkeyFunctionArray function_array; /* array of functions */
 	TurkeyStack variable_stack; /* the variable stack, for operations */
-	TurkeyStack local_stack; /* the local stack, that functions store variables into */
+	// TurkeyStack local_stack; /* the local stack, that functions store variables into */
 	// TurkeyStack parameter_stack; /* stack of parameters */
 	TurkeyGarbageCollector garbage_collector;
 	TurkeyLoadedModules loaded_modules; /* loaded modules and their files */
