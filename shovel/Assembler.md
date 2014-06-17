@@ -89,7 +89,7 @@ Opcode|Instruction|Input|Outputs|Notes
 ------|-----------|-----|-------|-----
 &nbsp;|**Math**|||
 0|Add|A,B|Result|Adds A and B together. Calls the property "+" on an object.
-1|Subtract|A,B|Result|Subtracts A from B. Calls the property "-" on an object.
+1|Subtract|A,B|Result|Subtracts B from A. Calls the property "-" on an object.
 2|Divide|A,B|Result|Divides A by B. Calls the property "/" on an object.
 3|Multiply|A,B|Result|Multiples A and B together. Calls the property "*" on an object.
 4|Modulo|A,B|Result|Divides A by B and returns the remainder. Calls the property "%" on an object.
