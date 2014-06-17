@@ -19,19 +19,19 @@ Opcode|Instruction|Operand 1|Operand 2|Notes
 9 | And | A | B | Performs a bitwise and. Calls the property "&" on an object.
 10 | Or | A | B | Performs a bitwise or. Calls the property "|" on an object.
 11 | Not | A || Performs a bitwise not/ Calls the property "!" on an object.
-12 | ShiftLeft | A | B | Performs a bitwise shift left. Calls the property "<<" on an object.
-13 | ShiftRight | A | B | Performs a bitwise shift right. Calls the property ">>" on an object.
-14 | RotateLeft | A | B | Performs a bitwise rotation left. Calls the property "<<<" on an object.
-15 | RotateRight | A | B | Performs a bitwise rotation right. Calls the property ">>>" on an object.
+12 | ShiftLeft | A | B | Performs a bitwise shift left. Calls the property "&lt;&lt;" on an object.
+13 | ShiftRight | A | B | Performs a bitwise shift right. Calls the property "&gt;&gt;" on an object.
+14 | RotateLeft | A | B | Performs a bitwise rotation left. Calls the property "&lt;&lt;&lt;" on an object.
+15 | RotateRight | A | B | Performs a bitwise rotation right. Calls the property "&gt;&gt;&gt;" on an object.
 &nbsp;|**Logical Comparison**|||
 16 | IsNull | A || Returns true if A is null, false otherwise.
 17 | IsNotNull | A || Returns true if A is not null, false otherwise.
 18 | Equals | A | B | Returns true if A and B are equal, false otherwise.
 19 | NotEquals | A | B |Returns true if A and B are not equal, false otherwise.
-20 | LessThan | A | B | Returns true if A is less than B, false otherwise. Calls the property "<" on an object.
-21 | GreaterThan | A | B | Returns true if A is greater than B, false otherwise. Calls the property ">" on an object.
-22 | LessThanOrEquals | A | B | Returns true if A is less than or equal to B, false otherwise. Calls the property "<=" on an object.
-23 | GreaterThanOrEquals | A | B | Returns true if A is greater than or equal to B, false otherwise. Calls the property >= on an object.
+20 | LessThan | A | B | Returns true if A is less than B, false otherwise. Calls the property "&lt;" on an object.
+21 | GreaterThan | A | B | Returns true if A is greater than B, false otherwise. Calls the property "&gt;" on an object.
+22 | LessThanOrEquals | A | B | Returns true if A is less than or equal to B, false otherwise. Calls the property "&lt;=" on an object.
+23 | GreaterThanOrEquals | A | B | Returns true if A is greater than or equal to B, false otherwise. Calls the property &gt;= on an object.
 24 | IsTrue | A || Returns true if A is not zero or null, false otherwise.
 25 | IsFalse | A || Returns true if A is is zero or null, false otherwise.
 &nbsp;|**Variable Manipulation**|||
@@ -47,26 +47,26 @@ Opcode|Instruction|Operand 1|Operand 2|Notes
 33 | DeleteElement | Key | Object | Delets an element from an object (where [key] is the property). Does nothing if the element does not exist.
 &nbsp;|**Buffers**|||
 34 | NewBuffer | Size || Create a buffer, where [size] is the number of bytes the buffer should be.
-35 | LoadBufferUnsigned<8> | Address | Buffer | Loads an 8-bit unsigned integer from a buffer at [address] bytes in.
-36 | LoadBufferUnsigned<16> | Address | Buffer | Loads a 16-bit unsigned integer (little endien) from a buffer at [address] bytes in.
-37 | LoadBufferUnsigned<32> | Address | Buffer | Loads a 32-bit unsigned integer (little endien) from a buffer at [address] bytes in.
-38 | LoadBufferUnsigned<64> | Address | Buffer | Loads a 64-bit unsigned integer (little endien) from a buffer at [address] bytes in.
-39 | StoreBufferUnsigned<8> | Address | Buffer| Saves an 8-bit unsigned integer (the pushed parameter) to a buffer at [address] bytes in.
-40 | StoreBufferUnsigned<16> | Address | Buffer | Saves a 16-bit unsigned integer (the pushed parameter - little endien) to a buffer at [address] bytes in.
-41 | StoreBufferUnsigned<32> | Address | Buffer | Saves a 32-bit unsigned integer (the pushed parameter - little endien) to a buffer at [address] bytes in.
-42 | StoreBufferUnsigned<64> | Address | Buffer | Saves a 64-bit unsigned integer (the pushed parameter - little endien) to a buffer at [address] bytes in.
-43 | LoadBufferSigned<8> | Address | Buffer | Loads an 8-bit signed integer (two's compliment) from a buffer at [address] bytes in.
-44 | LoadBufferSigned<16> | Address | Buffer | Loads a 16-bit signed integer (two's compliment, little endien) from a buffer at [address] bytes in.
-45 | LoadBufferSigned<32> | Address | Buffer | Loads a 32-bit signed integer (two's compliment, little endien) from a buffer at [address] bytes in.
-46 | LoadBufferSigned<64> | Address | Buffer | Loads a 64-bit signed integer (two's compliment, little endien) from a buffer at [address] bytes in,
-47 | StoreBufferSigned<8> | Address | Buffer | Saves an 8-bit signed integer (the pushed parameter - two's compliment) to a buffer at [address] bytes in.
-48 | StoreBufferSigned<16> | Address | Buffer | Saves a 16-bit signed integer (the pushed parameter - two's compliment, little endien) to a buffer at [address] bytes in.
-49 | StoreBufferSigned<32> | Address | Buffer | Saves a 32-bit signed integer (the pushed parameter - two's compliment, little endien) to a buffer at [address] bytes in.
-50 | StoreBufferSigned<64> | Address | Buffer | Saves a 64-bit signed integer (the pushed parameter - two's compliment, little endien) to a buffer at [address] bytes in.
-51 | LoadBufferFloat<32> | Address | Buffer | Loads a 32-bit floating point number from a buffer at [address] bytes in.
-52 | LoadBufferFloat<64> | Address | Buffer | Loads a 64-bit floating point number from a buffer at [address] bytes in.
-53 | StoreBufferFloat<32> | Address | Buffer | Saves a 32-bit floating point number (the pushed parameter) to a buffer at [address] bytes in.
-54 | StoreBufferFloat<64> | Address | Buffer | Saves a 64-bit floating point number (the pushed parameter) to a buffer at [address] bytes in.
+35 | LoadBufferUnsigned&lt;8&gt; | Address | Buffer | Loads an 8-bit unsigned integer from a buffer at [address] bytes in.
+36 | LoadBufferUnsigned&lt;16&gt; | Address | Buffer | Loads a 16-bit unsigned integer (little endien) from a buffer at [address] bytes in.
+37 | LoadBufferUnsigned&lt;32&gt; | Address | Buffer | Loads a 32-bit unsigned integer (little endien) from a buffer at [address] bytes in.
+38 | LoadBufferUnsigned&lt;64&gt; | Address | Buffer | Loads a 64-bit unsigned integer (little endien) from a buffer at [address] bytes in.
+39 | StoreBufferUnsigned&lt;8&gt; | Address | Buffer| Saves an 8-bit unsigned integer (the pushed parameter) to a buffer at [address] bytes in.
+40 | StoreBufferUnsigned&lt;16&gt; | Address | Buffer | Saves a 16-bit unsigned integer (the pushed parameter - little endien) to a buffer at [address] bytes in.
+41 | StoreBufferUnsigned&lt;32&gt; | Address | Buffer | Saves a 32-bit unsigned integer (the pushed parameter - little endien) to a buffer at [address] bytes in.
+42 | StoreBufferUnsigned&lt;64&gt; | Address | Buffer | Saves a 64-bit unsigned integer (the pushed parameter - little endien) to a buffer at [address] bytes in.
+43 | LoadBufferSigned&lt;8&gt; | Address | Buffer | Loads an 8-bit signed integer (two's compliment) from a buffer at [address] bytes in.
+44 | LoadBufferSigned&lt;16&gt; | Address | Buffer | Loads a 16-bit signed integer (two's compliment, little endien) from a buffer at [address] bytes in.
+45 | LoadBufferSigned&lt;32&gt; | Address | Buffer | Loads a 32-bit signed integer (two's compliment, little endien) from a buffer at [address] bytes in.
+46 | LoadBufferSigned&lt;64&gt; | Address | Buffer | Loads a 64-bit signed integer (two's compliment, little endien) from a buffer at [address] bytes in,
+47 | StoreBufferSigned&lt;8&gt; | Address | Buffer | Saves an 8-bit signed integer (the pushed parameter - two's compliment) to a buffer at [address] bytes in.
+48 | StoreBufferSigned&lt;16&gt; | Address | Buffer | Saves a 16-bit signed integer (the pushed parameter - two's compliment, little endien) to a buffer at [address] bytes in.
+49 | StoreBufferSigned&lt;32&gt; | Address | Buffer | Saves a 32-bit signed integer (the pushed parameter - two's compliment, little endien) to a buffer at [address] bytes in.
+50 | StoreBufferSigned&lt;64&gt; | Address | Buffer | Saves a 64-bit signed integer (the pushed parameter - two's compliment, little endien) to a buffer at [address] bytes in.
+51 | LoadBufferFloat&lt;32&gt; | Address | Buffer | Loads a 32-bit floating point number from a buffer at [address] bytes in.
+52 | LoadBufferFloat&lt;64&gt; | Address | Buffer | Loads a 64-bit floating point number from a buffer at [address] bytes in.
+53 | StoreBufferFloat&lt;32&gt; | Address | Buffer | Saves a 32-bit floating point number (the pushed parameter) to a buffer at [address] bytes in.
+54 | StoreBufferFloat&lt;64&gt; | Address | Buffer | Saves a 64-bit floating point number (the pushed parameter) to a buffer at [address] bytes in.
 &nbsp;|**Signed Integers**|||
 55 | SignedInteger | Value [low] | Value [high] | A constant signed integer.
 56 | ToSignedInteger | A || Converts A to a signed integer. Arrays, objects, and strings are converted to the number of elements they have.
