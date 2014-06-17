@@ -97,4 +97,4 @@ Opcode|Instruction|Operand 1|Operand 2|Notes
 73 | JumpIfNull | Label | A | Jumps execution to [label] if A is null.
 74 | JumpIfNotNull | Label | A | Jumps execution to [label] if A is not null.
 &nbsp;|**Loading**|||
-75 | Require | [module] | Loads a the module called [module] and calls its first function.
+75 | Require | [module] || Loads a the module called [module] and calls its first function.
