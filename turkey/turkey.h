@@ -2,13 +2,219 @@
 #ifndef TURKEY_H
 #define TURKEY_H
 
+
 #ifdef DEBUG
 #include <assert.h>
 #else
 #define assert(v)
 #endif
 
+/* byte-code instructions */
+#define turkey_instruction_add 0
+#define turkey_instruction_subtract 1
+#define turkey_instruction_divide 2
+#define turkey_instruction_multiply 3
+#define turkey_instruction_modulo 4
+#define turkey_instruction_increment 5
+#define turkey_instruction_decrement 6
+#define turkey_instruction_xor 7
+#define turkey_instruction_and 8
+#define turkey_instruction_or 9
+#define turkey_instruction_not 10
+#define turkey_instruction_shift_left 11
+#define turkey_instruction_shift_right 12
+#define turkey_instruction_rotate_left 13
+#define turkey_instruction_rotate_right 14
+#define turkey_instruction_is_null 15
+#define turkey_instruction_is_not_null 16
+#define turkey_instruction_equals 17
+#define turkey_instruction_not_equals 18
+#define turkey_instruction_less_than 19
+#define turkey_instruction_greater_than 20
+#define turkey_instruction_less_than_or_equals 21
+#define turkey_instruction_greater_than_or_equals 22
+#define turkey_instruction_is_true 23
+#define turkey_instruction_is_false 24
+#define turkey_instruction_pop 25
+#define turkey_instruction_pop_many 26
+#define turkey_instruction_grab_8 27
+#define turkey_instruction_grab_16 28
+#define turkey_instruction_grab_32 29
+#define turkey_instruction_push_many_nulls 30
+
+#define turkey_instruction_store_8 33
+#define turkey_instruction_store_16 34
+#define turkey_instruction_store_32 35
+#define turkey_instruction_swap_8 36
+#define turkey_instruction_swap_16 37
+#define turkey_instruction_swap_32 38
+#define turkey_instruction_load_closure_8 39
+#define turkey_instruction_load_closure_16 40
+#define turkey_instruction_load_closure_32 41
+#define turkey_instruction_store_closure_8 42
+#define turkey_instruction_store_closure_16 43
+#define turkey_instruction_store_closure_32 44
+#define turkey_instruction_new_array 45
+#define turkey_instruction_load_element 46
+#define turkey_instruction_save_element 47
+#define turkey_instruction_new_object 48
+#define turkey_instruction_delete_element 49
+#define turkey_instruction_new_buffer 50
+#define turkey_instruction_load_buffer_unsigned_8 51
+#define turkey_instruction_load_buffer_unsigned_16 52
+#define turkey_instruction_load_buffer_unsigned_32 53
+#define turkey_instruction_load_buffer_unsigned_64 54
+#define turkey_instruction_store_buffer_unsigned_8 55
+#define turkey_instruction_store_buffer_unsigned_16 56
+#define turkey_instruction_store_buffer_unsigned_32 57
+#define turkey_instruction_store_buffer_unsigned_64 58
+#define turkey_instruction_load_buffer_signed_8 59
+#define turkey_instruction_load_buffer_signed_16 60
+#define turkey_instruction_load_buffer_signed_32 61
+#define turkey_instruction_load_buffer_signed_64 62
+#define turkey_instruction_store_buffer_signed_8 63
+#define turkey_instruction_store_buffer_signed_16 64
+#define turkey_instruction_store_buffer_signed_32 65
+#define turkey_instruction_store_buffer_signed_64 66
+
+#define turkey_instruction_load_buffer_float_32 68
+#define turkey_instruction_load_buffer_float_64 69
+
+#define turkey_instruction_store_buffer_float_32 71
+#define turkey_instruction_store_buffer_float_64 72
+#define turkey_instruction_push_integer_8 73
+#define turkey_instruction_push_integer_16 74
+#define turkey_instruction_push_integer_32 75
+#define turkey_instruction_push_integer_64 76
+#define turkey_instruction_to_integer 77
+#define turkey_instruction_push_unsigned_integer_8 78
+#define turkey_instruction_push_unsigned_integer_16 79
+#define turkey_instruction_push_unsigned_integer_32 80
+#define turkey_instruction_push_unsigned_integer_64 81
+#define turkey_instruction_to_unsigned_integer 82
+#define turkey_instruction_push_float 83
+#define turkey_instruction_to_float 84
+#define turkey_instruction_push_true 85
+#define turkey_instruction_push_false 86
+#define turkey_instruction_push_null 87
+#define turkey_instruction_push_string_8 88
+#define turkey_instruction_push_string_16 89
+#define turkey_instruction_push_string_32 90
+#define turkey_instruction_push_function 91
+#define turkey_instruction_call_function_8 92
+#define turkey_instruction_call_function_16 93
+#define turkey_instruction_call_function_no_return_8 94
+#define turkey_instruction_call_function_no_return_16 95
+#define turkey_instruction_return_null 96
+#define turkey_instruction_return 97
+#define turkey_instruction_get_type 98
+#define turkey_instruction_jump_8 99
+#define turkey_instruction_jump_16 100
+#define turkey_instruction_jump_32 101
+#define turkey_instruction_jump_if_true_8 102
+#define turkey_instruction_jump_if_true_16 103
+#define turkey_instruction_jump_if_true_32 104
+#define turkey_instruction_jump_if_false_8 105
+#define turkey_instruction_jump_if_false_16 106
+#define turkey_instruction_jump_if_false_32 107
+#define turkey_instruction_jump_if_null_8 108
+#define turkey_instruction_jump_if_null_16 109
+#define turkey_instruction_jump_if_null_32 110
+#define turkey_instruction_jump_if_not_null_8 111
+#define turkey_instruction_jump_if_not_null_16 112
+#define turkey_instruction_jump_if_not_null_32 113
+#define turkey_instruction_require 114
+
+#define turkey_instruction_to_string 121
+#define turkey_instruction_invert 122
+#define turkey_instruction_call_procedure_8 123
+#define turkey_instruction_call_procedure_16 124
+
+/* ssa immediate representation instructions */
+#define turkey_ir_add 0
+#define turkey_ir_subtract 1
+#define turkey_ir_divide 2
+#define turkey_ir_multiply 3
+#define turkey_ir_modulo 4
+#define turkey_ir_invert 5
+#define turkey_ir_increment 6
+#define turkey_ir_decrement 7
+#define turkey_ir_xor 8
+#define turkey_ir_and 9
+#define turkey_ir_or 10
+#define turkey_ir_not 11
+#define turkey_ir_shift_left 12
+#define turkey_ir_shift_right 13
+#define turkey_ir_rotate_left 14
+#define turkey_ir_rotate_right 15
+#define turkey_ir_is_null 16
+#define turkey_ir_is_not_null 17
+#define turkey_ir_equals 18
+#define turkey_ir_not_equals 19
+#define turkey_ir_less_than 20
+#define turkey_ir_greater_than 21
+#define turkey_ir_less_than_or_equals 22
+#define turkey_ir_greater_than_or_equals 23
+#define turkey_ir_is_true 24
+#define turkey_ir_is_false 25
+#define turkey_ir_phi 26
+#define turkey_ir_load_closure 27
+#define turkey_ir_store_closure 28
+#define turkey_ir_new_array 29
+#define turkey_ir_load_element 30
+#define turkey_ir_save_element 31
+#define turkey_ir_new_object 32
+#define turkey_ir_delete_element 33
+#define turkey_ir_new_buffer 34
+#define turkey_ir_load_buffer_unsigned_8 35
+#define turkey_ir_load_buffer_unsigned_16 36
+#define turkey_ir_load_buffer_unsigned_32 37
+#define turkey_ir_load_buffer_unsigned_64 38
+#define turkey_ir_store_buffer_unsigned_8 39
+#define turkey_ir_store_buffer_unsigned_16 40
+#define turkey_ir_store_buffer_unsigned_32 41
+#define turkey_ir_store_buffer_unsigned_64 42
+#define turkey_ir_load_buffer_signed_8 43
+#define turkey_ir_load_buffer_signed_16 44
+#define turkey_ir_load_buffer_signed_32 45
+#define turkey_ir_load_buffer_signed_64 46
+#define turkey_ir_store_buffer_signed_8 47
+#define turkey_ir_store_buffer_signed_16 48
+#define turkey_ir_store_buffer_signed_32 49
+#define turkey_ir_store_buffer_signed_64 50
+#define turkey_ir_load_buffer_float_32 51
+#define turkey_ir_load_buffer_float_64 52
+#define turkey_ir_store_buffer_float_32 53
+#define turkey_ir_store_buffer_float_64 54
+#define turkey_ir_signed_integer 55
+#define turkey_ir_to_signed_integer 56
+#define turkey_ir_unsigned_integer 57
+#define turkey_ir_to_unsigned_integer 58
+#define turkey_ir_float 59
+#define turkey_ir_to_float 60
+#define turkey_ir_true 61
+#define turkey_ir_false 62
+#define turkey_ir_null 63
+#define turkey_ir_string 64
+#define turkey_ir_to_string 65
+#define turkey_ir_function 66
+#define turkey_ir_call_function 67
+#define turkey_ir_call_function_no_return 68
+#define turkey_ir_call_pure_function 69
+#define turkey_ir_return_null 70
+#define turkey_ir_return 71
+#define turkey_ir_push 72
+#define turkey_ir_get_type 73
+#define turkey_ir_jump 74
+#define turkey_ir_jump_if_true 75
+#define turkey_ir_jump_if_false 76
+#define turkey_ir_jump_if_null 77
+#define turkey_ir_jump_if_not_null 78
+#define turkey_ir_require 79
+
 struct TurkeyVM;
+
+#include "stack.h"
 
 struct TurkeyFunctionPointer;
 struct TurkeyGarbageCollectedObject;
@@ -19,7 +225,7 @@ struct TurkeySettings {
 	void *tag;
 };
 
-enum TurkeyType {
+enum TurkeyType : char {
 	TT_Boolean = 0,
 	TT_Unsigned = 1,
 	TT_Signed = 2,
@@ -94,8 +300,8 @@ extern void turkey_gc_unhold(TurkeyVM *vm, TurkeyVariable &variable);
 extern void turkey_gc_unhold(TurkeyVM *vm, TurkeyGarbageCollectedObject *ob, TurkeyType typej);
 
 /* interpreter.cpp */
-extern TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr, size_t argc);
-extern void turkey_call_function_no_return(TurkeyVM *vm, TurkeyFunctionPointer *funcptr, size_t argc);
+extern TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr, unsigned int argc);
+extern void turkey_call_function_no_return(TurkeyVM *vm, TurkeyFunctionPointer *funcptr, unsigned int argc);
 
 
 /****** variables *******/
@@ -268,13 +474,6 @@ struct TurkeyFunction {
 	unsigned int locals; /* number of local variables this function has */
 };
 
-struct TurkeyStack {
-	unsigned int top; /* top of the stack for the current call frame */
-	unsigned int position; /* current position */
-	unsigned int length; /* length of the variables array */
-	TurkeyVariable *variables; // array of variables
-};
-
 struct TurkeyFunctionArray {
 	unsigned int count; /* number of functions */
 	TurkeyFunction *functions; /* array of turkey functions */
@@ -340,7 +539,7 @@ struct TurkeyVM {
 	TurkeyModule *modules; /* loaded modules */
 	TurkeyStringTable string_table; /* table of strings */
 	TurkeyFunctionArray function_array; /* array of functions */
-	TurkeyStack variable_stack; /* the variable stack, for operations */
+	TurkeyStack<TurkeyVariable> variable_stack; /* the variable stack, for operations */
 	// TurkeyStack local_stack; /* the local stack, that functions store variables into */
 	// TurkeyStack parameter_stack; /* stack of parameters */
 	TurkeyGarbageCollector garbage_collector;
@@ -377,7 +576,6 @@ extern void turkey_buffer_write_signed_8(TurkeyVM *vm, TurkeyBuffer *buffer, uns
 extern void turkey_buffer_write_signed_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, signed long long int val);
 extern void turkey_buffer_write_signed_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, signed long long int val);
 extern void turkey_buffer_write_signed_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, signed long long int val);
-extern void turkey_buffer_write_float_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, double val);
 extern void turkey_buffer_write_float_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, double val);
 extern void turkey_buffer_write_float_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, double val);
 extern unsigned long long int turkey_buffer_read_unsigned_8(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
@@ -388,7 +586,6 @@ extern signed long long int turkey_buffer_read_signed_8(TurkeyVM *vm, TurkeyBuff
 extern signed long long int turkey_buffer_read_signed_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
 extern signed long long int turkey_buffer_read_signed_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
 extern signed long long int turkey_buffer_read_signed_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
-extern double turkey_buffer_read_float_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
 extern double turkey_buffer_read_float_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
 extern double turkey_buffer_read_float_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
 
@@ -442,14 +639,6 @@ extern void turkey_object_delete_property(TurkeyVM *vm, TurkeyObject *object, Tu
 extern void turkey_object_call_operator(TurkeyVM *vm, TurkeyObject *object, TurkeyString *oper, TurkeyVariable &operand);
 extern void turkey_object_call_operator(TurkeyVM *vm, TurkeyObject *object, TurkeyString *oper);
 
-/* stack.cpp */
-extern void turkey_stack_init(TurkeyVM *vm, TurkeyStack &stack);
-extern void turkey_stack_cleanup(TurkeyVM *vm, TurkeyStack &stack);
-extern void turkey_stack_push(TurkeyVM *vm, TurkeyStack &stack, const TurkeyVariable &value);
-extern void turkey_stack_pop_no_return(TurkeyStack &stack);
-extern void turkey_stack_pop(TurkeyStack &stack, TurkeyVariable &value);
-extern void turkey_stack_get(TurkeyStack &stack, unsigned int position, TurkeyVariable &value);
-extern void turkey_stack_set(TurkeyStack &stack, unsigned int position, const TurkeyVariable &value);
 
 /* string.cpp */
 /* escapes a string and wrap it in quotes */
@@ -465,6 +654,9 @@ extern void turkey_stringtable_cleanup(TurkeyVM *vm);
 extern TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, unsigned int length);
 extern void turkey_stringtable_grow(TurkeyVM *vm);
 extern void turkey_stringtable_removestring(TurkeyVM *vm, TurkeyString *string);
+
+/* ssa.cpp */
+extern void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function);
 
 /* instructions.cpp */
 extern TurkeyInstructionHandler turkey_interpreter_operations[256];

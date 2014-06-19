@@ -60,16 +60,16 @@ TurkeyString *turkey_to_string(TurkeyVM *vm, TurkeyVariable &var_in) {
 
 		*ptr = ']';
 
-		TurkeyString *toReturn = turkey_stringtable_newstring(vm, str, buf->size * 2 + 2);
+		TurkeyString *toReturn = turkey_stringtable_newstring(vm, str, (unsigned int)buf->size * 2 + 2);
 		turkey_free_memory(vm->tag, str, buf->size * 2 + 2);
 		turkey_gc_unhold(vm, buf, TT_Buffer);
 		
 		return vm->string_table.s_buffer; }
 	case TT_Float: {
 		char temp[64];
-		unsigned int len = 64;
+		size_t len = 64;
 		turkey_print_string(temp, len, "%f", var_in.float_value);
-		return turkey_stringtable_newstring(vm, temp, len);
+		return turkey_stringtable_newstring(vm, temp, (unsigned int)len);
 		}
 	case TT_Null:
 	default:
@@ -78,9 +78,9 @@ TurkeyString *turkey_to_string(TurkeyVM *vm, TurkeyVariable &var_in) {
 		return vm->string_table.s_function;
 	case TT_Unsigned: {
 		char temp[64];
-		unsigned int len = 64;
+		size_t len = 64;
 		turkey_print_string(temp, len, "%lu", var_in.unsigned_value);
-		return turkey_stringtable_newstring(vm, temp, len);
+		return turkey_stringtable_newstring(vm, temp, (unsigned int)len);
 		}
 	case TT_Object: {
 		TurkeyObject *obj = var_in.object;
@@ -126,9 +126,9 @@ TurkeyString *turkey_to_string(TurkeyVM *vm, TurkeyVariable &var_in) {
 		}
 	case TT_Signed: {
 		char temp[64];
-		unsigned int len = 64;
+		size_t len = 64;
 		turkey_print_string(temp, len, "%lu", var_in.signed_value);
-		return turkey_stringtable_newstring(vm, temp, len);
+		return turkey_stringtable_newstring(vm, temp, (unsigned int)len);
 		}
 	case TT_String:
 		return var_in.string;

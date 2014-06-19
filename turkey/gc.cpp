@@ -167,7 +167,7 @@ void turkey_gc_mark_variable(TurkeyVM *vm, TurkeyVariable &var) {
 	}
 }
 
-void turkey_gc_mark_stack(TurkeyVM *vm, TurkeyStack &stack) {
+void turkey_gc_mark_stack(TurkeyVM *vm, TurkeyStack<TurkeyVariable> &stack) {
 	for(unsigned int i = 0; i < stack.position; i++) {
 		if(IS_GC_OBJECT(stack.variables[i])) {
 			if(!stack.variables[i].object->marked)

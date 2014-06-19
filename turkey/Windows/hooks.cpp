@@ -106,7 +106,7 @@ extern TurkeyString *turkey_relative_to_absolute_path(TurkeyVM *vm, TurkeyString
 	free(str_temp);
 
 	size_t len = strnlen_s(path, 512);
-	return turkey_stringtable_newstring(vm, path, len);
+	return turkey_stringtable_newstring(vm, path, (unsigned int)len);
 }
 
 double turkey_float_modulo(double a, double b) {

@@ -40,9 +40,6 @@
     <ClCompile Include="..\object.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\stack.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\stack_helpers.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -55,13 +52,16 @@
     <ClCompile Include="..\turkey.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\ssa.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\stack.h">
+      <Filter>Headers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\external\cityhash\city.h">
       <Filter>external\cityhash</Filter>
-    </ClInclude>
-    <ClInclude Include="..\external\half\half.hpp">
-      <Filter>external\half</Filter>
     </ClInclude>
     <ClInclude Include="..\hooks.h">
       <Filter>Headers</Filter>
@@ -82,9 +82,6 @@
     </Filter>
     <Filter Include="external\cityhash">
       <UniqueIdentifier>{cafdd8a5-26a2-4e04-93fe-ad99e0eb5f6b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="external\half">
-      <UniqueIdentifier>{2b2975b0-36b5-40b3-ba24-b2710db8c0ea}</UniqueIdentifier>
     </Filter>
     <Filter Include="Headers">
       <UniqueIdentifier>{7e962330-be66-402a-975c-1428d4d67f14}</UniqueIdentifier>

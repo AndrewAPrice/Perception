@@ -41,7 +41,7 @@ TurkeyString *turkey_string_escape(TurkeyVM *vm, TurkeyString *str) {
 
 	turkey_gc_unhold(vm, str, TT_String);
 
-	TurkeyString *str_out = turkey_stringtable_newstring(vm, strbuffer, strlength);
+	TurkeyString *str_out = turkey_stringtable_newstring(vm, strbuffer, (unsigned int)strlength);
 
 	turkey_free_memory(vm->tag, strbuffer, strlength);
 

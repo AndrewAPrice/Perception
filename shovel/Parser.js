@@ -1070,7 +1070,7 @@ var parse = function(lexer) {
 		var left = primary_expression();
 
 		var t = lexer.peekToken();
-		while(t === '[' || t === '.' || t === '<|' || t === '(') {
+		while(t === '[' || t === '.' || t === '<|' || t === '(' || t == '!') {
 			lexer.nextToken();	
 
 			if(t === '[') { // array access
@@ -1092,7 +1092,15 @@ var parse = function(lexer) {
 					object: left,
 					identifier: lexer.getValue()
 				};
-			} else if(t === '(') { // function call
+			} else if(t === '(' || t === '!') { // function call
+				var functional;
+				if(t === '!') {
+					functional = true;
+					if(lexer.nextToken() !== '(')
+						error(lexer, "Expecting a '(' after '!' at the start of a functional call.");
+				} else
+					functional = false;
+
 				var parameters = [];
 
 				if(lexer.peekToken() !== ')') {
@@ -1112,7 +1120,8 @@ var parse = function(lexer) {
 				left = {
 					operation: "function_call",
 					_function: left,
-					parameters: parameters
+					parameters: parameters,
+					functional: functional
 				};
 			} else if(t === '<|') { // buffer access
 				var type = lexer.nextToken();
@@ -1607,7 +1616,7 @@ exports.compile = function(funcs) {
 						compileNode(node.value, 0, true);
 						
 						// move us to the top
-						instructions.push("Store " + (stackDepth + thisFunc.numParams + thisFunc.numLocals - 1));
+						/*instructions.push("Store " + (stackDepth + thisFunc.numParams + thisFunc.numLocals - 1));
 
 						var numToPop = stackDepth + thisFunc.numParams + thisFunc.numLocals1;
 						while(numToPop > 0) {
@@ -1621,10 +1630,10 @@ exports.compile = function(funcs) {
 									instructions.push("PopMany " + numToPop);
 								numToPop = 0;
 							}
-						}
+						}*/
 
 						instructions.push("Return");
-					} else {
+					} else {/*
 						var numToPop = stackDepth + thisFunc.numParams + thisFunc.numLocals;
 						while(numToPop > 0) {
 							if(numToPop >= 255) {
@@ -1637,7 +1646,7 @@ exports.compile = function(funcs) {
 									instructions.push("PopMany " + numToPop);
 								numToPop = 0;
 							}
-						}
+						}*/
 						instructions.push("ReturnNull");
 					}
 					break;
@@ -1975,10 +1984,17 @@ exports.compile = function(funcs) {
 
 					compileNode(node._function, stackDepth + node.parameters.length, true);
 
-					if(expectReturn)
-						instructions.push("CallFunction " + node.parameters.length);
-					else
-						instructions.push("CallFunctionNoReturn " + node.parameters.length);
+					if(node.functional) {
+						if(expectReturn)
+							instructions.push("CallPureFunction " + node.parameters.length);
+						else
+							instructions.push("CallPureFunctionNoReturn " + node.parameters.length);
+					} else {
+						if(expectReturn)
+							instructions.push("CallFunction " + node.parameters.length);
+						else
+							instructions.push("CallFunctionNoReturn " + node.parameters.length);
+					}
 					break;
 				// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
 				case "buffer_access":

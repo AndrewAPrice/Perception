@@ -143,93 +143,90 @@ var findFunctions = function() {
 }
 
 var instructions = {
-	"add": {opcode: 0, special: false},
-	"subtract": {opcode: 1, special: false},
-	"divide": {opcode: 2, special: false},
-	"multiply": {opcode: 3, special: false},
-	"modulo": {opcode: 4, special: false},
-	"invert": {opcode: 122, special: false},
-	"increment": {opcode: 5, special: false},
-	"decrement": {opcode: 6, special: false},
-	"xor": {opcode: 7, special: false},
-	"and": {opcode: 8, special: false},
-	"or": {opcode: 9, special: false},
-	"not": {opcode: 10, special: false},
-	"shiftleft": {opcode: 11, special: false},
-	"shiftright": {opcode: 12, special: false},
-	"rotateleft": {opcode: 13, special: false},
-	"rotateright": {opcode: 14, special: false},
-	"isnull": {opcode: 15, special: false},
-	"isnotnull": {opcode: 16, special: false},
-	"equals": {opcode: 17, special: false},
-	"notequals": {opcode: 18, special: false},
-	"lessthan": {opcode: 19, special: false},
-	"greaterthan": {opcode: 20, special: false},
-	"lessthanorequals": {opcode: 21, special: false},
-	"greaterthanorequals": {opcode: 22, special: false},
-	"istrue": {opcode: 23, special: false},
-	"isfalse": {opcode: 24, special: false},
-	"pop": {opcode: 25, special: false},
+	"add": {opcode: 0, special: false, stackin: 2, stackout: 1},
+	"subtract": {opcode: 1, special: false, stackin: 2, stackout: 1},
+	"divide": {opcode: 2, special: false, stackin: 2, stackout: 1},
+	"multiply": {opcode: 3, special: false, stackin: 2, stackout: 1},
+	"modulo": {opcode: 4, special: false, stackin: 2, stackout: 1},
+	"invert": {opcode: 122, special: false, stackin: 1, stackout: 1},
+	"increment": {opcode: 5, special: false, stackin: 1, stackout: 1},
+	"decrement": {opcode: 6, special: false, stackin: 1, stackout: 1},
+	"xor": {opcode: 7, special: false, stackin: 2, stackout: 1},
+	"and": {opcode: 8, special: false, stackin: 2, stackout: 1},
+	"or": {opcode: 9, special: false, stackin: 2, stackout: 1},
+	"not": {opcode: 10, special: false, stackin: 1, stackout: 1},
+	"shiftleft": {opcode: 11, special: false, stackin: 2, stackout: 1},
+	"shiftright": {opcode: 12, special: false, stackin: 2, stackout: 1},
+	"rotateleft": {opcode: 13, special: false, stackin: 2, stackout: 1},
+	"rotateright": {opcode: 14, special: false, stackin: 2, stackout: 1},
+	"isnull": {opcode: 15, special: false, stackin: 1, stackout: 1},
+	"isnotnull": {opcode: 16, special: false, stackin: 1, stackout: 1},
+	"equals": {opcode: 17, special: false, stackin: 2, stackout: 1},
+	"notequals": {opcode: 18, special: false, stackin: 2, stackout: 1},
+	"lessthan": {opcode: 19, special: false, stackin: 2, stackout: 1},
+	"greaterthan": {opcode: 20, special: false, stackin: 2, stackout: 1},
+	"lessthanorequals": {opcode: 21, special: false, stackin: 2, stackout: 1},
+	"greaterthanorequals": {opcode: 22, special: false, stackin: 2, stackout: 1},
+	"istrue": {opcode: 23, special: false, stackin: 1, stackout: 1},
+	"isfalse": {opcode: 24, special: false, stackin: 1, stackout: 1},
+	"pop": {opcode: 25, special: false, stackin: 1, stackout: 0},
 	"popmany": {special: true}, // 26
 	"grab": {special: true}, // 27,28,29 (8/16/32)
 	"store": {special: true}, // 33,34,35 (8/16/32)
 	"swap": {special: true}, // 36,37,38 (8/16/32)
 	"loadclosure": {special: true}, // 39,40,41 (8/16/32)
 	"storeclosure": {special: true}, // 42,43,44 (8/16/32)
-	"newarray": {opcode: 45, special: false},
-	"loadelement": {opcode: 46, special: false},
-	"saveelement": {opcode: 47, special: false},
-	"newobject": {opcode: 48, special: false},
-	"deleteelement": {opcode: 49, special: false},
-	"newbuffer": {opcode: 50, special: false},
-	"loadbufferunsigned[8]": {opcode: 51, special: false},
-	"loadbufferunsigned[16]": {opcode: 52, special: false},
-	"loadbufferunsigned[32]": {opcode: 53, special: false},
-	"loadbufferunsigned[16]": {opcode: 54, special: false},
-	"storebufferunsigned[8]": {opcode: 55, special: false},
-	"storebufferunsigned[16]": {opcode: 56, special: false},
-	"storebufferunsigned[32]": {opcode: 57, special: false},
-	"storebufferunsigned[16]": {opcode: 58, special: false},
-	"loadbuffersigned[8]": {opcode: 59, special: false},
-	"loadbuffersigned[16]": {opcode: 60, special: false},
-	"loadbuffersigned[32]": {opcode: 61, special: false},
-	"loadbuffersigned[16]": {opcode: 62, special: false},
-	"storebuffersigned[8]": {opcode: 63, special: false},
-	"storebuffersigned[16]": {opcode: 64, special: false},
-	"storebuffersigned[32]": {opcode: 65, special: false},
-	"storebuffersigned[16]": {opcode: 66, special: false},
-	"loadbufferfloat[16]": {opcode: 67, special: false},
-	"loadbufferfloat[32]": {opcode: 68, special: false},
-	"loadbufferfloat[16]": {opcode: 69, special: false},
-	"storebufferfloat[16]": {opcode: 70, special: false},
-	"storebufferfloat[32]": {opcode: 71, special: false},
-	"storebufferfloat[16]": {opcode: 72, special: false},
+	"newarray": {opcode: 45, special: false, stackin: 1, stackout: 1},
+	"loadelement": {opcode: 46, special: false, stackin: 2, stackout: 1},
+	"saveelement": {opcode: 47, special: false, stackin: 3, stackout: 0},
+	"newobject": {opcode: 48, special: false, stackin: 0, stackout: 1},
+	"deleteelement": {opcode: 49, special: false, stackin: 2, stackout: 0},
+	"newbuffer": {opcode: 50, special: false, stackin: 1, stackout: 1},
+	"loadbufferunsigned[8]": {opcode: 51, special: false, stackin: 2, stackout: 1},
+	"loadbufferunsigned[16]": {opcode: 52, special: false, stackin: 2, stackout: 1},
+	"loadbufferunsigned[32]": {opcode: 53, special: false, stackin: 2, stackout: 1},
+	"loadbufferunsigned[16]": {opcode: 54, special: false, stackin: 2, stackout: 1},
+	"storebufferunsigned[8]": {opcode: 55, special: false, stackin: 3, stackout: 0},
+	"storebufferunsigned[16]": {opcode: 56, special: false, stackin: 3, stackout: 0},
+	"storebufferunsigned[32]": {opcode: 57, special: false, stackin: 3, stackout: 0},
+	"storebufferunsigned[16]": {opcode: 58, special: false, stackin: 3, stackout: 0},
+	"loadbuffersigned[8]": {opcode: 59, special: false, stackin: 2, stackout: 1},
+	"loadbuffersigned[16]": {opcode: 60, special: false, stackin: 2, stackout: 1},
+	"loadbuffersigned[32]": {opcode: 61, special: false, stackin: 2, stackout: 11},
+	"loadbuffersigned[16]": {opcode: 62, special: false, stackin: 2, stackout: 1},
+	"storebuffersigned[8]": {opcode: 63, special: false, stackin: 3, stackout: 0},
+	"storebuffersigned[16]": {opcode: 64, special: false, stackin: 3, stackout: 0},
+	"storebuffersigned[32]": {opcode: 65, special: false, stackin: 3, stackout: 0},
+	"storebuffersigned[16]": {opcode: 66, special: false, stackin: 3, stackout: 0},
+	"loadbufferfloat[32]": {opcode: 68, special: false, stackin: 2, stackout: 1},
+	"loadbufferfloat[16]": {opcode: 69, special: false, stackin: 2, stackout: 1},
+	"storebufferfloat[32]": {opcode: 71, special: false, stackin: 3, stackout: 0},
+	"storebufferfloat[16]": {opcode: 72, special: false, stackin: 3, stackout: 0},
 	"pushinteger": {special: true}, // 73,74,75,76 (8/16/32/64)
-	"tointeger": {opcode: 77, special: false},
+	"tointeger": {opcode: 77, special: false, stackin: 1, stackout: 1},
 	"pushunsignedinteger": {special: true}, // 78,79,80,81 (8/16/32/64)
-	"tounsignedinteger": {opcode: 82, special: false},
+	"tounsignedinteger": {opcode: 82, special: false, stackin: 1, stackout: 1},
 	"pushfloat": {special: true}, // 83
-	"tofloat": {opcode: 84, special: false},
-	"pushtrue": {opcode: 85, special: false},
-	"pushfalse": {opcode: 86, special: false},
-	"pushnull": {opcode: 87, special: false},
+	"tofloat": {opcode: 84, special: false, stackin: 1, stackout: 1},
+	"pushtrue": {opcode: 85, special: false, stackin: 0, stackout: 1},
+	"pushfalse": {opcode: 86, special: false, stackin: 0, stackout: 1},
+	"pushnull": {opcode: 87, special: false, stackin: 0, stackout: 1},
 	"pushmanynulls": {opcode: 30, special: true},
 	"pushstring": {special: true}, // 88,89,90 (8/16/32)
-	"tostring": {opcode: 121, special: false},
+	"tostring": {opcode: 121, special: false, stackin: 1, stackout: 1},
 	"pushfunction": {special: true}, // 91
 	"callfunction": {special: true}, // 92,93 (8/16)
 	"callfunctionnoreturn": {special: true}, // 94,95 (8/16)
-	"returnnull": {opcode: 96, special: false},
-	"return": {opcode: 97, special: false},
-	"gettype": {opcode: 98, special: false},
+	"callpurefunction": {special: true}, // 123,124 (8/16)
+	"returnnull": {opcode: 96, special: false, stackin: 0, stackout: 0},
+	"return": {opcode: 97, special: false, stackin: 1, stackout: 0},
+	"gettype": {opcode: 98, special: false, stackin: 1, stackout: 1},
 	"jump": {special: true}, // 99,100,101 (8/16/32)
 	"jumpiftrue": {special: true}, // 102,103,104 (8/16/32)
 	"jumpiffalse": {special: true}, // 105,106,107 (8/16/32)
 	"jumpifnull": {special: true}, // 108,109,110 (8/16/32)
 	"jumpifnotnull": {special: true}, // 111,112,113 (8/16/32)
-	"require": {opcode: 114, special: false},
-	"loadparameter": {special: true}, // 115,116,117 (8/16/32)
-	"storeparameter": {special: true}, // 118,119,120
+	"require": {opcode: 114, special: false, stackin: 1, stackout: 1}
 }; // total: 121 - increment this when adding new opcodes
 
 // parses an operand to extract the string, returns null if somethings invalid
@@ -304,6 +301,7 @@ var handleFunction = function(funcHeader) {
 	var funcName = funcHeader.name;
 	var localVarsNames, closureVarNames, paramNames;
 
+
 	if(debug) { // debugging information
 		funcHeader.functionColumnStart = lineColumns[funcHeader.start];
 		funcHeader.functionColumnEnd = lineColumns[funcHeader.end];
@@ -326,6 +324,8 @@ var handleFunction = function(funcHeader) {
 	var minCol = 0; // minimum column for line
 	var maxCol = 0; // maximum column for line
 	var autoColumns = true; // automatically populate the column for this line
+
+	var stacksize = 0; // the size of our stack, count it as we move
 
 	// pass 2, assemble most of it into byte code, record labels and count how many jumps there are between them
 	for(var i = start + 1; i < end; i++) {
@@ -373,7 +373,8 @@ var handleFunction = function(funcHeader) {
 			labels[label] = {
 				line: i,
 				bytes: bytes,
-				jumps: jumps
+				jumps: jumps,
+				stacksize: stacksize
 			};
 
 			lines[i] = [];
@@ -532,8 +533,13 @@ var handleFunction = function(funcHeader) {
 			if(instruction === undefined)
 				errorMessage(i, "Unknown instruction " + inst + ".");
 
+			var stackin, stackout;
+
 			// now replace the line with the bytes needed for the instruction
 			if(instruction.special === false) {
+				stackin = instruction.stackin;
+				stackout = instruction.stackout;
+
 				// not special, just basic opcode
 				if(operands.length != 0) {
 					errorMessage(i, inst + " does not take operands.");
@@ -556,6 +562,9 @@ var handleFunction = function(funcHeader) {
 
 						lines[i] = [26, op];
 						bytes += lines[i].length;
+
+						stackin = op;
+						stackout = 0;
 						break;
 					case "grab": // 27,28,29 (8/16/32)
 						if(operands.length != 1)
@@ -575,6 +584,9 @@ var handleFunction = function(funcHeader) {
 							lines[i] = [27, op];
 						}
 						bytes += lines[i].length;
+
+						stackin = 0;
+						stackout = 1;
 						break;
 				/*	case "load": // 30,31,32 (8/16/32)
 						if(operands.length != 1)
@@ -613,6 +625,9 @@ var handleFunction = function(funcHeader) {
 							lines[i] = [33, op];
 						}
 						bytes += lines[i].length;
+
+						stackin = 1;
+						stackout = 0;
 						break;
 					case "swap":  // 36,37,38 (8/16/32)
 						if(operands.length != 2)
@@ -634,6 +649,10 @@ var handleFunction = function(funcHeader) {
 							lines[i] = [36, op1, op2];
 						}
 						bytes += lines[i].length;
+
+						stackin = 0;
+						stackout = 0;
+
 						break;
 					case "loadclosure": // 39,40,41 (8/16/32)
 						if(operands.length != 1)
@@ -653,6 +672,10 @@ var handleFunction = function(funcHeader) {
 							lines[i] = [39, op];
 						}
 						bytes += lines[i].length;
+
+						stackin = 0;
+						stackout = 1;
+
 						break;
 					case "storeclosure": // 42,43,44 (8/16/32)
 						if(operands.length != 1)
@@ -672,6 +695,10 @@ var handleFunction = function(funcHeader) {
 							lines[i] = [42, op];
 						}
 						bytes += lines[i].length;
+						
+						stackin = 1;
+						stackout = 0;
+
 						break;
 					case "pushinteger": // 73,74,75,76 (8/16/32/64)
 						if(operands.length != 1)
@@ -701,6 +728,8 @@ var handleFunction = function(funcHeader) {
 							lines[i] = [73, op];
 						}
 						bytes += lines[i].length;
+						stackin = 0;
+						stackout = 1;
 						break;
 					case "pushunsignedinteger": // 78,79,80,81 (8/16/32/64)
 						if(operands.length != 1)
@@ -725,6 +754,8 @@ var handleFunction = function(funcHeader) {
 							lines[i] = [78, op];
 						}
 						bytes += lines[i].length;
+						stackin = 0;
+						stackout = 1;
 						break;
 					case "pushfloat": // 83
 						if(operands.length != 1)
@@ -736,7 +767,9 @@ var handleFunction = function(funcHeader) {
 						lines[i] = [83, buffer.readUInt8(0), buffer.readUInt8(1), buffer.readUInt8(2), buffer.readUInt8(3),
 							buffer.readUInt8(4),buffer.readUInt8(5),buffer.readUInt8(6),buffer.readUInt8(7)];
 						bytes += lines[i].length;
-						br
+						stackin = 0;
+						stackout = 1;
+						break;
 					case "pushmanynulls": // 30
 						if(operands.length != 1)
 							errorMessage(i, "pushmanynulls takes 1 argument.");
@@ -749,7 +782,9 @@ var handleFunction = function(funcHeader) {
 
 						lines[i] = [30, op];
 						bytes += lines[i].length;
-						break;eak;
+						stackin = 0;
+						stackout = op;
+						break;
 					case "pushstring": // 88,89,90 (8/16/32)
 						var str = parseString(i, lines[i], line.toLowerCase().indexOf('pushstring') + 'pushstring'.length + 1);
 
@@ -767,6 +802,8 @@ var handleFunction = function(funcHeader) {
 
 						lines[i] = l;
 						bytes += lines[i].length;
+						stackin = 0;
+						stackout = 1;
 						break;
 					case "pushfunction": // 91
 						if(operands.length != 1)
@@ -778,6 +815,8 @@ var handleFunction = function(funcHeader) {
 
 						lines[i] = [91, func & 255, (func >> 8) & 255, (func >> 16) & 255, (func >> 24) & 255];
 						bytes += lines[i].length;
+						stackin = 0;
+						stackout = 1;
 						break;
 					case "callfunction": // 92,93 (8/16)
 						if(operands.length != 1)
@@ -795,6 +834,8 @@ var handleFunction = function(funcHeader) {
 							lines[i] = [92, op];
 						}
 						bytes += lines[i].length;
+						stackin = op + 1;
+						stackout = 1;
 						break;
 					case "callfunctionnoreturn": // 94,95 (8/16)
 						if(operands.length != 1)
@@ -812,8 +853,39 @@ var handleFunction = function(funcHeader) {
 							lines[i] = [94, op];
 						}
 						bytes += lines[i].length;
+						stackin = op + 1;
+						stackout = 0;
+						break;
+					case "callpurefunction": // 123,124 (8/16)
+						if(operands.length != 1)
+							errorMessage(i, "callpurefunction takes 1 argument.");
+
+						var op = parseInt(operands[0]);
+						if(op < 0)
+							errorMessage(i, "callpurefunction must take a positive number.");
+						if(op >= 65536)
+							errorMessage(i, "callpurefunction argument must be less than 65536.");
+
+						if(op >= 256) {
+							lines[i] = [124, op & 255, (op >> 8) & 255];
+						} else {
+							lines[i] = [123, op];
+						}
+						bytes += lines[i].length;
+						stackin = op + 1;
+						stackout = 1;
 						break;
 					case "jump": // 99,100,101 (8/16/32)
+						if(operands.length != 1)
+							errorMessage(i, inst + " takes 1 argument.");
+
+						lines[i] = [inst, operands[0], stacksize];
+						jumpFixUps.push(i); // save this jump for us to fix up later
+						
+						jumps++;
+						stackin = 0;
+						stackout = 0;
+						break;
 					case "jumpiftrue": // 102,103,104 (8/16/32)
 					case "jumpiffalse": // 105,106,107 (8/16/32)
 					case "jumpifnull": // 108,109,110 (8/16/32)
@@ -821,10 +893,12 @@ var handleFunction = function(funcHeader) {
 						if(operands.length != 1)
 							errorMessage(i, inst + " takes 1 argument.");
 
-						lines[i] = [inst, operands[0]];
+						lines[i] = [inst, operands[0], stacksize - 1];
 						jumpFixUps.push(i); // save this jump for us to fix up later
 						
 						jumps++;
+						stackin = 1;
+						stackout = 0;
 						break;
 					/* case "loadparameter": // 115,116,117 (8/16/32)
 						if(operands.length != 1)
@@ -868,6 +942,14 @@ var handleFunction = function(funcHeader) {
 						errorMessage(i, "Internal error - no case for special instruction " + inst + ".");
 				}
 			}
+
+			stacksize -= stackin;
+
+			if(stacksize < 0) {
+				errorMessage(i, inst + " does not have enough parameters on the stack.");
+				process.exit(-1);
+			}
+			stacksize += stackout;
 		}
 	}
 
@@ -891,7 +973,7 @@ var handleFunction = function(funcHeader) {
 	// fix up the addresses of labels now that we know how big our jumps are
 	for(var label in labels) {
 		var l = labels[label];
-		labels[label] = l.bytes + l.jumps * jumpInstructionSize;
+		labels[label].position = l.bytes + l.jumps * jumpInstructionSize;
 	}
 
 	// fix up our jump addresses now that we have our labels
@@ -899,6 +981,7 @@ var handleFunction = function(funcHeader) {
 		var j = jumpFixUps[i];
 
 		var fixUp = lines[j];
+		var inst = fixUp[0];
 		// fix the instruction
 		switch(fixUp[0]) {
 			case "jump": // 99,100,101 (8/16/32)
@@ -942,25 +1025,37 @@ var handleFunction = function(funcHeader) {
 					fixUp[0] = 113;
 				break;
 			default:
-				errorMessage(i, "Internal error - unknown jump.");
+				errorMessage(-1, "Internal error - unknown jump.");
 		}
 
 		// fix the address
 		var label = labels[fixUp[1]]; // label is now an address because it has been fixed up
+		
 		if(label === undefined)
-			errorMessage(j, "Undefined label " + fixUp[1] + ".");
+			errorMessage(-1, "Undefined label " + fixUp[1] + ".");
+
+		var fromstack = fixUp[2];
+		var deststack = label.stacksize;
+
+		if(fromstack !== deststack) {
+			console.log(label);
+			errorMessage(-1, inst + " to " + fixUp[1] + " in " + funcName + " does not have the same sized stack (" + fromstack + "->" + deststack + ").");
+		}
+		fixUp.pop(); // remove stack size from the end of the array
+
+		var position = label.position;
 
 		if(jumpSize == 1)
-			fixUp[1] = label;
+			fixUp[1] = position;
 		else if(jumpSize == 2) {
-			fixUp[1] = label & 255;
-			fixUp.push((label >> 8) & 255);
+			fixUp[1] = position & 255;
+			fixUp.push((position >> 8) & 255);
 		}
 		else if(jumpSize == 4) {
-			fixUp[1] = label & 255;
-			fixUp.push((label >> 8) & 255);
-			fixUp.push((label >> 16) & 255);
-			fixUp.push((label >> 24) & 255);
+			fixUp[1] = position & 255;
+			fixUp.push((position >> 8) & 255);
+			fixUp.push((position >> 16) & 255);
+			fixUp.push((position >> 24) & 255);
 		}
 	}
 

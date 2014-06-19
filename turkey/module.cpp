@@ -82,7 +82,7 @@ void turkey_require(TurkeyVM *vm, unsigned int index) {
 
 void turkey_require(TurkeyVM *vm) {
 	TurkeyVariable name;
-	turkey_stack_pop(vm->variable_stack, name);
+	if(!vm->variable_stack.Pop(name)) name.type = TT_Null;
 
 	TurkeyVariable ret;
 	ret.type = TT_Null;
@@ -144,7 +144,7 @@ void turkey_require(TurkeyVM *vm) {
 	}
 
 	turkey_gc_unhold(vm, strName, TT_String);
-	turkey_stack_push(vm, vm->variable_stack, ret);
+	vm->variable_stack.Push(ret);
 	
 }
 
@@ -153,8 +153,8 @@ void turkey_require(TurkeyVM *vm) {
 void turkey_register_module(TurkeyVM *vm, unsigned int ind_moduleName, unsigned int ind_obj) {
 	TurkeyVariable name, obj;
 
-	turkey_stack_get(vm->variable_stack, ind_moduleName, name);
-	turkey_stack_get(vm->variable_stack, ind_obj, obj);
+	if(!vm->variable_stack.Get(ind_moduleName, name)) name.type = TT_Null;
+	if(!vm->variable_stack.Get(ind_obj, obj)) obj.type = TT_Null;
 
 	TurkeyString *strName = turkey_to_string(vm, name);
 	turkey_gc_hold(vm, strName, TT_String);
@@ -186,9 +186,15 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 		}
 
 		// allocate the code block
-		module->code_block = turkey_allocate_memory(vm->tag, code_block_length);
 		module->code_block_size = code_block_length;
-		turkey_memory_copy(module->code_block, (void *)((size_t)file + code_block_start), code_block_length);
+
+		if(vm->debug) {
+			// in debug mode, we're interpreting bytecode so we want our own copy of the code block
+			module->code_block = turkey_allocate_memory(vm->tag, code_block_length);
+			turkey_memory_copy(module->code_block, (void *)((size_t)file + code_block_start), code_block_length);
+		} else
+			// in JIT mode, we don't need to code block once it's compiled into SSA
+			module->code_block = (void *)((size_t)file + code_block_start);
 
 		// allocate function headers
 		module->functions = (TurkeyFunction **)turkey_allocate_memory(vm->tag, sizeof(TurkeyFunction *) * functions);
@@ -220,6 +226,10 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 
 			start_addr += code_length;
 		}
+
+#ifdef DEBUG
+		if(!vm->debug) module->code_block = 0;
+#endif
 }
 
 void load_string_table_from_file(TurkeyVM *vm, TurkeyModule *module,
@@ -295,6 +305,19 @@ TurkeyVariable turkey_module_load_file(TurkeyVM *vm, TurkeyString *filepath) {
 	unsigned int string_table_entries = *(unsigned int *)((size_t)file + 18);
 
 	load_string_table_from_file(vm, module, string_table_start, string_table_entries, file, file_size);
+
+	// jit the functions
+	if(!vm->debug) {
+		for(unsigned int i = 0; i < functions; i++) {
+			TurkeyFunction *function = module->functions[i];
+			turkey_ssa_compile_function(vm, function);
+#ifdef DEBUG
+			/* no longer needed since it's now in SSA IR form */
+			function->start = 0;
+			function->end = 0;
+#endif
+		}
+	}
 
 	// unload the file
 	turkey_free_memory(vm->tag, file, file_size);

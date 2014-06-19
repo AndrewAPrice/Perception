@@ -9,12 +9,12 @@ void turkey_interpreter_cleanup(TurkeyVM *vm) {
 	assert(vm->interpreter_state == 0); // still in the middle of vm execution
 }
 
-TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr, size_t argc) {
+TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr, unsigned int argc) {
 	if(funcptr->is_native) {
 		// native function call
-		TurkeyVariable var = funcptr->native.function(vm, funcptr->native.closure, argc);
+		TurkeyVariable var = funcptr->native.function(vm, funcptr->native.closure, (unsigned int)argc);
 		while(argc > 0) {
-			turkey_stack_pop_no_return(vm->variable_stack);
+			vm->variable_stack.PopNoReturn();
 			argc--;
 		}
 		return var;
@@ -47,7 +47,7 @@ TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr
 		unsigned int stack_size = vm->variable_stack.position - vm->variable_stack.top;
 		while(stack_size < argc) {
 			// not enough parameters on the local stack, push nulls
-			turkey_stack_push(vm, vm->variable_stack, nullvar);
+			vm->variable_stack.Push(nullvar);
 			stack_size++;
 		}
 	}
@@ -62,7 +62,7 @@ TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr
 	} else {
 		while(argc < func->parameters) {
 			// too few parameters
-			turkey_stack_push(vm, vm->variable_stack, nullvar);
+			vm->variable_stack.Push(nullvar);
 			argc++;
 		}
 	}
@@ -76,7 +76,7 @@ TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr
 
 	// get the return value
 	TurkeyVariable ret;
-	turkey_stack_pop(vm->variable_stack, ret);
+	if(!vm->variable_stack.Pop(ret)) ret.type = TT_Null;
 
 	// return to the parent state
 	vm->variable_stack.position = vm->variable_stack.top;
@@ -87,6 +87,6 @@ TurkeyVariable turkey_call_function(TurkeyVM *vm, TurkeyFunctionPointer *funcptr
 	return ret;
 }
 
-void turkey_call_function_no_return(TurkeyVM *vm, TurkeyFunctionPointer *funcptr, size_t argc) {
+void turkey_call_function_no_return(TurkeyVM *vm, TurkeyFunctionPointer *funcptr, unsigned int argc) {
 	turkey_call_function(vm, funcptr, argc);
 }

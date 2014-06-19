@@ -1,6 +1,5 @@
 #include "turkey.h"
 #include "hooks.h"
-#include "external/half/half.hpp"
 
 TurkeyBuffer *turkey_buffer_new(TurkeyVM *vm, size_t size) {
 	if(size == 0)
@@ -155,13 +154,6 @@ void turkey_buffer_write_signed_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned 
 	*(signed long long int *)((size_t)buffer->ptr + address) = val;
 }
 
-void turkey_buffer_write_float_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, double val) {
-	if(buffer->disposed) return;
-	if(address >= buffer->size - 1) return;
-
-	*(half_float::half *)((size_t)buffer->ptr + address) = half_float::half((float)val);
-}
-
 void turkey_buffer_write_float_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, double val) {
 	if(buffer->disposed) return;
 	if(address >= buffer->size - 3) return;
@@ -232,13 +224,6 @@ signed long long int turkey_buffer_read_signed_64(TurkeyVM *vm, TurkeyBuffer *bu
 	return *(signed long long int *)((size_t)buffer->ptr + address);
 }
 
-double turkey_buffer_read_float_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address) {
-	if(buffer->disposed) return 0;
-	if(address >= buffer->size - 1) return 0;
-
-	/* half only has a cast to float, so we need to cast it twice to double */
-	return (double)((float)(*(half_float::half *)((size_t)buffer->ptr + address)));
-}
 
 double turkey_buffer_read_float_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address) {
 	if(buffer->disposed) return 0;

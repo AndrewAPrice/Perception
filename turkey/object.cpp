@@ -145,11 +145,11 @@ void turkey_object_call_operator(TurkeyVM *vm, TurkeyObject *object, TurkeyStrin
 	if(var.type != TT_FunctionPointer)
 		ret.type = TT_Null;
 	else {
-		turkey_stack_push(vm, vm->variable_stack, operand);
+		vm->variable_stack.Push(operand);
 		ret = turkey_call_function(vm, var.function, 1);
 	}
 
-	turkey_stack_push(vm, vm->variable_stack, ret);
+	vm->variable_stack.Push(ret);
 }
 
 void turkey_object_call_operator(TurkeyVM *vm, TurkeyObject *object, TurkeyString *oper) {
@@ -162,5 +162,5 @@ void turkey_object_call_operator(TurkeyVM *vm, TurkeyObject *object, TurkeyStrin
 		ret = turkey_call_function(vm, var.function, 0);
 	}
 
-	turkey_stack_push(vm, vm->variable_stack, ret);
+	vm->variable_stack.Push(ret);
 }
