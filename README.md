@@ -13,10 +13,10 @@ Shovel and Turkey are being developed seperately from Perception, so that they m
 
 ## Todo
 This is a very high level to-do list. Near goals:
-- Get a working Turkey VM interpreter.
-- Add optimizations to the Shovel compiler.
-- Add a JIT compiler to the Turkey VM.
-- Generate debugging metadata in the Shovel compiler (assembler is already does this).
+- Optimize SSA (constant propagation, deadcode elimination).
+- Add classes to compiler/assembler/VM (for polymorphic inline chaching).
+- Implement basic block versioning JIT.
+- Change C API to work with JIT.
 
 Eventual goals:
 - Start work on Perception and get Turkey VM running bare metal.
