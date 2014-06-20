@@ -56,6 +56,26 @@ The actual parameters to a function call are - the closure pointer, the number o
 If not enough parameters are passed into a function, the missing parameters are assumed to be null. Likewise, if too many values are passed into a function, they are simply considered nulls. Trailing nulls are always trimmed off of the end of parameters, since they're not transfering a value and is identical to not passing a parameter in at all.
  
 # Polymorphic Inline Caching
+All 'objects' are considered of the same type, just as arrays and floats are considered types. Objects are aggregated types that can have elements added and removed at runtime - this is a fundamental feature of prototype-based object-oriented programming. When accessing an element stored in an object, the object is essentially a hash table that must look up the element based on the string key passed in. This is not very slow, since all strings are stored in a string table without duplication, so comparing strings is as simple as comparing pointers. However, it's still much slower than a statically compiled language which can simply access an object's element by adding a fixed offset to an object's address. Turkey uses polymorphic inline caching to speed up object element accesses.
+
+The Shovel compiler (and any other compiler that targets Turkey bytecode) may create classes. The Shovel compiler does this automatically when it detects objects being assigned a fixed set of elements during creation. An object therefore has a creation layout (which we will refer to as its 'class') and any additional elements assigned to it after creation. An object may never change it's class once it's created.
+
+```
+// These two objects share the same class, as they are both created with elements 'a' and 'b':
+var obj1 = { a: "hello", b: "hello" };
+var obj2 = { b: "123", a: "456" };
+
+// These two objects are of different classes, because elements added to an object after it's initially created are considered to 'additional' and not part of the class.
+var obj1 = { a: "hello" };
+obj1.b = "hello";
+var obj2 = { b: "123", a: "456" };
+```
+
+Classes are merged together when loading in bytecode from a file into a class table. Any two classes with the same set of elements are considered the same class, as the elements are sorted in memory based on their keys (which are pointers into the string table) so they are structually equivalent. Any two objects with the same class are considered to have the same set of elements in the same memory layout.
+
+When an element lookup is done and if the key being accessed is a constant string, the generated code then compares the object's class. If the object's class is one that has that element, the element lookup is inlined with a memory offset, otherwise a standard element lookup is called. Future element lookups at that site can see if that class has already been inlined, and simply look up the memory offset rather than invoke an element lookup in the object's hash table.
+
+There is a maximum of how many classes can be inlined (perhaps 4?) at a single look up point. Beyond this threshold, element accesses will invoke a standard lookup of the element's property.
 
 # Benchmarking
 As new features are added and improvements are made to the virtual machine and JIT compiler, I would like to run benchmarks. I would appreciate it if anyone knows of any programming language benchmarks that test only the language itself that I can use to test the performance of Turkey. If you do - please contact me at messiahandrw - at - gmail - dot - com.
