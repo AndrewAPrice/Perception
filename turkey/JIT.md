@@ -45,7 +45,16 @@ There is a potential for the number of possible permutations of a basic block to
 If this does become an issue (which the programmer is likely to notice due to memory usage exploding), and it only happens very rarely, the best solution may be to make the programmer aware of it, and possible best coding practices to avoid this. Again, I think this would be a very rare scenario that versions will grow exponentially
 
 # Function Calls
+When we call functions and pass parameters into a function, we also need to tell function the number of parameters we've passed in and the type of each parameter. When we enter a function, we'd like to perform as few checks as possible, to figure out what version of the first basic block to call.
 
+There are 10 different types of values (nulls, booleans, unsigned ints, signed ints, floats, objects, arrays, memory buffers, function pointers, strings), so the type can be encoded in 4 bits, with 6 values reserved for internal use or future types. In a 64-bit register, we describe the value of 16 types. (If we encoded the type information in base-10 instead of binary, we could actually describe 19 types in a single 64-bit register instead. If in the future we had 11 types, 12, or 13 types or more. The algorithm for figuring out how many values we could store in a register is log t(2^r) - where t is the number of types, and r is the number of registers.) If more than 16 parameters are passed to a function, we can use additional registers, but in most cases a single register would be sufficient.
+
+We know all of this at the time of compiling the caller's basic block, so we can hardcode in the encoded types into machine code and don't actually have to calculate this type encoding at runtime.
+
+The actual parameters to a function call are - the closure pointer, the number of parameters, the encoded parameter types, and the parameter values. These actual parameters are passed in the general purpose registers first, with additional values spilling onto the stack. The caller is responsible for cleaning up the stack upon returning, and restoring it's own values. The callee returns the return value in two registers - one of the value, and one for the type.
+
+If not enough parameters are passed into a function, the missing parameters are assumed to be null. Likewise, if too many values are passed into a function, they are simply considered nulls. Trailing nulls are always trimmed off of the end of parameters, since they're not transfering a value and is identical to not passing a parameter in at all.
+ 
 # Polymorphic Inline Caching
 
 # Benchmarking
