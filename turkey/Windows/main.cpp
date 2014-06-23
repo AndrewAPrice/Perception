@@ -70,7 +70,7 @@ void main() {
 
 	/* create the vm */
 	TurkeySettings settings;
-	settings.debug = true;
+	settings.debug = false;
 	settings.tag = 0;
 
 	TurkeyVM *vm = turkey_init(&settings);

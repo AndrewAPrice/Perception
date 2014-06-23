@@ -343,6 +343,27 @@ extern long long int turkey_to_signed(TurkeyVM *vm, TurkeyVariable &var_in);
 extern double turkey_to_float(TurkeyVM *vm, TurkeyVariable &var_in);
 extern bool turkey_to_boolean(TurkeyVM *vm, TurkeyVariable &var_in);
 
+/* instruction in SSA form, used by the JIT compiler */
+struct TurkeyInstruction {
+	char instruction;
+	char return_type;
+	union {
+		struct {
+			unsigned int a;
+			unsigned int b;
+		};
+		unsigned long long int large;
+	};
+};
+
+struct TurkeyBasicBlock {
+	unsigned int stack_entry; /* parameters entering */
+	TurkeyInstruction *instructions; /* array of ssa instructions */
+	unsigned int instructions_size; /* number of instructions */
+
+	/* todo - add versioning info here */
+};
+
 /***** debugging ****/
 /*
 extern void turkey_debug_pause(TurkeyVM *vm);

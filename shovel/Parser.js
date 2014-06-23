@@ -667,6 +667,8 @@ var parse = function(lexer) {
 		leaveScope();
 		leaveScope();
 
+		var bodyLabel = labelNum;
+		labelNum++;
 		var continueLabel = labelNum;
 		labelNum++;
 		var breakLabel = labelNum;
@@ -1116,7 +1118,7 @@ var parse = function(lexer) {
 				}
 				else
 					lexer.nextToken(); // skip over the )
-
+				
 				left = {
 					operation: "function_call",
 					_function: left,
@@ -1234,6 +1236,7 @@ var parse = function(lexer) {
 		var t = lexer.peekToken();
 		while(t === '*' || t === '/' || t === '%') {
 			lexer.nextToken();
+
 			var right = cast_expression();
 
 			left = {
@@ -1242,6 +1245,7 @@ var parse = function(lexer) {
 				operator: t,
 				right: right
 			};
+			t = lexer.peekToken();
 		}
 		return left;
 	};
@@ -1790,8 +1794,7 @@ exports.compile = function(funcs) {
 					instructions.push(".l" + node.bodyLabel);
 					compileNode(node.condition, stackDepth, true);
 					instructions.push("JumpIfFalse l" + node.breakLabel);
-
-					compileNode(node.stmt, stackDepth);
+					compileNode(node.body, stackDepth);
 
 					instructions.push(".l" + node.continueLabel);
 					for(var j = 0; j < node.oneach.length; j++)
@@ -2068,6 +2071,8 @@ exports.compile = function(funcs) {
 						process.exit(-1);
 					}
 
+					stackDepth++;
+
 					if(expectReturn) {
 						// we expect to return
 						if(node2.operation !== "variable_access") {
@@ -2116,7 +2121,6 @@ exports.compile = function(funcs) {
 						// {operation: "property_access", object: left, identifier: lexer.getValue() };
 						case "array_access":
 						case "property_access":
-							instructions.push("StoreElement");
 							instructions.push("StoreElement");
 							break;
 						// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
@@ -2258,7 +2262,7 @@ exports.compile = function(funcs) {
 									break;
 								// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
 								case "buffer_access":
-									instructions.push("StoreBuffer" + node2.type + "<" + node.size + ">");
+									instructions.push("StoreBuffer" + node2.type + "<" + node2.size + ">");
 									break;
 								default:
 									console.log("Internal error when compiling, unary modifier on non-static lvalue '" + node2.operator +"'.");
@@ -2484,24 +2488,24 @@ exports.compile = function(funcs) {
 							}
 					} else { /////// an assignment other than =
 						// grab the value
-						var node2 = node.expression;
+						var t = node.target;
 
-						switch(node2.operation) {
+						switch(t.operation) {
 							// {operation: "variable_access", variable: variable }
 							case "variable_access":
-								while(node2.variable.replaceBy !== undefined)
-									node2.variable = node2.variable.replaceBy;
+								while(t.variable.replaceBy !== undefined)
+									t.variable = t.variable.replaceBy;
 
-								if(node2.variable.closure)
-									instructions.push("LoadClosure " + getClosureNumber(node2.variable));
+								if(t.variable.closure)
+									instructions.push("LoadClosure " + getClosureNumber(t.variable));
 								else
 									// local variable
-									instructions.push("Grab " + (node2.variable.stackNumber + stackDepth));
+									instructions.push("Grab " + (t.variable.stackNumber + stackDepth));
 								break;
 							// {operation: "array_access", array: left, element: expression}
 							case "array_access":
-								compileNode(node2.element, stackDepth, true);
-								compileNode(node2.array, stackDepth + 1, true);
+								compileNode(t.element, stackDepth, true);
+								compileNode(t.array, stackDepth + 1, true);
 
 								// save element/array for when we write back
 								instructions.push("Grab 1");
@@ -2512,8 +2516,8 @@ exports.compile = function(funcs) {
 								break;
 							// {operation: "property_access", object: left, identifier: lexer.getValue() };
 							case "property_access":
-								instructions.push("PushString " + encodeString(node2.identifier));
-								compileNode(node2.object, stackDepth + 1, true);
+								instructions.push("PushString " + encodeString(t.identifier));
+								compileNode(t.object, stackDepth + 1, true);
 								// save string/object for when we write back
 								instructions.push("Grab 1");
 								instructions.push("Grab 1");
@@ -2523,17 +2527,18 @@ exports.compile = function(funcs) {
 								break;
 							// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
 							case "buffer_access":
-								compileNode(node2.address, stackDepth, true);
-								compileNode(node2.buffer, stackDepth + 1, true);
+								compileNode(t.address, stackDepth, true);
+								compileNode(t.buffer, stackDepth + 1, true);
 								// save address/buffer for when we write back
 								instructions.push("Grab 1");
 								instructions.push("Grab 1");
 								stackDepth += 2;
 									
-								instructions.push("LoadBuffer" + node2.type + "<" + node.size + ">");
+								instructions.push("LoadBuffer" + t.type + "<" + t.size + ">");
 								break;
 							default:
-								console.log("Internal error when compiling, unary modifier on non-static lvalue '" + node2.operator +"'.");
+								console.log("Internal error when compiling, unary modifier on non-static lvalue '" + t.operator +"'.");
+								console.log(node);
 								break;
 						}
 
@@ -2584,7 +2589,7 @@ exports.compile = function(funcs) {
 
 						if(expectReturn) {
 							// we expect to return
-							if(node2.operation === "variable_access")
+							if(t === "variable_access")
 								instructions.push("Grab 0");
 							else {
 								// we want to shuffle stack
@@ -2604,7 +2609,7 @@ exports.compile = function(funcs) {
 
 						} else {
 							// don't care about returning it
-							if(node2.operation !== "variable_access") {
+							if(t.operation !== "variable_access") {
 								// we want to shuffle stack
 								// 		FROM	TO
 								// 2	Element	Value
@@ -2619,17 +2624,17 @@ exports.compile = function(funcs) {
 						}
 							
 						// save the value back
-						switch(node2.operation) {
+						switch(t.operation) {
 							// {operation: "variable_access", variable: variable }
 							case "variable_access":
-								while(node2.variable.replaceBy !== undefined)
-									node2.variable = node2.variable.replaceBy;
+								while(t.variable.replaceBy !== undefined)
+									t.variable = node2.variable.replaceBy;
 
-								if(node2.variable.closure)
-									instructions.push("StoreClosure " + getClosureNumber(node2.variable));
+								if(t.variable.closure)
+									instructions.push("StoreClosure " + getClosureNumber(t.variable));
 								else
 									// local variable
-									instructions.push("Store " + (node2.variable.stackNumber + stackDepth - 1));
+									instructions.push("Store " + (t.variable.stackNumber + stackDepth - 1));
 								break;
 							// {operation: "array_access", array: left, element: expression}
 							// {operation: "property_access", object: left, identifier: lexer.getValue() };
@@ -2640,10 +2645,10 @@ exports.compile = function(funcs) {
 								break;
 							// {operation: "buffer_access", buffer: left, type: type, size: size, address: addr}
 							case "buffer_access":
-								instructions.push("StoreBuffer" + node2.type + "<" + node.size + ">");
+								instructions.push("StoreBuffer" + t.type + "<" + t.size + ">");
 								break;
 							default:
-								console.log("Internal error when compiling, unary modifier on non-static lvalue '" + node2.operator +"'.");
+								console.log("Internal error when compiling, unary modifier on non-static lvalue '" + t.operator +"'.");
 								break;
 						}
 						// {operation: "variable_access", variable: variable }
