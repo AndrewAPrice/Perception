@@ -1,0 +1,20 @@
+var doSomething, cos;
+doSomething = function(abc) { return abc; };
+cos = doSomething;
+
+var f = function(a) {
+	var q = 2;
+	var one = 3 - 2;
+	var b = cos(a + one) * q;
+	var c = 0;
+
+	for(var i = 0; i < 10; i++) {
+		b += cos!(a + one);
+		doSomething(b);
+		c += cos!(q);
+	}
+
+	return b;
+};
+
+f(100);
