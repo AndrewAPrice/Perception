@@ -20,7 +20,7 @@ LoadElement
 CallFunctionNoReturn 1
 PushUnsignedInteger 35
 LoadClosure 0
-CallPureFunction 1
+CallFunction 1
 Store 0
 Grab 0
 PushString "end"
@@ -40,11 +40,11 @@ Grab 0
 PushUnsignedInteger 1
 Subtract
 LoadClosure 0
-CallPureFunction 1
+CallFunction 1
 Grab 1
 PushUnsignedInteger 2
 Subtract
 LoadClosure 0
-CallPureFunction 1
+CallFunction 1
 Add
 Return
