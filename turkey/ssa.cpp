@@ -14,6 +14,8 @@ struct ssa_bytecode_markers {
 };
 
 void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
+	function->basic_blocks_count = 0;
+
 	/* STEP 1: scan for basic blocks
 	   scan the bytecode for markers where basic blocks begin, and keep a track of the stack size at each bytecode */
 	unsigned char *bytecode = (unsigned char *)function->start;

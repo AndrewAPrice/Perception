@@ -50,6 +50,21 @@ void turkey_module_cleanup(TurkeyVM *vm) {
 			if(current->functions != 0) {
 				for(unsigned int i = 0; i < current->function_count; i++) {
 					if(current->functions[i] != 0) {
+						unsigned int basic_blocks_count = current->functions[i]->basic_blocks_count;
+
+						if(!vm->debug && basic_blocks_count > 0) {
+							for(unsigned int j = 0; j < current->functions[i]->basic_blocks_count; j++) {
+								unsigned int instructions_count = current->functions[i]->basic_blocks[j].instructions_count;
+								if(instructions_count > 0) {
+									turkey_free_memory(vm->tag, current->functions[i]->basic_blocks[j].instructions,
+										(sizeof TurkeyInstruction) * instructions_count);
+								}
+							}
+
+							turkey_free_memory(vm->tag, current->functions[i]->basic_blocks,
+								(sizeof TurkeyBasicBlock) * basic_blocks_count);
+						}
+
 						turkey_free_memory(vm->tag, current->functions[i], sizeof TurkeyFunction);
 					}
 				}
@@ -172,7 +187,7 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 	unsigned int function_header_start, unsigned int functions,
 	unsigned int code_block_start, unsigned int code_block_length,
 	void *file, size_t file_size) {
-		unsigned int function_table_length = functions * 5 * 4;
+		unsigned int function_table_length = functions * 4 * 4;
 		if(function_header_start + function_table_length > file_size ||
 			code_block_start + code_block_length > file_size ||
 			functions == 0
@@ -203,11 +218,10 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 		unsigned int start_addr = 0;
 
 		for(unsigned int i = 0; i < functions; i++) {
-			unsigned int code_length = *(unsigned int *)((size_t)file + function_header_start + i * 5 * 4);
+			unsigned int code_length = *(unsigned int *)((size_t)file + function_header_start + i * 4 * 4);
 			// skip debug block
-			unsigned int parameters = *(unsigned int *)((size_t)file + function_header_start + i * 5 * 4 + 8);
-			/* todo: remove local vars from file */
-			unsigned int closure_vars = *(unsigned int *)((size_t)file + function_header_start + i * 5 * 4 + 16);
+			unsigned int parameters = *(unsigned int *)((size_t)file + function_header_start + i * 4 * 4 + 8);
+			unsigned int closure_vars = *(unsigned int *)((size_t)file + function_header_start + i * 4 * 4 + 12);
 
 			if(start_addr + code_length > code_block_length) {
 				// cannot fit in the code block
@@ -295,7 +309,7 @@ TurkeyVariable turkey_module_load_file(TurkeyVM *vm, TurkeyString *filepath) {
 
 	unsigned int function_header_start = 26;
 	unsigned int functions = *(unsigned int *)((size_t)file + 10);
-	unsigned int code_block_start = function_header_start + functions * 20;
+	unsigned int code_block_start = function_header_start + functions * 16;
 	unsigned int code_block_length = *(unsigned int *)((size_t)file + 14);
 
 	read_functions_from_file(vm, module, function_header_start, functions, code_block_start, code_block_length, file, file_size);

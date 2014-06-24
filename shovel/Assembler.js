@@ -294,7 +294,7 @@ var handleFunction = function(funcHeader) {
 	// funcHeader.codeLength = 0; // the length of this code block - set below
 	funcHeader.debugBlock = debugBlockSize; // debug block
 	funcHeader.parameters = 0; // the number of input parameters
-	funcHeader.localVariables = 0; // the number of local variables
+	//funcHeader.localVariables = 0; // the number of local variables
 	funcHeader.closureVariables = 0; // the number of closure variables
 
 	var funcFilename = inputFile;
@@ -420,7 +420,7 @@ var handleFunction = function(funcHeader) {
 					if(op < 0)
 						errorMessage(i, "-locals must take a positive number.");
 					funcHeader.localVariables = op;
-					break; */
+					break;*/
 				case '-closures': // specifies the number of closure variables
 					if(operands.length != 1)
 						errorMessage(i, "-closures takes 1 argument.");
@@ -1065,7 +1065,15 @@ var handleFunction = function(funcHeader) {
 		// top is pointer to bytecols, name start/name length, filename start/filename length,
 		// start col, end col, a pointer for each parameter, local, closure variable - start/length
 		// string pointers are 6 bytes (32 bit pointer, 16 bit length)
-		var debuggingBlockHeader = 4 + 6 + 6 + 4 + 4 + ((funcHeader.parameters + funcHeader.localVariables +
+		var localVariables = 0;
+		for(var l in localVarNames) {
+			if(l > localVariables)
+				localVariables = l;
+		}
+
+		funcHeader.localVariables = localVariables;
+
+		var debuggingBlockHeader = 4 + 6 + 6 + 4 + 4 + ((funcHeader.parameters + localVariables +
 			funcHeader.closureVariables) * 6);
 
 		var byteCols = bytes * 8; // two 32-bit column numbers for each line - yes it's huge but it's only in debugging builds
@@ -1098,7 +1106,7 @@ var handleFunction = function(funcHeader) {
 
 		funcHeader.paramNames = funcParams;
 
-		for(var i = 0; i < funcHeader.localVariables; i++) {
+		for(var i = 0; i < localVariables; i++) {
 			var name = localVarNames[i]; // find the name
 			if(name === undefined)
 				name = "?"; // unknown
@@ -1182,7 +1190,6 @@ var writeFunctionHeaders = function(funcHeader) {
 	writeUInt32(funcHeader.codeLength); // length of the code block
 	writeUInt32(funcHeader.debugBlock); // pointer to a debug block, if present
 	writeUInt32(funcHeader.parameters); // number of input parameters
-	writeUInt32(funcHeader.localVariables); // number of local variables
 	writeUInt32(funcHeader.closureVariables); // number of closure variables
 };
 
@@ -1216,7 +1223,7 @@ var writeStringTable = function() {
 
 var writeDebugBlock = function(func) {
 	// write the debug header
-	var debuggingBlockHeader = 4 + 6 + 6 + 4 + 4 + ((func.parameters + func.localVariables + func.closureVariables) * 6);
+	var debuggingBlockHeader = 4 + 6 + 6 + 4 + 4 + ((func.parameters + localVariables + func.closureVariables) * 6);
 
  	// pointer to the string table at the end if the debug block
 	var stringTableOffset = debuggingBlockHeader + func.bytes * 8;
