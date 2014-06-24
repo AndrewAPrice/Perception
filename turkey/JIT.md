@@ -14,11 +14,11 @@ Turkey converts bytecode into single static assignment form when the bytecode is
   1: Integer 10
   2: Add [0] [1]
 ```
-There a various optimizations that are done by looking at the single static assignment form - constant propagation, dead code elimination, and common sub-expression elimination.
+There a various optimizations that are done by looking at the single static assignment form - constant propagation, dead code elimination, and common sub-expression elimination. SSA optimizations are only done if OPTIMIZE_SSA is enabled (it is defined by default in turkey.h).
 
 SSA form is not stored out to bytcode - because a) it can be larger - all SSA form instructions are 9 bytes, while bytecode instructions can a small as one 1 byte, and b) SSA form is unsafe - it's designed to be fast to compile into machine code, and so many checks that are present when loading and parsing bytecode are not done with SSA form (and we can avoid doing them - as we can treat the compiler as a trusted source - but if they came from a file, we cannot assume the same.)
 
-You can print out the SSA form by compiling ssa.cpp with PRINT_SSA defined. However, PRINT_SSA introduces a dependency on stdio.h (for printf) which may not be avaliable on bare metal platforms.
+You can print out the SSA form by compiling ssa_printer.cpp with PRINT_SSA defined. However, PRINT_SSA introduces a dependency on stdio.h (for printf) which may not be avaliable on bare metal platforms.
 
 # Assignment-Time Basic Block Versioning
 Being a dynamic language, not all types are known when generating SSA form - particularly types of parameters, when we read an element of an aggregate object, and when function calls return a value. There are two things we want to avoid doing - a) having to pass around types - because we have limited registers and memory access is slow, so we would prefer to be able to remove having to pass around types all of the time - and avoiding having to encode it into high-bits of registers or something, allowing us to have the entire width of the register for storing values, and b) type checking everytime we perform an operation, because there are 121-combinations of types for two address instructions - with most combinations having different outcomes.
