@@ -9,7 +9,29 @@ void turkey_ssa_printer_print_function(TurkeyVM *vm, TurkeyFunction *function) {
 	printf("Printing SSA for function:\n");
 	for(unsigned int i = 0; i < function->basic_blocks_count; i++) {
 		const TurkeyBasicBlock &bb = function->basic_blocks[i];
-		printf(" Basic block (BB%i):\n", i);
+		unsigned int entry_points = bb.entry_point_count;
+		if(i == 0)
+			entry_points++;
+
+		printf(" Basic block (BB%i, entry points: %i", i, entry_points);
+		if(entry_points > 0) {
+			printf(" - ");
+			bool first;
+			if(i == 0) {
+				printf("function");
+				first = false;
+			} else
+				first = true;
+
+			for(unsigned int j = 0; j < bb.entry_point_count; j++) {
+				if(first) first = false;
+				else printf(", ");
+
+				printf("BB%i", bb.entry_points[j]);
+			}
+		}
+
+		printf("):\n", i, entry_points);
 
 		for(unsigned int j = 0; j < bb.instructions_count; j++) {
 			const TurkeyInstruction &inst = bb.instructions[j];

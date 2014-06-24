@@ -368,6 +368,10 @@ struct TurkeyBasicBlock {
 	TurkeyInstruction *instructions; /* array of ssa instructions */
 	unsigned int instructions_count; /* number of instructions */
 
+	unsigned int *entry_points; /* array of BB indicies control could have come from */
+	unsigned int entry_point_count; /* size of the entry_point array */
+
+
 	/* todo - add versioning info here */
 };
 
