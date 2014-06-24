@@ -404,6 +404,8 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 	}
 
 	unsigned int total_basic_blocks = basic_block_no - 1;
+	if(total_basic_blocks == 0)
+		total_basic_blocks = 1; /* empty function */
 	
 #undef exit_error
 
@@ -2335,6 +2337,27 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 
 		bytecode++;
 		bytecode_pos++;
+	}
+
+	/* make sure we have at least one basic block (e.g. the function is empty) */
+	if(basic_block_no == 0) {
+		// no code at all
+		function->basic_blocks[0].stack_entry = 0;
+		basic_block_no = 1;
+		instructions.Clear();
+	}
+	/* make sure we ended the function with a return or jump */
+	if(instructions.position == 0) {
+		/* empty function simply returns null */
+		TurkeyInstruction inst; inst.instruction = turkey_ir_return_null;
+		instructions.Push(inst);
+	} else {
+		unsigned char i = instructions.variables[instructions.position - 1].instruction;
+		if(i != turkey_ir_return && i != turkey_ir_return_null && i != turkey_ir_jump) {
+			/* insert a return null */
+			TurkeyInstruction inst; inst.instruction = turkey_ir_return_null;
+			instructions.Push(inst);
+		}
 	}
 
 	/* ending another basic block, save their instructions */
