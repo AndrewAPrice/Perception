@@ -206,7 +206,7 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 			unsigned int code_length = *(unsigned int *)((size_t)file + function_header_start + i * 5 * 4);
 			// skip debug block
 			unsigned int parameters = *(unsigned int *)((size_t)file + function_header_start + i * 5 * 4 + 8);
-			unsigned int local_vars = *(unsigned int *)((size_t)file + function_header_start + i * 5 * 4 + 12);
+			/* todo: remove local vars from file */
 			unsigned int closure_vars = *(unsigned int *)((size_t)file + function_header_start + i * 5 * 4 + 16);
 
 			if(start_addr + code_length > code_block_length) {
@@ -219,7 +219,6 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 				function->start = (void *)((size_t)module->code_block + start_addr);
 				function->end = (void *)((size_t)module->code_block + start_addr + code_length);
 				function->parameters = parameters;
-				function->locals = local_vars;
 				function->closures = closure_vars;
 				module->functions[i] = function;
 			}

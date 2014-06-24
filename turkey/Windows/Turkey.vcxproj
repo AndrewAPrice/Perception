@@ -277,6 +277,8 @@
     <ClCompile Include="..\interpreter.cpp" />
     <ClCompile Include="..\module.cpp" />
     <ClCompile Include="..\object.cpp" />
+    <ClCompile Include="..\ssa_optimizer.cpp" />
+    <ClCompile Include="..\ssa_printer.cpp" />
     <ClCompile Include="..\stack.h" />
     <ClCompile Include="..\stack_helpers.cpp" />
     <ClCompile Include="..\string.cpp" />

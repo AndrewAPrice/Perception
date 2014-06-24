@@ -58,6 +58,12 @@
     <ClCompile Include="..\stack.h">
       <Filter>Headers</Filter>
     </ClCompile>
+    <ClCompile Include="..\ssa_printer.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ssa_optimizer.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\external\cityhash\city.h">

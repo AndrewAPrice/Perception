@@ -714,7 +714,7 @@ void turkey_interpreter_instruction_pop_many(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
 		return;
 
-	size_t count = (size_t)*(char *)vm->interpreter_state->code_ptr;
+	size_t count = (size_t)*(unsigned char *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr++;
 
 	while(count > 0) {
@@ -727,7 +727,7 @@ void turkey_interpreter_instruction_grab_8(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
 		return;
 
-	unsigned int grab = (unsigned int)*(char *)vm->interpreter_state->code_ptr;
+	unsigned int grab = (unsigned int)*(unsigned char *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr++;
 	
 	turkey_grab(vm, grab);
@@ -759,7 +759,7 @@ void turkey_interpreter_instruction_push_many_nulls(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
 		return;
 
-	size_t nulls = (size_t)*(char *)vm->interpreter_state->code_ptr;
+	size_t nulls = (size_t)*(unsigned char *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr++;
 
 	for(;nulls > 0; nulls--)
@@ -807,7 +807,7 @@ void turkey_interpreter_instruction_store_8(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
 		return;
 
-	unsigned int a = (unsigned int)*(char *)vm->interpreter_state->code_ptr;
+	unsigned int a = (unsigned int)*(unsigned char *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr++;
 
 	TurkeyVariable var;
@@ -843,9 +843,9 @@ void turkey_interpreter_instruction_swap_8(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr + 1 >= vm->interpreter_state->code_end)
 		return;
 
-	unsigned int a = (unsigned int)*(char *)vm->interpreter_state->code_ptr;
+	unsigned int a = (unsigned int)*(unsigned char *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr++;
-	unsigned int b = (unsigned int)*(char *)vm->interpreter_state->code_ptr;
+	unsigned int b = (unsigned int)*(unsigned char *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr++;
 	
 	turkey_swap(vm, a, b);

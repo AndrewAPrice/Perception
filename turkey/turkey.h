@@ -2,6 +2,11 @@
 #ifndef TURKEY_H
 #define TURKEY_H
 
+/* define PRINT_SSA to output the internal SSA form after loading a module - you should only need this is working on Turkey's code */
+#define PRINT_SSA
+
+/* define OPTIMIZE_SSA to optimize the SSA form  - you should only need this is working on Turkey's code */
+#define OPTIMIZE_SSA
 
 #ifdef DEBUG
 #include <assert.h>
@@ -157,7 +162,7 @@
 #define turkey_ir_greater_than_or_equals 23
 #define turkey_ir_is_true 24
 #define turkey_ir_is_false 25
-#define turkey_ir_phi 26
+#define turkey_ir_parameter 26
 #define turkey_ir_load_closure 27
 #define turkey_ir_store_closure 28
 #define turkey_ir_new_array 29
@@ -225,7 +230,7 @@ struct TurkeySettings {
 	void *tag;
 };
 
-enum TurkeyType : char {
+enum TurkeyType : unsigned char {
 	TT_Boolean = 0,
 	TT_Unsigned = 1,
 	TT_Signed = 2,
@@ -237,12 +242,14 @@ enum TurkeyType : char {
 	TT_Buffer = 7,
 	TT_FunctionPointer = 8,
 	TT_String = 9,
-	TT_Closure = 10 // used internally
+	TT_Closure = 10, // used internally
 	// 11
 	// 12
 	// 13
-	// 14
-	// 15 - undefined
+	TT_Unknown = 15,
+
+	TT_Mask = 15, // for unmasking TT_Marked
+	TT_Marked = 1 << 7 // used by the ssa optimizer
 };
 
 struct TurkeyString;
@@ -345,8 +352,8 @@ extern bool turkey_to_boolean(TurkeyVM *vm, TurkeyVariable &var_in);
 
 /* instruction in SSA form, used by the JIT compiler */
 struct TurkeyInstruction {
-	char instruction;
-	char return_type;
+	unsigned char instruction;
+	unsigned char return_type;
 	union {
 		struct {
 			unsigned int a;
@@ -359,7 +366,7 @@ struct TurkeyInstruction {
 struct TurkeyBasicBlock {
 	unsigned int stack_entry; /* parameters entering */
 	TurkeyInstruction *instructions; /* array of ssa instructions */
-	unsigned int instructions_size; /* number of instructions */
+	unsigned int instructions_count; /* number of instructions */
 
 	/* todo - add versioning info here */
 };
@@ -492,7 +499,8 @@ struct TurkeyFunction {
 	void *end; /* pointer beyond the last bytecode for this function */
 	unsigned int parameters; /* number of parameters this function expects */
 	unsigned int closures; /* number of closure variables this function creates */
-	unsigned int locals; /* number of local variables this function has */
+	TurkeyBasicBlock *basic_blocks; /* array of basic blocks */
+	unsigned int basic_blocks_count; /* number of basic blocks */
 };
 
 struct TurkeyFunctionArray {
@@ -678,6 +686,12 @@ extern void turkey_stringtable_removestring(TurkeyVM *vm, TurkeyString *string);
 
 /* ssa.cpp */
 extern void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function);
+
+/* ssa_printer.cpp */
+extern void turkey_ssa_printer_print_function(TurkeyVM *vm, TurkeyFunction *function);
+
+/* ssa_optimizer.cpp */
+extern void turkey_ssa_optimizer_optimize_function(TurkeyVM *vm, TurkeyFunction *function);
 
 /* instructions.cpp */
 extern TurkeyInstructionHandler turkey_interpreter_operations[256];
