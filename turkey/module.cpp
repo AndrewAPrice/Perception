@@ -50,6 +50,7 @@ void turkey_module_cleanup(TurkeyVM *vm) {
 			if(current->functions != 0) {
 				for(unsigned int i = 0; i < current->function_count; i++) {
 					if(current->functions[i] != 0) {
+						/* cleanup function */
 						unsigned int basic_blocks_count = current->functions[i]->basic_blocks_count;
 
 						if(!vm->debug && basic_blocks_count > 0) {
@@ -59,6 +60,10 @@ void turkey_module_cleanup(TurkeyVM *vm) {
 									turkey_free_memory(vm->tag, current->functions[i]->basic_blocks[j].instructions,
 										(sizeof TurkeyInstruction) * instructions_count);
 								}
+
+								if(current->functions[i]->basic_blocks[j].entry_point_count > 0)
+									turkey_free_memory(vm->tag, current->functions[i]->basic_blocks[j].entry_points,
+										(sizeof (unsigned int)) * current->functions[i]->basic_blocks[j].entry_point_count);
 							}
 
 							turkey_free_memory(vm->tag, current->functions[i]->basic_blocks,
