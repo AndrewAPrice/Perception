@@ -25,3 +25,7 @@ Eventual goals:
 
 Long term goals:
 - Make a great OS.
+
+## Want to help?
+I would be interested in accepting patches, mainly those that improve performance (such as new optimizations for Turkey) or clean up
+code (the SSA generator is really messy!)
