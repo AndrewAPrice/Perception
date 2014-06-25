@@ -127,7 +127,7 @@ TurkeyString *turkey_to_string(TurkeyVM *vm, TurkeyVariable &var_in) {
 	case TT_Signed: {
 		char temp[64];
 		size_t len = 64;
-		turkey_print_string(temp, len, "%lu", var_in.signed_value);
+		turkey_print_string(temp, len, "%li", var_in.signed_value);
 		return turkey_stringtable_newstring(vm, temp, (unsigned int)len);
 		}
 	case TT_String:

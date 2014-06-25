@@ -64,6 +64,9 @@
     <ClCompile Include="..\ssa_optimizer.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\ssa_conversions.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\external\cityhash\city.h">

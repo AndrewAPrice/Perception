@@ -2501,6 +2501,8 @@ exports.compile = function(funcs) {
 								else
 									// local variable
 									instructions.push("Grab " + (t.variable.stackNumber + stackDepth));
+
+								stackDepth++;
 								break;
 							// {operation: "array_access", array: left, element: expression}
 							case "array_access":

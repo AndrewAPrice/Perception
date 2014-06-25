@@ -38,7 +38,10 @@ void turkey_ssa_printer_print_function(TurkeyVM *vm, TurkeyFunction *function) {
 
 			const char *return_type;
 
-			switch(inst.return_type) {
+			if(inst.return_type & TT_Marked)
+				printf(" *");
+
+			switch(inst.return_type & TT_Mask) {
 			case TT_Boolean:
 				return_type = " Boolean";
 				break;

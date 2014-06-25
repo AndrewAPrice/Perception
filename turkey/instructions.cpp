@@ -183,6 +183,9 @@ void turkey_interpreter_instruction_increment(TurkeyVM *vm) {
 	default:
 		ret.type = TT_Null;
 		break;
+	case TT_Boolean:
+		ret.boolean_value = true;
+		break;
 	case TT_Float:
 		ret.float_value = a.float_value + 1.0;
 		break;
@@ -210,6 +213,9 @@ void turkey_interpreter_instruction_decrement(TurkeyVM *vm) {
 	switch(a.type) {
 	default:
 		ret.type = TT_Null;
+		break;
+	case TT_Boolean:
+		ret.boolean_value = false;
 		break;
 	case TT_Float:
 		ret.float_value = a.float_value - 1.0;
@@ -242,7 +248,7 @@ void turkey_interpreter_instruction_xor(TurkeyVM *vm) {
 		break;
 	case TT_Float:
 		ret.type = TT_Signed;
-		ret.signed_value = (unsigned long long int)a.float_value ^ turkey_to_signed(vm, b);
+		ret.signed_value = (signed long long int)a.float_value ^ turkey_to_signed(vm, b);
 		break;
 	case TT_Boolean:
 		ret.boolean_value = a.boolean_value ^ turkey_to_boolean(vm, b);
@@ -275,10 +281,10 @@ void turkey_interpreter_instruction_and(TurkeyVM *vm) {
 		break;
 	case TT_Float:
 		ret.type = TT_Signed;
-		ret.signed_value = (unsigned long long int)a.float_value && turkey_to_signed(vm, b);
+		ret.signed_value = (signed long long int)a.float_value & turkey_to_signed(vm, b);
 		break;
 	case TT_Boolean:
-		ret.boolean_value = a.boolean_value && turkey_to_boolean(vm, b);
+		ret.boolean_value = a.boolean_value & turkey_to_boolean(vm, b);
 		break;
 	case TT_Unsigned:
 		ret.unsigned_value = a.unsigned_value & turkey_to_unsigned(vm, b);
@@ -308,10 +314,10 @@ void turkey_interpreter_instruction_or(TurkeyVM *vm) {
 		break;
 	case TT_Float:
 		ret.type = TT_Signed;
-		ret.signed_value = (unsigned long long int)a.float_value || turkey_to_signed(vm, b);
+		ret.signed_value = (signed long long int)a.float_value | turkey_to_signed(vm, b);
 		break;
 	case TT_Boolean:
-		ret.boolean_value = a.boolean_value || turkey_to_boolean(vm, b);
+		ret.boolean_value = a.boolean_value | turkey_to_boolean(vm, b);
 		break;
 	case TT_Unsigned:
 		ret.unsigned_value = a.unsigned_value | turkey_to_unsigned(vm, b);
@@ -341,7 +347,7 @@ void turkey_interpreter_instruction_not(TurkeyVM *vm) {
 		break;
 	case TT_Float:
 		ret.type = TT_Signed;
-		ret.signed_value = ~(unsigned long long int)a.float_value;
+		ret.signed_value = ~(signed long long int)a.float_value;
 		break;
 	case TT_Boolean:
 		ret.boolean_value = !a.boolean_value;
@@ -483,7 +489,7 @@ void turkey_interpreter_instruction_is_null(TurkeyVM *vm) {
 	TurkeyVariable var;
 	if(!vm->variable_stack.Pop(var)) var.type = TT_Null;
 
-	var.boolean_value = !turkey_to_boolean(vm, var);
+	var.boolean_value = var.type == TT_Null;
 	var.type = TT_Boolean;
 
 	vm->variable_stack.Push(var);
@@ -493,7 +499,7 @@ void turkey_interpreter_instruction_is_not_null(TurkeyVM *vm) {
 	TurkeyVariable var;
 	if(!vm->variable_stack.Pop(var)) var.type = TT_Null;
 
-	var.boolean_value = turkey_to_boolean(vm, var);
+	var.boolean_value = var.type != TT_Null;
 	var.type = TT_Boolean;
 
 	vm->variable_stack.Push(var);
@@ -1949,6 +1955,9 @@ void turkey_interpreter_instruction_invert(TurkeyVM *vm) {
 	switch(a.type) {
 	default:
 		ret.type = TT_Null;
+		break;
+	case TT_Boolean:
+		ret.boolean_value = !a.boolean_value;
 		break;
 	case TT_Float:
 		ret.float_value = a.float_value * -1;

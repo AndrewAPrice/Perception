@@ -285,6 +285,7 @@
     <ClCompile Include="..\stringtable.cpp" />
     <ClCompile Include="..\turkey.cpp" />
     <ClCompile Include="..\ssa.cpp" />
+    <ClCompile Include="..\ssa_conversions.cpp" />
     <ClCompile Include="hooks.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>

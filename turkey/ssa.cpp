@@ -241,7 +241,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			bytecode++; bytecode_pos++; bytecode_markers[bytecode_pos].is_opcode = false;
 			{
 				unsigned char args = *bytecode;
-				stacksize -= (int)args - 1;
+				stacksize -= (int)args + 1;
 			}
 			break;
 
@@ -490,20 +490,21 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 
 			codePos = 0;
 
-			function->basic_blocks[basic_block_no].stack_entry = bytecode_markers[bytecode_pos].stack_size;
-			for(unsigned int i = 0; i < function->basic_blocks[basic_block_no].stack_entry; i++) {
+			function->basic_blocks[basic_block_no].parameters_entering = bytecode_markers[bytecode_pos].stack_size;
+			for(unsigned int i = 0; i < function->basic_blocks[basic_block_no].parameters_entering; i++) {
 				stack.Push(codePos);
 				TurkeyInstruction inst; inst.instruction = turkey_ir_parameter;
-				inst.a = function->basic_blocks[basic_block_no].stack_entry - (unsigned int)i - 1;
+				inst.a = i; inst.b = 0; //function->basic_blocks[basic_block_no].stack_entry - (unsigned int)i - 1;
 
 				instructions.Push(inst);
 				codePos++;
 			}
 			basic_block_no++;
+
 		}
 
 		assert(basic_block_no > 0);
-
+		
 		/* iterate over the instructions and generate SSA IR for each */
 		switch(*bytecode) {
 		case turkey_instruction_add: {
@@ -1643,6 +1644,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			TurkeyString *str = function->module->strings[string_index];
 			inst.large = (unsigned long long int)str;
 			if(inst.large == 0) exit_error();
+			turkey_gc_hold(vm, str, TT_String);
 
 			instructions.Push(inst);
 			stack.Push(codePos);
@@ -1662,6 +1664,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			TurkeyString *str = function->module->strings[string_index];
 			inst.large = (unsigned long long int)str;
 			if(inst.large == 0) exit_error();
+			turkey_gc_hold(vm, str, TT_String);
 
 			instructions.Push(inst);
 			stack.Push(codePos);
@@ -1683,6 +1686,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			TurkeyString *str = function->module->strings[string_index];
 			inst.large = (unsigned long long int)str;
 			if(inst.large == 0) exit_error();
+			turkey_gc_hold(vm, str, TT_String);
 
 			instructions.Push(inst);
 			stack.Push(codePos);
@@ -1874,6 +1878,13 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned char pos = *bytecode;
 			unsigned int bb = bytecode_markers[pos].basic_block - 1;
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump;
+			inst.a = bb;
+			instructions.Push(inst);
+			codePos++;
+			unconditional_jump = true;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+			
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -1882,12 +1893,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump;
-			inst.a = bb;
-			instructions.Push(inst);
-			codePos++;
-			unconditional_jump = true;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_16: {
 			if(bytecode + 2 >= function->end)
@@ -1898,6 +1903,13 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int bb = bytecode_markers[pos].basic_block - 1;
 			bytecode++; bytecode_pos++;
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump;
+			inst.a = bb;
+			instructions.Push(inst);
+			codePos++;
+			unconditional_jump = true;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -1906,12 +1918,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump;
-			inst.a = bb;
-			instructions.Push(inst);
-			codePos++;
-			unconditional_jump = true;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_32: {
 			if(bytecode + 4 >= function->end)
@@ -1924,6 +1930,13 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			bytecode++; bytecode_pos++;
 			bytecode++; bytecode_pos++;
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump;
+			inst.a = bb;
+			instructions.Push(inst);
+			codePos++;
+			unconditional_jump = true;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -1932,12 +1945,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump;
-			inst.a = bb;
-			instructions.Push(inst);
-			codePos++;
-			unconditional_jump = true;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_if_true_8: {
 			if(bytecode + 1 >= function->end)
@@ -1950,6 +1957,12 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int b;
 			if(!stack.Pop(b)) exit_error();
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_true;
+			inst.a = bb; inst.b = b;
+			instructions.Push(inst);
+			codePos++;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -1958,11 +1971,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_true;
-			inst.a = bb; inst.b = b;
-			instructions.Push(inst);
-			codePos++;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_if_true_16: {
 			if(bytecode + 2 >= function->end)
@@ -1976,6 +1984,12 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int b;
 			if(!stack.Pop(b)) exit_error();
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_true;
+			inst.a = bb; inst.b = b;
+			instructions.Push(inst);
+			codePos++;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -1984,11 +1998,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_true;
-			inst.a = bb; inst.b = b;
-			instructions.Push(inst);
-			codePos++;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_if_true_32: {
 			if(bytecode + 4 >= function->end)
@@ -2004,6 +2013,12 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int b;
 			if(!stack.Pop(b)) exit_error();
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_true;
+			inst.a = bb; inst.b = b;
+			instructions.Push(inst);
+			codePos++;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -2012,11 +2027,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_true;
-			inst.a = bb; inst.b = b;
-			instructions.Push(inst);
-			codePos++;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_if_false_8: {
 			if(bytecode + 1 >= function->end)
@@ -2029,6 +2039,12 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int b;
 			if(!stack.Pop(b)) exit_error();
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_false;
+			inst.a = bb; inst.b = b;
+			instructions.Push(inst);
+			codePos++;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -2037,11 +2053,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_false;
-			inst.a = bb; inst.b = b;
-			instructions.Push(inst);
-			codePos++;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_if_false_16: {
 			if(bytecode + 2 >= function->end)
@@ -2055,6 +2066,12 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int b;
 			if(!stack.Pop(b)) exit_error();
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_false;
+			inst.a = bb; inst.b = b;
+			instructions.Push(inst);
+			codePos++;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -2063,11 +2080,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_false;
-			inst.a = bb; inst.b = b;
-			instructions.Push(inst);
-			codePos++;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_if_false_32: {
 			if(bytecode + 4 >= function->end)
@@ -2083,6 +2095,12 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int b;
 			if(!stack.Pop(b)) exit_error();
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_false;
+			inst.a = bb; inst.b = b;
+			instructions.Push(inst);
+			codePos++;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -2091,11 +2109,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_false;
-			inst.a = bb; inst.b = b;
-			instructions.Push(inst);
-			codePos++;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_if_null_8: {
 			if(bytecode + 1 >= function->end)
@@ -2108,6 +2121,12 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int b;
 			if(!stack.Pop(b)) exit_error();
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_null;
+			inst.a = bb; inst.b = b;
+			instructions.Push(inst);
+			codePos++;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -2116,11 +2135,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_null;
-			inst.a = bb; inst.b = b;
-			instructions.Push(inst);
-			codePos++;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_if_null_16: {
 			if(bytecode + 2 >= function->end)
@@ -2134,6 +2148,12 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int b;
 			if(!stack.Pop(b)) exit_error();
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_null;
+			inst.a = bb; inst.b = b;
+			instructions.Push(inst);
+			codePos++;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+			
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -2142,11 +2162,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_null;
-			inst.a = bb; inst.b = b;
-			instructions.Push(inst);
-			codePos++;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_if_null_32: {
 			if(bytecode + 4 >= function->end)
@@ -2162,6 +2177,12 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int b;
 			if(!stack.Pop(b)) exit_error();
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_null;
+			inst.a = bb; inst.b = b;
+			instructions.Push(inst);
+			codePos++;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+			
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -2170,11 +2191,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_null;
-			inst.a = bb; inst.b = b;
-			instructions.Push(inst);
-			codePos++;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_if_not_null_8: {
 			if(bytecode + 1 >= function->end)
@@ -2187,6 +2203,12 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int b;
 			if(!stack.Pop(b)) exit_error();
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_not_null;
+			inst.a = bb; inst.b = b;
+			instructions.Push(inst);
+			codePos++;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -2195,11 +2217,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_not_null;
-			inst.a = bb; inst.b = b;
-			instructions.Push(inst);
-			codePos++;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_if_not_null_16: {
 			if(bytecode + 2 >= function->end)
@@ -2213,6 +2230,12 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int b;
 			if(!stack.Pop(b)) exit_error();
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_not_null;
+			inst.a = bb; inst.b = b;
+			instructions.Push(inst);
+			codePos++;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -2221,11 +2244,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_not_null;
-			inst.a = bb; inst.b = b;
-			instructions.Push(inst);
-			codePos++;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_jump_if_not_null_32: {
 			if(bytecode + 4 >= function->end)
@@ -2241,6 +2259,12 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int b;
 			if(!stack.Pop(b)) exit_error();
 
+			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_not_null;
+			inst.a = bb; inst.b = b;
+			instructions.Push(inst);
+			codePos++;
+			basic_block_entry_points[bb].Push(basic_block_no - 1);
+
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
@@ -2249,11 +2273,6 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				codePos++;
 			}
 
-			TurkeyInstruction inst; inst.instruction = turkey_ir_jump_if_not_null;
-			inst.a = bb; inst.b = b;
-			instructions.Push(inst);
-			codePos++;
-			basic_block_entry_points[bb].Push(basic_block_no - 1);
 			break; }
 		case turkey_instruction_require: {
 			unsigned int a;
@@ -2382,7 +2401,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 	/* make sure we have at least one basic block (e.g. the function is empty) */
 	if(basic_block_no == 0) {
 		// no code at all
-		function->basic_blocks[0].stack_entry = 0;
+		function->basic_blocks[0].parameters_entering = 0;
 		basic_block_no = 1;
 		instructions.Clear();
 	}
@@ -2437,10 +2456,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 	}
 
 	/* optimize ssa */
-#ifdef SSA_OPTIMIZER
 	turkey_ssa_optimizer_optimize_function(vm, function);
-#else
-#endif
 	
 	/* print ssa*/
 	turkey_ssa_printer_print_function(vm, function);

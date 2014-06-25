@@ -249,6 +249,7 @@ enum TurkeyType : unsigned char {
 	TT_Unknown = 15,
 
 	TT_Mask = 15, // for unmasking TT_Marked
+	TT_Placeholder = 1 << 6, // for parameters that are placeholders (the caller branches and puts a parameter there) but not needed
 	TT_Marked = 1 << 7 // used by the ssa optimizer
 };
 
@@ -279,6 +280,31 @@ struct TurkeyVariable {
 typedef TurkeyVariable (*TurkeyNativeFunction)(TurkeyVM *vm, void *closure, unsigned int argc);
 
 typedef void (*TurkeyInstructionHandler)(TurkeyVM *vm);
+
+
+/* instruction in SSA form, used by the JIT compiler */
+struct TurkeyInstruction {
+	unsigned char instruction;
+	unsigned char return_type;
+	union {
+		struct {
+			unsigned int a;
+			unsigned int b;
+		};
+		unsigned long long int large;
+	};
+};
+
+struct TurkeyBasicBlock {
+	unsigned int parameters_entering; /* number of parameters entering */
+	TurkeyInstruction *instructions; /* array of ssa instructions */
+	unsigned int instructions_count; /* number of instructions */
+
+	unsigned int *entry_points; /* array of BB indicies control could have come from */
+	unsigned int entry_point_count; /* size of the entry_point array */
+
+	/* todo - add versioning info here */
+};
 
 /****** Virtual Machines -
  TurkeyVMs are unique instances of the virtual machine, many can be running simultaniously.
@@ -350,30 +376,12 @@ extern long long int turkey_to_signed(TurkeyVM *vm, TurkeyVariable &var_in);
 extern double turkey_to_float(TurkeyVM *vm, TurkeyVariable &var_in);
 extern bool turkey_to_boolean(TurkeyVM *vm, TurkeyVariable &var_in);
 
-/* instruction in SSA form, used by the JIT compiler */
-struct TurkeyInstruction {
-	unsigned char instruction;
-	unsigned char return_type;
-	union {
-		struct {
-			unsigned int a;
-			unsigned int b;
-		};
-		unsigned long long int large;
-	};
-};
-
-struct TurkeyBasicBlock {
-	unsigned int stack_entry; /* parameters entering */
-	TurkeyInstruction *instructions; /* array of ssa instructions */
-	unsigned int instructions_count; /* number of instructions */
-
-	unsigned int *entry_points; /* array of BB indicies control could have come from */
-	unsigned int entry_point_count; /* size of the entry_point array */
-
-
-	/* todo - add versioning info here */
-};
+/* ssa_conversions.cpp */
+extern TurkeyString *turkey_ssa_to_string(TurkeyVM *vm, TurkeyInstruction &instruction);
+extern unsigned long long int turkey_ssa_to_unsigned(TurkeyVM *vm, TurkeyInstruction &instruction);
+extern long long int turkey_ssa_to_signed(TurkeyVM *vm, TurkeyInstruction &instruction);
+extern double turkey_ssa_to_float(TurkeyVM *vm, TurkeyInstruction &instruction);
+extern bool turkey_ssa_to_boolean(TurkeyVM *vm, TurkeyInstruction &instruction);
 
 /***** debugging ****/
 /*
@@ -695,6 +703,10 @@ extern void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function);
 extern void turkey_ssa_printer_print_function(TurkeyVM *vm, TurkeyFunction *function);
 
 /* ssa_optimizer.cpp */
+extern bool turkey_ssa_optimizer_is_constant(const TurkeyInstruction &instruction);
+extern bool turkey_ssa_optimizer_is_constant_number(const TurkeyInstruction &instruction);
+extern bool turkey_ssa_optimizer_is_constant_string(const TurkeyInstruction &instruction);
+extern void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *function, unsigned int bb, unsigned int inst);
 extern void turkey_ssa_optimizer_optimize_function(TurkeyVM *vm, TurkeyFunction *function);
 
 /* instructions.cpp */
