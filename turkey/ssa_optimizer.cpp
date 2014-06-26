@@ -1893,14 +1893,21 @@ void turkey_ssa_optimizer_optimize_function(TurkeyVM *vm, TurkeyFunction *functi
 				case turkey_ir_store_buffer_float_64:
 				case turkey_ir_call_function:
 				case turkey_ir_call_function_no_return:
-				case turkey_ir_return_null:
-				case turkey_ir_return:
+				case turkey_ir_jump:
 				case turkey_ir_jump_if_true:
 				case turkey_ir_jump_if_false:
 				case turkey_ir_jump_if_null:
 				case turkey_ir_jump_if_not_null:
 					turkey_ssa_optimizer_touch_instruction(vm, function, bb, inst);
 					instruction.return_type |= TT_Marked;
+					break;
+				case turkey_ir_return_null:
+				case turkey_ir_return:
+					turkey_ssa_optimizer_touch_instruction(vm, function, bb, inst);
+					instruction.return_type |= TT_Marked;
+					
+					/* do nothing after a return, jump straight to the end */
+					inst = basic_block.instructions_count;
 					break;
 				}
 			}

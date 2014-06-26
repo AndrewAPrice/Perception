@@ -222,7 +222,7 @@ void turkey_ssa_printer_print_function(TurkeyVM *vm, TurkeyFunction *function) {
 				case turkey_ir_return:
 					printf("Return [%u]\n", inst.a); break;
 				case turkey_ir_push:
-					printf("Push [%u]\n", inst.a); break;
+					printf("Push [%u] -> Parameter %u\n", inst.a, inst.b); break;
 				case turkey_ir_get_type:
 					printf("GetType [%u]\n", inst.a); break;
 				case turkey_ir_jump:

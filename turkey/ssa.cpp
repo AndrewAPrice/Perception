@@ -459,7 +459,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -1114,7 +1114,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -1130,7 +1130,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			if(!stack.Pop(value)) exit_error();
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-			inst.a = value;
+			inst.a = value; inst.b = 0;
 			instructions.Push(inst);
 			codePos++;
 			inst.instruction = turkey_ir_save_element;
@@ -1216,7 +1216,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			if(!stack.Pop(value)) exit_error();
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-			inst.a = value;
+			inst.a = value; inst.b = 0;
 			instructions.Push(inst);
 			codePos++;
 
@@ -1232,7 +1232,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			if(!stack.Pop(value)) exit_error();
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-			inst.a = value;
+			inst.a = value; inst.b = 0;
 			instructions.Push(inst);
 			codePos++;
 
@@ -1248,7 +1248,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			if(!stack.Pop(value)) exit_error();
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-			inst.a = value;
+			inst.a = value; inst.b = 0;
 			instructions.Push(inst);
 			codePos++;
 
@@ -1264,7 +1264,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			if(!stack.Pop(value)) exit_error();
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-			inst.a = value;
+			inst.a = value; inst.b = 0;
 			instructions.Push(inst);
 			codePos++;
 
@@ -1324,7 +1324,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			if(!stack.Pop(value)) exit_error();
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-			inst.a = value;
+			inst.a = value; inst.b = 0;
 			instructions.Push(inst);
 			codePos++;
 
@@ -1340,7 +1340,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			if(!stack.Pop(value)) exit_error();
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-			inst.a = value;
+			inst.a = value; inst.b = 0;
 			instructions.Push(inst);
 			codePos++;
 
@@ -1356,7 +1356,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			if(!stack.Pop(value)) exit_error();
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-			inst.a = value;
+			inst.a = value; inst.b = 0;
 			instructions.Push(inst);
 			codePos++;
 
@@ -1372,7 +1372,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			if(!stack.Pop(value)) exit_error();
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-			inst.a = value;
+			inst.a = value; inst.b = 0;
 			instructions.Push(inst);
 			codePos++;
 
@@ -1410,7 +1410,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			if(!stack.Pop(value)) exit_error();
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-			inst.a = value;
+			inst.a = value; inst.b = 0;
 			instructions.Push(inst);
 			codePos++;
 
@@ -1426,7 +1426,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			if(!stack.Pop(value)) exit_error();
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-			inst.a = value;
+			inst.a = value; inst.b = 0;
 			instructions.Push(inst);
 			codePos++;
 
@@ -1726,7 +1726,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				unsigned int a;
 				if(!stack.Pop(a)) exit_error();
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = a;
+				inst.a = a; inst.b = i;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -1741,7 +1741,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -1763,7 +1763,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				unsigned int a;
 				if(!stack.Pop(a)) exit_error();
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = a;
+				inst.a = a; inst.b = i;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -1779,7 +1779,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -1800,7 +1800,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				unsigned int a;
 				if(!stack.Pop(a)) exit_error();
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = a;
+				inst.a = a; inst.b = i;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -1829,7 +1829,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				unsigned int a;
 				if(!stack.Pop(a)) exit_error();
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = a;
+				inst.a = a; inst.b = i;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -1887,7 +1887,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -1912,7 +1912,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -1939,7 +1939,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -1965,7 +1965,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -1992,7 +1992,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2021,7 +2021,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2047,7 +2047,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2074,7 +2074,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2103,7 +2103,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2129,7 +2129,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2156,7 +2156,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2185,7 +2185,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2211,7 +2211,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2238,7 +2238,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2267,7 +2267,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2286,7 +2286,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2325,7 +2325,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				unsigned int a;
 				if(!stack.Pop(a)) exit_error();
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = a;
+				inst.a = a; inst.b = i;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2341,7 +2341,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2363,7 +2363,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				unsigned int a;
 				if(!stack.Pop(a)) exit_error();
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = a;
+				inst.a = a; inst.b = i;
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -2379,7 +2379,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			unsigned int param;
 			while(stack.Pop(param)) {
 				TurkeyInstruction inst; inst.instruction = turkey_ir_push;
-				inst.a = param;
+				inst.a = param; inst.b = stack.position;
 				instructions.Push(inst);
 				codePos++;
 			}
