@@ -64,14 +64,63 @@ bool turkey_ssa_optimizer_is_constant_string(const TurkeyInstruction &instructio
 	}
 }
 
-struct ssa_param_scan_item {
+struct ssa_param_scan_reference {
 	unsigned int basic_block;
 	unsigned int instruction;
+
+	ssa_param_scan_reference(unsigned int bb, unsigned int inst) {
+		basic_block = bb;
+		instruction = inst;
+	}
 };
 
 struct ssa_param_scan {
-	TurkeyStack<ssa_param_scan_item> scan_items;
+	TurkeyStack<ssa_param_scan_reference> end_points; /* end points, non param instructions we are pushing */
+	TurkeyStack<ssa_param_scan_reference> visited_params; /* params we have visited */
+	TurkeyStack<ssa_param_scan_reference> visited_pushes; /* pushes we have visited */
+
+	ssa_param_scan(void *tag) : end_points(tag), visited_params(tag), visited_pushes(tag) {
+	}
 };
+
+void turkey_ssa_optimizer_scan_params(TurkeyVM *vm, TurkeyFunction *function, unsigned int bb, unsigned int push_index, ssa_param_scan &params) {
+	TurkeyBasicBlock &basic_block = function->basic_blocks[bb];
+	TurkeyInstruction &param_instruction = basic_block.instructions[push_index];
+
+	assert(param_instruction.instruction == turkey_ir_push);
+	params.visited_pushes.Push(ssa_param_scan_reference(bb, push_index));
+
+	unsigned int a_index = param_instruction.a;
+	TurkeyInstruction &a = basic_block.instructions[a_index];
+	if(a.instruction == turkey_ir_parameter) {
+		if(a.return_type & TT_Marked || bb == 0) {
+			/* has been marked, so we don't get stuck an an infinite loop, the bb==0 check is for function parameters */
+			params.end_points.Push(ssa_param_scan_reference(bb, a_index));
+		} else {
+			params.visited_params.Push(ssa_param_scan_reference(bb, a_index));
+			/* mark us (to avoid infinite loops) temporarily */
+			unsigned char old_rt = a.return_type;
+			a.return_type |= TT_Marked;
+
+			unsigned int param_number = a.a;
+
+			/* for each child, scan then */
+			for(unsigned int i = 0; i < basic_block.entry_point_count; i++) {
+				// scan each entry point
+				unsigned int entry_point_bb = basic_block.entry_points[i];
+				TurkeyBasicBlock &entry_point_basic_block = function->basic_blocks[entry_point_bb];
+				unsigned int local_inst = entry_point_basic_block.instructions_count - param_number - 1;
+
+				turkey_ssa_optimizer_scan_params(vm, function, entry_point_bb, local_inst, params);
+			}
+
+			/* unmark if it was not marked before */
+			a.return_type = old_rt;
+		}
+	} else {
+		params.end_points.Push(ssa_param_scan_reference(bb, a_index));
+	}
+}
 
 void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *function, unsigned int bb, unsigned int inst) {
 	/* touches an instruction, and finds any dependencies and marks them if needed, but does not actually mark _this_
@@ -1473,42 +1522,91 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 
 		unsigned int param_num = instruction.a;
 		
-		bool constant = true;
-		TurkeyInstruction ti;
-		unsigned int i = 0;
-		for(; i < basic_block.entry_point_count; i++) {
+		ssa_param_scan params(vm->tag);
+		/* add us to the params */
+		params.visited_params.Push(ssa_param_scan_reference(bb, inst));
+
+		/* propagate through the pushes to build up a list of visited pushes, params, and end points */
+		for(unsigned int i = 0; i < basic_block.entry_point_count; i++) {
 			// scan each entry point
 			unsigned int entry_point_bb = basic_block.entry_points[i];
 			TurkeyBasicBlock &entry_point_basic_block = function->basic_blocks[entry_point_bb];
 			unsigned int local_inst = entry_point_basic_block.instructions_count - param_num - 1;
 
-			turkey_ssa_optimizer_touch_instruction(vm, function, entry_point_bb, local_inst);
-			
-			TurkeyInstruction &a = entry_point_basic_block.instructions[local_inst];
-			
+			turkey_ssa_optimizer_scan_params(vm, function, entry_point_bb, local_inst, params);
+		}
+
+		/* remove any end_points that are visited_params */
+		for(unsigned int i = 0; i < params.end_points.position;) {
+			bool found = false;
+			for(unsigned int j = 0; j < params.visited_params.position; j++) {
+				if(params.end_points.variables[i].basic_block == params.visited_params.variables[j].basic_block &&
+					params.end_points.variables[i].instruction == params.visited_params.variables[j].instruction) {
+						found = true;
+						break;
+				}
+			}
+
+			if(found)
+				params.end_points.RemoveAtFromStart(i);
+			else
+				i++;
+		}
+
+		/* calculate each end point and figure out if we're constant or not */
+		bool constant = true;
+		TurkeyInstruction ti;
+
+		for(unsigned int i = 0; i < params.end_points.position; i++) {
+			unsigned int end_point_bb = params.end_points.variables[i].basic_block;
+			unsigned int end_point_inst = params.end_points.variables[i].instruction;
+			turkey_ssa_optimizer_touch_instruction(vm, function, end_point_bb, end_point_inst);
+
+			TurkeyInstruction &ep = function->basic_blocks[end_point_bb].instructions[end_point_inst];
+
 			// is this parameter a constant?
-			if(turkey_ssa_optimizer_is_constant(a)) {
+			if(constant && turkey_ssa_optimizer_is_constant(ep)) {
 				if(i == 0) // first entry point, no need to test
-					ti = a;
-				else if(ti.instruction != a.instruction || ti.large != a.large)
+					ti = ep;
+				else if(ti.instruction != ep.instruction || ti.large != ep.large)
 					// compare if it's the same as the other
 					constant = false;
 			} else
 				constant = false; // not a constant
-
-			a.return_type |= TT_Marked;
-
-			// TODO: scan each exit point of the entry point and mark the parameter as needed
 		}
 		
-		// we are propagating a constant
-		if(constant && i > 0) { // check i > 0 because it might not be initialized for function parameters
+		/* see if we are constant */
+		if(constant && params.end_points.position > 0) { // check if stack size > 0 because it might not be initialized for function parameters
+			/* replace the constant inline at this parameter */
 			instruction.instruction = ti.instruction;
 			instruction.large = ti.large;
 			instruction.return_type = ti.return_type & TT_Mask;
 
 			if(instruction.instruction == turkey_ir_string)
 				turkey_gc_hold(vm, (TurkeyString *)instruction.large, TT_String);
+		} else {
+			/* not a constant, mark everything we've visited */
+			for(unsigned int j = 0; j < params.visited_params.position; j++) {
+				function->basic_blocks[params.visited_params.variables[j].basic_block]
+					.instructions[params.visited_params.variables[j].instruction]
+					.return_type |= TT_Marked;
+			}
+
+			for(unsigned int j = 0; j < params.end_points.position; j++) {
+				function->basic_blocks[params.end_points.variables[j].basic_block]
+					.instructions[params.end_points.variables[j].instruction]
+					.return_type |= TT_Marked;
+			}
+
+			
+			for(unsigned int j = 0; j < params.visited_pushes.position; j++) {
+				function->basic_blocks[params.visited_pushes.variables[j].basic_block]
+					.instructions[params.visited_pushes.variables[j].instruction]
+					.return_type |= TT_Marked;
+			}
+
+			/* todo - scan each exit point of the entry point and mark the parameter as needed */
+
 		}
 		break; }
 	case turkey_ir_load_closure:
@@ -1673,22 +1771,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		TurkeyInstruction &a = basic_block.instructions[instruction.a];
 		a.return_type |= TT_Marked;
 		break; }
-	case turkey_ir_push: {
-		/* only should be called for exit pushes */
-		turkey_ssa_optimizer_touch_instruction(vm, function, bb, instruction.a);
-		TurkeyInstruction &a = basic_block.instructions[instruction.a];
-		
-		if(turkey_ssa_optimizer_is_constant(a)) {
-			/* copy constant in place */
-			instruction.instruction = a.instruction;
-			instruction.large = a.large;
-			instruction.return_type = a.return_type & TT_Mask;
-
-			if(instruction.instruction == turkey_ir_string)
-				turkey_gc_hold(vm, (TurkeyString *)instruction.large, TT_String);
-		} else
-			a.return_type |= TT_Marked;
-		break; }
+	case turkey_ir_push:
+		assert(0); /* should never arrive here, as pushes are always special cases */
+		break;
 	case turkey_ir_get_type: {
 		turkey_ssa_optimizer_touch_instruction(vm, function, bb, instruction.a);
 		TurkeyInstruction &a = basic_block.instructions[instruction.a];
