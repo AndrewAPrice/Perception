@@ -65,8 +65,23 @@ public:
 		variables[position - pos - 1] = value;
 	}
 
+	/* empties out the stack */
 	void Clear() {
 		top = 0; position = 0;
+	}
+
+	/* remove at a position (from the start) and scoots everything down */
+	void RemoveAtFromStart(unsigned int pos) {
+		if(pos >= position)
+			return;
+
+		if(pos < top)
+			top--;
+
+		position--;
+		for(unsigned int i = pos; i < position; i++)
+			variables[position] = variables[position + 1];
+
 	}
 
 	void *tag;
