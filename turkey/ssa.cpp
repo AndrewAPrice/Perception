@@ -494,8 +494,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			for(unsigned int i = 0; i < function->basic_blocks[basic_block_no].parameters_entering; i++) {
 				stack.Push(codePos);
 				TurkeyInstruction inst; inst.instruction = turkey_ir_parameter;
-				inst.a = i; inst.b = 0; //function->basic_blocks[basic_block_no].stack_entry - (unsigned int)i - 1;
-
+				inst.a = i; inst.b = basic_block_no == 0 ? 1 : 0; /* mark function parameters as needed */
 				instructions.Push(inst);
 				codePos++;
 			}
@@ -881,7 +880,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			{
 				unsigned char null_amount = *bytecode;
 				if(null_amount > 0) {
-					TurkeyInstruction inst; inst.instruction = turkey_ir_null;
+					TurkeyInstruction inst; inst.instruction = turkey_ir_null; inst.large = 0;
 					instructions.Push(inst);
 					while(null_amount > 0) {
 						stack.Push(codePos);
@@ -1614,19 +1613,19 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			codePos++;
 			break; }
 		case turkey_instruction_push_true: {
-			TurkeyInstruction inst; inst.instruction = turkey_ir_true;
+			TurkeyInstruction inst; inst.instruction = turkey_ir_true; inst.large = 0;
 			instructions.Push(inst);
 			stack.Push(codePos);
 			codePos++;
 			break; }
 		case turkey_instruction_push_false: {
-			TurkeyInstruction inst; inst.instruction = turkey_ir_false;
+			TurkeyInstruction inst; inst.instruction = turkey_ir_false; inst.large = 0;
 			instructions.Push(inst);
 			stack.Push(codePos);
 			codePos++;
 			break; }
 		case turkey_instruction_push_null: {
-			TurkeyInstruction inst; inst.instruction = turkey_ir_null;
+			TurkeyInstruction inst; inst.instruction = turkey_ir_null; inst.large = 0;
 			instructions.Push(inst);
 			stack.Push(codePos);
 			codePos++;

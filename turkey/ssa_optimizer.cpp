@@ -64,8 +64,14 @@ bool turkey_ssa_optimizer_is_constant_string(const TurkeyInstruction &instructio
 	}
 }
 
-void turkey_ssa_optimizer_scan_param(TurkeyVM *vm, TurkeyFunction *function, unsigned int bb, unsigned int inst) {
-}
+struct ssa_param_scan_item {
+	unsigned int basic_block;
+	unsigned int instruction;
+};
+
+struct ssa_param_scan {
+	TurkeyStack<ssa_param_scan_item> scan_items;
+};
 
 void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *function, unsigned int bb, unsigned int inst) {
 	/* touches an instruction, and finds any dependencies and marks them if needed, but does not actually mark _this_
@@ -97,7 +103,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				b.return_type |= TT_Marked;
 				instruction.return_type = TT_Unknown;
 			} else {
-				instruction.instruction = turkey_ir_null;
+				instruction.instruction = turkey_ir_null; instruction.large = 0;
 				instruction.return_type = TT_Null;
 			}
 			break;
@@ -107,7 +113,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				bool av = turkey_ssa_to_boolean(vm, a);
 				bool bv = turkey_ssa_to_boolean(vm, b);
 				bool res = av || bv;
-				instruction.instruction = res ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = res ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -131,7 +137,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -196,7 +202,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				bool av = turkey_ssa_to_boolean(vm, a);
 				bool bv = turkey_ssa_to_boolean(vm, b);
 				bool res = av && bv;
-				instruction.instruction = res ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = res ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -220,7 +226,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -282,7 +288,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -344,7 +350,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -406,7 +412,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -453,7 +459,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			if(turkey_ssa_optimizer_is_constant_number(a)) {
 				bool av = turkey_ssa_to_boolean(vm, a);
 				bool result = !av;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 			}
@@ -473,7 +479,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			a.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -512,7 +518,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		switch(a.return_type & TT_Mask) {
 		case TT_Boolean:
 			instruction.return_type = TT_Boolean;
-			instruction.instruction = turkey_ir_true;
+			instruction.instruction = turkey_ir_true; instruction.large = 0;
 			break;
 		case TT_Float:
 			instruction.return_type = TT_Float;
@@ -529,7 +535,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			a.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -569,6 +575,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Boolean:
 			instruction.return_type = TT_Boolean;
 			instruction.instruction = turkey_ir_false;
+			instruction.large = 0;
 			break;
 		case TT_Float:
 			instruction.return_type = TT_Float;
@@ -585,7 +592,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			a.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -630,7 +637,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				bool av = turkey_ssa_to_boolean(vm, a);
 				bool bv = turkey_ssa_to_boolean(vm, b);
 				bool res = av ^ bv;
-				instruction.instruction = res ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = res ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -655,7 +662,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -692,7 +699,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				bool av = turkey_ssa_to_boolean(vm, a);
 				bool bv = turkey_ssa_to_boolean(vm, b);
 				bool res = av & bv;
-				instruction.instruction = res ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = res ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -717,7 +724,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -754,7 +761,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				bool av = turkey_ssa_to_boolean(vm, a);
 				bool bv = turkey_ssa_to_boolean(vm, b);
 				bool res = av | bv;
-				instruction.instruction = res ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = res ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -779,7 +786,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -813,7 +820,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			if(turkey_ssa_optimizer_is_constant_number(a)) {
 				bool av = turkey_ssa_to_boolean(vm, a);
 				bool result = !av;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 			}
@@ -834,7 +841,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			a.return_type |= TT_Marked;
 			break; }
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -882,7 +889,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -933,7 +940,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -985,7 +992,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Object:
@@ -1024,7 +1031,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Object:
@@ -1046,6 +1053,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			instruction.instruction = turkey_ir_true;
 		else
 			instruction.instruction = turkey_ir_false;
+		instruction.large = 0;
 		break; }
 	case turkey_ir_is_not_null: {
 		turkey_ssa_optimizer_touch_instruction(vm, function, bb, instruction.a);
@@ -1059,6 +1067,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			instruction.instruction = turkey_ir_false;
 		else
 			instruction.instruction = turkey_ir_true;
+		instruction.large = 0;
 		break; }
 	case turkey_ir_equals: {
 		turkey_ssa_optimizer_touch_instruction(vm, function, bb, instruction.a);
@@ -1072,15 +1081,13 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		int type_a = a.return_type & TT_Mask;
 		int type_b = b.return_type & TT_Mask;
 
-		/////////////// TODO: equal strings
-
 		if(type_a == TT_Unknown || type_b == TT_Unknown) {
 			a.return_type |= TT_Marked;
 			b.return_type |= TT_Marked;
 		} else if (a.instruction == turkey_ir_string && b.instruction == turkey_ir_string) {
 			/* compare two constant strings */
 			bool result = a.large == b.large;
-			instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+			instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 		} else if(TURKEY_IS_TYPE_NUMBER(type_a) && TURKEY_IS_TYPE_NUMBER(type_b)) {
 			if(turkey_ssa_optimizer_is_constant(a) && turkey_ssa_optimizer_is_constant(b)) {
 				bool result;
@@ -1094,15 +1101,16 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				else
 					result = turkey_ssa_to_boolean(vm, a) == turkey_ssa_to_boolean(vm, b);
 
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
 			}
 		} else if(type_a != type_b) {
 			instruction.instruction = turkey_ir_false;
+			instruction.large = 0;
 		} else if(type_a == TT_Null) { // all null = null
-			instruction.instruction = turkey_ir_true;
+			instruction.instruction = turkey_ir_true; instruction.large = 0;
 		} else {
 			a.return_type |= TT_Marked;
 			b.return_type |= TT_Marked;
@@ -1120,15 +1128,13 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		int type_a = a.return_type & TT_Mask;
 		int type_b = b.return_type & TT_Mask;
 
-		/////////////// TODO: equal strings
-
 		if(type_a == TT_Unknown || type_b == TT_Unknown) {
 			a.return_type |= TT_Marked;
 			b.return_type |= TT_Marked;
 		} else if (a.instruction == turkey_ir_string && b.instruction == turkey_ir_string) {
 			/* compare two constant strings */
 			bool result = a.large != b.large;
-			instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+			instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 		} else if(TURKEY_IS_TYPE_NUMBER(type_a) && TURKEY_IS_TYPE_NUMBER(type_b)) {
 			if(turkey_ssa_optimizer_is_constant(a) && turkey_ssa_optimizer_is_constant(b)) {
 				bool result;
@@ -1142,15 +1148,15 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				else
 					result = turkey_ssa_to_boolean(vm, a) != turkey_ssa_to_boolean(vm, b);
 
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
 			}
 		} else if(type_a != type_b) {
-			instruction.instruction = turkey_ir_true;
+			instruction.instruction = turkey_ir_true; instruction.large = 0;
 		} else if(type_a == TT_Null) { // all null = null
-			instruction.instruction = turkey_ir_false;
+			instruction.instruction = turkey_ir_false;  instruction.large = 0;
 		} else {
 			a.return_type |= TT_Marked;
 			b.return_type |= TT_Marked;
@@ -1171,7 +1177,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				bool av = turkey_ssa_to_boolean(vm, a);
 				bool bv = turkey_ssa_to_boolean(vm, b);
 				bool result = av && !bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1182,7 +1188,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				double av = turkey_ssa_to_float(vm, a);
 				double bv = turkey_ssa_to_float(vm, b);
 				bool result = av < bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1193,7 +1199,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -1202,7 +1208,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
 				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
 				bool result = av < bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1219,7 +1225,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				signed long long int av = turkey_ssa_to_signed(vm, a);
 				signed long long int bv = turkey_ssa_to_signed(vm, b);
 				bool result = av < bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1242,7 +1248,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				bool av = turkey_ssa_to_boolean(vm, a);
 				bool bv = turkey_ssa_to_boolean(vm, b);
 				bool result = !av && bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1253,7 +1259,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				double av = turkey_ssa_to_float(vm, a);
 				double bv = turkey_ssa_to_float(vm, b);
 				bool result = av > bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1264,7 +1270,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -1273,7 +1279,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
 				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
 				bool result = av > bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1290,7 +1296,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				signed long long int av = turkey_ssa_to_signed(vm, a);
 				signed long long int bv = turkey_ssa_to_signed(vm, b);
 				bool result = av > bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1312,7 +1318,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
 				bool av = turkey_ssa_to_boolean(vm, a);
 				bool result = !av;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 			}
@@ -1322,7 +1328,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				double av = turkey_ssa_to_float(vm, a);
 				double bv = turkey_ssa_to_float(vm, b);
 				bool result = av <= bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1333,7 +1339,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -1342,7 +1348,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
 				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
 				bool result = av <= bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1359,7 +1365,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				signed long long int av = turkey_ssa_to_signed(vm, a);
 				signed long long int bv = turkey_ssa_to_signed(vm, b);
 				bool result = av <= bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1381,7 +1387,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
 				bool bv = turkey_ssa_to_boolean(vm, b);
 				bool result = !bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				b.return_type |= TT_Marked;
 			}
@@ -1391,7 +1397,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				double av = turkey_ssa_to_float(vm, a);
 				double bv = turkey_ssa_to_float(vm, b);
 				bool result = av >= bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1402,7 +1408,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 			b.return_type |= TT_Marked;
 			break;
 		default:
-			instruction.instruction = turkey_ir_null;
+			instruction.instruction = turkey_ir_null; instruction.large = 0;
 			instruction.return_type = TT_Null;
 			break;
 		case TT_Unsigned:
@@ -1411,7 +1417,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
 				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
 				bool result = av >= bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1428,7 +1434,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				signed long long int av = turkey_ssa_to_signed(vm, a);
 				signed long long int bv = turkey_ssa_to_signed(vm, b);
 				bool result = av >= bv;
-				instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
 				a.return_type |= TT_Marked;
 				b.return_type |= TT_Marked;
@@ -1443,7 +1449,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		instruction.return_type = TT_Boolean;
 		if(turkey_ssa_optimizer_is_constant_number(a)) {
 			bool result = turkey_ssa_to_boolean(vm, a);
-			instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+			instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 		} else {
 			a.return_type |= TT_Marked;
 		}
@@ -1455,14 +1461,56 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		instruction.return_type = TT_Boolean;
 		if(turkey_ssa_optimizer_is_constant_number(a)) {
 			bool result = !turkey_ssa_to_boolean(vm, a);
-			instruction.instruction = result ? turkey_ir_true : turkey_ir_false;
+			instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 		} else {
 			a.return_type |= TT_Marked;
 		}
 		break; }
-	case turkey_ir_parameter:
-		turkey_ssa_optimizer_scan_param(vm, function, bb, inst);
-		break;
+	case turkey_ir_parameter: {
+		/* mark me - why? because parameters scan across blocks (not linearly) and so may start getting stuck recursively if we
+			don't do this */
+		instruction.return_type |= TT_Marked;
+
+		unsigned int param_num = instruction.a;
+		
+		bool constant = true;
+		TurkeyInstruction ti;
+		unsigned int i = 0;
+		for(; i < basic_block.entry_point_count; i++) {
+			// scan each entry point
+			unsigned int entry_point_bb = basic_block.entry_points[i];
+			TurkeyBasicBlock &entry_point_basic_block = function->basic_blocks[entry_point_bb];
+			unsigned int local_inst = entry_point_basic_block.instructions_count - param_num - 1;
+
+			turkey_ssa_optimizer_touch_instruction(vm, function, entry_point_bb, local_inst);
+			
+			TurkeyInstruction &a = entry_point_basic_block.instructions[local_inst];
+			
+			// is this parameter a constant?
+			if(turkey_ssa_optimizer_is_constant(a)) {
+				if(i == 0) // first entry point, no need to test
+					ti = a;
+				else if(ti.instruction != a.instruction || ti.large != a.large)
+					// compare if it's the same as the other
+					constant = false;
+			} else
+				constant = false; // not a constant
+
+			a.return_type |= TT_Marked;
+
+			// TODO: scan each exit point of the entry point and mark the parameter as needed
+		}
+		
+		// we are propagating a constant
+		if(constant && i > 0) { // check i > 0 because it might not be initialized for function parameters
+			instruction.instruction = ti.instruction;
+			instruction.large = ti.large;
+			instruction.return_type = ti.return_type & TT_Mask;
+
+			if(instruction.instruction == turkey_ir_string)
+				turkey_gc_hold(vm, (TurkeyString *)instruction.large, TT_String);
+		}
+		break; }
 	case turkey_ir_load_closure:
 		break;
 	case turkey_ir_store_closure: {
@@ -1625,14 +1673,22 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		TurkeyInstruction &a = basic_block.instructions[instruction.a];
 		a.return_type |= TT_Marked;
 		break; }
-	case turkey_ir_push:
-		/* an ssa instruction is trying to mark this push, but pushes are special cases and shouldn't be referenced by other
-		   instructions */
-		assert(0);
-#ifdef DEBUG
-		printf("Trying to mark turkey_ir_push instruction!");
-#endif
-		break;
+	case turkey_ir_push: {
+		/* only should be called for exit pushes */
+		turkey_ssa_optimizer_touch_instruction(vm, function, bb, instruction.a);
+		TurkeyInstruction &a = basic_block.instructions[instruction.a];
+		
+		if(turkey_ssa_optimizer_is_constant(a)) {
+			/* copy constant in place */
+			instruction.instruction = a.instruction;
+			instruction.large = a.large;
+			instruction.return_type = a.return_type & TT_Mask;
+
+			if(instruction.instruction == turkey_ir_string)
+				turkey_gc_hold(vm, (TurkeyString *)instruction.large, TT_String);
+		} else
+			a.return_type |= TT_Marked;
+		break; }
 	case turkey_ir_get_type: {
 		turkey_ssa_optimizer_touch_instruction(vm, function, bb, instruction.a);
 		TurkeyInstruction &a = basic_block.instructions[instruction.a];
@@ -1727,7 +1783,6 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 }
 
 void turkey_ssa_optimizer_optimize_function(TurkeyVM *vm, TurkeyFunction *function) {
-
 	/* step 1: walk the bb, marking anything that is a root */
 	for(unsigned bb = 0; bb < function->basic_blocks_count; bb++) {
 		TurkeyBasicBlock &basic_block = function->basic_blocks[bb];
@@ -1767,7 +1822,11 @@ void turkey_ssa_optimizer_optimize_function(TurkeyVM *vm, TurkeyFunction *functi
 		}
 	}
 
-	/* step 2: remove anything not touched */
+	/* step 2: propagate constants between basic blocks */
+
+	/* step 3: scan roots again, now that constants are propagated between basic blocks */
+
+	/* step 4: remove anything not touched */
 }
 #else
 void turkey_ssa_optimizer_optimize_function(TurkeyVM *vm, TurkeyFunction *function) {
