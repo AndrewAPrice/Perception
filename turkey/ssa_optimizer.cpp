@@ -1965,6 +1965,9 @@ void turkey_ssa_optimizer_shrink(TurkeyVM *vm, TurkeyFunction *function) {
 		for(unsigned int inst = 0; inst < basic_block.instructions_count; inst++) {
 			TurkeyInstruction &instruction = basic_block.instructions[inst];
 			if(instruction.return_type & TT_Marked) {
+				/* unmask this instruction because marking is only used by the optimizer and we don't want to keep &'ing
+					the mask when JITing it */
+				instruction.return_type &= TT_Mask;
 				/* copy over */
 				if(new_bb_position != inst)
 					basic_block.instructions[new_bb_position] = instruction;
