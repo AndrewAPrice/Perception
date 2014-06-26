@@ -707,6 +707,8 @@ extern bool turkey_ssa_optimizer_is_constant(const TurkeyInstruction &instructio
 extern bool turkey_ssa_optimizer_is_constant_number(const TurkeyInstruction &instruction);
 extern bool turkey_ssa_optimizer_is_constant_string(const TurkeyInstruction &instruction);
 extern void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *function, unsigned int bb, unsigned int inst);
+extern void turkey_ssa_optimizer_mark_roots(TurkeyVM *vm, TurkeyFunction *function);
+extern void turkey_ssa_optimizer_shrink(TurkeyVM *vm, TurkeyFunction *function);
 extern void turkey_ssa_optimizer_optimize_function(TurkeyVM *vm, TurkeyFunction *function);
 
 /* instructions.cpp */

@@ -1842,22 +1842,54 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 	case turkey_ir_jump_if_true: {
 		turkey_ssa_optimizer_touch_instruction(vm, function, bb, instruction.b);
 		TurkeyInstruction &b = basic_block.instructions[instruction.b];
-		b.return_type |= TT_Marked;
+
+		if(turkey_ssa_optimizer_is_constant_number(b)) {
+			bool result = turkey_ssa_to_boolean(vm, b);
+			instruction.instruction = turkey_ir_jump;
+			if(!result)
+				instruction.a = bb + 1;
+		} else {
+			b.return_type |= TT_Marked;
+		}
 		break; }
 	case turkey_ir_jump_if_false: {
 		turkey_ssa_optimizer_touch_instruction(vm, function, bb, instruction.b);
 		TurkeyInstruction &b = basic_block.instructions[instruction.b];
-		b.return_type |= TT_Marked;
+
+		if(turkey_ssa_optimizer_is_constant_number(b)) {
+			bool result = turkey_ssa_to_boolean(vm, b);
+			instruction.instruction = turkey_ir_jump;
+			if(result)
+				instruction.a = bb + 1;
+		} else {
+			b.return_type |= TT_Marked;
+		}
 		break; }
 	case turkey_ir_jump_if_null: {
 		turkey_ssa_optimizer_touch_instruction(vm, function, bb, instruction.b);
 		TurkeyInstruction &b = basic_block.instructions[instruction.b];
-		b.return_type |= TT_Marked;
+
+		if((b.return_type & TT_Mask) != TT_Unknown) {
+			bool result = turkey_ssa_to_boolean(vm, b);
+			instruction.instruction = (b.return_type & TT_Mask) == TT_Null;
+			if(!result)
+				instruction.a = bb + 1;
+		} else {
+			b.return_type |= TT_Marked;
+		}
 		break; }
 	case turkey_ir_jump_if_not_null: {
 		turkey_ssa_optimizer_touch_instruction(vm, function, bb, instruction.b);
 		TurkeyInstruction &b = basic_block.instructions[instruction.b];
-		b.return_type |= TT_Marked;
+
+		if((b.return_type & TT_Mask) != TT_Unknown) {
+			bool result = turkey_ssa_to_boolean(vm, b);
+			instruction.instruction = (b.return_type & TT_Mask) == TT_Null;
+			if(result)
+				instruction.a = bb + 1;
+		} else {
+			b.return_type |= TT_Marked;
+		}
 		break; }
 	case turkey_ir_require: {
 		turkey_ssa_optimizer_touch_instruction(vm, function, bb, instruction.b);
@@ -1867,11 +1899,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 	}
 }
 
-void turkey_ssa_optimizer_optimize_function(TurkeyVM *vm, TurkeyFunction *function) {
-	/* step 1: walk the bb, marking anything that is a root */
+void turkey_ssa_optimizer_mark_roots(TurkeyVM *vm, TurkeyFunction *function) {
 	for(unsigned bb = 0; bb < function->basic_blocks_count; bb++) {
 		TurkeyBasicBlock &basic_block = function->basic_blocks[bb];
-
 		for(unsigned inst = 0; inst < basic_block.instructions_count; inst++) {
 			/* is not marked? */
 			TurkeyInstruction &instruction = basic_block.instructions[inst];
@@ -1893,11 +1923,6 @@ void turkey_ssa_optimizer_optimize_function(TurkeyVM *vm, TurkeyFunction *functi
 				case turkey_ir_store_buffer_float_64:
 				case turkey_ir_call_function:
 				case turkey_ir_call_function_no_return:
-				case turkey_ir_jump:
-				case turkey_ir_jump_if_true:
-				case turkey_ir_jump_if_false:
-				case turkey_ir_jump_if_null:
-				case turkey_ir_jump_if_not_null:
 					turkey_ssa_optimizer_touch_instruction(vm, function, bb, inst);
 					instruction.return_type |= TT_Marked;
 					break;
@@ -1909,16 +1934,171 @@ void turkey_ssa_optimizer_optimize_function(TurkeyVM *vm, TurkeyFunction *functi
 					/* do nothing after a return, jump straight to the end */
 					inst = basic_block.instructions_count;
 					break;
+				case turkey_ir_jump:
+				case turkey_ir_jump_if_true:
+				case turkey_ir_jump_if_false:
+				case turkey_ir_jump_if_null:
+				case turkey_ir_jump_if_not_null:
+					turkey_ssa_optimizer_touch_instruction(vm, function, bb, inst);
+					/* don't mark unconditional jumps to the next basic block (a conditional jump may have been optimized out) */
+					if(instruction.instruction == turkey_ir_jump) {
+						if(instruction.a != bb + 1)
+							instruction.return_type |= TT_Marked;
+					} else
+						instruction.return_type |= TT_Marked;
+					
+					break;
 				}
 			}
 		}
 	}
+}
 
-	/* step 2: propagate constants between basic blocks */
+void turkey_ssa_optimizer_shrink(TurkeyVM *vm, TurkeyFunction *function) {
+	for(unsigned int bb = 0; bb < function->basic_blocks_count; bb++) {
+		TurkeyBasicBlock &basic_block = function->basic_blocks[bb];
+		/* array of new instruction positions */
+		unsigned int *lookup = (unsigned int*)turkey_allocate_memory(vm->tag, (sizeof (unsigned int)) * basic_block.instructions_count);
 
-	/* step 3: scan roots again, now that constants are propagated between basic blocks */
+		/* copy the new instructions over */
+		unsigned int new_bb_position = 0;
+		for(unsigned int inst = 0; inst < basic_block.instructions_count; inst++) {
+			TurkeyInstruction &instruction = basic_block.instructions[inst];
+			if(instruction.return_type & TT_Marked) {
+				/* copy over */
+				if(new_bb_position != inst)
+					basic_block.instructions[new_bb_position] = instruction;
 
-	/* step 4: remove anything not touched */
+				/* fill in the lookup table so we can reference this */
+				lookup[inst] = new_bb_position;
+				new_bb_position++;
+			} else {
+				/* don't keep unused instruction */
+#ifdef DEBUG
+				lookup[inst] = 0xFFFFFFFF;
+#endif
+				/* strings are special because we are holding the constant */
+				if(instruction.instruction == turkey_ir_string)
+					turkey_gc_unhold(vm, (TurkeyString *)instruction.large, TT_String);
+			}
+		}
+
+		if(basic_block.instructions_count != new_bb_position) {
+			/* resize our array down */
+			basic_block.instructions = (TurkeyInstruction *)turkey_reallocate_memory(vm->tag, basic_block.instructions,
+				basic_block.instructions_count * sizeof(TurkeyInstruction), new_bb_position * sizeof(TurkeyInstruction));
+
+			basic_block.instructions_count = new_bb_position;
+
+			/* fix up our instruction references */
+			for(unsigned int inst = 0; inst < basic_block.instructions_count; inst++) {
+				TurkeyInstruction &instruction = basic_block.instructions[inst];
+				switch(instruction.instruction) {
+				case turkey_ir_add:
+				case turkey_ir_divide:
+				case turkey_ir_multiply:
+				case turkey_ir_modulo:
+				case turkey_ir_xor:
+				case turkey_ir_and:
+				case turkey_ir_or:
+				case turkey_ir_shift_left:
+				case turkey_ir_shift_right:
+				case turkey_ir_rotate_left:
+				case turkey_ir_rotate_right:
+				case turkey_ir_equals:
+				case turkey_ir_not_equals:
+				case turkey_ir_less_than:
+				case turkey_ir_greater_than:
+				case turkey_ir_less_than_or_equals:
+				case turkey_ir_greater_than_or_equals:
+				case turkey_ir_load_element:
+				case turkey_ir_save_element:
+				case turkey_ir_delete_element:
+				case turkey_ir_load_buffer_unsigned_8:
+				case turkey_ir_load_buffer_unsigned_16:
+				case turkey_ir_load_buffer_unsigned_32:
+				case turkey_ir_load_buffer_unsigned_64:
+				case turkey_ir_store_buffer_unsigned_8:
+				case turkey_ir_store_buffer_unsigned_16:
+				case turkey_ir_store_buffer_unsigned_32:
+				case turkey_ir_store_buffer_unsigned_64:
+				case turkey_ir_load_buffer_signed_8:
+				case turkey_ir_load_buffer_signed_16:
+				case turkey_ir_load_buffer_signed_32:
+				case turkey_ir_load_buffer_signed_64:
+				case turkey_ir_store_buffer_signed_8:
+				case turkey_ir_store_buffer_signed_16:
+				case turkey_ir_store_buffer_signed_32:
+				case turkey_ir_store_buffer_signed_64:
+				case turkey_ir_load_buffer_float_32:
+				case turkey_ir_load_buffer_float_64:
+				case turkey_ir_store_buffer_float_32:
+				case turkey_ir_store_buffer_float_64:
+					instruction.a = lookup[instruction.a]; instruction.b = lookup[instruction.b]; break;
+				case turkey_ir_invert:
+				case turkey_ir_increment:
+				case turkey_ir_decrement:
+				case turkey_ir_not:
+				case turkey_ir_is_null:
+				case turkey_ir_is_not_null:
+				case turkey_ir_is_true:
+				case turkey_ir_is_false:
+				case turkey_ir_new_array:
+				case turkey_ir_new_buffer:
+				case turkey_ir_to_signed_integer:
+				case turkey_ir_to_unsigned_integer:
+				case turkey_ir_to_float:
+				case turkey_ir_to_string:
+				case turkey_ir_return:
+				case turkey_ir_push:
+				case turkey_ir_get_type:
+				case turkey_ir_require:
+					instruction.a = lookup[instruction.a]; break;
+				case turkey_ir_parameter:
+				case turkey_ir_load_closure:
+				case turkey_ir_new_object:
+				case turkey_ir_signed_integer:
+				case turkey_ir_unsigned_integer:
+				case turkey_ir_float:
+				case turkey_ir_true:
+				case turkey_ir_false:
+				case turkey_ir_null:
+				case turkey_ir_string:
+				case turkey_ir_function:
+				case turkey_ir_return_null:
+				case turkey_ir_jump:
+					break;
+				case turkey_ir_store_closure:
+				case turkey_ir_call_function:
+				case turkey_ir_call_function_no_return:
+				case turkey_ir_call_pure_function:
+				case turkey_ir_jump_if_true:
+				case turkey_ir_jump_if_false:
+				case turkey_ir_jump_if_null:
+				case turkey_ir_jump_if_not_null:
+					instruction.b = lookup[instruction.b]; break;
+
+				default:
+					assert(0);
+					break;
+				}
+			}
+		}
+
+		/* free our temporary array */
+		turkey_free_memory(vm->tag, lookup, (sizeof (unsigned int)) * basic_block.instructions_count);
+	}
+}
+
+void turkey_ssa_optimizer_optimize_function(TurkeyVM *vm, TurkeyFunction *function) {
+	/* step 1: walk the bb, marking anything that is a root */
+	turkey_ssa_optimizer_mark_roots(vm, function);
+
+	/* step 2: merge basic blocks together - todo */
+
+	/* step 3: remove anything not touched */
+	turkey_ssa_optimizer_shrink(vm, function);
+
 }
 #else
 void turkey_ssa_optimizer_optimize_function(TurkeyVM *vm, TurkeyFunction *function) {
