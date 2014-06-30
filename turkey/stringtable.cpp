@@ -124,6 +124,17 @@ TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, uns
 	return s;
 }
 
+TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string) {
+	unsigned int length = 0;
+	const char *c = string;
+	while(*c) {
+		c++;
+		length++;
+	}
+
+	return turkey_stringtable_newstring(vm, string, length);
+}
+
 void turkey_stringtable_grow(TurkeyVM *vm) {
 	TurkeyStringTable &table = vm->string_table;
 	/* double the size of the string table */

@@ -1,20 +1,28 @@
 Function f0
--closures 2
+-closures 3
 PushNull
-PushFunction f1
+PushUnsignedInteger 0
 StoreClosure 0
-LoadClosure 0
+PushFunction f1
 StoreClosure 1
 PushFunction f2
+StoreClosure 2
+PushFunction f3
 Store 0
 PushUnsignedInteger 100
 Grab 1
 CallFunctionNoReturn 1
 Function f1
 -parameters 1
+LoadClosure 0
+Grab 1
+Add
+StoreClosure 0
+Function f2
+-parameters 1
 Grab 0
 Return
-Function f2
+Function f3
 -parameters 1
 PushManyNulls 5
 PushUnsignedInteger 2
@@ -26,8 +34,8 @@ Store 3
 Grab 5
 Grab 4
 Add
-LoadClosure 1
-CallFunction 1
+LoadClosure 2
+CallPureFunction 1
 Grab 5
 Multiply
 Store 2
@@ -41,22 +49,22 @@ PushUnsignedInteger 10
 LessThan
 JumpIfFalse l2
 Grab 2
+Grab 6
 Grab 5
-Grab 4
 Add
+LoadClosure 2
+CallPureFunction 1
+Add
+Store 2
+Grab 2
 LoadClosure 1
+CallFunctionNoReturn 1
+Grab 1
+Grab 5
+LoadClosure 2
 CallPureFunction 1
 Add
 Store 1
-Grab 2
-LoadClosure 0
-CallFunctionNoReturn 1
-Grab 1
-Grab 4
-LoadClosure 1
-CallPureFunction 1
-Add
-Store 0
 .l1
 Grab 0
 Increment

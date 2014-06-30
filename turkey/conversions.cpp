@@ -137,7 +137,7 @@ TurkeyString *turkey_to_string(TurkeyVM *vm, TurkeyVariable &var_in) {
 	
 }
 
-unsigned long long int turkey_to_unsigned(TurkeyVM *vm, TurkeyVariable &var_in) {
+uint64_t turkey_to_unsigned(TurkeyVM *vm, TurkeyVariable &var_in) {
 	switch(var_in.type) {
 	case TT_Array:
 	case TT_Buffer:
@@ -151,9 +151,9 @@ unsigned long long int turkey_to_unsigned(TurkeyVM *vm, TurkeyVariable &var_in) 
 	case TT_Boolean:
 		return var_in.boolean_value ? 1 : 0;
 	case TT_Float:
-		return (unsigned long long int)var_in.float_value;
+		return (uint64_t)var_in.float_value;
 	case TT_Signed:
-		return (unsigned long long int)var_in.signed_value;
+		return (uint64_t)var_in.signed_value;
 	case TT_Unsigned:
 		return var_in.unsigned_value;
 	}

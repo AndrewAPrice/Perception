@@ -224,6 +224,8 @@ struct TurkeyVM;
 struct TurkeyFunctionPointer;
 struct TurkeyGarbageCollectedObject;
 
+typedef unsigned long long int uint64_t;
+
 struct TurkeySettings {
 	// Use debug settings? Can handle breakpoints, 
 	bool debug;
@@ -266,7 +268,7 @@ struct TurkeyVariable {
 	union {
 		double float_value;
 		signed long long int signed_value;
-		unsigned long long int unsigned_value;
+		uint64_t unsigned_value;
 		bool boolean_value;
 		TurkeyString *string;
 		TurkeyArray *array;
@@ -274,10 +276,21 @@ struct TurkeyVariable {
 		TurkeyObject *object;
 		TurkeyBuffer *buffer;
 	};
+
+	TurkeyVariable() { type = TT_Null; }
+	TurkeyVariable(double float_value) { type = TT_Float; this->float_value = float_value; }
+	TurkeyVariable(signed long long int signed_value) { type = TT_Signed; this->signed_value = signed_value; }
+	TurkeyVariable(uint64_t unsigned_value) { type = TT_Unsigned; this->unsigned_value = unsigned_value; }
+	TurkeyVariable(bool boolean_value) { type = TT_Boolean; this->boolean_value = boolean_value; }
+	TurkeyVariable(TurkeyString *string) { type = TT_String; this->string = string; }
+	TurkeyVariable(TurkeyArray *array) { type = TT_Array; this->array = array; }
+	TurkeyVariable(TurkeyFunctionPointer *function) { type = TT_FunctionPointer; this->function = function; }
+	TurkeyVariable(TurkeyObject *object) { type = TT_Object; this->object = object; }
+	TurkeyVariable(TurkeyBuffer *buffer) { type = TT_Buffer; this->buffer = buffer; }
 };
 
 /* native functions */
-typedef TurkeyVariable (*TurkeyNativeFunction)(TurkeyVM *vm, void *closure, unsigned int argc);
+typedef TurkeyVariable (*TurkeyNativeFunction)(TurkeyVM *vm, void *closure, unsigned int argc, uint64_t argt, ...);
 
 typedef void (*TurkeyInstructionHandler)(TurkeyVM *vm);
 
@@ -291,7 +304,7 @@ struct TurkeyInstruction {
 			unsigned int a;
 			unsigned int b;
 		};
-		unsigned long long int large;
+		uint64_t large;
 	};
 };
 
@@ -316,12 +329,11 @@ extern TurkeyVM *turkey_init(TurkeySettings *settings);
 extern void turkey_cleanup(TurkeyVM *vm);
 
 /* Loads a file and runs its main function - pushes it's exports object */
-extern void turkey_require(TurkeyVM *vm, unsigned int index);
-extern void turkey_require(TurkeyVM *vm);
+extern TurkeyVariable turkey_require(TurkeyVM *vm, TurkeyString *strName);
 
 /* Registers an internal module. When Shovel/Turkey code calls require, it checks to see if there's an internal module to return first
    - if there is then 'obj' passed here is returned, otherwise it loads a physical file on disk. */
-extern void turkey_register_module(TurkeyVM *vm, unsigned int ind_moduleName, unsigned int ind_obj);
+extern void turkey_register_module(TurkeyVM *vm, TurkeyString *moduleName, TurkeyVariable &obj);
 
 /* gc.cpp */
 /* invoke the garbage collector */
@@ -348,7 +360,7 @@ extern void turkey_push_array(TurkeyVM *vm, size_t size);
 extern void turkey_push_native_function(TurkeyVM *vm, TurkeyNativeFunction func, void *closure);
 extern void turkey_push_boolean(TurkeyVM *vm, bool val);
 extern void turkey_push_signed_integer(TurkeyVM *vm, signed long long int val);
-extern void turkey_push_unsigned_integer(TurkeyVM *vm, unsigned long long int val);
+extern void turkey_push_unsigned_integer(TurkeyVM *vm, uint64_t val);
 extern void turkey_push_float(TurkeyVM *vm, double val);
 extern void turkey_push_null(TurkeyVM *vm);
 extern void turkey_push(TurkeyVM *vm, TurkeyVariable &variable);
@@ -363,7 +375,7 @@ extern void turkey_set(TurkeyVM *vm, unsigned int index, TurkeyVariable &var);
 
 /**** objects/arrays ****/
 /* grabs an element and pushes it on the stack */
-extern TurkeyVariable turkey_get_element(TurkeyVM *vm, unsigned int ind_obj, unsigned int ind_key);
+/*extern TurkeyVariable turkey_get_element(TurkeyVM *vm, unsigned int ind_obj, unsigned int ind_key);
 /* calls the Shovel equivilent of obj[key] = val; */
 extern void turkey_set_element(TurkeyVM *vm, unsigned int ind_obj, unsigned int ind_key, unsigned int ind_val);
 extern void turkey_delete_element(TurkeyVM *vm, unsigned int ind_obj, unsigned int ind_key);
@@ -371,14 +383,14 @@ extern void turkey_delete_element(TurkeyVM *vm, unsigned int ind_obj, unsigned i
 /***** conversions *****/
 /* conversions.cpp */
 extern TurkeyString *turkey_to_string(TurkeyVM *vm, TurkeyVariable &var_in);
-extern unsigned long long int turkey_to_unsigned(TurkeyVM *vm, TurkeyVariable &var_in);
+extern uint64_t turkey_to_unsigned(TurkeyVM *vm, TurkeyVariable &var_in);
 extern long long int turkey_to_signed(TurkeyVM *vm, TurkeyVariable &var_in);
 extern double turkey_to_float(TurkeyVM *vm, TurkeyVariable &var_in);
 extern bool turkey_to_boolean(TurkeyVM *vm, TurkeyVariable &var_in);
 
 /* ssa_conversions.cpp */
 extern TurkeyString *turkey_ssa_to_string(TurkeyVM *vm, TurkeyInstruction &instruction);
-extern unsigned long long int turkey_ssa_to_unsigned(TurkeyVM *vm, TurkeyInstruction &instruction);
+extern uint64_t turkey_ssa_to_unsigned(TurkeyVM *vm, TurkeyInstruction &instruction);
 extern long long int turkey_ssa_to_signed(TurkeyVM *vm, TurkeyInstruction &instruction);
 extern double turkey_ssa_to_float(TurkeyVM *vm, TurkeyInstruction &instruction);
 extern bool turkey_ssa_to_boolean(TurkeyVM *vm, TurkeyInstruction &instruction);
@@ -553,7 +565,7 @@ struct TurkeyGarbageCollector {
 	TurkeyFunctionPointer *function_pointers;
 	TurkeyClosure *closures;
 
-	unsigned long long int items; /* number of allocated items */
+	uint64_t items; /* number of allocated items */
 	#ifdef DEBUG
 	/* items on hold are not collected by the gc, this can cause memory leaks if cleanup the GC without unholding all objects */
 	size_t items_on_hold;
@@ -608,27 +620,27 @@ extern TurkeyBuffer *turkey_buffer_new_native(TurkeyVM *vm, void *ptr, size_t si
 extern TurkeyBuffer *turkey_buffer_append(TurkeyVM *vm, TurkeyBuffer *a, TurkeyBuffer *b);
 extern void turkey_buffer_delete(TurkeyVM *vm, TurkeyBuffer *buffer);
 extern void turkey_buffer_dispose(TurkeyVM *vm, TurkeyBuffer *buffer);
-extern void turkey_buffer_resize(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int size);
-extern void turkey_buffer_write_unsigned_8(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, unsigned long long int val);
-extern void turkey_buffer_write_unsigned_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, unsigned long long int val);
-extern void turkey_buffer_write_unsigned_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, unsigned long long int val);
-extern void turkey_buffer_write_unsigned_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, unsigned long long int val);
-extern void turkey_buffer_write_signed_8(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, signed long long int val);
-extern void turkey_buffer_write_signed_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, signed long long int val);
-extern void turkey_buffer_write_signed_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, signed long long int val);
-extern void turkey_buffer_write_signed_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, signed long long int val);
-extern void turkey_buffer_write_float_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, double val);
-extern void turkey_buffer_write_float_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, double val);
-extern unsigned long long int turkey_buffer_read_unsigned_8(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
-extern unsigned long long int turkey_buffer_read_unsigned_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
-extern unsigned long long int turkey_buffer_read_unsigned_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
-extern unsigned long long int turkey_buffer_read_unsigned_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
-extern signed long long int turkey_buffer_read_signed_8(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
-extern signed long long int turkey_buffer_read_signed_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
-extern signed long long int turkey_buffer_read_signed_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
-extern signed long long int turkey_buffer_read_signed_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
-extern double turkey_buffer_read_float_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
-extern double turkey_buffer_read_float_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address);
+extern void turkey_buffer_resize(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t size);
+extern void turkey_buffer_write_unsigned_8(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, uint64_t val);
+extern void turkey_buffer_write_unsigned_16(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, uint64_t val);
+extern void turkey_buffer_write_unsigned_32(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, uint64_t val);
+extern void turkey_buffer_write_unsigned_64(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, uint64_t val);
+extern void turkey_buffer_write_signed_8(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, signed long long int val);
+extern void turkey_buffer_write_signed_16(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, signed long long int val);
+extern void turkey_buffer_write_signed_32(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, signed long long int val);
+extern void turkey_buffer_write_signed_64(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, signed long long int val);
+extern void turkey_buffer_write_float_32(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, double val);
+extern void turkey_buffer_write_float_64(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, double val);
+extern uint64_t turkey_buffer_read_unsigned_8(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address);
+extern uint64_t turkey_buffer_read_unsigned_16(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address);
+extern uint64_t turkey_buffer_read_unsigned_32(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address);
+extern uint64_t turkey_buffer_read_unsigned_64(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address);
+extern signed long long int turkey_buffer_read_signed_8(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address);
+extern signed long long int turkey_buffer_read_signed_16(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address);
+extern signed long long int turkey_buffer_read_signed_32(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address);
+extern signed long long int turkey_buffer_read_signed_64(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address);
+extern double turkey_buffer_read_float_32(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address);
+extern double turkey_buffer_read_float_64(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address);
 
 /* callstack.cpp */
 /*extern void turkey_callstack_init(TurkeyCallStack &stack);
@@ -693,6 +705,7 @@ extern TurkeyString *turkey_string_substring(TurkeyVM *vm, TurkeyString *str, un
 extern void turkey_stringtable_init(TurkeyVM *vm);
 extern void turkey_stringtable_cleanup(TurkeyVM *vm);
 extern TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, unsigned int length);
+extern TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string);
 extern void turkey_stringtable_grow(TurkeyVM *vm);
 extern void turkey_stringtable_removestring(TurkeyVM *vm, TurkeyString *string);
 

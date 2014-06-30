@@ -32,7 +32,7 @@ TurkeyString *turkey_ssa_to_string(TurkeyVM *vm, TurkeyInstruction &instruction)
 	}
 }
 
-unsigned long long int turkey_ssa_to_unsigned(TurkeyVM *vm, TurkeyInstruction &instruction) {
+uint64_t turkey_ssa_to_unsigned(TurkeyVM *vm, TurkeyInstruction &instruction) {
 	switch(instruction.instruction) {
 	default:
 	case turkey_ir_null:
@@ -42,11 +42,11 @@ unsigned long long int turkey_ssa_to_unsigned(TurkeyVM *vm, TurkeyInstruction &i
 	case turkey_ir_false:
 		return 0;
 	case turkey_ir_float:
-		return (unsigned long long int)*(double *)instruction.large;
+		return (uint64_t)*(double *)instruction.large;
 	case turkey_ir_unsigned_integer:
 		return instruction.large;
 	case turkey_ir_signed_integer:
-		return (unsigned long long int)*(signed long long int *)instruction.large;
+		return (uint64_t)*(signed long long int *)instruction.large;
 	case turkey_ir_string:
 		return 1;
 	}
@@ -64,7 +64,7 @@ long long int turkey_ssa_to_signed(TurkeyVM *vm, TurkeyInstruction &instruction)
 	case turkey_ir_float:
 		return (signed long long int)*(double *)instruction.large;
 	case turkey_ir_unsigned_integer:
-		return (signed long long int)*(unsigned long long int *)instruction.large;
+		return (signed long long int)*(uint64_t *)instruction.large;
 	case turkey_ir_signed_integer:
 		return *(signed long long int *)instruction.large;
 	case turkey_ir_string:
@@ -84,7 +84,7 @@ double turkey_ssa_to_float(TurkeyVM *vm, TurkeyInstruction &instruction) {
 	case turkey_ir_float:
 		return *(double *)instruction.large;
 	case turkey_ir_unsigned_integer:
-		return (double)*(unsigned long long int *)instruction.large;
+		return (double)*(uint64_t *)instruction.large;
 	case turkey_ir_signed_integer:
 		return (double)*(signed long long int *)instruction.large;
 	case turkey_ir_string:
@@ -104,7 +104,7 @@ bool turkey_ssa_to_boolean(TurkeyVM *vm, TurkeyInstruction &instruction) {
 	case turkey_ir_float:
 		return *(double *)instruction.large == 0.0 ? false : true;
 	case turkey_ir_unsigned_integer:
-		return *(unsigned long long int *)instruction.large ? false : true;
+		return *(uint64_t *)instruction.large ? false : true;
 	case turkey_ir_signed_integer:
 		return *(signed long long int *)instruction.large ? false : true;
 	case turkey_ir_string:

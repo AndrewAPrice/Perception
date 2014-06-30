@@ -1,6 +1,7 @@
 #include "turkey.h"
 #include "hooks.h"
 
+
 void turkey_push_string(TurkeyVM *vm, const char *string) {
 	// find the length of the string
 	const char *s = string;
@@ -68,7 +69,7 @@ void turkey_push_signed_integer(TurkeyVM *vm, signed long long int val) {
 	vm->variable_stack.Push(var);
 }
 
-void turkey_push_unsigned_integer(TurkeyVM *vm, unsigned long long int val) {
+void turkey_push_unsigned_integer(TurkeyVM *vm, uint64_t val) {
 	TurkeyVariable var;
 	var.type = TT_Unsigned;
 	var.unsigned_value = val;
@@ -195,7 +196,7 @@ void turkey_delete_element(TurkeyVM *vm, unsigned int ind_obj, unsigned int ind_
 		TurkeyVariable key;
 		if(!vm->variable_stack.Get(ind_key, key)) key.type = TT_Null;
 
-		unsigned long long int k = turkey_to_unsigned(vm, key);
+		uint64_t k = turkey_to_unsigned(vm, key);
 
 		TurkeyVariable var;
 		var.type = TT_Null;

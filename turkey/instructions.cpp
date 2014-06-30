@@ -444,8 +444,8 @@ void turkey_interpreter_instruction_rotate_left(TurkeyVM *vm) {
 	case TT_Unsigned:
 	case TT_Signed:{
 		ret.type = TT_Unsigned;
-		unsigned long long int _a = turkey_to_signed(vm, a);
-		unsigned long long int _b = turkey_to_signed(vm, b);
+		uint64_t _a = turkey_to_signed(vm, a);
+		uint64_t _b = turkey_to_signed(vm, b);
 		ret.unsigned_value = (_a << _b) | (_a >> (64 - _b));
 		break; }
 	case TT_Object:
@@ -473,8 +473,8 @@ void turkey_interpreter_instruction_rotate_right(TurkeyVM *vm) {
 	case TT_Unsigned:
 	case TT_Signed:{
 		ret.type = TT_Unsigned;
-		unsigned long long int _a = turkey_to_signed(vm, a);
-		unsigned long long int _b = turkey_to_signed(vm, b);
+		uint64_t _a = turkey_to_signed(vm, a);
+		uint64_t _b = turkey_to_signed(vm, b);
 		ret.unsigned_value = (_a >> _b) | (_a << (64 - _b));
 		break; }
 	case TT_Object:
@@ -984,12 +984,12 @@ void turkey_interpreter_instruction_load_element(TurkeyVM *vm) {
 		}
 		break;
 	case TT_String: {
-		unsigned long long int pos = turkey_to_unsigned(vm, key);
+		uint64_t pos = turkey_to_unsigned(vm, key);
 		if(pos >= b.string->length)
 			element.type = TT_Null;
 		else {
 			element.type = TT_Unsigned;
-			element.unsigned_value = (unsigned long long int)key.string->string[pos];
+			element.unsigned_value = (uint64_t)key.string->string[pos];
 		}
 		break; }
 	}
@@ -1367,7 +1367,7 @@ void turkey_interpreter_instruction_push_unsigned_integer_8(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
 		return;
 
-	unsigned long long int val = (unsigned long long int)*(unsigned char *)vm->interpreter_state->code_ptr;
+	uint64_t val = (uint64_t)*(unsigned char *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr++;
 	
 	TurkeyVariable var;
@@ -1380,7 +1380,7 @@ void turkey_interpreter_instruction_push_unsigned_integer_16(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr + 1 >= vm->interpreter_state->code_end)
 		return;
 
-	unsigned long long int val = (unsigned long long int)*(unsigned short *)vm->interpreter_state->code_ptr;
+	uint64_t val = (uint64_t)*(unsigned short *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr += 2;
 	
 	TurkeyVariable var;
@@ -1393,7 +1393,7 @@ void turkey_interpreter_instruction_push_unsigned_integer_32(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr + 3 >= vm->interpreter_state->code_end)
 		return;
 
-	unsigned long long int val = (unsigned long long int)*(unsigned int *)vm->interpreter_state->code_ptr;
+	uint64_t val = (uint64_t)*(unsigned int *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr += 4;
 	
 	TurkeyVariable var;
@@ -1406,7 +1406,7 @@ void turkey_interpreter_instruction_push_unsigned_integer_64(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr + 7 >= vm->interpreter_state->code_end)
 		return;
 
-	unsigned long long int val = *(unsigned long long int *)vm->interpreter_state->code_ptr;
+	uint64_t val = *(uint64_t *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr += 8;
 	
 	TurkeyVariable var;
@@ -1464,7 +1464,7 @@ void turkey_interpreter_instruction_push_string_8(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr >= vm->interpreter_state->code_end)
 		return;
 
-	size_t a = (unsigned long long int)*(unsigned char *)vm->interpreter_state->code_ptr;
+	size_t a = (uint64_t)*(unsigned char *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr++;
 
 	TurkeyModule *module = vm->interpreter_state->function->module;
@@ -1483,7 +1483,7 @@ void turkey_interpreter_instruction_push_string_16(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr + 1 >= vm->interpreter_state->code_end)
 		return;
 
-	size_t a = (unsigned long long int)*(unsigned short *)vm->interpreter_state->code_ptr;
+	size_t a = (uint64_t)*(unsigned short *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr += 2;
 
 	TurkeyModule *module = vm->interpreter_state->function->module;
@@ -1502,7 +1502,7 @@ void turkey_interpreter_instruction_push_string_32(TurkeyVM *vm) {
 	if(vm->interpreter_state->code_ptr + 3 >= vm->interpreter_state->code_end)
 		return;
 
-	size_t a = (unsigned long long int)*(unsigned short *)vm->interpreter_state->code_ptr;
+	size_t a = (uint64_t)*(unsigned short *)vm->interpreter_state->code_ptr;
 	vm->interpreter_state->code_ptr += 4;
 
 	TurkeyModule *module = vm->interpreter_state->function->module;
@@ -1848,7 +1848,12 @@ void turkey_interpreter_instruction_jump_if_not_null_32(TurkeyVM *vm) {
 }
 
 void turkey_interpreter_instruction_require(TurkeyVM *vm) {
-	turkey_require(vm);
+	TurkeyVariable a;
+	if(!vm->variable_stack.Pop(a)) a.type = TT_Null;
+
+	TurkeyString *strName = turkey_to_string(vm, a);
+	TurkeyVariable ret = turkey_require(vm, strName);
+	vm->variable_stack.Push(ret);
 }
 /*
 void turkey_interpreter_instruction_load_parameter_8(TurkeyVM *vm) {

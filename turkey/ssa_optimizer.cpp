@@ -192,9 +192,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
-				unsigned long long int result = av + bv;
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t result = av + bv;
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -228,7 +228,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 				TurkeyString *result = turkey_string_append(vm, av, bv);
 				turkey_gc_hold(vm, result, TT_String);
 				
-				instruction.large = (unsigned long long int)result;
+				instruction.large = (uint64_t)result;
 				instruction.instruction = turkey_ir_string;
 			} else {
 				a.return_type |= TT_Marked;
@@ -281,9 +281,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
-				unsigned long long int result = av - bv;
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t result = av - bv;
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -343,9 +343,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
-				unsigned long long int result = av / bv;
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t result = av / bv;
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -405,9 +405,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
-				unsigned long long int result = av * bv;
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t result = av * bv;
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -467,9 +467,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
-				unsigned long long int result = av % bv;
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t result = av % bv;
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -590,9 +590,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int result = av + 1;
-				*(unsigned long long int *)&instruction.large = result;
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t result = av + 1;
+				*(uint64_t *)&instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
 				a.return_type |= TT_Marked;
@@ -605,9 +605,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Signed:
 			instruction.return_type = TT_Signed;
 			if(turkey_ssa_optimizer_is_constant_number(a)) {
-				unsigned long long int av = turkey_ssa_to_signed(vm, a);
-				unsigned long long int result = av + 1;
-				*(unsigned long long int *)&instruction.large = result;
+				uint64_t av = turkey_ssa_to_signed(vm, a);
+				uint64_t result = av + 1;
+				*(uint64_t *)&instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
 				a.return_type |= TT_Marked;
@@ -647,9 +647,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int result = av - 1;
-				*(unsigned long long int *)&instruction.large = result;
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t result = av - 1;
+				*(uint64_t *)&instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
 				a.return_type |= TT_Marked;
@@ -662,9 +662,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Signed:
 			instruction.return_type = TT_Signed;
 			if(turkey_ssa_optimizer_is_constant_number(a)) {
-				unsigned long long int av = turkey_ssa_to_signed(vm, a);
-				unsigned long long int result = av - 1;
-				*(unsigned long long int *)&instruction.large = result;
+				uint64_t av = turkey_ssa_to_signed(vm, a);
+				uint64_t result = av - 1;
+				*(uint64_t *)&instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
 				a.return_type |= TT_Marked;
@@ -717,9 +717,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
-				unsigned long long int result = av ^ bv;
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t result = av ^ bv;
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -779,9 +779,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
-				unsigned long long int result = av & bv;
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t result = av & bv;
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -841,9 +841,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
-				unsigned long long int result = av | bv;
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t result = av | bv;
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -896,8 +896,8 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a)) {
-				unsigned long long int av = turkey_ssa_to_signed(vm, a);
-				unsigned long long int result = ~av;
+				uint64_t av = turkey_ssa_to_signed(vm, a);
+				uint64_t result = ~av;
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -944,9 +944,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
-				unsigned long long int result = av << bv;
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t result = av << bv;
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -995,9 +995,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
-				unsigned long long int result = av >> bv;
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t result = av >> bv;
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -1026,9 +1026,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
-				unsigned long long int result = (av << bv) | (av >> (64 - bv));
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t result = (av << bv) | (av >> (64 - bv));
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -1065,9 +1065,9 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
-				unsigned long long int result = (av >> bv) | (av << (64 - bv));
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t result = (av >> bv) | (av << (64 - bv));
 				instruction.large = result;
 				instruction.instruction = turkey_ir_unsigned_integer;
 			} else {
@@ -1254,8 +1254,8 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
 				bool result = av < bv;
 				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
@@ -1325,8 +1325,8 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
 				bool result = av > bv;
 				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
@@ -1394,8 +1394,8 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
 				bool result = av <= bv;
 				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
@@ -1463,8 +1463,8 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		case TT_Unsigned:
 			instruction.return_type = TT_Unsigned;
 			if(turkey_ssa_optimizer_is_constant_number(a) && turkey_ssa_optimizer_is_constant_number(b)) {
-				unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
-				unsigned long long int bv = turkey_ssa_to_unsigned(vm, b);
+				uint64_t av = turkey_ssa_to_unsigned(vm, a);
+				uint64_t bv = turkey_ssa_to_unsigned(vm, b);
 				bool result = av >= bv;
 				instruction.instruction = result ? turkey_ir_true : turkey_ir_false; instruction.large = 0;
 			} else {
@@ -1701,7 +1701,7 @@ void turkey_ssa_optimizer_touch_instruction(TurkeyVM *vm, TurkeyFunction *functi
 		TurkeyInstruction &a = basic_block.instructions[instruction.a];
 		instruction.return_type = TT_Unsigned;
 		if(turkey_ssa_optimizer_is_constant_number(a)) {
-			unsigned long long int av = turkey_ssa_to_unsigned(vm, a);
+			uint64_t av = turkey_ssa_to_unsigned(vm, a);
 			instruction.instruction = turkey_ir_unsigned_integer;
 			instruction.large = av;
 		} else

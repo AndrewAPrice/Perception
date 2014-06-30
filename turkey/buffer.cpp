@@ -98,126 +98,126 @@ void turkey_buffer_resize(TurkeyVM *vm, TurkeyBuffer *buffer, size_t size) {
 	buffer->size = size;
 }
 
-void turkey_buffer_write_unsigned_8(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, unsigned long long int val) {
+void turkey_buffer_write_unsigned_8(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, uint64_t val) {
 	if(buffer->disposed) return;
 	if(address >= buffer->size) return;
 
 	*(unsigned char *)((size_t)buffer->ptr + address) = (unsigned char)val;
 }
 
-void turkey_buffer_write_unsigned_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, unsigned long long int val) {
+void turkey_buffer_write_unsigned_16(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, uint64_t val) {
 	if(buffer->disposed) return;
 	if(address >= buffer->size - 1) return;
 
 	*(unsigned short *)((size_t)buffer->ptr + address) = (unsigned short)val;
 }
 
-void turkey_buffer_write_unsigned_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, unsigned long long int val) {
+void turkey_buffer_write_unsigned_32(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, uint64_t val) {
 	if(buffer->disposed) return;
 	if(address >= buffer->size - 3) return;
 
 	*(unsigned int *)((size_t)buffer->ptr + address) = (unsigned int)val;
 }
 
-void turkey_buffer_write_unsigned_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, unsigned long long int val) {
+void turkey_buffer_write_unsigned_64(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, uint64_t val) {
 	if(buffer->disposed) return;
 	if(address >= buffer->size - 7) return;
 
-	*(unsigned long long int *)((size_t)buffer->ptr + address) = val;
+	*(uint64_t *)((size_t)buffer->ptr + address) = val;
 }
 
-void turkey_buffer_write_signed_8(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, signed long long int val) {
+void turkey_buffer_write_signed_8(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, signed long long int val) {
 	if(buffer->disposed) return;
 	if(address >= buffer->size) return;
 
 	*(signed char *)((size_t)buffer->ptr + address) = (signed char)val;
 }
 
-void turkey_buffer_write_signed_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, signed long long int val) {
+void turkey_buffer_write_signed_16(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, signed long long int val) {
 	if(buffer->disposed) return;
 	if(address >= buffer->size - 1) return;
 
 	*(signed short *)((size_t)buffer->ptr + address) = (signed short)val;
 }
 
-void turkey_buffer_write_signed_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, signed long long int val) {
+void turkey_buffer_write_signed_32(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, signed long long int val) {
 	if(buffer->disposed) return;
 	if(address >= buffer->size - 3) return;
 
 	*(signed int *)((size_t)buffer->ptr + address) = (signed int)val;
 }
 
-void turkey_buffer_write_signed_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, signed long long int val) {
+void turkey_buffer_write_signed_64(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, signed long long int val) {
 	if(buffer->disposed) return;
 	if(address >= buffer->size - 7) return;
 
 	*(signed long long int *)((size_t)buffer->ptr + address) = val;
 }
 
-void turkey_buffer_write_float_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, double val) {
+void turkey_buffer_write_float_32(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, double val) {
 	if(buffer->disposed) return;
 	if(address >= buffer->size - 3) return;
 
 	*(float *)((size_t)buffer->ptr + address) = (float)val;
 }
 
-void turkey_buffer_write_float_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address, double val) {
+void turkey_buffer_write_float_64(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address, double val) {
 	if(buffer->disposed) return;
 	if(address >= buffer->size - 7) return;
 
 	*(double *)((size_t)buffer->ptr + address) = val;
 }
 
-unsigned long long int turkey_buffer_read_unsigned_8(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address) {
+uint64_t turkey_buffer_read_unsigned_8(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address) {
 	if(buffer->disposed) return 0;
 	if(address >= buffer->size) return 0;
 
-	return (unsigned long long int)*(unsigned char *)((size_t)buffer->ptr + address);
+	return (uint64_t)*(unsigned char *)((size_t)buffer->ptr + address);
 }
 
-unsigned long long int turkey_buffer_read_unsigned_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address) {
+uint64_t turkey_buffer_read_unsigned_16(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address) {
 	if(buffer->disposed) return 0;
 	if(address >= buffer->size - 1) return 0;
 
-	return (unsigned long long int)*(unsigned short *)((size_t)buffer->ptr + address);
+	return (uint64_t)*(unsigned short *)((size_t)buffer->ptr + address);
 }
 
-unsigned long long int turkey_buffer_read_unsigned_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address) {
+uint64_t turkey_buffer_read_unsigned_32(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address) {
 	if(buffer->disposed) return 0;
 	if(address >= buffer->size - 3) return 0;
 
-	return (unsigned long long int)*(unsigned int *)((size_t)buffer->ptr + address);
+	return (uint64_t)*(unsigned int *)((size_t)buffer->ptr + address);
 }
 
-unsigned long long int turkey_buffer_read_unsigned_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address) {
+uint64_t turkey_buffer_read_unsigned_64(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address) {
 	if(buffer->disposed) return 0;
 	if(address >= buffer->size - 7) return 0;
 
-	return *(unsigned long long int *)((size_t)buffer->ptr + address);
+	return *(uint64_t *)((size_t)buffer->ptr + address);
 }
 
-signed long long int turkey_buffer_read_signed_8(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address) {
+signed long long int turkey_buffer_read_signed_8(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address) {
 	if(buffer->disposed) return 0;
 	if(address >= buffer->size) return 0;
 
 	return (signed long long int)*(signed char *)((size_t)buffer->ptr + address);
 }
 
-signed long long int turkey_buffer_read_signed_16(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address) {
+signed long long int turkey_buffer_read_signed_16(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address) {
 	if(buffer->disposed) return 0;
 	if(address >= buffer->size - 1) return 0;
 
 	return (signed long long int)*(signed short *)((size_t)buffer->ptr + address);
 }
 
-signed long long int turkey_buffer_read_signed_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address) {
+signed long long int turkey_buffer_read_signed_32(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address) {
 	if(buffer->disposed) return 0;
 	if(address >= buffer->size - 3) return 0;
 
 	return (signed long long int)*(signed int *)((size_t)buffer->ptr + address);
 }
 
-signed long long int turkey_buffer_read_signed_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address) {
+signed long long int turkey_buffer_read_signed_64(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address) {
 	if(buffer->disposed) return 0;
 	if(address >= buffer->size - 7) return 0;
 
@@ -225,14 +225,14 @@ signed long long int turkey_buffer_read_signed_64(TurkeyVM *vm, TurkeyBuffer *bu
 }
 
 
-double turkey_buffer_read_float_32(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address) {
+double turkey_buffer_read_float_32(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address) {
 	if(buffer->disposed) return 0;
 	if(address >= buffer->size - 3) return 0;
 
 	return (double)*(float *)((size_t)buffer->ptr + address);
 }
 
-double turkey_buffer_read_float_64(TurkeyVM *vm, TurkeyBuffer *buffer, unsigned long long int address) {
+double turkey_buffer_read_float_64(TurkeyVM *vm, TurkeyBuffer *buffer, uint64_t address) {
 	if(buffer->disposed) return 0;
 	if(address >= buffer->size - 7) return 0;
 

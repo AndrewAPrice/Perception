@@ -93,21 +93,8 @@ void turkey_module_cleanup(TurkeyVM *vm) {
 	}
 }
 
-/* Loads a file and runs its main function - pushes it's exports object */
-void turkey_require(TurkeyVM *vm, unsigned int index) {
-	// copy it to the bottom
-	turkey_grab(vm, index);
-	turkey_require(vm);
-}
-
-void turkey_require(TurkeyVM *vm) {
-	TurkeyVariable name;
-	if(!vm->variable_stack.Pop(name)) name.type = TT_Null;
-
+TurkeyVariable turkey_require(TurkeyVM *vm, TurkeyString *strName) {
 	TurkeyVariable ret;
-	ret.type = TT_Null;
-
-	TurkeyString *strName = turkey_to_string(vm, name);
 	turkey_gc_hold(vm, strName, TT_String);
 	// load it, pop it back on the stack
 	if(strName->length > 0) {
@@ -164,25 +151,19 @@ void turkey_require(TurkeyVM *vm) {
 	}
 
 	turkey_gc_unhold(vm, strName, TT_String);
-	vm->variable_stack.Push(ret);
 	
+	return ret;
 }
 
 /* Registers an internal module. When Shovel/Turkey code calls require, it checks to see if there's an internal module to return first
    - if there is then 'obj' passed here is returned, otherwise it loads a physical file on disk. */
-void turkey_register_module(TurkeyVM *vm, unsigned int ind_moduleName, unsigned int ind_obj) {
-	TurkeyVariable name, obj;
-
-	if(!vm->variable_stack.Get(ind_moduleName, name)) name.type = TT_Null;
-	if(!vm->variable_stack.Get(ind_obj, obj)) obj.type = TT_Null;
-
-	TurkeyString *strName = turkey_to_string(vm, name);
-	turkey_gc_hold(vm, strName, TT_String);
+void turkey_register_module(TurkeyVM *vm, TurkeyString *moduleName, TurkeyVariable &obj) {
+	turkey_gc_hold(vm, moduleName, TT_String);
 	turkey_gc_hold(vm, obj);
 
 	// create a module
 	TurkeyLoadedModule *module = (TurkeyLoadedModule *)turkey_allocate_memory(vm->tag, sizeof TurkeyLoadedModule);
-	module->Name = strName;
+	module->Name = moduleName;
 	module->ReturnVariable = obj;
 	module->Next = vm->loaded_modules.internal_modules;
 	vm->loaded_modules.internal_modules = module;

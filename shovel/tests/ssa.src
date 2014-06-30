@@ -1,17 +1,17 @@
-var doSomething, cos;
-doSomething = function(abc) { return abc; };
-cos = doSomething;
+var i = 0;
+var somethingNotPure = function(b) { i += b; };
+var somethingPure = function(abc) { return abc; };
 
 var f = function(a) {
 	var q = 2;
 	var one = 3 - 2;
-	var b = cos(a + one) * q;
+	var b = somethingPure!(a + one) * q;
 	var c = 0;
 
 	for(var i = 0; i < 10; i++) {
-		b += cos!(a + one);
-		doSomething(b);
-		c += cos!(q);
+		b += somethingPure!(a + one);
+		somethingNotPure(b);
+		c += somethingPure!(q);
 	}
 
 	return b;

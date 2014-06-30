@@ -12,7 +12,8 @@ Optimised C Version: 0.030373 seconds
 | --- | --- | --- | --- | --- |
 | 2014-06-13 | 5.461770 | 6.76318207372 | 179.823198235 | Initial interpreter. |
 | 2014-06-16 | 5.410971 | 6.70027885989 | 178.15069305 | Merged variable and local stacks. | 
-| 2014-06-19 | 4.426942 | 5.48177875959 | 145.752543377 | Native 64-bit interpreter |
+| 2014-06-19 | 4.426942 | 5.48177875959 | 145.752543377 | Native 64-bit interpreter. |
+| 2014-06-30 |  4.375140 | 5.41763355432 | 144.047015441 | Changed the calling convention. |
 
 ## Average
 
@@ -20,4 +21,5 @@ Optimised C Version: 0.030373 seconds
 | --- | --- | --- | --- |
 | 2014-06-13 | 6.76318207372 | 179.823198235 | Initial interpreter. |
 | 2014-06-16 | 6.70027885989 | 178.15069305 | Merged variable and local stacks. |
-| 2014-06-19 | 5.48177875959 | 145.752543377 | Native 64-bit interpreter |
+| 2014-06-19 | 5.48177875959 | 145.752543377 | Native 64-bit interpreter. |
+| 2014-06-30 |  5.41763355432 | 144.047015441 | Changed the calling convention. |

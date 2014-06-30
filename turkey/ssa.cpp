@@ -1514,7 +1514,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				exit_error();
 
 			bytecode++; bytecode_pos++;
-			unsigned long long int value = (unsigned long long int)*(unsigned char *)bytecode;
+			uint64_t value = (uint64_t)*(unsigned char *)bytecode;
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_unsigned_integer;
 			inst.large = value;
@@ -1527,7 +1527,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				exit_error();
 
 			bytecode++; bytecode_pos++;
-			unsigned long long int value = (unsigned long long int)*(unsigned short *)bytecode;
+			uint64_t value = (uint64_t)*(unsigned short *)bytecode;
 			bytecode++; bytecode_pos++;
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_unsigned_integer;
@@ -1541,7 +1541,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				exit_error();
 
 			bytecode++; bytecode_pos++;
-			unsigned long long int value = (unsigned long long int)*(unsigned int *)bytecode;
+			uint64_t value = (uint64_t)*(unsigned int *)bytecode;
 			bytecode++; bytecode_pos++;
 			bytecode++; bytecode_pos++;
 			bytecode++; bytecode_pos++;
@@ -1557,7 +1557,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 				exit_error();
 
 			bytecode++; bytecode_pos++;
-			unsigned long long int value = *(unsigned long long int *)bytecode;
+			uint64_t value = *(uint64_t *)bytecode;
 			bytecode++; bytecode_pos++;
 			bytecode++; bytecode_pos++;
 			bytecode++; bytecode_pos++;
@@ -1641,7 +1641,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_string;
 			TurkeyString *str = function->module->strings[string_index];
-			inst.large = (unsigned long long int)str;
+			inst.large = (uint64_t)str;
 			if(inst.large == 0) exit_error();
 			turkey_gc_hold(vm, str, TT_String);
 
@@ -1661,7 +1661,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_string;
 			TurkeyString *str = function->module->strings[string_index];
-			inst.large = (unsigned long long int)str;
+			inst.large = (uint64_t)str;
 			if(inst.large == 0) exit_error();
 			turkey_gc_hold(vm, str, TT_String);
 
@@ -1683,7 +1683,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_string;
 			TurkeyString *str = function->module->strings[string_index];
-			inst.large = (unsigned long long int)str;
+			inst.large = (uint64_t)str;
 			if(inst.large == 0) exit_error();
 			turkey_gc_hold(vm, str, TT_String);
 
@@ -1705,7 +1705,7 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 			if(func >= function->module->function_count) exit_error();
 
 			TurkeyInstruction inst; inst.instruction = turkey_ir_function;
-			inst.large = (unsigned long long int)function->module->functions[func];
+			inst.large = (uint64_t)function->module->functions[func];
 			if(inst.large == 0) exit_error();
 			
 			instructions.Push(inst);
