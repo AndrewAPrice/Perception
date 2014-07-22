@@ -490,6 +490,7 @@ struct TurkeyFunctionPointer : TurkeyGarbageCollectedObject {
 		} native;
 	};
 	bool is_native; /* is this a native function? */
+	void *thunk; /* jit - the entry point when calling the function pointer */
 };
 
 struct TurkeyArray : TurkeyGarbageCollectedObject {
@@ -525,6 +526,10 @@ struct TurkeyFunction {
 	unsigned int closures; /* number of closure variables this function creates */
 	TurkeyBasicBlock *basic_blocks; /* array of basic blocks */
 	unsigned int basic_blocks_count; /* number of basic blocks */
+
+	void *entry_point; /* the jit-ed entry point */
+	size_t *first_basic_block_version_array; /* jit - pointers (in groups of two - types, addr) to the first basic block */
+	size_t *first_basic_block_versions; /* jit - number of entries in the above array */
 };
 
 struct TurkeyFunctionArray {
@@ -585,6 +590,8 @@ struct TurkeyInterpreterState {
 	size_t code_end; /* end of the current code block */
 };
 
+struct dasm_State;
+
 struct TurkeyVM {
 	bool debug; /* no jit */
 	void *tag; /* tag when running multiple instances of the VM */
@@ -599,6 +606,7 @@ struct TurkeyVM {
 	TurkeyLoadedModules loaded_modules; /* loaded modules and their files */
 
 	TurkeyInterpreterState *interpreter_state; /* pointer to the current interpreter state */
+	dasm_State *dasm_state; /* dasm state */
 };
 
 /* array.cpp */

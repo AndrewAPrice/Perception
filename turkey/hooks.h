@@ -12,6 +12,9 @@ extern void *turkey_load_file(void *tag, TurkeyString *path, size_t &size);
 /* Allocate some memory and return a pointer to it. */
 extern void *turkey_allocate_memory(void *tag, size_t size);
 
+/* Allocate some executable memory and return a pointer to it. */
+extern void *turkey_allocate_executable_memory(void *tag, size_t size);
+
 /* Free some memory */
 extern void turkey_free_memory(void *tag, void *mem, size_t size);
 

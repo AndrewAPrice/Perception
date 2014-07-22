@@ -79,7 +79,7 @@ void main() {
 
 	/* create the vm */
 	TurkeySettings settings;
-	settings.debug = true;
+	settings.debug = false;
 	settings.tag = 0;
 
 	TurkeyVM *vm = turkey_init(&settings);
@@ -107,7 +107,7 @@ void main() {
 	turkey_gc_unhold(vm, str_end, TT_String);
 
 	/* run ../../shovel/test.bin */
-	TurkeyString *str_path = turkey_stringtable_newstring(vm, "./benchmarks.bin");
+	TurkeyString *str_path = turkey_stringtable_newstring(vm, "./ssa.bin");
 	turkey_require(vm, str_path); /* loaded test.bin and pops off test.bin's exports */
 
 	tests();

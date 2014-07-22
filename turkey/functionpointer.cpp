@@ -2,7 +2,6 @@
 #include "hooks.h"
 
 TurkeyFunctionPointer *turkey_functionpointer_new(TurkeyVM *vm, TurkeyFunction *function, TurkeyClosure *closure) {
-
 	TurkeyFunctionPointer *funcptr = (TurkeyFunctionPointer *)turkey_allocate_memory(vm->tag, sizeof TurkeyFunctionPointer);
 	funcptr->is_native = false;
 	funcptr->managed.function = function;

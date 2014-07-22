@@ -67,6 +67,9 @@
     <ClCompile Include="..\ssa_conversions.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\arch_x64.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\external\cityhash\city.h">
@@ -95,5 +98,10 @@
     <Filter Include="Headers">
       <UniqueIdentifier>{7e962330-be66-402a-975c-1428d4d67f14}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\arch_x64.dasc">
+      <Filter>Source</Filter>
+    </None>
   </ItemGroup>
 </Project>

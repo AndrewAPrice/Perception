@@ -1,0 +1,249 @@
+#include "turkey.h"
+#include "external/dynasm/dasm_proto.h"
+#include "external/dynasm/dasm_x86.h"
+
+// documents: http://corsix.github.io/dynasm-doc/reference.html
+
+| .arch x64
+|.actionlist actions
+
+#define Dst &(vm->dasm_state)
+
+void turkey_arch_initialize(TurkeyVM *vm) {
+	dasm_init(Dst, 1);
+	// dasm_setupglobal ?
+	dasm_setup(Dst, actions);
+}
+
+void turkey_arch_cleanup(TurkeyVM *vm) {
+	dasm_free(Dst);
+}
+
+void *turkey_arch_functionpointer_managed_thunk(TurkeyVM *vm, TurkeyFunctionPointer *func) {
+	assert(func->is_native == false);
+
+	// all parameters + return value are on the stack
+	// types are in rcx
+	// move closure into r8
+	
+	if(func->managed.closure) {
+		| mov r8, func->managed.closure
+	}
+
+	// do a tail jump, returning straight to the parent
+	size_t funcentry = (size_t)func->managed.function->entry_point;
+	if(funcentry > 0xFFFFFFFF) {
+		| mov rdx, funcentry
+		| jmp rdx
+	} else {
+		| jmp =>funcentry
+	}
+
+	// return value and type should be in rax, rcx
+	size_t code_size;
+	dasm_link(Dst, &code_size);
+	void *mem = turkey_allocate_executable_memory(vm->tag, code_size);
+
+	dasm_encode(Dst, mem);
+	return mem;
+}
+
+void *turkey_arch_functionpointer_native_thunk(TurkeyVM *vm, TurkeyFunctionPointer *func) {
+	assert(func->is_native == true);
+
+	// all parameters + return value are on the stack
+	// types are in rcx
+
+	// calculate how many parameters we have into rax
+	| mov rax, rbp
+	| sub rax, rsp
+	| sub rax, 8
+	// store an unshifted copy into rdx
+	| mov rdx, rsp
+	// shift right to turn it into a count of parameters
+	| shr rax, 3
+	
+	// enter new stack frame
+	| push rbp
+	| mov rbp, rsp
+
+	// subtract space for return value, plus also enough for the shadow space
+	| sub rsp, 16+(8*4)
+
+	// align to 16 bytes
+	| and rsp, -0x10
+
+	// subtract enough room on stack to shadow parameters
+	| sub rsp, rdx
+	// figure out if we have an odd number of parameters
+	| and rdx, 8
+	// subtract one more time (only does something if we had an odd number of parameters)
+	| sub rsp, rdx
+	
+	// final stack should be:
+	// 16 bytes for return value
+	// optional 8 byte padding to get the stack 16 byte aligned
+	// copy of the parameters
+	// 4 * 8 byte shadow space
+
+	// now copy the parameters right above the shadow space
+	| mov rdi, rdx
+	| add rdi, 32
+	// +16 jumps over the return value and pushed rbp
+	| mov rsi, rbp
+	| add rsi, 16
+
+	// skip over loop if we're down to 0
+	| cmp rax, 0
+	| je >2
+	|1:
+		// copy 4 bytes
+		| movsd
+		// shift up stack
+		| add rdi, 4
+		| add rsi, 4
+		// copy 4 bytes
+		| movsd
+		// decrement count
+		| dec rax
+		// shift up stack
+		| add rdi, 4
+		| add rsi, 4
+		// break loop if we're down to 0
+		| cmp rax, 0
+		| je >2
+		// loop
+		| jmp <1
+	|2:
+	
+	// pointer to return space in rcx
+	// move vm into rdx
+	// move closure into r8
+	// move types into r9
+	| mov r8, rcx
+	| mov rcx, rbp
+	| sub rcx, 16
+	| mov rdx, func->native.closure
+	
+	// reserve shadow space for parameters
+	| sub rsp, 4 * 8
+
+	// call native code
+	size funcentry = (size_t)func->native.function;
+	if(funcentry > 0xFFFFFFFF) {
+		| mov rax, funcentry
+		| jmp rax
+	} else {
+		| jmp =>funcentry
+	}
+
+	// extract our parameters (value, type)
+	| mov rax, [ebp - 8]
+	| mov rcx, [ebp - 16]
+
+	// return to our upper stack frame
+	| mov rsp, rbp
+	| pop rbp
+
+	// return to our parent
+	| ret
+
+	size_t code_size;
+	dasm_link(Dst, &code_size);
+	void *mem = turkey_allocate_executable_memory(vm->tag, code_size);
+
+	dasm_encode(Dst, mem);
+	return mem;
+}
+
+void *turkey_arch_native_to_managed_thunker(TurkeyVM *vm) {
+	// returns a function pointer you can call from native code to call TurkeyFunctionPointers
+	// call it as: - parameter 3 is not used
+	// TurkeyVariable thunker(funcptr->thunk, types, parametercount, ...parameters)
+	
+	// input:
+	// rcx - where to copy return value
+	// rdx - pointer to the thunker
+	// r8 - parameter types
+	// r9 - number of parameters
+	// parameters on stack + 4 * 8 byte shadow memory + return value
+
+	// store rcx
+	| push rcx
+	// enter a new stack frame
+	| push rbp
+	| mov rbp, rsp
+
+	// make room on the stack for the parameters
+	| mov rax, r9
+	| shl rax, 3
+	| sub rsp, rax
+
+	// copy parameters from upper stack to our stack
+	| mov rdi, rsp
+	// +24 jumps over the return value and pushed rcx, rbp
+	| mov rsi, rbp
+	| add rsi, 24
+
+	// skip over loop if we're down to 0
+	| cmp r9, 0
+	| je >2
+	|1:
+		// copy 4 bytes
+		| movsd
+		// shift up stack
+		| add rdi, 4
+		| add rsi, 4
+		// copy 4 bytes
+		| movsd
+		// decrement count
+		| dec r9
+		// shift up stack
+		| add rdi, 4
+		| add rsi, 4
+		// break loop if we're down to 0
+		| cmp r9, 0
+		| je >2
+		// loop
+		| jmp <1
+	|2:
+
+	// move types into rcx (currently containing the thunk pointer)
+	| xchg r8, rcx
+
+	// call the thunk
+	| call r8
+
+	// return to the old stack frame
+	| mov rbp, rsp
+	| pop rbp
+
+	// copy return values from the thunk into the return struct (rdx was rcx coming in)
+	| pop rdx
+	| mov [rdx], rcx
+	| add rdx, 8
+	| mov [rdx], rax
+	// point to the struct in rax
+	| mov rax, rcx
+
+	size_t code_size;
+	dasm_link(Dst, &code_size);
+	void *mem = turkey_allocate_executable_memory(vm->tag, code_size);
+
+	dasm_encode(Dst, mem);
+	return mem;
+}
+
+void *turkey_arch_function_create_entry(TurkeyVM *vm, TurkeyFunction *func) {
+	// coming in:
+	// parameter types - ecx
+	// parameters + return value on stack
+
+
+	size_t code_size;
+	dasm_link(Dst, &code_size);
+	void *mem = turkey_allocate_executable_memory(vm->tag, code_size);
+
+	dasm_encode(Dst, mem);
+	return mem;
+}

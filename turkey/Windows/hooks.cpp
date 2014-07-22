@@ -7,6 +7,10 @@
 #include "../hooks.h"
 #include "../turkey.h"
 
+#ifdef WINDOWS
+#include <Windows.h>
+#endif
+
 size_t alloc_size = 0;
 size_t amount_since_last_alloc = 0;
 const size_t gc_alloc_threshold = 4 * 1024 * 1024; /* call the GC every time we allocate 4 mb */
@@ -50,6 +54,19 @@ void *turkey_allocate_memory(void *tag, size_t size) {
 	}
 	//printf("Allocated %i now %i\n", size, alloc_size);
 	return malloc(size);
+}
+
+void *turkey_allocate_executable_memory(void *tag, size_t size) {
+	// don't play with alloc_size - todo: track executable memory size around code
+	void *memory = malloc(size);
+
+#ifdef WINDOWS
+	// make this allocated chunk executable
+	DWORD first_page_attrs;
+	VirtualProtect(memory, size, PAGE_EXECUTE_READWRITE, &first_page_attrs);
+#endif
+
+	return memory;
 }
 
 void turkey_free_memory(void *tag, void *mem, size_t size) {
