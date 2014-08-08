@@ -70,7 +70,7 @@ void turkey_stringtable_cleanup(TurkeyVM *vm) {
 			s = s->next; /* point to the next string before we do anything, as ->next will can change as we unallocate it*/
 
 			turkey_free_memory(vm->tag, str->string, str->length);
-			turkey_free_memory(vm->tag, str, sizeof TurkeyString);
+			turkey_free_memory(vm->tag, str, sizeof(TurkeyString));
 		}
 	}
 
@@ -105,7 +105,7 @@ TurkeyString *turkey_stringtable_newstring(TurkeyVM *vm, const char *string, uns
 
 	table.count++;
 
-	s = (TurkeyString *)turkey_allocate_memory(vm->tag, sizeof TurkeyString);
+	s = (TurkeyString *)turkey_allocate_memory(vm->tag, sizeof(TurkeyString));
 	s->string = (char *)turkey_allocate_memory(vm->tag, length);
 	turkey_memory_copy(s->string, string, length);
 	s->length = length;
@@ -189,5 +189,5 @@ void turkey_stringtable_removestring(TurkeyVM *vm, TurkeyString *string) {
 
 	/* free the memory */
 	turkey_free_memory(vm->tag, string->string, string->length);
-	turkey_free_memory(vm->tag, string, sizeof TurkeyString);
+	turkey_free_memory(vm->tag, string, sizeof(TurkeyString));
 }

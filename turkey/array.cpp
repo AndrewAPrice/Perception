@@ -5,10 +5,10 @@ TurkeyArray *turkey_array_new(TurkeyVM *vm, unsigned int size) {
 	if(size == 0)
 		size = 1;
 
-	TurkeyArray *arr = (TurkeyArray *)turkey_allocate_memory(vm->tag, sizeof TurkeyArray);
+	TurkeyArray *arr = (TurkeyArray *)turkey_allocate_memory(vm->tag, sizeof(TurkeyArray));
 	arr->allocated = size;
 	arr->length = size;
-	arr->elements = (TurkeyVariable *)turkey_allocate_memory(vm->tag, (sizeof TurkeyVariable) * size);
+	arr->elements = (TurkeyVariable *)turkey_allocate_memory(vm->tag, sizeof(TurkeyVariable) * size);
 
 	for(unsigned int i = 0; i < size; i++)
 		arr->elements[i].type = TT_Null;
@@ -34,10 +34,10 @@ TurkeyArray *turkey_array_append(TurkeyVM *vm, TurkeyArray *a, TurkeyArray *b) {
 	size |= size >> 16;
 	size++;
 
-	TurkeyArray *arr = (TurkeyArray *)turkey_allocate_memory(vm->tag, sizeof TurkeyArray);
+	TurkeyArray *arr = (TurkeyArray *)turkey_allocate_memory(vm->tag, sizeof(TurkeyArray));
 	arr->allocated = size;
 	arr->length = length;
-	arr->elements = (TurkeyVariable *)turkey_allocate_memory(vm->tag, (sizeof TurkeyVariable) * size);
+	arr->elements = (TurkeyVariable *)turkey_allocate_memory(vm->tag, sizeof(TurkeyVariable) * size);
 
 	for(unsigned int i = 0; i < a->allocated && i < size; i++)
 		arr->elements[i] = a->elements[i];
@@ -58,8 +58,8 @@ TurkeyArray *turkey_array_append(TurkeyVM *vm, TurkeyArray *a, TurkeyArray *b) {
 
 /* release the memory used by the array, called from the garbage collector */
 void turkey_array_delete(TurkeyVM *vm, TurkeyArray *arr) {
-	turkey_free_memory(vm->tag, arr->elements, (sizeof TurkeyVariable) * arr->allocated);
-	turkey_free_memory(vm->tag, arr, sizeof TurkeyVariable);
+	turkey_free_memory(vm->tag, arr->elements, sizeof(TurkeyVariable) * arr->allocated);
+	turkey_free_memory(vm->tag, arr, sizeof(TurkeyVariable));
 }
 
 void turkey_array_push(TurkeyVM *vm, TurkeyArray *arr, const TurkeyVariable &variable) {
@@ -87,7 +87,7 @@ void turkey_array_grow(TurkeyVM *vm, TurkeyArray *arr) {
 		new_size *= 2;
 
 	arr->elements = (TurkeyVariable *)turkey_reallocate_memory(vm->tag, arr->elements,
-		(sizeof TurkeyVariable) * arr->allocated, (sizeof TurkeyVariable) * new_size);
+		sizeof(TurkeyVariable) * arr->allocated, sizeof(TurkeyVariable) * new_size);
 
 	/* initialize the new elements to null */
 	for(unsigned int i = arr->allocated; i < new_size; i++)
@@ -102,7 +102,7 @@ void turkey_array_allocate(TurkeyVM *vm, TurkeyArray *arr, unsigned int size) {
 		size = 1;
 
 	arr->elements = (TurkeyVariable *)turkey_reallocate_memory(vm->tag, arr->elements,
-		(sizeof TurkeyVariable) * arr->allocated, (sizeof TurkeyVariable) * size);
+		sizeof(TurkeyVariable) * arr->allocated, sizeof(TurkeyVariable) * size);
 	
 	/* initialize the new elements to null */
 	for(unsigned int i = arr->allocated; i < size; i++)

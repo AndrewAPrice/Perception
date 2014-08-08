@@ -224,7 +224,8 @@ struct TurkeyVM;
 struct TurkeyFunctionPointer;
 struct TurkeyGarbageCollectedObject;
 
-typedef unsigned long long int uint64_t;
+#include <stdio.h>
+#include <stdint.h>
 
 struct TurkeySettings {
 	// Use debug settings? Can handle breakpoints, 
@@ -232,7 +233,7 @@ struct TurkeySettings {
 	void *tag;
 };
 
-enum TurkeyType : unsigned char {
+enum TurkeyType /*: unsigned char*/ {
 	TT_Boolean = 0,
 	TT_Unsigned = 1,
 	TT_Signed = 2,
@@ -488,7 +489,7 @@ struct TurkeyFunctionPointer : TurkeyGarbageCollectedObject {
 			TurkeyNativeFunction function;
 			void *closure;
 		} native;
-	};
+	} data;
 	bool is_native; /* is this a native function? */
 	void *thunk; /* jit - the entry point when calling the function pointer */
 };

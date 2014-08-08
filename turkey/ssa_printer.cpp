@@ -2,6 +2,10 @@
    tag in turkey.h to uncomment for this */
 #include "turkey.h"
 
+#ifndef TEST
+#undef PRINT_SSA
+#endif
+
 #ifdef PRINT_SSA
 #include <stdio.h> /* for printf */
 

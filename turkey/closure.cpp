@@ -2,10 +2,10 @@
 #include "hooks.h"
 
 TurkeyClosure *turkey_closure_create(TurkeyVM *vm, TurkeyClosure *parent, unsigned int variables) {
-	TurkeyClosure *closure = (TurkeyClosure *)turkey_allocate_memory(vm->tag, sizeof TurkeyClosure);
+	TurkeyClosure *closure = (TurkeyClosure *)turkey_allocate_memory(vm->tag, sizeof(TurkeyClosure));
 	closure->count = variables;
 	closure->parent = parent;
-	closure->variables = (TurkeyVariable *)turkey_allocate_memory(vm->tag, (sizeof TurkeyVariable) * variables);
+	closure->variables = (TurkeyVariable *)turkey_allocate_memory(vm->tag, sizeof(TurkeyVariable) * variables);
 	for(unsigned int i = 0; i < variables; i++)
 		closure->variables[i].type = TT_Null;
 
@@ -16,8 +16,8 @@ TurkeyClosure *turkey_closure_create(TurkeyVM *vm, TurkeyClosure *parent, unsign
 }
 
 void turkey_closure_delete(TurkeyVM *vm, TurkeyClosure *closure) {
-	turkey_free_memory(vm->tag, closure->variables, (sizeof TurkeyVariable) * closure->count);
-	turkey_free_memory(vm->tag, closure, sizeof TurkeyClosure);
+	turkey_free_memory(vm->tag, closure->variables, sizeof(TurkeyVariable) * closure->count);
+	turkey_free_memory(vm->tag, closure, sizeof(TurkeyClosure));
 }
 
 void turkey_closure_get(TurkeyVM *vm, unsigned int position, TurkeyVariable &value) {

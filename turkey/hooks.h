@@ -1,6 +1,11 @@
 #ifndef HOOKS_H
 #define HOOKS_H
 
+//#ifndef TEST
+//typedef unsigned long long int size_t;
+//#endif
+#include <stdio.h>
+
 struct TurkeyVM;
 struct TurkeyString;
 

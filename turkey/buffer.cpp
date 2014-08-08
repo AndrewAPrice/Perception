@@ -5,7 +5,7 @@ TurkeyBuffer *turkey_buffer_new(TurkeyVM *vm, size_t size) {
 	if(size == 0)
 		size = 1;
 
-	TurkeyBuffer *buffer = (TurkeyBuffer *)turkey_allocate_memory(vm->tag, sizeof TurkeyBuffer);
+	TurkeyBuffer *buffer = (TurkeyBuffer *)turkey_allocate_memory(vm->tag, sizeof(TurkeyBuffer));
 
 	buffer->disposed = false;
 	buffer->native = false;
@@ -20,7 +20,7 @@ TurkeyBuffer *turkey_buffer_new(TurkeyVM *vm, size_t size) {
 }
 
 TurkeyBuffer *turkey_buffer_new_native(TurkeyVM *vm, void *ptr, size_t size) {
-	TurkeyBuffer *buffer = (TurkeyBuffer *)turkey_allocate_memory(vm->tag, sizeof TurkeyBuffer);
+	TurkeyBuffer *buffer = (TurkeyBuffer *)turkey_allocate_memory(vm->tag, sizeof(TurkeyBuffer));
 	
 	buffer->disposed = false;
 	buffer->native = true;
@@ -36,7 +36,7 @@ TurkeyBuffer *turkey_buffer_append(TurkeyVM *vm, TurkeyBuffer *a, TurkeyBuffer *
 	turkey_gc_hold(vm, a, TT_Buffer);
 	turkey_gc_hold(vm, b, TT_Buffer);
 
-	TurkeyBuffer *buffer = (TurkeyBuffer *)turkey_allocate_memory(vm->tag, sizeof TurkeyBuffer);
+	TurkeyBuffer *buffer = (TurkeyBuffer *)turkey_allocate_memory(vm->tag, sizeof(TurkeyBuffer));
 
 	size_t size = a->size + b->size;
 
@@ -62,7 +62,7 @@ void turkey_buffer_delete(TurkeyVM *vm, TurkeyBuffer *buffer) {
 	if(!buffer->native && !buffer->disposed)
 		turkey_free_memory(vm->tag, buffer->ptr, buffer->size);
 	
-	turkey_free_memory(vm->tag, buffer, sizeof TurkeyBuffer);
+	turkey_free_memory(vm->tag, buffer, sizeof(TurkeyBuffer));
 }
 
 void turkey_buffer_dispose(TurkeyVM *vm, TurkeyBuffer *buffer) {

@@ -137,8 +137,8 @@ void turkey_gc_mark_variable(TurkeyVM *vm, TurkeyVariable &var) {
 		TurkeyFunctionPointer *func = var.function;
 		func->marked = true;
 
-		if(!func->is_native && func->managed.closure && !func->managed.closure->marked)
-			turkey_gc_mark_closure(vm, func->managed.closure);
+		if(!func->is_native && func->data.managed.closure && !func->data.managed.closure->marked)
+			turkey_gc_mark_closure(vm, func->data.managed.closure);
 
 		break; }
 	case TT_Object: {

@@ -2,7 +2,7 @@
 #include "hooks.h"
 
 TurkeyVM *turkey_init(TurkeySettings *settings) {
-	TurkeyVM *vm = (TurkeyVM *)turkey_allocate_memory(settings->tag, sizeof TurkeyVM);
+	TurkeyVM *vm = (TurkeyVM *)turkey_allocate_memory(settings->tag, sizeof(TurkeyVM));
 	vm->debug = settings->debug;
 	vm->tag = settings->tag;
 
@@ -29,5 +29,5 @@ void turkey_cleanup(TurkeyVM *vm) {
 	turkey_interpreter_cleanup(vm);
 	turkey_gc_cleanup(vm);
 	
-	turkey_free_memory(vm->tag, vm, sizeof TurkeyVM);
+	turkey_free_memory(vm->tag, vm, sizeof(TurkeyVM));
 };

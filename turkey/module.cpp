@@ -18,7 +18,7 @@ void turkey_module_cleanup(TurkeyVM *vm) {
 			turkey_gc_unhold(vm, current->Name, TT_String);
 			turkey_gc_unhold(vm, current->ReturnVariable);
 
-			turkey_free_memory(vm->tag, current, sizeof TurkeyLoadedModule);
+			turkey_free_memory(vm->tag, current, sizeof(TurkeyLoadedModule));
 
 			current = next;
 		}
@@ -30,7 +30,7 @@ void turkey_module_cleanup(TurkeyVM *vm) {
 			turkey_gc_unhold(vm, current->Name, TT_String);
 			turkey_gc_unhold(vm, current->ReturnVariable);
 
-			turkey_free_memory(vm->tag, current, sizeof TurkeyLoadedModule);
+			turkey_free_memory(vm->tag, current, sizeof(TurkeyLoadedModule));
 
 			current = next;
 		}
@@ -58,19 +58,19 @@ void turkey_module_cleanup(TurkeyVM *vm) {
 								unsigned int instructions_count = current->functions[i]->basic_blocks[j].instructions_count;
 								if(instructions_count > 0) {
 									turkey_free_memory(vm->tag, current->functions[i]->basic_blocks[j].instructions,
-										(sizeof TurkeyInstruction) * instructions_count);
+										sizeof(TurkeyInstruction) * instructions_count);
 								}
 
 								if(current->functions[i]->basic_blocks[j].entry_point_count > 0)
 									turkey_free_memory(vm->tag, current->functions[i]->basic_blocks[j].entry_points,
-										(sizeof (unsigned int)) * current->functions[i]->basic_blocks[j].entry_point_count);
+										sizeof(unsigned int) * current->functions[i]->basic_blocks[j].entry_point_count);
 							}
 
 							turkey_free_memory(vm->tag, current->functions[i]->basic_blocks,
-								(sizeof TurkeyBasicBlock) * basic_blocks_count);
+								sizeof(TurkeyBasicBlock) * basic_blocks_count);
 						}
 
-						turkey_free_memory(vm->tag, current->functions[i], sizeof TurkeyFunction);
+						turkey_free_memory(vm->tag, current->functions[i], sizeof(TurkeyFunction));
 					}
 				}
 
@@ -87,7 +87,7 @@ void turkey_module_cleanup(TurkeyVM *vm) {
 				turkey_free_memory(vm->tag, current->strings, sizeof (TurkeyString *) * current->string_count);
 			}
 
-			turkey_free_memory(vm->tag, current, sizeof TurkeyModule);
+			turkey_free_memory(vm->tag, current, sizeof(TurkeyModule));
 			current = next;
 		}
 	}
@@ -120,7 +120,7 @@ TurkeyVariable turkey_require(TurkeyVM *vm, TurkeyString *strName) {
 			// if it's not already loaded
 			if(!found) {
 				// add this module first before loading the file - this is important to prevent recursive loading
-				TurkeyLoadedModule *module = (TurkeyLoadedModule *)turkey_allocate_memory(vm->tag, sizeof TurkeyLoadedModule);
+				TurkeyLoadedModule *module = (TurkeyLoadedModule *)turkey_allocate_memory(vm->tag, sizeof(TurkeyLoadedModule));
 				module->Name = absPath; // absPath is already being heald
 				module->ReturnVariable = ret;
 				module->Next = vm->loaded_modules.external_modules;
@@ -162,7 +162,7 @@ void turkey_register_module(TurkeyVM *vm, TurkeyString *moduleName, TurkeyVariab
 	turkey_gc_hold(vm, obj);
 
 	// create a module
-	TurkeyLoadedModule *module = (TurkeyLoadedModule *)turkey_allocate_memory(vm->tag, sizeof TurkeyLoadedModule);
+	TurkeyLoadedModule *module = (TurkeyLoadedModule *)turkey_allocate_memory(vm->tag, sizeof(TurkeyLoadedModule));
 	module->Name = moduleName;
 	module->ReturnVariable = obj;
 	module->Next = vm->loaded_modules.internal_modules;
@@ -213,7 +213,7 @@ void read_functions_from_file(TurkeyVM *vm, TurkeyModule *module,
 				// cannot fit in the code block
 				module->functions[i] = 0;
 			} else {
-				TurkeyFunction *function = (TurkeyFunction *)turkey_allocate_memory(vm->tag, sizeof TurkeyFunction);
+				TurkeyFunction *function = (TurkeyFunction *)turkey_allocate_memory(vm->tag, sizeof(TurkeyFunction));
 				
 				function->module = module;
 				function->start = (void *)((size_t)module->code_block + start_addr);
@@ -289,7 +289,7 @@ TurkeyVariable turkey_module_load_file(TurkeyVM *vm, TurkeyString *filepath) {
 	}
 
 	// create module in memory
-	TurkeyModule *module = (TurkeyModule *)turkey_allocate_memory(vm->tag, sizeof TurkeyModule);
+	TurkeyModule *module = (TurkeyModule *)turkey_allocate_memory(vm->tag, sizeof(TurkeyModule));
 	module->next = 0;
 	vm->modules = module;
 
@@ -325,8 +325,8 @@ TurkeyVariable turkey_module_load_file(TurkeyVM *vm, TurkeyString *filepath) {
 	if(module->function_count >= 1 && module->functions[0] != 0) {
 		TurkeyFunctionPointer function_ptr;
 		function_ptr.is_native = false;
-		function_ptr.managed.function = module->functions[0];
-		function_ptr.managed.closure = 0;
+		function_ptr.data.managed.function = module->functions[0];
+		function_ptr.data.managed.closure = 0;
 
 		ret = turkey_call_function(vm, &function_ptr, 0);
 	}

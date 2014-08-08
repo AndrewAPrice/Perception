@@ -24,7 +24,7 @@ TurkeyString *turkey_ssa_to_string(TurkeyVM *vm, TurkeyInstruction &instruction)
 	case turkey_ir_signed_integer: {
 		char temp[64];
 		size_t len = 64;
-		turkey_print_string(temp, len, "%li", *(signed signed int *)instruction.large);
+		turkey_print_string(temp, len, "%li", *(signed int *)instruction.large);
 		return turkey_stringtable_newstring(vm, temp, (unsigned int)len);
 		}
 	case turkey_ir_string:

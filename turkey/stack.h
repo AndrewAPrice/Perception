@@ -14,11 +14,11 @@ public:
 		top = 0;
 		position = 0;
 		length = 16; /* initial stack size */
-		variables = (T *)turkey_allocate_memory(tag, (sizeof T) * length);
+		variables = (T *)turkey_allocate_memory(tag, sizeof(T) * length);
 	}
 
 	~TurkeyStack() {
-		turkey_free_memory(tag, variables, (sizeof T) * length);
+		turkey_free_memory(tag, variables, sizeof(T) * length);
 	}
 
 	void Push(const T &value) {
@@ -27,7 +27,7 @@ public:
 			unsigned int newLength = length * 2;
 
 			variables = (T *)turkey_reallocate_memory(tag, variables,
-				(sizeof T) * length, (sizeof T) * newLength);
+				sizeof(T) * length, sizeof(T) * newLength);
 			length = newLength;
 		}
 

@@ -2,6 +2,10 @@
 
 /* this file contains the code for converting bytecode into single static assignment form for the JIT compiler */
 
+#ifndef TEST
+#undef PRINT_SSA
+#endif
+
 #ifdef PRINT_SSA
 #include <stdio.h>
 #endif
@@ -417,24 +421,24 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 #define exit_error() { \
 		for(unsigned int i = 0; i < total_basic_blocks; i++) { \
 			if(function->basic_blocks[i].instructions_count != 0) \
-				turkey_free_memory(vm->tag, function->basic_blocks[i].instructions, (sizeof TurkeyInstruction) * \
+				turkey_free_memory(vm->tag, function->basic_blocks[i].instructions, sizeof(TurkeyInstruction) * \
 					function->basic_blocks[i].instructions_count); \
 			basic_block_entry_points[i].~TurkeyStack();\
 		} \
-		turkey_free_memory(vm->tag, function->basic_blocks, (sizeof TurkeyBasicBlock) * total_basic_blocks); \
+		turkey_free_memory(vm->tag, function->basic_blocks, sizeof(TurkeyBasicBlock) * total_basic_blocks); \
 		turkey_free_memory(vm->tag, bytecode_markers, bytecodeLength * sizeof(ssa_bytecode_markers)); \
-		turkey_free_memory(vm->tag, basic_block_entry_points, (sizeof TurkeyStack<unsigned int>) * total_basic_blocks); \
+		turkey_free_memory(vm->tag, basic_block_entry_points, sizeof(TurkeyStack<unsigned int>) * total_basic_blocks); \
 		return; \
 	}
 
 	/* allocate and empty the basic blocks */
 	function->basic_blocks_count = total_basic_blocks;
-	function->basic_blocks = (TurkeyBasicBlock *)turkey_allocate_memory(vm->tag, (sizeof TurkeyBasicBlock) * total_basic_blocks);
-	turkey_memory_clear(function->basic_blocks, (sizeof TurkeyBasicBlock) * total_basic_blocks);
+	function->basic_blocks = (TurkeyBasicBlock *)turkey_allocate_memory(vm->tag, sizeof(TurkeyBasicBlock) * total_basic_blocks);
+	turkey_memory_clear(function->basic_blocks, sizeof(TurkeyBasicBlock) * total_basic_blocks);
 
 	/* temp array to hold our entry points for each basic block */
 	TurkeyStack<unsigned int> *basic_block_entry_points = (TurkeyStack<unsigned int> *)turkey_allocate_memory(vm->tag,
-		(sizeof TurkeyStack<unsigned int>) * total_basic_blocks);
+		sizeof(TurkeyStack<unsigned int>) * total_basic_blocks);
 	for(unsigned int i = 0; i < total_basic_blocks; i++)
 		basic_block_entry_points[i].Init(vm->tag);
 
@@ -471,9 +475,9 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 					function->basic_blocks[basic_block_no - 1].instructions = 0;
 				else {
 					function->basic_blocks[basic_block_no - 1].instructions = (TurkeyInstruction *)turkey_allocate_memory(vm->tag,
-						(sizeof TurkeyInstruction) * instructions.position); 
+						sizeof(TurkeyInstruction) * instructions.position); 
 					turkey_memory_copy(function->basic_blocks[basic_block_no - 1].instructions,
-						instructions.variables, (sizeof TurkeyInstruction) * instructions.position);
+						instructions.variables, sizeof(TurkeyInstruction) * instructions.position);
 				}
 			}
 
@@ -2424,9 +2428,9 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 		function->basic_blocks[basic_block_no - 1].instructions = 0;
 	else {
 		function->basic_blocks[basic_block_no - 1].instructions = (TurkeyInstruction *)turkey_allocate_memory(vm->tag,
-			(sizeof TurkeyInstruction) * instructions.position); 
+			sizeof(TurkeyInstruction) * instructions.position); 
 		turkey_memory_copy(function->basic_blocks[basic_block_no - 1].instructions,
-			instructions.variables, (sizeof TurkeyInstruction) * instructions.position);
+			instructions.variables, sizeof(TurkeyInstruction) * instructions.position);
 	}
 
 
@@ -2435,14 +2439,14 @@ void turkey_ssa_compile_function(TurkeyVM *vm, TurkeyFunction *function) {
 		TurkeyBasicBlock &bb = function->basic_blocks[i];
 		bb.entry_point_count = basic_block_entry_points[i].position;
 		if(bb.entry_point_count > 0) {
-			bb.entry_points = (unsigned int *)turkey_allocate_memory(vm->tag, (sizeof (unsigned int)) * bb.entry_point_count);
-			turkey_memory_copy(bb.entry_points, basic_block_entry_points[i].variables, (sizeof (unsigned int)) * bb.entry_point_count);
+			bb.entry_points = (unsigned int *)turkey_allocate_memory(vm->tag, sizeof(unsigned int) * bb.entry_point_count);
+			turkey_memory_copy(bb.entry_points, basic_block_entry_points[i].variables, sizeof(unsigned int) * bb.entry_point_count);
 		}
 
 		basic_block_entry_points[i].~TurkeyStack();
 	}
 
-	turkey_free_memory(vm->tag, basic_block_entry_points, (sizeof TurkeyStack<unsigned int>) * total_basic_blocks);
+	turkey_free_memory(vm->tag, basic_block_entry_points, sizeof(TurkeyStack<unsigned int>) * total_basic_blocks);
 
 #undef exit_error
 	/* free bytecode */
