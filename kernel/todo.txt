@@ -1,0 +1,6 @@
+- get something booting!
+- emu86
+- graphics
+- atapi drivers
+- ISO 9660 http://wiki.osdev.org/ISO_9660
+- loading elf files
