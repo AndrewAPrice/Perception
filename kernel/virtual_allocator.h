@@ -8,6 +8,9 @@
 /* offset of kernel memory 0x8000000000 = 256gb */
 #define virtual_memory_offset 0xFFFFFFFF80000000
 
+/* the kernel's pml4 */
+extern size_t kernel_pml4;
+
 /* map a physical page so that we can access it with temp_page_boot - use this before the virtual allocator has been initialized */
 extern void *map_temp_boot_page(size_t addr);
 

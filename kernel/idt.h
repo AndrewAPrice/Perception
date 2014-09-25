@@ -6,12 +6,14 @@ struct idt_entry {
 	unsigned short sel;
 	unsigned char always0;
 	unsigned char flags;
-	unsigned short base_high;
+	unsigned short base_middle;
+	unsigned int base_high;
+	unsigned int zero; /* reserved */
 } __attribute__((packed));
 
 struct idt_ptr {
 	unsigned short limit;
-	unsigned int base;
+	size_t base;
 } __attribute__ ((packed));
 
 extern void idt_load();

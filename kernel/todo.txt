@@ -1,4 +1,6 @@
-- get something booting!
+- interrupts
+- atapi drivers
+- vfs
 - emu86
 - graphics
 - atapi drivers

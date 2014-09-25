@@ -133,8 +133,8 @@ void *map_physical_memory(size_t addr, size_t index) {
 size_t find_free_page_range(size_t pml4, size_t pages) {
 	if(pages == 0 || pages > 34359738368)
 		return 0; /* too many or not enough */
-
 	/* store the first entry when we scan */
+
 	size_t start_pml1_entry = 0;
 	size_t start_pml2_entry = 0;
 	size_t start_pml3_entry = 0;
@@ -156,7 +156,7 @@ size_t find_free_page_range(size_t pml4, size_t pages) {
 
 
 	/* scan pml4 */
-	size_t *ptr = (size_t *)map_physical_memory(pml4, 0);	
+	size_t *ptr = (size_t *)map_physical_memory(pml4, 0);
 	size_t i;
 	for(i = pml4_scan_start; i < pml4_scan_end && pages_counted < pages; i++) {
 		if(ptr[i] == 0) {
@@ -167,7 +167,7 @@ size_t find_free_page_range(size_t pml4, size_t pages) {
 				start_pml3_entry = 0;
 				start_pml4_entry = i;
 			}
-			pages += 512 * 512 * 512;
+			pages_counted += 512 * 512 * 512;
 		} else {
 			/* there's an entry */
 			size_t pml3 = ptr[i] & ~(page_size - 1);
@@ -184,7 +184,7 @@ size_t find_free_page_range(size_t pml4, size_t pages) {
 						start_pml3_entry = j;
 						start_pml4_entry = i;
 					}
-					pages += 512 * 512;
+					pages_counted += 512 * 512;
 				} else {
 					/* there's an entry */
 					size_t pml2 = ptr[j] & ~(page_size - 1);
@@ -201,7 +201,7 @@ size_t find_free_page_range(size_t pml4, size_t pages) {
 								start_pml3_entry = j;
 								start_pml4_entry = i;
 							}
-							pages += 512;
+							pages_counted += 512;
 						} else {
 							/* there's an entry */
 							size_t pml1 = ptr[k] & ~(page_size - 1);
@@ -218,11 +218,11 @@ size_t find_free_page_range(size_t pml4, size_t pages) {
 										start_pml3_entry = j;
 										start_pml4_entry = i;
 									}
-									pages++;
+									pages_counted++;
 								} else {
 									/* there's an entry */
 									counting = false;
-									pages = 0;
+									pages_counted = 0;
 								}
 							}
 
@@ -241,8 +241,16 @@ size_t find_free_page_range(size_t pml4, size_t pages) {
 		}
 	}
 
-	if(!counting || pages_counted < pages)
+	if(!counting || pages_counted < pages) {
+		print_string("Failed: Counting: ");
+		print_number(counting);
+		print_string(" Pages Counted: ");
+		print_number(pages_counted);
+		print_string(" Pages: ");
+		print_number(pages);
 		return 0; /* couldn't find anywhere large enough */
+	}
+
 
 	/* convert each pml table index into an address */
 	/* 6666 5555 5555 5544 4444 4444 4333 3333 3332 2222 2222 2111 1111 111
@@ -250,6 +258,11 @@ size_t find_free_page_range(size_t pml4, size_t pages) {
                            #### #### #@@@ @@@@ @@!! !!!! !!!+ ++++ ++++ ^^^^ ^^^^ ^^^^
                            pml4       pml3       pml2       pml1        flags */
 	size_t addr = (start_pml4_entry << 39) | (start_pml3_entry << 30) | (start_pml2_entry << 21) | (start_pml1_entry << 12);
+	
+	/* make the address canonical in kernel space */
+	if(start_pml4_entry >= 256)
+		addr += 0xFFFF000000000000;
+	
 	return addr;
 }
 
@@ -377,7 +390,7 @@ bool map_physical_page(size_t pml4, size_t virtualaddr, size_t physicaladdr) {
 			return false; /* no space for pml3 */
 
 		/* clear it */
-		ptr = (size_t *)map_physical_memory(pml4, 1);
+		ptr = (size_t *)map_physical_memory(new_pml3, 1);
 		size_t i;
 		for(i = 0; i < 512; i++)
 			ptr[i] = 0;

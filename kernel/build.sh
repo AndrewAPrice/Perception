@@ -5,13 +5,12 @@ GCC_CMD="gcc -m64 -mcmodel=kernel -ffreestanding -nostdlib -mno-red-zone -c -o"
 $NASM_CMD boot.o boot.asm
 # $NASM_CMD gdt_asm.o gdt.asm
 # $GCC_CMD gdt.o gdt.c
-# $NASM_CMD idt_asm.o idt.asm
-# $GCC_CMD idt.o idt.c
+$GCC_CMD idt.o idt.c
 $GCC_CMD io.o io.c
 # $NASM_CMD irq_asm.o irq.asm
 # $GCC_CMD irq.o irq.c
-# $NASM_CMD isr_asm.o isr.asm
-# $GCC_CMD isr.o isr.c
+#$NASM_CMD isr_asm.o isr.asm
+#$GCC_CMD isr.o isr.c
 # $GCC_CMD keyboard.o keyboard.c
 # $GCC_CMD liballoc.o liballoc.c
 # $GCC_CMD liballoc_hooks.o liballoc_hooks.c

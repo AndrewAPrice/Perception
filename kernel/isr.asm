@@ -274,4 +274,4 @@ isr_common_stub:
 	pop ds
 	popa
 	add esp, 8 ; Clean up the pushed error code and pushed ISR number
-	iret ; pops CS, EIP, EFLAGS, SS, ESP
+	iretq ; pops CS, EIP, EFLAGS, SS, ESP
