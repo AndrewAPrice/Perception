@@ -20,20 +20,20 @@ extern void init_virtual_allocator();
   unmaps the previous page */
 extern void *map_physical_memory(size_t addr, size_t index);
 
-/* Creates a process's virtual address space. process_virtual_pml4 is 0 if it fails. */
-extern bool create_process_address_space(size_t *process_pml4);
+/* find a range of free physical pages in kernel memory - returns the first addres or 0 if it can't find a fit */
+extern size_t find_free_page_range(size_t pml4, size_t pages);
 
-/* Frees a process's virtual address space. */
+/* maps a physical page to a virtual page */
+extern bool map_physical_page(size_t pml4, size_t virtualaddr, size_t physicaladdr);
+
+/* unmaps a physical page - free specifies if that page should be returned to the physical memory manager */
+extern void unmap_physical_page(size_t pml4, size_t virtualaddr, bool free);
+
+/* Creates a process's virtual address space, returns the pml4 - pml4 is 0 if it fails. */
+extern size_t create_process_address_space();
+
+/* Frees a process's virtual address space. Everything it finds will be returned to the physical allocator so unmap any shared memory before. */
 extern void free_process_address_space(size_t pml4);
-
-/* Finds a range of free process virtual pages. Returns 0 if it can't fit it.  Doesn't allocate it. */
-extern size_t find_free_process_page_range(size_t pml4, size_t pages);
-
-/* Frees a process virtual page. */
-extern void free_process_page(size_t pml4, size_t addr);
-
-/* Assignes a process page to a physical page. */
-extern bool assign_process_page_to_physical_page(size_t pml4, size_t physical_page, size_t virtual_page);
 
 /* Switch to a virtual address space. Remember to call this if allocating or freeing pages to flush the changes! */
 extern void switch_to_address_space(size_t pml4);

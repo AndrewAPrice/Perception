@@ -26,6 +26,10 @@ void __attribute__((cdecl)) kmain() {
 	init_physical_allocator();
 	init_virtual_allocator();
 
+	size_t addr1 = create_process_address_space();
+	size_t addr2 = create_process_address_space();
+	free_process_address_space(addr1);
+
 /*    gdt_install();
     idt_install();
     isrs_install();
