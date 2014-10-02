@@ -9,10 +9,9 @@
 #include "keyboard.h"
 #include "timer.h"
 #include "multiboot2.h"
+#include "io.h"
 
-extern unsigned int boot_kernel_pml4, boot_kernel_pml3;
-
-void __attribute__((cdecl)) kmain() {
+void kmain() {
 	/* make sure we were booted with a multiboot2 bootloader - we need this because we depend on GRUB for
 	providing us with some initialization information*/
 	if(MultibootInfo.magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
@@ -27,19 +26,19 @@ void __attribute__((cdecl)) kmain() {
 	init_virtual_allocator();
 
     idt_install();
-
-/*    gdt_install();
     isrs_install();
+
+    // gdt_install();
     irq_install();
 
-	init_vfs();
+	//init_vfs();
 
     timer_install();
     keyboard_install();
-*/
 
 
 
+/*
 	print_string("Total memory: ");
 	print_number(total_system_memory / 1024 / 1024);
 	
@@ -49,8 +48,11 @@ void __attribute__((cdecl)) kmain() {
 	print_string(" (");
 	print_number(free_pages * page_size / 1024 / 1024);
 	print_string("MB)\n");
+*/
+	outportb(0x21, 0xfd); /* keyboard only */
+	outportb(0xa1, 0xff);
+	asm("sti");
 
-	asm("cli");
 	for(;;) {
 		asm("hlt");
 	}

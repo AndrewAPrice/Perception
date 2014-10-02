@@ -11,11 +11,12 @@ void idt_set_gate(unsigned char num, size_t base, unsigned short sel, unsigned c
 	/* base address */
 	idt[num].base_low = (base & 0xFFFF);
 	idt[num].base_middle = (base >> 16) & 0xFFFF;
-	idt[num].base_high = (base >> 32);
+	idt[num].base_high = (base >> 32) &0xFFFFFFFF;
 
 	idt[num].sel = sel;
 	idt[num].always0 = 0;
 	idt[num].flags = flags;
+	idt[num].zero = 0;
 }
 
 void idt_install() {
@@ -23,17 +24,11 @@ void idt_install() {
 	idt = (struct idt_entry *)find_free_page_range(kernel_pml4, 1);
 
 	size_t idt_physical = get_physical_page();
-
-	print_string("IDT Address: ");
-	print_hex((size_t)idt);
-	print_string(" (");
-	print_hex(idt_physical);
-	print_string(")\n");
-
+	
 	map_physical_page(kernel_pml4, (size_t)idt, idt_physical);
 
 	idt_p.limit = (sizeof (struct idt_entry) * 256) - 1;
-	idt_p.base = (unsigned int)(size_t)&idt;
+	idt_p.base = (size_t)idt;
 
 	memset((unsigned char *)idt, 0, sizeof(struct idt_entry) * 256);
 

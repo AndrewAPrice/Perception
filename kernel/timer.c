@@ -15,9 +15,9 @@ void timer_phase(size_t hz) {
 void timer_handle(struct isr_regs *r) {
 	timer_ticks++;
 
-	/* if(timer_ticks % 18 == 0) {
+	if(timer_ticks % 100 == 0) {
 		print_string("One second has passed\n");
-	} */
+	}
 }
 
 void timer_install() {

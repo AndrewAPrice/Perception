@@ -68,6 +68,9 @@ void isrs_install() {
 	idt_set_gate(29, (size_t)isr29, 0x08, 0x8E);
 	idt_set_gate(30, (size_t)isr30, 0x08, 0x8E);
 	idt_set_gate(31, (size_t)isr31, 0x08, 0x8E);
+
+	size_t i =0; for(i = 32; i < 256; i++)
+		idt_set_gate(i, (size_t)isr31, 0x08, 0x8E);
 }
 
 char *exception_messages[] = {
@@ -106,12 +109,13 @@ char *exception_messages[] = {
 };
 
 void fault_handler(struct isr_regs *r) {
+
 	if(r->int_no < 32) {
 		enter_text_mode();
-		print_string("Exception occured: ");
+		print_string("\nException occured: ");
 		print_string(exception_messages[r->int_no]);
-		print_string("\n");
-		asm("cli");
-		asm("hlt");
+	} else {
+		print_string("\nUnknown exception: ");
+		print_hex((size_t)r->int_no);
 	}
 }

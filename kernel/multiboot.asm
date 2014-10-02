@@ -17,12 +17,12 @@ MbHdr:
 	; tags
 
 	; sections override
-	dw 2, 0 ; multiboot_header_tag_address
-	dd 24
-	dd MbHdr
-	dd _loadStart
-	dd _loadEnd
-	dd _bssEnd
+;	dw 2, 0 ; multiboot_header_tag_address
+;	dd 24
+;	dd MbHdr
+;	dd _loadStart
+;	dd _loadEnd
+;	dd _bssEnd
 
 	; entry point override
 	dw 3, 0 ; multiboot_header_tag_entry_address
@@ -36,16 +36,7 @@ MbHdr:
 	dd 6 ; request multiboot_tag_type_mmap
 	dd 0 ; align next tag to 8 byte boundry
 
-;GRUBMemoryMap:
-;	dd 6 ; multiboot_tag_mmap
-;	dd 16 + (24 * 8); size
-;	dd 24 ; entry size
-;	dd 0 ; entry version
-
-	; entries here, 3 dqs
-;	TIMES 8 dq 0, 0, 0
-
-;	; end of tags
+	; end of tags
 	dw 0, 0 ; MULTIBOOT_TAG_TYPE_END
 	dd 8
 

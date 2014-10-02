@@ -74,7 +74,7 @@ TmpGdt:
 	DQ 0x00CF9A000000FFFF
 	DQ 0x00CF92000000FFFF
 	DQ 0x0000000000000000
-	DQ 0x00A09A0000000000
+	DQ 0x00209A0000000000
 	DQ 0x00A0920000000000
 
 Gdtr1:
@@ -104,11 +104,8 @@ Gdt2Ready:
 	mov rsp, Stack + 0xFFFFFFFF80000000
 
 	; mov gdtr to the upper zone
-	mov rax, Gdtr3
+	mov rax, Gdtr3 + 0xFFFFFFFF80000000
 	lgdt [rax]
 
 	mov rax, kmain
 	call rax
-	cli
-	hlt
-	jmp $
