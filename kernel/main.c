@@ -1,15 +1,19 @@
-#include "physical_allocator.h"
-#include "virtual_allocator.h"
-#include "text_terminal.h"
-#include "vfs.h"
+#include "atapi.h"
 #include "gdt.h"
-#include "isr.h"
-#include "irq.h"
 #include "idt.h"
-#include "keyboard.h"
-#include "timer.h"
-#include "multiboot2.h"
 #include "io.h"
+#include "irq.h"
+#include "isr.h"
+#include "keyboard.h"
+#include "messages.h"
+#include "multiboot2.h"
+#include "pci.h"
+#include "physical_allocator.h"
+#include "process.h"
+#include "text_terminal.h"
+#include "timer.h"
+#include "vfs.h"
+#include "virtual_allocator.h"
 
 void kmain() {
 	/* make sure we were booted with a multiboot2 bootloader - we need this because we depend on GRUB for
@@ -25,19 +29,23 @@ void kmain() {
 	init_physical_allocator();
 	init_virtual_allocator();
 
-    idt_install();
-    isrs_install();
+	init_processes();
+	init_messages();
 
+    init_idt();
+    init_isrs();
     // gdt_install();
-    irq_install();
+    init_irq();
 
 	//init_vfs();
 
-    timer_install();
-    keyboard_install();
+    init_timer();
+    init_keyboard();
 
+    init_atapi();
 
-
+    /* scan the pci bus, devices will be initialized as they're discovered */
+    init_pci();
 /*
 	print_string("Total memory: ");
 	print_number(total_system_memory / 1024 / 1024);
@@ -49,9 +57,12 @@ void kmain() {
 	print_number(free_pages * page_size / 1024 / 1024);
 	print_string("MB)\n");
 */
+
 	outportb(0x21, 0xfd); /* keyboard only */
 	outportb(0xa1, 0xff);
 	asm("sti");
+
+	/* load a file from disk? */
 
 	for(;;) {
 		asm("hlt");

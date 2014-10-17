@@ -19,7 +19,8 @@
 //typedef	unsigned long	uintptr_t;
 
 //This lets you prefix malloc and friends
-#define PREFIX(func)		k ## func
+//#define PREFIX(func)		k ## func
+ #define PREFIX(func)		func
 
 #ifdef __cplusplus
 extern "C" {

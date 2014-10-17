@@ -278,7 +278,6 @@ isr_common_stub:
 	mov rdi, rsp ; pass as argument
 	mov rax, fault_handler
 	call rax
-    hlt
 
     pop r15
     pop r14

@@ -8,5 +8,5 @@ struct isr_regs {
 	size_t rip, cs, eflags, usersp, ss;
 };
 
-extern void isrs_install();
+extern void init_isrs();
 //extern void fault_handler(struct isr_regs *r);

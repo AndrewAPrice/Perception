@@ -19,7 +19,7 @@ void idt_set_gate(unsigned char num, size_t base, unsigned short sel, unsigned c
 	idt[num].zero = 0;
 }
 
-void idt_install() {
+void init_idt() {
 	/* the idt aligns with pages - so grab a page to allocate it */
 	idt = (struct idt_entry *)find_free_page_range(kernel_pml4, 1);
 

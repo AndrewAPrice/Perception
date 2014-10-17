@@ -3,7 +3,9 @@
 #include "irq.h"
 #include "text_terminal.h"
 #include "io.h"
+#include "messages.h"
 
+#if 0
 unsigned char kbdus_unshift[128] =
 {
     0,  27, '1', '2', '3', '4', '5', '6', '7', '8',	/* 9 */
@@ -83,17 +85,26 @@ unsigned char kbdus_shift[128] =
     0,	/* F12 Key */
     0,	/* All other keys are undefined */
 };
+#endif
 
 void keyboard_handler(struct isr_regs *r) {
-	unsigned char scancode = inportb(0x60);
-	if(scancode & 0x80) {
-		/* key released */
-	} else {
-		/* key pressed */
-		print_char(kbdus_unshift[scancode]);
-	}
+	unsigned char scancode = inportb(0x60); /* the key pressed, scancode & 0x80 to tell if it was released */
+
+  /* is there an focused process? */
+  struct Process *process = 0;
+  if(process == 0) return;
+
+  /* send a message to it */  
+  struct Message *message = allocate_message();
+  if(message == 0) return;
+
+  message->pid = 0;
+  message->type = MSG_KEY_STATE_CHANGED;
+  message->key_state_changed.scancode = scancode;
+
+  send_message(process, message);
 }
 
-void keyboard_install() {
-	irq_install_handler(0, keyboard_install);
+void init_keyboard() {
+	irq_install_handler(1, keyboard_handler);
 }

@@ -1,8 +1,7 @@
-- interrupts
-- atapi drivers
 - vfs
-- emu86
-- graphics
 - atapi drivers
 - ISO 9660 http://wiki.osdev.org/ISO_9660
+
+- emu86
+- graphics
 - loading elf files

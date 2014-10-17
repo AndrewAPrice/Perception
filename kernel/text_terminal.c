@@ -45,15 +45,16 @@ void print_char(char c) {
 }
 
 /* print a null-terminated string */
-void print_string(char *str) {
-	while(*str) {
-		print_char(*str);
-		str++;
+void print_string(const char *str) {
+	char *str1 = (char *)str;
+	while(*str1) {
+		print_char(*str1);
+		str1++;
 	}
 }
 
 /* print a fixed length string */
-void print_fixed_string(char *str, size_t length) {
+void print_fixed_string(const char *str, size_t length) {
 	size_t i;
 	for(i = 0; i < length; i++)
 		print_char(str[i]);

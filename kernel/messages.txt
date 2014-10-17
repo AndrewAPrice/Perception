@@ -1,0 +1,69 @@
+Messages:
+	Layout: 8 bytes From/to PID 4 message 20 payload 8 - ptr, 8 - ptr size - 48 bytes total
+	0 - key state changed
+		1 byte - scancode
+	1 - user requested termination
+	2 - permissions changed
+		8 bytes - bitmap of new permissions
+
+
+System calls: (rax)
+	0 - kill process
+			rbx - process to kill - 0 kills the calling process 
+	1 - get keyboard state
+		returns:
+			rax - key state for 0-63
+			rbx - key state for 64-127
+			rcx - lock keys (bits - 0 - capslock, 1 - numlock, 2 - scrolllock)
+	2 - set keyboard locks
+			rbx - lock keys state (bits - 0 - capslock, 1 - numlock, 2 -scrollock)
+	3 - start thread
+			rbx - entry point addr
+			rcx - parameter
+			rdx - stack pointer
+		returns:
+			rax - thread id
+	4 - get thread status
+			rbx - thread id
+		returns:
+			rax - thread status (0 - doesn't exist, 1 - awake, 2 - asleep)
+	5 - set thread status
+			rbx - thread id
+			rcx - thread status (0 - kill, 1 - awake, 2 - asleep)
+	6 - get my thread id
+		returns:
+			rax - calling thread's id
+	7 - request permissions
+			rbx - bitmap of permissions to ask for
+	8 - get permissions
+		returns:
+			rax - bitmap of permissions this process has
+	9 - send message
+			rbx - destination pid
+			rcx - bytes 0-7
+			rdx - bytes 8-15
+			r8 - bytes 16-24
+			r9 - pointer to attachment
+			r10 - attachment size (in pages)
+	10 - receive message
+			rbx - sleep?
+		returns:
+			rax - message was waiting?
+			rbx - sender pid
+			rcx - bytes 0-7
+			rdx - bytes 8-15
+			r8 - bytes 15-24
+			r9 - pointer to attachment
+			r10 - attachment size (in pages)
+	11 - allocate memory
+			rbx - number of pages
+		returns:
+			rax - address (returns -1 if it failed)
+	12 - allocate memory at
+			rbx - number of pages
+			rcx - start address
+		returns:
+			rax - success (returns 0 if it succeeded, -1 if it ran out of memory for some reason)
+	13 - release memory
+			rbx - start address
+			rcx - number of pages

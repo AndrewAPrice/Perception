@@ -33,23 +33,33 @@ int liballoc_unlock() {
  * \return A pointer to the allocated memory.
  */
 void* liballoc_alloc(size_t pages) {
-	if(pages != 1) {
-		enter_text_mode();
-		print_string("Something in the kernel tried to allocate ");
-		print_number(pages);
-		print_string(" pages (");
-		print_number((pages * page_size) / 1024);
-		print_string(" KB).\n");
-		asm("cli");
-		asm("hlt");
+	/* find a free page range */
+	size_t start = find_free_page_range(kernel_pml4, pages);
+	if(start == 0) return 0; /* no free page range */
+
+	/* allocate each one */
+	size_t addr = start;
+	size_t i;
+	for(i = 0; i < pages; i++, addr += page_size) {
+		/* get a physical page */
+		size_t phys = get_physical_page();
+
+		if(phys == 0) { /* no free physical memory */
+			/* unmap all memory up until this point*/
+			for(;start < addr; start += page_size)
+				unmap_physical_page(kernel_pml4, start, true);
+
+			return 0;
+		}
+
+		/* map the physical page */
+		map_physical_page(kernel_pml4, addr, phys);
+
+		flush_virtual_page(addr);
 	}
 
-	size_t page = find_physical_page();
-	if(page == 0)
-		return 0;
 
-	mark_physical_page(page);
-	return (void *)(page + virtual_memory_offset);
+	return (void *)start;
 }
 
 /** This frees previously allocated memory. The void* parameter passed
@@ -61,18 +71,10 @@ void* liballoc_alloc(size_t pages) {
  * \return 0 if the memory was successfully freed.
  */
 int liballoc_free(void *addr, size_t pages) {
-	if(pages != 1) {
-		enter_text_mode();
-		print_string("Something in the kernel tried to free ");
-		print_number(pages);
-		print_string(" pages (");
-		print_number((pages * page_size) / 1024);
-		print_string(" KB).\n");
-		asm("cli");
-		asm("hlt");
-	}
-
-	size_t page = (size_t)addr - virtual_memory_offset;
-	free_physical_page(page);
+	size_t i = 0;
+	size_t vir_addr = (size_t)addr;
+	for(;i < pages; i++, vir_addr += page_size)
+		unmap_physical_page(kernel_pml4, vir_addr, true);
+	
 	return 0;
 }

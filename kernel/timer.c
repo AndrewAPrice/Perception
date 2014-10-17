@@ -20,7 +20,7 @@ void timer_handle(struct isr_regs *r) {
 	}
 }
 
-void timer_install() {
+void init_timer() {
 	timer_ticks = 0;
 	timer_phase(100);
 	timer_enable();

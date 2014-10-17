@@ -18,4 +18,4 @@ struct idt_ptr {
 
 extern void idt_load();
 extern void idt_set_gate(unsigned char num, size_t base, unsigned short sel, unsigned char flags);
-extern void idt_install();
+extern void init_idt();

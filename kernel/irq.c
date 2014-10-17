@@ -47,8 +47,8 @@ void irq_remap() {
     outportb(0xA1, 0x0);
 }
 
-void irq_install() {
-	irq_remap();/*
+void init_irq() {
+	irq_remap();
 	idt_set_gate(32, (size_t)irq0, 0x08, 0x8E);
 	idt_set_gate(33, (size_t)irq1, 0x08, 0x8E);
 	idt_set_gate(34, (size_t)irq2, 0x08, 0x8E);
@@ -64,7 +64,7 @@ void irq_install() {
 	idt_set_gate(44, (size_t)irq12, 0x08, 0x8E);
 	idt_set_gate(45, (size_t)irq13, 0x08, 0x8E);
 	idt_set_gate(46, (size_t)irq14, 0x08, 0x8E);
-	idt_set_gate(47, (size_t)irq15, 0x08, 0x8E);*/
+	idt_set_gate(47, (size_t)irq15, 0x08, 0x8E);
 }
 
 void irq_handler(struct isr_regs *r) {
