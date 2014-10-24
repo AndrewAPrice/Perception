@@ -14,6 +14,7 @@
 #include "timer.h"
 #include "vfs.h"
 #include "virtual_allocator.h"
+#include "threads.h"
 
 void kmain() {
 	/* make sure we were booted with a multiboot2 bootloader - we need this because we depend on GRUB for
@@ -36,6 +37,8 @@ void kmain() {
     init_isrs();
     // gdt_install();
     init_irq();
+
+    init_threading();
 
 	//init_vfs();
 

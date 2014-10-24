@@ -189,11 +189,13 @@ void init_ide(struct PCIDevice *device) {
 	uint16 bar4 = pci_config_read_word(device->bus, device->slot, device->function, PCI_HDR_BAR4);
 
 	uint8 prog_if = pci_config_read_byte(device->bus, device->slot, device->function, PCI_HDR_PROG_IF);
+#if 0
 	if(prog_if == 0x8A || prog_if == 0x80) {
 		print_string("IDE "); /* irq 14 and 15 */
 	} else {
 		print_string("SATA");
 	}
+#endif
 
 	controller->Channels[ATA_PRIMARY].io_base = (bar0 & 0xFFFC) + 0x1F0 * (!bar0);
 	controller->Channels[ATA_PRIMARY].control_base = (bar1 & 0xFFFC) + 0x3F6 * (!bar1);
@@ -278,6 +280,7 @@ void init_ide(struct PCIDevice *device) {
 			dev->Signature = *(uint16 *)&buffer[ATA_IDENT_DEVICETYPE];
 			dev->Capabilities = *(uint16 *)&buffer[ATA_IDENT_CAPABILITIES];
 			dev->CommandSets = *(uint32 *)&buffer[ATA_IDENT_COMMANDSETS];
+			dev->Controller = controller;
 
 			/* get the size */
 			if(dev->CommandSets & (1 << 26))
@@ -297,5 +300,4 @@ void init_ide(struct PCIDevice *device) {
 	free(buffer);
 
 	/* finished initializing */
-
 }

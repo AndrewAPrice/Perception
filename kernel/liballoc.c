@@ -234,11 +234,16 @@ static struct liballoc_major *allocate_new_page( unsigned int size )
       return maj;
 }
 
-
-	
-
-
 void *PREFIX(malloc)(size_t req_size)
+{
+	liballoc_lock();
+	void *result = imalloc(req_size);
+	liballoc_unlock();		// release the lock
+	return result;
+}	
+
+
+void *PREFIX(imalloc)(size_t req_size)
 {
 	int startedBet = 0;
 	unsigned long long bestSize = 0;
@@ -256,8 +261,6 @@ void *PREFIX(malloc)(size_t req_size)
 	}
 				// So, ideally, we really want an alignment of 0 or 1 in order
 				// to save space.
-	
-	liballoc_lock();
 
 	if ( size == 0 )
 	{
@@ -567,10 +570,6 @@ void *PREFIX(malloc)(size_t req_size)
 		maj = maj->next;
 	} // while (maj != NULL)
 
-
-	
-	liballoc_unlock();		// release the lock
-
 	#ifdef DEBUG
 	printf( "All cases exhausted. No memory available.\n");
 	FLUSH();
@@ -584,14 +583,13 @@ void *PREFIX(malloc)(size_t req_size)
 }
 
 
+void PREFIX(free)(void *ptr) {
+	liballoc_lock();		// lockit
+	free(ptr);
+	liballoc_unlock();		// release the lock
+}
 
-
-
-
-
-
-
-void PREFIX(free)(void *ptr)
+void PREFIX(ifree)(void *ptr)
 {
 	struct liballoc_minor *min;
 	struct liballoc_major *maj;
@@ -608,8 +606,6 @@ void PREFIX(free)(void *ptr)
 	}
 
 	UNALIGN( ptr );
-
-	liballoc_lock();		// lockit
 
 
 	min = (struct liballoc_minor*)((size_t)ptr - sizeof( struct liballoc_minor ));
@@ -712,8 +708,6 @@ void PREFIX(free)(void *ptr)
 	printf( "OK\n");
 	FLUSH();
 	#endif
-	
-	liballoc_unlock();		// release the lock
 }
 
 

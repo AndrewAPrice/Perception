@@ -8,6 +8,8 @@ struct IDEChannelRegisters {
 	unsigned char no_interrupt; /* no interrupt */
 };
 
+struct IDEController;
+
 struct IDEDevice {
 	uint8 Reserved; /* 0 - empty, 1 - exists */
 	uint8 Channel; /* 0 - primary, 1 - secondary */
@@ -18,6 +20,7 @@ struct IDEDevice {
 	uint32 CommandSets; /* supported command sets */
 	uint32 Size; /* size in sectors */
 	unsigned char Model[41]; /* model string */
+	struct IDEController * Controller;
 	struct IDEDevice *Next;
 };
 
