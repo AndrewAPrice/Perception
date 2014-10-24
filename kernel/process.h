@@ -27,8 +27,8 @@ struct Process {
 	struct Thread *waiting_thread; /* thread waiting for a message */
 
 	/* threads */
-	struct Thread *first_thread;
-	unsigned short threads;
+	struct Thread *threads;
+	unsigned short threads_count;
 
 	/* linked list of processes */
 	struct Process *next;

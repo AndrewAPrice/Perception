@@ -22,6 +22,8 @@ $NASM_CMD multiboot.o multiboot.asm
 $GCC_CMD pci.o pci.c
 $GCC_CMD physical_allocator.o physical_allocator.c
 $GCC_CMD process.o process.c
+$GCC_CMD scheduler.o scheduler.c
+$GCC_CMD thread.o thread.c
 $GCC_CMD text_terminal.o text_terminal.c
 $GCC_CMD timer.o timer.c
 # $GCC_CMD vfs.o vfs.c

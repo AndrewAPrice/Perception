@@ -2,6 +2,7 @@
 #include "irq.h"
 #include "isr.h"
 #include "io.h"
+#include "scheduler.h"
 
 volatile size_t timer_ticks;
 
@@ -12,12 +13,14 @@ void timer_phase(size_t hz) {
 	outportb(0x40, divisor >> 8);
 }
 
-void timer_handle(struct isr_regs *r) {
+struct isr_regs *timer_handle(struct isr_regs *r) {
 	timer_ticks++;
 
 	if(timer_ticks % 100 == 0) {
 		print_string("One second has passed\n");
 	}
+
+	return schedule_next(r);
 }
 
 void init_timer() {

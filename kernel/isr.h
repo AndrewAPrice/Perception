@@ -9,4 +9,8 @@ struct isr_regs {
 };
 
 extern void init_isrs();
+extern void enter_interrupt();
+extern void leave_interrupt();
+extern void lock_interrupts();
+extern void unlock_interrupts();
 //extern void fault_handler(struct isr_regs *r);

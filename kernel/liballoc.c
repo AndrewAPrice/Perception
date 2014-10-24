@@ -234,15 +234,6 @@ static struct liballoc_major *allocate_new_page( unsigned int size )
       return maj;
 }
 
-void *PREFIX(malloc)(size_t req_size)
-{
-	liballoc_lock();
-	void *result = imalloc(req_size);
-	liballoc_unlock();		// release the lock
-	return result;
-}	
-
-
 void *PREFIX(imalloc)(size_t req_size)
 {
 	int startedBet = 0;
@@ -270,7 +261,6 @@ void *PREFIX(imalloc)(size_t req_size)
 							__builtin_return_address(0) );
 		FLUSH();
 		#endif
-		liballoc_unlock();
 		return PREFIX(malloc)(1);
 	}
 	
@@ -289,7 +279,6 @@ void *PREFIX(imalloc)(size_t req_size)
 		l_memRoot = allocate_new_page( size );
 		if ( l_memRoot == NULL )
 		{
-		  liballoc_unlock();
 		  #ifdef DEBUG
 		  printf( "liballoc: initial l_memRoot initialization failed\n", p); 
 		  FLUSH();
@@ -404,7 +393,6 @@ void *PREFIX(imalloc)(size_t req_size)
 			printf( "CASE 2: returning %x\n", p); 
 			FLUSH();
 			#endif
-			liballoc_unlock();		// release the lock
 			return p;
 		}
 
@@ -440,7 +428,6 @@ void *PREFIX(imalloc)(size_t req_size)
 			printf( "CASE 3: returning %x\n", p); 
 			FLUSH();
 			#endif
-			liballoc_unlock();		// release the lock
 			return p;
 		}
 		
@@ -487,7 +474,6 @@ void *PREFIX(imalloc)(size_t req_size)
 						printf( "CASE 4.1: returning %x\n", p); 
 						FLUSH();
 						#endif
-						liballoc_unlock();		// release the lock
 						return p;
 					}
 				}
@@ -530,7 +516,6 @@ void *PREFIX(imalloc)(size_t req_size)
 						FLUSH();
 						#endif
 						
-						liballoc_unlock();		// release the lock
 						return p;
 					}
 				}	// min->next != NULL
@@ -582,11 +567,12 @@ void *PREFIX(imalloc)(size_t req_size)
 	return NULL;
 }
 
-
-void PREFIX(free)(void *ptr) {
-	liballoc_lock();		// lockit
-	free(ptr);
+void *PREFIX(malloc)(size_t req_size)
+{
+	liballoc_lock();
+	void *result = imalloc(req_size);
 	liballoc_unlock();		// release the lock
+	return result;
 }
 
 void PREFIX(ifree)(void *ptr)
@@ -652,7 +638,6 @@ void PREFIX(ifree)(void *ptr)
 		}
 			
 		// being lied to...
-		liballoc_unlock();		// release the lock
 		return;
 	}
 
@@ -710,9 +695,11 @@ void PREFIX(ifree)(void *ptr)
 	#endif
 }
 
-
-
-
+void PREFIX(free)(void *ptr) {
+	liballoc_lock();		// lockit
+	ifree(ptr);
+	liballoc_unlock();		// release the lock
+}
 
 void* PREFIX(calloc)(size_t nobj, size_t size)
 {

@@ -64,9 +64,6 @@ extern void* liballoc_alloc(size_t pages);
  */
 extern int liballoc_free(void *addr, size_t pages);
 
-
-extern void    *PREFIX(imalloc)(size_t);				///< call from interrupt, doesn't lock
-extern void    PREFIX(ifree)(void *);				///< call from interrupt, doesn't lock
 extern void    *PREFIX(malloc)(size_t);				///< The standard function.
 extern void    *PREFIX(realloc)(void *, size_t);		///< The standard function.
 extern void    *PREFIX(calloc)(size_t, size_t);		///< The standard function.

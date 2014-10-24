@@ -2,6 +2,7 @@
 #include "liballoc.h"
 #include "virtual_allocator.h"
 #include "messages.h"
+#include "thread.h"
 
 size_t last_assigned_pid = 0; /* the last assigned pid */
 struct Process *first_process; /* linked list of processes */
@@ -37,8 +38,8 @@ struct Process *create_process() {
 	proc->waiting_thread = 0;
 
 	/* threads */
-	proc->first_thread = 0;
 	proc->threads = 0;
+	proc->threads_count = 0;
 
 	/* add to linked list of processes */
 	if(first_process)
@@ -53,7 +54,8 @@ struct Process *create_process() {
 
 /* dstroys a process */
 void destroy_process(struct Process *process) {
-	/* todo - free each thread */
+	/* destroy threads */
+	destroy_threads_for_process(process);
 
 	/* free each message */
 	while(process->next_message != 0) {

@@ -1,6 +1,7 @@
 #include "physical_allocator.h"
 #include "virtual_allocator.h"
 #include "text_terminal.h"
+#include "isr.h"
 
 /** This function is supposed to lock the memory data structures. It
  * could be as simple as disabling interrupts or acquiring a spinlock.
@@ -10,7 +11,7 @@
  * failure.
  */
 int liballoc_lock() {
-	asm("cli");
+	lock_interrupts();
 	return 0;
 }
 
@@ -21,7 +22,7 @@ int liballoc_lock() {
  * \return 0 if the lock was successfully released.
  */
 int liballoc_unlock() {
-	asm("sti");
+	unlock_interrupts();
 	return 0;
 }
 

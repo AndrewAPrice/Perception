@@ -87,7 +87,7 @@ unsigned char kbdus_shift[128] =
 };
 #endif
 
-void keyboard_handler(struct isr_regs *r) {
+struct isr_regs *keyboard_handler(struct isr_regs *r) {
 	unsigned char scancode = inportb(0x60); /* the key pressed, scancode & 0x80 to tell if it was released */
 
   /* is there an focused process? */
@@ -103,6 +103,8 @@ void keyboard_handler(struct isr_regs *r) {
   message->key_state_changed.scancode = scancode;
 
   send_message(process, message);
+
+  return r;
 }
 
 void init_keyboard() {

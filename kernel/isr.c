@@ -35,7 +35,13 @@ extern void isr29();
 extern void isr30();
 extern void isr31();
 
+unsigned char in_interrupt;
+int interrupt_locks;
+
 void init_isrs() {
+	in_interrupt = 0;
+	interrupt_locks = 0;
+
 	idt_set_gate(0, (size_t)isr0, 0x08, 0x8E);
 	idt_set_gate(1, (size_t)isr1, 0x08, 0x8E);
 	idt_set_gate(2, (size_t)isr2, 0x08, 0x8E);
@@ -68,6 +74,32 @@ void init_isrs() {
 	idt_set_gate(29, (size_t)isr29, 0x08, 0x8E);
 	idt_set_gate(30, (size_t)isr30, 0x08, 0x8E);
 	idt_set_gate(31, (size_t)isr31, 0x08, 0x8E);
+}
+
+
+void enter_interrupt() {
+	in_interrupt = 1;
+}
+
+void leave_interrupt() {
+	in_interrupt = 0;
+}
+
+
+void lock_interrupts() {
+	if(in_interrupt) return; /* do nothing inside an interrupt because they're already disabled */
+	if(interrupt_locks == 0)
+		__asm__ __volatile__ ("cli");
+	interrupt_locks++;
+	/*print_string("+");*/
+}
+
+void unlock_interrupts() {
+	if(in_interrupt) return; /* do nothing inside an interrupt because they're already disabled */
+	interrupt_locks--;
+	if(interrupt_locks == 0)
+		__asm__ __volatile__ ("sti");
+	/*print_string("|");*/
 }
 
 char *exception_messages[] = {
@@ -106,7 +138,7 @@ char *exception_messages[] = {
 };
 
 void fault_handler(struct isr_regs *r) {
-
+	enter_interrupt();
 	if(r->int_no < 32) {
 		enter_text_mode();
 		print_string("\nException occured: ");
@@ -117,4 +149,6 @@ void fault_handler(struct isr_regs *r) {
 		print_string("\nUnknown exception: ");
 		print_number((size_t)r->int_no);
 	}
+	asm("hlt");
+	leave_interrupt();
 }

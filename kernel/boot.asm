@@ -107,5 +107,7 @@ Gdt2Ready:
 	mov rax, Gdtr3 + 0xFFFFFFFF80000000
 	lgdt [rax]
 
+	cli
+
 	mov rax, kmain
 	call rax

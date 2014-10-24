@@ -67,10 +67,11 @@ void init_irq() {
 	idt_set_gate(47, (size_t)irq15, 0x08, 0x8E);
 }
 
-void irq_handler(struct isr_regs *r) {
+struct isr_regs *irq_handler(struct isr_regs *r) {
+	enter_interrupt();
 	irq_handler_ptr handle = irq_routines[r->int_no - 32];
 	if(handle)
-		handle(r);
+		r = handle(r);
 
 	/* if the idt entry that was invoked greater than 40 (irq8-15) we need to send an EOI to the slave controller */
 	if(r->int_no >= 40)
@@ -78,4 +79,6 @@ void irq_handler(struct isr_regs *r) {
 
 	/* send an EOI to the master interrupt controller */
 	outportb(0x20, 0x20);
+	leave_interrupt();
+	return r;
 }
