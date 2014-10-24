@@ -8,10 +8,17 @@
 
 struct Thread *kernel_threads;
 size_t next_thread_id;
+struct Thread *next_thread_to_clean;
+struct Thread *thread_cleaner_thread;
+
+void thread_cleaner();
 
 void init_threads() {
 	kernel_threads = 0;
 	next_thread_id = 0;
+	next_thread_to_clean = 0;
+
+	thread_cleaner_thread = create_thread(0, (size_t)thread_cleaner, 0);
 }
 
 struct  Thread *create_thread(struct Process *process, size_t entry_point, size_t params) {
@@ -85,15 +92,39 @@ struct  Thread *create_thread(struct Process *process, size_t entry_point, size_
 	thread->next_awake = 0;
 	thread->previous = 0;
 
-
 	unlock_interrupts();
 
 	return thread;
 }
 
+/* this is a thread that cleans up threads in limbo, we have to do this from another thread, because we can't deallocate a
+   thread's stack in that thread's interrupt handler */
+void thread_cleaner() {
+	print_string("Thread cleaner!\n");
+	while(sleep_if_not_set((size_t *)&next_thread_to_clean)) {
+		print_string("Deleting a thread\n");
+		lock_interrupts();
+		struct Thread *thread = next_thread_to_clean;
+		if(thread) {
+			next_thread_to_clean = thread->next;
+
+			struct Process *process = thread->process;
+
+			/* release used memory */
+			unmap_physical_page(process ? process->pml4 : kernel_pml4, thread->stack, true);
+			free(thread);
+		}
+
+		unlock_interrupts();
+	}
+
+}
+
+/* schedules a thread for deletion */
 void destroy_thread(struct Thread *thread) {
 	/* before entering - make sure it's not awake */
 	lock_interrupts();
+
 	struct Process *process = thread->process;
 
 	/* remove this thread from the process */
@@ -111,9 +142,12 @@ void destroy_thread(struct Thread *thread) {
 		}
 	}
 
-	/* release used memory */
-	unmap_physical_page(process ? process->pml4 : kernel_pml4, thread->stack, true);
-	free(thread);
+	/* schedule this thread for deletion */
+	thread->next = next_thread_to_clean;
+	next_thread_to_clean = thread;
+
+	/* wake up the thread cleaner */
+	schedule_thread(thread_cleaner_thread);
 
 	unlock_interrupts();
 }

@@ -11,6 +11,8 @@
 #include "physical_allocator.h"
 #include "process.h"
 #include "scheduler.h"
+#include "shell.h"
+#include "syscall.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "timer.h"
@@ -54,24 +56,13 @@ void kmain() {
     /* scan the pci bus, devices will be initialized as they're discovered */
     init_pci();
 
+    init_syscalls();
+
 
     /* create some threads */
-    schedule_thread(create_thread(0, (size_t)thread_test, (size_t)'a'));
-    schedule_thread(create_thread(0, (size_t)thread_test, (size_t)'b'));
-    schedule_thread(create_thread(0, (size_t)thread_test, (size_t)'c'));
 
- /*
-	print_string("Total memory: ");
-	print_number(total_system_memory / 1024 / 1024);
-	
-	print_string("MB Free pages: ");
-	print_number(free_pages);
-
-	print_string(" (");
-	print_number(free_pages * page_size / 1024 / 1024);
-	print_string("MB)\n");
-*/
-
+	/* Create the shell thread */
+	schedule_thread(create_thread(0, (size_t)shell_entry, 0));
 	/* enable interrupts, this will enter us into our threads */
 #if 0
 	outportb(0x21, 0xfd); /* keyboard only */
@@ -79,10 +70,7 @@ void kmain() {
 #endif
 	asm("sti");
 
-	/* load a file from disk? */
-
 	for(;;) {
-		print_char('k');
 		asm("hlt");
 	}
 }

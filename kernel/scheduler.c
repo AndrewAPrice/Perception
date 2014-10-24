@@ -79,6 +79,8 @@ void schedule_thread(struct Thread *thread) {
 	if(thread->awake)
 		return;
 
+	thread->awake = 1;
+
 	thread->next_awake = 0;
 	thread->previous_awake = last_awake_thread;
 
@@ -96,6 +98,8 @@ void unschedule_thread(struct Thread *thread) {
 	lock_interrupts();
 	if(!thread->awake)
 		return;
+
+	thread->awake = 0;
 
 	if(thread->next_awake)
 		thread->next_awake->previous_awake = thread->previous_awake;

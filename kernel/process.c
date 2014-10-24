@@ -40,6 +40,7 @@ struct Process *create_process() {
 	/* threads */
 	proc->threads = 0;
 	proc->threads_count = 0;
+	proc->threads_in_limbo = 0;
 
 	/* add to linked list of processes */
 	if(first_process)

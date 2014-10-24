@@ -92,11 +92,11 @@ struct isr_regs *keyboard_handler(struct isr_regs *r) {
 
   /* is there an focused process? */
   struct Process *process = 0;
-  if(process == 0) return;
+  if(process == 0) return r;
 
   /* send a message to it */  
   struct Message *message = allocate_message();
-  if(message == 0) return;
+  if(message == 0) return r;
 
   message->pid = 0;
   message->type = MSG_KEY_STATE_CHANGED;

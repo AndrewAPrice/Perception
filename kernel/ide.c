@@ -1,5 +1,8 @@
 #include "ide.h"
 #include "liballoc.h"
+#include "scheduler.h"
+#include "storage_device.h"
+#include "thread.h"
 
 /* Command/Status Port bitmask */
 #define ATA_SR_BSY     0x80
@@ -171,6 +174,10 @@ uint8 ide_polling(struct IDEChannelRegisters *channel, uint32 advanced_check) {
 	return 0;
 }
 
+void ide_thread_entry(struct IDEController *controller);
+void ide_read_function (void *storage_device_tag, size_t offset, size_t length, size_t pml4, size_t dest_buffer,
+	StorageDeviceCallback callback, void *callback_tag);
+
 void init_ide(struct PCIDevice *device) {
 	char *buffer = (char *)malloc(2048);
 	if(buffer == 0) return;
@@ -300,4 +307,64 @@ void init_ide(struct PCIDevice *device) {
 	free(buffer);
 
 	/* finished initializing */
+
+	if(controller->Devices == 0) {
+		free(controller); /* we didn't find any devices */
+		return;
+	}
+
+	/* create a thread for controlling this device */
+	struct Thread *thread = create_thread(0, (size_t)ide_thread_entry, (size_t)controller);
+	if(thread != 0) {
+		while(controller->Devices) {
+			struct IDEDevice *next = controller->Devices->Next;
+			free(controller->Devices);
+			controller->Devices = next;
+		}
+		free(controller);
+		device->driver = 0; /* out of memory */
+		return;
+	}
+	controller->thread = thread;
+
+	/* loop over each device and register it */
+	struct IDEDevice *dev = controller->Devices;
+	while(dev != 0) {
+		struct StorageDevice *sd = (struct StorageDevice *)malloc(sizeof(struct StorageDevice));
+		if(!sd) return; /* out of memory */
+		dev->storage_device = sd;
+
+		if(dev->Type == IDE_ATAPI) {
+			sd->type = STORAGE_DEVICE_TYPE_OPTICAL;
+			sd->inserted = 0;
+			sd->size = 0; /* atapi sector sizes are 2048 bytes */
+		} else {
+			sd->type = STORAGE_DEVICE_TYPE_HARDDRIVE;
+			sd->inserted = 1;
+			sd->size = dev->Size * 512; /* ide ector sizes are 512 bytes */
+		}
+
+		sd->tag = dev;
+		sd->read_function = ide_read_function;
+		dev = dev->Next;
+	}
+
+	/* schedule this thread, because we can do stuff with it */
+
+//	schedule_thread(thread); /* schedule the thread to run, because we can do things like detect optical drives */
+}
+
+/* thread for controlling an ide device */
+void ide_thread_entry(struct IDEController *controller) {
+	/* let's figure out what's on here and mount it */
+
+
+	/*while(sleep_for_message) {
+
+	}*/
+}
+
+void ide_read_function (void *storage_device_tag, size_t offset, size_t length, size_t pml4, size_t dest_buffer,
+	StorageDeviceCallback callback, void *callback_tag) {
+	
 }

@@ -23,6 +23,10 @@ $GCC_CMD pci.o pci.c
 $GCC_CMD physical_allocator.o physical_allocator.c
 $GCC_CMD process.o process.c
 $GCC_CMD scheduler.o scheduler.c
+$GCC_CMD shell.o shell.c
+$GCC_CMD storage_device.o storage_device.c
+$NASM_CMD syscall_asm.o syscall.asm
+$GCC_CMD syscall.o syscall.c
 $GCC_CMD thread.o thread.c
 $GCC_CMD text_terminal.o text_terminal.c
 $GCC_CMD timer.o timer.c

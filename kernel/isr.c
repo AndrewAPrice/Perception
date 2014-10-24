@@ -1,5 +1,5 @@
-#include "isr.h"
 #include "idt.h"
+#include "isr.h"
 #include "text_terminal.h"
 
 extern void isr0();
@@ -137,7 +137,7 @@ char *exception_messages[] = {
 	"Reserved" /* 31 */
 };
 
-void fault_handler(struct isr_regs *r) {
+struct isr_regs *fault_handler(struct isr_regs *r) {
 	enter_interrupt();
 	if(r->int_no < 32) {
 		enter_text_mode();
@@ -150,5 +150,7 @@ void fault_handler(struct isr_regs *r) {
 		print_number((size_t)r->int_no);
 	}
 	asm("hlt");
+	/* todo: terminate this thread */
 	leave_interrupt();
+	return r;
 }

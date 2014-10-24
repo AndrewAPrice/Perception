@@ -278,6 +278,7 @@ isr_common_stub:
 	mov rdi, rsp ; pass as argument
 	mov rax, fault_handler
 	call rax
+    mov rsp, rax ; returns a pointer to the stack
 
     pop r15
     pop r14

@@ -9,6 +9,8 @@ struct IDEChannelRegisters {
 };
 
 struct IDEController;
+struct Thread;
+struct StorageDevice;
 
 struct IDEDevice {
 	uint8 Reserved; /* 0 - empty, 1 - exists */
@@ -22,12 +24,14 @@ struct IDEDevice {
 	unsigned char Model[41]; /* model string */
 	struct IDEController * Controller;
 	struct IDEDevice *Next;
+	struct StorageDevice *storage_device;
 };
 
 
 struct IDEController {
 	struct IDEChannelRegisters Channels[2];
 	struct IDEDevice *Devices;
+	struct Thread *thread; /* the thread that handles this */
 };
 
 extern void init_ide(struct PCIDevice *device);

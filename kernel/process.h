@@ -29,6 +29,7 @@ struct Process {
 	/* threads */
 	struct Thread *threads;
 	unsigned short threads_count;
+	unsigned short threads_in_limbo; /* threads in limbo, waiting to be cleaned up */
 
 	/* linked list of processes */
 	struct Process *next;
@@ -39,7 +40,7 @@ struct Process {
 extern void init_processes();
 /* creates a process, returns 0 if there was an error */
 extern struct Process *create_process();
-/* dstroys a process */
+/* dstroys a process - DO NOT CALL THIS DIRECTLY, destroy a process by destroying all of it's threads! */
 extern void destroy_process(struct Process *process);
 /* returns a process with that pid, returns 0 if it doesn't exist */
 extern struct Process *get_process_from_pid(size_t pid);
