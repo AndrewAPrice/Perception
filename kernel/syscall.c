@@ -27,6 +27,8 @@ struct isr_regs *syscall_handler(struct isr_regs *r) {
 	} break;
 	case 2: { /* send this thread to sleep if a value is not set */
 		size_t *ptr = (size_t *)r->rbx;
+		/* check if this value is actually mapped */
+		
 		if(*ptr == 0) {
 			unschedule_thread(running_thread);
 			r = schedule_next(r);

@@ -69,6 +69,8 @@ struct  Thread *create_thread(struct Process *process, size_t entry_point, size_
 	thread->id = next_thread_id;
 	next_thread_id++;
 	thread->awake = false;
+	thread->awake_in_process = false;
+	thread->time_slices = 0;
 	/*print_string("Virtual page: ");
 	print_hex(virt_page);
 	asm("hlt");*/
@@ -100,9 +102,7 @@ struct  Thread *create_thread(struct Process *process, size_t entry_point, size_
 /* this is a thread that cleans up threads in limbo, we have to do this from another thread, because we can't deallocate a
    thread's stack in that thread's interrupt handler */
 void thread_cleaner() {
-	print_string("Thread cleaner!\n");
 	while(sleep_if_not_set((size_t *)&next_thread_to_clean)) {
-		print_string("Deleting a thread\n");
 		lock_interrupts();
 		struct Thread *thread = next_thread_to_clean;
 		if(thread) {

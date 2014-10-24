@@ -15,10 +15,13 @@ struct Thread {
 	struct Thread *previous;
 
 	int awake : 1; /* is this thread awake? */
+	int awake_in_process : 1; /* thread is awake in process, even if process is asleep */
 
 	/* linked list of awake threads */
 	struct Thread *next_awake;
 	struct Thread *previous_awake;
+
+	size_t time_slices; /* time slices this thread has had */
 };
 
 /* must be called in an interrupt handler or with interrupts disabled */

@@ -11,7 +11,7 @@ struct Thread *last_awake_thread;
 
 struct Thread *running_thread; /* currently executing thread */
 
-struct isr_regs *idle_regs; /* idle value to return when no thread is running */
+struct isr_regs *idle_regs; /* idle vaue to return when no thread is running */
 
 void init_scheduler() {
 	first_awake_thread = 0;
@@ -67,6 +67,7 @@ struct isr_regs *schedule_next(struct isr_regs *regs) {
 
 	/* enter the next thread */
 	running_thread = next;
+	running_thread->time_slices++;
 
 	if(running_thread->process) /* not a kernel thread, make sure we have this process's virtual address space loaded */
 		switch_to_address_space(running_thread->process->pml4);

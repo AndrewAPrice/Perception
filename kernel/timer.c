@@ -4,7 +4,7 @@
 #include "io.h"
 #include "scheduler.h"
 
-volatile size_t timer_ticks;
+volatile size_t time_slices;
 
 void timer_phase(size_t hz) {
 	size_t divisor = 1193180 / hz;
@@ -14,17 +14,13 @@ void timer_phase(size_t hz) {
 }
 
 struct isr_regs *timer_handle(struct isr_regs *r) {
-	timer_ticks++;
-
-	if(timer_ticks % 100 == 0) {
-		print_string("One second has passed\n");
-	}
+	time_slices++;
 
 	return schedule_next(r);
 }
 
 void init_timer() {
-	timer_ticks = 0;
+	time_slices = 0;
 	timer_phase(100);
 	timer_enable();
 }
@@ -38,9 +34,9 @@ void timer_disable() {
 }
 
 void timer_wait(size_t ticks) {
-	unsigned long eticks = timer_ticks + ticks;
+	unsigned long eticks = time_slices + ticks;
 
-	while(timer_ticks < eticks) {
+	while(time_slices < eticks) {
 		asm("hlt");
 	}
 }
