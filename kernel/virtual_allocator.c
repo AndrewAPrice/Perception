@@ -73,9 +73,6 @@ void init_virtual_allocator() {
 		map_kernel_mem_boot(i + virtual_memory_offset, i, false);
 	i += virtual_memory_offset;
 
-	print_string("Top of memory: ");
-	print_hex(topOfMem);
-	print_char('\n');
 
 	/* allocate our page table for our temp stuff */
 	tempMemoryPageTable = (size_t *)i;
@@ -88,9 +85,6 @@ void init_virtual_allocator() {
 	size_t page_table_range = page_size * 512;
 	tempMemoryStart = (i + page_table_range) & ~(page_table_range - 1);
 
-	print_string("Temp memory range: ");
-	print_hex(tempMemoryStart);
-	print_char('\n');
 	map_kernel_mem_boot(tempMemoryStart, physical_tempMemoryPageTable, true);
 
 

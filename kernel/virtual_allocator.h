@@ -11,6 +11,9 @@
 /* the kernel's pml4 */
 extern size_t kernel_pml4;
 
+/* the currently loaded pml4 */
+extern size_t current_pml4;
+
 /* map a physical page so that we can access it with temp_page_boot - use this before the virtual allocator has been initialized */
 extern void *map_temp_boot_page(size_t addr);
 
