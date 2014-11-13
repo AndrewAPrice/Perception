@@ -24,6 +24,7 @@ struct isr_regs *schedule_next(struct isr_regs *regs) {
 	struct Thread *next;
 
 	if(running_thread) { /* we were executing a thread */
+		running_thread->pml4 = current_pml4;
 		running_thread->registers = regs;
 
 		next = running_thread->next_awake; /* next awake */
@@ -69,8 +70,8 @@ struct isr_regs *schedule_next(struct isr_regs *regs) {
 	running_thread = next;
 	running_thread->time_slices++;
 
-	if(running_thread->process) /* not a kernel thread, make sure we have this process's virtual address space loaded */
-		switch_to_address_space(running_thread->process->pml4);
+	if(running_thread->pml4 != kernel_pml4) /* not a kernel thread, make sure we have this process's virtual address space loaded */
+		switch_to_address_space(running_thread->pml4);
 
 	return running_thread->registers; /* enter into this thread */
 }

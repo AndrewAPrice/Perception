@@ -3,6 +3,28 @@
 #include "scheduler.h"
 #include "storage_device.h"
 #include "thread.h"
+#include "text_terminal.h"
+#include "virtual_allocator.h"
+
+#define IDE_REQUEST_TYPE_READ 0
+
+struct IDERequest {
+	struct IDERequest *next;
+	uint8 type;
+	void *request; /* pointer to the parent object based on the type */
+};
+
+struct IDERequestRead {
+	struct IDERequest request;
+
+	struct IDEDevice *device;
+	size_t offset;
+	size_t length;
+	size_t pml4;
+	char *dest_buffer;
+	StorageDeviceCallback callback;
+	void *callback_tag;
+};
 
 /* Command/Status Port bitmask */
 #define ATA_SR_BSY     0x80
@@ -90,6 +112,43 @@
 #define      ATA_READ      0x00
 #define      ATA_WRITE     0x01
 
+/* The default and seemingly universal sector size for CD-ROMs. */
+#define ATAPI_SECTOR_SIZE 2048
+ 
+/* The default ISA IRQ numbers of the ATA controllers. */
+#define ATA_IRQ_PRIMARY     0x0E
+#define ATA_IRQ_SECONDARY   0x0F
+ 
+/* The necessary I/O ports, indexed by "bus". */
+#define ATA_DATA(x)         (x)
+#define ATA_FEATURES(x)     (x+1)
+#define ATA_SECTOR_COUNT(x) (x+2)
+#define ATA_ADDRESS1(x)     (x+3)
+#define ATA_ADDRESS2(x)     (x+4)
+#define ATA_ADDRESS3(x)     (x+5)
+#define ATA_DRIVE_SELECT(x) (x+6)
+#define ATA_COMMAND(x)      (x+7)
+#define ATA_DCR(x)          (x+0x206)   /* device control register */
+ 
+/* valid values for "bus/channel" */
+#define ATA_BUS_PRIMARY     0x1F0
+#define ATA_BUS_SECONDARY   0x170
+
+/* valid values for "drive" */
+#define ATA_DRIVE_MASTER    0xA0
+#define ATA_DRIVE_SLAVE     0xB0
+ 
+/* ATA specifies a 400ns delay after drive switching -- often
+ * implemented as 4 Alternative Status queries. */
+#define ATA_SELECT_DELAY(bus) \
+  {inportb(ATA_DCR(bus));inportb(ATA_DCR(bus));inportb(ATA_DCR(bus));inportb(ATA_DCR(bus));}
+
+/* command set for ATAPI packets can be found here:
+http://wiki.osdev.org/ATAPI#Complete_Command_Set
+http://www.t10.org/ftp/x3t9.2/document.87/87-106r0.txt
+*/
+
+
 void ide_write(struct IDEChannelRegisters *channel, uint8 reg, uint8 data) {
 	if(reg > 0x07 && reg < 0x0C)
 		ide_write(channel, ATA_REG_CONTROL, 0x80 | channel->no_interrupt);
@@ -175,7 +234,7 @@ uint8 ide_polling(struct IDEChannelRegisters *channel, uint32 advanced_check) {
 }
 
 void ide_thread_entry(struct IDEController *controller);
-void ide_read_function (void *storage_device_tag, size_t offset, size_t length, size_t pml4, size_t dest_buffer,
+void ide_read_handler (void *storage_device_tag, size_t offset, size_t length, size_t pml4, char *dest_buffer,
 	StorageDeviceCallback callback, void *callback_tag);
 
 void init_ide(struct PCIDevice *device) {
@@ -315,7 +374,7 @@ void init_ide(struct PCIDevice *device) {
 
 	/* create a thread for controlling this device */
 	struct Thread *thread = create_thread(0, (size_t)ide_thread_entry, (size_t)controller);
-	if(thread != 0) {
+	if(!thread) {
 		while(controller->Devices) {
 			struct IDEDevice *next = controller->Devices->Next;
 			free(controller->Devices);
@@ -345,26 +404,244 @@ void init_ide(struct PCIDevice *device) {
 		}
 
 		sd->tag = dev;
-		sd->read_function = ide_read_function;
+		sd->read_handler = ide_read_handler;
 		dev = dev->Next;
 	}
 
-	/* schedule this thread, because we can do stuff with it */
+	/* clear the queue of requests */
+	controller->FirstRequest = 0;
+	controller->LastRequest = 0;
 
-//	schedule_thread(thread); /* schedule the thread to run, because we can do things like detect optical drives */
+	schedule_thread(thread); /* schedule the thread to run, because we can do things like detect optical drives */
 }
 
 /* thread for controlling an ide device */
 void ide_thread_entry(struct IDEController *controller) {
-	/* let's figure out what's on here and mount it */
+	/* detect any inserted media and register our drives */
+	struct IDEDevice *dev = controller->Devices;
+	while(dev != 0) {
+		if(dev->Type == IDE_ATAPI) {
+			/* got us a cd drive! */
+
+			/* select drive - master/slave */
+			uint16 bus = dev->Channel ? ATA_BUS_SECONDARY : ATA_BUS_PRIMARY;
+			outportb(ATA_DRIVE_SELECT(bus), dev->Drive << 4);
+			/* wait 400ns */
+			ATA_SELECT_DELAY(bus);
+
+			/* set features register to 0 (PIO Mode) */
+			outportb(ATA_FEATURES(bus), 0x0);
+
+			/* set lba1 and lba2 registers to 0x0008 (number of bytes will be returned ) */
+			outportb(ATA_ADDRESS2(bus), 8);//ATAPI_SECTOR_SIZE & 0xFF);
+			outportb(ATA_ADDRESS3(bus), 0);//ATAPI_SECTOR_SIZE >> 8);
+
+			/* send packet command */
+			outportb(ATA_COMMAND(bus), 0xA0);
+
+			/* poll */
+			uint8 status;
+			while((status = inportb(ATA_COMMAND(bus))) & 0x80) /* busy */
+				asm volatile ("hlt");
 
 
-	/*while(sleep_for_message) {
+			while(!((status = inportb(ATA_COMMAND(bus))) & 0x8) && !(status & 0x1))
+				asm volatile ("hlt");
 
-	}*/
+			/* is there an error ? */
+			if(status & 0x1) {
+				/* no disk */
+				goto out_of_loop;
+			}
+
+			/* send the atapi packet - must be 6 words (12 bytes) long */
+			uint8 atapi_packet[12] = {0x25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+			for(status = 0; status < 12; status += 2) {
+				outportw(ATA_DATA(bus),*(uint16 *)&atapi_packet[status]);
+			}
+
+			/* todo - wait for an irq */
+			for(status = 0; status < 15; status++) asm volatile ("hlt");
+
+			/* read 4 words (8 bytes) from the data register */
+			uint32 returnLba = 
+				(inportw(ATA_DATA(bus)) << 0) |
+				(inportw(ATA_DATA(bus)) << 16);
+			
+			uint32 blockLengthInBytes =
+				(inportw(ATA_DATA(bus)) << 0) |
+				(inportw(ATA_DATA(bus)) << 16);
+			
+			/* flip the endiness */
+			returnLba = (((returnLba >> 0) & 0xFF) << 24) |
+				(((returnLba >> 8) & 0xFF) << 16) |
+				(((returnLba >> 16) & 0xFF) << 8) |
+				(((returnLba >> 24) & 0xFF) << 0);
+
+			blockLengthInBytes = (((blockLengthInBytes >> 0) & 0xFF) << 24) |
+				(((blockLengthInBytes >> 8) & 0xFF) << 16) |
+				(((blockLengthInBytes >> 16) & 0xFF) << 8) |
+				(((blockLengthInBytes >> 24) & 0xFF) << 0);
+
+			/* calculate the device size */
+			dev->storage_device->size = returnLba * blockLengthInBytes;
+			dev->storage_device->inserted = 1;
+		}
+	out_of_loop:
+		/* add this device, even if it's not inserted */
+		add_storage_device(dev->storage_device);
+
+		dev = dev->Next;
+	}
+
+
+	/* enter the event loop */
+	while(sleep_if_not_set((size_t *)&controller->FirstRequest)) {
+
+		/* grab the top value */
+		lock_interrupts();
+
+		if(!controller->FirstRequest) {
+			/* something else woke us up */
+			unlock_interrupts();
+			continue;
+		}
+
+		/* take off the front element from the queue */
+		struct IDERequest *request = controller->FirstRequest;
+		if(request == controller->LastRequest) {
+			/* clear the queue */
+			controller->FirstRequest = 0;
+			controller->LastRequest = 0;
+		} else
+			controller->FirstRequest = request->next;
+
+		unlock_interrupts();
+
+		/* do something with the request */
+
+		switch(request->type) {
+		case IDE_REQUEST_TYPE_READ: {
+			struct IDERequestRead *request_read = (struct IDERequestRead *)request->request;
+
+			if(request_read->device->Type == IDE_ATAPI) {
+				/* select drive - master/slave */
+				uint16 bus = request_read->device->Channel ? ATA_BUS_SECONDARY : ATA_BUS_PRIMARY;
+				outportb(ATA_DRIVE_SELECT(bus), request_read->device->Drive << 4);
+				/* wait 400ns */
+				ATA_SELECT_DELAY(bus);
+
+				/* set features register to 0 (PIO Mode) */
+				outportb(ATA_FEATURES(bus), 0x0);
+
+				/* set lba1 and lba2 registers to 0x0008 (number of bytes will be returned ) */
+				outportb(ATA_ADDRESS2(bus), ATAPI_SECTOR_SIZE & 0xFF);
+				outportb(ATA_ADDRESS3(bus), ATAPI_SECTOR_SIZE >> 8);
+				
+
+				size_t start_lba = request_read->offset / ATAPI_SECTOR_SIZE;
+				size_t end_lba = (request_read->offset + request_read->length + ATAPI_SECTOR_SIZE - 1) / ATAPI_SECTOR_SIZE;
+				size_t lba; for (lba = start_lba; lba <= end_lba; lba++) {
+
+
+					/* send packet command */
+					outportb(ATA_COMMAND(bus), 0xA0);
+
+					/* poll */
+					uint8 status;
+					while((status = inportb(ATA_COMMAND(bus))) & 0x80) /* busy */
+						asm volatile ("hlt");
+
+
+					while(!((status = inportb(ATA_COMMAND(bus))) & 0x8) && !(status & 0x1))
+						asm volatile ("hlt");
+
+					/* is there an error ? */
+					if(status & 0x1) {
+						/* no disk */
+						request_read->callback(STORAGE_DEVICE_CALLBACK_STATUS_ERROR, request_read->callback_tag);
+					} else {
+						/* send the atapi packet - must be 6 words (12 bytes) long */
+						uint8 atapi_packet[12] = {0xA8, 0,
+							(lba >> 0x18) & 0xFF,
+							(lba >> 0x10) & 0xFF,
+							(lba >> 0x08) & 0xFF,
+							(lba >> 0x00) & 0xFF, 0, 0, 0, 1, 0, 0};
+
+						for(status = 0; status < 12; status += 2) {
+							outportw(ATA_DATA(bus),*(uint16 *)&atapi_packet[status]);
+						}
+
+						/* todo - wait for an irq */
+						for(status = 0; status < 15; status++) asm volatile ("hlt");
+
+						/* switch to this address space */
+						if(request_read->pml4 != kernel_pml4)
+							switch_to_address_space(request_read->pml4);
+
+						/* read in the data */
+						size_t indx = lba * ATAPI_SECTOR_SIZE;
+						size_t i = 0; for(i = 0; i < ATAPI_SECTOR_SIZE; i+=2, indx+=2) {
+							uint16 b = inportw(ATA_DATA(bus));
+							if(indx > request_read->offset || indx < request_read->offset + request_read->length)
+								/* copy two bytes */
+								*(uint16 *)&request_read->dest_buffer[indx - request_read->offset] = b;
+							else if(indx == request_read->offset + request_read->length - 1)
+								/* copy just the last byte */
+								request_read->dest_buffer[indx - request_read->offset] = (b > 8) & 0xFF;
+						}
+					}
+				}
+
+				/* call the callback */
+				request_read->callback(STORAGE_DEVICE_CALLBACK_STATUS_SUCCESS, request_read->callback_tag);
+
+			} else {
+				/* not implemented */
+				request_read->callback(STORAGE_DEVICE_CALLBACK_STATUS_ERROR, request_read->callback_tag);
+			}
+			break; }
+		}
+
+		free(request->request);
+	}
 }
 
-void ide_read_function (void *storage_device_tag, size_t offset, size_t length, size_t pml4, size_t dest_buffer,
+void ide_read_handler (void *storage_device_tag, size_t offset, size_t length, size_t pml4, char *dest_buffer,
 	StorageDeviceCallback callback, void *callback_tag) {
-	
+
+	struct IDERequestRead *request = (struct IDERequestRead *)malloc(sizeof(struct IDERequestRead));
+	if(!request) {
+		/* couldn't allocate room for the request - call the callback */
+		callback(STORAGE_DEVICE_CALLBACK_STATUS_ERROR, callback_tag);
+		return;
+	}
+
+	request->request.next = 0;
+	request->request.type = IDE_REQUEST_TYPE_READ;
+	request->request.request = request;
+	request->device = (struct IDEDevice *)storage_device_tag;
+	request->offset = offset;
+	request->length = length;
+	request->pml4 = pml4;
+	request->dest_buffer = dest_buffer;
+	request->callback = callback;
+	request->callback_tag = callback_tag;
+
+	/* queue this message */
+	struct IDEController *controller = request->device->Controller;
+	lock_interrupts();
+	if(!controller->LastRequest) {
+		/* only request */
+		controller->FirstRequest = (struct IDERequest *)request;
+		controller->LastRequest = (struct IDERequest *)request;
+	} else {
+		controller->LastRequest->next = (struct IDERequest *)request;
+		controller->LastRequest = (struct IDERequest *)request;
+	}
+
+	/* wake up the ide thread */
+	schedule_thread(request->device->Controller->thread);
+
+	unlock_interrupts();
 }

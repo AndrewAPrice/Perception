@@ -29,8 +29,8 @@ struct  Thread *create_thread(struct Process *process, size_t entry_point, size_
 		return 0; /* out of memory */
 
 	/* set up the stack - grab a virtual page */	
-	size_t pml4 = process ? process->pml4 : kernel_pml4;
-	size_t virt_page = find_free_page_range(pml4, 1);
+	thread->pml4 = process ? process->pml4 : kernel_pml4;
+	size_t virt_page = find_free_page_range(thread->pml4, 1);
 	if(virt_page == 0) {
 		free(thread); /* out of memory */
 		return 0;
@@ -45,7 +45,7 @@ struct  Thread *create_thread(struct Process *process, size_t entry_point, size_
 
 
 	/* map the new stack */
-	map_physical_page(pml4, virt_page, phys);
+	map_physical_page(thread->pml4, virt_page, phys);
 
 	/* now map this page for us to play with */
 	size_t temp_addr = (size_t)map_physical_memory(phys, 0);

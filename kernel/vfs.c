@@ -1,17 +1,44 @@
-#include "vfs.h"
 #include "io.h"
+#include "storage_device.h"
+#include "text_terminal.h"
+#include "vfs.h"
 
 struct MountPoint *firstMountPoint;
 void init_vfs() {
 	firstMountPoint = 0;
 }
 
-void mount(struct MountPoint *mount_point) {
+bool mount(struct MountPoint *mount_point) {
+	/* scan mount points to see if a conflicting name exists */
+	struct MountPoint *mp = firstMountPoint;
+	while(mp != 0) {
+		/* compare name */
+		if(mp->path_length == mount_point->path_length &&
+			strcmp(mp->path, mount_point->path, mp->path_length) == 0)
+			return false; /* conflicting name */
+
+		mp = mp->next;
+	}
+
+	/* add this mount point */
 	mount_point->next = firstMountPoint;
 	firstMountPoint = mount_point;
+#if 1
+	print_string("Mounted ");
+	print_fixed_string(mount_point->path, mount_point->path_length);
+	print_string(" - ");
+	print_string(mount_point->fs_name);
+	print_string(" -");
+	print_size(mount_point->storage_device->size);
+
+	print_char('\n');
+#endif
+	return true;
 }
 
 void unmount(char *mount_point_path, size_t path_length) {
+	/* still to implement */
+
 	/* scan each mount point */
 	struct MountPoint *previousMountPoint = 0;
 	struct MountPoint *mountPoint = firstMountPoint;

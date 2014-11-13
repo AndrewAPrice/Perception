@@ -54,6 +54,16 @@ void outportb (unsigned short _port, unsigned char _data)
     __asm__ __volatile__ ("outb %1, %0" : : "dN" (_port), "a" (_data));
 }
 
+uint16 inportw (unsigned short _port) {
+    uint16 rv;
+    __asm__ __volatile__ ("inw %1, %0" : "=a" (rv) : "dN" (_port));
+    return rv;
+}
+
+void outportw (unsigned short _port, uint16 _data) {
+    __asm__ __volatile__ ("outw %1, %0" : : "dN" (_port), "a" (_data));
+}
+
 uint32 inportdw (unsigned short _port) {
     uint32 rv;
     __asm__ __volatile__ ("inl %1, %0" : "=a" (rv) : "dN" (_port));

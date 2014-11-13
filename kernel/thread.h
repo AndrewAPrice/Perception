@@ -21,6 +21,8 @@ struct Thread {
 	struct Thread *next_awake;
 	struct Thread *previous_awake;
 
+	size_t pml4; /* the pml4 we're operating in, which maybe different to our process, e.g. for kernel threads */
+
 	size_t time_slices; /* time slices this thread has had */
 };
 

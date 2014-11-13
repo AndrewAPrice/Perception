@@ -1,7 +1,10 @@
+- create thread for filesystem
 - vfs
-- atapi drivers
-- ISO 9660 http://wiki.osdev.org/ISO_9660
+- read filesystem!
 
 - emu86
 - graphics
 - loading elf files
+
+bugs:
+- when unloading an address space - scan kernel threads to make sure that pml4 (and the current pml4) isn't mapped anywhere - and if it is, set it back to the kernel's

@@ -19,10 +19,13 @@ typedef size_t (*countEntriesInDirectoryPtr)(struct MountPoint *mntPt, char *pat
 /* read entries in a directory */
 typedef void (*readEntriesInDirectoryPtr)(struct MountPoint *mntPt, char *path, size_t path_length, size_t dest_buffer, size_t dest_buffer_size, size_t pml4);
 
+struct StorageDevice;
+
 struct MountPoint {
-	char *path; /* must start and end with a / */
+	char *path; /* must start and end with a /, dynamically allocated */
 	unsigned short path_length;
-	struct MountPoint *next;
+	const char *fs_name; /* filesystem name */
+	void *tag;
 	openFilePtr open_file_handler;
 	getFileSizePtr get_file_size_handler;
 	readFilePtr read_file_handler;
@@ -30,6 +33,10 @@ struct MountPoint {
 	unmountPtr unmount_handler;
 	countEntriesInDirectoryPtr count_entries_in_directory_handler;
 	readEntriesInDirectoryPtr read_entries_in_directory_handler;
+
+	struct StorageDevice *storage_device;
+
+	struct MountPoint *next;
 };
 
 struct File {
@@ -39,7 +46,7 @@ struct File {
 
 
 extern void init_vfs();
-extern void mount(struct MountPoint *mount_point);
+extern bool mount(struct MountPoint *mount_point);
 extern void unmount(char *mount_point_path, size_t path_length);
 
 extern struct MountPoint *find_mount_point(char *path, size_t path_length);

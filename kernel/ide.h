@@ -11,6 +11,7 @@ struct IDEChannelRegisters {
 struct IDEController;
 struct Thread;
 struct StorageDevice;
+struct IDERequest;
 
 struct IDEDevice {
 	uint8 Reserved; /* 0 - empty, 1 - exists */
@@ -27,10 +28,11 @@ struct IDEDevice {
 	struct StorageDevice *storage_device;
 };
 
-
 struct IDEController {
 	struct IDEChannelRegisters Channels[2];
 	struct IDEDevice *Devices;
+	struct IDERequest *FirstRequest; /* linked list of requests */
+	struct IDERequest *LastRequest;
 	struct Thread *thread; /* the thread that handles this */
 };
 
