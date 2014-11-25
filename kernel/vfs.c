@@ -156,11 +156,11 @@ void read_file(struct File *file, size_t dest_buffer, size_t file_offset, size_t
 }
 
 void count_entries_in_directory(char *path, size_t path_length, countEntriesInDirectoryCallback callback, void *tag) {
-	if(path_length == 0 || path[0] == '/' || path[path_length - 1] != '/') {
+	if(path_length == 0 || path[0] != '/' || path[path_length - 1] != '/') {
 		callback(VFS_STATUS_BADNAME, 0, tag); /* invalid path */
 		return;
 	}
-
+	
 	size_t entries = 0;
 
 	/* loop through each mount point, to see if any mount points are in this path */
@@ -175,10 +175,10 @@ void count_entries_in_directory(char *path, size_t path_length, countEntriesInDi
 		currentMountPoint = currentMountPoint->next;
 	}
 
-
 	/* find the mount point */
 	struct MountPoint *mountPoint = find_mount_point(path, path_length);
 	if(mountPoint == 0) {
+		print_string("e");
 		/* couldn't find any mount points */
 		callback(VFS_STATUS_SUCCESS, entries, tag);
 		return;
@@ -190,7 +190,7 @@ void count_entries_in_directory(char *path, size_t path_length, countEntriesInDi
 
 void read_entries_in_directory(char *path, size_t path_length, struct DirectoryEntry *dest_buffer, size_t dest_buffer_size, size_t pml4,
 	readEntriesInDirectoryCallback callback, void *tag) {
-	if(path_length == 0 || path[0] == '/' || path[path_length - 1] != '/') {
+	if(path_length == 0 || path[0] != '/' || path[path_length - 1] != '/') {
 		callback(VFS_STATUS_BADNAME, 0, tag); /* invalid path */
 		return;
 	}

@@ -307,6 +307,8 @@ void iso9660_thread_entry(void *tag) {
 			case ISO_9660_REQUEST_TYPE_OPEN_FILE:
 			case ISO_9660_REQUEST_TYPE_COUNT_ENTRIES_IN_DIRECTORY:
 			case ISO_9660_REQUEST_TYPE_READ_ENTRIES_IN_DIRECTORY: {
+				bool quit = false;
+
 				/* scan directories */
 				char *path; size_t path_length;
 				switch(request->type) {
@@ -321,13 +323,22 @@ void iso9660_thread_entry(void *tag) {
 					case ISO_9660_REQUEST_TYPE_READ_ENTRIES_IN_DIRECTORY:
 						path = request->read_entries_in_directory.path;
 						path_length = request->read_entries_in_directory.path_length;
+
+						/* enter this PML4 */
+						if(request->read_entries_in_directory.pml4 != kernel_pml4)
+							switch_to_address_space(request->read_entries_in_directory.pml4);
+
+						if(request->read_entries_in_directory.dest_buffer_size < sizeof(struct DirectoryEntry)) {
+							request->read_entries_in_directory.callback(VFS_STATUS_SUCCESS,
+								request->read_entries_in_directory.entries_offset,
+								request->read_entries_in_directory.callback_tag);
+							quit = true;
+						}
 						break;
 				}
 
 				size_t directory_lba = (size_t)*(uint32 *)&fs->root_directory[2];
 				size_t directory_length = (size_t)*(uint32 *)&fs->root_directory[10];
-
-				bool quit = false;
 
 				/* walk our way up through the each directory */
 				while(!quit) {
@@ -364,9 +375,9 @@ void iso9660_thread_entry(void *tag) {
 						
 						quit = true;
 					} else if((path_length == 0 &&expectingDirectory) || next_slash > 1) { /* skip over double slash, if not the last entry*/
-					//	print_string("Looking for ");
-					//	print_fixed_string(path, next_slash);
-					//	print_string(" ");
+						/*print_string("Looking for ");
+						print_fixed_string(path, next_slash);
+						print_string(" ");*/
 
 						/*print_string("logical block size: ");
 						print_number(fs->logical_block_size);
@@ -378,7 +389,7 @@ void iso9660_thread_entry(void *tag) {
 						//print_number(directory_start);
 						size_t offset = 0;
 
-					//	print_string("In directory:\n");
+						/*print_string("In directory:\n");*/
 
 						bool found = false;
 
@@ -466,17 +477,48 @@ void iso9660_thread_entry(void *tag) {
 							entry_length--;
 
 							/* print out our name if not hidden */
-					//		print_fixed_string(entry_name, entry_length);//record_length - 33);
-					//		print_string("\n");
+							//print_fixed_string(entry_name, entry_length);//record_length - 33);
+							//print_string("\n");
 
 							/* is this what we want? */
 							bool is_directory = (fs->sector_buffer[offset + 25] & (1 << 1)) == 2;
-					//		print_string("Is directory: ");
-					//		print_number(is_directory);
-					//		print_string(" Want directory:");
-					//		print_number(expectingDirectory);
+							
+							if(path_length == 0) { //
+								if(entry_length > 0) {
+									if(request->type == ISO_9660_REQUEST_TYPE_COUNT_ENTRIES_IN_DIRECTORY) {
+										/* just counting! */
+										request->count_entries_in_directory.entries_offset++;
+									} else {
+										/* add this! */
+										struct DirectoryEntry *dest_buffer =
+											request->read_entries_in_directory.dest_buffer;
 
-							if(is_directory == expectingDirectory && next_slash - 1 == entry_length
+										dest_buffer->name_length = entry_length;
+										memcpy(dest_buffer->name, entry_name,
+											dest_buffer->name_length);
+
+										if(is_directory) {
+											dest_buffer->type = DIRECTORYENTRY_TYPE_DIRECTORY;
+											dest_buffer->size = 0;
+										} else {
+											dest_buffer->type = DIRECTORYENTRY_TYPE_FILE;
+											dest_buffer->size =
+												(size_t)*(uint32 *)&fs->sector_buffer[offset + 10];
+										}
+
+										request->read_entries_in_directory.dest_buffer++;
+										request->read_entries_in_directory.dest_buffer_size -=
+											sizeof(struct DirectoryEntry);
+										request->read_entries_in_directory.entries_offset++;
+
+
+										if(request->read_entries_in_directory.dest_buffer_size <
+											sizeof(struct DirectoryEntry))
+											quit = true;
+									}
+								}
+								
+							} else if(is_directory == expectingDirectory && next_slash - 1 == entry_length
 								&& strcmp(entry_name, path + 1, entry_length) == 0) {
 								found = true;
 								directory_lba = (size_t)*(uint32 *)&fs->sector_buffer[offset + 2];
@@ -493,9 +535,25 @@ void iso9660_thread_entry(void *tag) {
 							}
 						}
 
-						if(!found) {
+						if(path_length == 0) {
+							/* finished iterating over the directory */
+							switch(request->type) {
+								case ISO_9660_REQUEST_TYPE_COUNT_ENTRIES_IN_DIRECTORY:
+									request->count_entries_in_directory.callback(VFS_STATUS_SUCCESS,
+										request->count_entries_in_directory.entries_offset,
+										request->count_entries_in_directory.callback_tag);
+									
+									break;
+								case ISO_9660_REQUEST_TYPE_READ_ENTRIES_IN_DIRECTORY:
+									request->read_entries_in_directory.callback(VFS_STATUS_SUCCESS,
+										request->read_entries_in_directory.entries_offset,
+										request->read_entries_in_directory.callback_tag);
+									break;
+							}
 							quit = true;
-							print_string("Can't find in directory entry!\n");
+						} else if(!found) {
+							quit = true;
+							/* print_string("Can't find in directory entry!\n"); */
 
 							switch(request->type) {
 							case ISO_9660_REQUEST_TYPE_OPEN_FILE:
