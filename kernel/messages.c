@@ -20,7 +20,7 @@ void init_messages() {
 struct Message *allocate_message() {
 	if(next_free_message == 0) {
 		/* no free messages, need to allocate one */
-		struct Message *msg = (struct Message *)malloc(sizeof (struct Message));
+		struct Message *msg = malloc(sizeof (struct Message));
 		
 		if(msg != 0) /* incremented number of allocated message */
 			allocated_messages++;

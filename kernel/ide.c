@@ -238,10 +238,10 @@ void ide_read_handler (void *storage_device_tag, size_t offset, size_t length, s
 	StorageDeviceCallback callback, void *callback_tag);
 
 void init_ide(struct PCIDevice *device) {
-	char *buffer = (char *)malloc(2048);
+	char *buffer = malloc(2048);
 	if(buffer == 0) return;
 
-	struct IDEController *controller = (struct IDEController*)malloc(sizeof(struct IDEController));
+	struct IDEController *controller = malloc(sizeof(struct IDEController));
 	if(controller == 0) { free(buffer); return; } /* no memory */
 
 	device->driver = 1;
@@ -315,7 +315,7 @@ void init_ide(struct PCIDevice *device) {
 			}
 
 			/* allocate our device object */
-			struct IDEDevice *dev = (struct IDEDevice *)malloc(sizeof(struct IDEDevice));
+			struct IDEDevice *dev = malloc(sizeof(struct IDEDevice));
 			if(dev == 0) {
 				/* out of memory */
 				while(controller->Devices) {
@@ -389,7 +389,7 @@ void init_ide(struct PCIDevice *device) {
 	/* loop over each device and register it */
 	struct IDEDevice *dev = controller->Devices;
 	while(dev != 0) {
-		struct StorageDevice *sd = (struct StorageDevice *)malloc(sizeof(struct StorageDevice));
+		struct StorageDevice *sd = malloc(sizeof(struct StorageDevice));
 		if(!sd) return; /* out of memory */
 		dev->storage_device = sd;
 
@@ -542,8 +542,6 @@ void ide_thread_entry(struct IDEController *controller) {
 				size_t start_lba = request_read->offset / ATAPI_SECTOR_SIZE;
 				size_t end_lba = (request_read->offset + request_read->length + ATAPI_SECTOR_SIZE - 1) / ATAPI_SECTOR_SIZE;
 				size_t lba; for (lba = start_lba; lba <= end_lba; lba++) {
-
-
 					/* send packet command */
 					outportb(ATA_COMMAND(bus), 0xA0);
 
@@ -555,6 +553,7 @@ void ide_thread_entry(struct IDEController *controller) {
 
 					while(!((status = inportb(ATA_COMMAND(bus))) & 0x8) && !(status & 0x1))
 						asm volatile ("hlt");
+
 
 					/* is there an error ? */
 					if(status & 0x1) {
@@ -579,14 +578,16 @@ void ide_thread_entry(struct IDEController *controller) {
 						if(request_read->pml4 != kernel_pml4)
 							switch_to_address_space(request_read->pml4);
 
+
 						/* read in the data */
 						size_t indx = lba * ATAPI_SECTOR_SIZE;
 						size_t i = 0; for(i = 0; i < ATAPI_SECTOR_SIZE; i+=2, indx+=2) {
 							uint16 b = inportw(ATA_DATA(bus));
-							if(indx > request_read->offset || indx < request_read->offset + request_read->length)
+
+							if(indx >= request_read->offset && indx < request_read->offset + request_read->length) {
 								/* copy two bytes */
 								*(uint16 *)&request_read->dest_buffer[indx - request_read->offset] = b;
-							else if(indx == request_read->offset + request_read->length - 1)
+							} else if(indx == request_read->offset + request_read->length - 1)
 								/* copy just the last byte */
 								request_read->dest_buffer[indx - request_read->offset] = (b > 8) & 0xFF;
 						}
@@ -610,7 +611,7 @@ void ide_thread_entry(struct IDEController *controller) {
 void ide_read_handler (void *storage_device_tag, size_t offset, size_t length, size_t pml4, char *dest_buffer,
 	StorageDeviceCallback callback, void *callback_tag) {
 
-	struct IDERequestRead *request = (struct IDERequestRead *)malloc(sizeof(struct IDERequestRead));
+	struct IDERequestRead *request = malloc(sizeof(struct IDERequestRead));
 	if(!request) {
 		/* couldn't allocate room for the request - call the callback */
 		callback(STORAGE_DEVICE_CALLBACK_STATUS_ERROR, callback_tag);

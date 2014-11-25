@@ -78,8 +78,10 @@ struct isr_regs *schedule_next(struct isr_regs *regs) {
 
 void schedule_thread(struct Thread *thread) {
 	lock_interrupts();
-	if(thread->awake)
+	if(thread->awake) {
+		unlock_interrupts();
 		return;
+	}
 
 	thread->awake = 1;
 
@@ -98,8 +100,10 @@ void schedule_thread(struct Thread *thread) {
 
 void unschedule_thread(struct Thread *thread) {
 	lock_interrupts();
-	if(!thread->awake)
+	if(!thread->awake) {
+		unlock_interrupts();
 		return;
+	}
 
 	thread->awake = 0;
 

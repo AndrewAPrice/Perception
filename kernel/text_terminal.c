@@ -24,18 +24,20 @@ void enter_text_mode() {
 
 /* print a single character */
 void print_char(char c) {
-	if(c == '\b') { /* backspace */
+	/*if(c == '\b') { /* backspace *//*
 		if(text_x_pos != 0)
 			text_x_pos--;
 	}
-	else if(c == '\t') /* tab */
+	else*/if(c == '\t') /* tab */
 		text_x_pos = (text_x_pos + 8) & ~(8 - 1);
 	else if(c == '\r') /* carriage return */
 		text_x_pos = 0;
 	else if(c == '\n') { /* newline */
 		text_x_pos = 0;
 		text_y_pos++;
-	} else if(c >= ' ') { /* printable character */
+	} else { /* printable character */
+		if(c < ' ')
+			c = ' ';
 		text_video_memory[(text_y_pos * screen_width + text_x_pos) * 2] = c;
 		text_x_pos++;
 	}

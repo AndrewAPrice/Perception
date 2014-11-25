@@ -15,7 +15,7 @@ void init_processes() {
 /* creates a process, returns 0 if there was an error */
 struct Process *create_process() {
 	/* create a memory space for it*/
-	struct Process *proc = (struct Process *)malloc(sizeof(struct Process));
+	struct Process *proc = malloc(sizeof(struct Process));
 	if(proc == 0) return 0; /* could not allocate it? */
 
 	/* assign a name and pid */

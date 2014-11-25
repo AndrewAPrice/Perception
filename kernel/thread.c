@@ -24,7 +24,7 @@ void init_threads() {
 struct  Thread *create_thread(struct Process *process, size_t entry_point, size_t params) {
 	lock_interrupts();
 
-	struct Thread *thread = (struct Thread *)malloc(sizeof(struct Thread));
+	struct Thread *thread = malloc(sizeof(struct Thread));
 	if(thread == 0)
 		return 0; /* out of memory */
 
@@ -33,6 +33,7 @@ struct  Thread *create_thread(struct Process *process, size_t entry_point, size_
 	size_t virt_page = find_free_page_range(thread->pml4, 1);
 	if(virt_page == 0) {
 		free(thread); /* out of memory */
+		unlock_interrupts();
 		return 0;
 	}
 
@@ -40,6 +41,7 @@ struct  Thread *create_thread(struct Process *process, size_t entry_point, size_
 	size_t phys = get_physical_page();
 	if(phys == 0) {
 		free(thread); /* out of memory */
+		unlock_interrupts();
 		return 0;
 	}
 

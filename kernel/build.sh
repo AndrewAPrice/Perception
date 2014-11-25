@@ -3,6 +3,7 @@ NASM_CMD="nasm -felf64 -o"
 GCC_CMD="gcc -m64 -mcmodel=kernel -ffreestanding -nostdlib -mno-red-zone -c -o"
 
 $NASM_CMD boot.o boot.asm
+$GCC_CMD callback.o callback.c
 #$NASM_CMD gdt_asm.o gdt.asm
 # $GCC_CMD gdt.o gdt.c
 $GCC_CMD fs.o fs.c

@@ -85,7 +85,7 @@ void pci_check_device(uint8 bus, uint8 slot) {
 
 /* found a device */
 void pci_check_function(uint8 bus, uint8 slot, uint8 function) {
-	struct PCIDevice *device = (struct PCIDevice *)malloc(sizeof(struct PCIDevice));
+	struct PCIDevice *device = malloc(sizeof(struct PCIDevice));
 	if(device == 0) return; /* no memory, can't do anything */
 
 	device->bus = bus;
