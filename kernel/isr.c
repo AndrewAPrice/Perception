@@ -39,7 +39,6 @@ unsigned char in_interrupt;
 int interrupt_locks;
 
 void init_isrs() {
-	in_interrupt = 0;
 	interrupt_locks = 0;
 
 	idt_set_gate(0, (size_t)isr0, 0x08, 0x8E);

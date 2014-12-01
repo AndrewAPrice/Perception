@@ -78,6 +78,7 @@ void print_out_file() {
 }
 #endif
 
+#if 0
 void print_out_directory() {
 	char *path = "/cd1/boot/";
 	print_string("\nDIRECTORY LISTING TEST\n\nPath: ");
@@ -129,9 +130,10 @@ void print_out_directory() {
 	}
 	free(dir_entries);
 }
+#endif
 
 void shell_entry() {
-	print_string("Total memory:");
+	print_string("Perception - Total memory:");
 	print_size(total_system_memory);
 
 	size_t free_mem = free_pages * page_size;
@@ -144,10 +146,10 @@ void shell_entry() {
 	print_char('\n');
 
 	// wait a little bit for stuff to be mounted
-	size_t i; for (i = 0; i < 50; i++)
-		asm("hlt");
+	//size_t i; for (i = 0; i < 50; i++)
+	//	asm("hlt");
 
-	print_out_directory();
+	//print_out_directory();
 	
 	while(true) { sleep_thread(); asm("hlt");};
 }

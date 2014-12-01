@@ -2,6 +2,7 @@
 #include "virtual_allocator.h"
 #include "multiboot2.h"
 #include "text_terminal.h"
+#include "vesa.h"
 
 size_t total_system_memory;
 size_t free_pages;
@@ -25,6 +26,10 @@ void init_physical_allocator() {
 	for(tag = (struct multiboot_tag *)(size_t)(MultibootInfo.addr + 8);
 		tag->type != MULTIBOOT_TAG_TYPE_END;
 		tag = (struct multiboot_tag *)((size_t) tag + (size_t)((tag->size + 7) & ~7))) {
+		
+		if(tag->size == 0)
+			return;
+
 		
 		if(tag->type == MULTIBOOT_TAG_TYPE_MMAP) {
 			/* found the memory map */
@@ -81,6 +86,9 @@ void init_physical_allocator() {
 				}
 
 			}
+		} else if(tag->type == MULTIBOOT_TAG_TYPE_FRAMEBUFFER) {
+			/* not related to the physical memory manager, but since we're iterating through, we've found something interesting! */
+			handle_vesa_multiboot_header(tag);
 		}
 	}
 }

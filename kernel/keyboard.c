@@ -1,9 +1,9 @@
-#include "keyboard.h"
-#include "isr.h"
-#include "irq.h"
-#include "text_terminal.h"
 #include "io.h"
+#include "irq.h"
+#include "isr.h"
+#include "keyboard.h"
 #include "messages.h"
+#include "text_terminal.h"
 
 #if 0
 unsigned char kbdus_unshift[128] =

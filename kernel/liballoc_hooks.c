@@ -59,7 +59,6 @@ void* liballoc_alloc(size_t pages) {
 		flush_virtual_page(addr);
 	}
 
-
 	return (void *)start;
 }
 

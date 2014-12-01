@@ -461,7 +461,7 @@ void ide_thread_entry(struct IDEController *controller) {
 			}
 
 			/* todo - wait for an irq */
-			for(status = 0; status < 15; status++) asm volatile ("hlt");
+			for(status = 0; status < 5; status++) asm volatile ("hlt");
 
 			/* read 4 words (8 bytes) from the data register */
 			uint32 returnLba = 

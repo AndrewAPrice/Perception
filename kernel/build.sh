@@ -20,6 +20,7 @@ $GCC_CMD liballoc.o liballoc.c
 $GCC_CMD liballoc_hooks.o liballoc_hooks.c
 $GCC_CMD main.o main.c
 $GCC_CMD messages.o messages.c
+$GCC_CMD mouse.o mouse.c
 $NASM_CMD multiboot.o multiboot.asm
 $GCC_CMD pci.o pci.c
 $GCC_CMD physical_allocator.o physical_allocator.c
@@ -32,7 +33,11 @@ $GCC_CMD syscall.o syscall.c
 $GCC_CMD thread.o thread.c
 $GCC_CMD text_terminal.o text_terminal.c
 $GCC_CMD timer.o timer.c
+$GCC_CMD vesa.o vesa.c
 $GCC_CMD vfs.o vfs.c
+$GCC_CMD vga.o vga.c
+$GCC_CMD video.o video.c
 $GCC_CMD virtual_allocator.o virtual_allocator.c
+$GCC_CMD window_manager.o window_manager.c
 ld -nodefaultlibs -T linker.ld -Map map.txt -o ../fs/boot/kernel.sys *.o
 rm *.o

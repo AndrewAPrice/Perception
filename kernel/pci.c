@@ -3,6 +3,7 @@
 #include "text_terminal.h"
 #include "liballoc.h"
 #include "ide.h"
+#include "video.h"
 
 uint32 pci_config_read_dword(uint8 bus, uint8 slot, uint8 func, uint8 offset) {
 	uint32 lbus = (uint32)bus;
@@ -103,10 +104,21 @@ void pci_check_function(uint8 bus, uint8 slot, uint8 function) {
 
 	
 	switch(device->base_class) {
+		case 0x00: switch(device->sub_class) {
+				case 0x01: /* VGA-Compatible Device */
+					init_video_device(device);
+					break;
+			}
 		case 0x01: /* mass storage controller */
 			switch(device->sub_class) {
 				case 0x01: /* IDE controller */
 					init_ide(device);
+					break;
+			} break;
+		case 0x03: /* display controller */
+			switch(device->sub_class) {
+				case 0x00: /* VGA-Compatible Controller */
+					init_video_device(device);
 					break;
 			} break;
 		case 0x06: /* bridge device */
@@ -142,7 +154,7 @@ void init_pci() {
 	}
 
 	/* iterate over found devices */
-	print_string("PCI Devices:\n");
+	/*print_string("PCI Devices:\n");
 	struct PCIDevice *device = pci_devices;
 	while(device) {
 		print_string("Address: ");
@@ -161,7 +173,7 @@ void init_pci() {
 			print_string(" (no driver)");
 		print_char('\n');
 		device = device->next;
-	}
+	}*/
 } 
 
 const char *pci_class_to_string(uint8 baseclass, uint8 subclass) {

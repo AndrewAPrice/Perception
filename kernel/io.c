@@ -42,7 +42,7 @@ size_t strlen(const char *str) {
 	return count;
 }
 
-unsigned char inportb (unsigned short _port)
+uint8 inportb (unsigned short _port)
 {
     unsigned char rv;
     __asm__ __volatile__ ("inb %1, %0" : "=a" (rv) : "dN" (_port));
@@ -52,6 +52,13 @@ unsigned char inportb (unsigned short _port)
 void outportb (unsigned short _port, unsigned char _data)
 {
     __asm__ __volatile__ ("outb %1, %0" : : "dN" (_port), "a" (_data));
+}
+
+int8 inportsb (unsigned short _port)
+{
+    int8 rv;
+    __asm__ __volatile__ ("inb %1, %0" : "=a" (rv) : "dN" (_port));
+    return rv;
 }
 
 uint16 inportw (unsigned short _port) {
