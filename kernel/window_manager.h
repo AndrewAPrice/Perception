@@ -44,9 +44,6 @@ struct Frame {
 	};
 };
 
-/* toggles the shell */
-extern void toggle_shell();
-
 /* invalidates the window manager, forcing the screen to redraw */
 extern void invalidate_window_manager();
 
@@ -60,7 +57,7 @@ extern void create_window(char *title, size_t title_length);
 extern void create_dialog(char *title, size_t title_length, uint16 width, uint16 height);
 
 /* handles a keyboard event */
-extern void keyboard_event(uint8 scan_code);
+extern void window_manager_keyboard_event(uint8 scancode);
 
 /* handles a mouse button being clicked */
 extern void window_manager_mouse_down(uint16 x, uint16 y, uint8 button);

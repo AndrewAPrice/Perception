@@ -1,9 +1,11 @@
 #include "draw.h"
 #include "font.h"
 #include "liballoc.h"
+#include "messages.h"
 #include "mouse.h"
 #include "scheduler.h"
 #include "shell.h"
+#include "syscall.h"
 #include "thread.h"
 #include "video.h"
 #include "window_manager.h"
@@ -16,13 +18,14 @@
 #define WINDOW_NO_CONTENTS_COLOUR 0xFFE1E1E1
 #define WINDOW_CLOSE_BUTTON_COLOUR 0xFFFF0000
 
+#define MAX_WINDOW_TITLE_LENGTH 80
+
 struct Thread *window_manager_thread;
 
 struct Window *dialogs_back; /* linked list of dialogs, from back to front */
 struct Window *dialogs_front;
 
 struct Window *focused_window; /* the currently focused window */
-struct Window *hovering_title; /* the window we are hovering over the title of */
 struct Window *full_screen_window; /* is there a full screened window? */
 
 struct Frame *root_frame; /* top level frame */
@@ -30,6 +33,29 @@ struct Frame *last_focused; /* the last focused frame, for figuring out where to
 
 bool is_shell_visible; /* is the shell visible? */
 bool nasdf;
+
+bool window_manager_invalidated; /* does the screen need to redraw? */
+
+struct Message *window_manager_next_message; /* queue of window manager messages */
+struct Message *window_manager_last_message;
+
+/* adds a message to the window manager queue */
+void window_manager_add_message(struct Message *message) {
+	message->next = 0;
+
+	lock_interrupts();
+
+	if(window_manager_next_message)
+		window_manager_last_message->next = message;
+	else
+		window_manager_next_message = message;
+
+	window_manager_last_message = message;
+	unlock_interrupts();
+
+	/* wake up the worker thread */
+	schedule_thread(window_manager_thread);
+}
 
 /* draws the background when no window is open */
 void draw_background() {
@@ -98,7 +124,7 @@ void draw_dialogs() {
 		draw_string(x + 2, y + 3, window->title, window->title_length, WINDOW_TITLE_TEXT_COLOUR, screen_buffer, screen_width, screen_height);
 
 		/* draw the close button */
-		if(hovering_title)
+		if(focused_window == window)
 			draw_string(x + window->title_width - 8, y + 3, "X", 1, WINDOW_CLOSE_BUTTON_COLOUR,
 				screen_buffer, screen_width, screen_height);
 		
@@ -169,33 +195,303 @@ void window_manager_draw() {
 	flip_screen_buffer();
 }
 
+/* switches focus to a window */
+void window_manager_focus_window(struct Window *window) {
+	if(focused_window == window)
+		return;
+
+	print_string("Changed focus!");
+	focused_window = window;
+	
+	if(window) {
+		if(window->is_dialog) {
+			/* move the dialog to the front */
+
+			/* remove this dialog from the linked list */
+			if(window->next)
+				window->next->previous = window->previous;
+			else
+				dialogs_back = window->previous;
+
+			if(window->previous)
+				window->previous->next = window->next;
+			else
+				dialogs_front = window->next;
+
+			/* insert it at the front */
+			if(dialogs_front) {
+				dialogs_front->previous = window;
+				window->next = dialogs_front;
+				window->previous = 0;
+				dialogs_front = window;
+			} else {
+				window->previous = 0;
+				window->next = 0;
+				dialogs_front = window;
+				dialogs_back = window;
+			}
+		}
+	}
+
+	invalidate_window_manager();
+}
+
+void window_manager_close_window(struct Window *window) {
+	/* find the next window to focus, and remove us */
+	if(window->is_dialog) {
+		window_manager_focus_window(window->next);
+
+		if(window->next)
+			window->next->previous = window->previous;
+		else
+			dialogs_back = window->previous;
+
+		if(window->previous)
+			window->previous->next = window->next;
+		else
+			dialogs_front = window->next;
+	}
+
+	/* free the memory */
+	free(window->title);
+	free(window);
+
+	/* todo: free the memory buffer */
+
+	/* todo: notify the process their application has closed */
+
+	invalidate_window_manager();
+}
+
 /* the entry point for the window manager's thread */
 void window_manager_thread_entry() {
+	/* invalidate the window manager so it draws */
+	invalidate_window_manager();
+
 	create_dialog("Hello", strlen("Hello"), 400, 50);
 
 	char *s = "Steve";
 
 	create_dialog(s, strlen(s), 100, 200);
 
+
+	create_dialog("Paul", strlen("Paul"), 100, 100);
+	create_dialog("Sally", strlen("Sally"), 500, 25);
+
+	/* enter the event loop */
 	while(true) {
+		sleep_if_not_set((size_t *)&window_manager_next_message);
+		/* grab the top value */
+		lock_interrupts();
+
+		if(!window_manager_next_message) {
+			/* something else woke us up */
+			unlock_interrupts();
+			continue;
+		}
+
+		/* take off the front element from the queue */
+		struct Message *message = window_manager_next_message;
+		if(message == window_manager_last_message) {
+			/* clear the queue */
+			window_manager_next_message = 0;
+			window_manager_last_message = 0;
+		} else
+			window_manager_next_message = message->next;
+
+		unlock_interrupts();
+
 		window_manager_draw();
+
+		switch(message->window_manager.type) {
+			case WINDOW_MANAGER_MSG_REDRAW:
+				/* redraw everything */
+				window_manager_invalidated = false;
+				window_manager_draw();
+				break;
+			case WINDOW_MANAGER_MSG_MOUSE_MOVE:
+				invalidate_window_manager();
+				break;
+			case WINDOW_MANAGER_MSG_MOUSE_BUTTON_DOWN: {
+				uint16 x = message->window_manager.mouse_event.x;
+				uint16 y = message->window_manager.mouse_event.y;
+
+				/* test the shell */
+				if(is_shell_visible) {
+					if(x >= SHELL_WIDTH) {
+						/* clicked out of the shell */
+						is_shell_visible = false;
+						invalidate_window_manager();
+					} else {
+						/* tell the shell */
+					}
+					break;
+				}
+
+				bool clicked_header = false;
+
+				struct Window *clicked_window = 0;
+				/* find out what we clicked on, test dialogs from front to back */
+				struct Window *this_window = dialogs_front;
+				while(this_window && !clicked_window) {
+					if(x >= this_window->x && y >= this_window->y) {
+						/* test the header */
+						if(x < this_window->x + this_window->title_width + 2 &&
+							y < this_window->y + WINDOW_TITLE_HEIGHT + 2) {
+							/* clicked the header */
+							clicked_window = this_window;
+							clicked_header = true;
+						} else if(y >= this_window->y + WINDOW_TITLE_HEIGHT + 1 &&
+							x < this_window->x + this_window->width + 2 &&
+							y < this_window->y + WINDOW_TITLE_HEIGHT + this_window->height + 3) {
+							/* clicked the body */
+							clicked_window = this_window;
+						}
+					}
+					this_window = this_window->next;
+				}
+
+
+				/* it wasn't a dialog, test the sframes */
+				if(!clicked_window) {
+				}
+
+				/* didn't click anything */
+				if(!clicked_window) {
+					window_manager_focus_window(0);
+					break;
+				}
+
+				if(clicked_header) { /* did we click the header? */
+
+					/* todo, test if we clicked the 'x' to close the window but only if we're focused */
+					if(focused_window == clicked_window && x >= clicked_window->x + clicked_window->title_width - 8)
+						window_manager_close_window(clicked_window);
+					else {
+						/* focus on this window */
+						window_manager_focus_window(clicked_window);
+					}
+					
+				} else {
+					/* focus on this window */
+					window_manager_focus_window(clicked_window);
+
+					/* test if we clicked inside */
+					bool clicked_inside;
+					uint16 client_x, client_y;
+
+					if(clicked_window->is_dialog) {
+						if(x >= clicked_window->x + 1 && y >= clicked_window->y + 2 + WINDOW_TITLE_HEIGHT &&
+							x < clicked_window->x + clicked_window->width + 2 &&
+							y < clicked_window->y + clicked_window->height + 2 + WINDOW_TITLE_HEIGHT) {
+							clicked_inside = true;
+							client_x = x - clicked_window->x - 1;
+							client_y = y - clicked_window->y - WINDOW_TITLE_HEIGHT - 2;
+						} else
+							clicked_inside = false;
+					} else {
+						clicked_inside = true;
+					}
+					
+					if(clicked_inside) {
+						/* send a message to the window */
+					}
+					/* if we didn't click inside, we clicked the border, do nothing */
+
+				}
+				break; }
+			case WINDOW_MANAGER_MSG_MOUSE_BUTTON_UP:
+				break;
+			case WINDOW_MANAGER_MSG_KEY_EVENT:
+				break;
+			case WINDOW_MANAGER_MSG_CREATE_DIALOG: {
+				struct Window *dialog = malloc(sizeof(struct Window));
+				if(!dialog)
+					break;
+
+				dialog->title = message->window_manager.create_window.title;
+				dialog->title_length = message->window_manager.create_window.title_length;
+				dialog->title_width = measure_string(dialog->title, dialog->title_length) + 15;
+				dialog->is_dialog = true;
+				dialog->buffer = 0;
+
+				uint16 width = message->window_manager.create_window.width;
+				uint16 height = message->window_manager.create_window.height;
+
+				/* window can't be smaller than the title */
+				if(width < dialog->title_width)
+					width = dialog->title_width;
+
+				/* it can't be larger than the screen */
+				if(width + 2 > screen_width)
+					width = screen_width - 2;
+
+				if(height + WINDOW_TITLE_HEIGHT + 3 > screen_height)
+					height = screen_height - WINDOW_TITLE_HEIGHT - 3;
+
+				dialog->width = width;
+				dialog->height = height;
+
+				/* centre the new dialog on the screen */
+				int32 x = (screen_width - width)/2 - 1;
+				int32 y = (screen_height - height)/2 - 2 - WINDOW_TITLE_HEIGHT;
+				if(x < 0) x = 0;
+				if(y < 0) y = 0;
+				dialog->x = x;
+				dialog->y = y;
+
+
+				/* add it to the linked list */
+				if(dialogs_front) {
+					dialogs_front->previous = dialog;
+					dialog->next = dialogs_front;
+					dialog->previous = 0;
+					dialogs_front = dialog;
+				} else {
+					dialog->previous = 0;
+					dialog->next = 0;
+					dialogs_front = dialog;
+					dialogs_back = dialog;
+				}
+
+				/* focus on it */
+				focused_window = dialog;
+
+				invalidate_window_manager();
+				break; }
+		}
+
+		release_message(message);
 	}
-	
-	while(true) asm("hlt");
+
 }
 
 /* invalidates the window manager, forcing the screen to redraw */
 void invalidate_window_manager() {
+	/* check if there's another redraw message, so we don't queue up a bunch of redraws */
+	lock_interrupts();
+	if(window_manager_invalidated)
+		return;
+	window_manager_invalidated = true;
+	unlock_interrupts();
+
+	struct Message *message = allocate_message();
+	if(message == 0) return;
+	message->window_manager.type = WINDOW_MANAGER_MSG_REDRAW;
+
+	window_manager_add_message(message);
 }
 
 /* initialises the window manager */
 void init_window_manager() {
 	focused_window = 0; /* no window is focused */
 	dialogs_back = dialogs_front = 0;
-	hovering_title = 0;
 	root_frame = 0;
 	full_screen_window = false;
 	is_shell_visible = false;
+
+	window_manager_next_message = window_manager_last_message = 0;
+	window_manager_invalidated = false;
 
 	/* schedule the window manager */
 	window_manager_thread = create_thread(0, (size_t)window_manager_thread_entry, 0);
@@ -204,63 +500,85 @@ void init_window_manager() {
 
 /* creates a window */
 void create_window(char *title, size_t title_length) {
+	/* todo - make this queue */
 }
 
 /* creates a dialog (floating window) */
 void create_dialog(char *title, size_t title_length, uint16 width, uint16 height) {
-	struct Window *dialog = malloc(sizeof(struct Window));
-	if(!dialog)
-		return;
+	struct Message *message = allocate_message();
+	if(message == 0) return;
+	message->window_manager.type = WINDOW_MANAGER_MSG_CREATE_DIALOG;
 
-	dialog->title = title;
-	if(title_length > 80) title_length = 80; /* cap length of title */
-	dialog->title_length = title_length;
-	dialog->title_width = measure_string(title, title_length) + 15;
-	dialog->is_dialog = true;
-	dialog->buffer = 0;
+	/* copy the title across - pulls it out of user space */
+	if(title_length > MAX_WINDOW_TITLE_LENGTH) title_length = MAX_WINDOW_TITLE_LENGTH;
+	message->window_manager.create_window.title = malloc(title_length);
+	if(!message->window_manager.create_window.title) { release_message(message); return; }
 
-	/* window can't be smaller than the title */
-	if(width < dialog->title_width)
-		width = dialog->title_width;
+	message->window_manager.create_window.title_length = title_length;
+	memcpy(message->window_manager.create_window.title, title, title_length);
 
-	/* it can't be larger than the screen */
-	if(width + 2 > screen_width)
-		width = screen_width - 2;
+	message->window_manager.create_window.width = width;
+	message->window_manager.create_window.height = height;
 
-	if(height + WINDOW_TITLE_HEIGHT + 3 > screen_height)
-		height = screen_height - WINDOW_TITLE_HEIGHT - 3;
-
-	dialog->width = width;
-	dialog->height = height;
-
-	/* centre the new dialog on the screen */
-	int32 x = (screen_width - width)/2 - 1;
-	int32 y = (screen_height - height)/2 - 2 - WINDOW_TITLE_HEIGHT;
-	if(x < 0) x = 0;
-	if(y < 0) y = 0;
-	dialog->x = x;
-	dialog->y = y;
-
-
-	/* add it to the linked list */	
-	if(dialogs_front) {
-		dialogs_front->previous = dialog;
-		dialog->next = dialogs_front;
-		dialog->previous = 0;
-		dialogs_front = dialog;
-	} else {
-		dialog->previous = 0;
-		dialog->next = 0;
-		dialogs_front = dialog;
-		dialogs_back = dialog;
-	}
-
-	focused_window = dialog;
-	hovering_title = dialog;
+	window_manager_add_message(message);
 }
 
-/* toggles the shell */
-void toggle_shell() {
-	is_shell_visible = !is_shell_visible;
-	invalidate_window_manager();
+void window_manager_keyboard_event(uint8 scancode) {
+	unsigned char c = scancode & 0x7F;
+	if(c == 0x5B || c == 0x5C) { /* windows key, toggle shell */
+		if(!(scancode & 0x80)) { /* only toggle if it was pressed */
+			is_shell_visible = !is_shell_visible;
+			invalidate_window_manager();
+		}
+		return;
+	} else if(c == 0x58) { /* f12, toggle dithering */
+		if(!(scancode & 0x80)) { /* only toggle if it was pressed */
+			dither_screen = !dither_screen;
+			invalidate_window_manager();
+		}
+		return;
+	}
+
+	/* we're still here? send a message to the window manager */
+	struct Message *message = allocate_message();
+	if(message == 0) return;
+	message->window_manager.type = WINDOW_MANAGER_MSG_KEY_EVENT;
+	message->window_manager.key_event.scancode = scancode;
+
+	window_manager_add_message(message);
+}
+
+/* handles a mouse button being clicked */
+void window_manager_mouse_down(uint16 x, uint16 y, uint8 button) {
+	struct Message *message = allocate_message();
+	if(message == 0) return;
+	message->window_manager.type = WINDOW_MANAGER_MSG_MOUSE_BUTTON_DOWN;
+	message->window_manager.mouse_event.x = x;
+	message->window_manager.mouse_event.y = y;
+	message->window_manager.mouse_event.button = button;
+
+	window_manager_add_message(message);
+}
+
+/* handles a mouse button being released */
+void window_manager_mouse_up(uint16 x, uint16 y, uint8 button) {
+	struct Message *message = allocate_message();
+	if(message == 0) return;
+	message->window_manager.type = WINDOW_MANAGER_MSG_MOUSE_BUTTON_UP;
+	message->window_manager.mouse_event.x = x;
+	message->window_manager.mouse_event.y = y;
+	message->window_manager.mouse_event.button = button;
+
+	window_manager_add_message(message);
+}
+
+/* handles the mouse moving */
+void window_manager_mouse_move(uint16 x, uint16 y) {
+	struct Message *message = allocate_message();
+	if(message == 0) return;
+	message->window_manager.type = WINDOW_MANAGER_MSG_MOUSE_MOVE;
+	message->window_manager.mouse_event.x = x;
+	message->window_manager.mouse_event.y = y;
+
+	window_manager_add_message(message);
 }

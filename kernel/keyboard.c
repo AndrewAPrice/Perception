@@ -91,36 +91,7 @@ unsigned char kbdus_shift[128] =
 
 struct isr_regs *keyboard_handler(struct isr_regs *r) {
 	unsigned char scancode = inportb(0x60); /* the key pressed, scancode & 0x80 to tell if it was released */
-
-  /* toggle the shell if the windows/menu key was pressed */
-  unsigned char c = scancode & 0x7F;
-  if(c == 0x5B || c == 0x5C) {
-    if(!(scancode & 0x80)) /* only toggle if it was pressed */
-      toggle_shell();
-
-      return r;
-  } else if(c == 0x58) { /* f12, toggle dithering */
-    if(!(scancode & 0x80)) { /* only toggle if it was pressed */
-      dither_screen = !dither_screen;
-      invalidate_window_manager();
-    }
-      return r;
-  }
-
-  /* is there an focused process? */
-  struct Process *process = 0;
-  if(process == 0) return r;
-
-  /* send a message to it */  
-  struct Message *message = allocate_message();
-  if(message == 0) return r;
-
-  message->pid = 0;
-  message->type = MSG_KEY_STATE_CHANGED;
-  message->key_state_changed.scancode = scancode;
-
-  send_message(process, message);
-
+  window_manager_keyboard_event(scancode);
   return r;
 }
 

@@ -12,6 +12,8 @@ uint16 mouse_x, mouse_y;
 /* is the mouse visible? */
 bool mouse_is_visible;
 
+uint8 last_mouse_button_status;
+
 
 /* the mouse's interrupt handler */
 struct isr_regs *mouse_handler(struct isr_regs *r) {
@@ -49,10 +51,37 @@ struct isr_regs *mouse_handler(struct isr_regs *r) {
 			else
 				mouse_y = my;
 
-			/* tell the window manager to redraw the screen, currently does nothing because the window manager
-			   is updating in loop */
-			if(mouse_is_visible)
-				invalidate_window_manager();
+			/* compare the mouse button statuses */
+			uint8 button_status = status & 7;
+			if(button_status != last_mouse_button_status) {
+				/* a button changed */
+				if((button_status & 1) && !(last_mouse_button_status & 1)) {
+					/* left mouse button up */
+					window_manager_mouse_down(mouse_x, mouse_y, 0);
+				} else if(!(button_status & 1) && (last_mouse_button_status & 1)) {
+					/* left mouse button down */
+					window_manager_mouse_up(mouse_x, mouse_y, 0);
+				}
+
+				if((button_status & 2) && !(last_mouse_button_status & 2)) {
+					/* right mouse button up */
+					window_manager_mouse_down(mouse_x, mouse_y, 1);
+				} else if(!(button_status & 2) && (last_mouse_button_status & 2)) {
+					/* right mouse button down */
+					window_manager_mouse_up(mouse_x, mouse_y, 1);
+				}
+
+				if((button_status & 4) && !(last_mouse_button_status & 4)) {
+					/* right mouse button up */
+					window_manager_mouse_down(mouse_x, mouse_y, 2);
+				} else if(!(button_status & 4) && (last_mouse_button_status & 4)) {
+					/* right mouse button down */
+					window_manager_mouse_up(mouse_x, mouse_y, 2);
+				}
+
+				last_mouse_button_status = button_status;
+			} else /* the mouse just moved */
+				window_manager_mouse_move(mouse_x, mouse_y);
 		} else  {
 			/* read in the first 2 bytes */
 			mouse_byte[mouse_cycle]=val;
@@ -114,4 +143,5 @@ void init_mouse() {
 	irq_install_handler(12, mouse_handler);
 
 	mouse_is_visible = true; /* mouse is initially visible */
+	last_mouse_button_status = 0;
 }
