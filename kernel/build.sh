@@ -1,11 +1,13 @@
 #!/bin/bash
 NASM_CMD="nasm -felf64 -o"
-GCC_CMD="gcc -m64 -mcmodel=kernel -ffreestanding -nostdlib -mno-red-zone -c -o"
+GCC_CMD="gcc -O3 -m64 -mcmodel=kernel -ffreestanding -nostdlib -mno-red-zone -c -o"
 
 $NASM_CMD boot.o boot.asm
 $GCC_CMD callback.o callback.c
+$GCC_CMD draw.o draw.c
 #$NASM_CMD gdt_asm.o gdt.asm
 # $GCC_CMD gdt.o gdt.c
+$GCC_CMD font.o font.c
 $GCC_CMD fs.o fs.c
 $GCC_CMD ide.o ide.c
 $GCC_CMD idt.o idt.c
@@ -39,5 +41,6 @@ $GCC_CMD vga.o vga.c
 $GCC_CMD video.o video.c
 $GCC_CMD virtual_allocator.o virtual_allocator.c
 $GCC_CMD window_manager.o window_manager.c
-ld -nodefaultlibs -T linker.ld -Map map.txt -o ../fs/boot/kernel.sys *.o
+
+ld -nodefaultlibs -T linker.ld -Map=map.txt -o ../fs/boot/kernel.sys *.o
 rm *.o

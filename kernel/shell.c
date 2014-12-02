@@ -1,4 +1,5 @@
 #include "callback.h"
+#include "draw.h"
 #include "liballoc.h"
 #include "physical_allocator.h"
 #include "scheduler.h"
@@ -6,8 +7,11 @@
 #include "storage_device.h"
 #include "syscall.h"
 #include "text_terminal.h"
+#include "video.h"
 #include "virtual_allocator.h"
 #include "vfs.h"
+
+#define SHELL_BACKGROUND_COLOUR 0xFF7092BE
 
 #if 0
 void print_out_file() {
@@ -132,18 +136,33 @@ void print_out_directory() {
 }
 #endif
 
+uint32 *shell_buffer;
+
+/* draws the shell's background */
+void shell_draw_background() {
+	fill_rectangle(0, 0, SHELL_WIDTH, screen_height, SHELL_BACKGROUND_COLOUR, shell_buffer, SHELL_WIDTH, screen_height);
+
+}
+
+void init_shell() {
+	shell_buffer = malloc(sizeof(uint32) * screen_height * SHELL_WIDTH);
+	if(!shell_buffer) {
+		print_string("No memory for the shell buffer!");
+		asm("hlt");
+	}
+
+	/* draw the background once, so there's something in the buffer as soon as it first appears */
+	shell_draw_background();
+}
+
 void shell_entry() {
-	print_string("Perception - Total memory:");
-	print_size(total_system_memory);
+	print_string("Entered the shell. Total memory:"); print_size(total_system_memory);
 
 	size_t free_mem = free_pages * page_size;
 
-	print_string(" Used:");
-	print_size(total_system_memory - free_mem);
+	print_string(" Used:");	print_size(total_system_memory - free_mem);
 	
-	print_string(" Free:");
-	print_size(free_mem);
-	print_char('\n');
+	print_string(" Free:");	print_size(free_mem); print_char('\n');
 
 	// wait a little bit for stuff to be mounted
 	//size_t i; for (i = 0; i < 50; i++)
@@ -152,4 +171,8 @@ void shell_entry() {
 	//print_out_directory();
 	
 	while(true) { sleep_thread(); asm("hlt");};
+}
+
+void shell_disk_mounted() {
+	print_string("A new disk was mounted!\n");
 }

@@ -1,3 +1,4 @@
+#include "font.h"
 #include "fs.h"
 #include "gdt.h"
 #include "idt.h"
@@ -24,15 +25,16 @@
 #include "window_manager.h"
 
 void kmain() {
+	enter_text_mode();
+
 	/* make sure we were booted with a multiboot2 bootloader - we need this because we depend on GRUB for
 	providing us with some initialization information*/
 	if(MultibootInfo.magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
-		enter_text_mode();
 		print_string("Not booted with a multiboot2 bootloader!");
 		for(;;) __asm__ __volatile__ ("hlt");
 	}
 
-	enter_text_mode();
+	print_string("Multiboot address: "); print_hex(MultibootInfo.addr); print_char('\n');
 
 	enter_interrupt(); /* pretend we're in an interrupt so sti isn't enabled */
 
@@ -50,6 +52,7 @@ void kmain() {
 	init_threads();
 	init_scheduler();
 
+	init_font();
 	init_timer();
 	init_keyboard();
 	init_mouse();
@@ -65,11 +68,11 @@ void kmain() {
 
 	check_for_video(); /* makes sure we have video */
 	
-	window_manager_init();
+	init_window_manager();
+	init_shell();
 
 	enter_text_mode();
 	print_string("Welcome to Perception...\n");
-
 
 	/* Create the shell thread */
 	schedule_thread(create_thread(0, (size_t)shell_entry, 0));

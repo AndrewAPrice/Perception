@@ -4,6 +4,8 @@
 #include "keyboard.h"
 #include "messages.h"
 #include "text_terminal.h"
+#include "window_manager.h"
+#include "video.h"
 
 #if 0
 unsigned char kbdus_unshift[128] =
@@ -89,6 +91,21 @@ unsigned char kbdus_shift[128] =
 
 struct isr_regs *keyboard_handler(struct isr_regs *r) {
 	unsigned char scancode = inportb(0x60); /* the key pressed, scancode & 0x80 to tell if it was released */
+
+  /* toggle the shell if the windows/menu key was pressed */
+  unsigned char c = scancode & 0x7F;
+  if(c == 0x5B || c == 0x5C) {
+    if(!(scancode & 0x80)) /* only toggle if it was pressed */
+      toggle_shell();
+
+      return r;
+  } else if(c == 0x58) { /* f12, toggle dithering */
+    if(!(scancode & 0x80)) { /* only toggle if it was pressed */
+      dither_screen = !dither_screen;
+      invalidate_window_manager();
+    }
+      return r;
+  }
 
   /* is there an focused process? */
   struct Process *process = 0;

@@ -51,9 +51,9 @@ SetupPagingAndLongMode:
 	mov eax, Pml4
 	mov cr3, eax
 
-	; Enable PAE
+	; Enable PAE (5) and OSFXSR (9) and OSXMMEXCPT (10) for FPU
 	mov eax, cr4
-	or eax, 1 << 5
+	or eax, (1 << 5) | (1 << 9) | (1 << 10)
 	mov cr4, eax
 
 	; Enable Load Mode in the MSR
@@ -62,9 +62,11 @@ SetupPagingAndLongMode:
 	or eax, 1 << 8
 	wrmsr
 
-	; Enable paging
+	; Enable paging (31) and MP (1) for FPU
 	mov eax, cr0
-	or eax, 1 << 31
+	or eax, (1 << 31) | (1 << 1)
+	; Clear EM (2) for FPU
+	and eax, ~(1 << 2)
 	mov cr0, eax
 
 	ret
