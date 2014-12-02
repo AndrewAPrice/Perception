@@ -1,8 +1,0 @@
-var terminal = require("System/Terminal").createTerminal("Terminal", { width: 320, height: 240, rows: 100 });
-
-terminal.writeLine("Hello world!");
-terminal.write("Enter your name: ");
-
-terminal.readLine(function(line) {
-	terminal.writeLine("Hello " + line + "!");
-});

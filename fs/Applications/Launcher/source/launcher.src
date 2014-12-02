@@ -1,3 +1,0 @@
-var Window = require("Window");
-
-var window = window.createWindow("Launcher");
