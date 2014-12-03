@@ -23,7 +23,7 @@ struct Window {
 /* a frame is what windows dock to */
 struct Frame {
 	uint16 x, y, width, height; /* frame position and size */
-	uint16 title_height; /* the title height with all of the windows in them */
+	struct Frame *parent;
 
 	bool is_split_frame; /* is this a split frame or a dock frame? */
 	union {
@@ -32,8 +32,11 @@ struct Frame {
 			struct Frame *child_b;
 			bool is_split_vertically; /* direction it is split */
 			float split_percent; /* split percentage */
+			uint16 split_point; /* position of the split in pixels */
 		} SplitFrame;
 		struct {
+			uint16 title_height; /* the title height with all of the windows in them */
+
 			/* linked list of windows in this frame*/
 			struct Window *first_window;
 			struct Window *last_window;
