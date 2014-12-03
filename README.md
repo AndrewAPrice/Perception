@@ -6,7 +6,7 @@ Shovel and Turkey are being developed seperately from Perception, so that they m
 
 
 ## Running
-Either build the operating system from source or download a prebuilt image (comming soon) and boot it. Use the Windows key to access the shell that
+Either build the operating system from source or download a prebuilt image (coming soon) and boot it. Use the Windows key to access the shell that
 allows you to launch applications.
 
 To set a custom resolution, press 'E' in GRUB, and replace the 'auto' on "set gfxpayload=auto" with a resolution (in the format of WidthxHeightxBPP or WidthxHeight) and press F10 to boot.
@@ -15,9 +15,9 @@ To set a custom resolution, press 'E' in GRUB, and replace the 'auto' on "set gf
 Some of the features of the operating system are:
 - A shell that discovers programs on mounted disks and manages running processes (press the Windows key to access it at any time).
 - Asynchronous/event-based programming API.
-- ISO 9660 read support.
-- Composting tabbing window manager with full-screen dithering (press F10 in non-24 bit colour modes to toggle dithering).
-- VBE video and a fall back VGA driver.
+- Unix style VFS with ISO 9660 read support.
+- Compositing tabbing window manager.
+- VBE video and a fall back VGA driver (press F12 to enable full screen dithering in low color depth modes).
 
 
 ## Directory Structure
@@ -34,6 +34,7 @@ Some of the features of the operating system are:
 This is a very high level to-do list. Near term goals of Perception include:
 - Loading programs.
 - RAM disk.
+- A GUI widget library.
 - Some nice sample programs (Calculator, Text Editor, File Manager, Minesweeper).
 
 Eventual goals:
