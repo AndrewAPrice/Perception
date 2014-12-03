@@ -25,7 +25,7 @@ extern bool dither_screen;
 extern uint8 dithering_table[];
 #define dithering_table_width 8
 
-extern void (*flip_screen_buffer)();
+extern void (*flip_screen_buffer)(size_t minx, size_t miny, size_t maxx, size_t maxy);
 
 extern void init_video();
 extern void init_video_device(struct PCIDevice *device);

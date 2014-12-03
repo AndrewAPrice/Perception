@@ -33,20 +33,25 @@ void handle_vesa_multiboot_header(struct multiboot_tag *tag) {
 size_t vesa_virtual_addr;
 
 /* flip the screen buffer for 15 bits per pixel - 5:5:5 */
-void vesa_flip_screen_buffer_15() {
+void vesa_flip_screen_buffer_15(size_t minx, size_t miny, size_t maxx, size_t maxy) {
 	size_t x; size_t y;
 
-	uint8 *in = (uint8 *)screen_buffer;
 	size_t row_virtual_addr = vesa_virtual_addr;
 
-	if(dither_screen) {
-		for(y = 0; y < screen_height; y++) {
-			uint16 *out = (uint16 *)row_virtual_addr;
-			row_virtual_addr += vesa_pitch;
+	size_t start_index = minx + miny * screen_width;
+	size_t line_jump = screen_width - (maxx-minx);
+	
+	uint8 *in = (uint8 *)&screen_buffer[start_index];
+	size_t in_line_jump = line_jump * 4;
 
-			for(x = 0; x < screen_width; x++) {
+	uint16 *out = (uint16 *)(row_virtual_addr + minx * 2 + miny * vesa_pitch);
+	size_t out_line_jump = vesa_pitch / 2 - (maxx-minx);
+
+	if(dither_screen) {
+		for(y = miny; y < maxy; y++) {
+			for(x = minx; x < maxx; x++) {
 				uint8 dither_val = dithering_table[x % dithering_table_width + (y % dithering_table_width) + dithering_table_width];
-				
+
 				uint16 blue = (*in++ + dither_val / 8) * 31 / 255;
 				uint16 green = (*in++ + dither_val / 8) * 31 / 255;
 				uint16 red = (*in++ + dither_val / 8) * 31 / 255;
@@ -57,13 +62,12 @@ void vesa_flip_screen_buffer_15() {
 				*out = val;
 				out++;
 			}
+			in += in_line_jump;
+			out += out_line_jump;
 		}
 	} else {
-		for(y = 0; y < screen_height; y++) {
-			uint16 *out = (uint16 *)row_virtual_addr;
-			row_virtual_addr += vesa_pitch;
-
-			for(x = 0; x < screen_width; x++) {
+		for(y = miny; y < maxy; y++) {
+			for(x = minx; x < maxx; x++) {
 				uint16 blue = *in++ * 32 / 256;
 				uint16 green = *in++ * 32 / 256;
 				uint16 red = *in++ * 32 / 256;
@@ -74,23 +78,30 @@ void vesa_flip_screen_buffer_15() {
 				*out = val;
 				out++;
 			}
+			in += in_line_jump;
+			out += out_line_jump;
 		}
 	}
 }
 
 /* flip the screen buffer for 16 bits per pixel - 5:6:5 */
-void vesa_flip_screen_buffer_16() {
+void vesa_flip_screen_buffer_16(size_t minx, size_t miny, size_t maxx, size_t maxy) {
 	size_t x; size_t y;
 
-	uint8 *in = (uint8 *)screen_buffer;
 	size_t row_virtual_addr = vesa_virtual_addr;
 
-	if(dither_screen) {
-		for(y = 0; y < screen_height; y++) {
-			uint16 *out = (uint16 *)row_virtual_addr;
-			row_virtual_addr += vesa_pitch;
+	size_t start_index = minx + miny * screen_width;
+	size_t line_jump = screen_width - (maxx-minx);
+	
+	uint8 *in = (uint8 *)&screen_buffer[start_index];
+	size_t in_line_jump = line_jump * 4;
 
-			for(x = 0; x < screen_width; x++) {
+	uint16 *out = (uint16 *)(row_virtual_addr + minx * 2 + miny * vesa_pitch);
+	size_t out_line_jump = vesa_pitch / 2 - (maxx-minx);
+
+	if(dither_screen) {
+		for(y = miny; y < maxy; y++) {
+			for(x = minx; x < maxx; x++) {
 				uint8 dither_val = dithering_table[x % dithering_table_width + (y % dithering_table_width) + dithering_table_width];
 				
 				uint16 blue = (*in++ + dither_val / 8) * 31 / 255;
@@ -103,13 +114,12 @@ void vesa_flip_screen_buffer_16() {
 				*out = val;
 				out++;
 			}
+			in += in_line_jump;
+			out += out_line_jump;
 		}
 	} else {
-		for(y = 0; y < screen_height; y++) {
-			uint16 *out = (uint16 *)row_virtual_addr;
-			row_virtual_addr += vesa_pitch;
-
-			for(x = 0; x < screen_width; x++) {
+		for(y = miny; y < maxy; y++) {
+			for(x = minx; x < maxx; x++) {
 				uint16 blue = *in++ * 32 / 256;
 				uint16 green = *in++ * 64 / 256;
 				uint16 red = *in++ * 32 / 256;
@@ -120,26 +130,37 @@ void vesa_flip_screen_buffer_16() {
 				*out = val;
 				out++;
 			}
+			in += in_line_jump;
+			out += out_line_jump;
 		}
 	}
 }
 
 /* flip the screen buffer for 24 bits per pixel - 8:8:8 */
-void vesa_flip_screen_buffer_24() {
+void vesa_flip_screen_buffer_24(size_t minx, size_t miny, size_t maxx, size_t maxy) {
 	size_t x; size_t y;
 
-	uint8 *in = (uint8 *)screen_buffer;
 	size_t row_virtual_addr = vesa_virtual_addr;
-	for(y = 0; y < screen_height; y++) {
-		uint8 *out = (uint8 *)row_virtual_addr;
-		row_virtual_addr += vesa_pitch;
 
-		for(x = 0; x < screen_width; x++) {
+	size_t start_index = minx + miny * screen_width;
+	size_t line_jump = screen_width - (maxx-minx);
+	
+	uint8 *in = (uint8 *)&screen_buffer[start_index];
+	size_t in_line_jump = line_jump * 4;
+
+	uint8 *out = (uint8 *)(row_virtual_addr + minx * 3 + miny * vesa_pitch);
+	size_t out_line_jump = vesa_pitch - (maxx-minx) * 3;
+
+	for(y = miny; y < maxy; y++) {
+		for(x = minx; x < maxx; x++) {
 			*out++ = *in++;
 			*out++ = *in++;
 			*out++ = *in++;
 			in++;
 		}
+		
+		in += in_line_jump;
+		out += out_line_jump;
 	}
 
 }

@@ -45,7 +45,7 @@ struct Frame {
 };
 
 /* invalidates the window manager, forcing the screen to redraw */
-extern void invalidate_window_manager();
+extern void invalidate_window_manager(uint16 minx, uint16 miny, uint16 maxx, uint16 maxy);
 
 /* initialises the window manager */
 extern void init_window_manager();

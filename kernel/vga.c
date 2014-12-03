@@ -171,12 +171,16 @@ void vga_write_regs(unsigned char *regs) {
 }
 
 /* flips the screen buffer for 8 bpp - 3:3:2 */
-void vga_flip_screen_buffer_8() {
-	size_t y, x, i = 0;
+void vga_flip_screen_buffer_8(size_t minx, size_t miny, size_t maxx, size_t maxy) {
+	size_t y, x;
+
+	size_t start_index = minx + miny * screen_width;
+	size_t i = start_index;
+	size_t line_jump = screen_width - (maxx-minx);
 
 	if(dither_screen) {
-		for(y = 0; y < screen_height; y++) {
-			for(x = 0; x < screen_width; x++, i++) {
+		for(y = miny; y < maxy; y++) {
+			for(x = minx; x < maxx; x++, i++) {
 				uint32 c = screen_buffer[i];
 
 				uint8 dither_val = dithering_table[x % dithering_table_width + (y % dithering_table_width) + dithering_table_width];
@@ -189,18 +193,24 @@ void vga_flip_screen_buffer_8() {
 
 				((char *)vga_memory_offset)[i] = val;
 			}
+
+			i+= line_jump;
 		}
 	} else {
-		for(i = 0; i < screen_width * screen_height; i++) {
-			uint32 c = screen_buffer[i];
+		for(y = miny; y < maxy; y++) {
+			for(x = minx; x < maxx; x++, i++) {
+				uint32 c = screen_buffer[i];
 
-			uint8 red = (((c >> 16) & 0xFF)) / 32;
-			uint8 green = (((c >> 8) & 0xFF)) / 32;// + dither_val / 2;
-			uint8 blue = (c & 0xFF) / 64;// + dither_val / 4;
+				uint8 red = (((c >> 16) & 0xFF)) / 32;
+				uint8 green = (((c >> 8) & 0xFF)) / 32;
+				uint8 blue = (c & 0xFF) / 64;
 
-			uint8 val = (red << 5) | (green << 2) | blue;
+				uint8 val = (red << 5) | (green << 2) | blue;
 
-			((char *)vga_memory_offset)[i] = val;
+				((char *)vga_memory_offset)[i] = val;
+			}
+
+			i += line_jump;
 		}
 	}
 }
