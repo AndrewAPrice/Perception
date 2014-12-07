@@ -31,24 +31,22 @@ Some of the features of the operating system are:
 
 
 ## Todo
-This is a very high level to-do list. Near term goals of Perception include:
+What I want to accomplish before public build 1:
+- Prettier GUI.
+- Multiple keyboard layouts.
+- RAM disk with reading & writing.
 - Loading programs.
-- RAM disk.
 - A GUI widget library.
-- Some nice sample programs (Calculator, Text Editor, File Manager, Minesweeper).
+- A file manager.
+- A terminal emulator.
+- Some simple games (Minesweeper, Freecell).
+- A tool chain that runs under the OS.
+- An IDE for native and Shovel applications
 
-Eventual goals:
-- Build a terminal emulator built around Shovel.
-- Port the build tools to run under Perception.
-- Build an IDE in Perception.
-
-Long term goals:
-- Make a great OS.
-
-Near term goals of Shovel include:
-- Optimize SSA (constant propagation, deadcode elimination).
-- Implement basic block versioning JIT.
-- Change C API to work with JIT.
+What I want to accomplish with Shovel include:
+- Static typing.
+- Full JIT.
+- Merge the compiler and runtime, so Shovel can be dynamically evaluated.
 
 ## Want to help?
 I would be interested in accepting patches, mainly those that improve performance (such as new optimizations for Turkey) or clean up
