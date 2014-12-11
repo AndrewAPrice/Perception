@@ -35,6 +35,25 @@ struct isr_regs *syscall_handler(struct isr_regs *r) {
 		}
 
 	} break;
+	case 3: { /* write out a debug string */
+		char *str = (char *)r->rbx;
+		size_t length = (char)r->rcx;
+
+		if(length == 0xFFFFFFFFFFFFFFFF) { /* null terminated string */
+			while(*str) {
+				print_char(*str);
+				str++;
+			}
+		} else {
+			while(length > 0) {
+				print_char(*str);
+				str++;
+				length--;
+			}
+
+		}
+
+	}
 	default: break; /* unknown system call */
 	}
 
