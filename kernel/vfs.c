@@ -1,5 +1,6 @@
 #include "io.h"
 #include "isr.h"
+#include "shell.h"
 #include "storage_device.h"
 #include "text_terminal.h"
 #include "vfs.h"
@@ -48,6 +49,7 @@ bool mount(struct MountPoint *mount_point) {
 	print_size(mount_point->storage_device->size);
 	print_char('\n');
 #endif
+	shell_disk_mounted();
 	return true;
 }
 
