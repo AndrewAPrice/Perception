@@ -51,6 +51,9 @@ struct isr_regs *mouse_handler(struct isr_regs *r) {
 			else
 				mouse_y = my;
 
+			if(mx || my) /* mouse moved */
+				window_manager_mouse_move(mouse_x, mouse_y);
+
 			/* compare the mouse button statuses */
 			uint8 button_status = status & 7;
 			if(button_status != last_mouse_button_status) {
@@ -80,8 +83,7 @@ struct isr_regs *mouse_handler(struct isr_regs *r) {
 				}
 
 				last_mouse_button_status = button_status;
-			} else /* the mouse just moved */
-				window_manager_mouse_move(mouse_x, mouse_y);
+			}
 		} else  {
 			/* read in the first 2 bytes */
 			mouse_byte[mouse_cycle]=val;
