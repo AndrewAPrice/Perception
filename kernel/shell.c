@@ -1,5 +1,6 @@
 #include "callback.h"
 #include "draw.h"
+#include "font.h"
 #include "liballoc.h"
 #include "physical_allocator.h"
 #include "scheduler.h"
@@ -10,8 +11,7 @@
 #include "video.h"
 #include "virtual_allocator.h"
 #include "vfs.h"
-
-#define SHELL_BACKGROUND_COLOUR 0xFF7092BE
+#include "window_manager.h"
 
 #if 0
 void print_out_file() {
@@ -137,11 +137,41 @@ void print_out_directory() {
 #endif
 
 uint32 *shell_buffer;
+uint8 shell_tab;
+#define SHELL_TAB_LAUNCH 0
+#define SHELL_TAB_RUNNING 1
+uint16 shell_tab_launch_x, shell_tab_running_x;
+char *shell_tab_launch_title = "Launch";
+char *shell_tab_running_title = "Running";
+#define SHELL_TAB_Y 10
+#define SHELL_TEXT_OFFSET 40
+
+#define SHELL_BACKGROUND_COLOUR 0xEE7092BE
+
+#define FOCUSED_TAB_COLOUR 0xFFFFFFFF
+#define UNFOCUSED_TAB_COLOUR 0xFF000000
+
 
 /* draws the shell's background */
 void shell_draw_background() {
+	/* draw the left solid */
 	fill_rectangle(0, 0, SHELL_WIDTH, screen_height, SHELL_BACKGROUND_COLOUR, shell_buffer, SHELL_WIDTH, screen_height);
+}
 
+/* draws the shell */
+void shell_draw() {
+	shell_draw_background();
+	/* draw the tabs */
+	draw_string_n(shell_tab_launch_x, SHELL_TAB_Y, shell_tab_launch_title,
+		shell_tab == SHELL_TAB_LAUNCH ? FOCUSED_TAB_COLOUR : UNFOCUSED_TAB_COLOUR,
+		shell_buffer, SHELL_WIDTH, screen_height);
+
+	draw_string_n(shell_tab_running_x, SHELL_TAB_Y, shell_tab_running_title,
+		shell_tab == SHELL_TAB_RUNNING ? FOCUSED_TAB_COLOUR : UNFOCUSED_TAB_COLOUR,
+		shell_buffer, SHELL_WIDTH, screen_height);
+
+	if(is_shell_visible)
+		invalidate_window_manager(0, 0, SHELL_WIDTH, screen_height);
 }
 
 void init_shell() {
@@ -151,9 +181,15 @@ void init_shell() {
 		asm("hlt");
 	}
 
-	/* draw the background once, so there's something in the buffer as soon as it first appears */
-	shell_draw_background();
+	shell_tab_launch_x = SHELL_WIDTH / 2 - SHELL_TEXT_OFFSET - measure_string_n(shell_tab_launch_title)/2;
+	shell_tab_running_x = SHELL_WIDTH / 2 + SHELL_TEXT_OFFSET - measure_string_n(shell_tab_running_title)/2;
+
+	shell_tab = SHELL_TAB_LAUNCH;
+
+	/* draw the shell, so there's something in the buffer as soon as it first appears */
+	shell_draw();
 }
+
 
 void shell_entry() {
 	print_string("Entered the shell. Total memory:"); print_size(total_system_memory);
@@ -170,9 +206,35 @@ void shell_entry() {
 
 	//print_out_directory();
 	
-	while(true) { sleep_thread(); asm("hlt");};
+	while(true) { sleep_thread(); asm("hlt"); };
 }
 
+/* notifies the shell that a disk was mounted */
 void shell_disk_mounted() {
 	print_string("A new disk was mounted!\n");
+}
+
+/* notifies the shell that a mouse button was pressed */
+void shell_mouse_button_down(uint16 x, uint16 y, uint8 button) {
+
+}
+
+/* notifies the shell that a mouse button was released */
+void shell_mouse_button_up(uint16 x, uint16 y, uint8 button) {
+
+}
+
+/* notifies the shell that the mouse moved */
+void shell_mouse_move(uint16 x, uint16 y, uint8 button) {
+
+}
+
+/* notifies the shell that a key was pressed */
+void shell_key_down(uint8 scancode) {
+
+}
+
+/* notifies the shell that it's now visible */
+void shell_visible() {
+
 }
