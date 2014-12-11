@@ -4,25 +4,76 @@ void draw_sprite_1bit_alpha(size_t x, size_t y, uint32 *sprite, size_t width, si
 	size_t start_x = x;
 	size_t start_y = y;
 
+	if(minx > start_x)
+		start_x = minx;
+
+	if(miny > start_y)
+		start_y = miny;
+
 	size_t end_x = x + width;
 	size_t end_y = y + height;
 
-	if(end_x >= buffer_width)
-		end_x = buffer_width;
+	if(end_x > maxx)
+		end_x = maxx;
 
-	if(end_y >= buffer_height)
-		end_y = buffer_height;
+	if(end_y > maxy)
+		end_y = maxy;
 
 	size_t out_indx = buffer_width * start_y + start_x;
-	size_t in_indx = 0;
+	size_t in_indx = (start_x - x) + width * (start_y - y);
 	size_t _x, _y;
-	for(_y = start_y; _y != end_y; _y++) {
+
+	for(_y = start_y; _y < end_y; _y++) {
 		size_t next_out_indx = out_indx + buffer_width;
 		size_t next_in_indx = in_indx + width;
-		for(_x = start_x; _x != end_x; _x++) {
+		for(_x = start_x; _x < end_x; _x++) {
 			uint32 clr = sprite[in_indx];
 			if(clr) /* test for transparency */
 				buffer[out_indx] = clr;
+			out_indx++;
+			in_indx++;
+		}
+		out_indx = next_out_indx;
+		in_indx = next_in_indx;
+	}
+}
+
+void draw_sprite_alpha(size_t x, size_t y, uint32 *sprite, size_t width, size_t height,
+	uint32 *buffer, size_t buffer_width, size_t buffer_height, size_t minx, size_t miny, size_t maxx, size_t maxy) {
+	size_t start_x = x;
+	size_t start_y = y;
+
+	if(minx > start_x)
+		start_x = minx;
+
+	if(miny > start_y)
+		start_y = miny;
+
+	size_t end_x = x + width;
+	size_t end_y = y + height;
+
+	if(end_x > maxx)
+		end_x = maxx;
+
+	if(end_y > maxy)
+		end_y = maxy;
+
+	size_t out_indx = buffer_width * start_y + start_x;
+	size_t in_indx = (start_x - x) + width * (start_y - y);
+	size_t _x, _y;
+
+	for(_y = start_y; _y < end_y; _y++) {
+		size_t next_out_indx = out_indx + buffer_width;
+		size_t next_in_indx = in_indx + width;
+		for(_x = start_x; _x < end_x; _x++) {
+			uint8 *colour_components = (uint8 *)(&sprite[in_indx]);
+			size_t alpha = colour_components[3] + 1;
+			size_t inv_alpha = 256 - colour_components[3];
+			uint8 *sc_buf = (uint8 *)(&buffer[out_indx]);
+			sc_buf[0] = (uint8)((alpha * colour_components[0] + inv_alpha * sc_buf[0]) >> 8);
+			sc_buf[1] = (uint8)((alpha * colour_components[1] + inv_alpha * sc_buf[1]) >> 8);
+			sc_buf[2] = (uint8)((alpha * colour_components[2] + inv_alpha * sc_buf[2]) >> 8);
+
 			out_indx++;
 			in_indx++;
 		}
@@ -36,22 +87,31 @@ void draw_sprite(size_t x, size_t y, uint32 *sprite, size_t width, size_t height
 	size_t start_x = x;
 	size_t start_y = y;
 
+	if(start_x < minx)
+		start_x = minx;
+
+	if(start_y < miny)
+		start_y = miny;
+
 	size_t end_x = x + width;
 	size_t end_y = y + height;
 
-	if(end_x >= buffer_width)
-		end_x = buffer_width;
+	if(end_x > maxx)
+		end_x = maxx;
 
-	if(end_y >= buffer_height)
-		end_y = buffer_height;
+	if(end_y > maxy)
+		end_y = maxy;
 
 	size_t out_indx = buffer_width * start_y + start_x;
-	size_t in_indx = 0;
+	size_t in_indx = (start_x - x) + width * (start_y - y);
+
 	size_t _x, _y;
-	for(_y = start_y; _y != end_y; _y++) {
+
+	for(_y = start_y; _y < end_y; _y++) {
 		size_t next_out_indx = out_indx + buffer_width;
 		size_t next_in_indx = in_indx + width;
-		for(_x = start_x; _x != end_x; _x++) {
+
+		for(_x = start_x; _x < end_x; _x++) {
 			uint32 clr = sprite[in_indx];
 			buffer[out_indx] = clr;
 			out_indx++;
@@ -70,11 +130,34 @@ void draw_x_line(size_t x, size_t y, size_t width, uint32 colour,
 	size_t end_x = x + width;
 
 	if(end_x >= buffer_width)
-		end_x = buffer_width - 1;
+		end_x = buffer_width;
 
 	size_t indx = buffer_width * y + x;
 	for(;x != end_x;x++, indx++)
 		buffer[indx] = colour;
+}
+
+void draw_x_line_alpha(size_t x, size_t y, size_t width, uint32 colour,
+	uint32 *buffer, size_t buffer_width, size_t buffer_height) {
+	if(y >= buffer_height)
+		return;
+
+	size_t end_x = x + width;
+
+	if(end_x >= buffer_width)
+		end_x = buffer_width;
+
+	uint8 *colour_components = (uint8 *)&colour;
+	size_t alpha = colour_components[3] + 1;
+	size_t inv_alpha = 256 - colour_components[3];
+
+	size_t indx = buffer_width * y + x;
+	for(;x != end_x;x++, indx++) {
+		uint8 *sc_buf = (uint8 *)(&buffer[indx]);
+		sc_buf[0] = (uint8)((alpha * colour_components[0] + inv_alpha * sc_buf[0]) >> 8);
+		sc_buf[1] = (uint8)((alpha * colour_components[1] + inv_alpha * sc_buf[1]) >> 8);
+		sc_buf[2] = (uint8)((alpha * colour_components[2] + inv_alpha * sc_buf[2]) >> 8);
+	}
 }
 
 void draw_y_line(size_t x, size_t y, size_t height, uint32 colour,
@@ -85,11 +168,34 @@ void draw_y_line(size_t x, size_t y, size_t height, uint32 colour,
 	size_t end_y = y + height;
 
 	if(end_y >= buffer_height)
-		end_y = buffer_height - 1;
+		end_y = buffer_height;
 
 	size_t indx = buffer_width * y + x;
 	for(;y != end_y;y++, indx+=buffer_width)
 		buffer[indx] = colour;
+}
+
+void draw_y_line_alpha(size_t x, size_t y, size_t height, uint32 colour,
+	uint32 *buffer, size_t buffer_width, size_t buffer_height) {
+	if(x >= buffer_width)
+		return;
+
+	size_t end_y = y + height;
+
+	if(end_y >= buffer_height)
+		end_y = buffer_height;
+
+	uint8 *colour_components = (uint8 *)&colour;
+	size_t alpha = colour_components[3] + 1;
+	size_t inv_alpha = 256 - colour_components[3];
+
+	size_t indx = buffer_width * y + x;
+	for(;y != end_y;y++, indx+=buffer_width) {
+		uint8 *sc_buf = (uint8 *)(&buffer[indx]);
+		sc_buf[0] = (uint8)((alpha * colour_components[0] + inv_alpha * sc_buf[0]) >> 8);
+		sc_buf[1] = (uint8)((alpha * colour_components[1] + inv_alpha * sc_buf[1]) >> 8);
+		sc_buf[2] = (uint8)((alpha * colour_components[2] + inv_alpha * sc_buf[2]) >> 8);
+	}
 }
 
 void plot_pixel(size_t x, size_t y, uint32 colour,
