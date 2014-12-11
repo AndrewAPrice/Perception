@@ -11,6 +11,8 @@ size_t next_thread_id;
 struct Thread *next_thread_to_clean;
 struct Thread *thread_cleaner_thread;
 
+extern void save_fpu_registers(size_t regs_addr);
+
 void thread_cleaner();
 
 void init_threads() {
@@ -91,6 +93,9 @@ struct  Thread *create_thread(struct Process *process, size_t entry_point, size_
 		process->threads = thread;
 		process->threads_count++;
 	}
+
+	/* populate the fpu registers with something */
+	memset(thread->fpu_registers, 0, 512);
 
 	/* initially asleep */
 	thread->next_awake = 0;

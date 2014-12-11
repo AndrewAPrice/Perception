@@ -24,6 +24,8 @@ struct Thread {
 	size_t pml4; /* the pml4 we're operating in, which maybe different to our process, e.g. for kernel threads */
 
 	size_t time_slices; /* time slices this thread has had */
+
+	char fpu_registers[512] __attribute__((aligned(16))); /* storage for FPU registers, must be 16 byte aligned (malloc is) */
 };
 
 /* must be called in an interrupt handler or with interrupts disabled */
