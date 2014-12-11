@@ -5,6 +5,9 @@
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 
+//extern void save_fpu_registers(size_t regs_addr);
+//extern void load_fpu_registers(size_t regs_addr);
+
 /* linked list of awake threads */
 struct Thread *first_awake_thread;
 struct Thread *last_awake_thread;
@@ -13,12 +16,16 @@ struct Thread *running_thread; /* currently executing thread */
 
 struct isr_regs *idle_regs; /* idle vaue to return when no thread is running */
 
+
 void init_scheduler() {
 	first_awake_thread = 0;
 	last_awake_thread = 0;
 	running_thread = 0;
-	idle_regs = 0;
+	idle_regs = 0; 
 }
+//char fxsave_region[512] __attribute__((aligned(16)));
+
+char *fpu_registers_ptr; /* needs to be a constant in memory */
 
 struct isr_regs *schedule_next(struct isr_regs *regs) {
 	struct Thread *next;
@@ -26,6 +33,8 @@ struct isr_regs *schedule_next(struct isr_regs *regs) {
 	if(running_thread) { /* we were executing a thread */
 		running_thread->pml4 = current_pml4;
 		running_thread->registers = regs;
+
+		asm volatile("fxsave %0"::"m"(*running_thread->fpu_registers));
 
 		next = running_thread->next_awake; /* next awake */
 		if(!next)
@@ -72,6 +81,8 @@ struct isr_regs *schedule_next(struct isr_regs *regs) {
 
 	if(running_thread->pml4 != kernel_pml4) /* not a kernel thread, make sure we have this process's virtual address space loaded */
 		switch_to_address_space(running_thread->pml4);
+
+	asm volatile("fxrstor %0"::"m"(*running_thread->fpu_registers));
 
 	return running_thread->registers; /* enter into this thread */
 }
