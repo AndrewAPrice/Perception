@@ -1,46 +1,18 @@
 #!/bin/bash
-NASM_CMD="nasm -felf64 -o"
-GCC_CMD="gcc -O3 -m64 -mcmodel=kernel -ffreestanding -nostdlib -mno-red-zone -c -o"
+ASM_CMD="nasm -felf64 -o"
+CC_CMD="gcc -m64 -mcmodel=kernel -ffreestanding -nostdlib -mno-red-zone -c -o"
 
-$NASM_CMD boot.o boot.asm
-$GCC_CMD callback.o callback.c
-$GCC_CMD draw.o draw.c
-#$NASM_CMD gdt_asm.o gdt.asm
-# $GCC_CMD gdt.o gdt.c
-$GCC_CMD font.o font.c
-$GCC_CMD fs.o fs.c
-$GCC_CMD ide.o ide.c
-$GCC_CMD idt.o idt.c
-$GCC_CMD io.o io.c
-$NASM_CMD irq_asm.o irq.asm
-$GCC_CMD irq.o irq.c
-$GCC_CMD iso9660.o iso9660.c
-$NASM_CMD isr_asm.o isr.asm
-$GCC_CMD isr.o isr.c
-$GCC_CMD keyboard.o keyboard.c
-$GCC_CMD liballoc.o liballoc.c
-$GCC_CMD liballoc_hooks.o liballoc_hooks.c
-$GCC_CMD main.o main.c
-$GCC_CMD messages.o messages.c
-$GCC_CMD mouse.o mouse.c
-$NASM_CMD multiboot.o multiboot.asm
-$GCC_CMD pci.o pci.c
-$GCC_CMD physical_allocator.o physical_allocator.c
-$GCC_CMD process.o process.c
-$GCC_CMD scheduler.o scheduler.c
-$GCC_CMD shell.o shell.c
-$GCC_CMD storage_device.o storage_device.c
-$NASM_CMD syscall_asm.o syscall.asm
-$GCC_CMD syscall.o syscall.c
-$GCC_CMD thread.o thread.c
-$GCC_CMD text_terminal.o text_terminal.c
-$GCC_CMD timer.o timer.c
-$GCC_CMD vesa.o vesa.c
-$GCC_CMD vfs.o vfs.c
-$GCC_CMD vga.o vga.c
-$GCC_CMD video.o video.c
-$GCC_CMD virtual_allocator.o virtual_allocator.c
-$GCC_CMD window_manager.o window_manager.c
+for f in ./*.asm
+do
+	echo $f
+	$ASM_CMD $f.o $f
+done
+
+for f in ./*.c
+do
+	echo $f
+	$CC_CMD $f.o $f
+done
 
 ld -nodefaultlibs -T linker.ld -Map=map.txt -o ../fs/boot/kernel.sys *.o
 rm *.o
