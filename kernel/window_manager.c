@@ -9,30 +9,8 @@
 #include "thread.h"
 #include "video.h"
 #include "window_manager.h"
+#include "wm_drawing.h"
 
-#define BACKGROUND_COLOUR ((0 << 16) + (78 << 8) + 152)
-#define WINDOW_TITLE_HEIGHT 12
-#define WINDOW_BORDER_COLOUR 0xFF000000
-#define WINDOW_TITLE_TEXT_COLOUR 0xFF000000
-#define FOCUSED_DIALOG_COLOUR 0xFF7F7F7F
-#define UNFOCUSED_DIALOG_COLOUR 0xFFC3C3C3
-#define WINDOW_NO_CONTENTS_COLOUR 0xFFE1E1E1
-#define WINDOW_CLOSE_BUTTON_COLOUR 0xFFFF0000
-#define UNFOCUSED_WINDOW_COLOUR 0xFF99D9EA
-#define FOCUSED_WINDOW_COLOUR 0xFF00A2E8
-
-#define SHELL_BACKGROUND_TINT 0x55000000
-#define DRAGGING_WINDOW_DROP_TINT 0x55000000
-
-#define MAX_WINDOW_TITLE_LENGTH 80
-
-#define MOUSE_WIDTH 11
-#define MOUSE_HEIGHT 17
-
-#define DIALOG_BORDER_WIDTH 2
-#define DIALOG_BORDER_HEIGHT WINDOW_TITLE_HEIGHT + 3
-
-#define SPLIT_FRAME_COLOUR 0xFC3C3C3
 
 struct Thread *window_manager_thread;
 
@@ -57,6 +35,7 @@ uint16 invalidate_min_x, invalidate_min_y, invalidate_max_x, invalidate_max_y;
 uint16 wm_mouse_x, wm_mouse_y;
 
 struct Window *dragging_window;
+struct Frame *dragging_frame;
 uint16 dragging_offset_x; /* when dragging a dialog - offset, when dragging a window - top left of the origional title */
 uint16 dragging_offset_y;
 
@@ -80,276 +59,6 @@ void window_manager_add_message(struct Message *message) {
 
 	/* wake up the worker thread */
 	schedule_thread(window_manager_thread);
-}
-
-/* draws the background when no window is open */
-void draw_background(uint16 minx, uint16 miny, uint16 maxx, uint16 maxy) {
-	size_t background = BACKGROUND_COLOUR;
-	fill_rectangle(minx, miny, maxx, maxy, background, screen_buffer, screen_width, screen_height);
-}
-
-/* draws the mouse */
-void draw_mouse(uint16 minx, uint16 miny, uint16 maxx, uint16 maxy) {
-	uint32 mouse_sprite[] = {
-		0xFF000000, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-		0xFF000000, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-		0xFF000000, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-		0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-		0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-		0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-		0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000,
-		0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000,
-		0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000,
-		0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000,
-		0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0xFF000000, 0xFF000000,
-		0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000,
-		0xFF000000, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0xFFC3C3C3, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000,
-		0xFF000000, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0xFF000000, 0xFFC3C3C3, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000,
-		0xFF000000, 0xFF000000, 0x00000000, 0x00000000, 0xFF000000, 0xFFC3C3C3, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000,
-		0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xFF000000, 0xFFC3C3C3, 0xFFC3C3C3, 0xFFC3C3C3, 0xFF000000, 0x00000000,
-		0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xFF000000, 0xFF000000, 0xFF000000, 0x00000000, 0x00000000
-	};
-
-	draw_sprite_1bit_alpha(wm_mouse_x, wm_mouse_y, mouse_sprite, MOUSE_WIDTH, MOUSE_HEIGHT, screen_buffer, screen_width, screen_height,
-		minx, miny, maxx, maxy);
-}
-
-void draw_window_contents(struct Window *window, uint16 x, uint16 y, uint16 minx, uint16 miny, uint16 maxx, uint16 maxy) {
-	uint16 draw_minx = minx < x ? x : minx;
-	uint16 draw_miny = miny < y ? y : miny;
-	uint16 draw_maxx = maxx > x + window->width ? x + window->width : maxx;
-	uint16 draw_maxy = maxy > y + window->height ? y + window->height : maxy;
-
-	if(window->buffer)
-		/* we have a buffer, draw it */
-		draw_sprite(x, y, window->buffer, window->width, window->height, screen_buffer, screen_width, screen_height,
-			draw_minx, draw_miny, draw_maxx, draw_maxy);
-
-	else
-		fill_rectangle(draw_minx, draw_miny, draw_maxx, draw_maxy, WINDOW_NO_CONTENTS_COLOUR, screen_buffer, screen_width, screen_height);
-}
-
-/* draws the dialogs (floating windows) */
-void draw_dialogs(uint16 minx, uint16 miny, uint16 maxx, uint16 maxy) {
-	/* draw from back to front */
-	struct Window *window = dialogs_back;
-	while(window) {
-		/* skip this dialog if it's out of the redraw region */
-		if(window->x >= maxx || window->y >= maxy ||
-			window->x + window->width + DIALOG_BORDER_WIDTH < minx ||
-			window->y + window->height + DIALOG_BORDER_HEIGHT < miny) {
-			window = window->previous;
-			continue;
-		}
-
-		size_t x = window->x;
-		size_t y = window->y;
-
-		/* draw the left border */
-		draw_y_line(x, y, WINDOW_TITLE_HEIGHT + window->height + 3, WINDOW_BORDER_COLOUR, screen_buffer, screen_width, screen_height);
-
-		/* draw the borders around the top frame */
-		draw_x_line(x, y, window->title_width + 2, WINDOW_BORDER_COLOUR, screen_buffer, screen_width, screen_height);
-		draw_y_line(x + window->title_width + 1, y, WINDOW_TITLE_HEIGHT + 1, WINDOW_BORDER_COLOUR,
-			screen_buffer, screen_width, screen_height);
-
-		/* fill in the colour behind it */
-		fill_rectangle(x + 1, y + 1, window->title_width + x + 1, WINDOW_TITLE_HEIGHT + y + 1,
-			focused_window==window? FOCUSED_DIALOG_COLOUR : UNFOCUSED_DIALOG_COLOUR,
-			screen_buffer, screen_width, screen_height);
-
-		/* write the title */
-		draw_string(x + 2, y + 3, window->title, window->title_length, WINDOW_TITLE_TEXT_COLOUR, screen_buffer, screen_width, screen_height);
-
-		/* draw the close button */
-		if(focused_window == window)
-			draw_string(x + window->title_width - 8, y + 3, "X", 1, WINDOW_CLOSE_BUTTON_COLOUR,
-				screen_buffer, screen_width, screen_height);
-		
-		y += WINDOW_TITLE_HEIGHT + 1;
-
-		/* draw the rest of the borders */
-		draw_x_line(x + 1, y, window->width, WINDOW_BORDER_COLOUR, screen_buffer, screen_width, screen_height);
-		draw_x_line(x + 1, y + window->height + 1, window->width, WINDOW_BORDER_COLOUR, screen_buffer, screen_width, screen_height);
-		draw_y_line(x + window->width + 1, y, window->height + 2, WINDOW_BORDER_COLOUR, screen_buffer, screen_width, screen_height);
-
-		/* draw the contents */
-		draw_window_contents(window, x + 1, y + 1, minx, miny, maxx, maxy);
-		
-		window = window->previous;
-	}
-}
-
-/* draws a frame */
-void draw_frame(struct Frame *frame, uint16 minx, uint16 miny, uint16 maxx, uint16 maxy) {
-	/* skip this frame if it's out of our redraw region */
-	if(frame->x >= maxx || frame->y >= maxy ||
-		frame->x + frame->width < minx ||
-		frame->y + frame->height < miny) {
-		return;
-	}
-
-	if(frame->is_split_frame) {
-		/* split frame */
-		if(frame->SplitFrame.is_split_vertically) {
-			/* draw middle */
-			draw_x_line(frame->x, frame->y + frame->SplitFrame.split_point, frame->width, SPLIT_FRAME_COLOUR,
-				screen_buffer, screen_width, screen_height);
-
-			/* draw top */
-			if(frame->y + frame->SplitFrame.split_point > miny)
-				draw_frame(frame->SplitFrame.child_a, minx, miny, maxx, maxy);
-
-			/* draw bottom */
-			if(frame->y + frame->SplitFrame.split_point + 1 < maxy)
-				draw_frame(frame->SplitFrame.child_b, minx, miny, maxx, maxy);
-		} else {
-			/* draw middle */
-			draw_y_line(frame->x + frame->SplitFrame.split_point, frame->y, frame->height, SPLIT_FRAME_COLOUR,
-				screen_buffer, screen_width, screen_height);
-
-			/* draw left */
-			if(frame->x + frame->SplitFrame.split_point > minx)
-				draw_frame(frame->SplitFrame.child_a, minx, miny, maxx, maxy);
-
-			/* draw right */
-			if(frame->x + frame->SplitFrame.split_point + 1 < maxx)
-				draw_frame(frame->SplitFrame.child_b, minx, miny, maxx, maxy);
-		}
-	} else {
-		/* dock frame */
-		if(miny < frame->y + frame->height + frame->DockFrame.title_height) {
-			/* draw titles */
-			fill_rectangle(frame->x, frame->y, frame->x + frame->width, frame->y + frame->DockFrame.title_height, BACKGROUND_COLOUR,
-				screen_buffer, screen_width, screen_height);
-
-
-			uint16 y = frame->y;
-			uint16 x = frame->x + 1;
-
-			/* draw title's left border */
-			draw_y_line(x, y + 1, WINDOW_TITLE_HEIGHT, WINDOW_BORDER_COLOUR,
-				screen_buffer, screen_width, screen_height);
-
-			struct Window *w = frame->DockFrame.first_window;
-			while(w) {
-				if(frame->width + frame->x <= x + w->title_width + 1) {
-					/* draw previous title row's top and bottom border */
-					draw_x_line(frame->x, y, x - frame->x, WINDOW_BORDER_COLOUR,
-						screen_buffer, screen_width, screen_height);
-
-					/* move to the next line */
-					y += WINDOW_TITLE_HEIGHT + 1;
-					
-					draw_x_line(frame->x, y, x - frame->x, WINDOW_BORDER_COLOUR,
-						screen_buffer, screen_width, screen_height);
-
-					x = frame->x + 1;
-
-					/* draw header's left border */
-					draw_y_line(x, y + 1, WINDOW_TITLE_HEIGHT, WINDOW_BORDER_COLOUR,
-						screen_buffer, screen_width, screen_height);
-				}
-
-				/* draw title's right border */
-				draw_y_line(x + w->title_width, y + 1, WINDOW_TITLE_HEIGHT, WINDOW_BORDER_COLOUR,
-					screen_buffer, screen_width, screen_height);
-
-				/* draw title's background */
-				fill_rectangle(x, y + 1, x + w->title_width, y + WINDOW_TITLE_HEIGHT + 1,
-					w == frame->DockFrame.focused_window ? FOCUSED_WINDOW_COLOUR : UNFOCUSED_WINDOW_COLOUR,
-					screen_buffer, screen_width, screen_height);
-
-				/* write the title */
-				draw_string(x + 1, y + 3, w->title, w->title_length, WINDOW_TITLE_TEXT_COLOUR,
-					screen_buffer, screen_width, screen_height);
-
-
-				/* draw the close button */
-				if(focused_window == w)
-					draw_string(x + w->title_width - 9, y + 3, "X", 1, WINDOW_CLOSE_BUTTON_COLOUR,
-						screen_buffer, screen_width, screen_height);
-		
-
-				x += w->title_width + 1;
-
-				w = w->next;
-			}
-
-			/* draw previous title row's top border */
-			draw_x_line(frame->x, y, x - frame->x, WINDOW_BORDER_COLOUR,
-				screen_buffer, screen_width, screen_height);
-
-			/* draw bottom border */
-			draw_x_line(frame->x, y + WINDOW_TITLE_HEIGHT + 1, frame->width, WINDOW_BORDER_COLOUR,
-				screen_buffer, screen_width, screen_height);
-		}
-
-		/* draw the focused window */
-		draw_window_contents(frame->DockFrame.focused_window, frame->x, frame->y + frame->DockFrame.title_height,
-			minx, miny, maxx, maxy);
-	}
-}
-
-/* draws the shell over the screen */
-void draw_shell(uint16 minx, uint16 miny, uint16 maxx, uint16 maxy) {
-	/* draw the shell buffer */
-	draw_sprite(0, 0, shell_buffer, SHELL_WIDTH, screen_height, screen_buffer, screen_width, screen_height, minx, miny, maxx, maxy);
-
-	/* tint the rest of the screen dark */
-	if(minx < SHELL_WIDTH) minx = SHELL_WIDTH;
-	fill_rectangle_alpha(minx, miny, maxx, maxy, SHELL_BACKGROUND_TINT, screen_buffer, screen_width, screen_height);
-}
-
-/* draws drop area when dragging a window */
-void draw_dragging_window(uint16 minx, uint16 miny, uint16 maxx, uint16 maxy) {
-	uint16 draw_minx = minx < dragging_temp_minx ? dragging_temp_minx : minx;
-	uint16 draw_miny = miny < dragging_temp_miny ? dragging_temp_miny : miny;
-	uint16 draw_maxx = maxx > dragging_temp_maxx ? dragging_temp_maxx : maxx;
-	uint16 draw_maxy = maxy > dragging_temp_maxy ? dragging_temp_maxy : maxy;
-
-	fill_rectangle_alpha(draw_minx, draw_miny, draw_maxx, draw_maxy, DRAGGING_WINDOW_DROP_TINT, screen_buffer, screen_width, screen_height);
-}
-
-/* draws the screen */
-void window_manager_draw(uint16 minx, uint16 miny, uint16 maxx, uint16 maxy) {
-	/* draw the windows, or background if there are no windows */
-	if(root_frame) {
-		if(full_screen_window) {
-			/* there's a full screen window, draw it across the whole screen*/
-			if(full_screen_window->buffer && !mouse_is_visible && !is_shell_visible) {
-				/* we can blit the full screen window directly to the display */
-				/* temporarily set the screen buffer to the windows buffer */
-				void *old_screen_buffer = screen_buffer;
-				screen_buffer = full_screen_window->buffer;
-				flip_screen_buffer(minx, miny, maxx, maxy);
-				screen_buffer = old_screen_buffer;
-				/* skip everything else */
-				return;
-			}
-
-			draw_window_contents(full_screen_window, 0, 0, minx, miny, maxx, maxy);
-		} else
-			draw_frame(root_frame, minx, miny, maxx, maxy);
-	} else
-		draw_background(minx, miny, maxx, maxy);
-
-	/* draw the dialogs */
-	draw_dialogs(minx, miny, maxx, maxy);
-
-	/* draw the shell */
-	if(is_shell_visible) {
-		draw_shell(minx, miny, maxx, maxy);
-		draw_mouse(minx, miny, maxx, maxy); /* mouse is always visible with the shell */
-	} else {
-		if(dragging_window && !dragging_window->is_dialog && dragging_temp_maxx) /* dragging a window */
-			draw_dragging_window(minx, miny, maxx, maxy);
-
-		if(mouse_is_visible) /* draw the mouse */
-			draw_mouse(minx, miny, maxx, maxy);
-	}
-
-	flip_screen_buffer(minx, miny, maxx, maxy);
 }
 
 /* finds the largest title's width, can ignore a specific window (such as the one we're removing) */
@@ -409,7 +118,7 @@ struct Frame *get_drop_frame(struct Window *window, uint16 *minx, uint16 *miny, 
 			if(wm_mouse_x > q_width + current_frame->x &&
 				wm_mouse_x < current_frame->x + current_frame->width - q_width &&
 				wm_mouse_y < current_frame->y + q_height &&
-				current_frame->height > WINDOW_TITLE_HEIGHT * 3) {
+				current_frame->height > WINDOW_MINIMUM_HEIGHT) {
 
 				*minx = current_frame->x;
 				*miny = current_frame->y;
@@ -423,22 +132,22 @@ struct Frame *get_drop_frame(struct Window *window, uint16 *minx, uint16 *miny, 
 			if(wm_mouse_x > q_width + current_frame->x &&
 				wm_mouse_x < current_frame->x + current_frame->width - q_width &&
 				wm_mouse_y > current_frame->y + current_frame->height - q_height &&
-				current_frame->height > WINDOW_TITLE_HEIGHT * 3) {
+				current_frame->height > WINDOW_MINIMUM_HEIGHT) {
 
 				*minx = current_frame->x;
-				*miny = current_frame->y + current_frame->height / 2 + 1;
+				*miny = current_frame->y + current_frame->height / 2 + SPLIT_BORDER_WIDTH;
 				*maxx = current_frame->x + current_frame->width;
 				*maxy = current_frame->y + current_frame->height;
 
 				return current_frame;
 			}
 
-			/* could we deal with being split vertically? will our title fit in the new frame?*/
-			bool can_split_vertically =
-				(window->title_width + 2) < current_frame->width / 2 - 1 &&
-				largest_window_title_width(current_frame, window) + 2 < current_frame->width / 2 - 1;
+			/* could we deal with being split horizontally? will our title fit in the new frame?*/
+			bool can_split_horizontally =
+				(window->title_width + 2) < current_frame->width / 2 - SPLIT_BORDER_WIDTH &&
+				largest_window_title_width(current_frame, window) + 2 < current_frame->width / 2 - SPLIT_BORDER_WIDTH;
 
-			if(can_split_vertically) {
+			if(can_split_horizontally) {
 				/* split the left */
 				if(wm_mouse_y > q_height + current_frame->y &&
 					wm_mouse_y < current_frame->y + current_frame->height - q_height &&
@@ -456,7 +165,7 @@ struct Frame *get_drop_frame(struct Window *window, uint16 *minx, uint16 *miny, 
 					wm_mouse_y < current_frame->y + current_frame->height - q_height &&
 					wm_mouse_x > current_frame->x + current_frame->width - q_width) {
 				
-					*minx = current_frame->x + current_frame->width / 2 + 1;
+					*minx = current_frame->x + current_frame->width / 2 + SPLIT_BORDER_WIDTH;
 					*miny = current_frame->y;
 					*maxx = current_frame->x + current_frame->width;
 					*maxy = current_frame->y + current_frame->height;
@@ -575,6 +284,36 @@ void window_manager_focus_window(struct Window *window) {
 	invalidate_window_manager(minx, miny, maxx, maxy);
 }
 
+/* checks if this is a valid size for a frame */
+bool window_manager_is_valid_size_for_frame(struct Frame *frame, uint16 width, uint16 height) {
+	if(frame->is_split_frame) {
+		if(frame->SplitFrame.is_split_vertically) {
+			uint16 new_split_point = (uint16)((float)height * frame->SplitFrame.split_percent);
+			uint16 h1 = new_split_point;
+			uint16 h2 = frame->height - new_split_point - SPLIT_BORDER_WIDTH;
+
+			return window_manager_is_valid_size_for_frame(frame->SplitFrame.child_a, frame->width, h1) &&
+				window_manager_is_valid_size_for_frame(frame->SplitFrame.child_b, frame->width, h2);
+		} else {
+			uint16 new_split_point = (uint16)((float)width * frame->SplitFrame.split_percent);
+			uint16 w1 = new_split_point;
+			uint16 w2 = frame->width - new_split_point - SPLIT_BORDER_WIDTH;
+
+			return window_manager_is_valid_size_for_frame(frame->SplitFrame.child_a, w1, frame->height) &&
+				window_manager_is_valid_size_for_frame(frame->SplitFrame.child_b, w2, frame->height);
+		}
+
+	} else {
+		if(height <= WINDOW_MINIMUM_HEIGHT)
+			return false;
+
+		/* make sure titles fit in this window */
+		uint16 largest_title_width = largest_window_title_width(frame, 0);
+		return largest_title_width + 2 < width;
+
+	}
+}
+
 /* updates a frame */
 void window_manager_update_frame(struct Frame *frame, bool resized) {
 	if(frame->is_split_frame) {
@@ -585,6 +324,11 @@ void window_manager_update_frame(struct Frame *frame, bool resized) {
 			replace_me = frame->SplitFrame.child_a;
 
 		if(replace_me) {
+			if(dragging_frame) {
+				dragging_frame = 0;
+				dragging_temp_maxx = 0;
+			}
+
 			replace_me->x = frame->x;
 			replace_me->y = frame->y;
 			replace_me->width = frame->width;
@@ -606,6 +350,7 @@ void window_manager_update_frame(struct Frame *frame, bool resized) {
 
 			/* update this child */
 			window_manager_update_frame(replace_me, true);
+
 			return;
 		}
 
@@ -613,37 +358,40 @@ void window_manager_update_frame(struct Frame *frame, bool resized) {
 			/* update the split point */
 			if(frame->SplitFrame.is_split_vertically) {
 				uint16 split_point = (uint16)((float)frame->height * frame->SplitFrame.split_percent);
-				if(split_point != frame->SplitFrame.split_point) {
+				//if(split_point != frame->SplitFrame.split_point) {
 					frame->SplitFrame.split_point = split_point;
-					frame->SplitFrame.child_a->height = split_point;
 					frame->SplitFrame.child_a->x = frame->x;
+					frame->SplitFrame.child_a->y = frame->y;
 					frame->SplitFrame.child_a->width = frame->width;
+					frame->SplitFrame.child_a->height = split_point;
 					window_manager_update_frame(frame->SplitFrame.child_a, true);
 
-					frame->SplitFrame.child_b->height = frame->height - split_point - 1;
-					frame->SplitFrame.child_b->y = frame->y + split_point + 1;
 					frame->SplitFrame.child_b->x = frame->x;
+					frame->SplitFrame.child_b->y = frame->y + split_point + SPLIT_BORDER_WIDTH;
 					frame->SplitFrame.child_b->width = frame->width;
-					window_manager_update_frame(frame->SplitFrame.child_b, true);		
-				}
+					frame->SplitFrame.child_b->height = frame->height - split_point - SPLIT_BORDER_WIDTH;
+					window_manager_update_frame(frame->SplitFrame.child_b, true);
+				//}
 			} else {
 				uint16 split_point = (uint16)((float)frame->width * frame->SplitFrame.split_percent);
-				if(split_point != frame->SplitFrame.split_point) {
-
+				//if(split_point != frame->SplitFrame.split_point) {
 					frame->SplitFrame.split_point = split_point;
-					frame->SplitFrame.child_a->width = split_point;
+					frame->SplitFrame.child_a->x = frame->x;
 					frame->SplitFrame.child_a->y = frame->y;
+					frame->SplitFrame.child_a->width = split_point;
 					frame->SplitFrame.child_a->height = frame->height;
 					window_manager_update_frame(frame->SplitFrame.child_a, true);
 
-					frame->SplitFrame.child_b->width = frame->width - split_point - 1;
-					frame->SplitFrame.child_b->x = frame->x + split_point + 1;
+					frame->SplitFrame.child_b->x = frame->x + split_point + SPLIT_BORDER_WIDTH;
 					frame->SplitFrame.child_b->y = frame->y;
+					frame->SplitFrame.child_b->width = frame->width - split_point - SPLIT_BORDER_WIDTH;
 					frame->SplitFrame.child_b->height = frame->height;
 					window_manager_update_frame(frame->SplitFrame.child_b, true);		
-				}
+				//}
 			}
-			
+
+			invalidate_window_manager(frame->x, frame->y, frame->x + frame->width, frame->y + frame->height);
+
 		}
 	} else {
 		/* if there's nothing in the frame, delete it */
@@ -707,6 +455,65 @@ void window_manager_update_frame(struct Frame *frame, bool resized) {
 	invalidate_window_manager(frame->x, frame->y, frame->width, frame->height);
 }
 
+/* resizes the split - set determines if it should be set in place, or merely show the scroll*/
+void window_manager_drag_split(bool set) {
+
+	/* currently drawing a drop box */
+	if(dragging_temp_maxx) /* invalidate where it used to be */
+		invalidate_window_manager(dragging_temp_minx,dragging_temp_miny,dragging_temp_maxx,dragging_temp_maxy);
+
+	bool is_valid_size = false;
+
+	if(dragging_frame->SplitFrame.is_split_vertically) {
+		dragging_temp_minx = dragging_frame->x;
+		dragging_temp_maxx = dragging_frame->x + dragging_frame->width;
+		dragging_temp_miny = wm_mouse_y;
+		dragging_temp_maxy = wm_mouse_y + SPLIT_BORDER_WIDTH;
+
+		if(wm_mouse_y > dragging_frame->y &&
+			wm_mouse_y < dragging_frame->y + dragging_frame->height - SPLIT_BORDER_WIDTH)
+			is_valid_size = window_manager_is_valid_size_for_frame(dragging_frame->SplitFrame.child_a,
+				dragging_frame->width, wm_mouse_y - dragging_frame->y) &&
+				window_manager_is_valid_size_for_frame(dragging_frame->SplitFrame.child_b,
+					dragging_frame->width, dragging_frame->y + dragging_frame->height - wm_mouse_y - SPLIT_BORDER_WIDTH);
+	} else {
+		dragging_temp_minx = wm_mouse_x;
+		dragging_temp_maxx = wm_mouse_x + SPLIT_BORDER_WIDTH;
+		dragging_temp_miny = dragging_frame->y;
+		dragging_temp_maxy = dragging_frame->y + dragging_frame->height;
+
+		if(wm_mouse_x > dragging_frame->x &&
+			wm_mouse_x < dragging_frame->x + dragging_frame->width - SPLIT_BORDER_WIDTH)
+			is_valid_size = window_manager_is_valid_size_for_frame(dragging_frame->SplitFrame.child_a,
+				wm_mouse_x - dragging_frame->x, dragging_frame->height) &&
+			window_manager_is_valid_size_for_frame(dragging_frame->SplitFrame.child_b,
+				dragging_frame->x + dragging_frame->width - wm_mouse_x - SPLIT_BORDER_WIDTH, dragging_frame->height);
+	}
+
+
+	if(set) {
+		dragging_temp_maxx = 0;
+
+		if(is_valid_size) {
+			if(dragging_frame->SplitFrame.is_split_vertically)
+				dragging_frame->SplitFrame.split_percent = (float)(wm_mouse_y - dragging_frame->y) / (float)dragging_frame->height;
+			else
+				dragging_frame->SplitFrame.split_percent = (float)(wm_mouse_x - dragging_frame->x) / (float)dragging_frame->width;
+
+			window_manager_update_frame(dragging_frame, true);
+		}
+
+		dragging_frame = false;
+	} else {
+
+		/* draw a drop box */
+		if(is_valid_size) /* invalidate where it now is */
+			invalidate_window_manager(dragging_temp_minx,dragging_temp_miny,dragging_temp_maxx,dragging_temp_maxy);
+		else
+			dragging_temp_maxx = 0;
+	}
+}
+
 void window_manager_close_window(struct Window *window) {
 	uint16 minx, miny, maxx, maxy;
 
@@ -714,8 +521,8 @@ void window_manager_close_window(struct Window *window) {
 	if(window->is_dialog) {
 		minx = window->x;
 		miny = window->y;
-		maxx = window->x + window->width + DIALOG_BORDER_WIDTH;
-		maxy = window->y + window->height + DIALOG_BORDER_HEIGHT;
+		maxx = window->x + window->width + DIALOG_BORDER_WIDTH + DIALOG_SHADOW_WIDTH;
+		maxy = window->y + window->height + DIALOG_BORDER_HEIGHT + DIALOG_SHADOW_WIDTH;
 
 		if(window == focused_window)
 			window_manager_focus_window(window->next);
@@ -831,20 +638,15 @@ void window_manager_thread_entry() {
 	wm_mouse_y = mouse_y;
 	invalidate_window_manager(0, 0, screen_width, screen_height);
 
-	create_dialog("An overlapping popup dialog", strlen("An overlapping popup dialog"), 400, 50);
-	create_dialog("Another popup dialog", strlen("Another popup dialog"), 200, 200);
-
 	create_window("Test 1", strlen("Test 1"));
-	create_window("Crazy!", strlen("Crazy!"));
-	create_window("Awesome!", strlen("Awesome!"));
-	create_window("So cool", strlen("So cool"));
-	create_window("Peter Pan", strlen("Peter Pan"));
-	create_window("Raspberry Cake", strlen("Raspberry Cake"));
-	create_window("Chocolate Cake", strlen("Chocolate Cake"));
-	create_window("Ice Cream Pudding", strlen("Ice Cream Pudding"));
-	create_window("Lots of dialogs", strlen("Lots of dialogs"));
-	create_window("Woo!", strlen("Woo!"));
-	create_window("Shoes", strlen("Shoes"));
+	create_window("Test 1", strlen("Test 1"));
+	create_window("Test 1", strlen("Test 1"));
+	create_window("Test 1", strlen("Test 1"));
+	create_window("Test 1", strlen("Test 1"));
+	create_window("Test 1", strlen("Test 1"));
+
+	create_dialog("Test 1", strlen("Test 1"), 200, 100);
+	create_dialog("Test 2", strlen("Test 2"), 100, 200);
 
 	/* enter the event loop */
 	while(true) {
@@ -917,8 +719,8 @@ void window_manager_thread_entry() {
 						uint16 newx = dragging_offset_x > wm_mouse_x ? 0 : wm_mouse_x - dragging_offset_x;
 						uint16 newy = dragging_offset_y > wm_mouse_y ? 0 : wm_mouse_y - dragging_offset_y;
 
-						uint16 maxnewx = screen_width - dragging_window->width - DIALOG_BORDER_WIDTH;
-						uint16 maxnewy = screen_height - dragging_window->height - DIALOG_BORDER_HEIGHT;
+						uint16 maxnewx = screen_width - dragging_window->width - DIALOG_BORDER_WIDTH + DIALOG_SHADOW_WIDTH;
+						uint16 maxnewy = screen_height - dragging_window->height - DIALOG_BORDER_HEIGHT + DIALOG_SHADOW_WIDTH;
 
 						if(newx > maxnewx) newx = maxnewx;
 						if(newy > maxnewy) newy = maxnewy;
@@ -946,8 +748,8 @@ void window_manager_thread_entry() {
 							dragging_window->y = newy;
 
 							invalidate_window_manager(minx, miny,
-								minx + dragging_window->width + DIALOG_BORDER_WIDTH + deltax,
-								miny + dragging_window->height + DIALOG_BORDER_HEIGHT + deltay);
+								minx + dragging_window->width + DIALOG_BORDER_WIDTH + DIALOG_SHADOW_WIDTH + deltax,
+								miny + dragging_window->height + DIALOG_BORDER_HEIGHT + DIALOG_SHADOW_WIDTH + deltay);
 						}
 					} else {
 						/* dragging a window */
@@ -1003,7 +805,8 @@ void window_manager_thread_entry() {
 						}
 
 					}
-				}
+				} else if(dragging_frame)
+					window_manager_drag_split(false);
 				break; }
 			case WINDOW_MANAGER_MSG_MOUSE_BUTTON_DOWN: {
 				uint16 minx = wm_mouse_x;
@@ -1062,7 +865,7 @@ void window_manager_thread_entry() {
 							if(frame->SplitFrame.is_split_vertically) {
 								if(wm_mouse_y < frame->y + frame->SplitFrame.split_point)
 									frame = frame->SplitFrame.child_a; /* top */
-								else if(wm_mouse_y == frame->y + frame->SplitFrame.split_point) {
+								else if(wm_mouse_y < frame->y + frame->SplitFrame.split_point + SPLIT_BORDER_WIDTH) {
 									/* split point */
 									clicked_frame = frame;
 									loop = false;
@@ -1071,7 +874,7 @@ void window_manager_thread_entry() {
 							} else {
 								if(wm_mouse_x < frame->x + frame->SplitFrame.split_point)
 									frame = frame->SplitFrame.child_a; /* left */
-								else if(wm_mouse_x == frame->x + frame->SplitFrame.split_point) {
+								else if(wm_mouse_x < frame->x + frame->SplitFrame.split_point + SPLIT_BORDER_WIDTH) {
 									/* split point */
 									clicked_frame = frame;
 									loop = false;
@@ -1119,7 +922,8 @@ void window_manager_thread_entry() {
 
 				/* didn't click anything */
 				if(clicked_frame) {
-					print_string("clicked a frame!");
+					dragging_frame = clicked_frame;
+					break;
 				} else if(!clicked_window) {
 					window_manager_focus_window(0);
 					break;
@@ -1259,10 +1063,10 @@ void window_manager_thread_entry() {
 										child_a->DockFrame.last_window = 0;
 										child_a->DockFrame.focused_window = 0;
 
-										child_b->x = drop_frame->x + drop_frame->width / 2 + 1;
+										child_b->x = drop_frame->x + drop_frame->width / 2 + SPLIT_BORDER_WIDTH;
 										child_b->y = drop_frame->y;
 										child_b->parent = drop_frame;
-										child_b->width = drop_frame->width / 2 - 1;
+										child_b->width = drop_frame->width / 2 - SPLIT_BORDER_WIDTH;
 										child_b->height = drop_frame->height;
 										child_b->is_split_frame = false;
 										child_b->DockFrame.first_window =
@@ -1318,10 +1122,10 @@ void window_manager_thread_entry() {
 										child_a->DockFrame.focused_window =
 											drop_frame->DockFrame.focused_window;
 
-										child_b->x = drop_frame->x + drop_frame->width / 2 + 1;
+										child_b->x = drop_frame->x + drop_frame->width / 2 + SPLIT_BORDER_WIDTH;
 										child_b->y = drop_frame->y;
 										child_b->parent = drop_frame;
-										child_b->width = drop_frame->width / 2 - 1;
+										child_b->width = drop_frame->width / 2 - SPLIT_BORDER_WIDTH;
 										child_b->height = drop_frame->height;
 										child_b->is_split_frame = false;
 										child_b->DockFrame.first_window = 0;
@@ -1372,10 +1176,10 @@ void window_manager_thread_entry() {
 										child_a->DockFrame.focused_window = 0;
 
 										child_b->x = drop_frame->x;
-										child_b->y = drop_frame->y + drop_frame->height / 2 + 1;
+										child_b->y = drop_frame->y + drop_frame->height / 2 + SPLIT_BORDER_WIDTH;
 										child_b->parent = drop_frame;
 										child_b->width = drop_frame->width;
-										child_b->height = drop_frame->height / 2 - 1;
+										child_b->height = drop_frame->height / 2 - SPLIT_BORDER_WIDTH;
 										child_b->is_split_frame = false;
 										child_b->DockFrame.first_window =
 											drop_frame->DockFrame.first_window;
@@ -1431,10 +1235,10 @@ void window_manager_thread_entry() {
 											drop_frame->DockFrame.focused_window;
 
 										child_b->x = drop_frame->x;
-										child_b->y = drop_frame->y + drop_frame->height / 2 + 1;
+										child_b->y = drop_frame->y + drop_frame->height / 2 + SPLIT_BORDER_WIDTH;
 										child_b->parent = drop_frame;
 										child_b->width = drop_frame->width;
-										child_b->height = drop_frame->height / 2 - 1;
+										child_b->height = drop_frame->height / 2 - SPLIT_BORDER_WIDTH;
 										child_b->is_split_frame = false;
 										child_b->DockFrame.first_window = 0;
 										child_b->DockFrame.last_window = 0;
@@ -1466,7 +1270,8 @@ void window_manager_thread_entry() {
 					}
 
 					dragging_window = 0;
-				}
+				} if(dragging_frame && message->window_manager.mouse_event.button == 0)
+					window_manager_drag_split(true);
 
 				/* redraw the mouse */
 				if(wm_mouse_x < minx) minx = wm_mouse_x;
@@ -1510,7 +1315,7 @@ void window_manager_thread_entry() {
 				dialog->height = height;
 
 				/* centre the new dialog on the screen */
-				int32 x = (screen_width - width)/2 - 1;
+				int32 x = (screen_width - width)/2 - SPLIT_BORDER_WIDTH;
 				int32 y = (screen_height - height)/2 - 2 - WINDOW_TITLE_HEIGHT;
 				if(x < 0) x = 0;
 				if(y < 0) y = 0;
@@ -1535,8 +1340,8 @@ void window_manager_thread_entry() {
 				focused_window = dialog;
 
 				invalidate_window_manager(dialog->x, dialog->y,
-					dialog->x + dialog->width + DIALOG_BORDER_WIDTH,
-					dialog->y + dialog->height + DIALOG_BORDER_HEIGHT);
+					dialog->x + dialog->width + DIALOG_BORDER_WIDTH + DIALOG_SHADOW_WIDTH,
+					dialog->y + dialog->height + DIALOG_BORDER_HEIGHT + DIALOG_SHADOW_WIDTH);
 				break; }
 			case WINDOW_MANAGER_MSG_CREATE_WINDOW: {
 				struct Window *window = malloc(sizeof(struct Window));
@@ -1629,6 +1434,7 @@ void init_window_manager() {
 	full_screen_window = false;
 	is_shell_visible = false;
 	dragging_window = 0;
+	dragging_frame = 0;
 
 	window_manager_next_message = window_manager_last_message = 0;
 	window_manager_invalidated = false;
