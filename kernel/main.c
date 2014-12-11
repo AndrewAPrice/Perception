@@ -1,6 +1,5 @@
 #include "font.h"
 #include "fs.h"
-#include "gdt.h"
 #include "idt.h"
 #include "io.h"
 #include "irq.h"
