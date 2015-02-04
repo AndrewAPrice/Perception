@@ -1,9 +1,12 @@
 # Perception
 
-Perception is a hobby operating system. There are multiple components to this project. Shovel is a programming language being developed for Perception.
+Perception is a hobby operating system. There are multiple components to this project. Shovel is a dynamic, prototype-based programming language being developed for Perception. Shovel and Turkey (the virtual machine) are being developed seperately from Perception, so that they may be embedded into any system or application.
 
-Shovel and Turkey are being developed seperately from Perception, so that they may be embedded into any system or application.
+Perception is a platform for experimentation. I'm implementing a fully asynchronous and event-based system API, a kernel-level virtual machine that all applications run under, and a docking window manager.
 
+Here is an image of my docking window manager in action - you can split, dock, drag, and resize windows around:
+
+![alt text](http://www.andrewalexanderprice.com/images/perception0.png "Example of the Perception docking window manager.")
 
 ## Running
 Either build the operating system from source or download a prebuilt image (coming soon) and boot it. Use the Windows key to access the shell that
@@ -31,7 +34,7 @@ Some of the features of the operating system are:
 
 
 ## Todo
-What I want to accomplish before public build 1:
+What I want to accomplish before public build 1, and will probably take years to accomplish:
 - Prettier GUI.
 - Multiple keyboard layouts.
 - RAM disk with reading & writing.
@@ -44,12 +47,10 @@ What I want to accomplish before public build 1:
 - An IDE for native and Shovel applications
 
 What I want to accomplish with Shovel include:
-- Static typing.
 - Full JIT.
 - Merge the compiler and runtime, so Shovel can be dynamically evaluated.
 
 ## Want to help?
-I would be interested in accepting patches, mainly those that improve performance (such as new optimizations for Turkey) or clean up
-code (the SSA generator is really messy!)
+I would be interested in accepting patches, mainly those that improve performance (such as new optimizations for Turkey) or clean up code (the SSA generator is really messy!)
 
 Contains DejaVu fonts: http://dejavu-fonts.org
