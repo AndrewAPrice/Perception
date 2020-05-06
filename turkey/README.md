@@ -1,9 +1,5 @@
 # Turkey
-Turkey is a stack-based virtual machine. It is designed to run the bytecode produced by the Shovel compiler, and to be portable to be embedded into applications and even run on bare metal.
-
-## Documentation
-- [The bytecode format](Bytecode.md)
-- [How I was plannning to implement JIT compilation but never got around to it.](JIT.md)
+Turkey is a stack-based virtual machine. It is designed to run the Shovel language, and to be portable to be embedded into applications and even run on bare metal (for the Perception OS.)
 
 ## Files
 - turkey.h - The Turkey VM header file.
