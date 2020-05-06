@@ -1,4 +1,4 @@
-This document describes how Turkey will just-in-time compile code. I am currently working on implementing this design.
+This document describes how Turkey will just-in-time compile code. This was never implemented.
 
 JIT compilation translates Turkey bytecode into machine code while running, in contrast to intepreting the bytecode.
 

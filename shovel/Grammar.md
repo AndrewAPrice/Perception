@@ -1,5 +1,5 @@
 # Grammar
-This file explains the grammar of the Shovel language.
+This file explains the grammar of the Javascript language subset supported by Shovel.
 
 ## Literals
 There are multiple kinds of literals. They are indicated by their uppercase.

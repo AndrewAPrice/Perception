@@ -1,4 +1,4 @@
-The file contains the layout of immediate representation used by the Turkey Virtual Machine.
+The file contains the layout of bytecode used by the Turkey Virtual Machine.
 
 # Instructions
 The immediate representation is in two-address code. The destination is the actual position of the instruction.

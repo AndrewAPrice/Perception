@@ -1,6 +1,6 @@
 # Shovel
 
-Shovel is a dynamically typed high level language. Shovel compiles to Turkey assembly language, which runs on the Turkey virtual machine. Tools related to Shovel go in here. The assembler is also here (rather than the Turkey directory which is exclusively the virtual machine) because it is part of the build process.
+Shovel is compiler for a subset of Javascript, which is a dynamically typed high level language. Shovel compiles to Turkey assembly language, which runs on the Turkey virtual machine. Tools related to Shovel go in here. The assembler is also here (rather than the Turkey directory which is exclusively the virtual machine) because it is part of the build process.
 
 # Status
 - The assembler is done.
@@ -8,10 +8,11 @@ Shovel is a dynamically typed high level language. Shovel compiles to Turkey ass
 - See the Turkey directory for progress on the virtual machine.
 
 # Documentation
-Check out the MD files for documentation.
+- [The assembler and its usage.](Assembler.md)
+- [The grammar supported by Shovel.](Grammer.md)
 
 # Features
-Shovel is a dynamically typed high level language.
+The following Javascript features are supported:
 
 * Dynamically typed.
 * Floating point and signed and unsigned integers.
