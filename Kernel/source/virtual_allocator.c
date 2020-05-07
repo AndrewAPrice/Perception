@@ -631,15 +631,17 @@ size_t AllocateVirtualMemoryInAddressSpace(size_t pml4, size_t pages) {
 		if(phys == OUT_OF_PHYSICAL_PAGES) {
 			// No physical pages. Unmap all memory up until this point.
 			for(;start < addr; start += PAGE_SIZE) {
-				UnmapVirtualPage(kernel_pml4, start, true);
+				UnmapVirtualPage(pml4, start, true);
 			}
 			return 0;
 		}
 
 		// Map the physical page.
-		MapPhysicalPageToVirtualPage(kernel_pml4, addr, phys);
+		MapPhysicalPageToVirtualPage(pml4, addr, phys);
 
-		FlushVirtualPage(addr);
+		if (current_pml4 == pml4) {
+			FlushVirtualPage(addr);
+		}
 	}
 
 	return start;

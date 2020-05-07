@@ -77,7 +77,6 @@ bool CopyIntoMemory(size_t from_start,
 	size_t pml4 = process->pml4;
 
 	// The process's memory is mapped into pages. We'll copy page by page.
-	size_t from_first_page = from_start & ~(PAGE_SIZE - 1); // Round down.
 	size_t to_first_page = to_start & ~(PAGE_SIZE - 1); // Round down.
 	size_t to_last_page = (to_end + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // Round up.
 	
@@ -111,7 +110,26 @@ bool CopyIntoMemory(size_t from_start,
 	}
 
 	return true;
+}
 
+// Touches memory, to make sure it is available, but doesn't copy anything into it.
+bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
+	size_t pml4 = process->pml4;
+
+	size_t to_first_page = to_start & ~(PAGE_SIZE - 1); // Round down.
+	size_t to_last_page = (to_end + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // Round up.
+
+	size_t to_page = to_first_page;
+	for (; to_page < to_last_page; to_page += PAGE_SIZE) {
+		size_t physical_page_address = GetOrCreateVirtualPage(pml4, to_page);
+		if (physical_page_address == OUT_OF_MEMORY) {
+			// We ran out of memory trying to allocate the virtual page.
+			return false;
+		}
+		// We don't need to do anything to the memory, because if the page was freshly
+		// allocated, it'd be initialized to 0.
+	}
+	return true;
 }
 
 bool LoadSections(const Elf64_Ehdr* header,
@@ -152,10 +170,23 @@ bool LoadSections(const Elf64_Ehdr* header,
 			return false;
 		}
 
-		if (!CopyIntoMemory(section_start,
-			virtual_address_start, virtual_address_end,
-			process)) {
-			return false;
+		if (section_header->sh_type == SHT_NOBITS) {
+			// This is memory that takes up no space in the ELF file, but must
+			// be initialized to 0 for the program.
+			if (!LoadMemory(virtual_address_start, virtual_address_end, process)) {
+				return false;
+			}
+		} else {
+			if (section_start + section_size > memory_end) {
+				// Section is out of bounds of the ELF file.
+				return false;
+			}
+			// A section we need to copy into memory.
+			if (!CopyIntoMemory(section_start,
+				virtual_address_start, virtual_address_end,
+				process)) {
+				return false;
+			}
 		}
 
 	}

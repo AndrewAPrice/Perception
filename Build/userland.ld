@@ -24,7 +24,6 @@ SECTIONS
   {
     *(.text)
     *(.gnu.linkonce.t*)
-    
   }
   
   .data ALIGN(0x1000) : AT(ADDR(.data))
@@ -35,6 +34,14 @@ SECTIONS
   
   .rodata ALIGN(0x1000) : AT(ADDR(.rodata))
   {
+    start_ctors = .;
+    *(SORT(.ctors*))
+    end_ctors = .;
+
+    start_dtors = .;
+    *(SORT(.dtors*))
+    end_dtors = .;
+
     *(.rodata*)
     *(.gnu.linkonce.r*)
   }

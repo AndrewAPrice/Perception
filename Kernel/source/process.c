@@ -66,7 +66,7 @@ void DestroyProcess(struct Process *process) {
 	PrintString("Process ");
 	PrintString(process->name);
 	PrintString(" destroyed.\n");
-	*/
+	*/	
 
 	// Free the process.
 	free(process);

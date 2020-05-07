@@ -12,25 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "perception/liballoc.h"
+#include "../../../third_party/liballoc.h"
 #include "perception/memory.h"
 
-int liballoc_lock()
+extern "C" int liballoc_lock()
 {
 	return 0; // TODO
 }
 
-int liballoc_unlock()
+extern "C" int liballoc_unlock()
 {
 	return 0; // TODO
 }
 
-void* liballoc_alloc(size_t pages)
+extern "C" void* liballoc_alloc(size_t pages)
 {
 	return ::perception::AllocateMemoryPages(pages);
 }
 
-int liballoc_free(void* ptr, size_t pages)
+extern "C" int liballoc_free(void* ptr, size_t pages)
 {
 	::perception::ReleaseMemoryPages(ptr, pages);
 	return 0;

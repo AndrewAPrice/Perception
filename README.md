@@ -3,10 +3,10 @@
 Perception is a hobby operating system. It is a [x86-64](https://en.wikipedia.org/wiki/X86-64) operating system built around a [microkernel](https://en.wikipedia.org/wiki/Microkernel).
 
 ## Features
-Very few right now. We can load ELF modules and make system calls.
+Very few right now. We can load ELF modules in userland and make system calls.
 
 ## Building and running
-See [BUILDING.md]. Perception has only been tested in [QEMU](https://www.qemu.org/).
+See [BUILDING.md]. Perception has only been tested in [QEMU](https://www.qemu.org/). Currently text only and outputs via COM1.
 
 ## Directory Structure
 - Applications - User programs.

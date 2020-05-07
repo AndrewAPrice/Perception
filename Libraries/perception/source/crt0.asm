@@ -15,38 +15,41 @@
 [BITS 64]
 [GLOBAL crt0_entry]
 [extern main]
+[extern start_ctors]
+[extern end_ctors]
+[extern start_dtors]
+[extern end_dtors]
+[extern __cxa_finalize]
 
 ; This is the entrypoint where programs begin running.
 crt0_entry:
 	; Call the global constructors.
-	;call call_global_constructors
+	mov rbx, start_ctors
+	jmp .checkIfWeHaveAGlobalConstructor
+.callGlobalConstructor:
+	call [rbx]
+	add rbx, 8
+.checkIfWeHaveAGlobalConstructor:
+	cmp rbx, end_ctors
+	jb .callGlobalConstructor
 
 	; Call the C entry point.
 	call main
 
+	; Call registered destructors.
+	mov rdi, 0
+	call __cxa_finalize
+
 	; Call the global destructors.
-	;call call_global_destructors
+	mov rbx, end_dtors
+	jmp .checkIfWeHaveAGlobalDestructor
+.callGlobalDestructor:
+	sub rbx, 8
+	call [rbx]
+.checkIfWeHaveAGlobalDestructor:
+	cmp rbx, start_dtors
+	ja .callGlobalDestructor
 
 	; Terminate the process if main returns.
 	mov rdi, 6
 	syscall
-
-[SECTION .preconstructors]
-.call_global_constructors:
-	push rbp
-	mov rbp, rsp
-	; The linker will fill in here.
-
-[SECTION .postconstructors]
-	pop rbp
-	ret
-
-[SECTION .predestructors]
-.call_global_destructors:
-	push rbp
-	mov rbp, rsp
-	; The linker will fill in here.
-
-[SECTION .postdestructors]
-	pop rbp
-	ret

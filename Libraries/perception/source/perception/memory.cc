@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "perception/liballoc.h"
 #include "perception/memory.h"
-
 namespace perception {
 
 void* AllocateMemoryPages(size_t number) {
@@ -57,4 +57,26 @@ size_t GetMemoryUsedByProcess() {
 	return return_val;
 }
 
+}
+
+
+// Function that runs if a virtual function implementation is missing. Should never be called but
+// needs to exist.
+extern "C" void __cxa_pure_virtual() {}
+
+// Functions to support new/delete.
+void *operator new(long unsigned int size) {
+    return malloc(size);
+}
+ 
+void *operator new[](long unsigned int size) {
+    return malloc(size);
+}
+ 
+void operator delete(void *address, long unsigned int size) {
+    free(address);
+}
+ 
+void operator delete[](void *address, long unsigned int size) {
+    free(address);
 }
