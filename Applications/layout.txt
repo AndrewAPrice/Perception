@@ -1,0 +1,10 @@
+Directory layout:
+
+object-files/<system>/
+dependencies.json - dependencies
+metadata.json - metadata
+include/ - public include files
+source/ - source files
+
+<system>.lib - library
+<system>.<sys extension> - binary
