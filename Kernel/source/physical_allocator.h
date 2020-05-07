@@ -1,21 +1,37 @@
 #pragma once
-/* finds and frees physical pages, internally it uses a bitmap */
+
+// The physical allocator manages physical memory, and operates by grabbing and freeing pages
+// (4 KB chunks of memory).
 
 #include "types.h"
 
-/* the total number of bytes of system memory */
+// The total number of bytes of system memory.
 extern size_t total_system_memory;
-/* the total number of free bytes of system memory */
+
+// The total number of free pages.
 extern size_t free_pages;
 
-/* the size of a page in bytes */
-extern const size_t page_size;
+// Start of free memory at boot.
+extern size_t start_of_free_memory_at_boot;
 
-/* initialises the physical allocator */
-extern void init_physical_allocator();
-/* grabs the next physical page (at boot time before the virtual memory allocator is initialized), returns 0 if there are no more physical pages */
-extern size_t get_physical_page_boot();
-/* grabs the next physical page, returns 0 if there are no more physical pages */
-extern size_t get_physical_page();
-/* frees a physical page */
-extern void free_physical_page(size_t addr);
+// The size of a page in bytes. Changing this will probably break the virtual allocator.
+#define PAGE_SIZE 4096 // 4 KB
+
+// Magic value for when we are out of physical pages.
+#define OUT_OF_PHYSICAL_PAGES 1
+
+// Initializes the physical allocator.
+extern void InitializePhysicalAllocator();
+
+// Indicates that we are done with the multiboot memory and that it can be released.
+extern void DoneWithMultibootMemory();
+
+// Grabs the next physical page (at boot time before the virtual memory allocator is initialized),
+// returns OUT_OF_PHYSICAL_PAGES if there are no more physical pages.
+extern size_t GetPhysicalPagePreVirtualMemory();
+
+// Grabs the next physical page, returns OUT_OF_PHYSICAL_PAGES if there are no more physical pages.
+extern size_t GetPhysicalPage();
+
+// Frees a physical page.
+extern void FreePhysicalPage(size_t addr);

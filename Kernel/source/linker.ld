@@ -1,15 +1,18 @@
 ENTRY(EntryPoint)
 
+/* The kernel's code sits at 2GB below the end of the 64-bit memory range. */
 VIRT_BASE = 0xFFFFFFFF80000000;
 
 SECTIONS
 {
+  /* The boot loader loads us at 1MB from the bottom of the memory. */
   . = 0x100000;
 
+  /* The startup assembly code that lives in boot.asm. */
   .boot :
   {
     *(.mbhdr)
-    _loadStart = .;
+    loadStart = .;
     *(.boot)
     . = ALIGN(4096);
     Pml4 = .;
@@ -23,6 +26,8 @@ SECTIONS
   }
 
   . += VIRT_BASE;
+
+  /* The rest of the kernel's code goes below. */
 
   .text ALIGN(0x1000) : AT(ADDR(.text) - VIRT_BASE)
   {
@@ -41,7 +46,8 @@ SECTIONS
     *(.rodata*)
     *(.gnu.linkonce.r*)
   }
-  
+
+  /* The size of the kernel's code. */
   _loadEnd = . - VIRT_BASE;
   
   .bss ALIGN(0x1000) : AT(ADDR(.bss) - VIRT_BASE)
@@ -51,7 +57,7 @@ SECTIONS
     *(.gnu.linkonce.b*)
   }
   
-  _bssEnd = . - VIRT_BASE;
+  bssEnd = . - VIRT_BASE;
   
   /DISCARD/ :
   {

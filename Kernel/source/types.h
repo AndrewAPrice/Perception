@@ -14,3 +14,9 @@ typedef signed char int8;
 #define NULL 0
 #define false 0
 #define true 1
+
+// Magic value for when there is an error.
+#define ERROR 1
+
+// Magic value for when we are out of memory.
+#define OUT_OF_MEMORY 1

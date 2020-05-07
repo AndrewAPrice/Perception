@@ -1,9 +1,9 @@
 ; The multiboot header, must be the first file linked into the binary
 [BITS 32]
 [SECTION .mbhdr]
-[EXTERN _loadStart]
-[EXTERN _loadEnd]
-[EXTERN _bssEnd]
+[EXTERN loadStart]
+[EXTERN loadEnd]
+[EXTERN bssEnd]
 [EXTERN EntryPoint]
 [GLOBAL MbHdr]
 

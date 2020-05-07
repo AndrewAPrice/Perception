@@ -28,9 +28,20 @@ struct Thread {
 	char fpu_registers[512] __attribute__((aligned(16))); /* storage for FPU registers, must be 16 byte aligned (malloc is) */
 };
 
-/* must be called in an interrupt handler or with interrupts disabled */
-void init_threads();
-struct Thread *create_thread(struct Process *process, size_t entry_point, size_t params);
-void destroy_thread(struct Thread *thread);
-void destroy_threads_for_process(struct Process *process);
+// The kernel's idle registers.
+extern struct isr_regs kernel_idle_registers;
 
+// Initialize threads.
+extern void InitializeThreads();
+
+// Creates a thread for a process.
+extern struct Thread *CreateThread(struct Process *process, size_t entry_point, size_t param);
+
+// Destroys a thread.
+extern void DestroyThread(struct Thread *thread, bool process_being_destroyed);
+
+// Destroys all threads for a process.
+extern void DestroyThreadsForProcess(struct Process *process, bool process_being_destroyed);
+
+// Returns a thread with the provided tid in process, return 0 if it doesn't exist.
+extern struct Thread* GetThreadFromTid(struct Process* process, size_t tid);

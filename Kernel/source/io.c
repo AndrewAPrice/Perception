@@ -17,6 +17,18 @@ void memset(unsigned char *dest, unsigned char val, size_t count) {
 	}
 }
 
+void CopyString(const unsigned char* source, size_t buffer_size, size_t strlen, unsigned char* dest) {
+	// Leave room for a null terminator.
+	if (strlen > buffer_size - 1) {
+		strlen = buffer_size - 1;
+	}
+
+	memcpy(dest, source, strlen);
+
+	dest+= strlen;
+	memset(dest, '\0', buffer_size - strlen);
+}
+
 bool strcmp(void *a, void *b, size_t count) {
 	unsigned char *ac = (unsigned char*)a;
 	unsigned char *bc = (unsigned char*)b;

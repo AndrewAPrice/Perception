@@ -1,50 +1,51 @@
 #include "process.h"
+
 #include "liballoc.h"
 #include "virtual_allocator.h"
-#include "messages.h"
+#include "io.h"
 #include "thread.h"
 
-size_t last_assigned_pid = 0; /* the last assigned pid */
-struct Process *first_process; /* linked list of processes */
+// The last assigned process ID.
+size_t last_assigned_pid = 0;
 
-/* initializes internal structures for tracking processes */
-void init_processes() {
+//  Linked list of processes that are running.
+struct Process *first_process;
+
+// Initializes the internal structures for tracking processes.
+void InitializeProcesses() {
 	first_process = 0;
 }
 
-/* creates a process, returns 0 if there was an error */
-struct Process *create_process() {
-	/* create a memory space for it*/
+// Creates a process, returns ERROR if there was an error.
+struct Process *CreateProcess() {
+	// Create a memory space for it.
 	struct Process *proc = malloc(sizeof(struct Process));
-	if(proc == 0) return 0; /* could not allocate it? */
+	if(proc == 0) {
+		// Out of memory.
+		return (struct Process *)ERROR;
+	}
 
-	/* assign a name and pid */
-	memset(proc->name, 0, 256); /* clear the name */
+	// Assign a name and process ID.
+	memset(proc->name, 0, 256); // Clear the name.
 	last_assigned_pid++;
 	proc->pid = last_assigned_pid;
 
-	/* todo: allocate address space memory */
-	proc->pml4 = create_process_address_space();
-	if(proc->pml4 == 0) { /* could not allocate it? */
+	// Allocate an address space.
+	proc->pml4 = CreateAddressSpace();
+	if(proc->pml4 == OUT_OF_MEMORY) {
 		free(proc);
-		return 0;
+		return (struct Process *)ERROR;
 	}
 	proc->allocated_pages = 0;
 
-	/* messages */
-	proc->next_message = 0;
-	proc->last_message = 0;
-	proc->messages = 0;
-	proc->waiting_thread = 0;
-
-	/* threads */
+	// Threads.
 	proc->threads = 0;
-	proc->threads_count = 0;
-	proc->threads_in_limbo = 0;
+	proc->thread_count = 0;
 
-	/* add to linked list of processes */
-	if(first_process)
+	// Add to the linked list of running processes.
+	if(first_process) {
 		first_process->previous = proc;
+	}
 
 	proc->next = first_process;
 	proc->previous = 0;
@@ -53,34 +54,35 @@ struct Process *create_process() {
 	return proc;
 }
 
-/* dstroys a process */
-void destroy_process(struct Process *process) {
-	/* destroy threads */
-	destroy_threads_for_process(process);
+// Destroys a process .
+void DestroyProcess(struct Process *process) {
+	// Destroy all threads.
+	DestroyThreadsForProcess(process, true);
 
-	/* free each message */
-	while(process->next_message != 0) {
-		struct Message *next = process->next_message->next;
-		release_message(process->next_message);
-		process->next_message = next;
-	}
+	// Free the address space.
+	FreeAddressSpace(process->pml4);
 
-	/* free the address space */
-	free_process_address_space(process->pml4);
+	/*
+	PrintString("Process ");
+	PrintString(process->name);
+	PrintString(" destroyed.\n");
+	*/
 
-	/* free the process */
+	// Free the process.
 	free(process);
 }
 
-/* returns a process with that pid, returns 0 if it doesn't exist */
-struct Process *get_process_from_pid(size_t pid) {
+// Returns a process with the provided pid, returns ERROR if it doesn't exist.
+struct Process *GetProcessFromPid(size_t pid) {
+	// Walk through the linked list to find our processes.
 	struct Process *proc = first_process;
 	while(proc != 0) {
-		if(proc->pid == pid)
+		if(proc->pid == pid) {
 			return proc;
+		}
 
 		proc = proc->next;
 	}
 
-	return 0;
+	return (struct Process *)ERROR;
 }

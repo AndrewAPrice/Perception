@@ -1,3 +1,17 @@
+; Copyright 2020 Google LLC
+;
+; Licensed under the Apache License, Version 2.0 (the "License");
+; you may not use this file except in compliance with the License.
+; You may obtain a copy of the License at
+;
+;      http://www.apache.org/licenses/LICENSE-2.0
+;
+; Unless required by applicable law or agreed to in writing, software
+; distributed under the License is distributed on an "AS IS" BASIS,
+; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+; See the License for the specific language governing permissions and
+; limitations under the License.
+
 [BITS 64]
 [GLOBAL isr0]
 [GLOBAL isr1]
@@ -37,226 +51,225 @@ isr0:
     cli
     push byte 0
     push byte 0
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ;  1: Debug Exception
 isr1:
     cli
     push byte 0
     push byte 1
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ;  2: Non Maskable Interrupt Exception
 isr2:
     cli
     push byte 0
     push byte 2
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ;  3: Int 3 Exception
 isr3:
     cli
     push byte 0
     push byte 3
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ;  4: INTO Exception
 isr4:
     cli
     push byte 0
     push byte 4
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ;  5: Out of Bounds Exception
 isr5:
     cli
     push byte 0
     push byte 5
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ;  6: Invalid Opcode Exception
 isr6:
     cli
     push byte 0
     push byte 6
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ;  7: Coprocessor Not Available Exception
 isr7:
     cli
     push byte 0
     push byte 7
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ;  8: Double Fault Exception (With Error Code!)
 isr8:
     cli
     push byte 8
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ;  9: Coprocessor Segment Overrun Exception
 isr9:
     cli
     push byte 0
     push byte 9
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 10: Bad TSS Exception (With Error Code!)
 isr10:
     cli
     push byte 10
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 11: Segment Not Present Exception (With Error Code!)
 isr11:
     cli
     push byte 11
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 12: Stack Fault Exception (With Error Code!)
 isr12:
     cli
     push byte 12
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 13: General Protection Fault Exception (With Error Code!)
 isr13:
     cli
     push byte 13
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 14: Page Fault Exception (With Error Code!)
 isr14:
     cli
     push byte 14
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 15: Reserved Exception
 isr15:
     cli
     push byte 0
     push byte 15
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 16: Floating Point Exception
 isr16:
     cli
     push byte 0
     push byte 16
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 17: Alignment Check Exception
 isr17:
     cli
     push byte 0
     push byte 17
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 18: Machine Check Exception
 isr18:
     cli
     push byte 0
     push byte 18
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 19: Reserved
 isr19:
     cli
     push byte 0
     push byte 19
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 20: Reserved
 isr20:
     cli
     push byte 0
     push byte 20
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 21: Reserved
 isr21:
     cli
     push byte 0
     push byte 21
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 22: Reserved
 isr22:
     cli
     push byte 0
     push byte 22
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 23: Reserved
 isr23:
     cli
     push byte 0
     push byte 23
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 24: Reserved
 isr24:
     cli
     push byte 0
     push byte 24
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 25: Reserved
 isr25:
     cli
     push byte 0
     push byte 25
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 26: Reserved
 isr26:
     cli
     push byte 0
     push byte 26
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 27: Reserved
 isr27:
     cli
     push byte 0
     push byte 27
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 28: Reserved
 isr28:
     cli
     push byte 0
     push byte 28
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 29: Reserved
 isr29:
     cli
     push byte 0
     push byte 29
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 30: Reserved
 isr30:
     cli
     push byte 0
     push byte 30
-    jmp isr_common_stub
+    jmp exception_common_stub
 
 ; 31: Reserved
 isr31:
     cli
     push byte 0
     push byte 31
-    jmp isr_common_stub
+    jmp exception_common_stub
 
-[EXTERN fault_handler]
-
-isr_common_stub:
-	push rax
-	push rbx
-	push rcx
-	push rdx
+[EXTERN ExceptionHandler]
+exception_common_stub:
+    push rax
+    push rbx
+    push rcx
+    push rdx
     push rsi
     push rdi
     push rbp
@@ -269,15 +282,15 @@ isr_common_stub:
     push r14
     push r15
 
-	mov ax, 0x8
-	mov ds, ax
-	mov es, ax
-	mov fs, ax
-	mov gs, ax
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
 
-	mov rdi, rsp ; pass as argument
-	mov rax, fault_handler
-	call rax
+    mov rdi, rsp ; pass as argument
+    mov rax, ExceptionHandler
+    call rax
     mov rsp, rax ; returns a pointer to the stack
 
     pop r15
@@ -295,5 +308,5 @@ isr_common_stub:
     pop rcx
     pop rbx
     pop rax
-	add rsp, 16 ; Clean up the pushed error code and pushed ISR number
-	iretq ; pops RIP, CS, EFLAGS, RSP, SS
+    add rsp, 16 ; Clean up the pushed error code and pushed ISR number
+    iretq ; pops RIP, CS, EFLAGS, RSP, SS

@@ -1,48 +1,61 @@
 #pragma once
-/* finds and frees virtual pages */
+
+// The virtual allocator manages virtual memory, with variations of the functions of managing
+// userland and kernelland memory. Virtual address spaces are identified by the PML4 address
+// being passed around. The kernel has a PML4, and each running process will have it's own PML4.
+
+// Some information on different PML levels: http://wiki.osdev.org/Page_Tables 
+
 #include "types.h"
 
-/* some info on different pml levels: http://wiki.osdev.org/Page_Tables */
+// The offset from physical to virtual memory.
+#define VIRTUAL_MEMORY_OFFSET 0xFFFFFFFF80000000 // 0x8000000000 = 256gb
 
-/* offset from physical to virtual memory */
-/* offset of kernel memory 0x8000000000 = 256gb */
-#define virtual_memory_offset 0xFFFFFFFF80000000
-
-/* the kernel's pml4 */
+// The address of the kernel's PML4.
 extern size_t kernel_pml4;
 
-/* the currently loaded pml4 */
+// The address of the currently loaded PML4.
 extern size_t current_pml4;
 
-/* map a physical page so that we can access it with temp_page_boot - use this before the virtual allocator has been initialized */
-extern void *map_temp_boot_page(size_t addr);
+// Initializes the virtual allocator.
+extern void InitializeVirtualAllocator();
 
-/* KERNEL MEMORY */
-/* Initialies the virtual allocator */
-extern void init_virtual_allocator();
+// Maps a physical page so that we can access it with before the virtual allocator has been initialized. Returns a pointer to the
+// page in virtual memory space. Only one page at a time can be allocated this way.
+extern void *TemporarilyMapPhysicalMemoryPreVirtualMemory(size_t addr);
 
-/* maps a physical page (page aligned) into virtual memory so we can fiddle with it,
-  index is from 0 to 511 - mapping a different address to the same index
-  unmaps the previous page */
-extern void *map_physical_memory(size_t addr, size_t index);
+// Temporarily maps physical memory (page aligned) into virtual memory so we can fiddle with it.
+// index is from 0 to 511 - mapping a different address to the same index unmaps the previous page mapped there.
+extern void *TemporarilyMapPhysicalMemory(size_t addr, size_t index);
 
-/* find a range of free physical pages in kernel memory - returns the first addres or 0 if it can't find a fit */
-extern size_t find_free_page_range(size_t pml4, size_t pages);
+// Finds a range of free physical pages in memory - returns the first address or OUT_OF_MEMORY if it can't find a fit.
+extern size_t FindFreePageRange(size_t pml4, size_t pages);
 
-/* maps a physical page to a virtual page */
-extern bool map_physical_page(size_t pml4, size_t virtualaddr, size_t physicaladdr);
+// Maps a physical page to a virtual page. Returns if it was successful.
+extern bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr, size_t physicaladdr);
 
-/* unmaps a physical page - free specifies if that page should be returned to the physical memory manager */
-extern void unmap_physical_page(size_t pml4, size_t virtualaddr, bool free);
+extern size_t AllocateVirtualMemoryInAddressSpace(size_t pml4, size_t pages);
 
-/* Creates a process's virtual address space, returns the pml4 - pml4 is 0 if it fails. */
-extern size_t create_process_address_space();
+extern size_t ReleaseVirtualMemoryInAddressSpace(size_t pml4, size_t addr, size_t pages);
 
-/* Frees a process's virtual address space. Everything it finds will be returned to the physical allocator so unmap any shared memory before. */
-extern void free_process_address_space(size_t pml4);
+// Unmaps a virtual page - free specifies if that page should be returned to the physical memory manager.
+extern void UnmapVirtualPage(size_t pml4, size_t virtualaddr, bool free);
+
+// Return the physical address mapped at a virtual address, returning OUT_OF_MEMORY if is not mapped.
+extern size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr);
+
+// Gets or creates a virtual page in an address space, returning the physical address or OUT_OF_MEMORY if it fails.
+extern size_t GetOrCreateVirtualPage(size_t pml4, size_t virtualaddr);
+
+// Creates a virtual address space, returns the PML4. Returns OUT_OF_MEMORY if it fails.
+extern size_t CreateAddressSpace();
+
+// Frees an address space. Everything it finds will be returned to the physical allocator so unmap any shared memory before. Please
+// don't pass it the kernel's PML4.
+extern void FreeAddressSpace(size_t pml4);
 
 /* Switch to a virtual address space. Remember to call this if allocating or freeing pages to flush the changes! */
-extern void switch_to_address_space(size_t pml4);
+extern void SwitchToAddressSpace(size_t pml4);
 
-/* Flush the CPU lookup for a particular virtual address */
-extern void flush_virtual_page(size_t addr);
+// Flush the CPU lookup for a particular virtual address.
+extern void FlushVirtualPage(size_t addr);

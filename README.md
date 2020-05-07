@@ -1,56 +1,26 @@
 # Perception
 
-Perception is a hobby operating system. There are multiple components to this project. Shovel is a dynamic, prototype-based programming language being developed for Perception. Shovel and Turkey (the virtual machine) are being developed seperately from Perception, so that they may be embedded into any system or application.
+Perception is a hobby operating system. It is a [x86-64](https://en.wikipedia.org/wiki/X86-64) operating system built around a [microkernel](https://en.wikipedia.org/wiki/Microkernel).
 
-Perception is a platform for experimentation. I'm implementing a fully asynchronous and event-based system API, a kernel-level virtual machine that all applications run under, and a docking window manager.
+## Features
+Very few right now. We can load ELF modules and make system calls.
 
-Here is an image of my docking window manager in action - you can split, dock, drag, and resize windows around:
-
-![alt text](http://www.andrewalexanderprice.com/images/perception0.png "Example of the Perception docking window manager.")
-
-## Running
-Either build the operating system from source or download a prebuilt image (coming soon) and boot it. Use the Windows key to access the shell that
-allows you to launch applications.
-
-To set a custom resolution, press 'E' in GRUB, and replace the 'auto' on "set gfxpayload=auto" with a resolution (in the format of WidthxHeightxBPP or WidthxHeight) and press F10 to boot.
-
-## Features:
-Some of the features of the operating system are:
-- A shell that discovers programs on mounted disks and manages running processes (press the Windows key to access it at any time).
-- Asynchronous/event-based programming API.
-- Unix style VFS with ISO 9660 read support.
-- Compositing tabbing window manager.
-- VBE video and a fall back VGA driver (press F12 to enable full screen dithering in low color depth modes).
-
+## Building and running
+See [BUILDING.md]. Perception has only been tested in [QEMU](https://www.qemu.org/).
 
 ## Directory Structure
-- Applications - The sources for the applications that come with Perception.
-- build - Tools for cross-compiling the applications and libraries.
+- Applications - User programs.
+- Build - The build system.
+- Dump - Code from an old version that will be useful at some point in the future.
 - fs - The root file system that is turned into a disk image.
-- kernel - The kernel sources.
-- Libraries - The sources of libraries that run under Perception.
-- shovel - Tools related to the Shovel language build system - compiler, assembler
-- turkey - Turkey is a virtual machine that runs Shovel programs.
+- Kernel - The kernel sources.
+- Libraries - The libraries for building user programs.
+- third_party - 3rd party code I didn't write. They have different licensing.
 
+## Repository scope
+The scope of this repository is strictly for the core of the operating system. Applications and libraries beyond what would be considered the core of the operating system should live in their own repositories.
 
-## Todo
-What I want to accomplish before public build 1, and will probably take years to accomplish:
-- Prettier GUI.
-- Multiple keyboard layouts.
-- RAM disk with reading & writing.
-- Loading programs.
-- A GUI widget library.
-- A file manager.
-- A terminal emulator.
-- Some simple games (Minesweeper, Freecell).
-- A tool chain that runs under the OS.
-- An IDE for native and Shovel applications
+## Contributing
+Being a personal hobby project, I'm not currently accepting other contributors. Feel free to build applications on top of my OS and let me know about them!
 
-What I want to accomplish with Shovel include:
-- Full JIT.
-- Merge the compiler and runtime, so Shovel can be dynamically evaluated.
-
-## Want to help?
-I would be interested in accepting patches, mainly those that improve performance (such as new optimizations for Turkey) or clean up code (the SSA generator is really messy!)
-
-Contains DejaVu fonts: http://dejavu-fonts.org
+This is not an officially supported Google project.

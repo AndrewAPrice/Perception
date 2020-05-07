@@ -1,6 +1,24 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "exceptions.h"
+
 #include "idt.h"
-#include "isr.h"
+#include "interrupts.h"
 #include "text_terminal.h"
+
+// The first 32 interrupts are used for processor exceptions.
 
 extern void isr0();
 extern void isr1();
@@ -35,72 +53,43 @@ extern void isr29();
 extern void isr30();
 extern void isr31();
 
-unsigned char in_interrupt;
-int interrupt_locks;
-
-void init_isrs() {
-	interrupt_locks = 0;
-
-	idt_set_gate(0, (size_t)isr0, 0x08, 0x8E);
-	idt_set_gate(1, (size_t)isr1, 0x08, 0x8E);
-	idt_set_gate(2, (size_t)isr2, 0x08, 0x8E);
-	idt_set_gate(3, (size_t)isr3, 0x08, 0x8E);
-	idt_set_gate(4, (size_t)isr4, 0x08, 0x8E);
-	idt_set_gate(5, (size_t)isr5, 0x08, 0x8E);
-	idt_set_gate(6, (size_t)isr6, 0x08, 0x8E);
-	idt_set_gate(7, (size_t)isr7, 0x08, 0x8E);
-	idt_set_gate(8, (size_t)isr8, 0x08, 0x8E);
-	idt_set_gate(9, (size_t)isr9, 0x08, 0x8E);
-	idt_set_gate(10, (size_t)isr10, 0x08, 0x8E);
-	idt_set_gate(11, (size_t)isr11, 0x08, 0x8E);
-	idt_set_gate(12, (size_t)isr12, 0x08, 0x8E);
-	idt_set_gate(13, (size_t)isr13, 0x08, 0x8E);
-	idt_set_gate(14, (size_t)isr14, 0x08, 0x8E);
-	idt_set_gate(15, (size_t)isr15, 0x08, 0x8E);
-	idt_set_gate(16, (size_t)isr16, 0x08, 0x8E);
-	idt_set_gate(17, (size_t)isr17, 0x08, 0x8E);
-	idt_set_gate(18, (size_t)isr18, 0x08, 0x8E);
-	idt_set_gate(19, (size_t)isr19, 0x08, 0x8E);
-	idt_set_gate(20, (size_t)isr20, 0x08, 0x8E);
-	idt_set_gate(21, (size_t)isr21, 0x08, 0x8E);
-	idt_set_gate(22, (size_t)isr22, 0x08, 0x8E);
-	idt_set_gate(23, (size_t)isr23, 0x08, 0x8E);
-	idt_set_gate(24, (size_t)isr24, 0x08, 0x8E);
-	idt_set_gate(25, (size_t)isr25, 0x08, 0x8E);
-	idt_set_gate(26, (size_t)isr26, 0x08, 0x8E);
-	idt_set_gate(27, (size_t)isr27, 0x08, 0x8E);
-	idt_set_gate(28, (size_t)isr28, 0x08, 0x8E);
-	idt_set_gate(29, (size_t)isr29, 0x08, 0x8E);
-	idt_set_gate(30, (size_t)isr30, 0x08, 0x8E);
-	idt_set_gate(31, (size_t)isr31, 0x08, 0x8E);
+// Register the CPU exception interrupts.
+void RegisterExceptionInterrupts() {
+	SetIdtEntry(0, (size_t)isr0, 0x08, 0x8E);
+	SetIdtEntry(1, (size_t)isr1, 0x08, 0x8E);
+	SetIdtEntry(2, (size_t)isr2, 0x08, 0x8E);
+	SetIdtEntry(3, (size_t)isr3, 0x08, 0x8E);
+	SetIdtEntry(4, (size_t)isr4, 0x08, 0x8E);
+	SetIdtEntry(5, (size_t)isr5, 0x08, 0x8E);
+	SetIdtEntry(6, (size_t)isr6, 0x08, 0x8E);
+	SetIdtEntry(7, (size_t)isr7, 0x08, 0x8E);
+	SetIdtEntry(8, (size_t)isr8, 0x08, 0x8E);
+	SetIdtEntry(9, (size_t)isr9, 0x08, 0x8E);
+	SetIdtEntry(10, (size_t)isr10, 0x08, 0x8E);
+	SetIdtEntry(11, (size_t)isr11, 0x08, 0x8E);
+	SetIdtEntry(12, (size_t)isr12, 0x08, 0x8E);
+	SetIdtEntry(13, (size_t)isr13, 0x08, 0x8E);
+	SetIdtEntry(14, (size_t)isr14, 0x08, 0x8E);
+	SetIdtEntry(15, (size_t)isr15, 0x08, 0x8E);
+	SetIdtEntry(16, (size_t)isr16, 0x08, 0x8E);
+	SetIdtEntry(17, (size_t)isr17, 0x08, 0x8E);
+	SetIdtEntry(18, (size_t)isr18, 0x08, 0x8E);
+	SetIdtEntry(19, (size_t)isr19, 0x08, 0x8E);
+	SetIdtEntry(20, (size_t)isr20, 0x08, 0x8E);
+	SetIdtEntry(21, (size_t)isr21, 0x08, 0x8E);
+	SetIdtEntry(22, (size_t)isr22, 0x08, 0x8E);
+	SetIdtEntry(23, (size_t)isr23, 0x08, 0x8E);
+	SetIdtEntry(24, (size_t)isr24, 0x08, 0x8E);
+	SetIdtEntry(25, (size_t)isr25, 0x08, 0x8E);
+	SetIdtEntry(26, (size_t)isr26, 0x08, 0x8E);
+	SetIdtEntry(27, (size_t)isr27, 0x08, 0x8E);
+	SetIdtEntry(28, (size_t)isr28, 0x08, 0x8E);
+	SetIdtEntry(29, (size_t)isr29, 0x08, 0x8E);
+	SetIdtEntry(30, (size_t)isr30, 0x08, 0x8E);
+	SetIdtEntry(31, (size_t)isr31, 0x08, 0x8E);
 }
 
-
-void enter_interrupt() {
-	in_interrupt = 1;
-}
-
-void leave_interrupt() {
-	in_interrupt = 0;
-}
-
-
-void lock_interrupts() {
-	if(in_interrupt) return; /* do nothing inside an interrupt because they're already disabled */
-	if(interrupt_locks == 0)
-		__asm__ __volatile__ ("cli");
-	interrupt_locks++;
-	/*print_string("+");*/
-}
-
-void unlock_interrupts() {
-	if(in_interrupt) return; /* do nothing inside an interrupt because they're already disabled */
-	interrupt_locks--;
-	if(interrupt_locks == 0)
-		__asm__ __volatile__ ("sti");
-	/*print_string("|");*/
-}
-
+// Messages for each of the exceptions.
 char *exception_messages[] = {
 	"Division By Zero", /* 0 */
 	"Debug", /* 1 */
@@ -136,20 +125,24 @@ char *exception_messages[] = {
 	"Reserved" /* 31 */
 };
 
-struct isr_regs *fault_handler(struct isr_regs *r) {
-	enter_interrupt();
+// The exception handler.
+struct isr_regs *ExceptionHandler(struct isr_regs *r) {
+/*
+	// Output the exception that occured.
 	if(r->int_no < 32) {
-		enter_text_mode();
-		print_string("\nException occured: ");
-		print_number((size_t)r->int_no);
-		print_string(" - ");
-		print_string(exception_messages[r->int_no]);
+		PrintString("\nException occured: ");
+		PrintNumber((size_t)r->int_no);
+		PrintString(" - ");
+		PrintString(exception_messages[r->int_no]);
 	} else {
-		print_string("\nUnknown exception: ");
-		print_number((size_t)r->int_no);
-	}
+		// This should never trigger, because we haven't registered ourselves for interrupts >= 32.
+		PrintString("\nUnknown exception: ");
+		PrintNumber((size_t)r->int_no);
+	}*/
+
+	PrintString("TODO: Terminate the running process.");
 	asm("hlt");
-	/* todo: terminate this thread */
-	leave_interrupt();
+
+	/*MarkInterruptHandlerAsLeft();*/
 	return r;
 }

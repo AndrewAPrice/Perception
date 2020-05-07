@@ -4,10 +4,17 @@
 struct Thread;
 struct isr_regs;
 
+// The currently running thread.
 extern struct Thread *running_thread;
 
-extern void init_scheduler();
-extern struct isr_regs *schedule_next(struct isr_regs *regs); /* called from the timer interrupt */
+// Currently executing registers.
+extern struct isr_regs *currently_executing_thread_regs;
 
-extern void schedule_thread(struct Thread *thread);
-extern void unschedule_thread(struct Thread *thread);
+// Initializes the scheduler.
+extern void InitializeScheduler();
+
+// Schedule the next thread, called from the timer inerrupt.
+extern void ScheduleNextThread();
+
+extern void ScheduleThread(struct Thread *thread);
+extern void UnscheduleThread(struct Thread *thread);

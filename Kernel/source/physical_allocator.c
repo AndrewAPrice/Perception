@@ -1,141 +1,226 @@
 #include "physical_allocator.h"
-#include "virtual_allocator.h"
-#include "multiboot2.h"
-#include "text_terminal.h"
-#include "vesa.h"
 
+#include "io.h"
+#include "../../third_party/multiboot2.h"
+#include "text_terminal.h"
+#include "virtual_allocator.h"
+
+// The total number of bytes of system memory.
 size_t total_system_memory;
+
+// The total number of free pages.
 size_t free_pages;
 
-const size_t page_size = 4096;
+// Start of the free memory on boot.
+extern size_t bssEnd;
 
-extern size_t _bssEnd; /* start of free memory on boot */
+// Physical memory is divided into 4kb pages. We keep a linked stack of them that we can pop a page off
+// of and push a page onto. This pointer points to the top of the stack (next free page), and the first
+// thing in that page will be a pointer to the next page.
+size_t next_free_page_address;
 
-/* physical memory is divided into 4kb pages, we keep a linked stack of them that we can pop a page off of
-   and push a page onto - this pointer points to the top of the stack (next free page) */
-size_t page_frame_pointer;
+// The end of multiboot memory. This is memory that is temporarily reserved to hold the multiboot
+// information put there by the bootloader, and will be released after calling DoneWithMultibootMemory.
+size_t start_of_free_memory_at_boot;
 
-void init_physical_allocator() {
+// Calculates the start of the free memory at boot.
+void CalculateStartOfFreeMemoryAtBoot() {
+	start_of_free_memory_at_boot = (size_t)&bssEnd;
+
+	// Loop through each of the tags in the multiboot.
+	struct multiboot_tag *tag;
+	for(tag = (struct multiboot_tag *)(size_t)(MultibootInfo.addr + 8);
+		tag->type != MULTIBOOT_TAG_TYPE_END;
+		tag = (struct multiboot_tag *)((size_t) tag + (size_t)((tag->size + 7) & ~7))) {
+
+		if (tag->type == MULTIBOOT_TAG_TYPE_MODULE) {
+			struct multiboot_tag_module *module_tag = (struct multiboot_tag_module *)tag;
+
+			if (module_tag->mod_end > start_of_free_memory_at_boot) {
+				start_of_free_memory_at_boot = module_tag->mod_end;
+			}
+		}
+	}
+
+	// Round up to the nearest whole page.
+	start_of_free_memory_at_boot = (start_of_free_memory_at_boot + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	/*
+	PrintString("End of kernel: ");
+	PrintHex((size_t)&bssEnd);
+	PrintString(" Start of free memory: ");
+	PrintHex(start_of_free_memory_at_boot);
+	PrintChar('\n');
+	*/
+}
+
+void InitializePhysicalAllocator() {
 	total_system_memory = 0;
 	free_pages = 0;
+	CalculateStartOfFreeMemoryAtBoot();
 
-	page_frame_pointer = 0; /* 0 is the same as null */
+	// Initialize the stack to OUT_OF_PHYSICAL_PAGES, then we will push pages onto the stack As
+	next_free_page_address = OUT_OF_PHYSICAL_PAGES;
 
-	/* search the multiboot header for the memory map */
+	// The multiboot bootloader (GRUB) already did the hard work of asking the BIOS what physical
+	// memory is available. The bootloader puts this information into the multiboot header.
+
+	// Loop through each of the tags in the multiboot.
 	struct multiboot_tag *tag;
 	for(tag = (struct multiboot_tag *)(size_t)(MultibootInfo.addr + 8);
 		tag->type != MULTIBOOT_TAG_TYPE_END;
 		tag = (struct multiboot_tag *)((size_t) tag + (size_t)((tag->size + 7) & ~7))) {
 		
+		// Skip empty tags.
 		if(tag->size == 0)
 			return;
 
-		
 		if(tag->type == MULTIBOOT_TAG_TYPE_MMAP) {
-			/* found the memory map */
+			// This is a memory map tag!
 			struct multiboot_tag_mmap *mmap_tag = (struct multiboot_tag_mmap *)tag;
 
-			/* print_string("Entry size: ");
-			print_number(mmap_tag->entry_size);
-			print_string(" Tag size: ");
-			print_number(mmap_tag->size);
-			print_string(" Entries: ");
-			print_number(mmap_tag->size / mmap_tag->entry_size);
-			print_string("\n"); */
+			/*
+			PrintString("Entry size: ");
+			PrintNumber(mmap_tag->entry_size);
+			PrintString(" Tag size: ");
+			PrintNumber(mmap_tag->size);
+			PrintString(" Entries: ");
+			PrintNumber(mmap_tag->size / mmap_tag->entry_size);
+			PrintString("\n");
+			*/
 
-			/*  iterate over each entry */
+			// Iterate over each entry in the memory map.
 			struct multiboot_mmap_entry *mmap;
 			for(mmap = mmap_tag->entries;
 				(size_t)mmap < (size_t)tag + (size_t)tag->size;
 				mmap = (struct multiboot_mmap_entry *)((size_t)mmap + (size_t)mmap_tag->entry_size)) {
 
-				/* print_string("Base: ");
-				print_hex(mmap->addr);
-				print_string(" Length: ");
-				print_number(mmap->len);
-				print_string(" Type: ");
-				print_number(mmap->type); 
-				print_char('\n'); */
+				/*
+				PrintString("Base: ");
+				PrintHex(mmap->addr);
+				PrintString(" Length: ");
+				PrintNumber(mmap->len);
+				PrintString(" Type: ");
+				PrintNumber(mmap->type); 
+				PrintChar('\n');
+				*/
+
+				total_system_memory += mmap->len;
 
 				if(mmap->type == MULTIBOOT_MEMORY_AVAILABLE) {
-					/* this memory is avaliable for usage */
-					total_system_memory += mmap->len;
+					// This memory is avaliable for usage (in contrast to memory that is reserved, dead, etc.)
 					
 					size_t start = mmap->addr;
-					if(start < (size_t)&_bssEnd)
-						start = (size_t)&_bssEnd; /* make sure this is free memory past the kernel */
+					// Make sure this is free memory past the kernel.
+					if(start < start_of_free_memory_at_boot)
+						start = start_of_free_memory_at_boot;
 
-					/* make the start and end aligned to page sizes */
-					start = (start + page_size - 1) & ~(page_size - 1); /* round up */
-					size_t end = (mmap->addr + mmap->len) & ~(page_size - 1); /* round down */
+					// Make the start and end aligned to page sizes.
+					start = (start + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // Round up.
+					size_t end = (mmap->addr + mmap->len) & ~(PAGE_SIZE - 1); // Round down.
 
+					// Now we will divide this memory up into pages and iterate through them.
 					size_t page_addr;
-					for(page_addr = start; page_addr < end; page_addr += page_size) {
-						/* add to the linked stack */
-						size_t *bp = (size_t *)map_temp_boot_page(page_addr);
-						/*print_hex(page_addr);
-						print_string("->");
-						print_hex((size_t)bp);
-						print_string("\n");*/
-						*bp = page_frame_pointer;
-						page_frame_pointer = page_addr;
+					for(page_addr = start; page_addr < end; page_addr += PAGE_SIZE) {
+						// Push this page onto the linked stack.
 
-						/* add this free page to the list of free pages */
+						// Map this physical memory, so can write the previous stack page to it.
+						size_t *bp = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(page_addr);
+						/*
+						PrintHex(page_addr);
+						PrintString("->");
+						PrintHex((size_t)bp);
+						PrintString("\n");
+						*/
+						// Write the previous stack head to the start of this page.
+						*bp = next_free_page_address;
+						// Sets the stack head to this page.
+						next_free_page_address = page_addr;
+
 						free_pages++;
 					}
 				}
 
 			}
 		} else if(tag->type == MULTIBOOT_TAG_TYPE_FRAMEBUFFER) {
-			/* not related to the physical memory manager, but since we're iterating through, we've found something interesting! */
-			handle_vesa_multiboot_header(tag);
+			// Not related to the physical memory manager, but since we're iterating through, we've
+			// found something interesting!
+			// handle_vesa_multiboot_header(tag);
 		}
 	}
 }
 
-/* grabs the next physical page (at boot time before the virtual memory allocator is initialized), returns 0 if there are no more physical pages */
-size_t get_physical_page_boot() {
-	if(page_frame_pointer == 0)
-		return 0; /* no more free pages */
+// Indicates that we are done with the multiboot memory and that it can be released.
+void DoneWithMultibootMemory() {
+	// Frees the memory pages between the end of kernel memory
+	size_t end_of_kernel_memory = (size_t)&bssEnd;
+	size_t start = (end_of_kernel_memory + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // Round up.
+	size_t end = start_of_free_memory_at_boot;// (start_of_free_memory_at_boot + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // Round up.
+	
+	for (size_t page = start; page < end; page += PAGE_SIZE) {
+		/*
+		PrintString("Unmapping ");
+		PrintHex(page + VIRTUAL_MEMORY_OFFSET);
+		PrintChar('\n');
+		*/
+		UnmapVirtualPage(kernel_pml4, page + VIRTUAL_MEMORY_OFFSET, true);
+	}
+}
 
-	/* take the top page from the stack */
-	size_t addr = page_frame_pointer;
+// Grabs the next physical page (at boot time before the virtual memory allocator is initialized),
+// returns OUT_OF_PHYSICAL_PAGES if there are no more physical pages.
+size_t GetPhysicalPagePreVirtualMemory() {
+	if(next_free_page_address == OUT_OF_PHYSICAL_PAGES) {
+		// No more free pages.
+		return OUT_OF_PHYSICAL_PAGES;
+	}
 
-	/* update the pointer to the next free page */
-	size_t *bp = (size_t *)map_temp_boot_page(addr);
-	page_frame_pointer = *bp;
+	// Take the top page from the stack.
+	size_t addr = next_free_page_address;
+
+	// Pop it from the stack by mapping the page to physical memory so we can grab the pointer to the
+	// next free page.
+	size_t *bp = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(addr);
+	next_free_page_address = *bp;
 
 	free_pages--;
 
 	return addr;
 }
 
-/* grabs the next physical page, returns 0 if there are no more physical pages  */
-size_t get_physical_page() {
-	if(page_frame_pointer == 0)
-		return 0; /* no more free pages */
+// Grabs the next physical page, returns OUT_OF_PHYSICAL_PAGES if there are no more physical pages.
+size_t GetPhysicalPage() {
+	if(next_free_page_address == OUT_OF_PHYSICAL_PAGES) {
+		// No more free pages.
+		return OUT_OF_PHYSICAL_PAGES;
+	}
 
-	/* take the top page from the stack */
-	size_t addr = page_frame_pointer;
+	// Take the top page from the stack.
+	size_t addr = next_free_page_address;
 
-	/* update the pointer to the next free page */
-	size_t *bp = (size_t *)map_physical_memory(addr, 0);
-	page_frame_pointer = *bp;
+	// Pop it from the stack by mapping the page to physical memory so we can grab the pointer to the
+	// next free page.
+	size_t *bp = (size_t *)TemporarilyMapPhysicalMemory(addr, 5);
+	next_free_page_address = *bp;
+
+	// Clear out the page, so we don't leak anything from another process.
+	memset((unsigned char*)bp, 0, PAGE_SIZE);
 
 	free_pages--;
 
 	return addr;
 }
 
-/* frees a physical page */
-void free_physical_page(size_t addr) {
-	/* point to this page to the next stack entry */
-	size_t *bp = (size_t *)map_physical_memory(addr, 0);
-	*bp = page_frame_pointer;
+// Frees a physical page.
+void FreePhysicalPage(size_t addr) {
+	// Push this page onto the linked stack.
 
-	/* put this page on the top of the stack */
-	page_frame_pointer = addr;
+	// Map this physical memory, so can write the previous stack page to it.
+	size_t *bp = (size_t *)TemporarilyMapPhysicalMemory(addr, 5);
+	// Write the previous stack head to the start of this page.	
+	*bp = next_free_page_address;
+
+	// Sets the stack head to this page.
+	next_free_page_address = addr;
 
 	free_pages++;
 }
-

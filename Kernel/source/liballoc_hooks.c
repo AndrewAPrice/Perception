@@ -1,7 +1,8 @@
 #include "physical_allocator.h"
 #include "virtual_allocator.h"
 #include "text_terminal.h"
-#include "isr.h"
+
+#include "../../third_party/liballoc.c"
 
 /** This function is supposed to lock the memory data structures. It
  * could be as simple as disabling interrupts or acquiring a spinlock.
@@ -11,7 +12,8 @@
  * failure.
  */
 int liballoc_lock() {
-	lock_interrupts();
+	// This might become an issue if we have kernel threads. But for now, all
+	// kernel code should be from inside a syscall.
 	return 0;
 }
 
@@ -22,7 +24,8 @@ int liballoc_lock() {
  * \return 0 if the lock was successfully released.
  */
 int liballoc_unlock() {
-	unlock_interrupts();
+	// This might become an issue if we have kernel threads. But for now, all
+	// kernel code should be from inside a syscall.
 	return 0;
 }
 
@@ -34,32 +37,7 @@ int liballoc_unlock() {
  * \return A pointer to the allocated memory.
  */
 void* liballoc_alloc(size_t pages) {
-	/* find a free page range */
-	size_t start = find_free_page_range(kernel_pml4, pages);
-	if(start == 0) return 0; /* no free page range */
-
-	/* allocate each one */
-	size_t addr = start;
-	size_t i;
-	for(i = 0; i < pages; i++, addr += page_size) {
-		/* get a physical page */
-		size_t phys = get_physical_page();
-
-		if(phys == 0) { /* no free physical memory */
-			/* unmap all memory up until this point*/
-			for(;start < addr; start += page_size)
-				unmap_physical_page(kernel_pml4, start, true);
-
-			return 0;
-		}
-
-		/* map the physical page */
-		map_physical_page(kernel_pml4, addr, phys);
-
-		flush_virtual_page(addr);
-	}
-
-	return (void *)start;
+	return (void*)AllocateVirtualMemoryInAddressSpace(kernel_pml4, pages);
 }
 
 /** This frees previously allocated memory. The void* parameter passed
@@ -71,10 +49,6 @@ void* liballoc_alloc(size_t pages) {
  * \return 0 if the memory was successfully freed.
  */
 int liballoc_free(void *addr, size_t pages) {
-	size_t i = 0;
-	size_t vir_addr = (size_t)addr;
-	for(;i < pages; i++, vir_addr += page_size)
-		unmap_physical_page(kernel_pml4, vir_addr, true);
-	
+	ReleaseVirtualMemoryInAddressSpace(kernel_pml4, (size_t)addr, pages);
 	return 0;
 }

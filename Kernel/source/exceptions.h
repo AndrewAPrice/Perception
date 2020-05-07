@@ -1,15 +1,19 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
 #include "types.h"
 
-struct isr_regs {
-	size_t r15, r14, r13, r12, r11, r10, r9, r8;
-	size_t /*rsp,*/ rbp, rdi, rsi, rdx, rcx, rbx, rax;
-	size_t int_no, err_code;
-	size_t rip, cs, eflags, usersp, ss;
-};
-
-extern void init_isrs();
-extern void enter_interrupt();
-extern void leave_interrupt();
-extern void lock_interrupts();
-extern void unlock_interrupts();
+// Register the CPU exception interrupts.
+extern void RegisterExceptionInterrupts();

@@ -5,7 +5,6 @@ struct reg128 {
 	size_t low;
 	size_t high;
 };
-
 typedef size_t reg64;*/
 
 struct Message;
@@ -28,19 +27,21 @@ struct Process {
 
 	/* threads */
 	struct Thread *threads;
-	unsigned short threads_count;
-	unsigned short threads_in_limbo; /* threads in limbo, waiting to be cleaned up */
+	unsigned short thread_count;
 
 	/* linked list of processes */
 	struct Process *next;
 	struct Process *previous;
 };
 
-/* initializes internal structures for tracking processes */
-extern void init_processes();
-/* creates a process, returns 0 if there was an error */
-extern struct Process *create_process();
-/* dstroys a process - DO NOT CALL THIS DIRECTLY, destroy a process by destroying all of it's threads! */
-extern void destroy_process(struct Process *process);
-/* returns a process with that pid, returns 0 if it doesn't exist */
-extern struct Process *get_process_from_pid(size_t pid);
+// Initializes the internal structures for tracking processes.
+extern void InitializeProcesses();
+
+// Creates a process, returns ERROR if there was an error.
+extern struct Process *CreateProcess();
+
+// Destroys a process - DO NOT CALL THIS DIRECTLY, destroy a process by destroying all of it's threads!
+extern void DestroyProcess(struct Process* process);
+
+// Returns a process with the provided pid, returns 0 if it doesn't exist.
+extern struct Process *GetProcessFromPid(size_t pid);

@@ -1,22 +1,18 @@
 #include "text_terminal.h"
+
 #include "io.h"
-#include "video.h"
 #include "virtual_allocator.h"
 
-/* define QEMU for text to be output over serial - https://www.reactos.org/wiki/QEMU#Redirect_to_the_console */
-#define QEMU
-#define PORT 0x3f8   /* COM1 */
+// The text terminal is implemented by outputting over COM1.
 
-const size_t text_terminal_width = 80;
-const size_t text_terminal_height = 25;
-volatile char *text_video_memory = (char *)(0xB8000 + virtual_memory_offset);
-unsigned short text_x_pos;
-unsigned short text_y_pos;
+// The sIO port to use.
+#define PORT 0x3f8 // COM1
 
-/* enter text mode */
-void enter_text_mode() {
-#ifdef QEMU
-	/* set up serial mode */
+// Has the serial output been initialized?
+bool serial_output_initialized = false;
+
+// Initialize the serial output.
+void InitializeSerialOutput() {
 	outportb(PORT + 1, 0x00);    // Disable all interrupts
 	outportb(PORT + 3, 0x80);    // Enable DLAB (set baud rate divisor)
 	outportb(PORT + 0, 0x03);    // Set divisor to 3 (lo byte) 38400 baud
@@ -24,70 +20,38 @@ void enter_text_mode() {
 	outportb(PORT + 3, 0x03);    // 8 bits, no parity, one stop bit
 	outportb(PORT + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
 	outportb(PORT + 4, 0x0B);    // IRQs enabled, RTS/DSR set
-#else
-	/* clear the screen as red with white text */
-	size_t i;
-	for(i = 0; i < text_terminal_width * text_terminal_height; i++) {
-		text_video_memory[i*2] = ' ';
-		((unsigned char *)text_video_memory)[i*2 + 1] = 0x4F;
-	}
-
-	text_x_pos = 0;
-	text_y_pos = 0;
-	update_text_cursor();
-#endif
+	serial_output_initialized = true;
 }
 
-/* print a single character */
-void print_char(char c) {
-#ifdef QEMU
+// Prints a single character.
+void PrintChar(char c) {
+	if (!serial_output_initialized) {
+		InitializeSerialOutput();
+	}
 	while((inportb(PORT + 5) & 0x20) == 0);
 	outportb(PORT, c);
-
-#else
-	/*if(c == '\b') { /* backspace *//*
-		if(text_x_pos != 0)
-			text_x_pos--;
-	}
-	else*/if(c == '\t') /* tab */
-		text_x_pos = (text_x_pos + 8) & ~(8 - 1);
-	else if(c == '\r') /* carriage return */
-		text_x_pos = 0;
-	else if(c == '\n') { /* newline */
-		text_x_pos = 0;
-		text_y_pos++;
-	} else { /* printable character */
-		if(c < ' ')
-			c = ' ';
-		text_video_memory[(text_y_pos * text_terminal_width + text_x_pos) * 2] = c;
-		text_x_pos++;
-	}
-
-	text_mode_scroll();
-	update_text_cursor();
-#endif
 }
 
-/* print a null-terminated string */
-void print_string(const char *str) {
+// Prints a null-terminated string.
+void PrintString(const char *str) {
 	char *str1 = (char *)str;
 	while(*str1) {
-		print_char(*str1);
+		PrintChar(*str1);
 		str1++;
 	}
 }
 
-/* print a fixed length string */
-void print_fixed_string(const char *str, size_t length) {
+// Prints a fixed length string.
+void PrintFixedString(const char *str, size_t length) {
 	size_t i;
 	for(i = 0; i < length; i++)
-		print_char(str[i]);
+		PrintChar(str[i]);
 }
 
-/* print a number as a 64-bit hexidecimal string */
-void print_hex(size_t h) {
-	print_char('0');
-	print_char('x');
+// Prints a number as a 64-bit hexidecimal string.
+void PrintHex(size_t h) {
+	PrintChar('0');
+	PrintChar('x');
 	const char *charset = "0123456789ABCDEF";
 	char temp[16];
 
@@ -97,31 +61,31 @@ void print_hex(size_t h) {
 		h /= 16;
 	}
 
-	print_char(temp[15]);
-	print_char(temp[14]);
-	print_char(temp[13]);
-	print_char(temp[12]);
-	print_char('-');
-	print_char(temp[11]);
-	print_char(temp[10]);
-	print_char(temp[9]);
-	print_char(temp[8]);
-	print_char('-');
-	print_char(temp[7]);
-	print_char(temp[6]);
-	print_char(temp[5]);
-	print_char(temp[4]);
-	print_char('-');
-	print_char(temp[3]);
-	print_char(temp[2]);
-	print_char(temp[1]);
-	print_char(temp[0]);
+	PrintChar(temp[15]);
+	PrintChar(temp[14]);
+	PrintChar(temp[13]);
+	PrintChar(temp[12]);
+	PrintChar('-');
+	PrintChar(temp[11]);
+	PrintChar(temp[10]);
+	PrintChar(temp[9]);
+	PrintChar(temp[8]);
+	PrintChar('-');
+	PrintChar(temp[7]);
+	PrintChar(temp[6]);
+	PrintChar(temp[5]);
+	PrintChar(temp[4]);
+	PrintChar('-');
+	PrintChar(temp[3]);
+	PrintChar(temp[2]);
+	PrintChar(temp[1]);
+	PrintChar(temp[0]);
 }
 
-/* print a number as a decimal string */
-void print_number(size_t n) {
+// Prints a number as a decimal string.
+void PrintNumber(size_t n) {
 	if(n == 0) {
-		print_char('0');
+		PrintChar('0');
 		return;
 	}
 
@@ -139,45 +103,9 @@ void print_number(size_t n) {
 
 	size_t i;
 	for(i = first_char; i < 20; i++) {
-		print_char(temp[i]);
+		PrintChar(temp[i]);
 		if(i == 1 || i == 4 || i == 7 || i == 10 || i == 13 || i == 16)
-			print_char(',');
+			PrintChar(',');
 
 	}
-}
-
-/* scrolls a line of text */
-void text_mode_scroll() {
-#ifndef QEMU
-	if(text_x_pos >= text_terminal_width) {
-		text_x_pos = 0;
-		text_y_pos++;
-	}
-	if(text_y_pos >= text_terminal_height) {
-		/* scroll all text up */
-		size_t i;
-		for(i = 0; i < text_terminal_width * (text_terminal_height - 1); i++) {
-			text_video_memory[i*2] = text_video_memory[(i + text_terminal_width)*2];
-		}
-
-		/* blank out the last line */
-		for(i = 0; i < text_terminal_width; i++) {
-			text_video_memory[(i + (text_terminal_width * (text_terminal_height - 1))) * 2] = ' ';
-		}
-
-		text_y_pos = text_terminal_height - 1;
-		text_x_pos = 0;
-	}
-#endif
-}
-
-void update_text_cursor() {
-#ifndef QEMU
-	unsigned short cursor_pos = text_y_pos * text_terminal_width + text_x_pos;
-
-	outportb(0x3D4, 14);
-	outportb(0x3D5, (unsigned char)(cursor_pos >> 8));
-	outportb(0x3D4, 15);
-	outportb(0x3D5, (unsigned char)cursor_pos);
-#endif
 }
