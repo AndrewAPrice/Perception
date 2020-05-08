@@ -43,7 +43,7 @@ If you have [Homebrew](https://brew.sh/), you can install everything you need wi
 }
 ```
 
-- Install
+- Install Node dependencies
 ```sh
 cd Build && npm install
 ```
