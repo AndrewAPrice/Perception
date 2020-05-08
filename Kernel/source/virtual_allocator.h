@@ -1,8 +1,8 @@
 #pragma once
 
-// The virtual allocator manages virtual memory, with variations of the functions of managing
+// The virtual allocator manages virtual memory, with variations of the functions for managing
 // userland and kernelland memory. Virtual address spaces are identified by the PML4 address
-// being passed around. The kernel has a PML4, and each running process will have it's own PML4.
+// being passed around. The kernel has a PML4, and each running process will have its own PML4.
 
 // Some information on different PML levels: http://wiki.osdev.org/Page_Tables 
 
