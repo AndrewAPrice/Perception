@@ -2,7 +2,7 @@
 
 Perception is a hobby operating system. It is a [x86-64](https://en.wikipedia.org/wiki/X86-64) operating system built around a [microkernel](https://en.wikipedia.org/wiki/Microkernel).
 
-The kernel is written in C. I use a custom build system. I provide a C++ runtime for libraries, services, drivers, and programs.
+[The kernel](Kernel/README.md) is written in C. I use a custom build system. I provide a C++ runtime for libraries, services, drivers, and programs.
 
 ## Features
 Very few right now. We can load ELF modules in userland and make system calls.
