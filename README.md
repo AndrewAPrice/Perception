@@ -8,7 +8,7 @@ The kernel is written in C. I use a custom build system. I provide a C++ runtime
 Very few right now. We can load ELF modules in userland and make system calls.
 
 ## Building and running
-See [building.md]. Perception has only been tested in [QEMU](https://www.qemu.org/). Currently text only and outputs via COM1.
+See [building.md](building.md). Perception has only been tested in [QEMU](https://www.qemu.org/). Currently text only and outputs via COM1.
 
 ## Directory Structure
 - Applications - User programs.
