@@ -14,16 +14,20 @@ struct Thread {
 	struct Thread *next;
 	struct Thread *previous;
 
-	int awake : 1; /* is this thread awake? */
-	int awake_in_process : 1; /* thread is awake in process, even if process is asleep */
+	bool awake : 1; /* is this thread awake? */
+	bool awake_in_process : 1; /* thread is awake in process, even if process is asleep */
 
 	/* linked list of awake threads */
 	struct Thread *next_awake;
 	struct Thread *previous_awake;
 
-	size_t pml4; /* the pml4 we're operating in, which maybe different to our process, e.g. for kernel threads */
+	size_t pml4; /* the pml4 we're operating in */
 
 	size_t time_slices; /* time slices this thread has had */
+
+	// The next thread sleeping for messages.
+	struct Thread* next_thread_sleeping_for_messages;
+	bool thread_is_waiting_for_message : 1;
 
 	char fpu_registers[512] __attribute__((aligned(16))); /* storage for FPU registers, must be 16 byte aligned (malloc is) */
 };

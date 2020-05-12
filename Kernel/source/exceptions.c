@@ -125,24 +125,24 @@ char *exception_messages[] = {
 	"Reserved" /* 31 */
 };
 
+extern struct isr_regs *currently_executing_thread_regs;
+
 // The exception handler.
-struct isr_regs *ExceptionHandler(struct isr_regs *r) {
-/*
+void ExceptionHandler(int interrupt_no) {
 	// Output the exception that occured.
-	if(r->int_no < 32) {
+	if(interrupt_no < 32) {
 		PrintString("\nException occured: ");
-		PrintNumber((size_t)r->int_no);
-		PrintString(" - ");
-		PrintString(exception_messages[r->int_no]);
+		PrintNumber(interrupt_no);
 	} else {
 		// This should never trigger, because we haven't registered ourselves for interrupts >= 32.
 		PrintString("\nUnknown exception: ");
-		PrintNumber((size_t)r->int_no);
-	}*/
+		PrintNumber(interrupt_no);
+	}
 
-	PrintString("TODO: Terminate the running process.");
+	PrintString(" TODO: Terminate the running process.\n");
+	PrintRegisters(currently_executing_thread_regs);
 	asm("hlt");
 
 	/*MarkInterruptHandlerAsLeft();*/
-	return r;
+	//return r;
 }

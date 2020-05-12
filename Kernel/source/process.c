@@ -38,6 +38,12 @@ struct Process *CreateProcess() {
 	}
 	proc->allocated_pages = 0;
 
+	// Messages.
+	proc->next_message = NULL;
+	proc->last_message = NULL;
+	proc->messages_queued = 0;
+	proc->thread_sleeping_for_message = NULL;
+
 	// Threads.
 	proc->threads = 0;
 	proc->thread_count = 0;
@@ -72,7 +78,7 @@ void DestroyProcess(struct Process *process) {
 	free(process);
 }
 
-// Returns a process with the provided pid, returns ERROR if it doesn't exist.
+// Returns a process with the provided pid, returns NULL if it doesn't exist.
 struct Process *GetProcessFromPid(size_t pid) {
 	// Walk through the linked list to find our processes.
 	struct Process *proc = first_process;

@@ -74,9 +74,7 @@ struct Thread *CreateThread(struct Process *process, size_t entry_point, size_t 
 	thread->awake = false;
 	thread->awake_in_process = false;
 	thread->time_slices = 0;
-	/*print_string("Virtual page: ");
-	print_hex(virt_page);
-	asm("hlt");*/
+	thread->thread_is_waiting_for_message = false;
 
 	/* add it to the linked list of threads */
 	thread->previous = 0;

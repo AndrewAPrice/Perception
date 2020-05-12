@@ -20,10 +20,10 @@ void SetTimerPhase(size_t hz) {
 
 // The function that gets called each time to timer fires.
 void TimerHandler() {
-	// PrintString("Timer");
+	PrintString("Timer\n");
 	time_slices++;
 
-	return ScheduleNextThread();
+	ScheduleNextThread();
 }
 
 // Initializes the timer.

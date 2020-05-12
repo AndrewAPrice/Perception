@@ -40,12 +40,15 @@ void InitializeScheduler() {
 char *fpu_registers_ptr; /* needs to be a constant in memory */
 
 void ScheduleNextThread() {
+	PrintString("ScheduleNextThread\n");
 	// The next thread to switch to.
 	struct Thread *next;
 
 	if(running_thread) {
 		// We were currently executing a thread.
-
+		PrintString("Leaving pid "); PrintNumber(running_thread->process->pid);
+		PrintChar('\n');
+		PrintRegisters(currently_executing_thread_regs);
 		asm volatile("fxsave %0"::"m"(*running_thread->fpu_registers));
 
 		// Move to the next awake thread.
@@ -65,6 +68,7 @@ void ScheduleNextThread() {
 		running_thread = 0;
 		currently_executing_thread_regs = idle_regs;
 		SwitchToAddressSpace(kernel_pml4);
+		PrintString("Kernel idle thread\n");
 		return;
 	}
 
@@ -84,28 +88,11 @@ void ScheduleNextThread() {
 
 	currently_executing_thread_regs = running_thread->registers;
 
-/*
-	PrintString("Registers:\n");
-	PrintString("r15: "); PrintHex(currently_executing_thread_regs->r15);
-	PrintString(" r14: "); PrintHex(currently_executing_thread_regs->r14);
-	PrintString("\nr13: "); PrintHex(currently_executing_thread_regs->r13);
-	PrintString(" r12: "); PrintHex(currently_executing_thread_regs->r12);
-	PrintString("\nr11: "); PrintHex(currently_executing_thread_regs->r11);
-	PrintString(" r10: "); PrintHex(currently_executing_thread_regs->r10);
-	PrintString("\nr9:  "); PrintHex(currently_executing_thread_regs->r9);
-	PrintString(" r8:  "); PrintHex(currently_executing_thread_regs->r8);
-	PrintString("\nrbp: "); PrintHex(currently_executing_thread_regs->rbp);
-	PrintString(" rdi: "); PrintHex(currently_executing_thread_regs->rdi);
-	PrintString("\nrsi: "); PrintHex(currently_executing_thread_regs->rsi);
-	PrintString(" rdx: "); PrintHex(currently_executing_thread_regs->rdx);
-	PrintString("\nrbx: "); PrintHex(currently_executing_thread_regs->rbx);
-	PrintString(" rax: "); PrintHex(currently_executing_thread_regs->rax);
-	PrintString("\nrip: "); PrintHex(currently_executing_thread_regs->rip);
-	PrintString(" cs:  "); PrintHex(currently_executing_thread_regs->cs);
-	PrintString("\nefl: "); PrintHex(currently_executing_thread_regs->eflags);
-	PrintString(" usp: "); PrintHex(currently_executing_thread_regs->usersp);
-	PrintString("\nss: "); PrintHex(currently_executing_thread_regs->ss);
-*/
+	PrintString("Entering pid "); PrintNumber(running_thread->process->pid);
+	PrintString(" for time "); PrintNumber(running_thread->time_slices++);
+	PrintChar('\n');
+	PrintRegisters(currently_executing_thread_regs);
+	PrintChar('\n');
 }
 
 void ScheduleThread(struct Thread *thread) {
@@ -115,7 +102,7 @@ void ScheduleThread(struct Thread *thread) {
 		return;
 	}
 
-	thread->awake = 1;
+	thread->awake = true;
 
 	thread->next_awake = 0;
 	thread->previous_awake = last_awake_thread;
@@ -135,7 +122,7 @@ void UnscheduleThread(struct Thread *thread) {
 		return;
 	}
 
-	thread->awake = 0;
+	thread->awake = false;
 
 	if(thread->next_awake) {
 		thread->next_awake->previous_awake = thread->previous_awake;
@@ -150,6 +137,16 @@ void UnscheduleThread(struct Thread *thread) {
 	}
 
 	if (thread == running_thread) {
+		ScheduleNextThread();
+	}
+}
+
+
+// Schedules a thread if we are currently halted - such as an interrupt
+// woke up a thread.
+void ScheduleThreadIfWeAreHalted() {
+	if (running_thread == NULL && first_awake_thread != NULL) {
+		// No thread was running, but there is a thread waiting to run.
 		ScheduleNextThread();
 	}
 }

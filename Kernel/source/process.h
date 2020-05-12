@@ -11,19 +11,19 @@ struct Message;
 struct Thread;
 
 struct Process {
-	/* general info */
-	char name[256]; /* name of the process */
-	size_t pid;
+	// General information.
+	char name[256]; // Name of the process.
+	size_t pid; // The process ID.
 
-	/* memory stuff */
-	size_t pml4; /* physical address of this process's pml4*/
-	size_t allocated_pages; /* number of allocated pages */
+	// Memory stuff.
+	size_t pml4; // The physical address of this process's pml4.
+	size_t allocated_pages; // The number of allocated pages.
 
-	/* linked list of messages */
-	struct Message *next_message; /* start fetching messages here */
-	struct Message *last_message; /* add messages here */
-	unsigned short messages;
-	struct Thread *waiting_thread; /* thread waiting for a message */
+	// Messaging stuff.
+	struct Message* next_message; // Next message on the queue.
+	struct Message* last_message; // Last message on the queue.
+	size_t messages_queued; // Number of messages queued.
+	struct Thread *thread_sleeping_for_message; // Thread sleeping for a message.
 
 	/* threads */
 	struct Thread *threads;
@@ -43,5 +43,5 @@ extern struct Process *CreateProcess();
 // Destroys a process - DO NOT CALL THIS DIRECTLY, destroy a process by destroying all of it's threads!
 extern void DestroyProcess(struct Process* process);
 
-// Returns a process with the provided pid, returns 0 if it doesn't exist.
+// Returns a process with the provided pid, returns NULL if it doesn't exist.
 extern struct Process *GetProcessFromPid(size_t pid);

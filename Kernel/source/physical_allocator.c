@@ -2,6 +2,7 @@
 
 #include "io.h"
 #include "../../third_party/multiboot2.h"
+#include "object_pools.h"
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 
@@ -190,8 +191,13 @@ size_t GetPhysicalPagePreVirtualMemory() {
 // Grabs the next physical page, returns OUT_OF_PHYSICAL_PAGES if there are no more physical pages.
 size_t GetPhysicalPage() {
 	if(next_free_page_address == OUT_OF_PHYSICAL_PAGES) {
-		// No more free pages.
-		return OUT_OF_PHYSICAL_PAGES;
+		// Ran out of memory. Try to clean up some memory.
+		CleanUpObjectPools();
+
+		if (next_free_page_address == OUT_OF_PHYSICAL_PAGES) {
+			// No more free pages.
+			return OUT_OF_PHYSICAL_PAGES;
+		}
 	}
 
 	// Take the top page from the stack.

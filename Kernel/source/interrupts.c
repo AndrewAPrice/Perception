@@ -18,6 +18,7 @@
 #include "idt.h"
 #include "io.h"
 #include "physical_allocator.h"
+#include "scheduler.h"
 #include "text_terminal.h"
 #include "tss.h"
 #include "virtual_allocator.h"
@@ -238,6 +239,10 @@ void CommonHardwareInterruptHandler(int interrupt_no) {
 
 	// Send an EOI to the master interrupt controllerr.
 	outportb(0x20, 0x20);
+	
+	// Interrupt could have awoken a thread when the system was currently halted. If so, let's
+	// jump straight into it upon return.
+	ScheduleThreadIfWeAreHalted();
 }
 
 #if 0
@@ -257,3 +262,29 @@ void unlock_interrupts() {
 	// PrintString("|");
 }
 #endif
+
+// Prints the registers, for debugging.
+void PrintRegisters(struct isr_regs* regs) {
+	PrintString("Printing registers:\n");
+	PrintString("r15: "); PrintHex(regs->r15);
+	PrintString(" r14: "); PrintHex(regs->r14);
+	PrintString("\nr13: "); PrintHex(regs->r13);
+	PrintString(" r12: "); PrintHex(regs->r12);
+	PrintString("\nr11: "); PrintHex(regs->r11);
+	PrintString(" r10: "); PrintHex(regs->r10);
+	PrintString("\nr9:  "); PrintHex(regs->r9);
+	PrintString(" r8:  "); PrintHex(regs->r8);
+	PrintString("\nrbp: "); PrintHex(regs->rbp);
+	PrintString(" rdi: "); PrintHex(regs->rdi);
+	PrintString("\nrsi: "); PrintHex(regs->rsi);
+	PrintString(" rdx: "); PrintHex(regs->rdx);
+	PrintString(" rcx: "); PrintHex(regs->rcx);
+	PrintString("\nrbx: "); PrintHex(regs->rbx);
+	PrintString(" rax: "); PrintHex(regs->rax);
+	PrintString("\nrip: "); PrintHex(regs->rip);
+	PrintString(" cs:  "); PrintHex(regs->cs);
+	PrintString("\nefl: "); PrintHex(regs->eflags);
+	PrintString(" usp: "); PrintHex(regs->usersp);
+	PrintString("\nss: "); PrintHex(regs->ss);
+	PrintChar('\n');
+}

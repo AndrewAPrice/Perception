@@ -37,3 +37,6 @@ extern void InstallHardwareInterruptHandler(int irq, irq_handler_ptr handler);
 
 // Uninstalls an interrupt handler.
 extern void UninstallHardwareInterruptHandler(int irq);
+
+// Prints the registers, for debugging.
+extern void PrintRegisters(struct isr_regs* regs);

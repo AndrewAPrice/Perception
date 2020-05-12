@@ -11,7 +11,7 @@ typedef signed int int32;
 typedef signed short int16;
 typedef signed char int8;
 
-#define NULL 0
+#define NULL ((void*)0)
 #define false 0
 #define true 1
 

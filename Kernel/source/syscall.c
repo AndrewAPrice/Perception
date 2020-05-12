@@ -2,6 +2,7 @@
 
 #include "io.h"
 #include "interrupts.h"
+#include "messages.h"
 #include "process.h"
 #include "scheduler.h"
 #include "text_terminal.h"
@@ -34,7 +35,7 @@ void InitializeSystemCalls() {
 }
 
 // Syscalls.
-// Next id is 17.
+// Next id is 20.
 #define PRINT_DEBUG_CHARACTER 0
 #define CREATE_THREAD 1
 #define GET_THIS_THREAD_ID 2
@@ -52,14 +53,19 @@ void InitializeSystemCalls() {
 #define GET_FREE_SYSTEM_MEMORY 14
 #define GET_MEMORY_USED_BY_PROCESS 15
 #define GET_TOTAL_SYSTEM_MEMORY 16
+// Messaging
+#define SEND_MESSAGE 17
+#define POLL_FOR_MESSAGE 18
+#define SLEEP_FOR_MESSAGE 19
 
 extern void JumpIntoThread();
 
 void SyscallHandler(int syscall_number) {
-	/*
-		PrintChar('%');
-		PrintNumber(syscall_number);
-	*/
+	
+	PrintString("Entering syscall: ");
+	PrintNumber(syscall_number);
+	PrintChar('\n');
+	PrintRegisters(currently_executing_thread_regs);
 	switch (syscall_number) {
 		case PRINT_DEBUG_CHARACTER:
 			PrintChar((unsigned char)currently_executing_thread_regs->rax);
@@ -86,8 +92,10 @@ void SyscallHandler(int syscall_number) {
 			PrintString("Implement SLEEP\n");
 			break;
 		case WAKE_THREAD:
+			// TODO: if thread is waiting for event, set bad event id
 			break;
 		case WAKE_AND_SWITCH_TO_THREAD:
+			// TODO: if thread is waiting for event, set bad event id
 			break;
 		case TERMINATE_THIS_THREAD:
 			DestroyThread(running_thread, false);
@@ -112,6 +120,7 @@ void SyscallHandler(int syscall_number) {
 			PrintString("Implement TERMINATE_PROCESS\n");
 			break;
 		case YIELD:
+			PrintString("Yield\n");
 			ScheduleNextThread();
 			JumpIntoThread(); // Doesn't return.
 			break;
@@ -135,5 +144,22 @@ void SyscallHandler(int syscall_number) {
 		case GET_TOTAL_SYSTEM_MEMORY:
 			currently_executing_thread_regs->rax = total_system_memory;
 			break;
+		case SEND_MESSAGE:
+			SendMessageFromThreadSyscall(running_thread);
+			break;
+		case POLL_FOR_MESSAGE:
+			LoadNextMessageIntoThread(running_thread);
+			break;
+		case SLEEP_FOR_MESSAGE:
+			if (SleepThreadUntilMessage(running_thread)) {
+				// The thread is now asleep. We need to schedule a new thread.
+				ScheduleNextThread();
+				JumpIntoThread(); // Doesn't return.
+			}
+			break;
 	}
+	PrintString("Leaving syscall: ");
+	PrintNumber(syscall_number);
+	PrintChar('\n');
+	PrintRegisters(currently_executing_thread_regs);
 }
