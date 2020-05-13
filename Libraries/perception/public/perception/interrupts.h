@@ -18,15 +18,13 @@
 
 namespace perception {
 
-class DebugPrinter {
-public:
-	DebugPrinter& operator<< (char c);
-	DebugPrinter& operator<< (size_t number);
-	DebugPrinter& operator<< (int64 number);
-	DebugPrinter& operator<< (const char* str);
-	DebugPrinter& operator<< (bool b);
-};
+// Functions for dealing with hardware interrupts. The program calling this must be a driver, otherwise
+// the caller will terminate!
 
-extern DebugPrinter DebugPrinterSingleton;
+// Registers a message to send to this process upon receiving an interrupt.
+void RegisterMessageToSendOnInterrupt(uint8 interrupt, size_t message_id);
+
+// Unregisters a message to send to this process upon receiving an interrupt.
+void UnregisterMessageToSendOnInterrupt(uint8 interrupt, size_t message_id);
 
 }

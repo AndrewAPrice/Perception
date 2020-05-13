@@ -53,12 +53,26 @@ DebugPrinter& DebugPrinter::operator<< (size_t number) {
 	return *this;
 }
 
+DebugPrinter& DebugPrinter::operator<< (int64 number) {
+	if (number < 0) {
+		*this << '-';
+		number *= -1;
+	}
+	*this << (size_t)number;
+	return *this;
+}
+
+
 DebugPrinter& DebugPrinter::operator<< (const char* str) {
 	const char *c = (const char *)str;
 	while(*c) {
 		*this << *c;
 		c++;
 	}
+	return *this;
+}
+DebugPrinter& DebugPrinter::operator<< (bool b) {
+	*this << (b ? "true" : "false");
 	return *this;
 }
 

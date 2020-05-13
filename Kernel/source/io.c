@@ -54,6 +54,16 @@ size_t strlen(const char *str) {
 	return count;
 }
 
+size_t strlen_s(const char *str, size_t max_size) {
+	size_t count = 0;
+	while(*str && count < max_size) {
+		count++;
+		str++;
+	}
+
+	return count;
+}
+
 uint8 inportb (unsigned short _port)
 {
     unsigned char rv;

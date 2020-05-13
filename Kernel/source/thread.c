@@ -73,9 +73,11 @@ struct Thread *CreateThread(struct Process *process, size_t entry_point, size_t 
 
 	// Sets up the processor's flags.
 	regs->rflags = 
-		((!process) ? ((1 << 12) | (1 << 13)) : 0) | // Sets the IPOL bits for kernel threads. TODO.
+		((process->is_driver) ? ((1 << 12) | (1 << 13)) : 0) | // Sets the IOPL bits for drivers.
 		(1 << 9) | // Interrupts are enabled.
 		(1 << 21); // The thread can use CPUID.
+
+	PrintString(process->is_driver ? "Is driver\n" : "is not driver\n");
 
 	// The thread isn't initially awake until we schedule it.
 	thread->awake = false;

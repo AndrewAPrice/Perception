@@ -24,7 +24,7 @@
 // lower memory, so we'll have to add VIRTUAL_MEMORY_OFFSET when deferencing them.
 extern uint64 TSSEntry;
 
-// Size of the TSS
+// Size of the TSS 
 #define TSS_SIZE 104
 // Index of RSP0 in the TSS (stack pointer for ring 0).
 #define RSP0_LOW 1
@@ -66,6 +66,9 @@ void InitializeTss() {
 
 	*(uint64*)(((size_t)&TSSEntry) + VIRTUAL_MEMORY_OFFSET) = tss_entry_low;
 	*(uint64*)(((size_t)&TSSEntry) + VIRTUAL_MEMORY_OFFSET + 8) = tss_entry_high;
+
+	// Point the IOPB bitmap offset to the end of TSS structure, because it's unused.
+	((uint16*)tss)[51] = TSS_SIZE;
 }
 
 

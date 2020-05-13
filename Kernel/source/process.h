@@ -7,6 +7,7 @@ struct reg128 {
 };
 typedef size_t reg64;*/
 
+struct MessageToFireOnInterrupt;
 struct Message;
 struct Thread;
 
@@ -16,6 +17,9 @@ struct Process {
 
 	// Name of the process.
 	char name[256];
+
+	// Is this a process a driver? Drivers have permission to do IO.
+	bool is_driver;
 
 	// The physical address of this process's pml4. This represents the virtual
 	// address space that is unique to this process.
@@ -31,6 +35,9 @@ struct Process {
 	// Linked queue of threads that are currently sleeping and waiting for a message.
 	struct Thread *thread_sleeping_for_message;
 
+	// Linked list of messages to fire on an interrupt.
+	struct MessageToFireOnInterrupt* message_to_fire_on_interrupt;
+
 	// Linked list of threads.
 	struct Thread *threads;
 	// Number of threads this process has..
@@ -45,7 +52,7 @@ struct Process {
 extern void InitializeProcesses();
 
 // Creates a process, returns ERROR if there was an error.
-extern struct Process *CreateProcess();
+extern struct Process *CreateProcess(bool is_driver);
 
 // Destroys a process - DO NOT CALL THIS DIRECTLY, destroy a process by destroying all of it's threads!
 extern void DestroyProcess(struct Process* process);

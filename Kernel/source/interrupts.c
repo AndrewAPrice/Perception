@@ -17,9 +17,13 @@
 #include "exceptions.h"
 #include "idt.h"
 #include "io.h"
+#include "liballoc.h"
+#include "messages.h"
 #include "physical_allocator.h"
+#include "process.h"
 #include "scheduler.h"
 #include "text_terminal.h"
+#include "timer.h"
 #include "tss.h"
 #include "virtual_allocator.h"
 
@@ -43,10 +47,28 @@ extern void irq15();
 // The top of the interrupt's stack.
 size_t interrupt_stack_top;
 
-// A list of function pointers to our IRQ handlers.
-irq_handler_ptr irq_handlers[16] = {
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0
+// A message to fire on an interrupt.
+struct MessageToFireOnInterrupt {
+	// The process to send the message to.
+	struct Process* process;
+
+	// The message ID to fire.
+	size_t message_id;
+
+	// The interrupt number.
+	uint8 interrupt_number;
+
+	// Next message to fire for this interrupt.
+	struct MessageToFireOnInterrupt* next_message_for_interrupt;
+
+	// Next message for this process.
+	struct MessageToFireOnInterrupt* next_message_for_process;
+};
+
+// A list of messages pointers to our IRQ handlers.
+struct MessageToFireOnInterrupt* messages_to_fire_on_interrupt[16] = {
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
 // Remaps hardware interrupts 0->15 to 32->47 on the Interrupt Descriptor Table to not overlap
@@ -121,29 +143,126 @@ void InitializeInterrupts() {
 }
 
 
-// Installs an interrupt handler that gets called when the hardware interrupt occurs.
-void InstallHardwareInterruptHandler(int irq, irq_handler_ptr handler) {
-	irq_handlers[irq] = handler;
+// Registers a message to send to a process upon receiving an interrupt.
+void RegisterMessageToSendOnInterrupt(size_t interrupt_number, struct Process* process, size_t message_id) {
+	if (!process->is_driver) {
+		// Only drivers can listen to interrupts.
+		return;
+	}
+
+	interrupt_number &= 0xF;
+
+	struct MessageToFireOnInterrupt* message = malloc(sizeof(struct MessageToFireOnInterrupt));
+	message->process = process;
+	message->message_id = message_id;
+	message->interrupt_number = (uint8)interrupt_number;
+
+	// Add to the linked list of messages for this interrupt.
+	message->next_message_for_interrupt = messages_to_fire_on_interrupt[interrupt_number];
+	messages_to_fire_on_interrupt[interrupt_number] = message;
+
+	// Add to the linked list of messages for this process.
+	message->next_message_for_process = process->message_to_fire_on_interrupt;
+	process->message_to_fire_on_interrupt = message;
+
 }
 
-// Uninstalls an interrupt handler.
-void UninstallHardwareInterruptHandler(int irq) {
-	irq_handlers[irq] = 0;
+// Unregisters a message to send to a process upon receiving an interrupt.
+void UnregisterMessageToSendOnInterrupt(size_t interrupt_number, struct Process* process, size_t message_id) {
+	if (!process->is_driver) {
+		// Only drivers can listen to interrupts.
+		return;
+	}
+
+	interrupt_number &= 0xF;
+
+	// Remove all matching messages from the interrupt's list.
+	struct MessageToFireOnInterrupt* previous = NULL;
+	struct MessageToFireOnInterrupt* current = messages_to_fire_on_interrupt[interrupt_number];
+	while (current != NULL) {
+		struct MessageToFireOnInterrupt* next = current->next_message_for_interrupt;
+		if (current->process == process && current->message_id == message_id) {
+			// We found the message!
+			if (previous == NULL) {
+				messages_to_fire_on_interrupt[interrupt_number] = next;
+			} else {
+				previous->next_message_for_interrupt = next;
+			}
+		} else {
+			previous = current;
+		}
+		current = next;
+	}
+
+	// Remove (and release) all matching messages from the process's list.
+	previous = NULL;
+	current = process->message_to_fire_on_interrupt;
+	while (current != NULL) {
+		struct MessageToFireOnInterrupt* next = current->next_message_for_process;
+		if (current->interrupt_number == interrupt_number && current->message_id == message_id) {
+			// We found the message!
+			if (previous == NULL) {
+				process->message_to_fire_on_interrupt = next;
+			} else {
+				previous->next_message_for_process = next;
+			}
+		} else {
+			previous = current;
+		}
+
+		current = next;
+	}
+}
+
+// Unregisters all messages for a process.
+void UnregisterAllMessagesToForOnInterruptForProcess(struct Process* process) {
+	while (process->message_to_fire_on_interrupt != NULL) {
+		// Remove this message from the process's list.
+		struct MessageToFireOnInterrupt* message = process->message_to_fire_on_interrupt;
+		process->message_to_fire_on_interrupt = message->next_message_for_process;
+
+		// Remove this message for the interrupt's list.
+		int interrupt_number = message->interrupt_number & 0xF;
+		struct MessageToFireOnInterrupt* previous = NULL;
+		struct MessageToFireOnInterrupt* current = messages_to_fire_on_interrupt[interrupt_number];
+
+		while (current != NULL) {
+			struct MessageToFireOnInterrupt* next = current->next_message_for_interrupt;
+			if (current = message) {
+				// We found the message!
+				if (previous == NULL) {
+					messages_to_fire_on_interrupt[interrupt_number] = next;
+				} else {
+					previous->next_message_for_interrupt = next;
+				}
+			} else {
+				previous = current;
+			}
+			current = next;
+		}
+
+		free(message);
+	}
+
 }
 
 // The common handler that is called when a hardware interrupt occurs.
-void CommonHardwareInterruptHandler(int interrupt_no) {
-//	MarkInterruptHandlerAsEntered();
+void CommonHardwareInterruptHandler(int interrupt_number) {
+	if (interrupt_number == 0) {
+		// The only hardware interrupt the microkernel knows about - the timer.
+		TimerHandler();
+	}
 
-	// See if we have a handler for this interrupt, and dispatch it.
-	irq_handler_ptr handle = irq_handlers[interrupt_no];
-	if(handle) {
-		handle();
+	// Send messages to any processes listening for this interrupt.
+	struct MessageToFireOnInterrupt* message = messages_to_fire_on_interrupt[interrupt_number];
+	while (message != NULL) {
+		SendKernelMessageToProcess(message->process, message->message_id, 0, 0, 0, 0, 0);
+		message = message->next_message_for_interrupt;
 	}
 
 	// If the IDTt entry that was invoked was greater than 40 (IRQ 8-15) we need to send an
 	// EOI to the slave controller.
-	if(interrupt_no >= 8) {
+	if(interrupt_number >= 8) {
 		outportb(0xA0, 0x20);
 	}
 
@@ -154,21 +273,3 @@ void CommonHardwareInterruptHandler(int interrupt_no) {
 	// jump straight into it upon return.
 	ScheduleThreadIfWeAreHalted();
 }
-
-#if 0
-void lock_interrupts() {
-	if(in_interrupt) return; /* do nothing inside an interrupt because they're already disabled */
-	if(interrupt_locks == 0)
-		__asm__ __volatile__ ("cli");
-	interrupt_locks++;
-	//PrintString("+");
-}
-
-void unlock_interrupts() {
-	if(in_interrupt) return; /* do nothing inside an interrupt because they're already disabled */
-	interrupt_locks--;
-	if(interrupt_locks == 0)
-		__asm__ __volatile__ ("sti");
-	// PrintString("|");
-}
-#endif

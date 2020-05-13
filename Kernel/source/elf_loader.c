@@ -222,7 +222,34 @@ bool LoadSections(const Elf64_Ehdr* header,
 }
 
 void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
-	PrintString("Loading module ");
+	size_t name_length = strlen(name);
+	if (name_length <= 3 || name[1] != ' ') {
+		PrintString("Can't load module \"");
+		PrintString(name);
+		PrintString("\" because the name is not in the correct format.\n");
+		return;
+	}
+
+	bool is_driver = false;
+	char type = name[0];
+	name += 2; // Skip over the module type.
+	switch (type) {
+		case 'd':
+			PrintString("Loading driver ");
+			is_driver = true;
+			break;
+		case 'a':
+			PrintString("Loading application ");
+			break;
+		default:
+			PrintString("Module \"");
+			PrintString(name);
+			PrintString("\" has an unknown type: ");
+			PrintChar(type);
+			PrintChar('\n');
+			return;
+	}
+
 	PrintString(name);
 	PrintString("...\n");
 
@@ -236,13 +263,13 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
 		return;
 	}
 
-	struct Process* process = CreateProcess();
+	struct Process* process = CreateProcess(is_driver);
 	if (!process) {
 		PrintString("Out of memory to create the process.");
 		return;
 	}
 
-	CopyString(name, 256, strlen(name), process->name);
+	CopyString(name, 256, name_length, process->name);
 
 	if (!LoadSections(header, memory_start, memory_end, process)) {
 		DestroyProcess(process);

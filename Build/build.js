@@ -37,21 +37,32 @@ if (!fs.existsSync('tools.json')) {
 }
 const TOOLS = JSON.parse(fs.readFileSync('tools.json'));
 
+
+// Escape spaces in a path so paths aren't split up when used as part of a command.
+function escapePath(path) {
+	return path.replace(/ /g, '\\ ');
+}
+
+// Returns an escaped path to a tool.
+function getToolPath(tool) {
+	return escapePath(TOOLS[tool]);
+}
+
 // Commands for building.
 const ASM_COMMAND = 'nasm -felf64';
-const CC_KERNEL_COMMAND = TOOLS['gcc'] + ' -m64 -mcmodel=kernel ' +
+const CC_KERNEL_COMMAND = getToolPath('gcc') + ' -m64 -mcmodel=kernel ' +
 	'-ffreestanding -fno-builtin -nostdlib -nostdinc -mno-red-zone  -c ' +
 	'-msoft-float -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mno-avx ' +
-	'-mno-avx2 -MD -MF temp.d  -O3 -isystem ' + rootDirectory + 'Kernel/source ';
-const CC_COMMAND = TOOLS['gcc'] + ' -O3 -flto -m64 -ffreestanding -nostdlib ' +
+	'-mno-avx2 -MD -MF temp.d  -O3 -isystem ' + escapePath(rootDirectory) + 'Kernel/source ';
+const CC_COMMAND = getToolPath('gcc') + ' -O3 -flto -m64 -ffreestanding -nostdlib ' +
 	'-nostdinc++ -mno-red-zone -c -MD -MF temp.d ';
-const KERNEL_LINKER_COMMAND = TOOLS['ld'] + ' -nodefaultlibs -T ' + rootDirectory + 'Kernel/source/linker.ld -Map=map.txt ';
-// const KERNEL_LINKER_COMMAND = TOOLS['gcc'] + ' -nostdlib -nodefaultlibs -T ' + rootDirectory + 'Kernel/source/linker.ld ';
-const LIBRARY_LINKER_COMMAND = TOOLS['ar'] + ' rvs ';
-const APPLICATION_LINKER_COMMAND = TOOLS['gcc'] + ' -O3 -s -Wl,--strip-all,--gc-sections -nostdlib -nodefaultlibs -nolibc -nostartfiles -z max-page-size=1 -T userland.ld ';
-const GRUB_MKRESCUE_COMMAND = TOOLS['grub-mkrescue'] + ' -o ' + rootDirectory +
+const KERNEL_LINKER_COMMAND = getToolPath('ld') + ' -nodefaultlibs -T ' + escapePath(rootDirectory) + 'Kernel/source/linker.ld -Map=map.txt ';
+// const KERNEL_LINKER_COMMAND = getToolPath('gcc') + ' -nostdlib -nodefaultlibs -T ' + rootDirectory + 'Kernel/source/linker.ld ';
+const LIBRARY_LINKER_COMMAND = getToolPath('ar') + ' rvs ';
+const APPLICATION_LINKER_COMMAND = getToolPath('gcc') + ' -O3 -s -Wl,--strip-all,--gc-sections -nostdlib -nodefaultlibs -nolibc -nostartfiles -z max-page-size=1 -T userland.ld ';
+const GRUB_MKRESCUE_COMMAND = getToolPath('grub-mkrescue') + ' -o ' + escapePath(rootDirectory) +
 	 'Perception.iso' + ' ' + rootDirectory + 'fs';
-const EMULATOR_COMMAND = TOOLS['qemu'] + ' -boot d -cdrom ' + rootDirectory +
+const EMULATOR_COMMAND = getToolPath('qemu') + ' -boot d -cdrom ' + escapePath(rootDirectory) +
 	'Perception.iso -m 512 -serial stdio';
 
 // Calls 'foreachFunc' for each file in the package directory.
@@ -174,14 +185,14 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 
 	let ccBuildCommand = CC_COMMAND; // 'emcc -s DISABLE_EXCEPTION_CATCHING=0 -s DEMANGLE_SUPPORT=1 --bind -s LINKABLE=1 -s BINARYEN=1 -MD -MF temp.d -std=c++17';
 
-    ccBuildCommand += ' -isystem '+ packageDirectory + 'public';
+    ccBuildCommand += ' -isystem '+ escapePath(packageDirectory) + 'public';
 
 	// Public dirs exported by each of our dependencies.
 	publicIncludeDirs.forEach((includeDir) => {
-		ccBuildCommand += ' -isystem ' + includeDir;
+		ccBuildCommand += ' -isystem ' + includeDir; // Pre-escaped.
 	});
 
-	parentPublicIncludeDirs.push(packageDirectory + 'public');
+	parentPublicIncludeDirs.push(escapePath(packageDirectory) + 'public');
 
 	let objectFiles = [];
 	let errors = false;
@@ -197,7 +208,7 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 
 			let shouldCompileFile = false;
 			const objectFile = buildPath + /*sourceFileToObjectFile(packageDirectory, file) + */ '.obj';
-			objectFiles.push(objectFile);
+			objectFiles.push(escapePath(objectFile));
 
 			if (!fs.existsSync(objectFile)) {
 				// Compile if the output file doesn't exist.
@@ -223,7 +234,7 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 			if (shouldCompileFile) {
 				anythingChanged = true;
 				console.log("Compiling " + file);
-				const command = buildCommand + ' -o ' + objectFile + ' ' + file;
+				const command = buildCommand + ' -o ' + escapePath(objectFile) + ' ' + escapePath(file);
 				// console.log(" with command: " + command);
 				var compiled = false;
 				try {
@@ -278,7 +289,7 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 		}
 
 		console.log("Building library " + packageName);
-		const command = LIBRARY_LINKER_COMMAND + packageDirectory + 'library.lib' + ' ' + objectFiles.join(' ');
+		const command = LIBRARY_LINKER_COMMAND + escapePath(packageDirectory) + 'library.lib' + ' ' + objectFiles.join(' ');
 		// console.log(command);
 		try {
 			child_process.execSync(command);
@@ -308,9 +319,10 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 			fs.unlinkSync(packageDirectory + 'application.app');
 		}
 		console.log("Building application " + packageName);
-		let command = APPLICATION_LINKER_COMMAND + ' -o ' + packageDirectory + 'application.app' + ' ' + objectFiles.join(' ');
+		let command = APPLICATION_LINKER_COMMAND + ' -o ' + escapePath(packageDirectory) + 'application.app' + ' ' +
+			objectFiles.join(' ') /* pre-escaped */;
 		librariesToLink.forEach((libraryToLink) => {
-			command += ' ' + librariesToLink;
+			command += ' ' + escapePath(libraryToLink);
 		});
 		try {
 			child_process.execSync(command);
@@ -328,7 +340,8 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 			fs.unlinkSync(packageDirectory + 'kernel.app');
 		}
 
-		let command = KERNEL_LINKER_COMMAND + ' -o ' + packageDirectory + 'kernel.app' + ' ' + objectFiles.join(' ');
+		let command = KERNEL_LINKER_COMMAND + ' -o ' + escapePath(packageDirectory) + 'kernel.app' + ' ' +
+			objectFiles.join(' ') /* pre-escaped */;
 		librariesToLink.forEach((libraryToLink) => {
 			command += ' ' + librariesToLink;
 		});

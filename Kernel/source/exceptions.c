@@ -145,18 +145,20 @@ void ExceptionHandler(int interrupt_no) {
 
 	// The below code doesn't take into account if kernel code caused an exception - such as in a syscall or an interrupt handler.
 	if (running_thread != NULL) {
-		PrintString("Exception by PID ");
+		PrintString(" by PID ");
 		struct Process* process = running_thread->process;
 		PrintNumber(process->pid);
-		PrintString(": ");
+		PrintString(" (");
 		PrintString(process->name);
+		PrintString(") in TID ");
+		PrintNumber(running_thread->id);
 		PrintChar('\n');
 		PrintRegisters(currently_executing_thread_regs);
 		// Terminate the process.
 		DestroyProcess(process);
 		JumpIntoThread(); // Doesn't return.
 	} else {
-		PrintString("Exception outside of a thread.");
+		PrintString(" outside of a thread.");
 		PrintRegisters(currently_executing_thread_regs);
 		asm("hlt");
 	}

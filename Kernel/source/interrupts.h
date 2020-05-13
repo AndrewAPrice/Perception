@@ -14,14 +14,18 @@
 
 #pragma once
 
-// Interrupt handling function.
-typedef void (*irq_handler_ptr)();
+#include "types.h"
+
+struct Process;
 
 // Initializes interrupts.
 extern void InitializeInterrupts();
 
-// Installs an interrupt handler that gets called when the hardware interrupt occurs.
-extern void InstallHardwareInterruptHandler(int irq, irq_handler_ptr handler);
+// Registers a message to send to a process upon receiving an interrupt.
+extern void RegisterMessageToSendOnInterrupt(size_t interrupt_number, struct Process* process, size_t message_id);
 
-// Uninstalls an interrupt handler.
-extern void UninstallHardwareInterruptHandler(int irq);
+// Unregisters a message to send to a process upon receiving an interrupt.
+extern void UnregisterMessageToSendOnInterrupt(size_t interrupt_number, struct Process* process, size_t message_id);
+
+// Unregisters all messages for a process.
+extern void UnregisterAllMessagesToForOnInterruptForProcess(struct Process* process);

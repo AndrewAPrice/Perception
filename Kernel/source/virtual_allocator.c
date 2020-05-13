@@ -46,6 +46,10 @@ void MapKernelMemoryPreVirtualMemory(size_t virtualaddr, size_t physicaladdr, bo
 
 	// Look in PML4.
 	size_t *ptr = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(kernel_pml4);
+	if (pml4_entry != 511) {
+		PrintString("Attempting to map kernel memory not in the last PML4 entry.");
+		__asm__ __volatile__("hlt");
+	}
 	if(ptr[pml4_entry] == 0) {
 		// If this entry is blank blank, create a PML3 table.
 		size_t new_pml3 = GetPhysicalPagePreVirtualMemory();
@@ -252,13 +256,13 @@ size_t FindFreePageRange(size_t pml4, size_t pages) {
 
 	size_t pml4_scan_start, pml4_scan_end;
 	if(pml4 == kernel_pml4) {
-		// For kernel space, scan the higher half of memory.
-		pml4_scan_start = PAGE_TABLE_ENTRIES / 2;
+		// For kernel space, scan the highest PML4 entry.
+		pml4_scan_start = PAGE_TABLE_ENTRIES - 1;
 		pml4_scan_end = PAGE_TABLE_ENTRIES;
 	} else {
-		// For user space, scan the lower half of memory.
+		// For user space, scan below kernel memory..
 		pml4_scan_start = 0;
-		pml4_scan_end = PAGE_TABLE_ENTRIES / 2;
+		pml4_scan_end = PAGE_TABLE_ENTRIES - 1;
 	}
 
 	// Scan the PML4.
@@ -266,6 +270,12 @@ size_t FindFreePageRange(size_t pml4, size_t pages) {
 
 	size_t i;
 	for(i = pml4_scan_start; i < pml4_scan_end && pages_counted < pages; i++) {
+		if (i == PAGE_TABLE_ENTRIES / 2) {
+			// There's a huge gap of non-canonical memory between
+			// 0x00007FFFFFFFFFFF to 0xFFFF800000000000 that we can't use.
+			counting = false;
+			pages_counted = 0;
+		}
 		if(ptr[i] == 0) {
 			if(!counting) {
 				counting = true;
@@ -367,7 +377,7 @@ size_t FindFreePageRange(size_t pml4, size_t pages) {
     //                     pml4       pml3       pml2       pml1        flags
 	size_t addr = (start_pml4_entry << 39) | (start_pml3_entry << 30) | (start_pml2_entry << 21) | (start_pml1_entry << 12);
 	
-	// Make the address canonical in kernel space.
+	// Make the address canonical.
 	if(start_pml4_entry >= PAGE_TABLE_ENTRIES / 2)
 		addr += 0xFFFF000000000000;
 
@@ -387,15 +397,15 @@ bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr, size_t physic
 	size_t pml2_entry = (virtualaddr >> 21) & 511;
 	size_t pml1_entry = (virtualaddr >> 12) & 511;
 
-	bool user_page = pml4_entry < PAGE_TABLE_ENTRIES / 2;
+	bool user_page = pml4_entry != PAGE_TABLE_ENTRIES - 1;
 
 	if(pml4 == kernel_pml4) {
-		// Kernel virtual addreses must be higher half.
+		// Kernel virtual addreses must in the highest pml4 entry.
 		if(user_page) {
 			return false;
 		}
 	} else {
-		// User space virtual addresses must be lower half.
+		// User space virtual addresses must be below kernel memory.
 		if(!user_page) {
 			return false;
 		}
@@ -545,13 +555,13 @@ size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr) {
 	size_t pml1_entry = (virtualaddr >> 12) & 511;
 
 	if(pml4 == kernel_pml4) {
-		// Kernel virtual addreses must be higher half.
-		if(pml4_entry < PAGE_TABLE_ENTRIES / 2) {
+		// Kernel virtual addreses must in the last pml4 entry
+		if(pml4_entry < PAGE_TABLE_ENTRIES - 1) {
 			return OUT_OF_MEMORY;
 		}
 	} else {
-		// User space virtual addresses must be lower half.
-		if(pml4_entry >= PAGE_TABLE_ENTRIES / 2) {
+		// User space virtual addresses must below kernel memory.
+		if(pml4_entry == PAGE_TABLE_ENTRIES - 1) {
 			return OUT_OF_MEMORY;
 		}
 	}
@@ -665,13 +675,13 @@ void UnmapVirtualPage(size_t pml4, size_t virtualaddr, bool free) {
 	size_t pml1_entry = (virtualaddr >> 12) & 511;
 
 	if(pml4 == kernel_pml4) {
-		// Kernel virtual addresses must be higher half.
-		if(pml4_entry < PAGE_TABLE_ENTRIES / 2) {
+		// Kernel virtual addresses must in the last PML4 entry.
+		if(pml4_entry < PAGE_TABLE_ENTRIES - 1) {
 			return;
 		}
 	} else {
-		// User space virtual addresses must be lower half.
-		if(pml4_entry >= PAGE_TABLE_ENTRIES / 2) {
+		// User space virtual addresses must below kernel memory.
+		if(pml4_entry == PAGE_TABLE_ENTRIES - 1) {
 			return;
 		}
 	}
@@ -777,17 +787,12 @@ void UnmapVirtualPage(size_t pml4, size_t virtualaddr, bool free) {
 				// Remove the entry from the PML4.
 				ptr = (size_t *)TemporarilyMapPhysicalMemory(pml4, 0);
 				ptr[pml4_entry] = 0;
-
-				if(pml4_entry >= PAGE_TABLE_ENTRIES / 2) {
-					// We modified the kernel's PML4, copy this into every user application's PML4.
-					// TODO
-				}
 			}
 		}
 
 	}
 
-	if(pml4 == current_pml4 || pml4_entry >= PAGE_TABLE_ENTRIES / 2) {
+	if(pml4 == current_pml4 || pml4_entry >= PAGE_TABLE_ENTRIES - 1) {
 		// Flush the TLB if we are in this address space or if it's a kernel page.
 		FlushVirtualPage(virtualaddr);
 	}
@@ -801,18 +806,16 @@ size_t CreateAddressSpace() {
 		return OUT_OF_MEMORY;
 	}
 
-	// Clear out the bottom half of this virtual address space.
+	// Clear out this virtual address space.
 	size_t *ptr = (size_t *)TemporarilyMapPhysicalMemory(pml4, 0);
 	size_t i;
-	for(i = 0; i < PAGE_TABLE_ENTRIES / 2; i++) {
+	for(i = 0; i < PAGE_TABLE_ENTRIES - 1; i++) {
 		ptr[i] = 0;
 	}
 
-	// Copy the top half of the kernel's address space into this.
+	// Copy the kernel's address space into this.
 	size_t *kernel_ptr = (size_t *)TemporarilyMapPhysicalMemory(kernel_pml4, 1);
-	for(i = PAGE_TABLE_ENTRIES / 2; i < PAGE_TABLE_ENTRIES; i++) {
-		ptr[i] = kernel_ptr[i];
-	}
+	ptr[PAGE_TABLE_ENTRIES - 1] = kernel_ptr[PAGE_TABLE_ENTRIES - 1];
 	
 	return pml4;
 }
@@ -828,7 +831,7 @@ void FreeAddressSpace(size_t pml4) {
 	// Scan the lower half of PML4.
 	size_t *ptr = (size_t *)TemporarilyMapPhysicalMemory(pml4, 0);
 	size_t i;
-	for(i = 0; i < PAGE_TABLE_ENTRIES / 2; i++) {
+	for(i = 0; i < PAGE_TABLE_ENTRIES - 1; i++) {
 		if(ptr[i] != 0) {
 			// Found a PML3.
 			size_t pml3 = ptr[i] & ~(PAGE_SIZE - 1);
@@ -836,7 +839,7 @@ void FreeAddressSpace(size_t pml4) {
 			// Scan the PML3.
 			ptr = (size_t *)TemporarilyMapPhysicalMemory(pml3, 1);
 			size_t j;
-			for(j = 0; j < PAGE_TABLE_ENTRIES / 2; j++) {
+			for(j = 0; j < PAGE_TABLE_ENTRIES; j++) {
 				if(ptr[j] != 0) {
 					// Found a PML2.
 					size_t pml2 = ptr[j] & ~(PAGE_SIZE - 1);

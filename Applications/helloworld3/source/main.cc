@@ -16,7 +16,6 @@
 #include "perception/messages.h"
 
 void main() {
-
 	size_t senders_pid, message_id, param1, param2, param3, param4, param5;
 
 	while(perception::SleepUntilMessage(&senders_pid, &message_id, &param1, &param2,

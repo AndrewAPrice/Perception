@@ -1,5 +1,6 @@
 #include "syscall.h"
 
+#include "interrupts.h"
 #include "io.h"
 #include "messages.h"
 #include "process.h"
@@ -38,7 +39,7 @@ void InitializeSystemCalls() {
 }
 
 // Syscalls.
-// Next id is 20.
+// Next id is 22.
 #define PRINT_DEBUG_CHARACTER 0
 #define CREATE_THREAD 1
 #define GET_THIS_THREAD_ID 2
@@ -56,10 +57,19 @@ void InitializeSystemCalls() {
 #define GET_FREE_SYSTEM_MEMORY 14
 #define GET_MEMORY_USED_BY_PROCESS 15
 #define GET_TOTAL_SYSTEM_MEMORY 16
+#define GET_PROCESS_BY_NAME 22 // TODO
 // Messaging
 #define SEND_MESSAGE 17
 #define POLL_FOR_MESSAGE 18
 #define SLEEP_FOR_MESSAGE 19
+// Interrupts
+#define REGISTER_MESSAGE_TO_SEND_ON_INTERRUPT 20
+#define UNREGISTER_MESSAGE_TO_SEND_ON_INTERRUPT 21
+// RPCS
+#define REGISTER_RPC 23 // TODO
+#define GET_RPC_BY_NAME 24 // TODO
+#define CALL_RPC 25 // TODO
+#define RETURN_FROM_RPC 26 // TODO
 
 extern void JumpIntoThread();
 
@@ -159,6 +169,18 @@ void SyscallHandler(int syscall_number) {
 				ScheduleNextThread();
 				JumpIntoThread(); // Doesn't return.
 			}
+			break;
+		case REGISTER_MESSAGE_TO_SEND_ON_INTERRUPT:
+			RegisterMessageToSendOnInterrupt(
+				(int)currently_executing_thread_regs->rax,
+				running_thread->process,
+				currently_executing_thread_regs->rbx);
+			break;
+		case UNREGISTER_MESSAGE_TO_SEND_ON_INTERRUPT:
+			UnregisterMessageToSendOnInterrupt(
+				(int)currently_executing_thread_regs->rax,
+				running_thread->process,
+				currently_executing_thread_regs->rbx);
 			break;
 	}
 #ifdef DEBUG

@@ -1,5 +1,6 @@
 #include "process.h"
 
+#include "interrupts.h"
 #include "liballoc.h"
 #include "virtual_allocator.h"
 #include "io.h"
@@ -17,13 +18,14 @@ void InitializeProcesses() {
 }
 
 // Creates a process, returns ERROR if there was an error.
-struct Process *CreateProcess() {
+struct Process *CreateProcess(bool is_driver) {
 	// Create a memory space for it.
 	struct Process *proc = malloc(sizeof(struct Process));
 	if(proc == 0) {
 		// Out of memory.
 		return (struct Process *)ERROR;
 	}
+	proc->is_driver = is_driver;
 
 	// Assign a name and process ID.
 	memset(proc->name, 0, 256); // Clear the name.
@@ -43,6 +45,7 @@ struct Process *CreateProcess() {
 	proc->last_message = NULL;
 	proc->messages_queued = 0;
 	proc->thread_sleeping_for_message = NULL;
+	proc->message_to_fire_on_interrupt = NULL;
 
 	// Threads.
 	proc->threads = 0;
@@ -64,6 +67,10 @@ struct Process *CreateProcess() {
 void DestroyProcess(struct Process *process) {
 	// Destroy all threads.
 	DestroyThreadsForProcess(process, true);
+
+	if (process->message_to_fire_on_interrupt != NULL) {
+		UnregisterAllMessagesToForOnInterruptForProcess(process);
+	}
 
 	// Free the address space.
 	FreeAddressSpace(process->pml4);

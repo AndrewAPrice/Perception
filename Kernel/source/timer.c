@@ -28,5 +28,4 @@ void TimerHandler() {
 void InitializeTimer() {
 	time_slices = 0;
 	SetTimerPhase(TIME_SLICES_PER_SECOND);
-	InstallHardwareInterruptHandler(0, TimerHandler);
 }
