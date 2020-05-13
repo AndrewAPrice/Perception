@@ -16,7 +16,11 @@
 
 #include "idt.h"
 #include "interrupts.h"
+#include "process.h"
 #include "text_terminal.h"
+#include "thread.h"
+#include "registers.h"
+#include "scheduler.h"
 
 // The first 32 interrupts are used for processor exceptions.
 
@@ -125,7 +129,7 @@ char *exception_messages[] = {
 	"Reserved" /* 31 */
 };
 
-extern struct isr_regs *currently_executing_thread_regs;
+extern void JumpIntoThread();
 
 // The exception handler.
 void ExceptionHandler(int interrupt_no) {
@@ -139,9 +143,23 @@ void ExceptionHandler(int interrupt_no) {
 		PrintNumber(interrupt_no);
 	}
 
-	PrintString(" TODO: Terminate the running process.\n");
-	PrintRegisters(currently_executing_thread_regs);
-	asm("hlt");
+	// The below code doesn't take into account if kernel code caused an exception - such as in a syscall or an interrupt handler.
+	if (running_thread != NULL) {
+		PrintString("Exception by PID ");
+		struct Process* process = running_thread->process;
+		PrintNumber(process->pid);
+		PrintString(": ");
+		PrintString(process->name);
+		PrintChar('\n');
+		PrintRegisters(currently_executing_thread_regs);
+		// Terminate the process.
+		DestroyProcess(process);
+		JumpIntoThread(); // Doesn't return.
+	} else {
+		PrintString("Exception outside of a thread.");
+		PrintRegisters(currently_executing_thread_regs);
+		asm("hlt");
+	}
 
 	/*MarkInterruptHandlerAsLeft();*/
 	//return r;

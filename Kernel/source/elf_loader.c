@@ -23,6 +23,9 @@
 #include "thread.h"
 #include "virtual_allocator.h"
 
+// Uncomment for debug printing.
+// #define DEBUG
+
 // Is this a valid ELF header?
 bool IsValidElfHeader(Elf64_Ehdr* header) {
 	if (header->e_ident[EI_MAG0] != ELFMAG0 ||
@@ -64,7 +67,8 @@ bool IsValidElfHeader(Elf64_Ehdr* header) {
 // Copies data from the module into the process's memory.
 bool CopyIntoMemory(size_t from_start,
 	size_t to_start, size_t to_end, struct Process* process) {
-	/*
+	
+#ifdef DEBUG
 	PrintString("Copy section ");
 	PrintHex(from_start);
 	PrintString(" to ");
@@ -72,7 +76,7 @@ bool CopyIntoMemory(size_t from_start,
 	PrintString("->");
 	PrintHex(to_end);
 	PrintChar('\n');
-	*/
+#endif
 
 	size_t pml4 = process->pml4;
 
@@ -81,7 +85,7 @@ bool CopyIntoMemory(size_t from_start,
 	size_t to_last_page = (to_end + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // Round up.
 	
 	size_t to_page = to_first_page;
-	for (; to_page < to_last_page; from_start += PAGE_SIZE, to_page += PAGE_SIZE) {
+	for (; to_page < to_last_page; to_page += PAGE_SIZE) {
 		size_t physical_page_address = GetOrCreateVirtualPage(pml4, to_page);
 		if (physical_page_address == OUT_OF_MEMORY) {
 			// We ran out of memory trying to allocate the virtual page.
@@ -93,20 +97,29 @@ bool CopyIntoMemory(size_t from_start,
 		// Indices where to start/finish copying within the page.
 		size_t offset_in_page_to_start_copying_at =	to_start > to_page ? to_start - to_page : 0;
 		size_t offset_in_page_to_finish_copying_at = to_page + PAGE_SIZE > to_end ? to_end - to_page : PAGE_SIZE;
+		size_t copy_length = offset_in_page_to_finish_copying_at - offset_in_page_to_start_copying_at;
 
-		/*
-		PrintString("Copying from ");
+#ifdef DEBUG
+		PrintString("Loaded page ");
+		PrintHex(to_page);
+		PrintString(" (phys: ");
+		PrintHex(physical_page_address);
+		PrintString(") - copying from ");
 		PrintHex(from_start);
 		PrintString(" to page ");
 		PrintHex(to_page + offset_in_page_to_start_copying_at);
 		PrintString("->");
 		PrintHex(to_page + offset_in_page_to_finish_copying_at);
+		PrintString(" length: ");
+		PrintHex(copy_length);
 		PrintChar('\n');
-		*/
+#endif
 
 		memcpy((unsigned char *)(temp_addr + offset_in_page_to_start_copying_at),
 			(unsigned char*)(from_start),
-			offset_in_page_to_finish_copying_at - offset_in_page_to_start_copying_at);
+			copy_length);
+
+		from_start += copy_length;
 	}
 
 	return true;
@@ -114,6 +127,14 @@ bool CopyIntoMemory(size_t from_start,
 
 // Touches memory, to make sure it is available, but doesn't copy anything into it.
 bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
+#ifdef DEBUG
+	PrintString("Loading section ");
+	PrintHex(to_start);
+	PrintString("->");
+	PrintHex(to_end);
+	PrintChar('\n');
+#endif
+
 	size_t pml4 = process->pml4;
 
 	size_t to_first_page = to_start & ~(PAGE_SIZE - 1); // Round down.
@@ -126,6 +147,11 @@ bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
 			// We ran out of memory trying to allocate the virtual page.
 			return false;
 		}
+#ifdef DEBUG
+		PrintString("Loaded page ");
+		PrintHex(to_page);
+		PrintChar('\n');
+#endif
 		// We don't need to do anything to the memory, because if the page was freshly
 		// allocated, it'd be initialized to 0.
 	}

@@ -14,18 +14,6 @@
 
 #pragma once
 
-#include "types.h"
-
-// The running process's registers at the time the interrupt was called.
-// If this struct is changed, we need to update the contents of interrupts.asm
-// and exceptions.asm.
-struct isr_regs {
-	size_t r15, r14, r13, r12, r11, r10, r9, r8;
-	size_t rsi, rdx, rcx, rbx, rax, rdi, rbp;
-	size_t rip, cs, eflags, usersp, ss;
-//	size_t int_no, err_code;
-};
-
 // Interrupt handling function.
 typedef void (*irq_handler_ptr)();
 
@@ -37,6 +25,3 @@ extern void InstallHardwareInterruptHandler(int irq, irq_handler_ptr handler);
 
 // Uninstalls an interrupt handler.
 extern void UninstallHardwareInterruptHandler(int irq);
-
-// Prints the registers, for debugging.
-extern void PrintRegisters(struct isr_regs* regs);

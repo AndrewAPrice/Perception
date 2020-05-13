@@ -547,12 +547,12 @@ size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr) {
 	if(pml4 == kernel_pml4) {
 		// Kernel virtual addreses must be higher half.
 		if(pml4_entry < PAGE_TABLE_ENTRIES / 2) {
-			return false;
+			return OUT_OF_MEMORY;
 		}
 	} else {
 		// User space virtual addresses must be lower half.
 		if(pml4_entry >= PAGE_TABLE_ENTRIES / 2) {
-			return false;
+			return OUT_OF_MEMORY;
 		}
 	}
 
@@ -589,8 +589,6 @@ size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr) {
 	} else {
 		return ptr[pml1_entry] & 0xFFFFFFFFFFFFF000;
 	}
-
-	return true;
 }
 
 // Return the physical address mapped at a virtual address, returning OUT_OF_MEMORY if is not mapped.
@@ -611,7 +609,6 @@ size_t GetOrCreateVirtualPage(size_t pml4, size_t virtualaddr) {
 		FreePhysicalPage(physical_address);
 		return OUT_OF_MEMORY;
 	}
-
 }
 
 

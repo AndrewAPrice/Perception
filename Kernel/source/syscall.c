@@ -1,14 +1,17 @@
 #include "syscall.h"
 
 #include "io.h"
-#include "interrupts.h"
 #include "messages.h"
 #include "process.h"
+#include "registers.h"
 #include "scheduler.h"
 #include "text_terminal.h"
 #include "physical_allocator.h"
 #include "thread.h"
 #include "virtual_allocator.h"
+
+// Uncomment for debug printing.
+// #define DEBUG
 
 extern void syscall_entry();
 
@@ -61,11 +64,12 @@ void InitializeSystemCalls() {
 extern void JumpIntoThread();
 
 void SyscallHandler(int syscall_number) {
-	
+#ifdef DEBUG
 	PrintString("Entering syscall: ");
 	PrintNumber(syscall_number);
 	PrintChar('\n');
 	PrintRegisters(currently_executing_thread_regs);
+#endif
 	switch (syscall_number) {
 		case PRINT_DEBUG_CHARACTER:
 			PrintChar((unsigned char)currently_executing_thread_regs->rax);
@@ -120,17 +124,16 @@ void SyscallHandler(int syscall_number) {
 			PrintString("Implement TERMINATE_PROCESS\n");
 			break;
 		case YIELD:
-			PrintString("Yield\n");
 			ScheduleNextThread();
 			JumpIntoThread(); // Doesn't return.
 			break;
 		case ALLOCATE_MEMORY_PAGES:
 			currently_executing_thread_regs->rax =
-				AllocateVirtualMemoryInAddressSpace(running_thread->pml4,
+				AllocateVirtualMemoryInAddressSpace(running_thread->process->pml4,
 					currently_executing_thread_regs->rax);
 			break;
 		case RELEASE_MEMORY_PAGES: {
-			ReleaseVirtualMemoryInAddressSpace(running_thread->pml4,
+			ReleaseVirtualMemoryInAddressSpace(running_thread->process->pml4,
 					currently_executing_thread_regs->rax,
 					currently_executing_thread_regs->rbx);
 			break;
@@ -158,8 +161,10 @@ void SyscallHandler(int syscall_number) {
 			}
 			break;
 	}
+#ifdef DEBUG
 	PrintString("Leaving syscall: ");
 	PrintNumber(syscall_number);
 	PrintChar('\n');
 	PrintRegisters(currently_executing_thread_regs);
+#endif
 }

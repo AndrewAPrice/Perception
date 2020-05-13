@@ -41,12 +41,6 @@ void InitializeTss() {
 	tss = malloc(TSS_SIZE);
 	memset((char *)tss, 0, TSS_SIZE);
 
-	/*
-	PrintString("Tss lives at: ");
-	PrintHex((size_t)tss);
-	PrintChar('\n');
-	*/
-
 	// Set the TSS entry in the GDT.
 	uint64 tss_entry_low = 0;
 	unsigned char* tss_entry_bytes = (unsigned char*)&tss_entry_low;
@@ -69,13 +63,6 @@ void InitializeTss() {
 	uint32* tss_entry_dwords = (uint32*)&tss_entry_high;
 
 	tss_entry_dwords[0] = (base >> 32) & 0xFFFFFFFF;
-
-	/*
-	PrintHex(tss_entry_low);
-	PrintChar(' ');
-	PrintHex(tss_entry_high);
-	PrintChar('\n');
-	*/
 
 	*(uint64*)(((size_t)&TSSEntry) + VIRTUAL_MEMORY_OFFSET) = tss_entry_low;
 	*(uint64*)(((size_t)&TSSEntry) + VIRTUAL_MEMORY_OFFSET + 8) = tss_entry_high;

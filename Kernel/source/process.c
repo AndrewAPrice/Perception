@@ -68,12 +68,6 @@ void DestroyProcess(struct Process *process) {
 	// Free the address space.
 	FreeAddressSpace(process->pml4);
 
-	/*
-	PrintString("Process ");
-	PrintString(process->name);
-	PrintString(" destroyed.\n");
-	*/	
-
 	// Free the process.
 	free(process);
 }

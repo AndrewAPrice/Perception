@@ -1,122 +1,110 @@
 #include "thread.h"
 
-#include "interrupts.h"
 #include "liballoc.h"
 #include "process.h"
 #include "physical_allocator.h"
 #include "io.h"
-#include "virtual_allocator.h"
+#include "registers.h"
 #include "scheduler.h"
 #include "text_terminal.h"
+#include "virtual_allocator.h"
 
 size_t next_thread_id;
-// struct Thread *next_thread_to_clean;
-// struct Thread *thread_cleaner_thread;
 
 extern void save_fpu_registers(size_t regs_addr);
 
-// The kernel's idle registers.
-// struct isr_regs kernel_idle_registers;
-
 // Initialize threads.
 void InitializeThreads() {
+	// Clears our linked list.
 	next_thread_id = 0;
-//	next_thread_to_clean = 0;
-
-//	thread_cleaner_thread = create_thread(0, (size_t)thread_cleaner, 0);
 }
 
 // Createss a thread.
 struct Thread *CreateThread(struct Process *process, size_t entry_point, size_t param) {
-	//lock_interrupts();
-
 	struct Thread *thread = malloc(sizeof(struct Thread));
-	if(thread == 0) {
-		return 0; /* out of memory */
+	if(thread == NULL) {
+		return NULL;
 	}
 
-	/* set up the stack - grab a virtual page */	
-	thread->pml4 = process ? process->pml4 : kernel_pml4;
-	size_t stack = FindFreePageRange(thread->pml4, 1);
-	if(stack == OUT_OF_MEMORY) {
-		free(thread); /* out of memory */
-	//	unlock_interrupts();
-		return 0;
-	}
-
-	/* grab a physical page */
-	size_t phys = GetPhysicalPage();
-	if(phys == OUT_OF_PHYSICAL_PAGES) {
-		free(thread); /* out of memory */
-		return 0;
-	}
-
-	/* map the new stack */
-	MapPhysicalPageToVirtualPage(thread->pml4, stack, phys);
-
-	/* set up our initial registers */
-	struct isr_regs *regs = malloc(sizeof(struct isr_regs));
-	regs->r15 = 0; regs->r14 = 0; regs->r13 = 0; regs->r12 = 0; regs->r11 = 0; regs->r10 = 0; regs->r9 = 0; regs->r8 = 0;
-	regs->rbp = stack + PAGE_SIZE; regs->rdi = param; regs->rsi = 0; regs->rdx = 0; regs->rcx = 0; regs->rbx = 0; regs->rax = 0;
-	regs->rip = entry_point; regs->cs = 0x20 | 3;
-	regs->eflags = 
-		((!process) ? ((1 << 12) | (1 << 13)) : 0) | /* set iopl bits for kernel threads */
-		(1 << 9) | /* interrupts enabled */
-		(1 << 21) /* can use CPUID */; 
-	regs->usersp = stack + PAGE_SIZE; regs->ss = 0x18 | 3;
-
-	/* set up the thread object */
 	thread->process = process;
-	thread->stack = stack;
-	thread->registers = regs;
+
+	// Give this thread a unique ID. TODO: Make this a unique ID within the process.
 	thread->id = next_thread_id;
 	next_thread_id++;
-	thread->awake = false;
-	thread->awake_in_process = false;
-	thread->time_slices = 0;
-	thread->thread_is_waiting_for_message = false;
 
-	/* add it to the linked list of threads */
+	// Sets up the stack by:
+	// 1) Finds a free page in the process's virtual address space.
+	thread->stack = FindFreePageRange(thread->process->pml4, 1);
+	if(thread->stack == OUT_OF_MEMORY) {
+		free(thread);
+		return NULL;
+	}
+
+	// 2) Grabs a physical page.
+	size_t stack_physical_addr = GetPhysicalPage();
+	if(stack_physical_addr == OUT_OF_PHYSICAL_PAGES) {
+		free(thread);
+		return NULL;
+	}
+
+	// 3) Maps the process's virtual address to the physical page.
+	MapPhysicalPageToVirtualPage(thread->process->pml4, thread->stack, stack_physical_addr);
+
+	// Sets up the registers that our process will start with.
+	struct Registers *regs = malloc(sizeof(struct Registers));
+	thread->registers = regs;
+
+	// Initialize our general purpose registers to 0.
+	regs->r15 = 0; regs->r14 = 0; regs->r13 = 0; regs->r12 = 0; regs->r11 = 0; regs->r10 = 0; regs->r9 = 0; regs->r8 = 0;
+	regs->rsi = 0; regs->rdx = 0; regs->rcx = 0; regs->rbx = 0; regs->rax = 0;
+
+	// We'll pass a parameter into 'rdi' (this can be used as a function argument.)
+	regs->rdi = param;
+
+	// Sets the instruction pointer to our entry point.
+	regs->rip = entry_point;
+
+	// Sets the stack pointer and stack base to the top of our stack page. (Stacks grow down!)
+	regs->rbp = regs->rsp = thread->stack  + PAGE_SIZE;
+
+	// Sets our code and stack segment selectors (the segments are defined in Gdt64 in boot.asm)
+	regs->cs = 0x20 | 3; // '| 3' means ring 3. This is a user code, not kernel code.
+	regs->ss = 0x18 | 3; // Likewise with user data, not kernel data.
+
+	// Sets up the processor's flags.
+	regs->rflags = 
+		((!process) ? ((1 << 12) | (1 << 13)) : 0) | // Sets the IPOL bits for kernel threads. TODO.
+		(1 << 9) | // Interrupts are enabled.
+		(1 << 21); // The thread can use CPUID.
+
+	// The thread isn't initially awake until we schedule it.
+	thread->awake = false;
+	thread->next_awake = NULL;
+	thread->previous_awake = NULL;
+
+	// The thread hasn't ran for any time slices yet.
+	thread->time_slices = 0;
+
+	// The thread isn't sleeping waiting for messages.
+	thread->thread_is_waiting_for_message = false;
+	thread->next_thread_sleeping_for_messages = NULL;
+
+	// Add this to the linked list of threads in the process.
 	thread->previous = 0;
 	if(process->threads) {
 		process->threads->previous = thread;
 	}
 	thread->next = process->threads;
 	process->threads = thread;
+
+	// Increment the process's thread cont.
 	process->thread_count++;
 
-	/* populate the fpu registers with something */
+	// Populate the FPU registers with something.
 	memset(thread->fpu_registers, 0, 512);
-
-
-	/* initially asleep */
-	thread->next_awake = 0;
-	thread->previous = 0;
-
-	// unlock_interrupts();
 
 	return thread;
 }
-
-/* this is a thread that cleans up threads in limbo, we have to do this from another thread, because we can't deallocate a
-   thread's stack in that thread's interrupt handler */
-/*void thread_cleaner() {
-	while(sleep_if_not_set((size_t *)&next_thread_to_clean)) {
-		// lock_interrupts();
-		struct Thread *thread = next_thread_to_clean;
-		if(thread) {
-			next_thread_to_clean = thread->next;
-
-			struct Process *process = thread->process;
-
-			// release used memory
-			UnmapVirtualPage(process ? process->pml4 : kernel_pml4, thread->stack, true);
-			free(thread);
-		}
-
-		// unlock_interrupts();
-	}
-}*/
 
 // Destroys a thread.
 void DestroyThread(struct Thread *thread, bool process_being_destroyed) {
@@ -126,24 +114,50 @@ void DestroyThread(struct Thread *thread, bool process_being_destroyed) {
 	}
 
 	// Free the thread's stack.
-	UnmapVirtualPage(thread->pml4, thread->stack, true);
+	UnmapVirtualPage(thread->process->pml4, thread->stack, true);
 
-	/* remove this thread from the process */
 	struct Process *process = thread->process;
+
+	// If this thread is waiting for a message, remove it from the process's
+	// queue of threads waiting for messages.
+	if (thread->thread_is_waiting_for_message) {
+		struct Thread* previous = NULL;
+		struct Thread* current = process->thread_sleeping_for_message;
+
+		while (current != NULL) {
+			struct Thread* next = current->next_thread_sleeping_for_messages;
+			if (current == thread) {
+				// We have found us in the list.
+				if (previous == NULL) {
+					process->thread_sleeping_for_message = next;
+				} else {
+					previous->next_thread_sleeping_for_messages = next;
+				}
+
+			}
+			current = next;
+		}
+		thread->next_thread_sleeping_for_messages = NULL;
+	}
+
+	// Remove this thread from the process's linked list of threads.
 	if(thread->next != 0) {
 		thread->next->previous = thread->previous;
 	}
-
 	if(thread->previous != 0) {
 		thread->previous->next = thread->next;
-	}
-	else {
+	} else {
 		process->threads = thread->next;
 	}
-	process->thread_count--;
 
+	// Free the thread object.
 	free(thread);
 
+	// Decrease the thread count.
+	process->thread_count--;
+
+	// If no more threads are running (and we're not in the middle of destroying it already),
+	// we can destroy it.
 	if (process->thread_count == 0 && !process_being_destroyed) {
 		DestroyProcess(process);
 	}

@@ -11,25 +11,32 @@ struct Message;
 struct Thread;
 
 struct Process {
-	// General information.
-	char name[256]; // Name of the process.
-	size_t pid; // The process ID.
+	// Unique ID to identify this process.
+	size_t pid;
 
-	// Memory stuff.
-	size_t pml4; // The physical address of this process's pml4.
+	// Name of the process.
+	char name[256];
+
+	// The physical address of this process's pml4. This represents the virtual
+	// address space that is unique to this process.
+	size_t pml4;
+	// The number of allocated pages.
 	size_t allocated_pages; // The number of allocated pages.
 
-	// Messaging stuff.
-	struct Message* next_message; // Next message on the queue.
-	struct Message* last_message; // Last message on the queue.
-	size_t messages_queued; // Number of messages queued.
-	struct Thread *thread_sleeping_for_message; // Thread sleeping for a message.
+	// Linked list of messages waiting send to this process, waiting to be consumed.
+	struct Message* next_message;
+	struct Message* last_message;
+	// Number of messages queued.
+	size_t messages_queued;
+	// Linked queue of threads that are currently sleeping and waiting for a message.
+	struct Thread *thread_sleeping_for_message;
 
-	/* threads */
+	// Linked list of threads.
 	struct Thread *threads;
+	// Number of threads this process has..
 	unsigned short thread_count;
 
-	/* linked list of processes */
+	// Linked list of processes.
 	struct Process *next;
 	struct Process *previous;
 };

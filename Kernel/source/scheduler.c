@@ -4,29 +4,32 @@
 #include "liballoc.h"
 #include "thread.h"
 #include "process.h"
-#include "interrupts.h"
+#include "registers.h"
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 
-//extern void save_fpu_registers(size_t regs_addr);
-//extern void load_fpu_registers(size_t regs_addr);
+// Uncomment for debug printing.
+// #define DEBUG
 
-/* linked list of awake threads */
+// Linked list of awake threads we can cycle through.
 struct Thread *first_awake_thread;
 struct Thread *last_awake_thread;
 
-struct Thread *running_thread; /* currently executing thread */
+// The currently executing thread. This can be NULL if all threads are asleep.
+struct Thread *running_thread;
 
-struct isr_regs *idle_regs; /* idle vaue to return when no thread is running */
+// The idle registers to return to when no thread is awake. (This points us to
+// the while(true) {hlt} in kmain.)
+struct Registers *idle_regs;
 
 // Currently executing registers.
-struct isr_regs *currently_executing_thread_regs;
+struct Registers *currently_executing_thread_regs;
 
 void InitializeScheduler() {
 	first_awake_thread = 0;
 	last_awake_thread = 0;
 	running_thread = 0;
-	currently_executing_thread_regs = malloc(sizeof(struct isr_regs));
+	currently_executing_thread_regs = malloc(sizeof(struct Registers));
 	if (!currently_executing_thread_regs) {
 		PrintString("Could not allocate object to store the kernel's registers.");
 		__asm__ __volatile__("cli");
@@ -35,21 +38,23 @@ void InitializeScheduler() {
 	idle_regs = currently_executing_thread_regs;
 
 }
-//char fxsave_region[512] __attribute__((aligned(16)));
 
-char *fpu_registers_ptr; /* needs to be a constant in memory */
-
+// Initializes the scheduler.
 void ScheduleNextThread() {
-	PrintString("ScheduleNextThread\n");
 	// The next thread to switch to.
 	struct Thread *next;
 
 	if(running_thread) {
 		// We were currently executing a thread.
-		PrintString("Leaving pid "); PrintNumber(running_thread->process->pid);
+#if DEBUG
+		PrintString("Leaving tid "); PrintNumber(running_thread->id);
+		PrintString(" pid "); PrintNumber(running_thread->process->pid);
 		PrintChar('\n');
 		PrintRegisters(currently_executing_thread_regs);
-		asm volatile("fxsave %0"::"m"(*running_thread->fpu_registers));
+#endif
+		if (running_thread->uses_fpu_registers) {
+			asm volatile("fxsave %0"::"m"(*running_thread->fpu_registers));
+		}
 
 		// Move to the next awake thread.
 		next = running_thread->next_awake;
@@ -68,7 +73,9 @@ void ScheduleNextThread() {
 		running_thread = 0;
 		currently_executing_thread_regs = idle_regs;
 		SwitchToAddressSpace(kernel_pml4);
+#if DEBUG
 		PrintString("Kernel idle thread\n");
+#endif
 		return;
 	}
 
@@ -76,23 +83,22 @@ void ScheduleNextThread() {
 	running_thread = next;
 	running_thread->time_slices++;
 
-	/*
-	PrintString("Entering thread: ");
-	PrintNumber(running_thread->id);
-	PrintChar('\n');
-	*/
+	SwitchToAddressSpace(running_thread->process->pml4);
 
-	SwitchToAddressSpace(running_thread->pml4);
-
-	asm volatile("fxrstor %0"::"m"(*running_thread->fpu_registers));
+	if (running_thread->uses_fpu_registers) {
+		asm volatile("fxrstor %0"::"m"(*running_thread->fpu_registers));
+	}
 
 	currently_executing_thread_regs = running_thread->registers;
 
-	PrintString("Entering pid "); PrintNumber(running_thread->process->pid);
+#if DEBUG
+	PrintString("Entering tid "); PrintNumber(running_thread->id);
+	PrintString(" pid "); PrintNumber(running_thread->process->pid);
 	PrintString(" for time "); PrintNumber(running_thread->time_slices++);
 	PrintChar('\n');
 	PrintRegisters(currently_executing_thread_regs);
 	PrintChar('\n');
+#endif
 }
 
 void ScheduleThread(struct Thread *thread) {

@@ -2,34 +2,48 @@
 #include "types.h" 
 
 struct Process;
-struct isr_regs;
+struct Registers;
 
+// Represents a thread. A sequence of execution (that's part of a user process) that may run in parallel with other threads.
 struct Thread {
-	struct Process *process; /* if 0, this is the kernel */
-	struct isr_regs *registers; /* actually a stack to return */
+	// The ID of the tread. Used it identify this thread inside the process.
 	size_t id;
-	size_t stack; /* virtual address of the allocated stack page */
 
-	/* linked list of threads in the process */
+	// The process this thread belongs to.
+	struct Process *process;
+
+	// The current state of the registers. Unless this thread is actually running, in which case the registers
+	// are actually in the CPU registers until the next interrupt or syscall.
+	struct Registers *registers;
+
+	// Storage for the FPU registers. Must be 16 byte aligned (our malloc implementation will give us a 16 byte aligned Thread struct.)
+	// For performance reasons, we only save this if uses_fpu_registers is set.
+	char fpu_registers[512] __attribute__((aligned(16)));
+
+	// Does this thread use FPU registers that we need to save them on context switching?
+	bool uses_fpu_registers : 1;
+
+	// Virtual address of the thread's stack. This gets released when the thread is destroyed.
+	size_t stack;
+
+	// A linked list of threads in the process.
 	struct Thread *next;
 	struct Thread *previous;
 
-	bool awake : 1; /* is this thread awake? */
-	bool awake_in_process : 1; /* thread is awake in process, even if process is asleep */
+	// Is this thread awake?
+	bool awake : 1;
 
-	/* linked list of awake threads */
+	// A linked list of awake threads, used by the scheduler.
 	struct Thread *next_awake;
 	struct Thread *previous_awake;
 
-	size_t pml4; /* the pml4 we're operating in */
+	// The number of time slices this thread has ran for. This might not be so accurate as to how much processing time a thread has
+	// had because partial slices (such as the previous thread 'yielding') is considered a full slice here.
+	size_t time_slices;
 
-	size_t time_slices; /* time slices this thread has had */
-
-	// The next thread sleeping for messages.
+	// The linked queue of threads in the process that are waiting for messages.
 	struct Thread* next_thread_sleeping_for_messages;
 	bool thread_is_waiting_for_message : 1;
-
-	char fpu_registers[512] __attribute__((aligned(16))); /* storage for FPU registers, must be 16 byte aligned (malloc is) */
 };
 
 // The kernel's idle registers.

@@ -42,13 +42,13 @@ const ASM_COMMAND = 'nasm -felf64';
 const CC_KERNEL_COMMAND = TOOLS['gcc'] + ' -m64 -mcmodel=kernel ' +
 	'-ffreestanding -fno-builtin -nostdlib -nostdinc -mno-red-zone  -c ' +
 	'-msoft-float -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mno-avx ' +
-	'-mno-avx2 -MD -MF temp.d  -isystem ' + rootDirectory + 'Kernel/source ';
-const CC_COMMAND = TOOLS['gcc'] + ' -O3 -m64 -ffreestanding -nostdlib ' +
+	'-mno-avx2 -MD -MF temp.d  -O3 -isystem ' + rootDirectory + 'Kernel/source ';
+const CC_COMMAND = TOOLS['gcc'] + ' -O3 -flto -m64 -ffreestanding -nostdlib ' +
 	'-nostdinc++ -mno-red-zone -c -MD -MF temp.d ';
 const KERNEL_LINKER_COMMAND = TOOLS['ld'] + ' -nodefaultlibs -T ' + rootDirectory + 'Kernel/source/linker.ld -Map=map.txt ';
-const LIBRARY_LINKER_COMMAND = TOOLS['ld'] + ' -nodefaultlibs -relocatable ';
-const APPLICATION_LINKER_COMMAND = TOOLS['ld'] + ' -nodefaultlibs ' +
-	'-T userland.ld -Map=map.txt  ';
+// const KERNEL_LINKER_COMMAND = TOOLS['gcc'] + ' -nostdlib -nodefaultlibs -T ' + rootDirectory + 'Kernel/source/linker.ld ';
+const LIBRARY_LINKER_COMMAND = TOOLS['ar'] + ' rvs ';
+const APPLICATION_LINKER_COMMAND = TOOLS['gcc'] + ' -O3 -s -Wl,--strip-all,--gc-sections -nostdlib -nodefaultlibs -nolibc -nostartfiles -z max-page-size=1 -T userland.ld ';
 const GRUB_MKRESCUE_COMMAND = TOOLS['grub-mkrescue'] + ' -o ' + rootDirectory +
 	 'Perception.iso' + ' ' + rootDirectory + 'fs';
 const EMULATOR_COMMAND = TOOLS['qemu'] + ' -boot d -cdrom ' + rootDirectory +
@@ -121,6 +121,19 @@ function getBuildCommand(filePath, packageType, ccCompileCommand) {
 	}
 }
 
+let lastModifiedTimestampByFile = {};
+// Gets the timestamp of when a file was last modified.
+function getFileLastModifiedTimestamp(file) {
+	const cached = lastModifiedTimestampByFile[file];
+	if (cached != undefined) {
+		return cached;
+	}
+
+	const timestamp = fs.existsSync(file) ? fs.lstatSync(file).mtimeMs : Number.MAX_VALUE;
+	lastModifiedTimestampByFile[file] = timestamp;
+	return timestamp;
+}
+
 // Compiles a package.
 async function compile(packageType, packageName, librariesToLink, parentPublicIncludeDirs) {
 	if (librariesToLink == undefined) {
@@ -158,18 +171,6 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 
 	const depsFile = packageDirectory + 'dependencies.json';
 	let dependenciesPerFile = fs.existsSync(depsFile) ? JSON.parse(fs.readFileSync(depsFile)) : {};
-
-	let lastModifiedTimestampByFile = {};
-	function getFileLastModifiedTimestamp(file) {
-		const cached = lastModifiedTimestampByFile[file];
-		if (cached != undefined) {
-			return cached;
-		}
-
-		const timestamp = fs.existsSync(file) ? fs.lstatSync(file).mtimeMs : Number.MAX_VALUE;
-		lastModifiedTimestampByFile[file] = timestamp;
-		return timestamp;
-	}
 
 	let ccBuildCommand = CC_COMMAND; // 'emcc -s DISABLE_EXCEPTION_CATCHING=0 -s DEMANGLE_SUPPORT=1 --bind -s LINKABLE=1 -s BINARYEN=1 -MD -MF temp.d -std=c++17';
 
@@ -277,7 +278,7 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 		}
 
 		console.log("Building library " + packageName);
-		const command = LIBRARY_LINKER_COMMAND + ' -o ' + packageDirectory + 'library.lib' + ' ' + objectFiles.join(' ');
+		const command = LIBRARY_LINKER_COMMAND + packageDirectory + 'library.lib' + ' ' + objectFiles.join(' ');
 		// console.log(command);
 		try {
 			child_process.execSync(command);
@@ -290,7 +291,18 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 	} else if (packageType == APPLICATION) {
 		if (!anythingChanged && fs.existsSync(packageDirectory + 'application.app')
 			&& !forceRelinkIfApplication) {
-			return ALREADY_BUILT;
+			// We already exist. Check if any libraries are newer that us (even if they didn't recompile.)
+			const ourTimestamp = getFileLastModifiedTimestamp(packageDirectory + 'application.app');
+			for (let i = 0; i < librariesToLink.length && !forceRelinkIfApplication; i++) {
+				const libraryTimestamp = getFileLastModifiedTimestamp(librariesToLink[i]);
+				if (libraryTimestamp > ourTimestamp) { // The library is newer than us, relink.
+					forceRelinkIfApplication = true;
+				}
+			}
+
+			if (!forceRelinkIfApplication) {
+				return ALREADY_BUILT;
+			}
 		}
 		if (fs.existsSync(packageDirectory + 'application.app')) {
 			fs.unlinkSync(packageDirectory + 'application.app');

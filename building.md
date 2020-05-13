@@ -35,6 +35,7 @@ If you have [Homebrew](https://brew.sh/), you can install everything you need wi
 - Create a file Build/tools.json with the paths to the above tools.
 ```json
 {
+	"ar": "x86_64-elf-gcc-ar",
 	"nasm": "nasm",
 	"gcc": "x86_64-elf-gcc",
 	"grub-mkrescue": "grub-mkrescue",

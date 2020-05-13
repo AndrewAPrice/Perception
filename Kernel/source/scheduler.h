@@ -2,13 +2,13 @@
 #include "types.h" 
 
 struct Thread;
-struct isr_regs;
+struct Registers;
 
 // The currently running thread.
 extern struct Thread *running_thread;
 
 // Currently executing registers.
-extern struct isr_regs *currently_executing_thread_regs;
+extern struct Registers *currently_executing_thread_regs;
 
 // Initializes the scheduler.
 extern void InitializeScheduler();

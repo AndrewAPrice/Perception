@@ -131,8 +131,6 @@ void UninstallHardwareInterruptHandler(int irq) {
 	irq_handlers[irq] = 0;
 }
 
-extern struct isr_regs *currently_executing_thread_regs;
-
 // The common handler that is called when a hardware interrupt occurs.
 void CommonHardwareInterruptHandler(int interrupt_no) {
 //	MarkInterruptHandlerAsEntered();
@@ -140,95 +138,7 @@ void CommonHardwareInterruptHandler(int interrupt_no) {
 	// See if we have a handler for this interrupt, and dispatch it.
 	irq_handler_ptr handle = irq_handlers[interrupt_no];
 	if(handle) {
-		/*
-		PrintString("Hello from interrupt ");
-		PrintNumber(interrupt_no);
-		PrintChar('\n');
-		PrintString("Registers are: SS: ");
-		PrintHex(currently_executing_thread_regs->ss);
-		PrintString(" User SP: ");
-		PrintHex(currently_executing_thread_regs->usersp);
-		PrintString(" Eflags: ");
-		PrintHex(currently_executing_thread_regs->eflags);
-		PrintString(" CS: ");
-		PrintHex(currently_executing_thread_regs->cs);
-		PrintString(" RIP: ");
-		PrintHex(currently_executing_thread_regs->rip);
-		PrintString(" RBP: ");
-		PrintHex(currently_executing_thread_regs->rbp);
-		PrintString(" RAX: ");
-		PrintHex(currently_executing_thread_regs->rax);
-		PrintString(" RBX: ");
-		PrintHex(currently_executing_thread_regs->rbx);
-		PrintString(" RCX: ");
-		PrintHex(currently_executing_thread_regs->rcx);
-		PrintString(" RDX: ");
-		PrintHex(currently_executing_thread_regs->rdx);
-		PrintString(" RSI: ");
-		PrintHex(currently_executing_thread_regs->rsi);
-		PrintString(" RDI: ");
-		PrintHex(currently_executing_thread_regs->rdi);
-		PrintString(" R8: ");
-		PrintHex(currently_executing_thread_regs->r8);
-		PrintString(" R9: ");
-		PrintHex(currently_executing_thread_regs->r9);
-		PrintString(" R10: ");
-		PrintHex(currently_executing_thread_regs->r10);
-		PrintString(" R11: ");
-		PrintHex(currently_executing_thread_regs->r11);
-		PrintString(" R12: ");
-		PrintHex(currently_executing_thread_regs->r12);
-		PrintString(" R13: ");
-		PrintHex(currently_executing_thread_regs->r13);
-		PrintString(" R14: ");
-		PrintHex(currently_executing_thread_regs->r14);
-		PrintString(" R15: ");
-		PrintHex(currently_executing_thread_regs->r15);
-		PrintChar('\n');
-		*/
 		handle();
-		/*
-		PrintString("New registers are: SS: ");
-		PrintHex(currently_executing_thread_regs->ss);
-		PrintString(" User SP: ");
-		PrintHex(currently_executing_thread_regs->usersp);
-		PrintString(" Eflags: ");
-		PrintHex(currently_executing_thread_regs->eflags);
-		PrintString(" CS: ");
-		PrintHex(currently_executing_thread_regs->cs);
-		PrintString(" RIP: ");
-		PrintHex(currently_executing_thread_regs->rip);
-		PrintString(" RBP: ");
-		PrintHex(currently_executing_thread_regs->rbp);
-		PrintString(" RAX: ");
-		PrintHex(currently_executing_thread_regs->rax);
-		PrintString(" RBX: ");
-		PrintHex(currently_executing_thread_regs->rbx);
-		PrintString(" RCX: ");
-		PrintHex(currently_executing_thread_regs->rcx);
-		PrintString(" RDX: ");
-		PrintHex(currently_executing_thread_regs->rdx);
-		PrintString(" RSI: ");
-		PrintHex(currently_executing_thread_regs->rsi);
-		PrintString(" RDI: ");
-		PrintHex(currently_executing_thread_regs->rdi);
-		PrintString(" R8: ");
-		PrintHex(currently_executing_thread_regs->r8);
-		PrintString(" R9: ");
-		PrintHex(currently_executing_thread_regs->r9);
-		PrintString(" R10: ");
-		PrintHex(currently_executing_thread_regs->r10);
-		PrintString(" R11: ");
-		PrintHex(currently_executing_thread_regs->r11);
-		PrintString(" R12: ");
-		PrintHex(currently_executing_thread_regs->r12);
-		PrintString(" R13: ");
-		PrintHex(currently_executing_thread_regs->r13);
-		PrintString(" R14: ");
-		PrintHex(currently_executing_thread_regs->r14);
-		PrintString(" R15: ");
-		PrintHex(currently_executing_thread_regs->r15);
-		*/
 	}
 
 	// If the IDTt entry that was invoked was greater than 40 (IRQ 8-15) we need to send an
@@ -262,29 +172,3 @@ void unlock_interrupts() {
 	// PrintString("|");
 }
 #endif
-
-// Prints the registers, for debugging.
-void PrintRegisters(struct isr_regs* regs) {
-	PrintString("Printing registers:\n");
-	PrintString("r15: "); PrintHex(regs->r15);
-	PrintString(" r14: "); PrintHex(regs->r14);
-	PrintString("\nr13: "); PrintHex(regs->r13);
-	PrintString(" r12: "); PrintHex(regs->r12);
-	PrintString("\nr11: "); PrintHex(regs->r11);
-	PrintString(" r10: "); PrintHex(regs->r10);
-	PrintString("\nr9:  "); PrintHex(regs->r9);
-	PrintString(" r8:  "); PrintHex(regs->r8);
-	PrintString("\nrbp: "); PrintHex(regs->rbp);
-	PrintString(" rdi: "); PrintHex(regs->rdi);
-	PrintString("\nrsi: "); PrintHex(regs->rsi);
-	PrintString(" rdx: "); PrintHex(regs->rdx);
-	PrintString(" rcx: "); PrintHex(regs->rcx);
-	PrintString("\nrbx: "); PrintHex(regs->rbx);
-	PrintString(" rax: "); PrintHex(regs->rax);
-	PrintString("\nrip: "); PrintHex(regs->rip);
-	PrintString(" cs:  "); PrintHex(regs->cs);
-	PrintString("\nefl: "); PrintHex(regs->eflags);
-	PrintString(" usp: "); PrintHex(regs->usersp);
-	PrintString("\nss: "); PrintHex(regs->ss);
-	PrintChar('\n');
-}
