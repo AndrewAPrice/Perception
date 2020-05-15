@@ -1,0 +1,11 @@
+{
+	"dependencies":["perception"],
+	"ignore":[
+		"source/libc/xdr/xdr_float_vax.c"],
+	"include":["source/libm/common"],
+	"define": [
+		"__LARGE64_FILES",
+		"MALLOC_PROVIDED"
+	],
+	"third_party": true
+}

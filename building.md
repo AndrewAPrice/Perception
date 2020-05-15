@@ -1,7 +1,7 @@
 # Building
 
 ## Dependencies
-- The build system depends on Node.js.
+- The build system depends on Node.js and Git.
 - The compilation depends on NASM, and GCC, binutils, and LD that are able to build x86_64 ELF binaries.
   - (It would be nice if we could also support Clang, but the generated machine code (for both the kernel and userland) code crashes.)
 - Building the bootable ISO depends on GRUB 2.
@@ -14,6 +14,7 @@ Check if your distro's package manager has a prebuilt version of GCC/binutils/LD
 - Node.js https://nodejs.org/en/download/
 - NASM: https://www.nasm.us/
 - QEMU: https://www.qemu.org/download/
+- Git: https://git-scm.com/downloads
 
 You can find precompiled x86_64-elf binaries online with a bit of hunting. Examples:
 - https://github.com/lordmilko/i686-elf-tools
@@ -29,7 +30,7 @@ Otherwise, you can will have to [build GRUB 2 from source] (https://www.gnu.org/
 ### Mac OS
 If you have [Homebrew](https://brew.sh/), you can install everything you need with:
 
-`brew install node nasm qemu x86_64-elf-binutils x86_64-elf-gcc x86_64-elf-ld i386-elf-grub`
+`brew install node git nasm qemu x86_64-elf-binutils x86_64-elf-gcc x86_64-elf-ld i386-elf-grub`
 
 ## Preparation
 - Create a file Build/tools.json with the paths to the above tools.
