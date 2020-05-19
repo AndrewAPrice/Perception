@@ -1,0 +1,1102 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+#include "syscall_arch.h"
+
+#include "bits/syscall.h"
+#include "perception/debug.h"
+#include "perception/linux_syscalls/_sysctl.h"
+#include "perception/linux_syscalls/accept.h"
+#include "perception/linux_syscalls/accept4.h"
+#include "perception/linux_syscalls/access.h"
+#include "perception/linux_syscalls/acct.h"
+#include "perception/linux_syscalls/add_key.h"
+#include "perception/linux_syscalls/adjtimex.h"
+#include "perception/linux_syscalls/afs_syscall.h"
+#include "perception/linux_syscalls/alarm.h"
+#include "perception/linux_syscalls/arch_prctl.h"
+#include "perception/linux_syscalls/bind.h"
+#include "perception/linux_syscalls/bpf.h"
+#include "perception/linux_syscalls/brk.h"
+#include "perception/linux_syscalls/capget.h"
+#include "perception/linux_syscalls/capset.h"
+#include "perception/linux_syscalls/chdir.h"
+#include "perception/linux_syscalls/chmod.h"
+#include "perception/linux_syscalls/chown.h"
+#include "perception/linux_syscalls/chroot.h"
+#include "perception/linux_syscalls/clock_adjtime.h"
+#include "perception/linux_syscalls/clock_getres.h"
+#include "perception/linux_syscalls/clock_gettime.h"
+#include "perception/linux_syscalls/clock_nanosleep.h"
+#include "perception/linux_syscalls/clock_settime.h"
+#include "perception/linux_syscalls/clone.h"
+#include "perception/linux_syscalls/clone3.h"
+#include "perception/linux_syscalls/close.h"
+#include "perception/linux_syscalls/connect.h"
+#include "perception/linux_syscalls/copy_file_range.h"
+#include "perception/linux_syscalls/creat.h"
+#include "perception/linux_syscalls/create_module.h"
+#include "perception/linux_syscalls/delete_module.h"
+#include "perception/linux_syscalls/dup.h"
+#include "perception/linux_syscalls/dup2.h"
+#include "perception/linux_syscalls/dup3.h"
+#include "perception/linux_syscalls/epoll_create.h"
+#include "perception/linux_syscalls/epoll_create1.h"
+#include "perception/linux_syscalls/epoll_ctl.h"
+#include "perception/linux_syscalls/epoll_ctl_old.h"
+#include "perception/linux_syscalls/epoll_pwait.h"
+#include "perception/linux_syscalls/epoll_wait.h"
+#include "perception/linux_syscalls/epoll_wait_old.h"
+#include "perception/linux_syscalls/eventfd.h"
+#include "perception/linux_syscalls/eventfd2.h"
+#include "perception/linux_syscalls/execve.h"
+#include "perception/linux_syscalls/execveat.h"
+#include "perception/linux_syscalls/exit.h"
+#include "perception/linux_syscalls/exit_group.h"
+#include "perception/linux_syscalls/faccessat.h"
+#include "perception/linux_syscalls/fadvise64.h"
+#include "perception/linux_syscalls/fallocate.h"
+#include "perception/linux_syscalls/fanotify_init.h"
+#include "perception/linux_syscalls/fanotify_mark.h"
+#include "perception/linux_syscalls/fchdir.h"
+#include "perception/linux_syscalls/fchmod.h"
+#include "perception/linux_syscalls/fchmodat.h"
+#include "perception/linux_syscalls/fchown.h"
+#include "perception/linux_syscalls/fchownat.h"
+#include "perception/linux_syscalls/fcntl.h"
+#include "perception/linux_syscalls/fdatasync.h"
+#include "perception/linux_syscalls/fgetxattr.h"
+#include "perception/linux_syscalls/finit_module.h"
+#include "perception/linux_syscalls/flistxattr.h"
+#include "perception/linux_syscalls/flock.h"
+#include "perception/linux_syscalls/fork.h"
+#include "perception/linux_syscalls/fremovexattr.h"
+#include "perception/linux_syscalls/fsconfig.h"
+#include "perception/linux_syscalls/fsetxattr.h"
+#include "perception/linux_syscalls/fsmount.h"
+#include "perception/linux_syscalls/fsopen.h"
+#include "perception/linux_syscalls/fspick.h"
+#include "perception/linux_syscalls/fstat.h"
+#include "perception/linux_syscalls/fstatfs.h"
+#include "perception/linux_syscalls/fsync.h"
+#include "perception/linux_syscalls/ftruncate.h"
+#include "perception/linux_syscalls/futex.h"
+#include "perception/linux_syscalls/futimesat.h"
+#include "perception/linux_syscalls/get_kernel_syms.h"
+#include "perception/linux_syscalls/get_mempolicy.h"
+#include "perception/linux_syscalls/get_robust_list.h"
+#include "perception/linux_syscalls/get_thread_area.h"
+#include "perception/linux_syscalls/getcpu.h"
+#include "perception/linux_syscalls/getcwd.h"
+#include "perception/linux_syscalls/getdents.h"
+#include "perception/linux_syscalls/getdents64.h"
+#include "perception/linux_syscalls/getegid.h"
+#include "perception/linux_syscalls/geteuid.h"
+#include "perception/linux_syscalls/getgid.h"
+#include "perception/linux_syscalls/getgroups.h"
+#include "perception/linux_syscalls/getitimer.h"
+#include "perception/linux_syscalls/getpeername.h"
+#include "perception/linux_syscalls/getpgid.h"
+#include "perception/linux_syscalls/getpgrp.h"
+#include "perception/linux_syscalls/getpid.h"
+#include "perception/linux_syscalls/getpmsg.h"
+#include "perception/linux_syscalls/getppid.h"
+#include "perception/linux_syscalls/getpriority.h"
+#include "perception/linux_syscalls/getrandom.h"
+#include "perception/linux_syscalls/getresgid.h"
+#include "perception/linux_syscalls/getresuid.h"
+#include "perception/linux_syscalls/getrlimit.h"
+#include "perception/linux_syscalls/getrusage.h"
+#include "perception/linux_syscalls/getsid.h"
+#include "perception/linux_syscalls/getsockname.h"
+#include "perception/linux_syscalls/getsockopt.h"
+#include "perception/linux_syscalls/gettid.h"
+#include "perception/linux_syscalls/gettimeofday.h"
+#include "perception/linux_syscalls/getuid.h"
+#include "perception/linux_syscalls/getxattr.h"
+#include "perception/linux_syscalls/init_module.h"
+#include "perception/linux_syscalls/inotify_add_watch.h"
+#include "perception/linux_syscalls/inotify_init.h"
+#include "perception/linux_syscalls/inotify_init1.h"
+#include "perception/linux_syscalls/inotify_rm_watch.h"
+#include "perception/linux_syscalls/io_cancel.h"
+#include "perception/linux_syscalls/io_destroy.h"
+#include "perception/linux_syscalls/io_getevents.h"
+#include "perception/linux_syscalls/io_pgetevents.h"
+#include "perception/linux_syscalls/io_setup.h"
+#include "perception/linux_syscalls/io_submit.h"
+#include "perception/linux_syscalls/io_uring_enter.h"
+#include "perception/linux_syscalls/io_uring_register.h"
+#include "perception/linux_syscalls/io_uring_setup.h"
+#include "perception/linux_syscalls/ioctl.h"
+#include "perception/linux_syscalls/ioperm.h"
+#include "perception/linux_syscalls/iopl.h"
+#include "perception/linux_syscalls/ioprio_get.h"
+#include "perception/linux_syscalls/ioprio_set.h"
+#include "perception/linux_syscalls/kcmp.h"
+#include "perception/linux_syscalls/kexec_file_load.h"
+#include "perception/linux_syscalls/kexec_load.h"
+#include "perception/linux_syscalls/keyctl.h"
+#include "perception/linux_syscalls/kill.h"
+#include "perception/linux_syscalls/lchown.h"
+#include "perception/linux_syscalls/lgetxattr.h"
+#include "perception/linux_syscalls/link.h"
+#include "perception/linux_syscalls/linkat.h"
+#include "perception/linux_syscalls/listen.h"
+#include "perception/linux_syscalls/listxattr.h"
+#include "perception/linux_syscalls/llistxattr.h"
+#include "perception/linux_syscalls/lookup_dcookie.h"
+#include "perception/linux_syscalls/lremovexattr.h"
+#include "perception/linux_syscalls/lseek.h"
+#include "perception/linux_syscalls/lsetxattr.h"
+#include "perception/linux_syscalls/lstat.h"
+#include "perception/linux_syscalls/madvise.h"
+#include "perception/linux_syscalls/mbind.h"
+#include "perception/linux_syscalls/membarrier.h"
+#include "perception/linux_syscalls/memfd_create.h"
+#include "perception/linux_syscalls/migrate_pages.h"
+#include "perception/linux_syscalls/mincore.h"
+#include "perception/linux_syscalls/mkdir.h"
+#include "perception/linux_syscalls/mkdirat.h"
+#include "perception/linux_syscalls/mknod.h"
+#include "perception/linux_syscalls/mknodat.h"
+#include "perception/linux_syscalls/mlock.h"
+#include "perception/linux_syscalls/mlock2.h"
+#include "perception/linux_syscalls/mlockall.h"
+#include "perception/linux_syscalls/mmap.h"
+#include "perception/linux_syscalls/modify_ldt.h"
+#include "perception/linux_syscalls/mount.h"
+#include "perception/linux_syscalls/move_mount.h"
+#include "perception/linux_syscalls/move_pages.h"
+#include "perception/linux_syscalls/mprotect.h"
+#include "perception/linux_syscalls/mq_getsetattr.h"
+#include "perception/linux_syscalls/mq_notify.h"
+#include "perception/linux_syscalls/mq_open.h"
+#include "perception/linux_syscalls/mq_timedreceive.h"
+#include "perception/linux_syscalls/mq_timedsend.h"
+#include "perception/linux_syscalls/mq_unlink.h"
+#include "perception/linux_syscalls/mremap.h"
+#include "perception/linux_syscalls/msgctl.h"
+#include "perception/linux_syscalls/msgget.h"
+#include "perception/linux_syscalls/msgrcv.h"
+#include "perception/linux_syscalls/msgsnd.h"
+#include "perception/linux_syscalls/msync.h"
+#include "perception/linux_syscalls/munlock.h"
+#include "perception/linux_syscalls/munlockall.h"
+#include "perception/linux_syscalls/munmap.h"
+#include "perception/linux_syscalls/name_to_handle_at.h"
+#include "perception/linux_syscalls/nanosleep.h"
+#include "perception/linux_syscalls/newfstatat.h"
+#include "perception/linux_syscalls/nfsservctl.h"
+#include "perception/linux_syscalls/open.h"
+#include "perception/linux_syscalls/open_by_handle_at.h"
+#include "perception/linux_syscalls/open_tree.h"
+#include "perception/linux_syscalls/openat.h"
+#include "perception/linux_syscalls/pause.h"
+#include "perception/linux_syscalls/perf_event_open.h"
+#include "perception/linux_syscalls/personality.h"
+#include "perception/linux_syscalls/pidfd_open.h"
+#include "perception/linux_syscalls/pidfd_send_signal.h"
+#include "perception/linux_syscalls/pipe.h"
+#include "perception/linux_syscalls/pipe2.h"
+#include "perception/linux_syscalls/pivot_root.h"
+#include "perception/linux_syscalls/pkey_alloc.h"
+#include "perception/linux_syscalls/pkey_free.h"
+#include "perception/linux_syscalls/pkey_mprotect.h"
+#include "perception/linux_syscalls/poll.h"
+#include "perception/linux_syscalls/ppoll.h"
+#include "perception/linux_syscalls/prctl.h"
+#include "perception/linux_syscalls/pread64.h"
+#include "perception/linux_syscalls/preadv.h"
+#include "perception/linux_syscalls/preadv2.h"
+#include "perception/linux_syscalls/prlimit64.h"
+#include "perception/linux_syscalls/process_vm_readv.h"
+#include "perception/linux_syscalls/process_vm_writev.h"
+#include "perception/linux_syscalls/pselect6.h"
+#include "perception/linux_syscalls/ptrace.h"
+#include "perception/linux_syscalls/putpmsg.h"
+#include "perception/linux_syscalls/pwrite64.h"
+#include "perception/linux_syscalls/pwritev.h"
+#include "perception/linux_syscalls/pwritev2.h"
+#include "perception/linux_syscalls/query_module.h"
+#include "perception/linux_syscalls/quotactl.h"
+#include "perception/linux_syscalls/read.h"
+#include "perception/linux_syscalls/readahead.h"
+#include "perception/linux_syscalls/readlink.h"
+#include "perception/linux_syscalls/readlinkat.h"
+#include "perception/linux_syscalls/readv.h"
+#include "perception/linux_syscalls/reboot.h"
+#include "perception/linux_syscalls/recvfrom.h"
+#include "perception/linux_syscalls/recvmmsg.h"
+#include "perception/linux_syscalls/recvmsg.h"
+#include "perception/linux_syscalls/remap_file_pages.h"
+#include "perception/linux_syscalls/removexattr.h"
+#include "perception/linux_syscalls/rename.h"
+#include "perception/linux_syscalls/renameat.h"
+#include "perception/linux_syscalls/renameat2.h"
+#include "perception/linux_syscalls/request_key.h"
+#include "perception/linux_syscalls/restart_syscall.h"
+#include "perception/linux_syscalls/rmdir.h"
+#include "perception/linux_syscalls/rseq.h"
+#include "perception/linux_syscalls/rt_sigaction.h"
+#include "perception/linux_syscalls/rt_sigpending.h"
+#include "perception/linux_syscalls/rt_sigprocmask.h"
+#include "perception/linux_syscalls/rt_sigqueueinfo.h"
+#include "perception/linux_syscalls/rt_sigreturn.h"
+#include "perception/linux_syscalls/rt_sigsuspend.h"
+#include "perception/linux_syscalls/rt_sigtimedwait.h"
+#include "perception/linux_syscalls/rt_tgsigqueueinfo.h"
+#include "perception/linux_syscalls/sched_get_priority_max.h"
+#include "perception/linux_syscalls/sched_get_priority_min.h"
+#include "perception/linux_syscalls/sched_getaffinity.h"
+#include "perception/linux_syscalls/sched_getattr.h"
+#include "perception/linux_syscalls/sched_getparam.h"
+#include "perception/linux_syscalls/sched_getscheduler.h"
+#include "perception/linux_syscalls/sched_rr_get_interval.h"
+#include "perception/linux_syscalls/sched_setaffinity.h"
+#include "perception/linux_syscalls/sched_setattr.h"
+#include "perception/linux_syscalls/sched_setparam.h"
+#include "perception/linux_syscalls/sched_setscheduler.h"
+#include "perception/linux_syscalls/sched_yield.h"
+#include "perception/linux_syscalls/seccomp.h"
+#include "perception/linux_syscalls/security.h"
+#include "perception/linux_syscalls/select.h"
+#include "perception/linux_syscalls/semctl.h"
+#include "perception/linux_syscalls/semget.h"
+#include "perception/linux_syscalls/semop.h"
+#include "perception/linux_syscalls/semtimedop.h"
+#include "perception/linux_syscalls/sendfile.h"
+#include "perception/linux_syscalls/sendmmsg.h"
+#include "perception/linux_syscalls/sendmsg.h"
+#include "perception/linux_syscalls/sendto.h"
+#include "perception/linux_syscalls/set_mempolicy.h"
+#include "perception/linux_syscalls/set_robust_list.h"
+#include "perception/linux_syscalls/set_thread_area.h"
+#include "perception/linux_syscalls/set_tid_address.h"
+#include "perception/linux_syscalls/setdomainname.h"
+#include "perception/linux_syscalls/setfsgid.h"
+#include "perception/linux_syscalls/setfsuid.h"
+#include "perception/linux_syscalls/setgid.h"
+#include "perception/linux_syscalls/setgroups.h"
+#include "perception/linux_syscalls/sethostname.h"
+#include "perception/linux_syscalls/setitimer.h"
+#include "perception/linux_syscalls/setns.h"
+#include "perception/linux_syscalls/setpgid.h"
+#include "perception/linux_syscalls/setpriority.h"
+#include "perception/linux_syscalls/setregid.h"
+#include "perception/linux_syscalls/setresgid.h"
+#include "perception/linux_syscalls/setresuid.h"
+#include "perception/linux_syscalls/setreuid.h"
+#include "perception/linux_syscalls/setrlimit.h"
+#include "perception/linux_syscalls/setsid.h"
+#include "perception/linux_syscalls/setsockopt.h"
+#include "perception/linux_syscalls/settimeofday.h"
+#include "perception/linux_syscalls/setuid.h"
+#include "perception/linux_syscalls/setxattr.h"
+#include "perception/linux_syscalls/shmat.h"
+#include "perception/linux_syscalls/shmctl.h"
+#include "perception/linux_syscalls/shmdt.h"
+#include "perception/linux_syscalls/shmget.h"
+#include "perception/linux_syscalls/shutdown.h"
+#include "perception/linux_syscalls/sigaltstack.h"
+#include "perception/linux_syscalls/signalfd.h"
+#include "perception/linux_syscalls/signalfd4.h"
+#include "perception/linux_syscalls/socket.h"
+#include "perception/linux_syscalls/socketpair.h"
+#include "perception/linux_syscalls/splice.h"
+#include "perception/linux_syscalls/stat.h"
+#include "perception/linux_syscalls/statfs.h"
+#include "perception/linux_syscalls/statx.h"
+#include "perception/linux_syscalls/swapoff.h"
+#include "perception/linux_syscalls/swapon.h"
+#include "perception/linux_syscalls/symlink.h"
+#include "perception/linux_syscalls/symlinkat.h"
+#include "perception/linux_syscalls/sync.h"
+#include "perception/linux_syscalls/sync_file_range.h"
+#include "perception/linux_syscalls/syncfs.h"
+#include "perception/linux_syscalls/sysfs.h"
+#include "perception/linux_syscalls/sysinfo.h"
+#include "perception/linux_syscalls/syslog.h"
+#include "perception/linux_syscalls/tee.h"
+#include "perception/linux_syscalls/tgkill.h"
+#include "perception/linux_syscalls/time.h"
+#include "perception/linux_syscalls/timer_create.h"
+#include "perception/linux_syscalls/timer_delete.h"
+#include "perception/linux_syscalls/timer_getoverrun.h"
+#include "perception/linux_syscalls/timer_gettime.h"
+#include "perception/linux_syscalls/timer_settime.h"
+#include "perception/linux_syscalls/timerfd_create.h"
+#include "perception/linux_syscalls/timerfd_gettime.h"
+#include "perception/linux_syscalls/timerfd_settime.h"
+#include "perception/linux_syscalls/times.h"
+#include "perception/linux_syscalls/tkill.h"
+#include "perception/linux_syscalls/truncate.h"
+#include "perception/linux_syscalls/tuxcall.h"
+#include "perception/linux_syscalls/umask.h"
+#include "perception/linux_syscalls/umount2.h"
+#include "perception/linux_syscalls/uname.h"
+#include "perception/linux_syscalls/unlink.h"
+#include "perception/linux_syscalls/unlinkat.h"
+#include "perception/linux_syscalls/unshare.h"
+#include "perception/linux_syscalls/uselib.h"
+#include "perception/linux_syscalls/userfaultfd.h"
+#include "perception/linux_syscalls/ustat.h"
+#include "perception/linux_syscalls/utime.h"
+#include "perception/linux_syscalls/utimensat.h"
+#include "perception/linux_syscalls/utimes.h"
+#include "perception/linux_syscalls/vfork.h"
+#include "perception/linux_syscalls/vhangup.h"
+#include "perception/linux_syscalls/vmsplice.h"
+#include "perception/linux_syscalls/vserver.h"
+#include "perception/linux_syscalls/wait4.h"
+#include "perception/linux_syscalls/waitid.h"
+#include "perception/linux_syscalls/write.h"
+#include "perception/linux_syscalls/writev.h"
+
+
+using ::perception::DebugPrinterSingleton;
+
+extern "C" long __syscall0(long n) {
+	return __syscall6(n, 0, 0, 0, 0, 0, 0);
+}
+
+extern "C" long __syscall1(long n, long a1) {
+	return __syscall6(n, a1, 0, 0, 0, 0, 0);
+}
+extern "C" long __syscall2(long n, long a1, long a2) {
+	return __syscall6(n, a1, a2, 0, 0, 0, 0);
+}
+
+extern "C" long __syscall3(long n, long a1, long a2, long a3) {
+	return __syscall6(n, a1, a2, a3, 0, 0, 0);
+}
+
+extern "C" long __syscall4(long n, long a1, long a2, long a3, long a4) {
+	return __syscall6(n, a1, a2, a3, a4, 0, 0);
+}
+
+extern "C" long __syscall5(long n, long a1, long a2, long a3, long a4, long a5) {
+	return __syscall6(n, a1, a2, a3, a4, a5, 0);
+}
+
+extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5, long a6) {
+	switch (n) {
+		case SYS__sysctl:
+			return ::perception::linux_syscalls::_sysctl();
+		case SYS_accept:
+			return ::perception::linux_syscalls::accept();
+		case SYS_accept4:
+			return ::perception::linux_syscalls::accept4();
+		case SYS_access:
+			return ::perception::linux_syscalls::access();
+		case SYS_acct:
+			return ::perception::linux_syscalls::acct();
+		case SYS_add_key:
+			return ::perception::linux_syscalls::add_key();
+		case SYS_adjtimex:
+			return ::perception::linux_syscalls::adjtimex();
+		case SYS_afs_syscall:
+			return ::perception::linux_syscalls::afs_syscall();
+		case SYS_alarm:
+			return ::perception::linux_syscalls::alarm();
+		case SYS_arch_prctl:
+			return ::perception::linux_syscalls::arch_prctl();
+		case SYS_bind:
+			return ::perception::linux_syscalls::bind();
+		case SYS_bpf:
+			return ::perception::linux_syscalls::bpf();
+		case SYS_brk:
+			return ::perception::linux_syscalls::brk();
+		case SYS_capget:
+			return ::perception::linux_syscalls::capget();
+		case SYS_capset:
+			return ::perception::linux_syscalls::capset();
+		case SYS_chdir:
+			return ::perception::linux_syscalls::chdir();
+		case SYS_chmod:
+			return ::perception::linux_syscalls::chmod();
+		case SYS_chown:
+			return ::perception::linux_syscalls::chown();
+		case SYS_chroot:
+			return ::perception::linux_syscalls::chroot();
+		case SYS_clock_adjtime:
+			return ::perception::linux_syscalls::clock_adjtime();
+		case SYS_clock_getres:
+			return ::perception::linux_syscalls::clock_getres();
+		case SYS_clock_gettime:
+			return ::perception::linux_syscalls::clock_gettime();
+		case SYS_clock_nanosleep:
+			return ::perception::linux_syscalls::clock_nanosleep();
+		case SYS_clock_settime:
+			return ::perception::linux_syscalls::clock_settime();
+		case SYS_clone:
+			return ::perception::linux_syscalls::clone();
+		case SYS_clone3:
+			return ::perception::linux_syscalls::clone3();
+		case SYS_close:
+			return ::perception::linux_syscalls::close();
+		case SYS_connect:
+			return ::perception::linux_syscalls::connect();
+		case SYS_copy_file_range:
+			return ::perception::linux_syscalls::copy_file_range();
+		case SYS_creat:
+			return ::perception::linux_syscalls::creat();
+		case SYS_create_module:
+			return ::perception::linux_syscalls::create_module();
+		case SYS_delete_module:
+			return ::perception::linux_syscalls::delete_module();
+		case SYS_dup:
+			return ::perception::linux_syscalls::dup();
+		case SYS_dup2:
+			return ::perception::linux_syscalls::dup2();
+		case SYS_dup3:
+			return ::perception::linux_syscalls::dup3();
+		case SYS_epoll_create:
+			return ::perception::linux_syscalls::epoll_create();
+		case SYS_epoll_create1:
+			return ::perception::linux_syscalls::epoll_create1();
+		case SYS_epoll_ctl:
+			return ::perception::linux_syscalls::epoll_ctl();
+		case SYS_epoll_ctl_old:
+			return ::perception::linux_syscalls::epoll_ctl_old();
+		case SYS_epoll_pwait:
+			return ::perception::linux_syscalls::epoll_pwait();
+		case SYS_epoll_wait:
+			return ::perception::linux_syscalls::epoll_wait();
+		case SYS_epoll_wait_old:
+			return ::perception::linux_syscalls::epoll_wait_old();
+		case SYS_eventfd:
+			return ::perception::linux_syscalls::eventfd();
+		case SYS_eventfd2:
+			return ::perception::linux_syscalls::eventfd2();
+		case SYS_execve:
+			return ::perception::linux_syscalls::execve();
+		case SYS_execveat:
+			return ::perception::linux_syscalls::execveat();
+		case SYS_exit:
+			return ::perception::linux_syscalls::exit();
+		case SYS_exit_group:
+			return ::perception::linux_syscalls::exit_group();
+		case SYS_faccessat:
+			return ::perception::linux_syscalls::faccessat();
+		case SYS_fadvise64:
+			return ::perception::linux_syscalls::fadvise64();
+		case SYS_fallocate:
+			return ::perception::linux_syscalls::fallocate();
+		case SYS_fanotify_init:
+			return ::perception::linux_syscalls::fanotify_init();
+		case SYS_fanotify_mark:
+			return ::perception::linux_syscalls::fanotify_mark();
+		case SYS_fchdir:
+			return ::perception::linux_syscalls::fchdir();
+		case SYS_fchmod:
+			return ::perception::linux_syscalls::fchmod();
+		case SYS_fchmodat:
+			return ::perception::linux_syscalls::fchmodat();
+		case SYS_fchown:
+			return ::perception::linux_syscalls::fchown();
+		case SYS_fchownat:
+			return ::perception::linux_syscalls::fchownat();
+		case SYS_fcntl:
+			return ::perception::linux_syscalls::fcntl();
+		case SYS_fdatasync:
+			return ::perception::linux_syscalls::fdatasync();
+		case SYS_fgetxattr:
+			return ::perception::linux_syscalls::fgetxattr();
+		case SYS_finit_module:
+			return ::perception::linux_syscalls::finit_module();
+		case SYS_flistxattr:
+			return ::perception::linux_syscalls::flistxattr();
+		case SYS_flock:
+			return ::perception::linux_syscalls::flock();
+		case SYS_fork:
+			return ::perception::linux_syscalls::fork();
+		case SYS_fremovexattr:
+			return ::perception::linux_syscalls::fremovexattr();
+		case SYS_fsconfig:
+			return ::perception::linux_syscalls::fsconfig();
+		case SYS_fsetxattr:
+			return ::perception::linux_syscalls::fsetxattr();
+		case SYS_fsmount:
+			return ::perception::linux_syscalls::fsmount();
+		case SYS_fsopen:
+			return ::perception::linux_syscalls::fsopen();
+		case SYS_fspick:
+			return ::perception::linux_syscalls::fspick();
+		case SYS_fstat:
+			return ::perception::linux_syscalls::fstat();
+		case SYS_fstatfs:
+			return ::perception::linux_syscalls::fstatfs();
+		case SYS_fsync:
+			return ::perception::linux_syscalls::fsync();
+		case SYS_ftruncate:
+			return ::perception::linux_syscalls::ftruncate();
+		case SYS_futex:
+			return ::perception::linux_syscalls::futex();
+		case SYS_futimesat:
+			return ::perception::linux_syscalls::futimesat();
+		case SYS_get_kernel_syms:
+			return ::perception::linux_syscalls::get_kernel_syms();
+		case SYS_get_mempolicy:
+			return ::perception::linux_syscalls::get_mempolicy();
+		case SYS_get_robust_list:
+			return ::perception::linux_syscalls::get_robust_list();
+		case SYS_get_thread_area:
+			return ::perception::linux_syscalls::get_thread_area();
+		case SYS_getcpu:
+			return ::perception::linux_syscalls::getcpu();
+		case SYS_getcwd:
+			return ::perception::linux_syscalls::getcwd();
+		case SYS_getdents:
+			return ::perception::linux_syscalls::getdents();
+		case SYS_getdents64:
+			return ::perception::linux_syscalls::getdents64();
+		case SYS_getegid:
+			return ::perception::linux_syscalls::getegid();
+		case SYS_geteuid:
+			return ::perception::linux_syscalls::geteuid();
+		case SYS_getgid:
+			return ::perception::linux_syscalls::getgid();
+		case SYS_getgroups:
+			return ::perception::linux_syscalls::getgroups();
+		case SYS_getitimer:
+			return ::perception::linux_syscalls::getitimer();
+		case SYS_getpeername:
+			return ::perception::linux_syscalls::getpeername();
+		case SYS_getpgid:
+			return ::perception::linux_syscalls::getpgid();
+		case SYS_getpgrp:
+			return ::perception::linux_syscalls::getpgrp();
+		case SYS_getpid:
+			return ::perception::linux_syscalls::getpid();
+		case SYS_getpmsg:
+			return ::perception::linux_syscalls::getpmsg();
+		case SYS_getppid:
+			return ::perception::linux_syscalls::getppid();
+		case SYS_getpriority:
+			return ::perception::linux_syscalls::getpriority();
+		case SYS_getrandom:
+			return ::perception::linux_syscalls::getrandom();
+		case SYS_getresgid:
+			return ::perception::linux_syscalls::getresgid();
+		case SYS_getresuid:
+			return ::perception::linux_syscalls::getresuid();
+		case SYS_getrlimit:
+			return ::perception::linux_syscalls::getrlimit();
+		case SYS_getrusage:
+			return ::perception::linux_syscalls::getrusage();
+		case SYS_getsid:
+			return ::perception::linux_syscalls::getsid();
+		case SYS_getsockname:
+			return ::perception::linux_syscalls::getsockname();
+		case SYS_getsockopt:
+			return ::perception::linux_syscalls::getsockopt();
+		case SYS_gettid:
+			return ::perception::linux_syscalls::gettid();
+		case SYS_gettimeofday:
+			return ::perception::linux_syscalls::gettimeofday();
+		case SYS_getuid:
+			return ::perception::linux_syscalls::getuid();
+		case SYS_getxattr:
+			return ::perception::linux_syscalls::getxattr();
+		case SYS_init_module:
+			return ::perception::linux_syscalls::init_module();
+		case SYS_inotify_add_watch:
+			return ::perception::linux_syscalls::inotify_add_watch();
+		case SYS_inotify_init:
+			return ::perception::linux_syscalls::inotify_init();
+		case SYS_inotify_init1:
+			return ::perception::linux_syscalls::inotify_init1();
+		case SYS_inotify_rm_watch:
+			return ::perception::linux_syscalls::inotify_rm_watch();
+		case SYS_io_cancel:
+			return ::perception::linux_syscalls::io_cancel();
+		case SYS_io_destroy:
+			return ::perception::linux_syscalls::io_destroy();
+		case SYS_io_getevents:
+			return ::perception::linux_syscalls::io_getevents();
+		case SYS_io_pgetevents:
+			return ::perception::linux_syscalls::io_pgetevents();
+		case SYS_io_setup:
+			return ::perception::linux_syscalls::io_setup();
+		case SYS_io_submit:
+			return ::perception::linux_syscalls::io_submit();
+		case SYS_io_uring_enter:
+			return ::perception::linux_syscalls::io_uring_enter();
+		case SYS_io_uring_register:
+			return ::perception::linux_syscalls::io_uring_register();
+		case SYS_io_uring_setup:
+			return ::perception::linux_syscalls::io_uring_setup();
+		case SYS_ioctl:
+			return ::perception::linux_syscalls::ioctl(a1, a2, a3);
+		case SYS_ioperm:
+			return ::perception::linux_syscalls::ioperm();
+		case SYS_iopl:
+			return ::perception::linux_syscalls::iopl();
+		case SYS_ioprio_get:
+			return ::perception::linux_syscalls::ioprio_get();
+		case SYS_ioprio_set:
+			return ::perception::linux_syscalls::ioprio_set();
+		case SYS_kcmp:
+			return ::perception::linux_syscalls::kcmp();
+		case SYS_kexec_file_load:
+			return ::perception::linux_syscalls::kexec_file_load();
+		case SYS_kexec_load:
+			return ::perception::linux_syscalls::kexec_load();
+		case SYS_keyctl:
+			return ::perception::linux_syscalls::keyctl();
+		case SYS_kill:
+			return ::perception::linux_syscalls::kill();
+		case SYS_lchown:
+			return ::perception::linux_syscalls::lchown();
+		case SYS_lgetxattr:
+			return ::perception::linux_syscalls::lgetxattr();
+		case SYS_link:
+			return ::perception::linux_syscalls::link();
+		case SYS_linkat:
+			return ::perception::linux_syscalls::linkat();
+		case SYS_listen:
+			return ::perception::linux_syscalls::listen();
+		case SYS_listxattr:
+			return ::perception::linux_syscalls::listxattr();
+		case SYS_llistxattr:
+			return ::perception::linux_syscalls::llistxattr();
+		case SYS_lookup_dcookie:
+			return ::perception::linux_syscalls::lookup_dcookie();
+		case SYS_lremovexattr:
+			return ::perception::linux_syscalls::lremovexattr();
+		case SYS_lseek:
+			return ::perception::linux_syscalls::lseek();
+		case SYS_lsetxattr:
+			return ::perception::linux_syscalls::lsetxattr();
+		case SYS_lstat:
+			return ::perception::linux_syscalls::lstat();
+		case SYS_madvise:
+			return ::perception::linux_syscalls::madvise();
+		case SYS_mbind:
+			return ::perception::linux_syscalls::mbind();
+		case SYS_membarrier:
+			return ::perception::linux_syscalls::membarrier();
+		case SYS_memfd_create:
+			return ::perception::linux_syscalls::memfd_create();
+		case SYS_migrate_pages:
+			return ::perception::linux_syscalls::migrate_pages();
+		case SYS_mincore:
+			return ::perception::linux_syscalls::mincore();
+		case SYS_mkdir:
+			return ::perception::linux_syscalls::mkdir();
+		case SYS_mkdirat:
+			return ::perception::linux_syscalls::mkdirat();
+		case SYS_mknod:
+			return ::perception::linux_syscalls::mknod();
+		case SYS_mknodat:
+			return ::perception::linux_syscalls::mknodat();
+		case SYS_mlock:
+			return ::perception::linux_syscalls::mlock();
+		case SYS_mlock2:
+			return ::perception::linux_syscalls::mlock2();
+		case SYS_mlockall:
+			return ::perception::linux_syscalls::mlockall();
+		case SYS_mmap:
+			return ::perception::linux_syscalls::mmap();
+		case SYS_modify_ldt:
+			return ::perception::linux_syscalls::modify_ldt();
+		case SYS_mount:
+			return ::perception::linux_syscalls::mount();
+		case SYS_move_mount:
+			return ::perception::linux_syscalls::move_mount();
+		case SYS_move_pages:
+			return ::perception::linux_syscalls::move_pages();
+		case SYS_mprotect:
+			return ::perception::linux_syscalls::mprotect();
+		case SYS_mq_getsetattr:
+			return ::perception::linux_syscalls::mq_getsetattr();
+		case SYS_mq_notify:
+			return ::perception::linux_syscalls::mq_notify();
+		case SYS_mq_open:
+			return ::perception::linux_syscalls::mq_open();
+		case SYS_mq_timedreceive:
+			return ::perception::linux_syscalls::mq_timedreceive();
+		case SYS_mq_timedsend:
+			return ::perception::linux_syscalls::mq_timedsend();
+		case SYS_mq_unlink:
+			return ::perception::linux_syscalls::mq_unlink();
+		case SYS_mremap:
+			return ::perception::linux_syscalls::mremap();
+		case SYS_msgctl:
+			return ::perception::linux_syscalls::msgctl();
+		case SYS_msgget:
+			return ::perception::linux_syscalls::msgget();
+		case SYS_msgrcv:
+			return ::perception::linux_syscalls::msgrcv();
+		case SYS_msgsnd:
+			return ::perception::linux_syscalls::msgsnd();
+		case SYS_msync:
+			return ::perception::linux_syscalls::msync();
+		case SYS_munlock:
+			return ::perception::linux_syscalls::munlock();
+		case SYS_munlockall:
+			return ::perception::linux_syscalls::munlockall();
+		case SYS_munmap:
+			return ::perception::linux_syscalls::munmap();
+		case SYS_name_to_handle_at:
+			return ::perception::linux_syscalls::name_to_handle_at();
+		case SYS_nanosleep:
+			return ::perception::linux_syscalls::nanosleep();
+		case SYS_newfstatat:
+			return ::perception::linux_syscalls::newfstatat();
+		case SYS_nfsservctl:
+			return ::perception::linux_syscalls::nfsservctl();
+		case SYS_open:
+			return ::perception::linux_syscalls::open();
+		case SYS_open_by_handle_at:
+			return ::perception::linux_syscalls::open_by_handle_at();
+		case SYS_open_tree:
+			return ::perception::linux_syscalls::open_tree();
+		case SYS_openat:
+			return ::perception::linux_syscalls::openat();
+		case SYS_pause:
+			return ::perception::linux_syscalls::pause();
+		case SYS_perf_event_open:
+			return ::perception::linux_syscalls::perf_event_open();
+		case SYS_personality:
+			return ::perception::linux_syscalls::personality();
+		case SYS_pidfd_open:
+			return ::perception::linux_syscalls::pidfd_open();
+		case SYS_pidfd_send_signal:
+			return ::perception::linux_syscalls::pidfd_send_signal();
+		case SYS_pipe:
+			return ::perception::linux_syscalls::pipe();
+		case SYS_pipe2:
+			return ::perception::linux_syscalls::pipe2();
+		case SYS_pivot_root:
+			return ::perception::linux_syscalls::pivot_root();
+		case SYS_pkey_alloc:
+			return ::perception::linux_syscalls::pkey_alloc();
+		case SYS_pkey_free:
+			return ::perception::linux_syscalls::pkey_free();
+		case SYS_pkey_mprotect:
+			return ::perception::linux_syscalls::pkey_mprotect();
+		case SYS_poll:
+			return ::perception::linux_syscalls::poll();
+		case SYS_ppoll:
+			return ::perception::linux_syscalls::ppoll();
+		case SYS_prctl:
+			return ::perception::linux_syscalls::prctl();
+		case SYS_pread64:
+			return ::perception::linux_syscalls::pread64();
+		case SYS_preadv:
+			return ::perception::linux_syscalls::preadv();
+		case SYS_preadv2:
+			return ::perception::linux_syscalls::preadv2();
+		case SYS_prlimit64:
+			return ::perception::linux_syscalls::prlimit64();
+		case SYS_process_vm_readv:
+			return ::perception::linux_syscalls::process_vm_readv();
+		case SYS_process_vm_writev:
+			return ::perception::linux_syscalls::process_vm_writev();
+		case SYS_pselect6:
+			return ::perception::linux_syscalls::pselect6();
+		case SYS_ptrace:
+			return ::perception::linux_syscalls::ptrace();
+		case SYS_putpmsg:
+			return ::perception::linux_syscalls::putpmsg();
+		case SYS_pwrite64:
+			return ::perception::linux_syscalls::pwrite64();
+		case SYS_pwritev:
+			return ::perception::linux_syscalls::pwritev();
+		case SYS_pwritev2:
+			return ::perception::linux_syscalls::pwritev2();
+		case SYS_query_module:
+			return ::perception::linux_syscalls::query_module();
+		case SYS_quotactl:
+			return ::perception::linux_syscalls::quotactl();
+		case SYS_read:
+			return ::perception::linux_syscalls::read();
+		case SYS_readahead:
+			return ::perception::linux_syscalls::readahead();
+		case SYS_readlink:
+			return ::perception::linux_syscalls::readlink();
+		case SYS_readlinkat:
+			return ::perception::linux_syscalls::readlinkat();
+		case SYS_readv:
+			return ::perception::linux_syscalls::readv();
+		case SYS_reboot:
+			return ::perception::linux_syscalls::reboot();
+		case SYS_recvfrom:
+			return ::perception::linux_syscalls::recvfrom();
+		case SYS_recvmmsg:
+			return ::perception::linux_syscalls::recvmmsg();
+		case SYS_recvmsg:
+			return ::perception::linux_syscalls::recvmsg();
+		case SYS_remap_file_pages:
+			return ::perception::linux_syscalls::remap_file_pages();
+		case SYS_removexattr:
+			return ::perception::linux_syscalls::removexattr();
+		case SYS_rename:
+			return ::perception::linux_syscalls::rename();
+		case SYS_renameat:
+			return ::perception::linux_syscalls::renameat();
+		case SYS_renameat2:
+			return ::perception::linux_syscalls::renameat2();
+		case SYS_request_key:
+			return ::perception::linux_syscalls::request_key();
+		case SYS_restart_syscall:
+			return ::perception::linux_syscalls::restart_syscall();
+		case SYS_rmdir:
+			return ::perception::linux_syscalls::rmdir();
+		case SYS_rseq:
+			return ::perception::linux_syscalls::rseq();
+		case SYS_rt_sigaction:
+			return ::perception::linux_syscalls::rt_sigaction();
+		case SYS_rt_sigpending:
+			return ::perception::linux_syscalls::rt_sigpending();
+		case SYS_rt_sigprocmask:
+			return ::perception::linux_syscalls::rt_sigprocmask();
+		case SYS_rt_sigqueueinfo:
+			return ::perception::linux_syscalls::rt_sigqueueinfo();
+		case SYS_rt_sigreturn:
+			return ::perception::linux_syscalls::rt_sigreturn();
+		case SYS_rt_sigsuspend:
+			return ::perception::linux_syscalls::rt_sigsuspend();
+		case SYS_rt_sigtimedwait:
+			return ::perception::linux_syscalls::rt_sigtimedwait();
+		case SYS_rt_tgsigqueueinfo:
+			return ::perception::linux_syscalls::rt_tgsigqueueinfo();
+		case SYS_sched_get_priority_max:
+			return ::perception::linux_syscalls::sched_get_priority_max();
+		case SYS_sched_get_priority_min:
+			return ::perception::linux_syscalls::sched_get_priority_min();
+		case SYS_sched_getaffinity:
+			return ::perception::linux_syscalls::sched_getaffinity();
+		case SYS_sched_getattr:
+			return ::perception::linux_syscalls::sched_getattr();
+		case SYS_sched_getparam:
+			return ::perception::linux_syscalls::sched_getparam();
+		case SYS_sched_getscheduler:
+			return ::perception::linux_syscalls::sched_getscheduler();
+		case SYS_sched_rr_get_interval:
+			return ::perception::linux_syscalls::sched_rr_get_interval();
+		case SYS_sched_setaffinity:
+			return ::perception::linux_syscalls::sched_setaffinity();
+		case SYS_sched_setattr:
+			return ::perception::linux_syscalls::sched_setattr();
+		case SYS_sched_setparam:
+			return ::perception::linux_syscalls::sched_setparam();
+		case SYS_sched_setscheduler:
+			return ::perception::linux_syscalls::sched_setscheduler();
+		case SYS_sched_yield:
+			return ::perception::linux_syscalls::sched_yield();
+		case SYS_seccomp:
+			return ::perception::linux_syscalls::seccomp();
+		case SYS_security:
+			return ::perception::linux_syscalls::security();
+		case SYS_select:
+			return ::perception::linux_syscalls::select();
+		case SYS_semctl:
+			return ::perception::linux_syscalls::semctl();
+		case SYS_semget:
+			return ::perception::linux_syscalls::semget();
+		case SYS_semop:
+			return ::perception::linux_syscalls::semop();
+		case SYS_semtimedop:
+			return ::perception::linux_syscalls::semtimedop();
+		case SYS_sendfile:
+			return ::perception::linux_syscalls::sendfile();
+		case SYS_sendmmsg:
+			return ::perception::linux_syscalls::sendmmsg();
+		case SYS_sendmsg:
+			return ::perception::linux_syscalls::sendmsg();
+		case SYS_sendto:
+			return ::perception::linux_syscalls::sendto();
+		case SYS_set_mempolicy:
+			return ::perception::linux_syscalls::set_mempolicy();
+		case SYS_set_robust_list:
+			return ::perception::linux_syscalls::set_robust_list();
+		case SYS_set_thread_area:
+			return ::perception::linux_syscalls::set_thread_area();
+		case SYS_set_tid_address:
+			return ::perception::linux_syscalls::set_tid_address();
+		case SYS_setdomainname:
+			return ::perception::linux_syscalls::setdomainname();
+		case SYS_setfsgid:
+			return ::perception::linux_syscalls::setfsgid();
+		case SYS_setfsuid:
+			return ::perception::linux_syscalls::setfsuid();
+		case SYS_setgid:
+			return ::perception::linux_syscalls::setgid();
+		case SYS_setgroups:
+			return ::perception::linux_syscalls::setgroups();
+		case SYS_sethostname:
+			return ::perception::linux_syscalls::sethostname();
+		case SYS_setitimer:
+			return ::perception::linux_syscalls::setitimer();
+		case SYS_setns:
+			return ::perception::linux_syscalls::setns();
+		case SYS_setpgid:
+			return ::perception::linux_syscalls::setpgid();
+		case SYS_setpriority:
+			return ::perception::linux_syscalls::setpriority();
+		case SYS_setregid:
+			return ::perception::linux_syscalls::setregid();
+		case SYS_setresgid:
+			return ::perception::linux_syscalls::setresgid();
+		case SYS_setresuid:
+			return ::perception::linux_syscalls::setresuid();
+		case SYS_setreuid:
+			return ::perception::linux_syscalls::setreuid();
+		case SYS_setrlimit:
+			return ::perception::linux_syscalls::setrlimit();
+		case SYS_setsid:
+			return ::perception::linux_syscalls::setsid();
+		case SYS_setsockopt:
+			return ::perception::linux_syscalls::setsockopt();
+		case SYS_settimeofday:
+			return ::perception::linux_syscalls::settimeofday();
+		case SYS_setuid:
+			return ::perception::linux_syscalls::setuid();
+		case SYS_setxattr:
+			return ::perception::linux_syscalls::setxattr();
+		case SYS_shmat:
+			return ::perception::linux_syscalls::shmat();
+		case SYS_shmctl:
+			return ::perception::linux_syscalls::shmctl();
+		case SYS_shmdt:
+			return ::perception::linux_syscalls::shmdt();
+		case SYS_shmget:
+			return ::perception::linux_syscalls::shmget();
+		case SYS_shutdown:
+			return ::perception::linux_syscalls::shutdown();
+		case SYS_sigaltstack:
+			return ::perception::linux_syscalls::sigaltstack();
+		case SYS_signalfd:
+			return ::perception::linux_syscalls::signalfd();
+		case SYS_signalfd4:
+			return ::perception::linux_syscalls::signalfd4();
+		case SYS_socket:
+			return ::perception::linux_syscalls::socket();
+		case SYS_socketpair:
+			return ::perception::linux_syscalls::socketpair();
+		case SYS_splice:
+			return ::perception::linux_syscalls::splice();
+		case SYS_stat:
+			return ::perception::linux_syscalls::stat();
+		case SYS_statfs:
+			return ::perception::linux_syscalls::statfs();
+		case SYS_statx:
+			return ::perception::linux_syscalls::statx();
+		case SYS_swapoff:
+			return ::perception::linux_syscalls::swapoff();
+		case SYS_swapon:
+			return ::perception::linux_syscalls::swapon();
+		case SYS_symlink:
+			return ::perception::linux_syscalls::symlink();
+		case SYS_symlinkat:
+			return ::perception::linux_syscalls::symlinkat();
+		case SYS_sync:
+			return ::perception::linux_syscalls::sync();
+		case SYS_sync_file_range:
+			return ::perception::linux_syscalls::sync_file_range();
+		case SYS_syncfs:
+			return ::perception::linux_syscalls::syncfs();
+		case SYS_sysfs:
+			return ::perception::linux_syscalls::sysfs();
+		case SYS_sysinfo:
+			return ::perception::linux_syscalls::sysinfo();
+		case SYS_syslog:
+			return ::perception::linux_syscalls::syslog();
+		case SYS_tee:
+			return ::perception::linux_syscalls::tee();
+		case SYS_tgkill:
+			return ::perception::linux_syscalls::tgkill();
+		case SYS_time:
+			return ::perception::linux_syscalls::time();
+		case SYS_timer_create:
+			return ::perception::linux_syscalls::timer_create();
+		case SYS_timer_delete:
+			return ::perception::linux_syscalls::timer_delete();
+		case SYS_timer_getoverrun:
+			return ::perception::linux_syscalls::timer_getoverrun();
+		case SYS_timer_gettime:
+			return ::perception::linux_syscalls::timer_gettime();
+		case SYS_timer_settime:
+			return ::perception::linux_syscalls::timer_settime();
+		case SYS_timerfd_create:
+			return ::perception::linux_syscalls::timerfd_create();
+		case SYS_timerfd_gettime:
+			return ::perception::linux_syscalls::timerfd_gettime();
+		case SYS_timerfd_settime:
+			return ::perception::linux_syscalls::timerfd_settime();
+		case SYS_times:
+			return ::perception::linux_syscalls::times();
+		case SYS_tkill:
+			return ::perception::linux_syscalls::tkill();
+		case SYS_truncate:
+			return ::perception::linux_syscalls::truncate();
+		case SYS_tuxcall:
+			return ::perception::linux_syscalls::tuxcall();
+		case SYS_umask:
+			return ::perception::linux_syscalls::umask();
+		case SYS_umount2:
+			return ::perception::linux_syscalls::umount2();
+		case SYS_uname:
+			return ::perception::linux_syscalls::uname();
+		case SYS_unlink:
+			return ::perception::linux_syscalls::unlink();
+		case SYS_unlinkat:
+			return ::perception::linux_syscalls::unlinkat();
+		case SYS_unshare:
+			return ::perception::linux_syscalls::unshare();
+		case SYS_uselib:
+			return ::perception::linux_syscalls::uselib();
+		case SYS_userfaultfd:
+			return ::perception::linux_syscalls::userfaultfd();
+		case SYS_ustat:
+			return ::perception::linux_syscalls::ustat();
+		case SYS_utime:
+			return ::perception::linux_syscalls::utime();
+		case SYS_utimensat:
+			return ::perception::linux_syscalls::utimensat();
+		case SYS_utimes:
+			return ::perception::linux_syscalls::utimes();
+		case SYS_vfork:
+			return ::perception::linux_syscalls::vfork();
+		case SYS_vhangup:
+			return ::perception::linux_syscalls::vhangup();
+		case SYS_vmsplice:
+			return ::perception::linux_syscalls::vmsplice();
+		case SYS_vserver:
+			return ::perception::linux_syscalls::vserver();
+		case SYS_wait4:
+			return ::perception::linux_syscalls::wait4();
+		case SYS_waitid:
+			return ::perception::linux_syscalls::waitid();
+		case SYS_write:
+			return ::perception::linux_syscalls::write();
+		case SYS_writev:
+			return ::perception::linux_syscalls::writev(a1, (struct iovec*)a2, a3);
+		default:
+			DebugPrinterSingleton << "Unknown syscall: " << (size_t)n << '\n';
+			return 0;
+	}
+}
+
+#define VDSO_USEFUL
+#define VDSO_CGT_SYM "__vdso_clock_gettime"
+#define VDSO_CGT_VER "PERCEPTION"
+#define VDSO_GETCPU_SYM "__vdso_getcpu"
+#define VDSO_GETCPU_VER "PERCEPTION"
+
+#define IPC_64 0

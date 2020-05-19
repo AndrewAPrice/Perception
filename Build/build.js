@@ -5,7 +5,7 @@
 // You may obtain a copy of the License at
 //
 //      http://www.apache.org/licenses/LICENSE-2.0
-//
+//execSync
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -49,13 +49,14 @@ function getToolPath(tool) {
 }
 
 // Commands for building.
-const ASM_COMMAND = 'nasm -felf64';
+const ASM_COMMAND = getToolPath('nasm') + ' -felf64';
+const GAS_COMMAND = getToolPath('gas');
 const CC_KERNEL_COMMAND = getToolPath('gcc') + ' -m64 -mcmodel=kernel ' +
 	'-ffreestanding -fno-builtin -nostdlib -nostdinc -mno-red-zone  -c ' +
 	'-msoft-float -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mno-avx ' +
 	'-mno-avx2 -MD -MF temp.d  -O3 -isystem ' + escapePath(rootDirectory) + 'Kernel/source ';
 const CC_COMMAND = getToolPath('gcc') + ' -O3 -flto -m64 -ffreestanding -nostdlib ' +
-	'-nostdinc++ -mno-red-zone -c -MD -MF temp.d ';
+	'-nostdinc++ -mno-red-zone -c -std=c++17 -MD -MF temp.d ';
 const C_COMMAND = getToolPath('gcc') + ' -O3 -flto -m64 -ffreestanding -nostdlib ' +
 	'-mno-red-zone -c -MD -MF temp.d ';
 const KERNEL_LINKER_COMMAND = getToolPath('ld') + ' -nodefaultlibs -T ' + escapePath(rootDirectory) + 'Kernel/source/linker.ld -Map=map.txt ';
@@ -122,12 +123,14 @@ function getPackageDirectory(packageType, packageName) {
 
 // Gets the build command to use for a file.
 function getBuildCommand(filePath, packageType, ccCompileCommand, cCompileCommand) {
-	if (filePath.endsWith('.cc'))
+	if (filePath.endsWith('.cc') || filePath.endsWith('.cpp'))
 		return ccCompileCommand;
 	else if (filePath.endsWith('.c'))
 		return packageType == KERNEL ? CC_KERNEL_COMMAND : cCompileCommand;
 	else if (filePath.endsWith('.asm'))
 		return ASM_COMMAND;
+	else if (filePath.endsWith('.s'))
+		return GAS_COMMAND;
 	else if (filePath.endsWith('.h') || filePath.endsWith('.inl') || filePath.endsWith('.ld') || filePath.endsWith('.txt')
 		|| filePath.endsWith('.DS_Store'))
 		return '';
@@ -155,7 +158,7 @@ const alreadyBuiltLibraries = {};
 
 // Compiles a package.
 async function compile(packageType, packageName, librariesToLink, parentPublicIncludeDirs,
-	librariesToBuild) {
+	librariesToBuild, defines) {
 	if (librariesToLink == undefined) {
 		librariesToLink = [];
 	}
@@ -166,34 +169,59 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 	if (librariesToBuild == undefined) {
 		librariesToBuild = {};
 	}
-
-	const packageDirectory = getPackageDirectory(packageType, packageName);
-	parentPublicIncludeDirs.push(escapePath(packageDirectory) + 'public');
-
-	if (packageType == LIBRARY) {
-		if (librariesToBuild[packageName] != undefined) {
-			// Library is already being built. Just add it's public directory and return.
-			// This supports recursive dependencies between libraries.
-			return COMPILED;
-		} else {
-			librariesToBuild[packageName] = true;
-		}
-		if (alreadyBuiltLibraries[packageName] != undefined) {
-			librariesToLink.push(packageDirectory + 'library.lib');
-			return alreadyBuiltLibraries[packageName];
-		}
+	if (defines == undefined) {
+		defines = {};
 	}
 
+	const packageDirectory = getPackageDirectory(packageType, packageName);
 	if (!fs.existsSync(packageDirectory + 'metadata.json')) {
 		fs.writeFileSync(packageDirectory + 'metadata.json', JSON.stringify({ dependencies: [] }));
 	}
 	const metadata = JSON.parse(fs.readFileSync(packageDirectory + 'metadata.json'));
 
+	if (metadata.public_include) {
+		for (let i = 0; i < metadata.public_include.length; i++) {
+			parentPublicIncludeDirs.push(escapePath(packageDirectory) + metadata.public_include[i]);
+		}
+	} else {
+		parentPublicIncludeDirs.push(escapePath(packageDirectory) + 'public');
+	}
+
+	if (packageType == LIBRARY) {
+		if (librariesToBuild[packageName] != undefined) {
+			// Library is already being built. Just add it's public directory and return.
+			// This supports recursive dependencies between libraries.
+			Object.keys(librariesToBuild[packageName]).forEach((define) => {
+				console.log("adding define " + define);
+				defines[define] = true;
+			});
+			return COMPILED;
+		}
+		if (alreadyBuiltLibraries[packageName] != undefined) {
+			librariesToLink.push(packageDirectory + 'library.lib');
+			const alreadyBuiltLibrary = alreadyBuiltLibraries[packageName];
+
+			Object.keys(alreadyBuiltLibrary.defines).forEach((define) => {
+				console.log("adding define " + define);
+				defines[define] = true;
+			});
+
+			return alreadyBuiltLibrary.status;
+		}
+	}
+
+	if (metadata.public_define) {
+		metadata.public_define.forEach((define) => {
+			defines[define] = true;
+		});
+	}
+	librariesToBuild[packageName] = defines;
+
 	if (metadata.third_party) {
 		if (fs.existsSync(packageDirectory + 'prepare.js') && !fs.existsSync(packageDirectory + 'third_party_files.json')) {
 			console.log('Preparing ' + packageName);
 			try {
-				child_process.execSync('node prepare', {cwd: packageDirectory, stdio: 'pipe'});
+				child_process.execSync('node prepare', {cwd: packageDirectory, stdio: 'inherit'});
 			} catch (exp) {
 				return ERROR;
 			}
@@ -209,7 +237,9 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 		for (let i = 0; i < metadata.dependencies.length; i++) {
 			const dependency = metadata.dependencies[i];
 			// console.log('Depends on ' + dependency);
-			const success = await compile(LIBRARY, dependency, librariesToLink, publicIncludeDirs, librariesToBuild);
+			const childDefines = {};
+			const success = await compile(LIBRARY, dependency, librariesToLink, publicIncludeDirs, librariesToBuild,
+				childDefines);
 			if (!success) {
 				console.log('Dependency ' + dependency + ' failed to build.');
 				return FAILED;
@@ -217,6 +247,9 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 				// The dependency rebuilt so if we are an application we must relink.
 				forceRelinkIfApplication = true;
 			}
+			Object.keys(childDefines).forEach((define) => {
+				defines[define] = true;
+			});
 		}
 	}
 
@@ -230,7 +263,7 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 	const depsFile = packageDirectory + 'dependencies.json';
 	let dependenciesPerFile = fs.existsSync(depsFile) ? JSON.parse(fs.readFileSync(depsFile)) : {};
 
-	let params = ' -isystem '+ escapePath(packageDirectory) + 'public';
+	let params = '';
 
 	if (metadata.include) {
 		metadata.include.forEach((includeDir) => {
@@ -238,9 +271,22 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 		});
 	}
 
+	if (metadata.public_include) {
+		for (let i = 0; i < metadata.public_include.length; i++) {
+			params += ' -isystem '+ escapePath(packageDirectory) + metadata.public_include[i];
+		}
+	} else {
+		params += ' -isystem '+ escapePath(packageDirectory) + 'public';
+	}
+
 	// Public dirs exported by each of our dependencies.
 	publicIncludeDirs.forEach((includeDir) => {
 		params += ' -isystem ' + includeDir; // Pre-escaped.
+		parentPublicIncludeDirs.push(includeDir);
+	});
+
+	Object.keys(defines).forEach((define) => {
+		params += ' -D' + define;
 	});
 
 	if (metadata.define) {
@@ -296,7 +342,7 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 				anythingChanged = true;
 				console.log("Compiling " + file);
 				const command = buildCommand + ' -o ' + escapePath(objectFile) + ' ' + escapePath(file);
-				// console.log(" with command: " + command);
+				console.log(" with command: " + command);
 				var compiled = false;
 				try {
 					child_process.execSync(command);
@@ -308,7 +354,7 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 				if (!compiled) { return; }
 
 				// Update "dependencies".
-				if (file.endsWith('.asm')) {
+				if (file.endsWith('.asm') || file.endsWith('.s')) {
 					// Assembly files don't include anything other than themselves.
 					dependenciesPerFile[file] = [file];
 				} else {
@@ -337,20 +383,29 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 	if (errors) {
 		console.log('There were errors compiling.');
 		if (packageType == LIBRARY) {
-			alreadyBuiltLibraries[packageName] = FAILED;
+			alreadyBuiltLibraries[packageName] = {
+				defines: {},
+				status: FAILED
+			};
 		}
 		return FAILED;
 	} else if (objectFiles.length == 0) {
 		console.log('Nothing was compiled.');
 		if (packageType == LIBRARY) {
-			alreadyBuiltLibraries[packageName] = FAILED;
+			alreadyBuiltLibraries[packageName] = {
+				defines: {},
+				status: FAILED
+			};
 		}
 		return FAILED;
 	} else if (packageType == LIBRARY) {
 		librariesToLink.push(packageDirectory + 'library.lib');
 		if (!anythingChanged && fs.existsSync(packageDirectory + 'library.lib')) {
 			const status = forceRelinkIfApplication ? COMPILED : ALREADY_BUILT;
-			alreadyBuiltLibraries[packageName] = status;
+			alreadyBuiltLibraries[packageName] = {
+				defines: defines,
+				status: status
+			};
 			return status;
 		}
 		if (fs.existsSync(packageDirectory + 'library.lib')) {
@@ -364,11 +419,17 @@ async function compile(packageType, packageName, librariesToLink, parentPublicIn
 			child_process.execSync(command);
 			compiled = true;
 		} catch (exp) {
-			alreadyBuiltLibraries[packageName] = FAILED;
+			alreadyBuiltLibraries[packageName] = {
+				defines: {},
+				status: FAILED
+			};
 			return FAILED;
 		}
 
-		alreadyBuiltLibraries[packageName] = COMPILED;
+		alreadyBuiltLibraries[packageName] = {
+			defines: defines,
+			status: COMPILED
+		};
 		return COMPILED;
 	} else if (packageType == APPLICATION) {
 		if (!anythingChanged && fs.existsSync(packageDirectory + 'application.app')

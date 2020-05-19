@@ -1,4 +1,3 @@
 {"dependencies":[
-	"newlib",
-	"perception"
+	"musl"
 ]}

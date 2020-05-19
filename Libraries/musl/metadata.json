@@ -1,0 +1,15 @@
+{
+	"public_include": [
+		"include"
+	],
+	"include": [
+		"source",
+		"source/include",
+		"source/internal"
+	],
+	"define": [
+	],
+	"dependencies":[
+		"perception"
+	]
+}

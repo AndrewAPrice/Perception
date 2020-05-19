@@ -37,6 +37,7 @@ If you have [Homebrew](https://brew.sh/), you can install everything you need wi
 ```json
 {
 	"ar": "x86_64-elf-gcc-ar",
+	"gas": "x86_64-elf-gcc-as",
 	"nasm": "nasm",
 	"gcc": "x86_64-elf-gcc",
 	"grub-mkrescue": "grub-mkrescue",

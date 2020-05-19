@@ -1,0 +1,15 @@
+{
+	"dependencies":[
+		"perception",
+		"newlib"],
+	"ignore":[],
+	"include":[],
+	"public_define": [
+		"_LIBCPP_HAS_THREAD_API_C11",
+		"LIBCXXRT"
+	],
+	"define": [
+		"_LIBCPP_BUILDING_LIBRARY"
+	],
+	"third_party": true
+}
