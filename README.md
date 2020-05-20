@@ -5,7 +5,7 @@ Perception is a hobby operating system. It is a [x86-64](https://en.wikipedia.or
 [The kernel](Kernel/README.md) is written in C. I use a custom build system. I provide a C++ runtime for libraries, services, drivers, and programs.
 
 ## Features
-Very few right now. We can load ELF modules in userland, make system calls, send events between processes. Drivers can subscribe to interrupts. We now have a C standard library ([Newlib](https://sourceware.org/newlib/)) for user applications.
+Very few right now. We can load ELF modules in userland, make system calls, send events between processes. Drivers can subscribe to interrupts. We now have a C and C++ standard library for user applications.
 
 ## Building and running
 See [building.md](building.md). Perception has only been tested in [QEMU](https://www.qemu.org/). Currently text only and outputs via COM1.
