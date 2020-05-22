@@ -69,7 +69,7 @@ bool CopyIntoMemory(size_t from_start,
 	size_t to_start, size_t to_end, struct Process* process) {
 	
 #ifdef DEBUG
-	PrintString("Copy section ");
+	PrintString("Copy memory ");
 	PrintHex(from_start);
 	PrintString(" to ");
 	PrintHex(to_start);
@@ -128,7 +128,7 @@ bool CopyIntoMemory(size_t from_start,
 // Touches memory, to make sure it is available, but doesn't copy anything into it.
 bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
 #ifdef DEBUG
-	PrintString("Loading section ");
+	PrintString("Loading memory ");
 	PrintHex(to_start);
 	PrintString("->");
 	PrintHex(to_end);
@@ -158,67 +158,105 @@ bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
 	return true;
 }
 
-bool LoadSections(const Elf64_Ehdr* header,
+bool LoadSegments(const Elf64_Ehdr* header,
 			size_t memory_start, size_t memory_end,
 			struct Process* process) {
-	Elf64_Shdr* section_header = (Elf64_Shdr*)(memory_start + header->e_shoff);
+	Elf64_Phdr* segment_header = (Elf64_Phdr*)(memory_start + header->e_phoff);
 
-	for (int i = 0; i < header->e_shnum; i++, section_header++) {
+	// Figure out the number of segments in the binary..
+	size_t number_of_segments = 0;
+	if (header->e_phnum == PN_XNUM) {
+		// The number of program headers is too large to fit into e_phnum. Instead,
+		// it's found in the field sh_info of section 0.
+		PrintString("Loading ELF file where e_phnum == PN_XNUM\n");
+		Elf64_Shdr* section_header = (Elf64_Shdr*)(memory_start + header->e_shnum);
 		if ((size_t)section_header + sizeof(Elf64_Shdr) > memory_end) {
-			PrintString("ELF not big enough for section.");
+			PrintString("ELF not big enough for section.\n");
 			return false;
 		}
 
-		if (section_header->sh_type == SHT_NULL) {
-			// There are many different section types. We won't worry
-			// about the type specifically, but just try to load it into
-			// memory. But, SHT_NULL is specifically one we should skip.
-			continue;
-		}
+		number_of_segments = section_header->sh_info;
+	} else {
+		number_of_segments = header->e_phnum;
+	}
 
-		if (!(section_header->sh_flags & SHF_ALLOC)) {
-			// Section doesn't occupy memory during runtime.
-			continue;
-		}
+#ifdef DEBUG
+	PrintString("We have ");
+	PrintNumber(number_of_segments);
+	PrintString(" segments.\n");
+#endif
 
-		size_t section_start = memory_start + section_header->sh_offset;
-		size_t section_size = section_header->sh_size;
-
-		if (section_size == 0) {
-			// Empty section, nothing to load.
-			continue;
-		}
-
-		size_t virtual_address_start = section_header->sh_addr;
-		size_t virtual_address_end = virtual_address_start + section_size;
-		if (virtual_address_end > VIRTUAL_MEMORY_OFFSET) {
-			PrintString("Trying to load data into kernel memory.");
+	// Load the segments.
+	for (int i = 0; i < number_of_segments; i++, segment_header++) {
+		if ((size_t)segment_header + sizeof(Elf64_Phdr) > memory_end) {
+			PrintString("ELF not big enough for segment.\n");
 			return false;
 		}
 
-		if (section_header->sh_type == SHT_NOBITS) {
+		if (segment_header->p_type == PT_TLS) {
+			PrintString("We've encountered a TLS segment.");
+		}
+
+#ifdef DEBUG
+		PrintString("Found segment. Flags: ");
+		PrintHex(segment_header->p_flags);
+		PrintString(" type: ");
+		PrintHex(segment_header->p_type);
+		PrintString(" file size: ");
+		PrintHex(segment_header->p_filesz);
+		PrintString(" memsize size: ");
+		PrintHex(segment_header->p_memsz);
+		PrintString(" physical address: ");
+		PrintHex(segment_header->p_paddr);
+		PrintString(" virtual address: ");
+		PrintHex(segment_header->p_vaddr);
+		PrintChar('\n');
+#endif
+
+		if (segment_header->p_type != PT_LOAD) {
+			// Skip segments that aren't to be loaded into memory.
+			continue;
+		}
+
+		if (segment_header->p_vaddr + segment_header->p_memsz > VIRTUAL_MEMORY_OFFSET) {
+			PrintString("Trying to load data into kernel memory.\n");
+			return false;
+		}
+
+		if (segment_header->p_filesz > 0) {
+			// There is data from the file we need to copy into memory.
+			size_t from_start = memory_start + segment_header->p_offset;
+			size_t from_size = segment_header->p_filesz;
+
+			if (from_start + from_size > memory_end) {
+				// Segment is out of bounds of the ELF file.
+				PrintString("Segment is trying to load memory that is out of bounds of the file.");
+				return false;
+			}
+
+			size_t to_address = segment_header->p_vaddr;
+			size_t to_end = to_address + from_size;
+			// Copy the data from the file into memory.
+			if (!CopyIntoMemory(from_start, to_address, to_end, process)) {
+				return false;
+			}
+		}
+
+		if (segment_header->p_memsz > segment_header->p_filesz) {
 			// This is memory that takes up no space in the ELF file, but must
 			// be initialized to 0 for the program.
-			if (!LoadMemory(virtual_address_start, virtual_address_end, process)) {
-				return false;
-			}
-		} else {
-			if (section_start + section_size > memory_end) {
-				// Section is out of bounds of the ELF file.
-				return false;
-			}
-			// A section we need to copy into memory.
-			if (!CopyIntoMemory(section_start,
-				virtual_address_start, virtual_address_end,
-				process)) {
-				return false;
-			}
-		}
 
+			// Skip over any data that was copied.
+			size_t to_start = segment_header->p_vaddr + segment_header->p_filesz;
+			size_t to_end = to_start + (segment_header->p_memsz - segment_header->p_filesz);
+			if (!LoadMemory(to_start, to_end, process)) {
+				return false;
+			}
+
+		}
 	}
 
 	return true;
-
 }
 
 void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
@@ -254,7 +292,7 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
 	PrintString("...\n");
 
 	if (memory_start + sizeof(Elf64_Ehdr) > memory_end) {
-		PrintString("ELF not big enough for header.");
+		PrintString("ELF not big enough for header.\n");
 		return;
 	}
 
@@ -265,13 +303,14 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
 
 	struct Process* process = CreateProcess(is_driver);
 	if (!process) {
-		PrintString("Out of memory to create the process.");
+		PrintString("Out of memory to create the process.\n");
 		return;
 	}
 
 	CopyString(name, 256, name_length, process->name);
 
-	if (!LoadSections(header, memory_start, memory_end, process)) {
+	if (!LoadSegments(header, memory_start, memory_end, process)) {
+		PrintString("Destroying process.\n");
 		DestroyProcess(process);
 		return;
 	}
@@ -279,7 +318,7 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
 	struct Thread* thread = CreateThread(process, header->e_entry, 0);
 
 	if (!thread) {
-		PrintString("Out of to create the thread.");
+		PrintString("Out of memory to create the thread.\n");
 		DestroyProcess(process);
 		return;
 	}
