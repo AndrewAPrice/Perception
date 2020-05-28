@@ -14,13 +14,13 @@
 
 #include "perception/linux_syscalls/set_thread_area.h"
 
-#include "perception/debug.h"
+#include "perception/threads.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long set_thread_area() {
-	perception::DebugPrinterSingleton << "System call set_thread_area is unimplemented.\n";
+long set_thread_area(long thread_area) {
+	perception::SetThreadSegment(static_cast<size_t>(thread_area));
 	return 0;
 }
 

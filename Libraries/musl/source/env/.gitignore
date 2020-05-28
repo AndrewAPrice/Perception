@@ -1,0 +1,3 @@
+*
+!.gitignore
+!__libc_start_init.c

@@ -15,12 +15,13 @@
 #include "perception/linux_syscalls/munmap.h"
 
 #include "perception/debug.h"
+#include "perception/memory.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long munmap() {
-	perception::DebugPrinterSingleton << "System call munmap is unimplemented.\n";
+long munmap(long addr, long length) {
+	ReleaseMemoryPages((void*)addr, (size_t)length / kPageSize);
 	return 0;
 }
 

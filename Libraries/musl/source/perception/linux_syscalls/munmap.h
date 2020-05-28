@@ -15,7 +15,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long munmap();
+long munmap(long addr, long length);
 
 }
 }

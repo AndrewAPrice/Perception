@@ -709,7 +709,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5, 
 		case SYS_mlockall:
 			return ::perception::linux_syscalls::mlockall();
 		case SYS_mmap:
-			return ::perception::linux_syscalls::mmap();
+			return ::perception::linux_syscalls::mmap(a1, a2, a3, a4, a5, a6);
 		case SYS_modify_ldt:
 			return ::perception::linux_syscalls::modify_ldt();
 		case SYS_mount:
@@ -749,7 +749,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5, 
 		case SYS_munlockall:
 			return ::perception::linux_syscalls::munlockall();
 		case SYS_munmap:
-			return ::perception::linux_syscalls::munmap();
+			return ::perception::linux_syscalls::munmap(a1, a2);
 		case SYS_name_to_handle_at:
 			return ::perception::linux_syscalls::name_to_handle_at();
 		case SYS_nanosleep:
@@ -925,9 +925,9 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5, 
 		case SYS_set_robust_list:
 			return ::perception::linux_syscalls::set_robust_list();
 		case SYS_set_thread_area:
-			return ::perception::linux_syscalls::set_thread_area();
+			return ::perception::linux_syscalls::set_thread_area(a1);
 		case SYS_set_tid_address:
-			return ::perception::linux_syscalls::set_tid_address();
+			return ::perception::linux_syscalls::set_tid_address(a1);
 		case SYS_setdomainname:
 			return ::perception::linux_syscalls::setdomainname();
 		case SYS_setfsgid:

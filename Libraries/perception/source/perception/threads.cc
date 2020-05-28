@@ -58,4 +58,12 @@ void Yield() {
 	__asm__ ("syscall\n"::"r"(syscall_num): "rcx", "r11");
 }
 
+void SetThreadSegment(size_t segment_address) {
+	register size_t syscall_num asm ("rdi") = 27;
+	register size_t param asm ("rax") = segment_address;
+
+	__asm__ ("syscall\n"::"r"(syscall_num), "r"(param): "rcx", "r11");
 }
+
+}
+

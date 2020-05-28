@@ -16,12 +16,36 @@
 #include "perception/messages.h"
 #include "perception/threads.h"
 
-#include "stdio.h"
+// #include "stdio.h"
+#include <iostream>
+#include <string>
+
+class Something {
+public:
+	Something() {
+		std::cout << "Constructing something." << std::endl;
+	}
+
+	~Something() {
+		std::cout << "Destructing something." << std::endl;
+	}
+};
+
+void Child(std::unique_ptr<Something> something) {
+	std::cout << "I now own something" << std::endl;
+}
 
 void main() {
-	printf("Hello %s %i\n", "world", 12);
+	// auto some_str = new std::string("hello!");
+	// printf("Hello %s %i\n", "world", 12);
+	
+	{
+		std::unique_ptr<Something> something = std::make_unique<Something>();
+		// Child(std::move(something));
+		perception::DebugPrinterSingleton << "Hello world " << (size_t)12 << '\n';
+	}
 
-	// perception::DebugPrinterSingleton << "Hello " << "world " << (size_t)12 << '\n';
+	std::cout << "Hello " << "world " << (size_t)13 << '\n';
 	while (true) {
 		perception::Yield();
 	}

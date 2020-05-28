@@ -1,3 +1,4 @@
 {"dependencies":[
-	"perception"
+	"perception",
+	"musl"
 ]}

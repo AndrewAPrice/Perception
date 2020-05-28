@@ -9,6 +9,9 @@
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 
+// The model specific register that stores the FS segment's base address.
+#define FSBASE_MSR 0xC0000100
+
 size_t next_thread_id;
 
 extern void save_fpu_registers(size_t regs_addr);
@@ -70,6 +73,9 @@ struct Thread *CreateThread(struct Process *process, size_t entry_point, size_t 
 	// Sets our code and stack segment selectors (the segments are defined in Gdt64 in boot.asm)
 	regs->cs = 0x20 | 3; // '| 3' means ring 3. This is a user code, not kernel code.
 	regs->ss = 0x18 | 3; // Likewise with user data, not kernel data.
+
+	// No thread segment.
+	thread->thread_segment_offset = (size_t)NULL;
 
 	// Sets up the processor's flags.
 	regs->rflags = 
@@ -183,3 +189,20 @@ struct Thread* GetThreadFromTid(struct Process* process, size_t tid) {
 	}
 	return 0;
 }
+
+// Set the thread's segment offset (FS).
+void SetThreadSegment(struct Thread* thread, size_t address) {
+	thread->thread_segment_offset = address;
+
+	if (thread == running_thread) {
+		LoadThreadSegment(thread);
+	}
+}
+
+
+
+// Load's a thread segment.
+void LoadThreadSegment(struct Thread* thread) {
+	wrmsr(FSBASE_MSR, thread->thread_segment_offset);
+}
+

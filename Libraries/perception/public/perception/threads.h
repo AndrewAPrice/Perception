@@ -42,4 +42,7 @@ void TerminateThread(ThreadId tid);
 // passes control to the next thread.
 void Yield();
 
+// Sets the address for the thread's segment (FS).
+void SetThreadSegment(size_t segment_address);
+
 }

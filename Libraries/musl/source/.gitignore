@@ -1,4 +1,6 @@
 *
 !.gitignore
+!env/
 !internal/
 !perception/
+!thread/

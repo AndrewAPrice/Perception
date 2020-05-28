@@ -15,13 +15,13 @@
 #include "perception/linux_syscalls/gettid.h"
 
 #include "perception/debug.h"
+#include "perception/threads.h"
 
 namespace perception {
 namespace linux_syscalls {
 
 long gettid() {
-	perception::DebugPrinterSingleton << "System call gettid is unimplemented.\n";
-	return 0;
+	return GetThreadId();
 }
 
 }

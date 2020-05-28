@@ -19,7 +19,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long timer_getoverrun5() {
+long timer_getoverrun() {
 	perception::DebugPrinterSingleton << "System call timer_getoverrun is unimplemented.\n";
 	return 0;
 }

@@ -15,26 +15,28 @@
 [BITS 64]
 [GLOBAL crt0_entry]
 [extern main]
+[extern call_global_constructors]
+[extern __libc_start_main]
 [extern start_ctors]
 [extern end_ctors]
 [extern start_dtors]
 [extern end_dtors]
 [extern __cxa_finalize]
 
+envp:
+	; TODO - let the caller/kernel pass something in during start up.
+	DQ 0
+	DQ 0
+	DQ 0
+	DQ 0
+
 ; This is the entrypoint where programs begin running.
 crt0_entry:
-	; Call the global constructors.
-	mov rbx, start_ctors
-	jmp .checkIfWeHaveAGlobalConstructor
-.callGlobalConstructor:
-	call [rbx]
-	add rbx, 8
-.checkIfWeHaveAGlobalConstructor:
-	cmp rbx, end_ctors
-	jb .callGlobalConstructor
-
 	; Call the C entry point.
-	call main
+	mov rdi, main
+	mov rsi, 0 ; argc
+	mov rdx, envp ; argv
+	call __libc_start_main
 
 	; Call registered destructors.
 	mov rdi, 0
@@ -53,3 +55,16 @@ crt0_entry:
 	; Terminate the process if main returns.
 	mov rdi, 6
 	syscall
+
+
+; Call the global constructors.
+call_global_constructors:
+	mov rbx, start_ctors
+	jmp .checkIfWeHaveAGlobalConstructor
+.callGlobalConstructor:
+	call [rbx]
+	add rbx, 8
+.checkIfWeHaveAGlobalConstructor:
+	cmp rbx, end_ctors
+	jb .callGlobalConstructor
+	ret

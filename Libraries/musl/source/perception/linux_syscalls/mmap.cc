@@ -15,14 +15,30 @@
 #include "perception/linux_syscalls/mmap.h"
 
 #include "perception/debug.h"
+#include "perception/memory.h"
+#include "sys/mman.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long mmap() {
-	perception::DebugPrinterSingleton << "System call mmap is unimplemented.\n";
-	return 0;
+long mmap(long addr, long length, long prot, long flags,
+                  long fd, long offset) {
+
+	if (addr != 0) {
+		perception::DebugPrinterSingleton << "mmap wants to place at a specific addr (" << (size_t)addr << ") but this isn't yet implemented.\n";
+		return 0;
+	}
+
+	if (flags != (MAP_ANON | MAP_PRIVATE)) {
+		perception::DebugPrinterSingleton << "mmap passed flags " << (size_t)flags << " but currently only MAP_ANON | MAP_FIXED is supported.\n";
+	}
+
+	// 'prot' sepecifies if the memory can be executed, read, written, etc. The kernel doesn't yet support this level
+	// of control, so we make all program memory x/r/w and can ignore this parameter.
+
+	return (long)AllocateMemoryPages((size_t)length / kPageSize);
 }
 
 }
 }
+

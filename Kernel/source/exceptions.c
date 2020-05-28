@@ -136,7 +136,10 @@ void ExceptionHandler(int interrupt_no) {
 	// Output the exception that occured.
 	if(interrupt_no < 32) {
 		PrintString("\nException occured: ");
+		PrintString(exception_messages[interrupt_no]);
+		PrintString(" (");
 		PrintNumber(interrupt_no);
+		PrintChar(')');
 	} else {
 		// This should never trigger, because we haven't registered ourselves for interrupts >= 32.
 		PrintString("\nUnknown exception: ");
@@ -156,6 +159,7 @@ void ExceptionHandler(int interrupt_no) {
 		PrintRegisters(currently_executing_thread_regs);
 		// Terminate the process.
 		DestroyProcess(process);
+	asm("hlt");
 		JumpIntoThread(); // Doesn't return.
 	} else {
 		PrintString(" outside of a thread.");

@@ -7,9 +7,11 @@
 		"source/include",
 		"source/internal"
 	],
-	"define": [
+	"public_define": [
+		"_GNU_SOURCE"
 	],
 	"dependencies":[
 		"perception"
-	]
+	],
+	"third_party": true
 }

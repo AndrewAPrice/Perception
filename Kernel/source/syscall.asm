@@ -43,8 +43,8 @@ syscall_entry:
     mov ax, 0x10
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
+    ;mov fs, ax
+    ;mov gs, ax
 
     ; Move to the interrupt's stack.
     mov rsp, interrupt_stack_top
@@ -57,8 +57,8 @@ syscall_entry:
     mov ax, 0x18 | 3
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
+    ;mov fs, ax
+    ;mov gs, ax
 
     mov rsp, [currently_executing_thread_regs]
     pop r15

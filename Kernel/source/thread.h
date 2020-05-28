@@ -23,6 +23,9 @@ struct Thread {
 	// Does this thread use FPU registers that we need to save them on context switching?
 	bool uses_fpu_registers : 1;
 
+	// Offset of the thread's segment (FS).
+	size_t thread_segment_offset;
+
 	// Virtual address of the thread's stack. This gets released when the thread is destroyed.
 	size_t stack;
 
@@ -63,3 +66,9 @@ extern void DestroyThreadsForProcess(struct Process *process, bool process_being
 
 // Returns a thread with the provided tid in process, return 0 if it doesn't exist.
 extern struct Thread* GetThreadFromTid(struct Process* process, size_t tid);
+
+// Set the thread's segment offset (FS).
+extern void SetThreadSegment(struct Thread* thread, size_t address);
+
+// Load's a thread segment.
+extern void LoadThreadSegment(struct Thread* thread);

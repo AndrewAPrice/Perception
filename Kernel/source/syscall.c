@@ -39,7 +39,7 @@ void InitializeSystemCalls() {
 }
 
 // Syscalls.
-// Next id is 22.
+// Next id is 28.
 #define PRINT_DEBUG_CHARACTER 0
 #define CREATE_THREAD 1
 #define GET_THIS_THREAD_ID 2
@@ -52,6 +52,7 @@ void InitializeSystemCalls() {
 #define TERMINATE_THIS_PROCESS 6
 #define TERMINATE_PROCESS 7
 #define YIELD 8
+#define SET_THREAD_SEGMENT 27
 #define ALLOCATE_MEMORY_PAGES 12
 #define RELEASE_MEMORY_PAGES 13
 #define GET_FREE_SYSTEM_MEMORY 14
@@ -136,6 +137,9 @@ void SyscallHandler(int syscall_number) {
 		case YIELD:
 			ScheduleNextThread();
 			JumpIntoThread(); // Doesn't return.
+			break;
+		case SET_THREAD_SEGMENT:
+			SetThreadSegment(running_thread, currently_executing_thread_regs->rax);
 			break;
 		case ALLOCATE_MEMORY_PAGES:
 			currently_executing_thread_regs->rax =

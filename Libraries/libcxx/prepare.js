@@ -30,6 +30,7 @@ if (!fs.existsSync('third_party')) {
 		child_process.execSync('git config pull.rebase true', {cwd: 'third_party', stdio: 'inherit'});
 		fs.appendFileSync('third_party/.git/info/sparse-checkout', 'libcxx/\n', 'utf8');
 		fs.appendFileSync('third_party/.git/info/sparse-checkout', 'libcxxabi/\n', 'utf8');
+		fs.appendFileSync('third_party/.git/info/sparse-checkout', 'libunwind/\n', 'utf8');
 		child_process.execSync('git checkout', {cwd: 'third_party', stdio: 'inherit'});
 	} catch (exp) {
 		console.log('Error downloading libcxx/libcxxabi: ' + exp);
@@ -99,7 +100,6 @@ function copyFile(fromPath, toPath, fromFileStats) {
 }
 
 const filesToIgnore = {
-	'public/sys/dirent.h': true,
 	'source/libc/stdio/nano-vfprintf.c': true,
 	'source/libc/stdio/nano-vfprintf_float.c': true,
 	'source/libc/stdio/nano-vfprintf_i.c': true,
@@ -143,6 +143,8 @@ copyFilesInDirectory('third_party/libcxx/include', 'public');
 copyFilesInDirectory('third_party/libcxx/src', 'source');
 copyFilesInDirectory('third_party/libcxxabi/include', 'public');
 copyFilesInDirectory('third_party/libcxxabi/src', 'source');
+copyFilesInDirectory('third_party/libunwind/include', 'public');
+copyFilesInDirectory('third_party/libunwind/src', 'source');
 
 // Remove any third party files that don't exist in the latest build.
 Object.keys(third_party_files_from_last_run).forEach(function (filePath) {

@@ -54,9 +54,9 @@ cd Build && npm install
 ## Building
 Call all commands from inside the Build directory.
 
-- `node build` - Builds everything. The kernel, all applications, and creates a Perception.iso in the root directory.
-- `node build run` - Builds everything and starts QEMU.
-- `node build kernel` - Builds the kernel.
-- `node build application <application>` - Builds a particular application.
-- `node build library <library>` - Builds a particular library.
-- `node build clean` - Cleans up built files.
+- `./build` - Builds everything. The kernel, all applications, and creates a Perception.iso in the root directory.
+- `./build run` - Builds everything and starts QEMU.
+- `./build kernel` - Builds the kernel.
+- `./build application <application>` - Builds a particular application.
+- `./build library <library>` - Builds a particular library.
+- `./build clean` - Cleans up built files.

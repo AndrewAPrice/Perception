@@ -157,8 +157,6 @@ irq_common_stub:
 	mov ax, 0x10
 	mov ds, ax
 	mov es, ax
-	mov fs, ax
-	mov gs, ax
 
 	; Call the handler
 	; mov rdi, [rbp - 46] ; pass interrupt number as argument
@@ -171,8 +169,6 @@ JumpIntoThread:
 	mov ax, 0x18 | 3
 	mov ds, ax
 	mov es, ax
-	mov fs, ax
-	mov gs, ax
 
  	; Jump to the bottom of isr_regs, which contains 20 64-bit registers.
 	mov rsp, [currently_executing_thread_regs]

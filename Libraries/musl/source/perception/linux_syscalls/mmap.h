@@ -15,7 +15,8 @@
 namespace perception {
 namespace linux_syscalls {
 
-long mmap();
+long mmap(long addr, long length, long prot, long flags,
+                  long fd, long offset);
 
 }
 }

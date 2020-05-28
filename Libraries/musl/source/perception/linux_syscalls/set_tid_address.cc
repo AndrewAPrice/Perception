@@ -15,13 +15,14 @@
 #include "perception/linux_syscalls/set_tid_address.h"
 
 #include "perception/debug.h"
+#include "perception/threads.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long set_tid_address() {
-	perception::DebugPrinterSingleton << "System call set_tid_address is unimplemented.\n";
-	return 0;
+long set_tid_address(long tid_address) {
+	perception::DebugPrinterSingleton << "System call set_tid_address is unimplemented: " << (size_t)tid_address << '\n';
+	return GetThreadId();
 }
 
 }

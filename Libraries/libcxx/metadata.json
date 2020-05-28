@@ -1,7 +1,7 @@
 {
 	"dependencies":[
 		"perception",
-		"newlib"],
+		"musl"],
 	"ignore":[],
 	"include":[],
 	"public_define": [
@@ -9,7 +9,10 @@
 		"LIBCXXRT"
 	],
 	"define": [
-		"_LIBCPP_BUILDING_LIBRARY"
+		"_LIBCPP_BUILDING_LIBRARY",
+		"LIBCXX_BUILDING_LIBCXXABI",
+		"_LIBUNWIND_DISABLE_VISIBILITY_ANNOTATIONS",
+		"_LIBCPP_PROVIDES_DEFAULT_RUNE_TABLE"
 	],
 	"third_party": true
 }

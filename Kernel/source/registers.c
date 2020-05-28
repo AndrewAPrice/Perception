@@ -22,12 +22,12 @@ void PrintRegisters(struct Registers* regs) {
 
 	PrintString("rax: "); PrintHex(regs->rax);
 	PrintString("   rbx: "); PrintHex(regs->rbx);
-	PrintString("\rrcx: "); PrintHex(regs->rcx);
+	PrintString("\nrcx: "); PrintHex(regs->rcx);
 	PrintString("   rdx: "); PrintHex(regs->rdx);
 	PrintString("\nrsp: "); PrintHex(regs->rsp);
 	PrintString("   rbp: "); PrintHex(regs->rbp);
 	PrintString("\nrsi: "); PrintHex(regs->rsi);
-	PrintString("   rdi:  "); PrintHex(regs->rdi);
+	PrintString("   rdi: "); PrintHex(regs->rdi);
 	PrintString("\n r8: "); PrintHex(regs->r8);
 	PrintString("    r9: "); PrintHex(regs->r9);
 	PrintString("\nr10: "); PrintHex(regs->r10);

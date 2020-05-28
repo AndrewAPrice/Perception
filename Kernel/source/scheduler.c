@@ -88,6 +88,7 @@ void ScheduleNextThread() {
 	if (running_thread->uses_fpu_registers) {
 		asm volatile("fxrstor %0"::"m"(*running_thread->fpu_registers));
 	}
+	LoadThreadSegment(running_thread);
 
 	currently_executing_thread_regs = running_thread->registers;
 

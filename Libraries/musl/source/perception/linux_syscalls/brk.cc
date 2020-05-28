@@ -14,14 +14,18 @@
 
 #include "perception/linux_syscalls/brk.h"
 
+#include "errno.h"
 #include "perception/debug.h"
+
+// Defined in syscall.h but doesn't like being included from C++.
+extern "C" long __syscall_ret(long val);
 
 namespace perception {
 namespace linux_syscalls {
 
 long brk() {
-	perception::DebugPrinterSingleton << "System call brk is unimplemented.\n";
-	return 0;
+	// We don't support brk, instead use mmap.
+	return __syscall_ret(-ENOSYS);
 }
 
 }
