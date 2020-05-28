@@ -1,0 +1,1 @@
+node source/main %*
