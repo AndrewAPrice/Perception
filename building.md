@@ -46,11 +46,6 @@ If you have [Homebrew](https://brew.sh/), you can install everything you need wi
 }
 ```
 
-- Install Node dependencies
-```sh
-cd Build && npm install
-```
-
 ## Building
 Call all commands from inside the Build directory.
 
@@ -60,3 +55,5 @@ Call all commands from inside the Build directory.
 - `./build application <application>` - Builds a particular application.
 - `./build library <library>` - Builds a particular library.
 - `./build clean` - Cleans up built files.
+
+You can lean more about the build system in [Build/README.md](Build/README.md).
