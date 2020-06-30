@@ -1,5 +1,5 @@
 # Permebufs
-Permebufs are **Per**ception **me**ory **buf**ers.
+Permebufs are **Per**ception **me**mory **buf**ers.
 
 Permebufs are a data interchange and storage format used throughout the Perception operating system.
 
