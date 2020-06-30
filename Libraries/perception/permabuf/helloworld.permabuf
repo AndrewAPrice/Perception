@@ -1,0 +1,13 @@
+namespace perception
+
+message HelloWorld {
+	message Nested {
+	} // skip
+
+	RepeatedNested : /* skip me */ List<Nested> = 2;
+}
+// lalalala
+
+message HelloWorld2 {
+	Foo : Array<HelloWorld.Nested> = 2;
+}
