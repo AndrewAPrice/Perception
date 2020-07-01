@@ -13,126 +13,37 @@
 // limitations under the License.
 
 const fs = require('fs');
+const {PackageType} = require('./package_type');
+const permabufParser = require('./permabuf_parser');
+const permabufGenerator = require('./permabuf_generator');
 
-// Creates a lexer, which is the thing that takes the raw string and turns it into
-// tokens.
-function createLexer(filename) {
-	const fileContents = fs.readFileSync(filename, 'UTF-8');
-	let index = 0;
-	let nextToken = '';
-	let nextChar = '';
-
-	function peekChar() {
-		return nextChar;
-	}
-
-	function readChar() {
-		let lastChar = nextChar;
-		if (index >= fileContents.length) {
-			nextChar = '';
-		} else {
-			nextChar = fileContents[index];
-			index++;
-		}
-		return lastChar;
-	}
-
-	// Read in the first char.
-	readChar();
-
-	function peekToken() {
-		return nextToken;
-	}
-
-	function readToken() {
-		const lastToken = nextToken;
-
-		// Read in the next token.
-		nextToken = '';
-
-		// Skip over blank spaces and comments.
-		let c = readChar();
-		while (isBlankSpace(c) || c == '/') {
-			if (c == '/') {
-				// Could be a comment.
-				if (peekChar() == '/') {
-					// Line comment.
-					function isNewlineOrEOF(c) {
-						return c == '\n' || c == '\r' || c == '';
-					}
-					while (!isNewlineOrEOF(readChar())) {}
-
-				} else if (peekChar() == '*') {
-					// Block comment.
-
-					// Jump over *.
-					readChar(); 
-
-					function isClosingOrEOF(c, next) {
-						return (c == '*' && next == '/') || c == '';
-					}
-					while (!isClosingOrEOF(readChar(), peekChar())) {}
-
-					// Jump over /.
-					readChar();
-				} else {
-					// Exit the while loop because we have a '/'.
-					break;
-				}
-			}
-			c = readChar();
-		}
-
-		nextToken = c;
-
-		if (isIdentifierCharacter(nextToken)) {
-			// This is an identifier, so keep reading the rest of the identifier.
-			while (isIdentifierCharacter(peekChar())) {
-				nextToken += readChar();
-			}
-		}
-
-		return lastToken;
-	}
-
-	// Read in this first token.
-	readToken();
-
-	return {
-		peekToken: peekToken,
-		readToken: readToken
-	};
-
-}
-
-function isBlankSpace(c) {
-	return c == ' ' || c == '\n' || c == '\r' || c == '\t';
-}
-
-function isIdentifierCharacter(c) {
-	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-		(c >= '0' && c <= '9');
-}
-
-function compile(filename, destination, libraries, fileDependencies) {
+function compilePermabufToCpp(localPath,
+	packageName,
+	packageType,
+	dependencies) {
 	const symbolTable = {};
-	const symbolsToCompile = [];
+	const symbolsToGenerate = [];
+	const cppIncludeFiles = {};
+	const importedFilesMap = {}
 
-	function compileFile(filename, fileBeingCompiled) {
-		const lexer = createLexer(filename);
-		while (true) {
-			let token = lexer.readToken();
-			if (token == '') {
-				return;
-			}
-
-			console.log(token);
-		}
+	if (!permabufParser.parseFile(localPath, packageName, packageType, importedFilesMap,
+		symbolTable, symbolsToGenerate, cppIncludeFiles, true)) {
+		return false;
 	}
 
-	compileFile(filename, true);
+	if (!permabufGenerator.generateCppSources(localPath, packageName, packageType,
+		symbolTable, symbolsToGenerate, cppIncludeFiles)) {
+		return false;
+	}
+
+	// Convert the imported files map into an array.
+	Object.keys(importedFilesMap).forEach((importedFile) => {
+		dependencies.push(importedFile);
+	});
+
+	return true;
 }
 
 module.exports = {
-	compile: compile
+	compilePermabufToCpp: compilePermabufToCpp
 };

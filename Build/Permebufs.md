@@ -59,7 +59,7 @@ Messages are backwards and forwards compatible, if the following conditions are 
 * Fields can be added.
 * Existing fields can be renamed, but their type or field number can never change.
 * Old fields cannot be deleted, but if you don't want anyone writing or reading them, they can be marked as 'reserved'.
-* Messages and enums can be renamed.
+* Messages, enums, and oneofs can be renamed.
 * Existing fields can be shuffled around in the text file.
 
 #### Reserved fields
@@ -80,8 +80,7 @@ These fields still take up space, however. So design your APIs wisely to anticip
 ### In-built types
 The built in types are:
 
-* `any` - could be any message.
-* `byte` - raw byte data.
+* `bytes` - raw byte data.
 * `string` - a string.
 * `bool` - a one boolean. Multiple booleans in the same file are compressed together into bit fields.
 * `uint8` - An unsigned 8-bit integer.
@@ -96,6 +95,9 @@ The built in types are:
 * `float64` - A 64-bit floating point number.
 * `list<type>` - A linked list of `type`.
 * `array<type>` - An array of `type`.
+* `pointer` - Only used for reserved fields that may have been a list, array, or pointer.
+* `enum` - Only used for reserved fields that may have been an enum.
+* `oneof` - Only used for oneof fields that may have been an enum.
 
 ### Enums
 Enums are defined as:
@@ -108,7 +110,7 @@ enum Enum {
 A enum field is defined as:
 
 ```
-<value name> = <value number>
+<value name> = <value number>;
 ```
 
 Enums can have values from 0 to 65,535. Each enum value must be unique to the enum.

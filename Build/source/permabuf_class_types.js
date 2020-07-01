@@ -12,28 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Type of package we are building.
-const PackageType = {
-	APPLICATION: 0,
-	LIBRARY: 1,
-	KERNEL: 2
-};
-
-function getPackageTypeDirectoryName(packageType) {
-	switch (packageType) {
-		case PackageType.APPLICATION:
-			return 'Applications';
-		case PackageType.LIBRARY:
-			return 'Libraries';
-		case PackageType.KERNEL:
-			return 'Kernel';
-		default:
-			return undefined;
-	}
-
-};
+// Class types.
 
 module.exports = {
-	PackageType: PackageType,
-	getPackageTypeDirectoryName: getPackageTypeDirectoryName
+	MESSAGE: 0,
+	ENUM: 1,
+	ONEOF: 2
 };

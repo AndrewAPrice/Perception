@@ -45,6 +45,7 @@ function clean() {
 		const fileStats = fs.lstatSync(fullPath);
 		if (fileStats.isDirectory()) {
 			maybeDelete(fullPath + '/build');
+			maybeDelete(fullPath + '/generated');
 			maybeDelete(fullPath + '/dependencies.json');
 			maybeDelete(fullPath + '/library.lib');
 		}
@@ -58,6 +59,7 @@ function clean() {
 		const fileStats = fs.lstatSync(fullPath);
 		if (fileStats.isDirectory()) {
 			maybeDelete(fullPath + '/build');
+			maybeDelete(fullPath + '/generated');
 			maybeDelete(fullPath + '/dependencies.json');
 			maybeDelete(fullPath + '/application.app');
 			maybeDelete(rootDirectory + 'fs/' + applicationName + '.app');

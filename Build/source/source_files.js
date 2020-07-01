@@ -17,41 +17,52 @@ const fs = require('fs');
 // Calls 'foreachFunc' for each file in the package directory.
 async function foreachSourceFile (packageDir, foreachFunc) {
 	await foreachSourceFileInSourceDir(
-			slashEndingPath(packageDir + 'source'),
-			slashEndingPath(packageDir + 'build'),
+			packageDir + 'source/',
+			packageDir + 'build/',
+			true,
 			foreachFunc);
+
+	if (fs.existsSync(packageDir + 'generated/source/')) {
+		await foreachSourceFileInSourceDir(
+				packageDir + 'generated/source/',
+				packageDir + 'generated/build/',
+				true,
+				foreachFunc);
+	}
+}
+
+// Calls 'foreachFunc' for each permabuf source file.
+async function foreachPermabufSourceFile (packageDir, foreachFunc) {
+	const permabufDir = packageDir + 'permabuf/'
+	if (!fs.existsSync(permabufDir)) {
+		// This package doesn't have any permabuf files.
+		return;
+	}
+
+	await foreachSourceFileInSourceDir(permabufDir, '', false, foreachFunc);
 }
 
 // Calls 'foreachFunc' for each file in the source directory.
-async function foreachSourceFileInSourceDir (dir, buildDir, foreachFunc) {
-	if (!fs.existsSync(buildDir)) {
-		fs.mkdirSync(buildDir);
+async function foreachSourceFileInSourceDir (dir, secondaryDir, makeSecondaryDir, foreachFunc) {
+	if (makeSecondaryDir && !fs.existsSync(secondaryDir)) {
+		fs.mkdirSync(secondaryDir);
 	}
 
 	let files = fs.readdirSync(dir);
 
 	for (let i = 0; i < files.length; i++) {
 		const fullPath = dir + files[i];
-		const buildPath = buildDir + files[i];
+		const secondaryPath = secondaryDir + files[i];
 		const fileStats = fs.lstatSync(fullPath);
 		if (fileStats.isDirectory()) {
-			await foreachSourceFileInSourceDir(fullPath + '/', buildPath + '/', foreachFunc)
+			await foreachSourceFileInSourceDir(fullPath + '/', secondaryPath + '/', makeSecondaryDir, foreachFunc);
 		} else if (fileStats.isFile()) {
-				await foreachFunc(fullPath, buildPath);
+			await foreachFunc(fullPath, secondaryPath);
 		}
 	}
 }
 
-// Returns a path that ends in a slash.
-function slashEndingPath(path) {
-	return path.endsWith('/') ? path : path + '/';
-}
-
-// Returns a path that doesn't end in a slash.
-function stripLastSlash(path) {
-	return path.endsWith('/') ? path.substring(0, path.length - 1) : path;
-}
-
 module.exports = {
-	foreachSourceFile: foreachSourceFile
+	foreachSourceFile: foreachSourceFile,
+	foreachPermabufSourceFile: foreachPermabufSourceFile
 };

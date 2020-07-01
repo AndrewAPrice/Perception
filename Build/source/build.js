@@ -16,16 +16,28 @@ const fs = require('fs');
 const child_process = require('child_process');
 const process = require('process');
 const {BuildResult} = require('./build_result');
-const {PackageType} = require('./package_type');
+const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
 const {getToolPath} = require('./tools');
 const {escapePath} = require('./escape_path');
-const {foreachSourceFile} = require('./source_files');
+const {foreachSourceFile, foreachPermabufSourceFile} = require('./source_files');
 const {getFileLastModifiedTimestamp} = require('./file_timestamps');
 const {getBuildCommand, getLinkerCommand} = require('./build_commands');
 const {getPackageDirectory} = require('./package_directory');
+const {compilePermabufToCpp} = require('./permabufs');
 
 // Libraries already built on this run, therefore we shouldn't have to build them again.
 const alreadyBuiltLibraries = {};
+
+// A map of the generated source file back to the original file, so if there's an error
+// building the generated file, it's better to show the original file that is broken.
+const generatedFilenameMap = {};
+
+// Returns the filename we should display, respecting generated files that should remap
+// back to the original file.
+function getDisplayFilename(filename) {
+	const remappedFileName = generatedFilenameMap[filename];
+	return remappedFileName ? remappedFileName : filename;
+}
 
 // Builds a package.
 async function build(packageType, packageName, librariesToLink, parentPublicIncludeDirs,
@@ -98,10 +110,74 @@ async function build(packageType, packageName, librariesToLink, parentPublicIncl
 	}
 
 	let forceRelinkIfApplication = false;
+	let errors = false;
 
 	const publicIncludeDirs = [];
 
+	const filesToIgnore = {};
+	if (metadata.ignore) {
+		metadata.ignore.forEach((fileToIgnore) => {
+			filesToIgnore[packageDirectory + fileToIgnore] = true;
+		});
+	}
+
+	const depsFile = packageDirectory + 'dependencies.json';
+	let dependenciesPerFile = fs.existsSync(depsFile) ? JSON.parse(fs.readFileSync(depsFile)) : {};
+
 	if (packageType != PackageType.KERNEL) {
+		// Construct generated files.
+		await foreachPermabufSourceFile(packageDirectory,
+			async function (fullPath, localPath) {
+				if (filesToIgnore[fullPath]) {
+					return;
+				}
+
+				if (!localPath.endsWith('.permabuf')) {
+					// Not a permabuf file.
+					return;
+				}
+
+				let shouldCompileFile = false;
+
+				// We just need one of the generated files to tell if the source file is newer or not.
+				const outputFile = packageDirectory + 'generated/source/permabuf/' + getPackageTypeDirectoryName(packageType) +
+					'/' + packageName + '/' + localPath + '.cc';
+				generatedFilenameMap[outputFile] = fullPath;
+
+				if (!fs.existsSync(outputFile)) {
+					// Compile if the output file doesn't exist.
+					shouldCompileFile = true;
+				} else {
+					const outputFileTimestamp = fs.lstatSync(outputFile).mtimeMs;
+
+					const deps = dependenciesPerFile[fullPath];
+					if (deps == null) {
+						// Compile because we don't know the dependencies.
+						shouldCompileFile = true;
+					} else {
+						for (let i = 0; i < deps.length; i++) {
+							if (getFileLastModifiedTimestamp(deps[i]) >= outputFileTimestamp) {
+								// Compile because one of the dependencies is newer.
+								shouldCompileFile = true;
+								break;
+							}
+						}
+					}
+				}
+
+				if (shouldCompileFile) {
+					console.log('Compiling ' + fullPath + ' to C++');
+					deps = [];
+					if (!compilePermabufToCpp(localPath,
+						packageName,
+						packageType,
+						deps)) {
+						errors = true;
+					}
+					dependenciesPerFile[fullPath] = deps;
+				}
+			});
+
 		// The kernel can't depend on anything other than itself.
 		for (let i = 0; i < metadata.dependencies.length; i++) {
 			const dependency = metadata.dependencies[i];
@@ -119,16 +195,6 @@ async function build(packageType, packageName, librariesToLink, parentPublicIncl
 		}
 	}
 
-	const filesToIgnore = {};
-	if (metadata.ignore) {
-		metadata.ignore.forEach((fileToIgnore) => {
-			filesToIgnore[packageDirectory + fileToIgnore] = true;
-		});
-	}
-
-	const depsFile = packageDirectory + 'dependencies.json';
-	let dependenciesPerFile = fs.existsSync(depsFile) ? JSON.parse(fs.readFileSync(depsFile)) : {};
-
 	let params = '';
 
 	if (metadata.include) {
@@ -143,6 +209,13 @@ async function build(packageType, packageName, librariesToLink, parentPublicIncl
 		}
 	} else {
 		params += ' -isystem '+ escapePath(packageDirectory) + 'public';
+	}
+
+	// Include generated header files.
+	if (fs.existsSync(packageDirectory + 'generated/include')) {
+		const generatedIncludeDir = escapePath(packageDirectory + 'generated/include');
+		params += ' -isystem ' + generatedIncludeDir;
+		parentPublicIncludeDirs.push(generatedIncludeDir);
 	}
 
 	// Public dirs exported by each of our dependencies.
@@ -163,7 +236,6 @@ async function build(packageType, packageName, librariesToLink, parentPublicIncl
 	}
 
 	let objectFiles = [];
-	let errors = false;
 	let anythingChanged = false;
 
     await foreachSourceFile(packageDirectory,
@@ -204,7 +276,7 @@ async function build(packageType, packageName, librariesToLink, parentPublicIncl
 
 			if (shouldCompileFile) {
 				anythingChanged = true;
-				console.log("Compiling " + file);
+				console.log('Compiling ' + getDisplayFilename(file));
 				const command = buildCommand + ' -o ' + escapePath(objectFile) + ' ' + escapePath(file);
 				//console.log(" with command: " + command);
 				var compiled = false;
@@ -357,7 +429,7 @@ async function build(packageType, packageName, librariesToLink, parentPublicIncl
 
 		return BuildResult.COMPILED;
 	} else {
-		console.log('Unknown project type.')
+		console.log('Unknown project type.');
 		return BuildResult.FAILED;
 	}
 };
