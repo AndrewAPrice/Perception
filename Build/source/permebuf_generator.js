@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const {getPackageTypeDirectoryName} = require('./package_type');
-const ClassType = require('./permabuf_class_types');
+const ClassType = require('./permebuf_class_types');
 const {rootDirectory} = require('./root_directory');
 
 function makeSureDirectoryExists(dir) {
@@ -50,7 +50,7 @@ const FieldType = {
 
 function getFullCppName(field) {
 	// Convert the namespace to C++ namespace.
-	let fullName = '::permabuf::';
+	let fullName = '::permebuf::';
 	field.namespace.split('.').forEach((namespacePart) => {
 		if (namespacePart.length > 0) {
 			fullName += namespacePart + '::';
@@ -76,9 +76,9 @@ function convertArrayOrListToCppTypeSuffix(typeInformation) {
 		case FieldType.BOOLEAN:
 			return typeName + 'Booleans';
 		case FieldType.ARRAY:
-			return typeName + 'Arrays<::Permabuf' + convertArrayOrListToCppTypeSuffix(typeInformation.subtype) + '>';
+			return typeName + 'Arrays<::Permebuf' + convertArrayOrListToCppTypeSuffix(typeInformation.subtype) + '>';
 		case FieldType.LIST:
-			return typeName + 'Lists<::Permabuf' + convertArrayOrListToCppTypeSuffix(typeInformation.subtype) + '>';
+			return typeName + 'Lists<::Permebuf' + convertArrayOrListToCppTypeSuffix(typeInformation.subtype) + '>';
 		case FieldType.ENUM:
 			return typeName + 'Enums<' + typeInformation.subtype.cppClassName + '>';
 		case FieldType.MESSAGE:
@@ -97,13 +97,13 @@ function convertArrayOrListToCppTypeSuffix(typeInformation) {
 }
 
 function generateCppSources(localPath, packageName, packageType, symbolTable, symbolsToGenerate, cppIncludeFiles) {
-	const generatedFilePath = 'permabuf/' + getPackageTypeDirectoryName(packageType) + '/' + packageName + '/' + localPath;
+	const generatedFilePath = 'permebuf/' + getPackageTypeDirectoryName(packageType) + '/' + packageName + '/' + localPath;
 	let headerCpp = '#pragma once\n\n';
 	Object.keys(cppIncludeFiles).forEach((includeFile) => {
 		headerCpp += '#include "' + includeFile + '"\n';
 	})
 	let liteHeaderCpp = '#pragma once\n' +
-		'\n#include "permabuf.h"\n' +
+		'\n#include "permebuf.h"\n' +
 		'\n#include <stddef.h>\n' +
 		'#include <stdint.h>\n';
 	let sourceCpp = 
@@ -345,13 +345,13 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 		liteHeaderCpp += '\nclass ' + thisMessage.cppClassName + ';\n' +
 			'\nclass ' + thisMessage.cppClassName + '_Ref {\n' +
 			'\tpublic:\n' +
-			'\t\t' + thisMessage.cppClassName + '_Ref(::PermabufBase* base, size_t offset);\n' +
+			'\t\t' + thisMessage.cppClassName + '_Ref(::PermebufBase* base, size_t offset);\n' +
 			'\t\t' + thisMessage.cppClassName + '* operator->();\n' +
 			'\t\tconst ' + thisMessage.cppClassName + '* operator->() const;\n' +
-			'\t\tstatic size_t GetSizeInBytes(::PermabufBase* base);\n\n' +
+			'\t\tstatic size_t GetSizeInBytes(::PermebufBase* base);\n\n' +
 			'\t\tsize_t GetOffsetInBuffer() const;\n' +
 			'\tprivate:\n' +
-			'\t\t::PermabufBase* buffer_;\n' +
+			'\t\t::PermebufBase* buffer_;\n' +
 			'\t\tsize_t offset_;\n' +
 			'\t\tsize_t size_;\n' +
 			'};\n';
@@ -480,7 +480,7 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 								field.number + ' in message ' + thisMessage.fullName + '.');
 							return false;
 						}
-						const fullCppType = '::Permabuf' + cppType;
+						const fullCppType = '::Permebuf' + cppType;
 						headerCpp += '\t\tconst ' + fullCppType + ' Get' + field.name + '() const;\n' +
 							'\t\tvoid Set' + field.name + '(' + fullCppType + ' value);\n' +
 							'\t\t' + fullCppType + ' Mutable' + field.name + '();\n' +
@@ -700,24 +700,24 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'}\n';
 						break;
 					case FieldType.STRING:
-						headerCpp += '\t\t::PermabufString Get' + field.name + '() const;\n' +
-							'\t\tvoid Set' + field.name + '(::PermabufString& value);\n' +
+						headerCpp += '\t\t::PermebufString Get' + field.name + '() const;\n' +
+							'\t\tvoid Set' + field.name + '(::PermebufString& value);\n' +
 							'\t\tvoid Set' + field.name + '(std::string_view value);\n' +
 							'\t\tbool Has' + field.name + '() const;\n' +
 							'\t\tvoid Clear' + field.name + '();\n';
 
-						sourceCpp += '\n::PermabufString ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
+						sourceCpp += '\n::PermebufString ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
 							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
 							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
-							'\t\treturn ::PermabufString(buffer_, 0);\n' +
+							'\t\treturn ::PermebufString(buffer_, 0);\n' +
 							'\t}\n' +
-							'\treturn ::PermabufString(buffer_, buffer_->ReadPointer(offset_ + address_offset);\n' +
+							'\treturn ::PermebufString(buffer_, buffer_->ReadPointer(offset_ + address_offset);\n' +
 							'}\n' +
-							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(::PermabufString& value) {\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(::PermebufString& value) {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
 							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
@@ -764,24 +764,24 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'}\n';
 						break;
 					case FieldType.BYTES:
-						headerCpp += '\t\t::PermabufBytes Get' + field.name + '() const;\n' +
-							'\t\tvoid Set' + field.name + '(::PermabufBytes& value);\n' +
+						headerCpp += '\t\t::PermebufBytes Get' + field.name + '() const;\n' +
+							'\t\tvoid Set' + field.name + '(::PermebufBytes& value);\n' +
 							'\t\tvoid Set' + field.name + '(const void* ptr, size_t size);\n' +
 							'\t\tbool Has' + field.name + '() const;\n' +
 							'\t\tvoid Clear' + field.name + '();\n';
 
-						sourceCpp += '\n::PermabufBytes ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
+						sourceCpp += '\n::PermebufBytes ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
 							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
 							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
-							'\t\treturn ::PermabufBytes(buffer_, 0);\n' +
+							'\t\treturn ::PermebufBytes(buffer_, 0);\n' +
 							'\t}\n' +
-							'\treturn ::PermabufBytes(buffer_, buffer_->ReadPointer(offset_ + address_offset);\n' +
+							'\treturn ::PermebufBytes(buffer_, buffer_->ReadPointer(offset_ + address_offset);\n' +
 							'}\n' +
-							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(::PermabufBytes& value) {\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(::PermebufBytes& value) {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
 							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
@@ -879,13 +879,13 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 		}
 
 		headerCpp += '\n\tprivate:\n' +
-			'\t\t::PermabufBase* buffer_;\n' +
+			'\t\t::PermebufBase* buffer_;\n' +
 			'\t\tsize_t offset_t;\n' +
 			'\t\tsize_t size_;\n' +
 			'};\n';
 
 		sourceCpp += '\n' + thisMessage.cppClassName + '_Ref::' + thisMessage.cppClassName + '_Ref(\n' +
-			'\t::PermabufBase* buffer, size_t offset) :\n' +
+			'\t::PermebufBase* buffer, size_t offset) :\n' +
 			'\tbuffer_(buffer) {\n' +
 			'\tif (offset == 0) {\n' +
 			'\t\toffset_ = 0;\n' +
@@ -902,7 +902,7 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 			'\nconst ' + thisMessage.cppClassName + '* ' + thisMessage.cppClassName + '_Ref::operator->() const {\n' +
 			'\treturn reinterpret_cast<const ' + thisMessage.cppClassName + '*>(this);\n' +
 			'}\n' +
-			'\nsize_t ' + thisMessage.cppClassName + '_Ref::GetSizeInBytes(::PermabufBase* buffer) {\n';
+			'\nsize_t ' + thisMessage.cppClassName + '_Ref::GetSizeInBytes(::PermebufBase* buffer) {\n';
 
 		if (sizeInPointers > 0) {
 			sourceCpp += '\treturn (' + sizeInPointers + ' << static_cast<size_t>(base->GetPointerSize())) + ' + sizeInBytes + ';\n';
@@ -965,9 +965,9 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 
 		if (namespaceLevels == 0) {
 			// First encountered symbol, let's add our namespaces.
-			headerCpp += '\nnamespace permabuf {\n';
-			liteHeaderCpp += '\nnamespace permabuf {\n';
-			sourceCpp += '\nnamespace permabuf {\n';
+			headerCpp += '\nnamespace permebuf {\n';
+			liteHeaderCpp += '\nnamespace permebuf {\n';
+			sourceCpp += '\nnamespace permebuf {\n';
 
 			namespaceLevels = 1;
 

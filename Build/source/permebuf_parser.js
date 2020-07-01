@@ -13,23 +13,23 @@
 // limitations under the License.
 
 const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
-const permabufLexer = require('./permabuf_lexer');
-const ClassType = require('./permabuf_class_types');
+const permebufLexer = require('./permebuf_lexer');
+const ClassType = require('./permebuf_class_types');
 const {rootDirectory} = require('./root_directory');
 
 function parseFile(localPath, packageName, packageType, importedFiles,
 		symbolTable, symbolsToGenerate, cppIncludeFiles, fileBeingCompiled) {
 	const filename = rootDirectory + getPackageTypeDirectoryName(packageType) + '/' + packageName +
-		'/permabuf/' + localPath;
+		'/permebuf/' + localPath;
 
 	importedFiles[filename] = true;
 
-	const lexer = permabufLexer.createLexer(filename);
+	const lexer = permebufLexer.createLexer(filename);
 	if (!lexer) {
 		return false;
 	}
 
-	cppIncludeFiles['permabuf/' + getPackageTypeDirectoryName(packageType) + '/' + packageName + '/' + localPath +
+	cppIncludeFiles['permebuf/' + getPackageTypeDirectoryName(packageType) + '/' + packageName + '/' + localPath +
 		'.lite.h'] = true;
 
 	// The current namespace we're in. If set, it ends in '.'.
@@ -55,7 +55,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 
 		while (true) {
 			let token = lexer.readToken();
-			if (permabufLexer.isIdentifier(token)) {
+			if (permebufLexer.isIdentifier(token)) {
 				if (lastTokenWasIdentifier) {
 					// Hack around the lexer that if we have two identifiers in a row
 					// it's likely a space in the path.
@@ -117,7 +117,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 		}
 
 		const path = rootDirectory + getPackageTypeDirectoryName(subPackageType) + '/' +
-			subPackageName + '/permabuf/' + localPath;
+			subPackageName + '/permebuf/' + localPath;
 
 		if (importedFiles[path]) {
 			// File has already been imported. Recursive imports are allowed.
@@ -134,7 +134,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 		}
 
 		namespace == '';
-		while (permabufLexer.isIdentifier(lexer.peekToken()) || lexer.peekToken() == '.') {
+		while (permebufLexer.isIdentifier(lexer.peekToken()) || lexer.peekToken() == '.') {
 			const token = lexer.readToken();
 			if (token == '.') {
 				// Ignore beginning '.'.
@@ -185,8 +185,8 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 			let token = lexer.peekToken();
 			if (token == '.' || token == '<' || token == '>') {
 				type += token;
-			} else if (permabufLexer.isIdentifier(token)) {
-				if (permabufLexer.isFirstCharNum(token)) {
+			} else if (permebufLexer.isIdentifier(token)) {
+				if (permebufLexer.isFirstCharNum(token)) {
 					token = '_' + token;
 				}
 				type += token;
@@ -200,7 +200,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 
 	function parseMessageField(thisMessage) {
 		const fieldName = lexer.readToken();
-		if (!permabufLexer.isIdentifier(fieldName)) {
+		if (!permebufLexer.isIdentifier(fieldName)) {
 			lexer.expectedTokens(['identifier for the message field name'], messageName);
 			return false;
 		}
@@ -220,7 +220,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 		}
 
 		const fieldNumber = lexer.readToken();
-		if (!permabufLexer.isNumber(fieldNumber)) {
+		if (!permebufLexer.isNumber(fieldNumber)) {
 			lexer.expectedTokens(['field number'], fieldNumber);
 			return false;
 		}
@@ -230,7 +230,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 		}
 
 		if (fileBeingCompiled) {
-			if (permabufLexer.isFirstCharNum(fieldName)) {
+			if (permebufLexer.isFirstCharNum(fieldName)) {
 				fieldName = '_' + fieldName;
 			}
 
@@ -252,7 +252,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 	function parseEnumField(thisEnum) {
 		const fieldName = lexer.readToken();
 
-		if (!permabufLexer.isIdentifier(fieldName)) {
+		if (!permebufLexer.isIdentifier(fieldName)) {
 			lexer.expectedTokens(['identifier for the enum field name'], messageName);
 			return false;
 		}
@@ -262,7 +262,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 		}
 
 		const fieldNumber = lexer.readToken();
-		if (!permabufLexer.isNumber(fieldNumber)) {
+		if (!permebufLexer.isNumber(fieldNumber)) {
 			lexer.expectedTokens(['field number'], fieldNumber);
 			return false;
 		}
@@ -272,7 +272,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 		}
 
 		if (fileBeingCompiled) {
-			if (permabufLexer.isFirstCharNum(fieldName)) {
+			if (permebufLexer.isFirstCharNum(fieldName)) {
 				fieldName = '_' + fieldName;
 			}
 
@@ -312,7 +312,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 		}
 
 		let fieldNumber = lexer.readToken();
-		if (!permabufLexer.isNumber(fieldNumber)) {
+		if (!permebufLexer.isNumber(fieldNumber)) {
 			lexer.expectToken(['field number'], fieldNumber);
 			return false;
 		}
@@ -332,7 +332,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 					return true;
 				case ',':
 					fieldNumber = lexer.readToken();
-					if (!permabufLexer.isNumber(fieldNumber)) {
+					if (!permebufLexer.isNumber(fieldNumber)) {
 						lexer.expectToken(['field number'], fieldNumber);
 						return false;
 					}
@@ -371,11 +371,11 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 
 		const className = lexer.readToken();
 
-		if (!permabufLexer.isIdentifier(className)) {
+		if (!permebufLexer.isIdentifier(className)) {
 			lexer.expectedTokens(['identifier for the name'], className);
 			return false;
 		}
-		if (permabufLexer.isFirstCharNum(className)) {
+		if (permebufLexer.isFirstCharNum(className)) {
 			className = '_' + className;
 		}
 
@@ -468,7 +468,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 					console.log('\'namespace\' in ' + filename +
 						' at row ' + lexer.getPosition().row + ' column ' +
 						lexer.getPosition().col +
-						' is already defined. A permabuf file can only belong to one namespace.');
+						' is already defined. A permebuf file can only belong to one namespace.');
 					return false;
 					
 				}

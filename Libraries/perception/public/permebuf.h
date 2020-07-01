@@ -3,31 +3,31 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// Determines the address size. Larger addresses allow the overall Permabuf to grow larger,
+// Determines the address size. Larger addresses allow the overall Permebuf to grow larger,
 // however, data structures take up more memory.
-enum class PermabufAddressSize {
-	// 8-bit addresses allow Permabufs up to 256 bytes.
+enum class PermebufAddressSize {
+	// 8-bit addresses allow Permebufs up to 256 bytes.
 	BITS_8 = 0,
-	// 16-bit addresses allow Permabufs up to 64 KB.
+	// 16-bit addresses allow Permebufs up to 64 KB.
 	BITS_16 = 1,
-	// 32-bit adddresses allow Permabufs up to 4 GB.
+	// 32-bit adddresses allow Permebufs up to 4 GB.
 	BITS_32 = 2,
-	// 64-bit addresses allow Permabufs up to 16 EB.
+	// 64-bit addresses allow Permebufs up to 16 EB.
 	BITS_64 = 3
 };
 
-class PermabufBase;
+class PermebufBase;
 
-class PermabufString {
+class PermebufString {
 public:
-	PermabufString(PermabufBase* buffer, size_t offset);
+	PermebufString(PermebufBase* buffer, size_t offset);
 };
 
-class PermabufArray/* todo */ {
+class PermebufArray/* todo */ {
 public:
 };
 
-class PermabufBase {
+class PermebufBase {
 public:
 	uint8_t Read1Byte(size_t address) const;
 	uint16_t Read2Bytes(size_t address) const;
@@ -42,33 +42,33 @@ public:
 	void Write8Bytes(size_t address, uint64_t value);
 	void WritePointer(size_t address);
 
-	PermabufString AllocateString(std::string_view value);
+	PermebufString AllocateString(std::string_view value);
 	template <class T> T AllocateMessage() {
 		return T(this, AllocateMessage(T::GetSizeInBytes(this)));
 	}
 protected:
-	Permabuf(PermabufAddressSize address_size);
-	Permabuf(const void* ptr, size_t size);
-	virtual ~Permabuf();
+	Permebuf(PermebufAddressSize address_size);
+	Permebuf(const void* ptr, size_t size);
+	virtual ~Permebuf();
 
 private:
 	size_t AllocateMessage(size_t size);
 };
 
 template <class T>
-class Permabuf : PermabufBase {
+class Permebuf : PermebufBase {
 public:
-	Permabuf(PermabufAddressSize address_size = PermabufAddressSize::BITS_16) : PermabufBase(address_size) {
+	Permebuf(PermebufAddressSize address_size = PermebufAddressSize::BITS_16) : PermebufBase(address_size) {
 		AllocateMessage<T::Ref>();
 	}
-	Permabuf(const void* ptr, size_t size) : PermabufBase(ptr, size);
-	virtual ~Permabuf() {}
+	Permebuf(const void* ptr, size_t size) : PermebufBase(ptr, size);
+	virtual ~Permebuf() {}
 
 	// Copying is heavy weight, so it is forbidden. You can use .clone() instead.
-	Permabuf(const Permabuf<T>&) = delete;
-	void operator=(const Permabuf<T>&) = delete;
+	Permebuf(const Permebuf<T>&) = delete;
+	void operator=(const Permebuf<T>&) = delete;
 
-	Permabuf<T> Clone() const {
+	Permebuf<T> Clone() const {
 		// TODO
 	}
 

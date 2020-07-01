@@ -31,15 +31,15 @@ async function foreachSourceFile (packageDir, foreachFunc) {
 	}
 }
 
-// Calls 'foreachFunc' for each permabuf source file.
-async function foreachPermabufSourceFile (packageDir, foreachFunc) {
-	const permabufDir = packageDir + 'permabuf/'
-	if (!fs.existsSync(permabufDir)) {
-		// This package doesn't have any permabuf files.
+// Calls 'foreachFunc' for each permebuf source file.
+async function foreachPermebufSourceFile (packageDir, foreachFunc) {
+	const permebufDir = packageDir + 'permebuf/'
+	if (!fs.existsSync(permebufDir)) {
+		// This package doesn't have any permebuf files.
 		return;
 	}
 
-	await foreachSourceFileInSourceDir(permabufDir, '', false, foreachFunc);
+	await foreachSourceFileInSourceDir(permebufDir, '', false, foreachFunc);
 }
 
 // Calls 'foreachFunc' for each file in the source directory.
@@ -64,5 +64,5 @@ async function foreachSourceFileInSourceDir (dir, secondaryDir, makeSecondaryDir
 
 module.exports = {
 	foreachSourceFile: foreachSourceFile,
-	foreachPermabufSourceFile: foreachPermabufSourceFile
+	foreachPermebufSourceFile: foreachPermebufSourceFile
 };

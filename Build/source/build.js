@@ -19,11 +19,11 @@ const {BuildResult} = require('./build_result');
 const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
 const {getToolPath} = require('./tools');
 const {escapePath} = require('./escape_path');
-const {foreachSourceFile, foreachPermabufSourceFile} = require('./source_files');
+const {foreachSourceFile, foreachPermebufSourceFile} = require('./source_files');
 const {getFileLastModifiedTimestamp} = require('./file_timestamps');
 const {getBuildCommand, getLinkerCommand} = require('./build_commands');
 const {getPackageDirectory} = require('./package_directory');
-const {compilePermabufToCpp} = require('./permabufs');
+const {compilePermebufToCpp} = require('./permebufs');
 
 // Libraries already built on this run, therefore we shouldn't have to build them again.
 const alreadyBuiltLibraries = {};
@@ -126,21 +126,21 @@ async function build(packageType, packageName, librariesToLink, parentPublicIncl
 
 	if (packageType != PackageType.KERNEL) {
 		// Construct generated files.
-		await foreachPermabufSourceFile(packageDirectory,
+		await foreachPermebufSourceFile(packageDirectory,
 			async function (fullPath, localPath) {
 				if (filesToIgnore[fullPath]) {
 					return;
 				}
 
-				if (!localPath.endsWith('.permabuf')) {
-					// Not a permabuf file.
+				if (!localPath.endsWith('.permebuf')) {
+					// Not a permebuf file.
 					return;
 				}
 
 				let shouldCompileFile = false;
 
 				// We just need one of the generated files to tell if the source file is newer or not.
-				const outputFile = packageDirectory + 'generated/source/permabuf/' + getPackageTypeDirectoryName(packageType) +
+				const outputFile = packageDirectory + 'generated/source/permebuf/' + getPackageTypeDirectoryName(packageType) +
 					'/' + packageName + '/' + localPath + '.cc';
 				generatedFilenameMap[outputFile] = fullPath;
 
@@ -168,7 +168,7 @@ async function build(packageType, packageName, librariesToLink, parentPublicIncl
 				if (shouldCompileFile) {
 					console.log('Compiling ' + fullPath + ' to C++');
 					deps = [];
-					if (!compilePermabufToCpp(localPath,
+					if (!compilePermebufToCpp(localPath,
 						packageName,
 						packageType,
 						deps)) {

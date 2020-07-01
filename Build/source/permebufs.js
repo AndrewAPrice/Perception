@@ -14,10 +14,10 @@
 
 const fs = require('fs');
 const {PackageType} = require('./package_type');
-const permabufParser = require('./permabuf_parser');
-const permabufGenerator = require('./permabuf_generator');
+const permebufParser = require('./permebuf_parser');
+const permebufGenerator = require('./permebuf_generator');
 
-function compilePermabufToCpp(localPath,
+function compilePermebufToCpp(localPath,
 	packageName,
 	packageType,
 	dependencies) {
@@ -26,12 +26,12 @@ function compilePermabufToCpp(localPath,
 	const cppIncludeFiles = {};
 	const importedFilesMap = {}
 
-	if (!permabufParser.parseFile(localPath, packageName, packageType, importedFilesMap,
+	if (!permebufParser.parseFile(localPath, packageName, packageType, importedFilesMap,
 		symbolTable, symbolsToGenerate, cppIncludeFiles, true)) {
 		return false;
 	}
 
-	if (!permabufGenerator.generateCppSources(localPath, packageName, packageType,
+	if (!permebufGenerator.generateCppSources(localPath, packageName, packageType,
 		symbolTable, symbolsToGenerate, cppIncludeFiles)) {
 		return false;
 	}
@@ -45,5 +45,5 @@ function compilePermabufToCpp(localPath,
 }
 
 module.exports = {
-	compilePermabufToCpp: compilePermabufToCpp
+	compilePermebufToCpp: compilePermebufToCpp
 };
