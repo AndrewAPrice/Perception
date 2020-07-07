@@ -61,6 +61,7 @@ Messages are backwards and forwards compatible, if the following conditions are 
 * Old fields cannot be deleted, but if you don't want anyone writing or reading them, they can be marked as 'reserved'.
 * Messages, enums, and oneofs can be renamed.
 * Existing fields can be shuffled around in the text file.
+* Function names can change (and the request and response message names can also be renamed), but function numbers can't be changed.
 
 #### Reserved fields
 
@@ -120,7 +121,7 @@ Enums can be nested inside of messages.
 ### Lists and arrays
 Lists and arrays are very similar. Arrays have a fixed length at construction time, but have constant time lookup and length calculations, while lists can be dynamically added to, but have linear lookup and length calculations.
 
-## Oneof
+### Oneof
 
 Oneofs share a single memory pointer, with the limitation that only one of the oneof field's can be set at any time. They are defined as:
 
@@ -141,6 +142,35 @@ The type can be any pointer type, which means a `list`, `array`, `string`, `byte
 Each entry needs to have an option number which is unique within the oneof block, however it may not be 0 and the unknown name can't be "Unknown" (which is a special name/number indicating that no oneof value is set.)
 
 Oneofs can be nested inside of messages.
+
+### Services
+A service is a collection of exposed functions. Processes can create instances of services that other processes can all. This forms the basis of cross-process function calling.
+```
+service <name> {
+	<function>
+}
+```
+
+The name is joined with the current namespace with '.' as the delimiter. The full name can not be more than 88 characters long.
+
+
+### Function
+A function can be defined inside of a service as:
+```
+<name> : <request message type> : <response message type> = <function number>;
+```
+
+The name and number must be unique inside of the message. The maximum function number is 18446744073709551615.
+
+
+### Reserved functions.
+A function's number can be reserved with:
+```
+reserve <function number> {, <function number>};
+```
+
+This is not needed if you want to remove a function, but it helps ensure that function numbers are unique to maintain backwards compatibility that would be broken by reusing function numbers and calling a different function than intended.
+
 
 ## Memory layout
 

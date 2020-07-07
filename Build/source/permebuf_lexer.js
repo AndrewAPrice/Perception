@@ -49,7 +49,7 @@ function isNumber(str) {
 // tokens.
 function createLexer(filename) {
 	if (!fs.existsSync(filename)) {
-		console.log('Permabuf file "' + filename + '" does not exist.');
+		console.log('Permebuf file "' + filename + '" does not exist.');
 		return false;
 	}
 	const fileContents = fs.readFileSync(filename, 'UTF-8');
