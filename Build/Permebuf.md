@@ -196,14 +196,14 @@ Accessing a pointer who's value is 0 is valid, and is akin to as if all the data
 
 Prevariable length numbers are encoded in 1 to 9 bytes, with the first byte containing the length of the number, as follows:
 
-0xxx,xxxx = 7-bit number, 1 byte
-10xx,xxxx = 14-bit number, 2 bytes
-110x,xxxx = 21-bit number, 3 bytes
-1110,xxxx = 28-bit number, 4 bytes
-1111,0xxx = 35-bit number, 5 bytes
-1111,10xx = 42-bit number, 6 bytes
-1111,110x = 49-bit number, 7 bytes
-1111,1110 = 56-bit number, 8 bytes
+xxxx,xxx0 = 7-bit number, 1 byte
+xxxx,xx01 = 14-bit number, 2 bytes
+xxxx,x011 = 21-bit number, 3 bytes
+xxxx,0111 = 28-bit number, 4 bytes
+xxx0,1111 = 35-bit number, 5 bytes
+xx01,1111 = 42-bit number, 6 bytes
+x011,1111 = 49-bit number, 7 bytes
+0111,1111 = 56-bit number, 8 bytes
 1111,1111 = 64-bit number, 9 bytes
 
 ### Any

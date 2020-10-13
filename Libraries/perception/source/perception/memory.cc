@@ -33,6 +33,11 @@ void ReleaseMemoryPages(void* ptr, size_t number) {
 	__asm__ __volatile__ ("syscall\n"::"r"(syscall_num), "r"(param1), "r"(param2): "rcx", "r11");
 }
 
+bool MaybeResizePages(void** ptr, size_t current_number, size_t new_number) {
+	// TODO
+	return false;
+}
+
 size_t GetFreeSystemMemory() {
 	volatile register size_t syscall_num asm ("rdi") = 14;
 	volatile register size_t return_val asm ("rax");

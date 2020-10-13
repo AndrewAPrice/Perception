@@ -24,6 +24,8 @@ void* AllocateMemoryPages(size_t number);
 
 void ReleaseMemoryPages(void* ptr, size_t number);
 
+bool MaybeResizePages(void** ptr, size_t current_number, size_t new_number);
+
 size_t GetFreeSystemMemory();
 
 size_t GetTotalSystemMemory();

@@ -76,13 +76,13 @@ function convertArrayOrListToCppTypeSuffix(typeInformation) {
 		case FieldType.BOOLEAN:
 			return typeName + 'Booleans';
 		case FieldType.ARRAY:
-			return typeName + 'Arrays<::Permebuf' + convertArrayOrListToCppTypeSuffix(typeInformation.subtype) + '>';
+			return typeName + '<::Permebuf' + convertArrayOrListToCppTypeSuffix(typeInformation.subtype) + '>';
 		case FieldType.LIST:
-			return typeName + 'Lists<::Permebuf' + convertArrayOrListToCppTypeSuffix(typeInformation.subtype) + '>';
+			return typeName + '<::Permebuf' + convertArrayOrListToCppTypeSuffix(typeInformation.subtype) + '>';
 		case FieldType.ENUM:
 			return typeName + 'Enums<' + typeInformation.subtype.cppClassName + '>';
 		case FieldType.MESSAGE:
-			return typeName + 'Messages<' + typeInformation.subtype.cppClassName + '_Ref>';
+			return typeName + '<' + typeInformation.subtype.cppClassName + '_Ref>';
 		case FieldType.ONE_OF:
 			return typeName + 'Oneofs<' + typeInformation.subtype.cppClassName + '_Ref>';
 		case FieldType.STRING:
@@ -90,7 +90,7 @@ function convertArrayOrListToCppTypeSuffix(typeInformation) {
 		case FieldType.BYTES:
 			return typeName + 'Bytes';
 		case FieldType.NUMBER:
-			return typeName + 'Numbers';
+			return typeName + 'Numbers<' + typeInformation.subtype.cppClassName + '>';
 		default:
 			return false;
 	}
