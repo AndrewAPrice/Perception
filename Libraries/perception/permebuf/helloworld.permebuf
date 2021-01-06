@@ -32,4 +32,5 @@ message HelloWorld2 {
 	DoubleNumber : float64 = 2;
 	UnsignedChar : uint8 = 3;
 	Integer : int32 = 4;
+	EnumValue : ABC = 5;
 }

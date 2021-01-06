@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+const {PackageType} = require('./package_type');
 
-#ifdef __PERCEPTION__
-#include "../../../third_party/liballoc.h"
-#endif
+// Builds everything and runs the emulator.
+async function test(packageType, packageName) {
+	console.log('TODO: test');
+}
+
+module.exports = {
+	test: test
+};

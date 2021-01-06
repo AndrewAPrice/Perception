@@ -15,6 +15,7 @@
 const fs = require('fs');
 const child_process = require('child_process');
 const {build} = require('./build');
+const {buildPrefix} = require('./build_commands');
 const {getToolPath} = require('./tools');
 const {rootDirectory} = require('./root_directory');
 const {escapePath} = require('./escape_path');
@@ -40,46 +41,83 @@ function copyIfNewer(source, destination) {
 }
 
 // Builds everything and turns it into an image.
-async function buildImage() {
+async function buildImage(buildSettings) {
 	let somethingChanged = false;
+	const isLocalBuild = buildSettings.os != 'Perception';
 
-	let success = await build(PackageType.KERNEL, '');
-	if (!success) {
-		console.log('Build error. Stopping the world.');
-		return BuildResult.FAILED;
-	}
-
-	somethingChanged |= copyIfNewer(rootDirectory + 'Kernel/kernel.app', rootDirectory + 'fs/boot/kernel.app');
-
-	// Compile and copy all applications
-	let applications = fs.readdirSync(rootDirectory + 'Applications/');
-	for (let i = 0; i < applications.length; i++) {
-		const applicationName = applications[i];
-		const fullPath = rootDirectory + 'Applications/' + applicationName;
-		const fileStats = fs.lstatSync(fullPath);
-		if (fileStats.isDirectory()) {
-			success = await build(PackageType.APPLICATION, applicationName);
-			if (!success) {
-				console.log('Compile error. Stopping the world.');
-				return BuildResult.FAILED;
+	if (isLocalBuild) {
+		// Build every library locally.
+		let libraries = fs.readdirSync(rootDirectory + 'Libraries/');
+		for (let i = 0; i < libraries.length; i++) {
+			const libraryName = libraries[i];
+			const fullPath = rootDirectory + 'Libraries/' + libraryName;
+			const fileStats = fs.lstatSync(fullPath);
+			if (fileStats.isDirectory()) {
+				success = await build(PackageType.LIBRARY, libraryName, buildSettings);
+				if (!success) {
+					console.log('Compile error. Stopping the world.');
+					return BuildResult.FAILED;
+				}
 			}
-
-			somethingChanged |= copyIfNewer(
-				rootDirectory + 'Applications/' + applicationName + '/application.app',
-				rootDirectory + 'fs/' + applicationName + '.app');
 		}
-	}
 
-	if (somethingChanged || !fs.existsSync(rootDirectory + 'Perception.iso')) {
-		let command = GRUB_MKRESCUE_COMMAND;
-		try {
-			child_process.execSync(command);
-		} catch (exp) {
+		// Build every application locally.
+		let applications = fs.readdirSync(rootDirectory + 'Applications/');
+		for (let i = 0; i < applications.length; i++) {
+			const applicationName = applications[i];
+			const fullPath = rootDirectory + 'Applications/' + applicationName;
+			const fileStats = fs.lstatSync(fullPath);
+			if (fileStats.isDirectory()) {
+				success = await build(PackageType.APPLICATION, applicationName, buildSettings);
+				if (!success) {
+					console.log('Compile error. Stopping the world.');
+					return BuildResult.FAILED;
+				}
+			}
+		}
+		return BuildResult.COMPILED;
+	} else {
+		// Build everything into an image.
+		let success = await build(PackageType.KERNEL, '', buildSettings);
+		if (!success) {
+			console.log('Build error. Stopping the world.');
 			return BuildResult.FAILED;
 		}
-	}
 
-	return BuildResult.COMPILED;
+		const prefix = buildPrefix(buildSettings);
+
+		somethingChanged |= copyIfNewer(rootDirectory + 'Kernel/kernel.app', rootDirectory + 'fs/boot/kernel.app');
+
+		// Compile and copy all applications
+		let applications = fs.readdirSync(rootDirectory + 'Applications/');
+		for (let i = 0; i < applications.length; i++) {
+			const applicationName = applications[i];
+			const fullPath = rootDirectory + 'Applications/' + applicationName;
+			const fileStats = fs.lstatSync(fullPath);
+			if (fileStats.isDirectory()) {
+				success = await build(PackageType.APPLICATION, applicationName, buildSettings);
+				if (!success) {
+					console.log('Compile error. Stopping the world.');
+					return BuildResult.FAILED;
+				}
+
+				somethingChanged |= copyIfNewer(
+					rootDirectory + 'Applications/' + applicationName + '/build/' + prefix + '.app',
+					rootDirectory + 'fs/' + applicationName + '.app');
+			}
+		}
+
+		if (somethingChanged || !fs.existsSync(rootDirectory + 'Perception.iso')) {
+			let command = GRUB_MKRESCUE_COMMAND;
+			try {
+				child_process.execSync(command);
+			} catch (exp) {
+				return BuildResult.FAILED;
+			}
+		}
+
+		return BuildResult.COMPILED;
+	}
 }
 
 module.exports = {

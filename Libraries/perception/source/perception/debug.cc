@@ -14,13 +14,21 @@
 
 #include "perception/debug.h"
 
+#ifndef PERCEPTION
+#include <iostream>
+#endif
+
 namespace perception {
 
 DebugPrinter& DebugPrinter::operator<< (char c) {
+#ifdef PERCEPTION
 	register unsigned long long int syscall_num asm ("rdi") = 0;
 	register unsigned long long int param asm ("rax") = c;
 
 	__asm__ ("syscall\n"::"r"(syscall_num), "r"(param): "rcx", "r11");
+#else
+	std::cout << c;
+#endif
 
 	return *this;
 }

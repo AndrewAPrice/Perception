@@ -16,7 +16,8 @@
 #include "perception/messages.h"
 #include "perception/threads.h"
 
-// #include "stdio.h"
+#include "permebuf/Libraries/perception/helloworld.permebuf.h"
+
 #include <iostream>
 #include <string>
 
@@ -35,18 +36,25 @@ void Child(std::unique_ptr<Something> something) {
 	std::cout << "I now own something" << std::endl;
 }
 
-void main() {
-	// auto some_str = new std::string("hello!");
-	// printf("Hello %s %i\n", "world", 12);
-	
+int main() {
 	{
 		std::unique_ptr<Something> something = std::make_unique<Something>();
-		// Child(std::move(something));
+		Child(std::move(something));
 		perception::DebugPrinterSingleton << "Hello world " << (size_t)12 << '\n';
 	}
 
 	std::cout << "Hello " << "world " << (size_t)13 << '\n';
-	while (true) {
-		perception::Yield();
-	}
+
+	Permebuf<permebuf::perception::test::HelloWorld> hello_world;
+	hello_world->SetBool1(true);
+	hello_world->SetBool5(true);
+	hello_world->SetBool9(true);
+	hello_world->SetName("testy name");
+
+	std::cout << "Bool1: " << hello_world->GetBool1() << std::endl;
+	std::cout << "Bool5: " << hello_world->GetBool5() << std::endl;
+	std::cout << "Bool9: " << hello_world->GetBool9() << std::endl;
+	std::cout << "Name: " << *hello_world->GetName() << std::endl;
+
+	return 0;
 }

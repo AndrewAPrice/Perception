@@ -18,22 +18,26 @@ namespace perception {
 
 // Registers a message to send to this process upon receiving an interrupt.
 void RegisterMessageToSendOnInterrupt(uint8 interrupt, size_t message_id) {
+#ifdef PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 20;
 	volatile register size_t interrupt_r asm ("rax") = (size_t)interrupt;
 	volatile register size_t message_id_r asm ("rbx") = message_id;
 
 	__asm__ __volatile__ ("syscall\n"::
 		"r" (syscall), "r"(interrupt_r), "r"(message_id_r):"rcx", "r11");
+#endif
 }
 
 // Unregisters a message to send to this process upon receiving an interrupt.
 void UnregisterMessageToSendOnInterrupt(uint8 interrupt, size_t message_id) {
+#ifdef PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 21;
 	volatile register size_t interrupt_r asm ("rax") = (size_t)interrupt;
 	volatile register size_t message_id_r asm ("rbx") = message_id;
 
 	__asm__ __volatile__ ("syscall\n"::
 		"r" (syscall), "r"(interrupt_r), "r"(message_id_r):"rcx", "r11");
+#endif
 }
 
 }

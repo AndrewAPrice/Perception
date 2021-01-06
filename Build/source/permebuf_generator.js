@@ -349,7 +349,7 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 			'\t\t' + thisMessage.cppClassName + '* operator->();\n' +
 			'\t\tconst ' + thisMessage.cppClassName + '* operator->() const;\n' +
 			'\t\tstatic size_t GetSizeInBytes(::PermebufBase* base);\n\n' +
-			'\t\tsize_t GetOffsetInBuffer() const;\n' +
+			'\t\tsize_t Address() const;\n' +
 			'\tprivate:\n' +
 			'\t\t::PermebufBase* buffer_;\n' +
 			'\t\tsize_t offset_;\n' +
@@ -437,7 +437,7 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 						sourceCpp += '\nbool ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (bitfieldPointerOffset > 0) {
-							sourceCpp += '('+ bitfieldPointerOffset + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ bitfieldPointerOffset + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += bitfieldByteOffset + ';\n' +
 							'\tif (address_offset + 1 > size_) {\n' +
@@ -454,19 +454,19 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(bool value) {\n' +
 							'\tsize_t address_offset = ';
 						if (bitfieldPointerOffset > 0) {
-							sourceCpp += '('+ bitfieldPointerOffset + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ bitfieldPointerOffset + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += bitfieldByteOffset + ';\n' +
 							'\tif (address_offset + 1 > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tuint8_t current_byte = buffer_->Read1Byte(offset_ + address_offset)\n' +
+							'\tuint8_t current_byte = buffer_->Read1Byte(offset_ + address_offset);\n' +
 							'\tif (value) {\n' +
 							'\t\tcurrent_byte |= ' + (1 << bitfieldBit) + ';\n' +
 							'\t} else {\n' +
-							'\t\tcurrent_byte &= ' + (1 << bitfieldBit) + ';\n' +
+							'\t\tcurrent_byte &= ~' + (1 << bitfieldBit) + ';\n' +
 							'\t}\n' +
-							'\tbuffer_->Write1Byte(offset_ + address_offset, value);\n' +
+							'\tbuffer_->Write1Byte(offset_ + address_offset, current_byte);\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
 							'\tSet' + field.name + '(false);\n' +
@@ -490,10 +490,10 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 						sourceCpp += '\nconst ' + fullCppType + ' ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn ' + fullCppType + '(buffer_, 0);\n' +
 							'\t}\n' +
 							'\treturn ' + fullCppType + '(buffer_, buffer_->ReadPointer(offset_ + address_offset));\n' +
@@ -501,21 +501,21 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(' + fullCppType + ' value) {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tbuffer_->WritePointer(offset_ + address_offset, value.GetOffsetInBuffer());\n' +
+							'\tbuffer_->WritePointer(offset_ + address_offset, value.Address());\n' +
 							'}\n' +
 							'\n' + fullCppType + ' ' + thisMessage.cppClassName + '::Mutable' + field.name + '() {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn ' + fullCppType + '(buffer_, 0);\n' +
 							'\t}\n' +
 							'\tsize_t message_address = buffer_->ReadPointer(offset_ + address_offset);\n' +
@@ -523,16 +523,16 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\t\treturn ' + fullCppType + '(buffer_, message_address);\n' +
 							'\t}\n' +
 							'\tauto object = buffer_->Allocate' + cppType + '();\n' +
-							'\tbuffer_->WritePointer(offset_ + address_offset, object.GetOffsetInBuffer());\n' +
+							'\tbuffer_->WritePointer(offset_ + address_offset, object.Address());\n' +
 							'\treturn object;\n' +
 							'}\n' +
 							'\nbool ' + thisMessage.cppClassName + '::Has' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn false;\n' +
 							'\t}\n' +
 							'\treturn buffer_->ReadPointer(offset_ + address_offset) != 0;\n' +
@@ -540,10 +540,10 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
 							'\tbuffer_->WritePointer(offset_ + address_offset, 0);\n' +
@@ -551,13 +551,13 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 						break;
 					case FieldType.ENUM:
 						headerCpp += '\t\t' + typeInformation.cppClassName + ' Get' + field.name + '() const;\n' +
-							'\t\tvoid Set' + field.name + '(' + typeInformation.cppClassName + '& value);\n' +
+							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '& value);\n' +
 							'\t\tvoid Clear' + field.name + '();\n';
 
 						sourceCpp += '\n' + typeInformation.cppClassName + ' ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
 							'\tif (address_offset + 1 > size_) {\n' +
@@ -565,10 +565,10 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\t}\n' +
 							'\treturn static_cast<' +typeInformation.cppClassName + '>(buffer_->Read2Bytes(offset_ + address_offset));\n' +
 							'}\n' +
-							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(' + typeInformation.cppClassName + '& value) {\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
 							'\tif (address_offset + 1 > size_) {\n' +
@@ -590,10 +590,10 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 						sourceCpp += '\nconst ' + typeInformation.cppClassName + '_Ref ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn ' + typeInformation.cppClassName + '_Ref(buffer_, 0);\n' +
 							'\t}\n' +
 							'\treturn ' + typeInformation.cppClassName + '_Ref(buffer_, buffer_->ReadPointer(offset_ + address_offset));\n' +
@@ -601,21 +601,21 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(' + typeInformation.cppClassName + '_Ref value) {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tbuffer_->WritePointer(offset_ + address_offset, value.GetOffsetInBuffer());\n' +
+							'\tbuffer_->WritePointer(offset_ + address_offset, value.Address());\n' +
 							'}\n' +
 							'\n' + typeInformation.cppClassName + '_Ref ' + thisMessage.cppClassName + '::Mutable' + field.name + '() {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn ' + typeInformation.cppClassName + '_Ref(buffer_, 0);\n' +
 							'\t}\n' +
 							'\tsize_t message_address = buffer_->ReadPointer(offset_ + address_offset);\n' +
@@ -623,16 +623,16 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\t\treturn ' + typeInformation.cppClassName + '_Ref(buffer_, message_address);\n' +
 							'\t}\n' +
 							'\tauto message = buffer_->AllocateMessage<' + typeInformation.cppClassName + '_Ref>();\n' +
-							'\tbuffer_->WritePointer(offset_ + address_offset, message.GetOffsetInBuffer());\n' +
+							'\tbuffer_->WritePointer(offset_ + address_offset, message.Address());\n' +
 							'\treturn message;\n' +
 							'}\n' +
 							'\nbool ' + thisMessage.cppClassName + '::Has' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn false;\n' +
 							'\t}\n' +
 							'\treturn buffer_->ReadPointer(offset_ + address_offset) != 0;\n' +
@@ -640,10 +640,10 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
 							'\tbuffer_->WritePointer(offset_ + address_offset, 0);\n' +
@@ -657,10 +657,10 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 						sourceCpp += '\nconst ' + typeInformation.cppClassName + '_Ref ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + 2 + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + 2 + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn ' + typeInformation.cppClassName + '_Ref(buffer_, 0);\n' +
 							'\t}\n' +
 							'\treturn ' + typeInformation.cppClassName + '_Ref(buffer, buffer->ReadPointer(offset_ + address_offset));\n' +
@@ -668,10 +668,10 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\n' + typeInformation.cppClassName + '_Ref ' + thisMessage.cppClassName + '::Mutable' + field.name + '() {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + 2 + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + 2 + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn ' + typeInformation.cppClassName + '_Ref(buffer_, 0);\n' +
 							'\t}\n' +
 							'\treturn ' + typeInformation.cppClassName + '_Ref(buffer, buffer->ReadPointer(offset_ + address_offset));\n' +
@@ -679,10 +679,10 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\nbool ' + thisMessage.cppClassName + '::Has' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + 2 + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + 2 + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn false;\n' +
 							'\t}\n' +
 							'\treturn buffer_->Read2Bytes(offset_ + address_offset) != 0;\n' +
@@ -690,10 +690,10 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\void ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '(' + sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + 2 + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + 2 + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
 							'\tbuffer_->Write2Bytes(offset_ + address_offset, 0);\n' +
@@ -709,44 +709,44 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 						sourceCpp += '\n::PermebufString ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn ::PermebufString(buffer_, 0);\n' +
 							'\t}\n' +
-							'\treturn ::PermebufString(buffer_, buffer_->ReadPointer(offset_ + address_offset);\n' +
+							'\treturn ::PermebufString(buffer_, buffer_->ReadPointer(offset_ + address_offset));\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(::PermebufString& value) {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSize() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tbuffer_->WritePointer(offset_ + address_offset, value.GetOffsetInBuffer());\n' +
+							'\tbuffer_->WritePointer(offset_ + address_offset, value.Address());\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(std::string_view value) {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSize() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tsize_t string_address = buffer_->AllocateString(value).GetOffsetInBuffer();\n' +
+							'\tsize_t string_address = buffer_->AllocateString(value).Address();\n' +
 							'\tbuffer_->WritePointer(offset_ + address_offset, string_address);\n' +
 							'}\n' +
 							'\nbool ' + thisMessage.cppClassName + '::Has' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSize() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn false;\n' +
 							'\t}\n' +
 							'\treturn buffer_->ReadPointer(offset_ + address_offset) != 0;\n' +
@@ -754,10 +754,10 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSize() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
 							'\tbuffer_->WritePointer(offset_ + address_offset, 0);\n' +
@@ -773,10 +773,10 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 						sourceCpp += '\n::PermebufBytes ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSizeInBytes() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn ::PermebufBytes(buffer_, 0);\n' +
 							'\t}\n' +
 							'\treturn ::PermebufBytes(buffer_, buffer_->ReadPointer(offset_ + address_offset);\n' +
@@ -784,33 +784,33 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(::PermebufBytes& value) {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSize() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tbuffer_->WritePointer(offset_ + address_offset, value.GetOffsetInBuffer());\n' +
+							'\tbuffer_->WritePointer(offset_ + address_offset, value.Address());\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const void* ptr, size_t size) {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSize() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tsize_t bytes_address = buffer_->AllocateBytes(ptr, size).GetOffsetInBuffer();\n' +
+							'\tsize_t bytes_address = buffer_->AllocateBytes(ptr, size).Address();\n' +
 							'\tbuffer_->WritePointer(offset_ + address_offset, bytes_address);\n' +
 							'}\n' +
 							'\nbool ' + thisMessage.cppClassName + '::Has' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSize() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn false;\n' +
 							'\t}\n' +
 							'\treturn buffer_->ReadPointer(offset_ + address_offset) != 0;\n' +
@@ -818,10 +818,10 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + buffer_->GetPointerSize() > size_) {\n' +
+							'\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
 							'\tbuffer_->WritePointer(offset_ + address_offset, 0) != 0;\n' +
@@ -830,31 +830,32 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 					case FieldType.NUMBER:
 						headerCpp += '\t\t' + typeInformation.cppClassName + ' Get' + field.name + '() const;\n' +
 							'\t\tvoid Set' + field.name + '(' + typeInformation.cppClassName + ' value);\n' +
-							'\t\tvoid Clear' + field.name + '()\n';
+							'\t\tvoid Clear' + field.name + '();\n';
 
 						sourceCpp += '\n' + typeInformation.cppClassName + ' ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
 							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
-							'\t\treturn ' + typeInformation.cppClassName + '::Unknown;\n' +
+							'\t\treturn static_cast<' + typeInformation.cppClassName + '>(0);\n' +
 							'\t}\n' +
-							'\treturn reinterpret_cast<' + typeInformation.cppClassName + '>(buffer_->Read' + typeInformation.sizeInBytes +
-								(typeInformation.sizeInBytes == 1 ? 'Byte' : 'Bytes') + '(offset_ + address_offset));\n' +
+							'\tauto temp_value = buffer_->Read' + typeInformation.sizeInBytes +
+								(typeInformation.sizeInBytes == 1 ? 'Byte' : 'Bytes') + '(offset_ + address_offset);\n' +
+							'\treturn *reinterpret_cast<' + typeInformation.cppClassName + '*>(&temp_value);\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(' + typeInformation.cppClassName + ' value) {\n' +
 							'\tsize_t address_offset = ';
 						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetPointerSize())) + ';
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
 						}
 						sourceCpp += sizeInBytes + ';\n' +
 							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
 							'\tbuffer_->Write' + typeInformation.sizeInBytes + (typeInformation.sizeInBytes == 1 ? 'Byte' : 'Bytes') +
-								'(offset_ + address_offset, reinterpret_cast<uint' + (typeInformation.sizeInBytes * 8) + '_t>(value));\n' +
+								'(offset_ + address_offset, *reinterpret_cast<uint' + (typeInformation.sizeInBytes * 8) + '_t*>(&value));\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
 							'\tSet' + field.name + '(0);\n' +
@@ -880,7 +881,7 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 
 		headerCpp += '\n\tprivate:\n' +
 			'\t\t::PermebufBase* buffer_;\n' +
-			'\t\tsize_t offset_t;\n' +
+			'\t\tsize_t offset_;\n' +
 			'\t\tsize_t size_;\n' +
 			'};\n';
 
@@ -905,12 +906,12 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 			'\nsize_t ' + thisMessage.cppClassName + '_Ref::GetSizeInBytes(::PermebufBase* buffer) {\n';
 
 		if (sizeInPointers > 0) {
-			sourceCpp += '\treturn (' + sizeInPointers + ' << static_cast<size_t>(base->GetPointerSize())) + ' + sizeInBytes + ';\n';
+			sourceCpp += '\treturn (' + sizeInPointers + ' << static_cast<size_t>(buffer->GetAddressSize())) + ' + sizeInBytes + ';\n';
 		} else {
 			sourceCpp += '\treturn ' + sizeInBytes + ';\n';
 		}
 		sourceCpp += '}\n' +
-			'\nsize_t ' + thisMessage.cppClassName + '_Ref::GetOffsetInBuffer() const {\n' +
+			'\nsize_t ' + thisMessage.cppClassName + '_Ref::Address() const {\n' +
 			'\treturn offset_;\n' +
 			'}\n';
 

@@ -3,6 +3,3 @@ build/
 
 # The built application.
 application.app
-
-# Build dependencies.
-dependencies.json

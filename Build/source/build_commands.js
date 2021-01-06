@@ -17,60 +17,118 @@ const {escapePath} = require('./escape_path');
 const {PackageType} = require('./package_type');
 const {rootDirectory} = require('./root_directory');
 
-// Commands for compiling.
-const ASM_COMMAND = getToolPath('nasm') + ' -felf64';
-const GAS_COMMAND = getToolPath('gcc') + ' -c';
-const CC_KERNEL_COMMAND = getToolPath('gcc') + ' -m64 -mcmodel=kernel ' +
-	'-ffreestanding -fno-builtin -nostdlib -nostdinc -mno-red-zone  -c ' +
-	'-msoft-float -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mno-avx ' +
-	'-mno-avx2 -MD -MF temp.d  -O3 -isystem ' + escapePath(rootDirectory) + 'Kernel/source ';
-const CC_COMMAND = getToolPath('gcc') + ' -g -fverbose-asm -m64 -ffreestanding -nostdlib ' +
-	'-nostdinc++ -mno-red-zone -c -std=c++17 -MD -MF temp.d ';
-const C_COMMAND = getToolPath('gcc') + ' -g -m64 -ffreestanding -nostdlib ' +
-	'-mno-red-zone -c -MD -MF temp.d ';
+function generateBuildCommand(language, buildSettings) {
+	let cParams = ' -D' + buildSettings.os.toUpperCase().replace(/-/g, '_') + ' ' +
+					' -D' + buildSettings.build + '_BUILD_ ';
+	if (buildSettings.build == 'optimized')
+		cParams += '-O3 ';
+	else if (buildSettings.build == 'debug')
+		cParams += '-g ';
 
-// Commands for linking.
-const KERNEL_LINKER_COMMAND = getToolPath('ld') + ' -nodefaultlibs -T ' + escapePath(rootDirectory) + 'Kernel/source/linker.ld -o %o %i';
-// const KERNEL_LINKER_COMMAND = getToolPath('gcc') + ' -nostdlib -nodefaultlibs -T ' + rootDirectory + 'Kernel/source/linker.ld ';
-const LIBRARY_LINKER_COMMAND = getToolPath('ar') + ' rvs -o %o %i';
-const APPLICATION_LINKER_COMMAND = getToolPath('gcc') + ' -nostdlib -nodefaultlibs -nolibc -nostartfiles -z max-page-size=1 -T userland.ld -o %o -Wl,--start-group %i -Wl,--end-group';
+	const isLocalBuild = buildSettings.os != 'Perception';
 
-// Gets the build command to use for a file.
-function getBuildCommand(filePath, packageType, cParams) {
-	if (filePath.endsWith('.cc') || filePath.endsWith('.cpp'))
-		return CC_COMMAND + cParams;
-	else if (filePath.endsWith('.c'))
-		return packageType == PackageType.KERNEL ? CC_KERNEL_COMMAND : C_COMMAND + cParams;
-	else if (filePath.endsWith('.asm'))
-		return ASM_COMMAND;
-	else if (filePath.endsWith('.s') || filePath.endsWith('.S'))
-		return GAS_COMMAND;
-	else if (filePath.endsWith('.h') || filePath.endsWith('.inl') || filePath.endsWith('.ld') || filePath.endsWith('.txt')
-		|| filePath.endsWith('.DS_Store'))
-		return '';
-	else {
-		// console.log('Don\'t know how to build ' + filePath);
+	if (language == 'C++') {
+		let command = '';
+		if (isLocalBuild)
+			return getToolPath('local-gcc') + ' -g -c -std=c++17 -MD -MF temp.d' + cParams;
+		else
+			return getToolPath('gcc') + ' -g -fverbose-asm -m64 -ffreestanding -nostdlib ' +
+				'-nostdinc++ -mno-red-zone -c -std=c++17 -MD -MF temp.d' + cParams;
+	} else if (language == 'C') {
+		if (isLocalBuild)
+			return getToolPath('local-gcc') + ' -g -c -MD -MF temp.d' + cParams;
+		else
+			return getToolPath('gcc') + ' -g -D PERCEPTION -m64 -ffreestanding -nostdlib ' +
+			'-mno-red-zone -c -MD -MF temp.d' + cParams;
+	} else if (language == 'Kernel C') {
+		return  getToolPath('gcc') + ' -m64 -mcmodel=kernel ' +
+			'-ffreestanding -fno-builtin -nostdlib -nostdinc -mno-red-zone  -c ' +
+			'-msoft-float -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mno-avx ' +
+			'-mno-avx2 -MD -MF temp.d  -O3 -isystem ' + escapePath(rootDirectory) + 'Kernel/source ' + cParams;
+	} else if (language == 'Intel ASM') {
+		if (isLocalBuild)
+			return '';
+		else
+			return getToolPath('nasm') + ' -felf64 -dPERCEPTION';
+	} else if (language == 'AT&T ASM') {
+		return getToolPath('gcc') + ' -c';
+	} else {
+		console.log('Unhandled language: ' + language);
 		return '';
 	}
 }
 
-function getLinkerCommand(packageType, outputFile, inputFiles) {
-	let command = '';
-	switch(packageType) {
-		case PackageType.KERNEL:
-			command = KERNEL_LINKER_COMMAND;
-			break;
-		case PackageType.APPLICATION:
-			command = APPLICATION_LINKER_COMMAND;
-			break;
-		case PackageType.LIBRARY:
-			command = LIBRARY_LINKER_COMMAND;
+// Cached build commands.
+const buildCommands = {};
+
+// Gets the build command to use for a file.
+function getBuildCommand(filePath, packageType, cParams, buildSettings) {
+	let language = '';
+	let addCParams = false;
+	if (filePath.endsWith('.cc') || filePath.endsWith('.cpp')) {
+		language = 'C++';
+		addCParams = true;
+	} else if (filePath.endsWith('.c')) {
+		language = packageType == PackageType.KERNEL ? 'Kernel C' : 'C';
+		addCParams = true;
+	} else if (filePath.endsWith('.asm')) {
+		language = 'Intel ASM';
+	} else if (filePath.endsWith('.s') || filePath.endsWith('.S')) {
+		language = 'AT&T ASM';
 	}
 
-	return command.replace('%o', outputFile).replace('%i', inputFiles);
+	if (language == '')
+		return '';
+
+	if (!buildCommands[language])
+		buildCommands[language] = generateBuildCommand(language, buildSettings);
+
+	return addCParams ? buildCommands[language] + cParams : buildCommands[language];
+}
+
+function getLinkerCommand(packageType, outputFile, inputFiles, buildSettings) {
+	switch(packageType) {
+		case PackageType.KERNEL:
+			return getToolPath('ld') + ' -nodefaultlibs -T ' + escapePath(rootDirectory) + 'Kernel/source/linker.ld -o ' + outputFile + ' ' + inputFiles;
+			// getToolPath('gcc') + ' -nostdlib -nodefaultlibs -T ' + rootDirectory + 'Kernel/source/linker.ld '
+		case PackageType.APPLICATION:
+			let extras = '';
+			if (buildSettings.build == 'optimized') {
+				extras = ' -O3 ';
+			} else {
+				extras = ' -g';
+
+			}
+			if (buildSettings.os == 'Perception')
+				return getToolPath('gcc') + extras + ' -nostdlib -nodefaultlibs -nolibc -nostartfiles -z max-page-size=1 -T userland.ld -o ' + outputFile +
+					' -Wl,--start-group ' + inputFiles + ' -Wl,--end-group';
+			else {
+				// whole-archive/no-whole-archive is less efficient than --start-group/--end-group because it links in dead code, but
+				// the LD that comes with MacOS doesn't support --start-group/--end-group.
+				// let startGroup = buildSettings.os == 'Darwin' ? '--whole-archive' : '--start-group';
+				// let endGroup = buildSettings.os == 'Darwin' ? '--no-whole-archive' : '--end-group';
+				// return getToolPath('local-gcc') + extras + ' -o ' + outputFile + ' -Wl,' + startGroup + ' ' +
+				//	inputFiles + ' -Wl,' + endGroup;
+				return getToolPath('local-gcc') + extras + ' -o ' + outputFile + ' ' + inputFiles;
+			}
+		case PackageType.LIBRARY:
+		    if (buildSettings.os == 'Perception') {
+				return getToolPath('ar') + ' rvs -o ' + outputFile + ' '  + inputFiles;
+			} else {
+				return getToolPath('local-ar') + ' -rvs ' + outputFile + ' '  + inputFiles;
+			}
+	}
+}
+
+function buildPrefix(buildSettings) {
+	if (buildSettings.test)
+		return 'test';
+	else
+		return buildSettings.os + '-' + buildSettings.build;
 }
 
 module.exports = {
 	getBuildCommand: getBuildCommand,
-	getLinkerCommand: getLinkerCommand
+	getLinkerCommand: getLinkerCommand,
+	buildPrefix: buildPrefix
 };

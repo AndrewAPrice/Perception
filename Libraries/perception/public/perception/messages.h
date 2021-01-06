@@ -26,7 +26,9 @@ enum class MessageStatus {
 	// The system ran out of memory.
 	OUT_OF_MEMORY = 2,
 	// The receiving process's queue is full.
-	RECEIVERS_QUEUE_IS_FULL = 3
+	RECEIVERS_QUEUE_IS_FULL = 3,
+	// Messaging isn't supported on this platform.
+	UNSUPPORTED = 4
 };
 
 // Sends a message to a process.

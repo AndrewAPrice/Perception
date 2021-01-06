@@ -142,7 +142,7 @@ void InitializePS2Controller() {
 
 }
 
-void main() {
+int main() {
 	InitializePS2Controller();
 
 	// Listen to the interrupts.
@@ -160,4 +160,5 @@ void main() {
 			perception::DebugPrinterSingleton << "Uknown message " << message_id << " from " << pid << ".\n";
 		}
 	}
+	return 0;
 }

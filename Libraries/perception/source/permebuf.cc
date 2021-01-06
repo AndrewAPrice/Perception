@@ -2,15 +2,350 @@
 
 #include "perception/memory.h"
 
+#include <string>
+
 namespace {
 
 // Size of a Permebuf page (aligns with the system page size.)
 constexpr int kPageSize = 4096;
 
+std::string kEmptyString = "";
+
 }  // namespace
 
+PermebufString::PermebufString(PermebufBase* buffer, size_t offset) : buffer_(buffer), address_(offset) {}
+
+std::string_view PermebufString::operator->() const {
+	return **this;
+}
+
+std::string_view PermebufString::operator*() const {
+	if (address_ == 0)
+		return kEmptyString;
+	size_t bytes;
+	size_t length = buffer_->ReadVariableLengthNumber(address_, bytes);
+	if (length == 0)
+		return kEmptyString;
+	return std::string_view((const char *)buffer_->GetRawPointer(address_ + bytes, length), length);
+}
+
+bool PermebufString::IsEmpty() const {
+	return address_ == 0;
+}
+
+size_t PermebufString::Length() const {
+	size_t bytes;
+	return buffer_->ReadVariableLengthNumber(address_, bytes);
+}
+
+size_t PermebufString::Address() const {
+	return address_;
+}
+
+void* PermebufString::RawString() const {
+	if (address_ == 0)
+		return (void *)kEmptyString.c_str();
+
+	size_t bytes;
+	size_t length = buffer_->ReadVariableLengthNumber(address_, bytes);
+	if (length == 0)
+		return (void *)kEmptyString.c_str();
+	void* raw_string = buffer_->GetRawPointer(address_ + bytes, length);
+	if (raw_string == nullptr)
+		return (void *)kEmptyString.c_str();
+	return raw_string;
+}
+
+PermebufBytes::PermebufBytes(PermebufBase* buffer, size_t offset) : buffer_(buffer), address_(offset) {}
+
+void* PermebufBytes::operator->() const {
+	return **this;
+}
+
+void* PermebufBytes::operator*() const {
+	if (address_ == 0)
+		return nullptr;
+
+	size_t bytes;
+	size_t length = buffer_->ReadVariableLengthNumber(address_, bytes);
+	if (length == 0)
+		return nullptr;
+	return buffer_->GetRawPointer(address_ + bytes, length);
+}
+
+void* PermebufBytes::RawBytes() const {
+	return **this;
+}
+
+size_t PermebufBytes::Size() const {
+	size_t bytes;
+	return buffer_->ReadVariableLengthNumber(address_, bytes);
+}
+
+size_t PermebufBytes::Address() const {
+	return address_;
+}
+
+PermebufArray::PermebufArray(PermebufBase* buffer, size_t offset) {
+	if (offset == 0) {
+		length_ = 0;
+		first_item_address_ = 0;
+	} else {
+		size_t bytes;
+		length_ = buffer_->ReadVariableLengthNumber(offset, bytes);
+		first_item_address_ = offset + length_;
+	}
+}
+
+bool PermebufArray::IsValid() const {
+	return length_ != 0;
+
+}
+
+int PermebufArray::Length() const {
+	return length_;
+}
+
+PermebufArrayOfBooleans::PermebufArrayOfBooleans(PermebufBase* buffer, size_t offset)
+	: PermebufArray(buffer, offset) {}
+
+bool PermebufArrayOfBooleans::Get(int index) const {
+	if (index >= length_) {
+		return false;
+	}
+
+	uint8_t byte = buffer_->Read1Byte(first_item_address_ + index / 8);
+	return byte & (1 << (index % 8));
+}
+
+void PermebufArrayOfBooleans::Set(int index, bool value) {
+	if (index >= length_) {
+		return;
+	}
+
+	size_t address_of_byte = first_item_address_ + index / 8;
+	uint8_t byte = buffer_->Read1Byte(address_of_byte);
+	byte |= 1 << (index % 8);
+	buffer_->Write1Byte(address_of_byte, byte);
+}
+
+PermebufArrayOfStrings::PermebufArrayOfStrings(PermebufBase* buffer, size_t offset)
+	: PermebufArray(buffer, offset) {}
+
+PermebufString PermebufArrayOfStrings::Get(int index) const {
+	if (index >= length_) {
+		return PermebufString(buffer_, 0);
+	}
+
+	size_t string_offset = first_item_address_ +
+		(index << static_cast<size_t>(buffer_->GetAddressSize()));
+
+	return PermebufString(buffer_, buffer_->ReadPointer(string_offset));
+}
+
+bool PermebufArrayOfStrings::Has(int index) const {
+	if (index >= length_) {
+		return false;
+	}
+
+	size_t string_offset = first_item_address_ +
+		(index << static_cast<size_t>(buffer_->GetAddressSize()));
+
+	return buffer_->ReadPointer(string_offset) != 0;
+}
+
+void PermebufArrayOfStrings::Set(int index, PermebufString value) {
+	if (index >= length_) {
+		return;
+	}
+
+	size_t string_offset = first_item_address_ +
+		(index << static_cast<size_t>(buffer_->GetAddressSize()));
+
+	buffer_->WritePointer(string_offset, value.Address());
+}
+
+void PermebufArrayOfStrings::Set(int index, std::string_view value) {
+	if (index >= length_) {
+		return;
+	}
+
+	size_t string_offset = first_item_address_ +
+		(index << static_cast<size_t>(buffer_->GetAddressSize()));
+
+	buffer_->WritePointer(string_offset, buffer_->AllocateString(value).Address());
+}
+
+void PermebufArrayOfStrings::Clear(int index) {
+	if (index >= length_) {
+		return;
+	}
+
+	size_t string_offset = first_item_address_ +
+		(index << static_cast<size_t>(buffer_->GetAddressSize()));
+
+	buffer_->WritePointer(string_offset, 0);
+}
+
+PermebufArrayOfBytes::PermebufArrayOfBytes(PermebufBase* buffer, size_t offset)
+	: PermebufArray(buffer, offset) {}
+
+PermebufBytes PermebufArrayOfBytes::Get(int index) const {
+	if (index >= length_) {
+		return PermebufBytes(buffer_, 0);
+	}
+
+	size_t string_offset = first_item_address_ +
+		(index << static_cast<size_t>(buffer_->GetAddressSize()));
+
+	return PermebufBytes(buffer_, buffer_->ReadPointer(string_offset));
+
+}
+
+bool PermebufArrayOfBytes::Has(int index) const {
+	if (index >= length_) {
+		return false;
+	}
+
+	size_t string_offset = first_item_address_ +
+		(index << static_cast<size_t>(buffer_->GetAddressSize()));
+
+	return buffer_->ReadPointer(string_offset) != 0;
+}
+
+void PermebufArrayOfBytes::Set(int index, PermebufBytes value) {
+	if (index >= length_) {
+		return;
+	}
+
+	size_t string_offset = first_item_address_ +
+		(index << static_cast<size_t>(buffer_->GetAddressSize()));
+
+	buffer_->WritePointer(string_offset, value.Address());
+}
+
+void PermebufArrayOfBytes::Set(int index, void* value, size_t length) {
+	if (index >= length_) {
+		return;
+	}
+
+	size_t string_offset = first_item_address_ +
+		(index << static_cast<size_t>(buffer_->GetAddressSize()));
+
+	buffer_->WritePointer(string_offset, buffer_->AllocateBytes(value, length).Address());
+}
+
+void PermebufArrayOfBytes::Clear(int index) {
+	if (index >= length_) {
+		return;
+	}
+
+	size_t string_offset = first_item_address_ +
+		(index << static_cast<size_t>(buffer_->GetAddressSize()));
+
+	buffer_->WritePointer(string_offset, 0);
+}
+
+PermebufListOfBooleans::PermebufListOfBooleans(PermebufBase* buffer, size_t offset)
+	: PermebufList<PermebufListOfBooleans>(buffer, offset) {}
+
+bool PermebufListOfBooleans::Get() const {
+	if (!IsValid()) {
+		return false;
+	}
+	return static_cast<bool>(buffer_->Read1Byte(GetItemAddress()));
+}
+
+void PermebufListOfBooleans::Set(bool value) {
+	if (!IsValid()) {
+		return;
+	}
+	buffer_->Write1Byte(GetItemAddress(), static_cast<uint8_t>(value));
+}
+
+size_t PermebufListOfBooleans::GetSizeInBytes(PermebufBase* buffer) {
+	return buffer->GetAddressSizeInBytes() + 1;
+}
+
+
+PermebufListOfStrings::PermebufListOfStrings(PermebufBase* buffer, size_t offset)
+	: PermebufList<PermebufListOfStrings>(buffer, offset) {}
+
+bool PermebufListOfStrings::Has() const {
+	if (!IsValid()) {
+		return false;
+	}
+	return buffer_->ReadPointer(GetItemAddress()) != 0;
+}
+
+PermebufString PermebufListOfStrings::Get() const {
+	if (!IsValid()) {
+		return PermebufString(buffer_, 0);
+	}
+	return PermebufString(buffer_, buffer_->ReadPointer(GetItemAddress()));
+}
+
+void PermebufListOfStrings::Set(PermebufString value) {
+	if (!IsValid()) {
+		return;
+	}
+	buffer_->WritePointer(GetItemAddress(), value.Address());
+}
+
+void PermebufListOfStrings::Set(std::string_view value) {
+	if (!IsValid()) {
+		return;
+	}
+	buffer_->WritePointer(GetItemAddress(), buffer_->AllocateString(value).Address());
+}
+
+void PermebufListOfStrings::Clear() {
+	if (!IsValid()) {
+		return;
+	}
+	buffer_->WritePointer(GetItemAddress(), 0);
+}
+
+PermebufListOfBytes::PermebufListOfBytes(PermebufBase* buffer, size_t offset)
+	: PermebufList<PermebufListOfBytes>(buffer, offset) {}
+
+bool PermebufListOfBytes::Has() const {
+	if (!IsValid()) {
+		return false;
+	}
+	return buffer_->ReadPointer(GetItemAddress()) != 0;
+}
+
+PermebufBytes PermebufListOfBytes::Get() const {
+	if (!IsValid()) {
+		return PermebufBytes(buffer_, 0);
+	}
+	return PermebufBytes(buffer_, buffer_->ReadPointer(GetItemAddress()));
+}
+
+void PermebufListOfBytes::Set(PermebufBytes value) {
+	if (!IsValid()) {
+		return;
+	}
+	buffer_->WritePointer(GetItemAddress(), value.Address());
+}
+
+void PermebufListOfBytes::Set(void* value, size_t length) {
+	if (!IsValid()) {
+		return;
+	}
+	buffer_->WritePointer(GetItemAddress(), buffer_->AllocateBytes(value, length).Address());
+}
+
+void PermebufListOfBytes::Clear() {
+	if (!IsValid()) {
+		return;
+	}
+	buffer_->WritePointer(GetItemAddress(), 0);
+}
+
 uint8_t PermebufBase::Read1Byte(size_t address) const {
-	if (address + 1 >= size_) {
+	if (address + 1 > size_) {
 		return 0;
 	}
 
@@ -18,7 +353,7 @@ uint8_t PermebufBase::Read1Byte(size_t address) const {
 }
 
 uint16_t PermebufBase::Read2Bytes(size_t address) const {
-	if (address + 2 >= size_) {
+	if (address + 2 > size_) {
 		return 0;
 	}
 
@@ -26,7 +361,7 @@ uint16_t PermebufBase::Read2Bytes(size_t address) const {
 }
 
 uint32_t PermebufBase::Read4Bytes(size_t address) const {
-	if (address + 4 >= size_) {
+	if (address + 4 > size_) {
 		return 0;
 	}
 
@@ -34,7 +369,7 @@ uint32_t PermebufBase::Read4Bytes(size_t address) const {
 }
 
 uint64_t PermebufBase::Read8Bytes(size_t address) const {
-	if (address + 8 >= size_) {
+	if (address + 8 > size_) {
 		return 0;
 	}
 
@@ -68,41 +403,41 @@ size_t PermebufBase::ReadVariableLengthNumber(size_t address, size_t& bytes) con
 		// 64-bit number. Read 8 more bytes.
 		bytes = 9;
 		return static_cast<size_t>(Read8Bytes(address + 1));
-	} else if (first_byte & 0b01111111) {
+	} else if (first_byte == 0b01111111) {
 		// 56-bit number. Read 7 more bytes.
 		bytes = 8;
 		return static_cast<size_t>(Read8Bytes(address)) >> 8;
-	} else if (first_byte & 0b00111111 == 0b00111111) {
+	} else if ((first_byte & 0b00111111) == 0b00111111) {
 		// 49-bit number. Read 6 more bytes.
 		bytes = 7;
 		size_t bits_0 = first_byte >> 7;
 		size_t bits_1_to_16 = static_cast<size_t>(Read2Bytes(address + 1)) << 1;
 		size_t bits_17_to_48 = static_cast<size_t>(Read4Bytes(address + 3)) << 17;
 		return bits_0 + bits_1_to_16 + bits_17_to_48;
-	} else if (first_byte & 0b00011111 == 0b00011111) {
+	} else if ((first_byte & 0b00011111) == 0b00011111) {
 		// 42-bit number. Read 5 more bytes.
 		bytes = 6;
 		size_t bits_0_to_1 = first_byte >> 6;
 		size_t bits_2_to_9 = static_cast<size_t>(Read1Byte(address + 1)) << 2;
 		size_t bits_10_to_41 = static_cast<size_t>(Read4Bytes(address + 2)) << 10;
 		return bits_0_to_1 + bits_2_to_9 + bits_10_to_41;
-	} else if (first_byte & 0b00001111 == 0b00001111) {
+	} else if ((first_byte & 0b00001111) == 0b00001111) {
 		// 35-bit number. Read 4 more bytes.
 		bytes = 5;
 		size_t bits_0_to_2 = first_byte >> 5;
 		size_t bits_3_to_34 = static_cast<size_t>(Read4Bytes(address + 1)) << 3;
 		return bits_0_to_2 + bits_3_to_34;
-	} else if (first_byte & 0b00000111 == 0b00000111) {
+	} else if ((first_byte & 0b00000111) == 0b00000111) {
 		// 28-bit number. Read 3 more bytes.
 		bytes = 4;
 		return static_cast<size_t>(Read4Bytes(address)) >> 4;
-	} else if (first_byte & 0b00000011 == 0b00000011) {
+	} else if ((first_byte & 0b00000011) == 0b00000011) {
 		// 21-bit number. Read 2 more bytes.
 		bytes = 3;
 		size_t bits_0_to_4 = first_byte >> 3;
 		size_t bits_5_to_20 = static_cast<size_t>(Read2Bytes(address + 1)) << 5;
 		return bits_0_to_4 + bits_5_to_20;
-	} else if (first_byte & 0b00000001 == 0b00000001) {
+	} else if ((first_byte & 0b00000001) == 0b00000001) {
 		// 14-bit number. Read 1 more byte.
 		bytes = 2;
 		return static_cast<size_t>(Read2Bytes(address)) >> 2;
@@ -232,7 +567,7 @@ void PermebufBase::WriteVariableLengthNumber(size_t address, size_t value) {
 
 
 void* PermebufBase::GetRawPointer(size_t address, size_t data_length) {
-	if (address + data_length >= size_) {
+	if (address + data_length > size_) {
 		return nullptr;
 	}
 
@@ -326,8 +661,14 @@ PermebufBase::~PermebufBase() {
 size_t PermebufBase::AllocateMessage(size_t size) {
 	// The new message will be allocated at the current end of the buffer.
 	size_t current_ptr = size_;
+
+	// Calculate the bytes needed to store the size itself.
+	size_t size_bytes = GetBytesNeededForVariableLengthNumber(size);
+	size_t total_length = size_bytes + size;
+
 	// Attempt to grow the buffer by the size of the message.
-	if (GrowTo(size_ + size)) {
+	if (GrowTo(size_ + total_length)) {
+		WriteVariableLengthNumber(current_ptr, size);
 		return current_ptr;
 	} else {
 		// Couldn't grow the PermebufBase to this size.

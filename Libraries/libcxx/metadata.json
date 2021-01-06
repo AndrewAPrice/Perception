@@ -1,12 +1,14 @@
 {
 	"dependencies":[
 		"perception",
-		"musl"],
+		"musl"
+	],
 	"ignore":[],
 	"include":[],
 	"public_define": [
 		"_LIBCPP_HAS_THREAD_API_C11",
-		"LIBCXXRT"
+		"LIBCXXRT",
+		"_LIBCPP_HAS_THREAD_API_PTHREAD"
 	],
 	"define": [
 		"_LIBCPP_BUILDING_LIBRARY",
@@ -14,5 +16,6 @@
 		"_LIBUNWIND_DISABLE_VISIBILITY_ANNOTATIONS",
 		"_LIBCPP_PROVIDES_DEFAULT_RUNE_TABLE"
 	],
-	"third_party": true
+	"third_party": true,
+	"skip_local": true
 }

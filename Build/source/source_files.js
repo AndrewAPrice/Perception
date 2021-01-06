@@ -13,19 +13,20 @@
 // limitations under the License.
 
 const fs = require('fs');
+const {buildPrefix} = require('./build_commands');
 
 // Calls 'foreachFunc' for each file in the package directory.
-async function foreachSourceFile (packageDir, foreachFunc) {
+async function foreachSourceFile (packageDir, buildSettings, foreachFunc) {
 	await foreachSourceFileInSourceDir(
 			packageDir + 'source/',
-			packageDir + 'build/',
+			packageDir + 'build/' + buildPrefix(buildSettings) + '/',
 			true,
 			foreachFunc);
 
 	if (fs.existsSync(packageDir + 'generated/source/')) {
 		await foreachSourceFileInSourceDir(
 				packageDir + 'generated/source/',
-				packageDir + 'generated/build/',
+				packageDir + 'generated/build/' + buildPrefix(buildSettings) + '/',
 				true,
 				foreachFunc);
 	}
@@ -45,7 +46,7 @@ async function foreachPermebufSourceFile (packageDir, foreachFunc) {
 // Calls 'foreachFunc' for each file in the source directory.
 async function foreachSourceFileInSourceDir (dir, secondaryDir, makeSecondaryDir, foreachFunc) {
 	if (makeSecondaryDir && !fs.existsSync(secondaryDir)) {
-		fs.mkdirSync(secondaryDir);
+		fs.mkdirSync(secondaryDir, {recursive: true});
 	}
 
 	let files = fs.readdirSync(dir);

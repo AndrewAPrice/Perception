@@ -16,7 +16,10 @@
 
 #include <stddef.h>
 
+#ifndef __cplusplus
 typedef unsigned char bool;
+#endif
+
 typedef unsigned long long int uint64;
 typedef unsigned int uint32;
 typedef unsigned short uint16;

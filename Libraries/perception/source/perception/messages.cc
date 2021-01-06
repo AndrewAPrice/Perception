@@ -19,6 +19,7 @@ namespace perception {
 // Sends a message to a process.
 MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1, size_t param2, size_t param3,
 	size_t param4, size_t param5) {
+#if PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 17;
 	volatile register size_t pid_r asm ("r10") = pid;
 	volatile register size_t message_id_r asm ("rax") = message_id;
@@ -34,10 +35,14 @@ MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1, size_t p
 		"r"(param4_r), "r"(param5_r):
 		"rcx", "r11");
 	return (MessageStatus)return_val;
+#else
+	return MessageStatus::UNSUPPORTED;
+#endif
 }
 
 MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1, size_t param2, size_t param3,
 	size_t param4) {
+#if PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 17;
 	volatile register size_t pid_r asm ("r10") = pid;
 	volatile register size_t message_id_r asm ("rax") = message_id;
@@ -53,9 +58,13 @@ MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1, size_t p
 		"r"(param4_r), "r"(param5_r):
 		"rcx", "r11");
 	return (MessageStatus)return_val;
+#else
+	return MessageStatus::UNSUPPORTED;
+#endif
 }
 
 MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1, size_t param2, size_t param3) {
+#if PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 17;
 	volatile register size_t pid_r asm ("r10") = pid;
 	volatile register size_t message_id_r asm ("rax") = message_id;
@@ -71,9 +80,13 @@ MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1, size_t p
 		"r"(param4_r), "r"(param5_r):
 		"rcx", "r11");
 	return (MessageStatus)return_val;
+#else
+	return MessageStatus::UNSUPPORTED;
+#endif
 }
 
 MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1, size_t param2) {
+#if PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 17;
 	volatile register size_t pid_r asm ("r10") = pid;
 	volatile register size_t message_id_r asm ("rax") = message_id;
@@ -89,10 +102,13 @@ MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1, size_t p
 		"r"(param4_r), "r"(param5_r):
 		"rcx", "r11");
 	return (MessageStatus)return_val;
-
+#else
+	return MessageStatus::UNSUPPORTED;
+#endif
 }
 
 MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1) {
+#if PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 17;
 	volatile register size_t pid_r asm ("r10") = pid;
 	volatile register size_t message_id_r asm ("rax") = message_id;
@@ -108,10 +124,13 @@ MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1) {
 		"r"(param4_r), "r"(param5_r):
 		"rcx", "r11");
 	return (MessageStatus)return_val;
-
+#else
+	return MessageStatus::UNSUPPORTED;
+#endif
 }
 
 MessageStatus SendMessage(size_t pid, size_t message_id) {
+#if PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 17;
 	volatile register size_t pid_r asm ("r10") = pid;
 	volatile register size_t message_id_r asm ("rax") = message_id;
@@ -127,11 +146,15 @@ MessageStatus SendMessage(size_t pid, size_t message_id) {
 		"r"(param4_r), "r"(param5_r):
 		"rcx", "r11");
 	return (MessageStatus)return_val;
+#else
+	return MessageStatus::UNSUPPORTED;
+#endif
 }
 
 // Sleeps until a message. Returns true if a message was received.
 bool SleepUntilMessage(size_t* senders_pid, size_t* message_id, size_t* param1, size_t* param2,
 	size_t* param3, size_t* param4, size_t* param5) {
+#if PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 19;
 	volatile register size_t pid_r asm ("r10");
 	volatile register size_t message_id_r asm ("rax");
@@ -155,12 +178,15 @@ bool SleepUntilMessage(size_t* senders_pid, size_t* message_id, size_t* param1, 
 	*param5 = param5_r;
 
 	return message_id_r != 0xFFFFFFFFFFFFFFFF;
+#else
+	return false;
+#endif
 }
 
 // Polls for a message, returning false immediately if no message was received.
 bool PollMessage(size_t* senders_pid, size_t* message_id, size_t* param1, size_t* param2,
 	size_t* param3, size_t* param4, size_t* param5) {
-
+#if PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 18;
 	volatile register size_t pid_r asm ("r10");
 	volatile register size_t message_id_r asm ("rax");
@@ -184,6 +210,9 @@ bool PollMessage(size_t* senders_pid, size_t* message_id, size_t* param1, size_t
 	*param5 = param5_r;
 
 	return message_id_r != 0xFFFFFFFFFFFFFFFF;
+#else
+	return false;
+#endif
 }
 	
 }

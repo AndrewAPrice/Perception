@@ -13,43 +13,84 @@
 // limitations under the License.
 
 const process = require('process');
+const os = require('os');
 const {build} = require('./build');
+const {setLocalBuild} = require('./build_commands');
 const {buildImage} = require('./build_image');
 const {clean} = require('./clean');
-const {run} = require('./run');
 const {PackageType} = require('./package_type');
+const {run, localRun} = require('./run');
+const {test} = require('./test');
+
+const buildSettings = {
+	os: 'Perception',
+	build: 'optimized',
+	test: false
+};
+
+// Parse the input.
+let command = '';
+let package = '';
+for (let argIndex = 2; argIndex < process.argv.length; argIndex++) {
+	const arg = process.argv[argIndex];
+	switch (arg) {
+		case '--local':
+			buildSettings.os = os.type();
+			break;
+		case '--dbg':
+			buildSettings.build = 'debug';
+			break;
+		case '--optimized':
+			buildSettings.build = 'optimized';
+			break;
+		case '--fast':
+			buildSettings.build = 'fast';
+			break;
+		case '--test':
+			buildSettings.os = os.type();
+			buildSettings.build = 'debug';
+			buildSettings.test = true;
+			break;
+		default:
+			if (command == '')
+				command = arg;
+			else
+				package = arg;
+			break;
+	}
+}
 
 // Parses the input.
-switch (process.argv[2]) {
+switch (command) {
 	case 'application':
-		build(PackageType.APPLICATION, process.argv[3]).then((res) => {
+		build(PackageType.APPLICATION, package, buildSettings).then((res) => {
 			console.log(res ? "done!" : "failed!");
 		}, (err) =>{
 			console.log(err);
 		});
 		break;
 	case 'library':
-		build(PackageType.LIBRARY, process.argv[3]).then((res) => {
+		build(PackageType.LIBRARY, package, buildSettings).then((res) => {
 			console.log(res ? "done!" : "failed!");
 		}, (err) =>{
 			console.log(err);
 		});
 		break;
 	case 'kernel':
-		build(PackageType.KERNEL, '').then((res) => {
+		build(PackageType.KERNEL, '', buildSettings).then((res) => {
 			console.log(res ? "done!" : "failed!");
 		}, (err) =>{
 			console.log(err);
 		});
 		break;
 	case 'run':
-		run();
+		run(package, buildSettings);
 		break;
 	case 'clean':
 		clean();
 		break;
 	case 'all':
-		buildImage();
+		buildImage(buildSettings);
 		break;
 	case 'help':
 	case undefined:

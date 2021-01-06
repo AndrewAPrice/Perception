@@ -34,7 +34,6 @@ function clean() {
 	// Clean up kernel.
 	maybeDelete(rootDirectory + 'Kernel/build');
 	maybeDelete(rootDirectory + 'Kernel/kernel.app');
-	maybeDelete(rootDirectory + 'Kernel/dependencies.json');
 	maybeDelete(rootDirectory + 'fs/boot/kernel.app');
 
 	// Clean up libraries.
@@ -46,8 +45,6 @@ function clean() {
 		if (fileStats.isDirectory()) {
 			maybeDelete(fullPath + '/build');
 			maybeDelete(fullPath + '/generated');
-			maybeDelete(fullPath + '/dependencies.json');
-			maybeDelete(fullPath + '/library.lib');
 		}
 	}
 
@@ -60,8 +57,6 @@ function clean() {
 		if (fileStats.isDirectory()) {
 			maybeDelete(fullPath + '/build');
 			maybeDelete(fullPath + '/generated');
-			maybeDelete(fullPath + '/dependencies.json');
-			maybeDelete(fullPath + '/application.app');
 			maybeDelete(rootDirectory + 'fs/' + applicationName + '.app');
 		}
 	}

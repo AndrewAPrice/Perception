@@ -15,7 +15,7 @@
 #include "perception/debug.h"
 #include "perception/messages.h"
 
-void main() {
+int main() {
 	size_t senders_pid, message_id, param1, param2, param3, param4, param5;
 
 	while(perception::SleepUntilMessage(&senders_pid, &message_id, &param1, &param2,
@@ -23,4 +23,5 @@ void main() {
 		perception::DebugPrinterSingleton << "3: Slept and received " << message_id << " from " << senders_pid << ": "
 			<< param1 << "," << param2 << "," << param3 << "," << param4 << "," << param5 << '\n';
 	}
+	return 0;
 }

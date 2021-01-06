@@ -13,5 +13,6 @@
 	"dependencies":[
 		"perception"
 	],
-	"third_party": true
+	"third_party": true,
+	"skip_local": true
 }

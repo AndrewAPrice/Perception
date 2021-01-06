@@ -14,57 +14,95 @@
 
 #include "perception/liballoc.h"
 #include "perception/memory.h"
+
+#ifndef PERCEPTION
+#include <iostream>
+#include <stdlib.h>
+#include <unistd.h>
+#endif
+
 namespace perception {
 
 void* AllocateMemoryPages(size_t number) {
+#if PERCEPTION
 	volatile register size_t syscall_num asm ("rdi") = 12;
 	volatile register size_t param1 asm ("rax") = number;
 	volatile register size_t return_val asm ("rax");
 
 	__asm__ __volatile__ ("syscall\n":"=r"(return_val):"r"(syscall_num), "r"(param1): "rcx", "r11");
 	return (void*)return_val;
+#else
+	return malloc(kPageSize * number);
+#endif
 }
 
 void ReleaseMemoryPages(void* ptr, size_t number) {
+#if PERCEPTION
 	volatile register size_t syscall_num asm ("rdi") = 13;
 	volatile register size_t param1 asm ("rax") = (size_t)ptr;
 	volatile register size_t param2 asm ("rbx") = number;
 
 	__asm__ __volatile__ ("syscall\n"::"r"(syscall_num), "r"(param1), "r"(param2): "rcx", "r11");
+#else
+	return free(ptr);
+#endif
 }
 
 bool MaybeResizePages(void** ptr, size_t current_number, size_t new_number) {
+#if PERCEPTION
 	// TODO
 	return false;
+#else
+	void* maybe_new_ptr = realloc(*ptr, new_number * kPageSize);
+	if (maybe_new_ptr == nullptr)
+		return false;
+	
+	*ptr = maybe_new_ptr;
+	return true;
+#endif
 }
 
 size_t GetFreeSystemMemory() {
+#if PERCEPTION
 	volatile register size_t syscall_num asm ("rdi") = 14;
 	volatile register size_t return_val asm ("rax");
 
 	__asm__ __volatile__ ("syscall\n":"=r"(return_val):"r"(syscall_num): "rcx", "r11");
 	return return_val;
+#else
+	return 0;
+#endif
 }
 
 size_t GetTotalSystemMemory() {
+#if PERCEPTION
 	volatile register size_t syscall_num asm ("rdi") = 16;
 	volatile register size_t return_val asm ("rax");
 
 	__asm__ __volatile__ ("syscall\n":"=r"(return_val):"r"(syscall_num): "rcx", "r11");
 	return return_val;
+#else
+	long pages = sysconf(_SC_PHYS_PAGES);
+    long page_size = sysconf(_SC_PAGE_SIZE);
+    return pages * page_size;
+#endif
 }
 
 size_t GetMemoryUsedByProcess() {
+#if PERCEPTION
 	volatile register size_t syscall_num asm ("rdi") = 15;
 	volatile register size_t return_val asm ("rax");
 
 	__asm__ __volatile__ ("syscall\n":"=r"(return_val):"r"(syscall_num): "rcx", "r11");
 	return return_val;
+#else
+	return 0;
+#endif
 }
 
 }
 
-
+#ifdef PERCEPTION
 // Function that runs if a virtual function implementation is missing. Should never be called but
 // needs to exist.
 extern "C" void __cxa_pure_virtual() {}
@@ -85,3 +123,4 @@ void operator delete(void *address, long unsigned int size) {
 void operator delete[](void *address, long unsigned int size) {
     free(address);
 }
+#endif
