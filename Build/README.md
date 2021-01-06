@@ -29,7 +29,7 @@ Flags that can be passed:
 - `--local` - Builds for the local OS rather than Perception.
 - `--fast` - Disables compile-time optimizations to speed up building (overrides `--debug`.)
 - `--debug` - Generates debug information (overrides `--fast`.)
-- `--test` - Run unit tests (unimplemented.)
+- `--test` - Runs unit tests (unimplemented.)
 
 ## Package directory hierarchy
 There are 3 types of packages - the kernel, libraries, and applications. The kernel lives in `Kernel`, libraries live within their own directories in `Libraries`, and applications live within their own directories in `Applications`.
@@ -56,4 +56,5 @@ Each package's directory contains a metadata.json that controls how that package
 - `public_include` - Directories within this package that are #includeable by packages that depend on this library (and also by the package's own source files). If this is omitted, it is assumed to have one entry, which is `public`.
 - `define` - Preprocessor symbols to define while building this package's own source files.
 - `public_define` - Preprocessor symbols to define while building this package's own source files and all packages that depend on this library.
-- `third_party` - TODO
+- `third_party` - Is this a third party package, that requires fetching from another repository?
+- `skip_local` - If true, this library is skipped when using `--local`. For example, we don't need to build our own C++ standard library because we assume the host OS is providing its own.

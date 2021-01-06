@@ -47,13 +47,11 @@ If you have [Homebrew](https://brew.sh/), you can install everything you need wi
 ```
 
 ## Building
-Call all commands from inside the Build directory.
+Call all commands from inside the Build directory. Here are some useful ones:
 
 - `./build` - Builds everything. The kernel, all applications, and creates a Perception.iso in the root directory.
 - `./build run` - Builds everything and starts QEMU.
-- `./build kernel` - Builds the kernel.
-- `./build application <application>` - Builds a particular application.
-- `./build library <library>` - Builds a particular library.
+- `./build run <application> --local` - Builds an application and runs it locally in the host OS.
 - `./build clean` - Cleans up built files.
 
-You can lean more about the build system in [Build/README.md](Build/README.md).
+You can lean more about the build system and more commands in [Build/README.md](Build/README.md).
