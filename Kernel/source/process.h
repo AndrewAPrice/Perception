@@ -7,6 +7,9 @@ struct reg128 {
 };
 typedef size_t reg64;*/
 
+#define PROCESS_NAME_WORDS 11
+#define PROCESS_NAME_LENGTH (PROCESS_NAME_WORDS * 8)
+
 struct MessageToFireOnInterrupt;
 struct Message;
 struct Thread;
@@ -16,7 +19,7 @@ struct Process {
 	size_t pid;
 
 	// Name of the process.
-	char name[256];
+	char name[PROCESS_NAME_LENGTH];
 
 	// Is this a process a driver? Drivers have permission to do IO.
 	bool is_driver;
@@ -54,8 +57,20 @@ extern void InitializeProcesses();
 // Creates a process, returns ERROR if there was an error.
 extern struct Process *CreateProcess(bool is_driver);
 
-// Destroys a process - DO NOT CALL THIS DIRECTLY, destroy a process by destroying all of it's threads!
+// Destroys a process - DO NOT CALL THIS DIRECTLY, destroy a process by
+// destroying all of it's threads!
 extern void DestroyProcess(struct Process* process);
 
 // Returns a process with the provided pid, returns NULL if it doesn't exist.
 extern struct Process *GetProcessFromPid(size_t pid);
+
+// Returns a process with the provided pid, and if it doesn't exist, returns
+// the process with the next highest pid. Returns NULL if no process exists
+// with a pid >= pid.
+extern struct Process *GetProcessOrNextFromPid(size_t pid);
+
+// Returns the next process with the given name (which must be an array of
+// length PROCESS_NAME_LENGTH). Returns NULL if there are no more processes
+// with the provided name. `start_from` is inclusive.
+extern struct Process* FindNextProcessWithName(const char* name,
+	struct Process* start_from);

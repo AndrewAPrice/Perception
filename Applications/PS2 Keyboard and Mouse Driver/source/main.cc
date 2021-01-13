@@ -157,7 +157,7 @@ int main() {
 		if (pid == 0 & message_id == 0x12345) {
 			InterruptHandler();
 		} else {
-			perception::DebugPrinterSingleton << "Uknown message " << message_id << " from " << pid << ".\n";
+			perception::DebugPrinterSingleton << "Unknown message " << message_id << " from " << pid << ".\n";
 		}
 	}
 	return 0;

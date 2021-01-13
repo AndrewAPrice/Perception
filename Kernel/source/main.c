@@ -38,11 +38,13 @@ void kmain() {
 	LoadMultibootModules();
 	DoneWithMultibootMemory();
 
+PrintString("Enabling interrupts\n");
+
 	asm("sti");
 
 	for(;;) {
 		// This needs to be in a loop because the scheduler returns here when there are no awake threads
-		// schedule.
+		// scheduled.
 		asm("hlt");
 	}
 }

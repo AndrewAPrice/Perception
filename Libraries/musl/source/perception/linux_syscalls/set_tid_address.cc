@@ -21,7 +21,7 @@ namespace perception {
 namespace linux_syscalls {
 
 long set_tid_address(long tid_address) {
-	perception::DebugPrinterSingleton << "System call set_tid_address is unimplemented: " << (size_t)tid_address << '\n';
+	SetAddressToClearOnThreadTermination(tid_address);
 	return GetThreadId();
 }
 

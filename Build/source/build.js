@@ -74,6 +74,14 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 		parentPublicIncludeDirs.push(escapePath(packageDirectory) + 'public');
 	}
 
+	// Include generated header files.
+	let alreadyAddedGeneratedInclude = false;
+	if (fs.existsSync(packageDirectory + 'generated/include')) {
+		const generatedIncludeDir = escapePath(packageDirectory + 'generated/include');
+		parentPublicIncludeDirs.push(generatedIncludeDir);
+		alreadyAddedGeneratedInclude = true;
+	}
+
 	if (packageType == PackageType.LIBRARY) {
 		if (librariesToBuild[packageName] != undefined) {
 			// Library is already being built. Just add it's public directory and return.
@@ -229,7 +237,8 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 	if (fs.existsSync(packageDirectory + 'generated/include')) {
 		const generatedIncludeDir = escapePath(packageDirectory + 'generated/include');
 		params += ' -isystem ' + generatedIncludeDir;
-		parentPublicIncludeDirs.push(generatedIncludeDir);
+		if (!alreadyAddedGeneratedInclude)
+			parentPublicIncludeDirs.push(generatedIncludeDir);
 	}
 
 	// Public dirs exported by each of our dependencies.

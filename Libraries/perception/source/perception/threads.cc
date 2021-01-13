@@ -53,16 +53,6 @@ ThreadId GetThreadId() {
 #endif
 }
 
-
-void TerminateProcess() {
-#ifdef PERCEPTION
-	register size_t syscall_num asm ("rdi") = 6;
-	__asm__ ("syscall\n"::"r"(syscall_num): "rcx", "r11");
-#else
-	exit(0);
-#endif
-}
-
 void TerminateThread() {
 #ifdef PERCEPTION
 	register size_t syscall_num asm ("rdi") = 4;
@@ -96,6 +86,15 @@ void SetThreadSegment(size_t segment_address) {
 #ifdef PERCEPTION
 	register size_t syscall_num asm ("rdi") = 27;
 	register size_t param asm ("rax") = segment_address;
+
+	__asm__ ("syscall\n"::"r"(syscall_num), "r"(param): "rcx", "r11");
+#endif
+}
+
+void SetAddressToClearOnThreadTermination(size_t address_to_clear) {
+#ifdef PERCEPTION
+	register size_t syscall_num asm ("rdi") = 28;
+	register size_t param asm ("rax") = address_to_clear;
 
 	__asm__ ("syscall\n"::"r"(syscall_num), "r"(param): "rcx", "r11");
 #endif

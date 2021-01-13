@@ -121,27 +121,13 @@ Sets the value of the FS segment base. Each thread can have its own FS segment b
 * `rdi` - 27
 * `rax` - The address of the fs segment base.
 
-# Process Management
+## Set memory address to clear on thread termination
 
-## Terminate this process
-
-Terminates this process. This system call will not return.
+Sets a memory address of a 64-bit (8-byte aligned) integer that should cleared when the currently running thread is terminated.
 
 ### Input
-* `rdi` - 6
-
-## Terminate process
-
-Terminates a process. If the provided process ID matches the currently running process, then this system call will not return.
-
-TODO: Build a permission system.
-
-### Input
-* `rdi` - 7
-* `rax` - Process ID to terminate.
-
-### Output
-Nothing.
+* `rdi` - 28
+* `rax` - An 8-byte aligned addres to a 64-bit integer that should be cleared. A value of 0 disables this behavior.
 
 # Memory management
 
@@ -193,6 +179,246 @@ Returns the total amount of memory that the computer has.
 ### Output
 * `rax` - The total amount of memory the computer has, in bytes.
 
+# Process Management
+
+## Get this process's ID
+
+Gets the ID of the currently running process.
+
+### Input
+* `rdi` - 39
+
+### Output
+* `rax` - The ID of the currently running process.
+
+## Terminate this process
+
+Terminates this process. This system call will not return.
+
+### Input
+* `rdi` - 6
+
+## Terminate process
+
+Terminates a process. If the provided process ID matches the currently running process, then this system call will not return.
+
+TODO: Build a permission system.
+
+### Input
+* `rdi` - 7
+* `rax` - Process ID to terminate.
+
+### Output
+Nothing.
+
+## Get process by name
+
+### Input
+* `rdi` - 22
+* `rbp` - Minimum process ID.
+* `rax` - Char 0-7.
+* `rbx` - Char 8-15.
+* `rdx` - Char 16-23.
+* `rsi` - Char 24-31.
+* `r8` - Char 32-39.
+* `r9` - Char 40-47.
+* `r10` - Char 48-55.
+* `r12` - Char 56-63.
+* `r13` - Char 64-71.
+* `r14` - Char 72-79.
+* `r15` - Char 80-87.
+
+### Output
+* `rdi` - Number of processes found. If this is above 12 then there are multiple pages.
+* `rbp` - Process ID 1.
+* `rax` - Process ID 2.
+* `rbx` - Process ID 3.
+* `rdx` - Process ID 4.
+* `rsi` - Process ID 5.
+* `r8` - Process ID 6.
+* `r9` - Process ID 7.
+* `r10` - Process ID 8.
+* `r12` - Process ID 9.
+* `r13` - Process ID 10.
+* `r14` - Process ID 11.
+* `r15` - Process ID 12.
+
+## Get name of process
+
+### Input
+* `rdi` - 29
+* `rax` - The ID of the process.
+
+### Output
+* `rdi` - Was the process found?
+* `rax` - Char 0-7.
+* `rbx` - Char 8-15.
+* `rdx` - Char 16-23.
+* `rsi` - Char 24-31.
+* `r8` - Char 32-39.
+* `r9` - Char 40-47.
+* `r10` - Char 48-55.
+* `r12` - Char 56-63.
+* `r13` - Char 64-71.
+* `r14` - Char 72-79.
+* `r15` - Char 80-87.
+
+## Notify when process disappears
+
+### Input
+* `rdi` - 30
+* `rax` - The ID of the process.
+* `rbx` - The message ID to send when a process disappears.
+
+### Output
+Nothing.
+
+# Services
+
+## Create service
+
+### Input
+* `rdi` - 31
+
+### Output
+* `rax` - The ID of the service.
+
+## Finalize service
+
+Finishes creating and registers the service.
+### Input
+* `rdi` - 32
+* `rbp` - The ID of the service.
+* `rax` - Char 0-7.
+* `rbx` - Char 8-15.
+* `rdx` - Char 16-23.
+* `rsi` - Char 24-31.
+* `r8` - Char 32-39.
+* `r9` - Char 40-47.
+* `r10` - Char 48-55.
+* `r12` - Char 56-63.
+* `r13` - Char 64-71.
+* `r14` - Char 72-79.
+* `r15` - Char 80-87.
+
+### Output
+Nothing.
+
+## Destroy service
+
+### Input
+* `rdi` - 33
+* `rax` - The ID of the service to destroy.
+
+### Output
+Nothing.
+
+## Get service by name
+
+### Input
+* `rdi` - 34
+* `rbp` - Minimum service ID.
+* `rax` - Char 0-7.
+* `rbx` - Char 8-15.
+* `rdx` - Char 16-23.
+* `rsi` - Char 24-31.
+* `r8` - Char 32-39.
+* `r9` - Char 40-47.
+* `r10` - Char 48-55.
+* `r12` - Char 56-63.
+* `r13` - Char 64-71.
+* `r14` - Char 72-79.
+* `r15` - Char 80-87.
+
+### Output
+* `rdi` - Number of service found. If this is above 6 then there are multiple pages.
+* `rbp` - Process ID 1.
+* `rax` - Service ID 1.
+* `rbx` - Process ID 2.
+* `rdx` - Service ID 2.
+* `rsi` - Process ID 3.
+* `r8` - Service ID 3.
+* `r9` - Process ID 4.
+* `r10` - Service ID 4.
+* `r12` - Process ID 5.
+* `r13` - Service ID 5.
+* `r14` - Process ID 6.
+* `r15` - Service ID 6.
+
+### Output
+Nothing.
+
+## Notify when service appears
+
+### Input
+* `rdi` - 35
+* `rax` - Char 0-7.
+* `rbx` - Char 8-15.
+* `rdx` - Char 16-23.
+* `rsi` - Char 24-31.
+* `r8` - Char 32-39.
+* `r9` - Char 40-47.
+* `r10` - Char 48-55.
+* `r12` - Char 56-63.
+* `r13` - Char 64-71.
+* `r14` - Char 72-79.
+* `r15` - Char 80-87.
+
+### Output
+Nothing.
+
+## Notify when service disappears
+
+Sends the calling process a message when a service or the owning process disappears.
+
+### Input
+* `rdi` - 36
+* `rax` - The ID of the process.
+* `rbx` - The ID of the service.
+* `rdx` - The message ID to send when a process disappears.
+
+### Output
+Nothing.
+
+## Register RPC in service
+
+### Input
+* `rdi` - 37
+* `rax` - The ID of the service.
+* `rbx` - Char 0-7.
+* `rdx` - Char 8-15.
+* `rsi` - Char 16-23.
+* `r8` - Char 24-31.
+* `r9` - Char 32-39.
+* `r10` - Char 40-47.
+* `r12` - Char 48-55.
+* `r13` - Char 56-63.
+* `r14` - Char 64-71.
+* `r15` - Char 72-79.
+
+### Output
+Nothing.
+
+## Find RPC in service
+
+### Input
+* `rdi` - 38
+* `rbp` - The ID of the process.
+* `rax` - The ID of the service.
+* `rbx` - Char 0-7.
+* `rdx` - Char 8-15.
+* `rsi` - Char 16-23.
+* `r8` - Char 24-31.
+* `r9` - Char 32-39.
+* `r10` - Char 40-47.
+* `r12` - Char 48-55.
+* `r13` - Char 56-63.
+* `r14` - Char 64-71.
+* `r15` - Char 72-79.
+
+## Output
+* `rax` - The event ID of this service, or 0xFFFFFFFFFFFFFFFF if the process, service, or RPC does not exist.
+
 # Messaging
 
 ## Send message
@@ -202,12 +428,23 @@ Sends a message to a process.
 ### Input
 * `rdi` - 17
 * `rax` - The ID of the message.
+* `rbx` - The ID of the process to send the message to.
+* `rdx` - Parameters bitfield:
+	- Bit 0: Are we sending pages?
+	- Bit 1: Is this an RPC that we're expecting a response from?
+
+If rdx[0] is '1':
+* `rsi` - Size of the message.
+* `r8` - Address of the first memory page.
+If rdx[0] is '0':
 * `rsi` - The first parameter.
-* `rdx` - The second parameter.
-* `rbx` - The third parameter.
-* `r8` - The fourth parameter.
-* `r9` - The fifth parameter.
-* `r10` - The ID of the process to send the message to.
+* `r8` - The second parameter.
+* `r9` - The third parameter.
+* `r10` - The fourth parameter.
+* `r11` - The fifth parameter.
+
+If rdx[1] is '1':
+* `r12` - The message ID we want the callee to respond with.
 
 ### Output
 * `rax` - The status, which may be:
@@ -227,12 +464,23 @@ Polls for a message, and returns immediately regardless of if there is a message
 If there was a message queued:
 
 * `rax` - The ID of the message.
+* `rbx` - The ID of the process to send the message to.
+* `rdx` - Parameters bitfield:
+	- Bit 0: Are these pages?
+	- Bit 1: Is this an RPC we should respond to?
+
+If rdx[0] is '1':
+* `rsi` - The size of the message.
+* `r8` - Address of the first memory page.
+If rdx[0] is '0':
 * `rsi` - The first parameter.
-* `rdx` - The second parameter.
-* `rbx` - The third parameter.
-* `r8` - The fourth parameter.
-* `r9` - The fifth parameter.
-* `r10` - The ID of the process that sent this message.
+* `r8` - The second parameter.
+* `r9` - The third parameter.
+* `r10` - The fourth parameter.
+* `r11` - The fifth parameter.
+
+If rdx[1] is '1':
+* `r12` - The message ID to respond with.
 
 If there were no messages queued:
 
@@ -243,20 +491,10 @@ If there were no messages queued:
 Sleeps until a message.
 
 ### Input
-* `rdi` - 18
+* `rdi` - 19
 
 ### Output
-If there was a message queued:
-
-* `rax` - The ID of the message.
-* `rsi` - The first parameter.
-* `rdx` - The second parameter.
-* `rbx` - The third parameter.
-* `r8` - The fourth parameter.
-* `r9` - The fifth parameter.
-* `r10` - The ID of the process that sent this message.
-
-If there were no messages queued and the thread was woken for other reasons:
+Same as `Poll for message`. Except if there were no messages queued and the thread was woken for other reasons:
 
 * `rax` - 0xFFFFFFFFFFFFFFFF
 

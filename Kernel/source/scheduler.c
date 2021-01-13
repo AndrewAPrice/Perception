@@ -46,7 +46,7 @@ void ScheduleNextThread() {
 
 	if(running_thread) {
 		// We were currently executing a thread.
-#if DEBUG
+#ifdef DEBUG
 		PrintString("Leaving tid "); PrintNumber(running_thread->id);
 		PrintString(" pid "); PrintNumber(running_thread->process->pid);
 		PrintChar('\n');
@@ -73,7 +73,7 @@ void ScheduleNextThread() {
 		running_thread = 0;
 		currently_executing_thread_regs = idle_regs;
 		SwitchToAddressSpace(kernel_pml4);
-#if DEBUG
+#ifdef DEBUG
 		PrintString("Kernel idle thread\n");
 #endif
 		return;
@@ -92,7 +92,7 @@ void ScheduleNextThread() {
 
 	currently_executing_thread_regs = running_thread->registers;
 
-#if DEBUG
+#ifdef DEBUG
 	PrintString("Entering tid "); PrintNumber(running_thread->id);
 	PrintString(" pid "); PrintNumber(running_thread->process->pid);
 	PrintString(" for time "); PrintNumber(running_thread->time_slices++);

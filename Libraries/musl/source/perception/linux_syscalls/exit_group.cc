@@ -14,7 +14,7 @@
 
 #include "perception/linux_syscalls/exit_group.h"
 
-#include "perception/threads.h"
+#include "perception/processes.h"
 
 namespace perception {
 namespace linux_syscalls {

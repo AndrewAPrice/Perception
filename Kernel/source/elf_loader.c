@@ -307,13 +307,19 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
 		return;
 	}
 
-	CopyString(name, 256, name_length, process->name);
+	CopyString(name, PROCESS_NAME_LENGTH, name_length, process->name);
 
 	if (!LoadSegments(header, memory_start, memory_end, process)) {
 		PrintString("Destroying process.\n");
 		DestroyProcess(process);
 		return;
 	}
+
+#ifdef DEBUG
+	PrintString("Creating thread with entry point ");
+	PrintHex(header->e_entry);
+	PrintChar('\n');
+#endif
 
 	struct Thread* thread = CreateThread(process, header->e_entry, 0);
 

@@ -47,6 +47,9 @@ struct Thread {
 	// The linked queue of threads in the process that are waiting for messages.
 	struct Thread* next_thread_sleeping_for_messages;
 	bool thread_is_waiting_for_message : 1;
+
+	// If not 0, the virtual address in the process's space to clear on termination of the thread. Must be 8-byte aligned.
+	size_t address_to_clear_on_termination;
 };
 
 // The kernel's idle registers.

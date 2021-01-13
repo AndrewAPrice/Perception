@@ -37,6 +37,8 @@ void Child(std::unique_ptr<Something> something) {
 }
 
 int main() {
+
+	std::cout << "Hello " << "world " << (size_t)11 << '\n';
 	{
 		std::unique_ptr<Something> something = std::make_unique<Something>();
 		Child(std::move(something));
@@ -55,6 +57,5 @@ int main() {
 	std::cout << "Bool5: " << hello_world->GetBool5() << std::endl;
 	std::cout << "Bool9: " << hello_world->GetBool9() << std::endl;
 	std::cout << "Name: " << *hello_world->GetName() << std::endl;
-
 	return 0;
 }

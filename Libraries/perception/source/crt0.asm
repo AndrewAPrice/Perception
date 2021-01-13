@@ -59,6 +59,7 @@ crt0_entry:
 
 ; Call the global constructors.
 call_global_constructors:
+	push rbx
 	mov rbx, start_ctors
 	jmp .checkIfWeHaveAGlobalConstructor
 .callGlobalConstructor:
@@ -67,4 +68,5 @@ call_global_constructors:
 .checkIfWeHaveAGlobalConstructor:
 	cmp rbx, end_ctors
 	jb .callGlobalConstructor
+	pop rbx
 	ret

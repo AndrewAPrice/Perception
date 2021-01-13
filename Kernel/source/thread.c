@@ -68,7 +68,7 @@ struct Thread *CreateThread(struct Process *process, size_t entry_point, size_t 
 	regs->rip = entry_point;
 
 	// Sets the stack pointer and stack base to the top of our stack page. (Stacks grow down!)
-	regs->rbp = regs->rsp = thread->stack  + PAGE_SIZE;
+	regs->rbp = regs->rsp = thread->stack + PAGE_SIZE;
 
 	// Sets our code and stack segment selectors (the segments are defined in Gdt64 in boot.asm)
 	regs->cs = 0x20 | 3; // '| 3' means ring 3. This is a user code, not kernel code.
@@ -110,6 +110,8 @@ struct Thread *CreateThread(struct Process *process, size_t entry_point, size_t 
 
 	// Populate the FPU registers with something.
 	memset(thread->fpu_registers, 0, 512);
+
+	thread->address_to_clear_on_termination = 0;
 
 	return thread;
 }
@@ -156,6 +158,20 @@ void DestroyThread(struct Thread *thread, bool process_being_destroyed) {
 		thread->previous->next = thread->next;
 	} else {
 		process->threads = thread->next;
+	}
+
+	// The thread has a virtual address that should be cleared.
+	if (thread->address_to_clear_on_termination) {
+		// Find the virtual page and offset of the address.
+		size_t offset_in_page = thread->address_to_clear_on_termination & (PAGE_SIZE - 1);
+		size_t page = thread->address_to_clear_on_termination - offset_in_page;
+
+		// Get the physical page.
+		size_t physical_page = GetPhysicalAddress(thread->process->pml4, offset_in_page);
+		if (physical_page != OUT_OF_MEMORY) {
+			// If this virtual page was actually assigned to a physical address, set our memory location to 0.
+			*(uint64*)((size_t)TemporarilyMapPhysicalMemory(physical_page, 1) + offset_in_page) = 0;
+		}
 	}
 
 	// Free the thread object.
