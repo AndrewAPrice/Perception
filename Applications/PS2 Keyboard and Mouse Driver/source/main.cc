@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "perception/debug.h"
 #include "perception/interrupts.h"
 #include "perception/messages.h"
 #include "perception/port_io.h"
 
-using ::perception::DebugPrinterSingleton;
+#include <iostream>
+
 using ::perception::Read8BitsFromPort;
-using ::perception::RegisterMessageToSendOnInterrupt;
+using ::perception::RegisterInterruptHandler;
 using ::perception::Write8BitsToPort;
 
 namespace {
@@ -59,9 +59,9 @@ void ProcessMouseMessage(uint8 status, uint8 offset_x, uint8 offset_y) {
 	bool button_middle = status & (1 << 2);
 	bool button_right = status & (1 << 1);
 
-	DebugPrinterSingleton << "Mouse message: x: " << (int64)delta_x << " y: " <<
+	std::cout << "Mouse message: x: " << (int64)delta_x << " y: " <<
 		(int64)delta_y << " left: " << button_left << " middle: " << button_middle <<
-		" right: " << button_right << '\n';
+		" right: " << button_right << std::endl;
 }
 
 // Messages from the mouse come in 3 bytes. We need to buffer these until we
@@ -86,7 +86,7 @@ void HandleMouseInterrupt() {
 
 void HandleKeyboardInterrupt() {
 	uint8 val = Read8BitsFromPort(0x60);
-	DebugPrinterSingleton << "Keyboard: " << (size_t)val << '\n';
+	std::cout << "Keyboard: " << (size_t)val << std::endl;
 }
 
 // TODO: Fire event on interrupt.
@@ -145,13 +145,11 @@ void InitializePS2Controller() {
 int main() {
 	InitializePS2Controller();
 
-	perception::MessageId interrupt_1_handler
-
 	// Listen to the interrupts.
 	RegisterInterruptHandler(1, InterruptHandler);
 	RegisterInterruptHandler(12, InterruptHandler);
 
-	perception::DebugPrinterSingleton << "PS2 controller initialized.\n";
+	std::cout << "PS2 controller initialized." << std::endl;
 	perception::TransferToEventLoop();
 	return 0;
 }

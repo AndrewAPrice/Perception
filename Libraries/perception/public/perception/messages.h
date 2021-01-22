@@ -49,7 +49,7 @@ MessageStatus SendMessage(ProcessId pid, MessageId message_id);
 // Registers the message handler to call when a specific message is received. Assigning
 // another handler to the same Message ID will override that handler.
 void RegisterMessageHandler(MessageId message_id, std::function<void(ProcessId,
-	size_t, size_t, size_t, size_t, size_t)> handler);
+	size_t, size_t, size_t, size_t, size_t)> callback);
 
 // Unregisters the message handler, because we no longer care about handling these messages.
 void UnregisterMessageHandler(MessageId message_id);

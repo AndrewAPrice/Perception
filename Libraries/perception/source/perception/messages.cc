@@ -254,7 +254,9 @@ MessageStatus SendMessage(ProcessId pid, MessageId message_id) {
 
 // Registers the message handler to call when a specific message is received.
 void RegisterMessageHandler(MessageId message_id, std::function<void(ProcessId,
-	size_t, size_t, size_t, size_t, size_t)> handler) {
+	size_t, size_t, size_t, size_t, size_t)> callback) {
+	Handler handler;
+	handler.handler_function = std::move(callback);
 	handlers_by_message_id.emplace(std::make_pair(message_id,
 		std::move(handler)));
 }

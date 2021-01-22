@@ -105,7 +105,7 @@ size_t GetMemoryUsedByProcess() {
 #ifdef PERCEPTION
 // Function that runs if a virtual function implementation is missing. Should never be called but
 // needs to exist.
-extern "C" void __cxa_pure_virtual() {}
+// extern "C" void __cxa_pure_virtual() {}
 
 // Functions to support new/delete.
 void *operator new(long unsigned int size) {
