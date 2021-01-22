@@ -271,6 +271,7 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
 	bool is_driver = false;
 	char type = name[0];
 	name += 2; // Skip over the module type.
+	name_length -= 2;
 	switch (type) {
 		case 'd':
 			PrintString("Loading driver ");

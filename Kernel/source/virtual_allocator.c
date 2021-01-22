@@ -121,6 +121,7 @@ void MapKernelMemoryPreVirtualMemory(size_t virtualaddr, size_t physicaladdr, bo
 		ptr[pml2_entry] = new_pml1 | 0x1;
 	}
 
+
 	size_t pml1 = ptr[pml2_entry] & ~(PAGE_SIZE - 1);
 
 	// Write us in PML1.
@@ -191,6 +192,7 @@ void *TemporarilyMapPhysicalMemoryPreVirtualMemory(size_t addr) {
 		PrintString(" Offset: ");
 		PrintNumber(addr_offset);
 	*/
+
 
 	size_t entry = addr_start | 0x83;
 

@@ -16,7 +16,7 @@
 #include "perception/messages.h"
 #include "perception/threads.h"
 
-int main() {
+int main() {/*
 	size_t senders_pid, message_id, param1, param2, param3, param4, param5;
 
 	while (true) {
@@ -31,6 +31,6 @@ int main() {
 		}
 
 		perception::Yield();
-	}
+	}*/
 	return 0;
 }

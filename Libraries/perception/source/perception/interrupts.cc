@@ -13,11 +13,19 @@
 // limitations under the License.
 
 #include "perception/interrupts.h"
+#include "perception/messages.h"
 
 namespace perception {
 
-// Registers a message to send to this process upon receiving an interrupt.
-void RegisterMessageToSendOnInterrupt(uint8 interrupt, size_t message_id) {
+// Registers a handler to call upon receiving an interrupt.
+MessageId RegisterInterruptHandler(uint8 interrupt,
+	std::function<void()> handler) {
+	MessageId message_id = GenerateUniqueMessageId();
+	RegisterMessageHandler(message_id, [handler](ProcessId pid,
+		size_t, size_t, size_t, size_t, size_t) {
+		if (pid == 0) // Only messages from the kernel are interrupts.
+			handler();
+	});
 #ifdef PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 20;
 	volatile register size_t interrupt_r asm ("rax") = (size_t)interrupt;
@@ -26,10 +34,11 @@ void RegisterMessageToSendOnInterrupt(uint8 interrupt, size_t message_id) {
 	__asm__ __volatile__ ("syscall\n"::
 		"r" (syscall), "r"(interrupt_r), "r"(message_id_r):"rcx", "r11");
 #endif
+	return message_id;
 }
 
-// Unregisters a message to send to this process upon receiving an interrupt.
-void UnregisterMessageToSendOnInterrupt(uint8 interrupt, size_t message_id) {
+// Unregisters a handler to call upon receiving an interrupt
+void UnegisterInterruptHandler(uint8 interrupt, MessageId message_id) {
 #ifdef PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 21;
 	volatile register size_t interrupt_r asm ("rax") = (size_t)interrupt;
@@ -38,6 +47,7 @@ void UnregisterMessageToSendOnInterrupt(uint8 interrupt, size_t message_id) {
 	__asm__ __volatile__ ("syscall\n"::
 		"r" (syscall), "r"(interrupt_r), "r"(message_id_r):"rcx", "r11");
 #endif
+	UnregisterMessageHandler(message_id);
 }
 
 }

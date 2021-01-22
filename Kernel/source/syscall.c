@@ -274,9 +274,27 @@ void SyscallHandler(int syscall_number) {
 			}
 			break;
 		}
-		case NOTIFY_WHEN_PROCESS_DISAPPEARS:
-			PrintString("Implement NOTIFY_WHEN_PROCESS_DISAPPEARS\n");
+		case NOTIFY_WHEN_PROCESS_DISAPPEARS: {
+			size_t target_pid = currently_executing_thread_regs->rax;
+			size_t event_id = currently_executing_thread_regs->rbx;
+
+			struct Process* target =
+				GetProcessFromPid(currently_executing_thread_regs->rax);
+			if (target == NULL) {
+				// The target process we want to be notified of when it dies
+				// doesn't exist. It's possible that is just died, so whatever
+				// the case, the safest thing to do here is to imemdiately send
+				// an event.
+				SendKernelMessageToProcess(
+					running_thread->process,
+					event_id,
+					target_pid, 0, 0, 0, 0);
+			} else {
+				NotifyProcessOnDeath(target, running_thread->process,
+					event_id);
+			}
 			break;
+		}
 		case CREATE_SERVICE:
 			PrintString("Implement CREATE_SERVICE\n");
 			break;

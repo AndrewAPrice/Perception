@@ -17,21 +17,21 @@ struct Thread;
 
 struct ProcessToNotifyOnExit {
 	// The process to trigger a message for when it dies.
-	struct Process* process_listening_for;
+	struct Process* target;
 
 	// The process to notify when the above process dies.
-	struct Process* process_to_notify;
+	struct Process* notifyee;
 
-	// The ID of the notification message.
-	size_t message_id;
+	// The ID of the notification message to send to notifyee.
+	size_t event_id;
 
-	// Linked list of notification messages within `process_listening_for`.
-	struct ProcessToNotifyOnExit* previous_in_process_to_notify;
-	struct ProcessToNotifyOnExit* next_in_process_to_notify;
+	// Linked list of notification messages within the targer process.
+	struct ProcessToNotifyOnExit* previous_in_target;
+	struct ProcessToNotifyOnExit* next_in_target;
 
-	// Linked list of notification messages within `process_to_notify`.
-	struct ProcessToNotifyOnExit* previous_in_process_listening_for;
-	struct ProcessToNotifyOnExit* next_in_process_listening_for;
+	// Linked list of notification messages within the notifyee process.
+	struct ProcessToNotifyOnExit* previous_in_notifyee;
+	struct ProcessToNotifyOnExit* next_in_notifyee;
 };
 
 struct Process {
@@ -70,6 +70,7 @@ struct Process {
 	struct Process *next;
 	struct Process *previous;
 
+	// Linked lists.
 	struct ProcessToNotifyOnExit* processes_to_notify_when_i_die;
 	struct ProcessToNotifyOnExit* processes_i_want_to_be_notified_of_when_they_die;
 };
@@ -83,6 +84,10 @@ extern struct Process *CreateProcess(bool is_driver);
 // Destroys a process - DO NOT CALL THIS DIRECTLY, destroy a process by
 // destroying all of it's threads!
 extern void DestroyProcess(struct Process* process);
+
+// Registers that a process wants to be notified if another process dies.
+extern void NotifyProcessOnDeath(struct Process* target,
+	struct Process* notifyee, size_t event_id);
 
 // Returns a process with the provided pid, returns NULL if it doesn't exist.
 extern struct Process *GetProcessFromPid(size_t pid);

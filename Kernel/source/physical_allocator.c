@@ -6,6 +6,8 @@
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 
+// #define DEBUG
+
 // The total number of bytes of system memory.
 size_t total_system_memory;
 
@@ -24,34 +26,54 @@ size_t next_free_page_address;
 // information put there by the bootloader, and will be released after calling DoneWithMultibootMemory.
 size_t start_of_free_memory_at_boot;
 
+// Before virtual memory is set up, the temporary paging system we set up in
+// boot.asm only associates the maps the first 8MB of physical memory into
+// virtual memory. The multiboot structure can be quite huge (especially if
+// there are multi-boot modules passed in to the bootloader), and so the
+// multiboot data might extend past this 8MB boundary. The SafeReadUint32/
+// SafeReadUint64 functions make sure the physical memory is temporarily
+// mapped into virtual memory before reading it. This only works if the
+// values are sure not to cross the 2MB page boundaries (which they shouldn't).
+uint32 SafeReadUint32(uint32* value) {
+	return *(uint32*)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value);
+}
+
+// 64-bit equivalent to SafeReadUint32.
+uint64 SafeReadUint64(uint64* value) {
+	return *(uint64*)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value);
+}
+
 // Calculates the start of the free memory at boot.
 void CalculateStartOfFreeMemoryAtBoot() {
 	start_of_free_memory_at_boot = (size_t)&bssEnd;
 
 	// Loop through each of the tags in the multiboot.
 	struct multiboot_tag *tag;
-	for(tag = (struct multiboot_tag *)(size_t)(MultibootInfo.addr + 8);
-		tag->type != MULTIBOOT_TAG_TYPE_END;
-		tag = (struct multiboot_tag *)((size_t) tag + (size_t)((tag->size + 7) & ~7))) {
-
-		if (tag->type == MULTIBOOT_TAG_TYPE_MODULE) {
+	for(tag = (struct multiboot_tag *)(size_t)(
+		SafeReadUint32(&MultibootInfo.addr) + 8);
+		SafeReadUint32(&tag->type) != MULTIBOOT_TAG_TYPE_END;
+		tag = (struct multiboot_tag *)((size_t) tag + (size_t)((
+			SafeReadUint32(&tag->size) + 7) & ~7))) {
+		if (SafeReadUint32(&tag->type) == MULTIBOOT_TAG_TYPE_MODULE) {
 			struct multiboot_tag_module *module_tag = (struct multiboot_tag_module *)tag;
+			uint32 mod_end = SafeReadUint32(&module_tag->mod_end);
 
-			if (module_tag->mod_end > start_of_free_memory_at_boot) {
-				start_of_free_memory_at_boot = module_tag->mod_end;
+			if (mod_end > start_of_free_memory_at_boot) {
+				start_of_free_memory_at_boot = mod_end;
 			}
 		}
 	}
 
 	// Round up to the nearest whole page.
 	start_of_free_memory_at_boot = (start_of_free_memory_at_boot + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-	/*
+	
+#ifdef DEBUG
 	PrintString("End of kernel: ");
 	PrintHex((size_t)&bssEnd);
 	PrintString(" Start of free memory: ");
 	PrintHex(start_of_free_memory_at_boot);
 	PrintChar('\n');
-	*/
+#endif
 }
 
 void InitializePhysicalAllocator() {
@@ -68,56 +90,73 @@ void InitializePhysicalAllocator() {
 	// Loop through each of the tags in the multiboot.
 	struct multiboot_tag *tag;
 	for(tag = (struct multiboot_tag *)(size_t)(MultibootInfo.addr + 8);
-		tag->type != MULTIBOOT_TAG_TYPE_END;
-		tag = (struct multiboot_tag *)((size_t) tag + (size_t)((tag->size + 7) & ~7))) {
+		SafeReadUint32(&tag->type) != MULTIBOOT_TAG_TYPE_END;
+		tag = (struct multiboot_tag *)((size_t) tag + (size_t)((
+			SafeReadUint32(&tag->size) + 7) & ~7))) {
 		
+		uint32 size = SafeReadUint32(&tag->size);
 		// Skip empty tags.
-		if(tag->size == 0)
+		if(size == 0)
 			return;
 
-		if(tag->type == MULTIBOOT_TAG_TYPE_MMAP) {
+		uint16 type = SafeReadUint32(&tag->type);
+		if(type == MULTIBOOT_TAG_TYPE_MMAP) {
 			// This is a memory map tag!
 			struct multiboot_tag_mmap *mmap_tag = (struct multiboot_tag_mmap *)tag;
 
-			/*
-			PrintString("Entry size: ");
-			PrintNumber(mmap_tag->entry_size);
-			PrintString(" Tag size: ");
-			PrintNumber(mmap_tag->size);
-			PrintString(" Entries: ");
-			PrintNumber(mmap_tag->size / mmap_tag->entry_size);
-			PrintString("\n");
-			*/
+
+			#ifdef DEBUG
+				PrintString("Entry size: ");
+				PrintNumber(SafeReadUint32(&mmap_tag->entry_size));
+				PrintString(" Tag size: ");
+				PrintNumber(size);
+				PrintString(" Entries: ");
+				PrintNumber(size / SafeReadUint32(&mmap_tag->entry_size));
+				PrintString("\n");
+			#endif
 
 			// Iterate over each entry in the memory map.
 			struct multiboot_mmap_entry *mmap;
 			for(mmap = mmap_tag->entries;
-				(size_t)mmap < (size_t)tag + (size_t)tag->size;
-				mmap = (struct multiboot_mmap_entry *)((size_t)mmap + (size_t)mmap_tag->entry_size)) {
+				(size_t)mmap < (size_t)tag + size;
+				mmap = (struct multiboot_mmap_entry *)((size_t)mmap +
+					(size_t)SafeReadUint32(&mmap_tag->entry_size))) {
 
-				/*
-				PrintString("Base: ");
-				PrintHex(mmap->addr);
-				PrintString(" Length: ");
-				PrintNumber(mmap->len);
-				PrintString(" Type: ");
-				PrintNumber(mmap->type); 
-				PrintChar('\n');
-				*/
+				#ifdef DEBUG
+					PrintString("Base: ");
+					PrintHex(SafeReadUint64(&mmap->addr));
+					PrintString(" Length: ");
+					PrintNumber(SafeReadUint64(&mmap->len));
+					PrintString(" Type: ");
+					PrintNumber(SafeReadUint32(&mmap->type));
+					PrintChar('\n');
+				#endif
 
-				total_system_memory += mmap->len;
+				uint64 len = SafeReadUint64(&mmap->len);
+				total_system_memory += len;
 
-				if(mmap->type == MULTIBOOT_MEMORY_AVAILABLE) {
+				if(SafeReadUint32(&mmap->type) == MULTIBOOT_MEMORY_AVAILABLE) {
 					// This memory is avaliable for usage (in contrast to memory that is reserved, dead, etc.)
 					
-					size_t start = mmap->addr;
+					size_t start = SafeReadUint64(&mmap->addr);
+					size_t end = (start + len) & ~(PAGE_SIZE - 1); // Round down to page size.
+
 					// Make sure this is free memory past the kernel.
 					if(start < start_of_free_memory_at_boot)
 						start = start_of_free_memory_at_boot;
 
-					// Make the start and end aligned to page sizes.
-					start = (start + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // Round up.
-					size_t end = (mmap->addr + mmap->len) & ~(PAGE_SIZE - 1); // Round down.
+					start = (start + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // Round up to page size.
+
+
+					#ifdef DEBUG
+						if (end > start) {
+							PrintString("Adding pages from ");
+							PrintHex(start);
+							PrintString(" to ");
+							PrintHex(end - PAGE_SIZE);
+							PrintChar('\n');
+						}
+					#endif
 
 					// Now we will divide this memory up into pages and iterate through them.
 					size_t page_addr;
@@ -126,12 +165,7 @@ void InitializePhysicalAllocator() {
 
 						// Map this physical memory, so can write the previous stack page to it.
 						size_t *bp = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(page_addr);
-						/*
-						PrintHex(page_addr);
-						PrintString("->");
-						PrintHex((size_t)bp);
-						PrintString("\n");
-						*/
+						
 						// Write the previous stack head to the start of this page.
 						*bp = next_free_page_address;
 						// Sets the stack head to this page.
@@ -142,7 +176,7 @@ void InitializePhysicalAllocator() {
 				}
 
 			}
-		} else if(tag->type == MULTIBOOT_TAG_TYPE_FRAMEBUFFER) {
+		} else if(type == MULTIBOOT_TAG_TYPE_FRAMEBUFFER) {
 			// Not related to the physical memory manager, but since we're iterating through, we've
 			// found something interesting!
 			// handle_vesa_multiboot_header(tag);
@@ -158,11 +192,11 @@ void DoneWithMultibootMemory() {
 	size_t end = start_of_free_memory_at_boot;// (start_of_free_memory_at_boot + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // Round up.
 	
 	for (size_t page = start; page < end; page += PAGE_SIZE) {
-		/*
-		PrintString("Unmapping ");
-		PrintHex(page + VIRTUAL_MEMORY_OFFSET);
-		PrintChar('\n');
-		*/
+		#ifdef DEBUG
+			PrintString("Unmapping ");
+			PrintHex(page + VIRTUAL_MEMORY_OFFSET);
+			PrintChar('\n');
+		#endif
 		UnmapVirtualPage(kernel_pml4, page + VIRTUAL_MEMORY_OFFSET, true);
 	}
 }

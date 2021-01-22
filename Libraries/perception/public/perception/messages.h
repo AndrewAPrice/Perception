@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include "types.h"
 
 namespace perception {
@@ -31,22 +33,37 @@ enum class MessageStatus {
 	UNSUPPORTED = 4
 };
 
+// Generates a message identifier that is unique in this instance of the process.
+MessageId GenerateUniqueMessageId();
+
 // Sends a message to a process.
-MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1, size_t param2, size_t param3,
+MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1, size_t param2, size_t param3,
 	size_t param4, size_t param5);
-MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1, size_t param2, size_t param3,
+MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1, size_t param2, size_t param3,
 	size_t param4);
-MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1, size_t param2, size_t param3);
-MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1, size_t param2);
-MessageStatus SendMessage(size_t pid, size_t message_id, size_t param1);
-MessageStatus SendMessage(size_t pid, size_t message_id);
+MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1, size_t param2, size_t param3);
+MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1, size_t param2);
+MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1);
+MessageStatus SendMessage(ProcessId pid, MessageId message_id);
 
-// Sleeps until a message. Returns true if a message was received.
-bool SleepUntilMessage(size_t* senders_pid, size_t* message_id, size_t* param1, size_t* param2,
-	size_t* param3, size_t* param4, size_t* param5);
+// Registers the message handler to call when a specific message is received. Assigning
+// another handler to the same Message ID will override that handler.
+void RegisterMessageHandler(MessageId message_id, std::function<void(ProcessId,
+	size_t, size_t, size_t, size_t, size_t)> handler);
 
-// Polls for a message, returning false immediately if no message was received.
-bool PollMessage(size_t* senders_pid, size_t* message_id, size_t* param1, size_t* param2,
-	size_t* param3, size_t* param4, size_t* param5);
+// Unregisters the message handler, because we no longer care about handling these messages.
+void UnregisterMessageHandler(MessageId message_id);
+
+// Handles any queued messages, and returns when done. Returns immediately if
+// there are no messages queued.
+void HandleQueuedMessages();
+
+// Handles any queued messages, otherwise sleeps until we receive at least one message, and
+// then tries to handle it.
+void SleepAndHandleQueuedMessage();
+
+// Transfers power to the event loop, where the current thread will sleep and dispatch
+// messages as they are received.
+void TransferToEventLoop();
 	
 }

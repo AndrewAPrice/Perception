@@ -1,6 +1,7 @@
 #include "object_pools.h"
 
 #include "messages.h"
+#include "process.h"
 #include "liballoc.h"
 
 struct ObjectPoolItem {
@@ -44,6 +45,21 @@ struct Message* AllocateMessage() {
 // Release an message.
 void ReleaseMessage(struct Message* message) {
 	ReleaseObjectToPool(&message_pool, message);
+}
+
+
+struct ObjectPoolItem* process_to_notify_on_exit_pool = NULL;
+
+// Allocate a ProcessToNotifyOnExit.
+struct ProcessToNotifyOnExit* AllocateProcessToNotifyOnExit() {
+	return (struct ProcessToNotifyOnExit*) GrabOrAllocateObject(
+		&process_to_notify_on_exit_pool, sizeof (struct ProcessToNotifyOnExit));
+}
+
+// Release a ProcessToNotifyOnExit.
+void ReleaseProcessToNotifyOnExit(
+	struct ProcessToNotifyOnExit* process_to_notify_on_exit) {
+	ReleaseObjectToPool(&process_to_notify_on_exit_pool, process_to_notify_on_exit);
 }
 
 // Clean up object pools to gain some memory back.

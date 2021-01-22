@@ -1,20 +1,24 @@
 #include "process.h"
 
 #include "interrupts.h"
-#include "liballoc.h"
-#include "virtual_allocator.h"
 #include "io.h"
+#include "liballoc.h"
+#include "messages.h"
+#include "object_pools.h"
 #include "thread.h"
+#include "virtual_allocator.h"
 
 // The last assigned process ID.
 size_t last_assigned_pid = 0;
 
 //  Linked list of processes that are running.
 struct Process *first_process;
+struct Process *last_process;
 
 // Initializes the internal structures for tracking processes.
 void InitializeProcesses() {
-	first_process = 0;
+	first_process = NULL;
+	last_process = NULL;
 }
 
 // Creates a process, returns ERROR if there was an error.
@@ -51,16 +55,58 @@ struct Process *CreateProcess(bool is_driver) {
 	proc->threads = 0;
 	proc->thread_count = 0;
 
+	proc->processes_to_notify_when_i_die = NULL;
+	proc->processes_i_want_to_be_notified_of_when_they_die = NULL;
+
 	// Add to the linked list of running processes.
-	if(first_process) {
-		first_process->previous = proc;
+	if(first_process == NULL) {
+		// No running processes.
+		first_process = proc;
+		last_process = proc;
+		proc->previous = NULL;
+	} else {
+		last_process->next = proc;
+		proc->previous = last_process;
+		last_process = proc;
 	}
 
-	proc->next = first_process;
-	proc->previous = 0;
-	first_process = proc;
+	proc->next = NULL;
 
 	return proc;
+}
+
+// Releases a ProcessToNotifyOnExit object and disconnects it from the
+// linked lists.
+void ReleaseNotification(struct ProcessToNotifyOnExit* notification) {
+	// Remove from target.
+	if (notification->previous_in_target == NULL) {
+		notification->target->processes_to_notify_when_i_die =
+			notification->next_in_target;
+	} else {
+		notification->previous_in_target->next_in_target =
+			notification->next_in_target;
+	}
+
+	if (notification->next_in_target != NULL) {
+		notification->next_in_target->previous_in_target =
+			notification->previous_in_target;
+	}
+
+	// Remove from notifyee.
+	if (notification->previous_in_notifyee == NULL) {
+		notification->notifyee->processes_i_want_to_be_notified_of_when_they_die =
+			notification->next_in_notifyee;
+	} else {
+		notification->previous_in_notifyee->next_in_notifyee =
+			notification->next_in_notifyee;
+	}
+
+	if (notification->next_in_notifyee != NULL) {
+		notification->next_in_notifyee->previous_in_notifyee =
+			notification->previous_in_notifyee;
+	}
+
+	ReleaseProcessToNotifyOnExit(notification);
 }
 
 // Destroys a process .
@@ -75,8 +121,59 @@ void DestroyProcess(struct Process *process) {
 	// Free the address space.
 	FreeAddressSpace(process->pml4);
 
+	// Free all notifications I was waiting on for processes to die.
+	while (process->processes_i_want_to_be_notified_of_when_they_die
+		!= NULL) {
+		ReleaseNotification(
+			process->processes_i_want_to_be_notified_of_when_they_die);
+	}
+
+	// Notify the processes that were wanting to know when this process died.
+	while (process->processes_to_notify_when_i_die != NULL) {
+		SendKernelMessageToProcess(
+			process->processes_to_notify_when_i_die->notifyee,
+			process->processes_to_notify_when_i_die->event_id,
+			process->pid, 0, 0, 0, 0);
+		ReleaseNotification(process->processes_to_notify_when_i_die);
+	}
+
+	// Remove from linked list.
+	if (process->previous == NULL) {
+		first_process = process->next;
+	} else {
+		process->previous->next = process->next;
+	}
+
+	if (process->next == NULL) {
+		last_process = process->previous;
+	} else {
+		process->next->previous = process->previous;
+	}
+
 	// Free the process.
 	free(process);
+}
+
+// Registers that a process wants to be notified if another process dies.
+extern void NotifyProcessOnDeath(struct Process* target,
+	struct Process* notifyee, size_t event_id) {
+	struct ProcessToNotifyOnExit* notification = AllocateProcessToNotifyOnExit();
+	if (notification == NULL)
+		return;
+
+	notification->target = target;
+	notification->notifyee = notifyee;
+	notification->event_id = event_id;
+
+	notification->previous_in_target = NULL;
+	notification->next_in_target = target->processes_to_notify_when_i_die;
+	target->processes_to_notify_when_i_die = notification;
+
+	notification->previous_in_notifyee = NULL;
+	notification->next_in_notifyee =
+		notifyee->processes_i_want_to_be_notified_of_when_they_die;
+	notifyee->processes_i_want_to_be_notified_of_when_they_die =
+		notification;
 }
 
 // Returns a process with the provided pid, returns NULL if it doesn't
@@ -96,9 +193,10 @@ struct Process *GetProcessFromPid(size_t pid) {
 struct Process *GetProcessOrNextFromPid(size_t pid) {
 	// Walk through the linked list to find our process.
 	struct Process *proc = first_process;
-	for (struct Process *proc = first_process; proc != NULL; proc = proc->next)
+	for (struct Process *proc = first_process; proc != NULL; proc = proc->next) {
 		if(proc->pid >= pid)
 			return proc;
+	}
 
 	return (struct Process *)NULL;
 }

@@ -24,9 +24,6 @@ namespace perception {
 
 constexpr int kMaximumProcessNameLength = 88;
 
-// Used to identify processes.
-typedef size_t ProcessId;
-
 // Gets this ID of the currently running process.
 ProcessId GetProcessId();
 
@@ -47,10 +44,15 @@ void ForEachProcessWithName(std::string_view name,
 // Returns the name of the currently running process.
 std::string GetProcessName();
 
-// Returns the name of a process, or an empty string if the process doesn't exist.
+// Returns the name of a process, or an empty string if the process doesn't
+// exist.
 std::string GetProcessName(ProcessId pid); 
 
 // Returns true if the process exists.
 bool DoesProcessExist(ProcessId pid);
+
+// Registers that we want to be notified with a message upon the given process
+// terminating.
+void NotifyUponProcessTermination(ProcessId pid, size_t message_id);
 
 }

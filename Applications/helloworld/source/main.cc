@@ -38,7 +38,7 @@ void Child(std::unique_ptr<Something> something) {
 }
 
 int main() {
-
+/*
 	std::cout << "Hello " << "world " << (size_t)11 << '\n';
 	{
 		std::unique_ptr<Something> something = std::make_unique<Something>();
@@ -59,5 +59,24 @@ int main() {
 	std::cout << "Bool9: " << hello_world->GetBool9() << std::endl;
 	std::cout << "Name: " << *hello_world->GetName() << std::endl;
 	std::cout << "My name is " << perception::GetProcessName() << std::endl;
+	perception::ProcessId pid;
+	bool driver_found =
+		perception::GetFirstProcessWithName("PS2 Keyboard and Mouse Driver", pid);
+
+	if (!driver_found) {
+		std::cout << "Oh no, driver was not found." << std::endl;
+
+		return 0;
+	}
+	perception::NotifyUponProcessTermination(pid, 123);
+	size_t mpid, message_id, param1, param2, param3, param4, param5;
+	while (perception::SleepUntilMessage(&mpid, &message_id, &param1, &param2,
+		&param3, &param4, &param5)) {
+		if (mpid == 0 & message_id == 123 && param1 == pid) {
+			std::cout << "PS2 Keyboard and Mouse Driver died." << std::endl;
+		} else {
+			perception::DebugPrinterSingleton << "Unknown message sent to Hello World " << message_id << " from " << pid << ".\n";
+		}
+	}*/
 	return 0;
 }

@@ -145,20 +145,13 @@ void InitializePS2Controller() {
 int main() {
 	InitializePS2Controller();
 
+	perception::MessageId interrupt_1_handler
+
 	// Listen to the interrupts.
-	RegisterMessageToSendOnInterrupt(1, 0x12345);
-	RegisterMessageToSendOnInterrupt(12, 0x12345);
+	RegisterInterruptHandler(1, InterruptHandler);
+	RegisterInterruptHandler(12, InterruptHandler);
 
 	perception::DebugPrinterSingleton << "PS2 controller initialized.\n";
-
-	size_t pid, message_id, param1, param2, param3, param4, param5;
-	while (perception::SleepUntilMessage(&pid, &message_id, &param1, &param2,
-		&param3, &param4, &param5)) {
-		if (pid == 0 & message_id == 0x12345) {
-			InterruptHandler();
-		} else {
-			perception::DebugPrinterSingleton << "Unknown message " << message_id << " from " << pid << ".\n";
-		}
-	}
+	perception::TransferToEventLoop();
 	return 0;
 }

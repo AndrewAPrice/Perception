@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include "types.h"
 
 namespace perception {
@@ -21,10 +23,11 @@ namespace perception {
 // Functions for dealing with hardware interrupts. The program calling this must be a driver, otherwise
 // the caller will terminate!
 
-// Registers a message to send to this process upon receiving an interrupt.
-void RegisterMessageToSendOnInterrupt(uint8 interrupt, size_t message_id);
+// Registers a handler to call upon receiving an interrupt.
+MessageId RegisterInterruptHandler(uint8 interrupt,
+	std::function<void()> handler);
 
-// Unregisters a message to send to this process upon receiving an interrupt.
-void UnregisterMessageToSendOnInterrupt(uint8 interrupt, size_t message_id);
+// Unregisters a handler to call to upon receiving an interrupt.
+void UnregisterInterruptHandler(uint8 interrupt, MessageId message_id);
 
 }

@@ -30,4 +30,13 @@ typedef signed int int32;
 typedef signed short int16;
 typedef signed char int8;
 
+namespace perception {
+
+// Identifier for distinguishing types of messages.
+typedef size_t MessageId;
+// Used to identify processes.
+typedef size_t ProcessId;
+
+}
+
 #define NULL 0

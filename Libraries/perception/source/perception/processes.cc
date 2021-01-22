@@ -52,8 +52,8 @@ void TerminateProcess() {
 void TerminateProcesss(ProcessId pid) {
 #ifdef PERCEPTION
 	register size_t syscall_num asm ("rdi") = 7;
-	register size_t pid asm ("rax") = pid;
-	__asm__ ("syscall\n"::"r"(syscall_num), "r"(pid): "rcx", "r11");
+	register size_t pid_r asm ("rax") = pid;
+	__asm__ ("syscall\n"::"r"(syscall_num), "r"(pid_r): "rcx", "r11");
 #endif
 }
 
@@ -63,6 +63,7 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
 		return false;
 
 	size_t process_name[kMaximumProcessNameLength / 8];
+	memset(process_name, 0, kMaximumProcessNameLength);
 	memcpy(process_name, &name[0], name.size());
 
 	volatile register size_t syscall asm ("rdi") = 22;
@@ -262,10 +263,23 @@ bool DoesProcessExist(ProcessId pid) {
 
 	__asm__ __volatile__ ("syscall\n":"=r"(was_process_found):
 		"r"(syscall), "r"(pid_r):
-		"rax", "rbx", "rcx", "rdx", "rsi", "r8", "r9", "r10", "r11", "r12",
+		"rbx", "rcx", "rdx", "rsi", "r8", "r9", "r10", "r11", "r12",
 		"r13", "r14", "r15");
 
 	return was_process_found;
+}
+
+// Registers that we want to be notified with a message upon the given process
+// terminating.
+void NotifyUponProcessTermination(ProcessId pid, size_t message_id) {
+#ifdef PERCEPTION
+	volatile register size_t syscall_num asm ("rdi") = 30;
+	volatile register size_t pid_r asm ("rax") = pid;
+	volatile register size_t message_id_r asm ("rbx") = message_id;
+
+	__asm__ __volatile__ ("syscall\n"::"r"(syscall_num),"r"(pid_r),
+		"r"(message_id_r): "rcx", "r11");
+#endif
 }
 
 }

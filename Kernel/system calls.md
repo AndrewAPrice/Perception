@@ -345,13 +345,12 @@ Nothing.
 * `r14` - Process ID 6.
 * `r15` - Service ID 6.
 
-### Output
-Nothing.
-
 ## Notify when service appears
+Also sends an event for all existing notifications with this name.
 
 ### Input
 * `rdi` - 35
+* `rbp` - The event ID to send when the service appears.
 * `rax` - Char 0-7.
 * `rbx` - Char 8-15.
 * `rdx` - Char 16-23.
@@ -431,15 +430,13 @@ Sends a message to a process.
 * `rbx` - The ID of the process to send the message to.
 * `rdx` - Parameters bitfield:
 	- Bit 0: Are we sending pages?
-	- Bit 1: Is this an RPC that we're expecting a response from?
-
-If rdx[0] is '1':
-* `rsi` - Size of the message.
-* `r8` - Address of the first memory page.
-If rdx[0] is '0':
 * `rsi` - The first parameter.
 * `r8` - The second parameter.
 * `r9` - The third parameter.
+If rdx[0] is '1':
+* `r10` - The size of the message.
+* `r11` - Address of the first memory page.
+If rdx[0] is '0':
 * `r10` - The fourth parameter.
 * `r11` - The fifth parameter.
 
@@ -467,15 +464,13 @@ If there was a message queued:
 * `rbx` - The ID of the process to send the message to.
 * `rdx` - Parameters bitfield:
 	- Bit 0: Are these pages?
-	- Bit 1: Is this an RPC we should respond to?
-
-If rdx[0] is '1':
-* `rsi` - The size of the message.
-* `r8` - Address of the first memory page.
-If rdx[0] is '0':
 * `rsi` - The first parameter.
 * `r8` - The second parameter.
 * `r9` - The third parameter.
+If rdx[0] is '1':
+* `r10` - The size of the message.
+* `r11` - Address of the first memory page.
+If rdx[0] is '0':
 * `r10` - The fourth parameter.
 * `r11` - The fifth parameter.
 
