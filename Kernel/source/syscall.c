@@ -180,9 +180,19 @@ void SyscallHandler(int syscall_number) {
 			DestroyProcess(running_thread->process);
 			JumpIntoThread(); // Doesn't return.
 			break;
-		case TERMINATE_PROCESS:
-			PrintString("Implement TERMINATE_PROCESS\n");
+		case TERMINATE_PROCESS: {
+			struct Process* process =
+				GetProcessFromPid(currently_executing_thread_regs->rax);
+			if (process == NULL) {
+				break;
+			}
+			bool currently_running_process = process == running_thread->process;
+			DestroyProcess(process);
+			if (currently_running_process) {
+				JumpIntoThread(); // Doesn't return.
+			}
 			break;
+		}
 		case GET_PROCESS_BY_NAME: {
 			// Extract the name from the input registers.
 			size_t process_name[PROCESS_NAME_WORDS];

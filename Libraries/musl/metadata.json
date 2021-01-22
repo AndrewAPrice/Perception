@@ -11,8 +11,10 @@
 		"_GNU_SOURCE"
 	],
 	"dependencies":[
-		"perception"
+		"perception",
+		"libcxx"
 	],
 	"third_party": true,
 	"skip_local": true
 }
+

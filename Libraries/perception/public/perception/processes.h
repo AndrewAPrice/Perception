@@ -17,6 +17,7 @@
 #include "types.h"
 
 #include <functional>
+#include <string>
 #include <string_view>
 
 namespace perception {
@@ -32,12 +33,24 @@ ProcessId GetProcessId();
 // Terminates the currently running process.
 void TerminateProcess();
 
+// Terminates a process.
+void TerminateProcesss(ProcessId pid);
+
 // Populates `pid` with the ID of the first process with the provided name.
 // Returns true if succesful, or false if no process was found.
 bool GetFirstProcessWithName(std::string_view name, ProcessId& pid);
 
 // Retrieves the ID of each process with the provided name.
-void ForEachProcessWithName(std::string_view,
+void ForEachProcessWithName(std::string_view name,
 	const std::function<void(ProcessId)>& on_each_process);
+
+// Returns the name of the currently running process.
+std::string GetProcessName();
+
+// Returns the name of a process, or an empty string if the process doesn't exist.
+std::string GetProcessName(ProcessId pid); 
+
+// Returns true if the process exists.
+bool DoesProcessExist(ProcessId pid);
 
 }

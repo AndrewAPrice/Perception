@@ -14,6 +14,7 @@
 
 #include "perception/debug.h"
 #include "perception/messages.h"
+#include "perception/processes.h"
 #include "perception/threads.h"
 
 #include "permebuf/Libraries/perception/helloworld.permebuf.h"
@@ -57,5 +58,6 @@ int main() {
 	std::cout << "Bool5: " << hello_world->GetBool5() << std::endl;
 	std::cout << "Bool9: " << hello_world->GetBool9() << std::endl;
 	std::cout << "Name: " << *hello_world->GetName() << std::endl;
+	std::cout << "My name is " << perception::GetProcessName() << std::endl;
 	return 0;
 }

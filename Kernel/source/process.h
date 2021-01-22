@@ -12,7 +12,27 @@ typedef size_t reg64;*/
 
 struct MessageToFireOnInterrupt;
 struct Message;
+struct Process;
 struct Thread;
+
+struct ProcessToNotifyOnExit {
+	// The process to trigger a message for when it dies.
+	struct Process* process_listening_for;
+
+	// The process to notify when the above process dies.
+	struct Process* process_to_notify;
+
+	// The ID of the notification message.
+	size_t message_id;
+
+	// Linked list of notification messages within `process_listening_for`.
+	struct ProcessToNotifyOnExit* previous_in_process_to_notify;
+	struct ProcessToNotifyOnExit* next_in_process_to_notify;
+
+	// Linked list of notification messages within `process_to_notify`.
+	struct ProcessToNotifyOnExit* previous_in_process_listening_for;
+	struct ProcessToNotifyOnExit* next_in_process_listening_for;
+};
 
 struct Process {
 	// Unique ID to identify this process.
@@ -49,6 +69,9 @@ struct Process {
 	// Linked list of processes.
 	struct Process *next;
 	struct Process *previous;
+
+	struct ProcessToNotifyOnExit* processes_to_notify_when_i_die;
+	struct ProcessToNotifyOnExit* processes_i_want_to_be_notified_of_when_they_die;
 };
 
 // Initializes the internal structures for tracking processes.
