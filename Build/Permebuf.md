@@ -143,6 +143,15 @@ Each entry needs to have an option number which is unique within the oneof block
 
 Oneofs can be nested inside of messages.
 
+### Mini-messages
+Mini-messages are messages that have a fixed size up to 32 bytes. Mini-messages are defined as
+```
+minimessage <name> {
+	<fields>
+}
+```
+Only primitive types are allowed. Lists, arrays, strings, messages, oneofs, other mini-messages are not allowed. Bytes are allowed, but they need to specify a size, e.g. `bytes<10>` for a 10 byte array.
+
 ### Services
 A service is a collection of exposed functions. Processes can create instances of services that other processes can all. This forms the basis of cross-process function calling.
 ```
@@ -157,10 +166,12 @@ The name is joined with the current namespace with '.' as the delimiter. The ful
 ### Function
 A function can be defined inside of a service as:
 ```
-<name> : <request message type> : <response message type> = <function number>;
+<name> : <request message type> [-> <response message type>] = <function number>;
 ```
 
-The name and number must be unique inside of the message. The maximum function number is 18446744073709551615.
+The name and number must be unique inside of the message. The maximum function number is 18446744073709551615. The message type may be either a message or a mini-message. One-way messages can skip a response message type.
+
+If a request or response type is prefixed with `*`, then it is considered a multi-message stream.
 
 
 ### Reserved functions.

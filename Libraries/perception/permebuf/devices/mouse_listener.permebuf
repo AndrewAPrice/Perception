@@ -1,0 +1,98 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+namespace perception.devices;
+
+// Represents a mouse button.
+enum MouseButton {
+	Left = 1;
+	Middle = 2;
+	Right = 3;
+}
+
+// A service that can listen to mouse events.
+service MouseListener {
+	// The mouse has moved. This message is sent when the listener has held the
+	// mouse captive.
+	minimessage OnMouseMoveRequest {
+		// How far the mouse moved horizontally.
+		DeltaX : float32 = 1;
+
+		// How far the mouse moved vertically.
+		DeltaY : float32 = 2;
+	}
+	OnMouseMove : OnMouseMoveRequest = 0;
+
+	// The mouse has scrolled. This message is sent either when the listener
+	// has held the mouse captive, or the cursor is over the window.
+	minimessage OnMouseScrollRequest {
+		// How far the mouse scrolled.
+		Delta : float32 = 1;
+	}
+	OnMouseScroll : OnMouseScrollRequest = 1;
+
+	// A mouse button has done something. This message is sent when the
+	// listener has held the mouse captive.
+	minimessage OnMouseButtonRequest {
+		// Which mouse button changed.
+		Button : MouseButton = 1;
+
+		// Was the mouse pressed, or released?
+		WasPressedDown : bool = 2;
+	}
+	OnMouseButton : OnMouseButtonRequest = 2;
+
+	// The mouse has clicked. This message is sent when the mouse is not held
+	// captive but the user has clicked something inside the window.
+	minimessage OnMouseClickRequest {
+		// Which mouse button changed.
+		Button : MouseButton = 1;
+
+		// The X coordinate within the window that the click occured.
+		X : int32 = 2;
+
+		// The Y coordinate within the window that the click occured.
+		Y : int32 = 3;
+
+		// Was the mouse pressed, or released?
+		WasPressedDown : bool = 4;
+	}
+	OnMouseClick : OnMouseClickRequest = 3;
+
+	// The mouse has entered the window.
+	minimessage OnMouseEnterRequest {}
+	OnMouseEnter : OnMouseEnterRequest = 4;
+
+	// The mouse has left the window.
+	minimessage OnMouseLeaveRequest {}
+	OnMouseLeave : OnMouseLevelRequest = 5;
+
+	// The mouse has hovered over something in the window.
+	minimessage OnMouseHoverRequest {
+		// The X coordinate within the window where the mouse is hovering.
+		X : int32 = 1;
+
+		// The Y coordinate within the window where the mouse is hovering.
+		Y : int32 = 2;
+	}
+	OnMouseHover : OnMouseHoverRequest = 6;
+
+	// The mouse has been taken captive.
+	minimessage OnMouseTakenCaptiveRequest {}
+	OnMouseTakenCaptive : OnMouseTakenCaptiveRequest = 7;
+
+	// The mouse has been released.
+	minimessage OnMouseReleaseRequest {}
+	OnMouseRelease : OnMouseReleaseRequest = 8;
+}

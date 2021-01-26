@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Class types.
+import "devices/mouse_listener.permebuf"
 
-module.exports = {
-	ENUM: 0,
-	MESSAGE: 1,
-	MINIMESSAGE: 2,
-	ONEOF: 3,
-	SERVICE: 4
-};
+namespace perception.devices;
+
+service MouseDriver {
+	// Specifies the service that we should send mouse events to.
+	minimessage SetMouseListenerRequest {
+		// The service we should send mouse events to.
+		NewListener : MouseListener = 1;	
+	}
+	SetMouseListener : SetMouseListenerRequest = 1;
+}

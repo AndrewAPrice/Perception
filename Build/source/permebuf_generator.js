@@ -48,6 +48,9 @@ const FieldType = {
 	NUMBER: 8
 };
 
+// Maximum size of a mini-message, in bytes.
+const MAX_MINI_MESSAGE_SIZE = 32;
+
 function getFullCppName(field) {
 	// Convert the namespace to C++ namespace.
 	let fullName = '::permebuf::';
@@ -268,6 +271,13 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 				'sizeInBytes': 0,
 				'sizeInPointers': 1
 			};
+		} else if (typeStr.startsWith('bytes<') && typeStr.endsWith('>')) {
+			return {
+				'type': FieldType.BYTES,
+				'subtype' : subType,
+				'sizeInBytes': parseInt(typeStr.slice(6, -1)),
+				'sizeInPointers': 0
+			};
 		}
 
 		// Must be either an enum, oneof, or message.
@@ -339,6 +349,44 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 				
 			} while (namePrefix.length > 0);
 		}
+	}
+
+	function generateEnum(thisEnum) {
+		liteHeaderCpp += '\nenum class ' + thisEnum.cppClassName + ' : unsigned short {\n' +
+			'\tUnknown = 0';
+
+		const usedFieldNumbers = {0: true};
+		const usedFieldNames = {'Unknown': true};
+
+		const enumFieldKeys = Object.keys(thisEnum.fields);
+
+		for (let i = 0; i < enumFieldKeys.length; i++) {
+			const enumField = thisEnum.fields[enumFieldKeys[i]];
+
+			if (usedFieldNumbers[enumField.number]) {
+				console.log('Field ' + enumField.name + ' in ' + thisEnum.fullName +
+					' is using already used value of ' + enumField.number);
+				return false;
+			}
+			if (enumField.number >= 65536) {
+				console.log('Field ' + enumField.name + ' in ' + thisEnum.fullName +
+					' has a value above the maximum allowed of 65535.');
+				return false;
+			}
+			usedFieldNumbers[enumField.number] = true;
+
+			if (usedFieldNames[enumField.name]) {
+				console.log('Enum ' + thisEnum.fullName + ' has multiple fields labelled ' +
+					enumField.name);
+				return false;
+			}
+			usedFieldNames[enumField.number] = true;
+
+			liteHeaderCpp += ',\n\t' + enumField.name + ' = ' + enumField.number;
+		}
+
+		liteHeaderCpp += '\n};\n';
+		return true;
 	}
 
 	function generateMessage(thisMessage) {
@@ -764,6 +812,12 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'}\n';
 						break;
 					case FieldType.BYTES:
+						if (typeInformation.sizeInPointers == 0) {
+							console.log('Bytes with fixed sizes aren\'t supported in messages. ' +
+							field.type + ' is being used for field ' + field.name + '/' + field.number +
+							' in message ' + thisMessage.fullName + '.');
+							return false;
+						}
 						headerCpp += '\t\t::PermebufBytes Get' + field.name + '() const;\n' +
 							'\t\tvoid Set' + field.name + '(::PermebufBytes& value);\n' +
 							'\t\tvoid Set' + field.name + '(const void* ptr, size_t size);\n' +
@@ -870,7 +924,6 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 			sizeInPointers += typeInformation.sizeInPointers;
 		}
 
-
 		if (thisMessage.children.length > 0) {
 			headerCpp += '\n';
 			for (let i = 0; i < thisMessage.children.length; i++) {
@@ -918,46 +971,206 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 		return true;
 	}
 
-	function generateEnum(thisEnum) {
-		liteHeaderCpp += '\nenum class ' + thisEnum.cppClassName + ' : unsigned short {\n' +
-			'\tUnknown = 0';
+	function generateMiniMessage(thisMessage) {
+		headerCpp += '\nclass ' + thisMessage.cppClassName + ' : public PermebufMiniMessage {\n' +
+			'\tpublic:\n';
 
-		const usedFieldNumbers = {0: true};
-		const usedFieldNames = {'Unknown': true};
+		// Size of this message, in bytes.
+		let sizeInBytes = 0;
 
-		const enumFieldKeys = Object.keys(thisEnum.fields);
+		// Pretend all 8 bits are used, so the next boolean we encounter will allocate a new
+		// byte.
+		let bitfieldByteOffset = -1;
+		let bitfieldPointerOffset = -1;
+		let bitfieldBit = 7;
 
-		for (let i = 0; i < enumFieldKeys.length; i++) {
-			const enumField = thisEnum.fields[enumFieldKeys[i]];
-
-			if (usedFieldNumbers[enumField.number]) {
-				console.log('Field ' + enumField.name + ' in ' + thisEnum.fullName +
-					' is using already used value of ' + enumField.number);
+		// Construct a map of fields by number, so we can loop through them in order.
+		const fieldsByNumber = {0: true};
+		let maxFieldNumber = 0;
+		const fieldNames = Object.keys(thisMessage.fields);
+		for (let i = 0; i < fieldNames.length; i++) {
+			const field = thisMessage.fields[fieldNames[i]];
+			if (fieldsByNumber[field.number]) {
+				console.log('Field ' + field.name + ' has a field number of ' + field.number +
+					' but message ' + thisMessage.fullName + ' already has a field with that number.');
 				return false;
 			}
-			if (enumField.number >= 65536) {
-				console.log('Field ' + enumField.name + ' in ' + thisEnum.fullName +
-					' has a value above the maximum allowed of 65535.');
-				return false;
+			fieldsByNumber[field.number] = field;
+			if (field.number > maxFieldNumber) {
+				maxFieldNumber = field.number;
 			}
-			usedFieldNumbers[enumField.number] = true;
-
-			if (usedFieldNames[enumField.name]) {
-				console.log('Enum ' + thisEnum.fullName + ' has multiple fields labelled ' +
-					enumField.name);
-				return false;
-			}
-			usedFieldNames[enumField.number] = true;
-
-			liteHeaderCpp += ',\n\t' + enumField.name + ' = ' + enumField.number;
 		}
 
-		liteHeaderCpp += '\n};\n';
+		for (let i = 0; i < thisMessage.reservedFields.length; i++) {
+			const field = thisMessage.reservedFields[i];
+			if (fieldsByNumber[field.number]) {
+				console.log('Mini-message ' + thisMessage.fullName + ' is trying to reserve the field ' +
+					'number ' + field.number + ' but the field number is already used.');
+				return false;
+			}
+			fieldsByNumber[field.number] = field;
+			if (field.number > maxFieldNumber) {
+				maxFieldNumber = field.number;
+			}
+		}
+
+		// Loop through the fields.
+		for (let i = 1; i <= maxFieldNumber; i++) {
+			if (!fieldsByNumber[i]) {
+				console.log('Mini-message ' + thisMessage.fullName + ' has a gap in the field numbers. ' +
+					'We are missing field ' + i + ', and the highest field number is ' + maxFieldNumber +
+					'. You can keep backwards compatibility by reserving a no longer used field.');
+				return false;
+			}
+			const field = fieldsByNumber[i];
+			const typeInformation = getTypeInformation(thisMessage, field);
+			if (!typeInformation) {
+				return false;
+			}
+
+			if (typeInformation.type == FieldType.BOOLEAN) {
+				// Booleans sizes are handle specially, because they are grouped together into
+				// bit field bytes.
+				bitfieldBit++;
+				if (bitfieldBit == 8) {
+					bitfieldBit = 0;
+					bitfieldByteOffset = sizeInBytes;
+					sizeInBytes++;
+				}
+			}
+
+			// Only generate code for fields that are not reserved.
+			if (field.name != 'reserve') {
+				switch (typeInformation.type) {
+					case FieldType.BOOLEAN:
+						headerCpp += '\t\tbool Get' + field.name + '() const;\n' +
+							'\t\tvoid Set' + field.name + '(bool value);\n' +
+							'\t\tvoid Clear' + field.name + '();\n';
+
+						sourceCpp += '\nbool ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
+							'\tsize_t address_offset = ' + bitfieldByteOffset + ';\n' +
+							'\treturn static_cast<bool>(';
+						if (bitfieldBit == 0) {
+							sourceCpp += 'raw[address_offset]';
+						} else {
+							sourceCpp += '(raw[address_offset] >> ' + bitfieldBit + ')';
+						}
+						sourceCpp += ' & 1);\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(bool value) {\n' +
+							'\tsize_t address_offset = ' + bitfieldByteOffset + ';\n' +
+							'\tif (value) {\n' +
+							'\t\raw[address_offset] |= ' + (1 << bitfieldBit) + ';\n' +
+							'\t} else {\n' +
+							'\t\raw[address_offset] &= ~' + (1 << bitfieldBit) + ';\n' +
+							'\t}\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
+							'\tSet' + field.name + '(false);\n' +
+							'}\n';
+						break;
+					case FieldType.ARRAY:
+					case FieldType.LIST:
+					case FieldType.MESSAGE:
+					case FieldType.ONE_OF:
+					case FieldType.STRING:
+						console.log('Arrays, lists, messages, and one-ofs aren\'t supported in mini-messages. ' +
+							field.type + ' is being used for field ' + field.name + '/' + field.number +
+							' in message ' + thisMessage.fullName + '.');
+						return false;
+					case FieldType.ENUM:
+						headerCpp += '\t\t' + typeInformation.cppClassName + ' Get' + field.name + '() const;\n' +
+							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '& value);\n' +
+							'\t\tvoid Clear' + field.name + '();\n';
+
+						sourceCpp += '\n' + typeInformation.cppClassName + ' ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
+							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
+							'\treturn *reinterpret_cast<' + typeInformation.cppClassName + '*>(&raw[address_offset]);\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
+							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
+							'\t*reinterpret_cast<' + typeInformation.cppClassName + '*>(&raw[address_offset]) = value;;\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
+							'\tSet' + field.name + '(' + typeInformation.cppClassName + '::Unknown);\n' +
+							'}\n';
+						break;
+					case FieldType.BYTES:
+						if (typeInformation.sizeInPointers == 1) {
+							console.log('Bytes are only supported in mini-messages if they have a fixed size. ' +
+							field.type + ' is being used for field ' + field.name + '/' + field.number +
+							' in message ' + thisMessage.fullName + '.');
+							return false;
+						}
+						headerCpp += '\t\tconst void* Raw' + field.name + '() const;\n' +
+							'\t\tvoid* Raw' + field.name + '();\n' +
+							'\t\tsize_t SizeOf ' + field.name + '() const { return ' + typeInformation.sizeInBytes + '; }\n';
+
+						sourceCpp += '\nconst void* ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
+							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
+							'\treturn &raw[address_offset];\n' +
+							'}\n' +
+							'\nvoid* ' + thisMessage.cppClassName + '::Get' + field.name + '() {\n' +
+							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
+							'\treturn &raw[address_offset];\n' +
+							'}\n';
+						break;
+					case FieldType.NUMBER:
+						headerCpp += '\t\t' + typeInformation.cppClassName + ' Get' + field.name + '() const;\n' +
+							'\t\tvoid Set' + field.name + '(' + typeInformation.cppClassName + ' value);\n' +
+							'\t\tvoid Clear' + field.name + '();\n';
+
+						sourceCpp += '\n' + typeInformation.cppClassName + ' ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
+							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
+							'\tauto temp_value = *(uint' + (typeInformation.sizeInBytes * 8) + '_t*)(&raw[address_offset]);\n' +
+							'\treturn *reinterpret_cast<' + typeInformation.cppClassName + '*>(&temp_value);\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(' + typeInformation.cppClassName + ' value) {\n' +
+							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
+							'\t*(uint' + (typeInformation.sizeInBytes * 8) + '_t*)(&raw[address_offset]) = ' +
+								'*reinterpret_cast<uint' + (typeInformation.sizeInBytes * 8) + '_t*>(&value);\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
+							'\tSet' + field.name + '(0);\n' +
+							'}\n';
+						break;
+					default:
+						return false;
+				}
+			}
+
+			sizeInBytes += typeInformation.sizeInBytes;
+
+			// Make sure our mini-message can fit within the size constraints.
+			if (sizeInBytes > MAX_MINI_MESSAGE_SIZE) {
+				console.log('Mini-message ' + thisMessage.fullName + ' is ' + sizeInBytes + ' and the ' +
+					'maximum allowed size of a mini-message is ' + MAX_MINI_MESSAGE_SIZE + '.');
+				return false;
+
+			}
+		}
+
+		if (thisMessage.children.length > 0) {
+			headerCpp += '\n';
+			for (let i = 0; i < thisMessage.children.length; i++) {
+				const child = thisMessage.children[i];
+				headerCpp += '\t\ttypedef ' + child.cppClassName + ' ' + child.name + ';\n';
+			}
+		}
+
+		headerCpp += '};\n';
+
+		console.log(thisMessage);
 		return true;
 	}
 
 	function generateOneof(thisOneof) {
-		// TODO
+		console.log('permebuf_generator.js:generateOneof is not implemented');
+		return false;
+	}
+
+	function generateService(thisService) {
+		console.log('permebuf_generator.js:generateService is not implemented');
 		return true;
 	}
 
@@ -987,18 +1200,28 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 		}
 
 		switch (symbolToGenerate.classType) {
-			case ClassType.MESSAGE:
-				if (!generateMessage(symbolToGenerate)) {
-					return false;
-				}
-				break;
 			case ClassType.ENUM:
 				if (!generateEnum(symbolToGenerate)) {
 					return false;
 				}
 				break;
+			case ClassType.MESSAGE:
+				if (!generateMessage(symbolToGenerate)) {
+					return false;
+				}
+				break;
+			case ClassType.MINIMESSAGE:
+				if (!generateMiniMessage(symbolToGenerate)) {
+					return false;
+				}
+				break;
 			case ClassType.ONEOF:
 				if (!generateOneOf(symbolsToGenerate)) {
+					return false;
+				}
+				break;
+			case ClassType.SERVICE:
+				if (!generateService(symbolToGenerate)) {
 					return false;
 				}
 				break;

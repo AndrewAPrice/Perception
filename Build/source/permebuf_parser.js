@@ -88,12 +88,11 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 		let importedLocalPath = '';
 		let subPackageName = packageName;
 		let subPackageType = packageType;
-
 		switch (lexer.peekToken()) {
-			case '<':
+			case '<': {
 				// Import file from another library.
 				lexer.readToken();
-				path = parsePath();
+				const path = parsePath();
 				if (!path || !lexer.expectToken('>') || !lexer.expectToken(';')) {
 					return false;
 				}
@@ -101,16 +100,19 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 				subPackageName = path[0];
 				importedLocalPath = path.splice(1).join('/');
 				subPackageType = PackageType.LIBRARY;
-			case '"':
+				break;
+			}
+			case '"': {
 				// Import file from this package.
 				lexer.readToken();
-				path = parsePath();
+				const path = parsePath();
 				if (!path || !lexer.expectToken('"') || !lexer.expectToken(';')) {
 					return false;
 				}
 
 				importedLocalPath = path.join('/');
 				break;
+			}
 			default:
 				lexer.expectToken(['<', '"'], lexer.readToken());
 				return false;
@@ -290,6 +292,87 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 		return true;
 	}
 
+	function parseServiceField(thisService) {
+		const fieldName = lexer.readToken();
+		if (!permebufLexer.isIdentifier(fieldName)) {
+			lexer.expectedTokens(['identifier for the message field name'], messageName);
+			return false;
+		}
+
+		if (!lexer.expectToken(':')) {
+			return false;
+		}
+
+		let isRequestStream = false;
+		if (lexer.peekToken() == '*') {
+			lexer.expectToken('*');
+			isRequestStream = true;
+		}
+		const requestType = parseType();
+		if (!requestType) {
+			lexer.expectedTokens(['type'], lexer.readToken());
+			return false;
+		}
+
+		let isResponseStream = false;
+		let responseType = null;
+
+		if (lexer.peekToken() == '-') {
+			// We have a response.
+			lexer.expectToken('-');
+			if (!lexer.expectToken('>')) {
+				return false;
+			}
+
+			if (lexer.peekToken() == '*') {
+				lexer.expectToken('*');
+				isResponseStream = true;
+			}
+
+			responseType = parseType();
+			if (!responseType) {
+				lexer.expectedTokens(['type'], lexer.readToken());
+				return false;
+			}
+		}
+
+		if (!lexer.expectToken('=')) {
+			return false;
+		}
+
+		const fieldNumber = lexer.readToken();
+		if (!permebufLexer.isNumber(fieldNumber)) {
+			lexer.expectedTokens(['function number'], fieldNumber);
+			return false;
+		}
+
+		if (!lexer.expectToken(';')) {
+			return false;
+		}
+
+		if (fileBeingCompiled) {
+			if (permebufLexer.isFirstCharNum(fieldName)) {
+				fieldName = '_' + fieldName;
+			}
+
+			if (thisService.fields[fieldName]) {
+				lexer.expectedTokens(['a unique function field name'], fieldName);
+				return false;
+			}
+
+			thisService.fields[fieldName] = {
+				'name': fieldName,
+				'number': parseInt(fieldNumber),
+				'isRequestStream': isRequestStream,
+				'requestType': requestType,
+				'isResponseStream': isResponseStream,
+				'responseType': responseType
+			};
+		}
+
+		return true;
+	}
+
 	function parseReserve(thisClass) {
 		if (thisClass.classType != ClassType.MESSAGE) {
 			console.log('\'reserve\' can only be used in messages, and ' +
@@ -355,14 +438,20 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 		let classType;
 		const classTypeStr = lexer.readToken();
 		switch (classTypeStr) {
-			case 'message':
-				classType = ClassType.MESSAGE;
-				break;
 			case 'enum':
 				classType = ClassType.ENUM;
 				break;
+			case 'message':
+				classType = ClassType.MESSAGE;
+				break;
+			case 'minimessage':
+				classType = ClassType.MINIMESSAGE;
+				break;
 			case 'oneof':
 				classType = ClassType.ONEOF;
+				break;
+			case 'service':
+				classType = ClassType.SERVICE;
 				break;
 			default:
 				lexer.expectedTokens(['message', 'enum', 'oneof'], classTypeStr);
@@ -412,9 +501,11 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 
 		while (true) {
 			switch (lexer.peekToken()) {
-				case 'message':
 				case 'enum':
+				case 'minimessage':
+				case 'message':
 				case 'oneof':
+				case 'service':
 					if (!parseClass(thisClass)) {
 						return false;
 					}
@@ -429,6 +520,7 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 					break;
 				default:
 					switch (classType) {
+						case ClassType.MINIMESSAGE:
 						case ClassType.MESSAGE:
 							if (!parseMessageField(thisClass)) {
 								return false;
@@ -442,6 +534,11 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 						case ClassType.ONEOF:
 							// During parsing, enum and message fields are the same.
 							if (!parseMessageField(thisClass)) {
+								return false;
+							}
+							break;
+						case ClassType.SERVICE:
+							if (!parseServiceField(thisClass)) {
 								return false;
 							}
 							break;
@@ -483,9 +580,11 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 					return false;
 				}
 				break;
-			case 'message':
 			case 'enum':
+			case 'message':
+			case 'minimessage':
 			case 'oneof':
+			case 'service':
 				if (!parseClass(null)) {
 					return false;
 				}

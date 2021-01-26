@@ -359,4 +359,18 @@ private:
 
 };
 
+// Represents a small 32-byte message.
+class PermebufMiniMessage {
+public:
+	PermebufMiniMessage();
+	void Serialize(size_t& a, size_t& b, size_t& c, size_t& d) const;
+	void Deserialize(size_t a, size_t b, size_t c, size_t d);
+
+protected:
+	union {
+		uint8_t bytes[32];
+		size_t words[4];
+	};
+};
+
 #include "permebuf_implementation.inl"

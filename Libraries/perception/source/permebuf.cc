@@ -763,3 +763,22 @@ size_t PermebufBase::GetBytesNeededForVariableLengthNumber(size_t value) const {
 	}
 }
 
+PermebufMiniMessage::PermebufMiniMessage() {
+	for (int word = 0; word < 4; word++)
+		words[word] = 0;
+}
+
+void PermebufMiniMessage::Serialize(
+	size_t& a, size_t& b, size_t& c, size_t& d) const {
+	a = words[0];
+	b = words[1];
+	c = words[2];
+	d = words[3];
+}
+
+void PermebufMiniMessage::Deserialize(size_t a, size_t b, size_t c, size_t d) {
+	words[0] = a;
+	words[1] = b;
+	words[2] = c;
+	words[3] = d;
+}
