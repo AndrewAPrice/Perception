@@ -42,14 +42,19 @@ const FieldType = {
 	LIST: 2,
 	ENUM: 3,
 	MESSAGE: 4,
-	ONE_OF: 5,
-	STRING: 6,
-	BYTES: 7,
-	NUMBER: 8
+	MINIMESSAGE: 5,
+	ONE_OF: 6,
+	STRING: 7,
+	BYTES: 8,
+	NUMBER: 9,
+	SERIVCE: 10
 };
 
 // Maximum size of a mini-message, in bytes.
 const MAX_MINI_MESSAGE_SIZE = 32;
+
+// Maximum number of a service function.
+const MAX_SERVICE_FUNCTION_NUMBER = Math.pow(2, 61) - 1;
 
 function getFullCppName(field) {
 	// Convert the namespace to C++ namespace.
@@ -99,18 +104,20 @@ function convertArrayOrListToCppTypeSuffix(typeInformation) {
 	}
 }
 
-function generateCppSources(localPath, packageName, packageType, symbolTable, symbolsToGenerate, cppIncludeFiles) {
+function generateCppSources(localPath, packageName, packageType, symbolTable, symbolsToGenerate, cppIncludeFiles, cppIncludeLiteFiles) {
 	const generatedFilePath = 'permebuf/' + getPackageTypeDirectoryName(packageType) + '/' + packageName + '/' + localPath;
 	let headerCpp = '#pragma once\n\n';
-	Object.keys(cppIncludeFiles).forEach((includeFile) => {
+	Object.keys(cppIncludeLiteFiles).forEach((includeFile) => {
 		headerCpp += '#include "' + includeFile + '"\n';
 	})
 	let liteHeaderCpp = '#pragma once\n' +
 		'\n#include "permebuf.h"\n' +
 		'\n#include <stddef.h>\n' +
 		'#include <stdint.h>\n';
-	let sourceCpp = 
-		'#include "' + generatedFilePath + '.h"\n';
+	let sourceCpp =  '';
+	Object.keys(cppIncludeFiles).forEach((includeFile) => {
+		sourceCpp += '#include "' + includeFile + '"\n';
+	})
 
 	let namespaceLevels = 0;
 
@@ -309,6 +316,20 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 						'cppClassName': getFullCppName(symbol),
 						'sizeInBytes': 2,
 						'sizeInPointers': 1
+					};
+				case ClassType.MINIMESSAGE:
+					return {
+						'type': FieldType.MINIMESSAGE,
+						'cppClassName': getFullCppName(symbol),
+						'sizeInBytes': MAX_MINI_MESSAGE_SIZE,
+						'sizeInPointers': 0
+					};
+				case ClassType.SERVICE:
+					return {
+						'type': FieldType.SERVICE,
+						'cppClassName': getFullCppName(symbol),
+						'sizeInBytes': 8 * 2,
+						'sizeInPointers': 0
 					};
 				default:
 					return false;
@@ -915,6 +936,141 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\tSet' + field.name + '(0);\n' +
 							'}\n';
 						break;
+					case FieldType.MINIMESSAGE:
+						headerCpp += '\t\t' + typeInformation.cppClassName + '_Ref Get' + field.name + '() const;\n' +
+							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '_Ref& value);\n' +
+							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '& value);\n' +
+							'\t\tvoid Clear' + field.name + '();\n';
+
+						sourceCpp += '\n' + typeInformation.cppClassName + ' ' + thisMessage.cppClassName + '_Ref::Get' + field.name + '() const {\n' +
+							'\tsize_t address_offset = ';
+						if (sizeInPointers > 0) {
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
+						}
+						sourceCpp += sizeInBytes + ';\n' +
+							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
+							'\t\treturn ' + typeInformation.cppClassName + '_Ref + ();\n' +
+							'\t}\n' +
+							'\t' + typeInformation.cppClassName + '_Ref message;\n'+
+							'\tmessage.Deserialize(buffer_->Read8Bytes(address_offset),\n'+
+							'\t\tbuffer_->Read8Bytes(address_offset + 1), buffer_->Read8Bytes(address_offset + 2),\n' +
+							'\t\tbuffer_->Read8Bytes(address_offset + 3));\n' +
+							'\treturn message;\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '_Ref& value) {\n' +
+							'\tsize_t address_offset = ';
+						if (sizeInPointers > 0) {
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
+						}
+						sourceCpp += sizeInBytes + ';\n' +
+							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
+							'\t\treturn;\n' +
+							'\t}\n' +
+							'\tsize_t a, b, c, d;\n' +
+							'\tvalue.Serialize(a, b, c, d);\n' +
+							'\tbuffer_>Write8Bytes(address_offset, a);\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 1, b);\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 2, c);\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 3, d);\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
+							'\tsize_t address_offset = ';
+						if (sizeInPointers > 0) {
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
+						}
+						sourceCpp += sizeInBytes + ';\n' +
+							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
+							'\t\treturn;\n' +
+							'\t}\n' +
+							'\tsize_t a, b, c, d;\n' +
+							'\tvalue.Serialize(a, b, c, d);\n' +
+							'\tbuffer_>Write8Bytes(address_offset, a);\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 1, b);\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 2, c);\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 3, d);\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
+							'\tsize_t address_offset = ';
+						if (sizeInPointers > 0) {
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
+						}
+						sourceCpp += sizeInBytes + ';\n' +
+							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
+							'\t\treturn;\n' +
+							'\t}\n' +
+							'\tbuffer_>Write8Bytes(address_offset, 0);\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 1, 0);\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 2, 0);\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 3, 0);\n' +
+							'}\n';
+						break;
+					case FieldType.SERVICE:
+						headerCpp += '\t\t' + typeInformation.cppClassName + '_Ref Get' + field.name + '() const;\n' +
+							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '_Ref& value);\n' +
+							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '& value);\n' +
+							'\t\tbool Has' + field.name + '() const;\n' +
+							'\t\tvoid Clear' + field.name + '();\n';
+
+						sourceCpp += '\n' + typeInformation.cppClassName + ' ' + thisMessage.cppClassName + '_Ref::Get' + field.name + '() const {\n' +
+							'\tsize_t address_offset = ';
+						if (sizeInPointers > 0) {
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
+						}
+						sourceCpp += sizeInBytes + ';\n' +
+							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
+							'\t\treturn ' + typeInformation.cppClassName + '_Ref + ();\n' +
+							'\t}\n' +
+							'\treturn ' + typeInformation.cppClassName + '_Ref(\n'+
+							'\t\tbuffer_->Read8Bytes(address_offset), buffer_->Read8Bytes(address_offset + 1));\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '_Ref& value) {\n' +
+							'\tsize_t address_offset = ';
+						if (sizeInPointers > 0) {
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
+						}
+						sourceCpp += sizeInBytes + ';\n' +
+							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
+							'\t\treturn;\n' +
+							'\t}\n' +
+							'\tbuffer_>Write8Bytes(address_offset, value.ProcessId());\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 1, value.MessageId());\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
+							'\tsize_t address_offset = ';
+						if (sizeInPointers > 0) {
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
+						}
+						sourceCpp += sizeInBytes + ';\n' +
+							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
+							'\t\treturn;\n' +
+							'\t}\n' +
+							'\tbuffer_>Write8Bytes(address_offset, value.ProcessId());\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 1, value.MessageId());\n' +
+							'}\n' +
+							'\nbool ' + thisMessage.cppClassName + '_Ref::Has' + field.name + '() const {\n' +
+							'\tsize_t address_offset = ';
+						if (sizeInPointers > 0) {
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
+						}
+						sourceCpp += sizeInBytes + ';\n' +
+							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
+							'\t\treturn false;\n' +
+							'\t}\n' +
+							'\treturn buffer_->Read8Bytes(address_offset) != 0;\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
+							'\tsize_t address_offset = ';
+						if (sizeInPointers > 0) {
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
+						}
+						sourceCpp += sizeInBytes + ';\n' +
+							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
+							'\t\treturn;\n' +
+							'\t}\n' +
+							'\tbuffer_>Write8Bytes(address_offset, 0);\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 1, 0);\n' +
+							'}\n';
+						break;
 					default:
 						return false;
 				}
@@ -972,6 +1128,17 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 	}
 
 	function generateMiniMessage(thisMessage) {
+		liteHeaderCpp += '\nclass ' + thisMessage.cppClassName + ';\n' +
+			'\nclass ' + thisMessage.cppClassName + '_Ref : public ::PermebufMiniMessage {\n' +
+			'\tpublic:\n' +
+			'\t\t' + thisMessage.cppClassName + '_Ref();\n' +
+			'\t\t' + thisMessage.cppClassName + '_Ref(const ' + thisMessage.cppClassName + '& other);\n' +
+			'\t\t' + thisMessage.cppClassName + '_Ref(const ' + thisMessage.cppClassName + '_Ref& other);\n' +
+			'\t\t' + thisMessage.cppClassName + '_Ref(void* data);\n' +
+			'\t\t' + thisMessage.cppClassName + '* operator->();\n' +
+			'\t\tconst ' + thisMessage.cppClassName + '* operator->() const;\n' +
+			'};\n';
+
 		headerCpp += '\nclass ' + thisMessage.cppClassName + ' : public PermebufMiniMessage {\n' +
 			'\tpublic:\n';
 
@@ -992,7 +1159,7 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 			const field = thisMessage.fields[fieldNames[i]];
 			if (fieldsByNumber[field.number]) {
 				console.log('Field ' + field.name + ' has a field number of ' + field.number +
-					' but message ' + thisMessage.fullName + ' already has a field with that number.');
+					' but mini-message ' + thisMessage.fullName + ' already has a field with that number.');
 				return false;
 			}
 			fieldsByNumber[field.number] = field;
@@ -1051,18 +1218,18 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\tsize_t address_offset = ' + bitfieldByteOffset + ';\n' +
 							'\treturn static_cast<bool>(';
 						if (bitfieldBit == 0) {
-							sourceCpp += 'raw[address_offset]';
+							sourceCpp += 'bytes[address_offset]';
 						} else {
-							sourceCpp += '(raw[address_offset] >> ' + bitfieldBit + ')';
+							sourceCpp += '(bytes[address_offset] >> ' + bitfieldBit + ')';
 						}
 						sourceCpp += ' & 1);\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(bool value) {\n' +
 							'\tsize_t address_offset = ' + bitfieldByteOffset + ';\n' +
 							'\tif (value) {\n' +
-							'\t\raw[address_offset] |= ' + (1 << bitfieldBit) + ';\n' +
+							'\t\tbytes[address_offset] |= ' + (1 << bitfieldBit) + ';\n' +
 							'\t} else {\n' +
-							'\t\raw[address_offset] &= ~' + (1 << bitfieldBit) + ';\n' +
+							'\t\tbytes[address_offset] &= ~' + (1 << bitfieldBit) + ';\n' +
 							'\t}\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
@@ -1074,7 +1241,8 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 					case FieldType.MESSAGE:
 					case FieldType.ONE_OF:
 					case FieldType.STRING:
-						console.log('Arrays, lists, messages, and one-ofs aren\'t supported in mini-messages. ' +
+					case FieldType.MINIMESSAGE:
+						console.log('Arrays, lists, messages, one-ofs, strings, and mini-messages aren\'t supported in mini-messages. ' +
 							field.type + ' is being used for field ' + field.name + '/' + field.number +
 							' in message ' + thisMessage.fullName + '.');
 						return false;
@@ -1085,11 +1253,11 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 
 						sourceCpp += '\n' + typeInformation.cppClassName + ' ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
-							'\treturn *reinterpret_cast<' + typeInformation.cppClassName + '*>(&raw[address_offset]);\n' +
+							'\treturn *reinterpret_cast<const ' + typeInformation.cppClassName + '*>(&bytes[address_offset]);\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
 							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
-							'\t*reinterpret_cast<' + typeInformation.cppClassName + '*>(&raw[address_offset]) = value;;\n' +
+							'\t*reinterpret_cast<' + typeInformation.cppClassName + '*>(&bytes[address_offset]) = value;;\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
 							'\tSet' + field.name + '(' + typeInformation.cppClassName + '::Unknown);\n' +
@@ -1108,11 +1276,11 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 
 						sourceCpp += '\nconst void* ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
-							'\treturn &raw[address_offset];\n' +
+							'\treturn &bytes[address_offset];\n' +
 							'}\n' +
 							'\nvoid* ' + thisMessage.cppClassName + '::Get' + field.name + '() {\n' +
 							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
-							'\treturn &raw[address_offset];\n' +
+							'\treturn &bytes[address_offset];\n' +
 							'}\n';
 						break;
 					case FieldType.NUMBER:
@@ -1122,16 +1290,43 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 
 						sourceCpp += '\n' + typeInformation.cppClassName + ' ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
-							'\tauto temp_value = *(uint' + (typeInformation.sizeInBytes * 8) + '_t*)(&raw[address_offset]);\n' +
+							'\tauto temp_value = *(uint' + (typeInformation.sizeInBytes * 8) + '_t*)(&bytes[address_offset]);\n' +
 							'\treturn *reinterpret_cast<' + typeInformation.cppClassName + '*>(&temp_value);\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(' + typeInformation.cppClassName + ' value) {\n' +
 							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
-							'\t*(uint' + (typeInformation.sizeInBytes * 8) + '_t*)(&raw[address_offset]) = ' +
+							'\t*(uint' + (typeInformation.sizeInBytes * 8) + '_t*)(&bytes[address_offset]) = ' +
 								'*reinterpret_cast<uint' + (typeInformation.sizeInBytes * 8) + '_t*>(&value);\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
 							'\tSet' + field.name + '(0);\n' +
+							'}\n';
+						break;
+					case FieldType.SERVICE:
+						headerCpp += '\t\t' + typeInformation.cppClassName + '_Ref Get' + field.name + '() const;\n' +
+							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '_Ref& value);\n' +
+							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '& value);\n' +
+							'\t\tbool Has' + field.name + '() const;\n' +
+							'\t\tvoid Clear' + field.name + '();\n';
+
+						sourceCpp += '\n' + typeInformation.cppClassName + '_Ref ' + thisMessage.cppClassName + '::Get' + field.name + '() const {\n' +
+							'\treturn ' + typeInformation.cppClassName + '_Ref(*(::perception::ProcessId*)&bytes['+sizeInBytes+'],*(::perception::MessageId*)&bytes['+(sizeInBytes+8)+']);\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '_Ref& value) {\n' +
+							'\t*(::perception::ProcessId*)(&bytes[' + sizeInBytes + ']) = value.ProcessId();\n' +
+							'\t*(::perception::MessageId*)(&bytes[' + (sizeInBytes + 8) + ']) = value.MessageId();\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
+							'\t*(::perception::ProcessId*)(&bytes[' + sizeInBytes + ']) = value.ProcessId();\n' +
+							'\t*(::perception::MessageId*)(&bytes[' + (sizeInBytes + 8) + ']) = value.MessageId();\n' +
+							'}\n' +
+							'\nbool ' + thisMessage.cppClassName + '::Has' + field.name + '() const {\n' +
+							'\treturn *(::perception::ProcessId*)(&bytes[' + sizeInBytes + ']) != 0;\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
+							'\tsize_t address_offset = ' + sizeInBytes + ';\n' +
+							'\t*(::perception::ProcessId*)(&bytes[' + sizeInBytes + ']) = 0;\n' +
+							'\t*(::perception::MessageId*)(&bytes[' + (sizeInBytes + 8) + ']) = 0;\n' +
 							'}\n';
 						break;
 					default:
@@ -1160,7 +1355,22 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 
 		headerCpp += '};\n';
 
-		console.log(thisMessage);
+		sourceCpp += '\n' + thisMessage.cppClassName + '_Ref::' + thisMessage.cppClassName + '_Ref() {}\n' +
+			'\n' + thisMessage.cppClassName + '_Ref::' + thisMessage.cppClassName + '_Ref(\n' +
+				'\tconst '+ thisMessage.cppClassName + '& other) {\n' +
+			'\tother.Serialize(words[0], words[1], words[2], words[3]);'+
+			'\t}\n' +
+			'\n' + thisMessage.cppClassName + '_Ref::' + thisMessage.cppClassName + '_Ref(\n' +
+				'\tconst '+ thisMessage.cppClassName + '_Ref& other) {\n' +
+			'\tother.Serialize(words[0], words[1], words[2], words[3]);'+
+			'\t}' +
+			'\n' + thisMessage.cppClassName + '* ' + thisMessage.cppClassName + '_Ref::operator->() {\n' +
+			'\treturn reinterpret_cast<' + thisMessage.cppClassName + '*>(this);\n' +
+			'}\n' +
+			'\nconst ' + thisMessage.cppClassName + '* ' + thisMessage.cppClassName + '_Ref::operator->() const {\n' +
+			'\treturn reinterpret_cast<const ' + thisMessage.cppClassName + '*>(this);\n' +
+			'}\n';
+
 		return true;
 	}
 
@@ -1170,7 +1380,277 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 	}
 
 	function generateService(thisService) {
-		console.log('permebuf_generator.js:generateService is not implemented');
+		console.log(thisService);
+
+		liteHeaderCpp += `
+class ${thisService.cppClassName};
+class ${thisService.cppClassName}_Server;
+
+class ${thisService.cppClassName}_Ref : public PermebufService {
+	public:
+		${thisService.cppClassName}_Ref();
+		${thisService.cppClassName}_Ref(::perception::ProcessId process_id, ::perception::MessageId message_id);
+		${thisService.cppClassName}_Ref(const ${thisService.cppClassName}& other);
+		${thisService.cppClassName}_Ref(const ${thisService.cppClassName}_Ref& other);
+		${thisService.cppClassName}* operator->();
+		const ${thisService.cppClassName}* operator->() const;
+};
+`;
+
+		sourceCpp += `
+${thisService.cppClassName}_Ref::${thisService.cppClassName}_Ref() :
+	::PermebufService(0, 0) {}
+
+${thisService.cppClassName}_Ref::${thisService.cppClassName}_Ref(
+	::perception::ProcessId process_id, ::perception::MessageId message_id) :
+	::PermebufService(process_id, message_id) {}
+
+${thisService.cppClassName}_Ref::${thisService.cppClassName}_Ref(
+	const ${thisService.cppClassName}& other) :
+	::PermebufService(other.ProcessId(), other.MessageId()) {}
+
+${thisService.cppClassName}_Ref::${thisService.cppClassName}_Ref(
+	const ${thisService.cppClassName}_Ref& other) :
+	::PermebufService(other.ProcessId(), other.MessageId()) {}
+
+${thisService.cppClassName}* ${thisService.cppClassName}_Ref::operator->() {
+	return reinterpret_cast<${thisService.cppClassName}*>(this);
+}
+
+const ${thisService.cppClassName}* ${thisService.cppClassName}_Ref::operator->() const {
+	return reinterpret_cast<const ${thisService.cppClassName}*>(this);
+}
+`;
+
+		headerCpp += `
+class ${thisService.cppClassName} : public PermebufService {
+	public:
+		${thisService.cppClassName}();
+		${thisService.cppClassName}(::perception::ProcessId process_id, ::perception::MessageId message_id);
+		${thisService.cppClassName}(const ${thisService.cppClassName}& other);
+		${thisService.cppClassName}(const ${thisService.cppClassName}_Ref& other);
+`;
+
+sourceCpp += `
+${thisService.cppClassName}::${thisService.cppClassName}() :
+	::PermebufService(0, 0) {}
+
+${thisService.cppClassName}::${thisService.cppClassName}(
+	::perception::ProcessId process_id, ::perception::MessageId message_id) :
+	::PermebufService(process_id, message_id) {}
+
+${thisService.cppClassName}::${thisService.cppClassName}(
+	const ${thisService.cppClassName}& other) :
+	::PermebufService(other.ProcessId(), other.MessageId()) {}
+
+${thisService.cppClassName}::${thisService.cppClassName}(
+	const ${thisService.cppClassName}_Ref& other) :
+	::PermebufService(other.ProcessId(), other.MessageId()) {}
+`;
+
+		let serverHeaderCpp = '';
+		let serverSourceCpp = '';
+
+		// Size of this message, in bytes.
+		let sizeInBytes = 0;
+
+		// Pretend all 8 bits are used, so the next boolean we encounter will allocate a new
+		// byte.
+		let bitfieldByteOffset = -1;
+		let bitfieldPointerOffset = -1;
+		let bitfieldBit = 7;
+
+		// Construct a map of fields by number, so we can check if it's used.
+		const fieldsByNumber = {};
+		const fieldNames = Object.keys(thisService.fields);
+		for (let i = 0; i < fieldNames.length; i++) {
+			const field = thisService.fields[fieldNames[i]];
+			if (fieldsByNumber[field.number]) {
+				console.log('Function ' + field.name + ' has a function number of ' + field.number +
+					' but service ' + thisService.fullName + ' already has a function with that number.');
+				return false;
+			}
+			fieldsByNumber[field.number] = field;
+			if (field.number > MAX_SERVICE_FUNCTION_NUMBER) {
+				console.log('Function ' + field.name + ' has a function number of ' + field.number +
+					' in service ' + thisService.fullName + ', but the maximum allowed function number is ' +
+					MAX_SERVICE_FUNCTION_NUMBER + '.');
+				return false;
+			}
+
+			const requestType = getTypeInformation(thisService, field, field.requestType);
+			if (!requestType) {
+				return false;
+			}
+			let responseType = null;
+			if (field.responseType != null) {
+				responseType = getTypeInformation(thisService, field, field.responseType);
+				if (!responseType) {
+					return false;
+				}
+			}
+
+			// TODO: Generate the server.
+
+			if (field.isStream) {
+				console.log('TODO: Implement code generation for streams in ' +
+					'permebuf_generation.js:generateService.');
+				return false;
+			}
+
+			switch (requestType.type) {
+				case FieldType.MINIMESSAGE:
+					if (responseType == null) {
+						headerCpp +=
+`		void Send${field.name}(const ${requestType.cppClassName}& request) const;
+`;
+						sourceCpp += `
+void ${thisService.cppClassName}::Send${field.name}(
+	const ${requestType.cppClassName}& request) const {
+		SendMiniMessage<${requestType.cppClassName}>(${field.number}, request);
+}
+`;
+					} else if (responseType.type == FieldType.MINIMESSAGE) {
+						headerCpp +=
+`		StatusOr<${responseType.cppClassName}> Call${field.name}(
+			const ${requestType.cppClassName}& request) const;
+		void Call${field.name}(const ${requestType.cppClassName}& request,
+			const std::function<void(StatusOr<${responseType.cppClassName}>)>& on_response);
+`;
+						sourceCpp += `
+StatusOr<${responseType.cppClassName}> ${thisService.cppClassName}::Call${field.name}(
+	const ${requestType.cppClassName}& request) const {
+		return SendMiniMessageAndWaitForMiniMessage<
+			${requestType.cppClassName},${responseType.cppClassName},
+			>(${field.number}, request);
+}
+void ${thisService.cppClassName}::Call${field.name}(
+	const ${requestType.cppClassName}& request,
+	const std::function<void(StatusOr<${responseType.cppClassName}>)>& on_response) const {
+		return SendMiniMessageAndNotifyOnMiniMessage<
+			${requestType.cppClassName},${responseType.cppClassName},
+			>(${field.number}, request, on_response);
+}
+`;
+					} else if (responseType.type == FieldType.MESSAGE) {
+						headerCpp +=
+`		StatusOr<std::unique_ptr<Permebuf<${responseType.cppClassName}>>> Call${field.name}(
+			const ${requestType.cppClassName}& request) const;
+		void Call${field.name}(const ${requestType.cppClassName}& request,
+			const std::function<void(StatusOr<std::unique_ptr<Permebuf<${responseType.cppClassName}>>>)>& on_response);
+`;
+						sourceCpp += `
+StatusOr<std::unique_ptr<Permebuf<${responseType.cppClassName}>>> ${thisService.cppClassName}::Call${field.name}(
+	const ${requestType.cppClassName}& request) const {
+		return SendMiniMessageAndWaitForMessage<
+			${requestType.cppClassName},${responseType.cppClassName},
+			>(${field.number}, request);
+}
+void ${thisService.cppClassName}::Call${field.name}(
+	const ${requestType.cppClassName}& request,
+	const std::function<void(StatusOr<std::unique_ptr<Permebuf<${responseType.cppClassName}>>>)>& on_response) const {
+		return SendMiniMessageAndNotifyOnMessage<
+			${requestType.cppClassName},${responseType.cppClassName},
+			>(${field.number}, request, on_response);
+}
+`;
+					} else {
+						console.log('Function ' + field.name + '/' + field.number + ' in service ' +
+							thisService.fullName +
+							' has a response type ' + field.responseType +
+							' that is neither a message nor a mini-message.');
+						return false;
+					}
+					break;
+				case FieldType.MESSAGE:
+					if (responseType == null) {
+						headerCpp +=
+`		void Send${field.name}(std::unique_ptr<Permebuf<${requestType.cppClassName}>> request) const;
+`;
+						sourceCpp += `
+void ${thisService.cppClassName}::Send${field.name}(
+	std::unique_ptr<Permebuf<${requestType.cppClassName}>> request) const {
+		SendMessage<${requestType.cppClassName}>(${field.number}, std::move(request));
+}
+`;
+					} else if (responseType.type == FieldType.MINIMESSAGE) {
+						headerCpp +=
+`		StatusOr<${responseType.cppClassName}> Call${field.name}(
+			std::unique_ptr<Permebuf<${requestType.cppClassName}>>& request) const;
+		void Call${field.name}(std::unique_ptr<Permebuf<${requestType.cppClassName}>> request,
+			const std::function<void(StatusOr<${responseType.cppClassName}>)>& on_response);
+`;
+						sourceCpp += `
+StatusOr<${responseType.cppClassName}> ${thisService.cppClassName}::Call${field.name}(
+	std::unique_ptr<Permebuf<${requestType.cppClassName}>> request) const {
+		return SendMessageAndWaitForMiniMessage<
+			${requestType.cppClassName},${responseType.cppClassName},
+			>(${field.number}, std::move(request));
+}
+void ${thisService.cppClassName}::Call${field.name}(
+	std::unique_ptr<Permebuf<${requestType.cppClassName}>> request,
+	const std::function<void(StatusOr<${responseType.cppClassName}>)>& on_response) const {
+		return SendMessageAndNotifyOnMiniMessage<
+			${requestType.cppClassName},${responseType.cppClassName},
+			>(${field.number}, std::move(request), on_response;
+}
+`;
+					} else if (responseType.type == FieldType.MESSAGE) {
+						headerCpp +=
+`		StatusOr<std::unique_ptr<Permebuf<${responseType.cppClassName}>>> Call${field.name}(
+			std::unique_ptr<Permebuf<${requestType.cppClassName}>> request) const;
+		void Call${field.name}(std::unique_ptr<Permebuf<${requestType.cppClassName}>> request,
+			const std::function<void(StatusOr<std::unique_ptr<Permebuf<${responseType.cppClassName}>>>)>& on_response);
+`;
+						sourceCpp += `
+StatusOr<std::unique_ptr<Permebuf<${responseType.cppClassName}>>> ${thisService.cppClassName}::Call${field.name}(
+	std::unique_ptr<Permebuf<${requestType.cppClassName}>> request) const {
+		return SendMessageAndWaitForMessage<
+			${requestType.cppClassName},${responseType.cppClassName},
+			>(${field.number}, std::move(request), request);
+}
+void ${thisService.cppClassName}::Call${field.name}(
+	std::unique_ptr<Permebuf<${requestType.cppClassName}>> request,
+	const std::function<void(StatusOr<std::unique_ptr<Permebuf<${responseType.cppClassName}>>>)>& on_response) const {
+		return SendMessageAndNotifyOnMessage<
+			${requestType.cppClassName},${responseType.cppClassName},
+			>(${field.number}, std::move(request), on_response);
+}
+`;
+					} else {
+						console.log('Function ' + field.name + '/' + field.number + ' in service ' +
+							thisService.fullName +
+							' has a response type ' + field.responseType +
+							' that is neither a message nor a mini-message.');
+						return false;
+					}
+					break;
+				default:
+					console.log('Function ' + field.name + '/' + field.number + ' in service ' +
+						thisService.fullName +
+						' has a request type ' + field.requestType +
+						' that is neither a message nor a mini-message.');
+					return false;
+			}
+		}
+
+		if (thisService.children.length > 0) {
+			headerCpp += '\n';
+			for (let i = 0; i < thisService.children.length; i++) {
+				const child = thisService.children[i];
+				headerCpp +=
+`		typedef ${child.cppClassName} ${child.name};
+`;
+			}
+		}
+
+		headerCpp +=
+`		typedef ${thisService.cppClassName}_Server Server;
+};
+`;
+
+		headerCpp += serverHeaderCpp;
+		sourceCpp += serverSourceCpp;
 		return true;
 	}
 

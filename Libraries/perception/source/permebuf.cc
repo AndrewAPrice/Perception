@@ -782,3 +782,22 @@ void PermebufMiniMessage::Deserialize(size_t a, size_t b, size_t c, size_t d) {
 	words[2] = c;
 	words[3] = d;
 }
+
+
+PermebufService::PermebufService(
+	::perception::ProcessId process_id, ::perception::MessageId message_id) :
+	process_id_(process_id), message_id_(message_id) {}
+
+::perception::ProcessId PermebufService::ProcessId() const {
+	return process_id_;
+}
+
+::perception::MessageId PermebufService::MessageId() const {
+	return message_id_;
+}
+
+// Does this service refer to the same instance as another service?
+bool PermebufService::operator==(const PermebufService& other) const {
+	return process_id_ == other.ProcessId() &&
+		message_id_ == other.MessageId();
+}

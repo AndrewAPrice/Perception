@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import "devices/mouse_listener.permebuf"
+import "devices/mouse_listener.permebuf";
 
 namespace perception.devices;
 
 service MouseDriver {
 	// Specifies the service that we should send mouse events to.
-	minimessage SetMouseListenerRequest {
+	minimessage SetMouseListenerMessage {
 		// The service we should send mouse events to.
 		NewListener : MouseListener = 1;	
 	}
-	SetMouseListener : SetMouseListenerRequest = 1;
+	SetMouseListener : SetMouseListenerMessage = 0;
 }

@@ -18,7 +18,7 @@ const ClassType = require('./permebuf_class_types');
 const {rootDirectory} = require('./root_directory');
 
 function parseFile(localPath, packageName, packageType, importedFiles,
-		symbolTable, symbolsToGenerate, cppIncludeFiles, fileBeingCompiled) {
+		symbolTable, symbolsToGenerate, cppIncludeFiles, cppIncludeLiteFiles, fileBeingCompiled) {
 	const filename = rootDirectory + getPackageTypeDirectoryName(packageType) + '/' + packageName +
 		'/permebuf/' + localPath;
 
@@ -30,6 +30,8 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 	}
 
 	cppIncludeFiles['permebuf/' + getPackageTypeDirectoryName(packageType) + '/' + packageName + '/' + localPath +
+		'.h'] = true;
+	cppIncludeLiteFiles['permebuf/' + getPackageTypeDirectoryName(packageType) + '/' + packageName + '/' + localPath +
 		'.lite.h'] = true;
 
 	// The current namespace we're in. If set, it ends in '.'.
@@ -54,6 +56,10 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 		}
 
 		while (true) {
+			if (lexer.peekToken() == '' || lexer.peekToken() == '"' || lexer.peekToken() == '>') {
+				addPathPart();
+				return path;
+			}
 			let token = lexer.readToken();
 			if (permebufLexer.isIdentifier(token)) {
 				if (lastTokenWasIdentifier) {
@@ -65,17 +71,16 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 				lastTokenWasIdentifier = true;
 			} else if (token == '/' || token == '\\') {
 				addPathPart();
-				parsePath = '';
+				pathPart = '';
 				// Token is a deliminator.
 				readyForIdentifier = true;
 				lastTokenWasIdentifier = false;
 			} else if (token == '.' || token == '_') {
 				// Token is a valid filename character.
-				parsePath += token
+				pathPart += token
 				lastTokenWasIdentifier = false;
 			} else {
-				addPathPart();
-				return path;
+				lexer.expectedTokens(['valid path element'], token);
 			}
 		}
 	}
@@ -119,15 +124,16 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 		}
 
 		const path = rootDirectory + getPackageTypeDirectoryName(subPackageType) + '/' +
-			subPackageName + '/permebuf/' + localPath;
+			subPackageName + '/permebuf/' + importedLocalPath;
 
 		if (importedFiles[path]) {
 			// File has already been imported. Recursive imports are allowed.
+			console.log(path + ' has already been imported');
 			return true;
 		}
 
 		return parseFile(importedLocalPath, subPackageName, subPackageType, importedFiles,
-			symbolTable, symbolsToGenerate, cppIncludeFiles, false);
+			symbolTable, symbolsToGenerate, cppIncludeFiles, cppIncludeLiteFiles, false);
 	}
 
 	function parseNamespace() {
@@ -293,6 +299,11 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 	}
 
 	function parseServiceField(thisService) {
+		let isStream = false;
+		if (lexer.peekToken() == '*') {
+			lexer.expectToken('*');
+			isStream = true;
+		}
 		const fieldName = lexer.readToken();
 		if (!permebufLexer.isIdentifier(fieldName)) {
 			lexer.expectedTokens(['identifier for the message field name'], messageName);
@@ -303,18 +314,12 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 			return false;
 		}
 
-		let isRequestStream = false;
-		if (lexer.peekToken() == '*') {
-			lexer.expectToken('*');
-			isRequestStream = true;
-		}
 		const requestType = parseType();
 		if (!requestType) {
 			lexer.expectedTokens(['type'], lexer.readToken());
 			return false;
 		}
 
-		let isResponseStream = false;
 		let responseType = null;
 
 		if (lexer.peekToken() == '-') {
@@ -322,11 +327,6 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 			lexer.expectToken('-');
 			if (!lexer.expectToken('>')) {
 				return false;
-			}
-
-			if (lexer.peekToken() == '*') {
-				lexer.expectToken('*');
-				isResponseStream = true;
 			}
 
 			responseType = parseType();
@@ -363,9 +363,8 @@ function parseFile(localPath, packageName, packageType, importedFiles,
 			thisService.fields[fieldName] = {
 				'name': fieldName,
 				'number': parseInt(fieldNumber),
-				'isRequestStream': isRequestStream,
+				'isStream': isStream,
 				'requestType': requestType,
-				'isResponseStream': isResponseStream,
 				'responseType': responseType
 			};
 		}

@@ -17,6 +17,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string_view>
+#include "types.h"
+#include "status.h"
 
 // Determines the address size. Larger addresses allow the overall Permebuf to grow larger,
 // however, data structures take up more memory.
@@ -371,6 +373,72 @@ protected:
 		uint8_t bytes[32];
 		size_t words[4];
 	};
+};
+
+class PermebufService {
+public:
+	PermebufService(::perception::ProcessId process_id, ::perception::MessageId message_id);
+
+	::perception::ProcessId ProcessId() const;
+
+	::perception::MessageId MessageId() const;
+
+	// Does this service refer to the same instance as another service?
+	bool operator==(const PermebufService& other) const;
+
+protected:
+	template <class O>
+	void SendMiniMessage(size_t message_id,
+		const O& request) const;
+
+	template <class O>
+	void SendPermabuf(size_t message_id, std::unique_ptr<Permebuf<O>> request)
+		const;
+
+	template <class O, class I>
+	StatusOr<I> SendMiniMessageAndWaitForMiniMessage(
+		size_t message_id, const O& request) const;
+
+	template <class O, class I>
+	StatusOr<std::unique_ptr<Permebuf<O>>>
+		SendMiniMessageAndWaitForMessage(size_t message_id,
+			const O& request) const;
+
+	template <class O, class I>
+	void SendMiniMessageAndNotifyOnMiniMessage(
+		size_t message_id, const O& request,
+			const std::function<void(StatusOr<I>)>& on_response);
+
+	template <class O, class I>
+	void SendMiniMessageAndNotifyOnMessage(
+		size_t message_id, const O& request,
+			const std::function<
+				void(StatusOr<std::unique_ptr<Permebuf<I>>>)>& on_response);
+
+	template <class O, class I>
+	StatusOr<I> SendMessageAndWaitForMiniMessage(
+		size_t message_id, std::unique_ptr<Permebuf<O>> request) const;
+
+	template <class O, class I>
+	StatusOr<std::unique_ptr<Permebuf<I>>>
+		SendMessageAndWaitForMessage(size_t message_id,
+			std::unique_ptr<Permebuf<O>> request) const;
+
+	template <class O, class I>
+	void SendMessageAndNotifyOnMiniMessage(
+		size_t message_id, std::unique_ptr<Permebuf<O>> request,
+			const std::function<void(StatusOr<I>)>& on_response);
+
+	template <class O, class I>
+	void SendMessageAndNotifyOnMessage(
+		size_t message_id, std::unique_ptr<Permebuf<O>> request,
+			const std::function<
+				void(StatusOr<std::unique_ptr<Permebuf<I>>>)>& on_response);
+
+	// TODO: Implement streams.
+private:
+	::perception::ProcessId process_id_;
+	::perception::MessageId message_id_;
 };
 
 #include "permebuf_implementation.inl"

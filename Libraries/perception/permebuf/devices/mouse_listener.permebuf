@@ -25,37 +25,37 @@ enum MouseButton {
 service MouseListener {
 	// The mouse has moved. This message is sent when the listener has held the
 	// mouse captive.
-	minimessage OnMouseMoveRequest {
+	minimessage OnMouseMoveMessage {
 		// How far the mouse moved horizontally.
 		DeltaX : float32 = 1;
 
 		// How far the mouse moved vertically.
 		DeltaY : float32 = 2;
 	}
-	OnMouseMove : OnMouseMoveRequest = 0;
+	OnMouseMove : OnMouseMoveMessage = 0;
 
 	// The mouse has scrolled. This message is sent either when the listener
 	// has held the mouse captive, or the cursor is over the window.
-	minimessage OnMouseScrollRequest {
+	minimessage OnMouseScrollMessage {
 		// How far the mouse scrolled.
 		Delta : float32 = 1;
 	}
-	OnMouseScroll : OnMouseScrollRequest = 1;
+	OnMouseScroll : OnMouseScrollMessage = 1;
 
 	// A mouse button has done something. This message is sent when the
 	// listener has held the mouse captive.
-	minimessage OnMouseButtonRequest {
+	minimessage OnMouseButtonMessage {
 		// Which mouse button changed.
 		Button : MouseButton = 1;
 
-		// Was the mouse pressed, or released?
-		WasPressedDown : bool = 2;
+		// Is the mouse pressed, or released?
+		IsPressedDown : bool = 2;
 	}
-	OnMouseButton : OnMouseButtonRequest = 2;
+	OnMouseButton : OnMouseButtonMessage = 2;
 
 	// The mouse has clicked. This message is sent when the mouse is not held
 	// captive but the user has clicked something inside the window.
-	minimessage OnMouseClickRequest {
+	minimessage OnMouseClickMessage {
 		// Which mouse button changed.
 		Button : MouseButton = 1;
 
@@ -68,31 +68,31 @@ service MouseListener {
 		// Was the mouse pressed, or released?
 		WasPressedDown : bool = 4;
 	}
-	OnMouseClick : OnMouseClickRequest = 3;
+	OnMouseClick : OnMouseClickMessage = 3;
 
 	// The mouse has entered the window.
-	minimessage OnMouseEnterRequest {}
-	OnMouseEnter : OnMouseEnterRequest = 4;
+	minimessage OnMouseEnterMessage {}
+	OnMouseEnter : OnMouseEnterMessage = 4;
 
 	// The mouse has left the window.
-	minimessage OnMouseLeaveRequest {}
-	OnMouseLeave : OnMouseLevelRequest = 5;
+	minimessage OnMouseLeaveMessage {}
+	OnMouseLeave : OnMouseLeaveMessage = 5;
 
 	// The mouse has hovered over something in the window.
-	minimessage OnMouseHoverRequest {
+	minimessage OnMouseHoverMessage {
 		// The X coordinate within the window where the mouse is hovering.
 		X : int32 = 1;
 
 		// The Y coordinate within the window where the mouse is hovering.
 		Y : int32 = 2;
 	}
-	OnMouseHover : OnMouseHoverRequest = 6;
+	OnMouseHover : OnMouseHoverMessage = 6;
 
 	// The mouse has been taken captive.
-	minimessage OnMouseTakenCaptiveRequest {}
-	OnMouseTakenCaptive : OnMouseTakenCaptiveRequest = 7;
+	minimessage OnMouseTakenCaptiveMessage {}
+	OnMouseTakenCaptive : OnMouseTakenCaptiveMessage = 7;
 
 	// The mouse has been released.
-	minimessage OnMouseReleaseRequest {}
-	OnMouseRelease : OnMouseReleaseRequest = 8;
+	minimessage OnMouseReleaseMessage {}
+	OnMouseRelease : OnMouseReleaseMessage = 8;
 }

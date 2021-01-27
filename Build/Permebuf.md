@@ -169,9 +169,9 @@ A function can be defined inside of a service as:
 <name> : <request message type> [-> <response message type>] = <function number>;
 ```
 
-The name and number must be unique inside of the message. The maximum function number is 18446744073709551615. The message type may be either a message or a mini-message. One-way messages can skip a response message type.
+The name and number must be unique inside of the message. The maximum function number is 2305843009213693999. The message type may be either a message or a mini-message. One-way messages can skip a response message type.
 
-If a request or response type is prefixed with `*`, then it is considered a multi-message stream.
+If the name is prefixed with `*`, then it is considered a multi-message stream.
 
 
 ### Reserved functions.
@@ -356,6 +356,44 @@ Oneof objects have the following members:
 * `Option GetOption() const` - Gets the currently set option.
 
 Oneofs have a nested enum called `Options`.
+
+### Services
+
+Services have two classes: `<ServiceName>` (the client) and `<ServiceName>::Server` (server implementations).
+
+Service clients have the following members:
+* `void Send<MethodName>(Request) const` - Sends a one-way message. If the request is a mini-message, then the C++ type is that object, otherwise, the C++ type is `std::unique_ptr<Permebuf<message type>>`, and requests must be moved to the call (because the memory holding the Permebuf is transfered to the callee.)
+* `StatusOr<Response> Call<MethodName>(Request) const` - Issues an RPC to a two-way non-streaming message and waits for a response. If a type is a mini-message, then the C++ type is that object, otherwise, the C++ type is `std::unique_ptr<Permebuf<message type>>`, and requests must be moved to the call (because the memory holding the Permebuf is transfered to the callee.)
+* `void Call<MethodName>(Request, const std::function<void(StatusOr<Response>)>& on_response) const` - Asynchronous issues a two-way non-streaming message. If a type is a mini-message, then the C++ type is that object, otherwise, the C++ type is `std::unique_ptr<Permebuf<message type>>`, and requests must be moved to the call (because the memory holding the Permebuf is transfered to the callee.)
+* `PermebufStream Open<MethodName>(Request) const` - Opens a stream call, passing the initial request message. If the request is a mini-message, then the C++ type is that object, otherwise, the C++ type is `std::unique_ptr<Permebuf<message type>>`, and requests must be moved to the call (because the memory holding the Permebuf is transfered to the callee.)
+* `ProcessId ProcessId() const` - Gets the ID of the serving process.
+* `MessageId MessageId() const` - Gets the ID of the serving message.
+* `void OnDestroy(const std::function<void()>&)` - Registers a function to be called when the service is destroyed. If the client object is destroyed before the service, then this function isn't ever called.
+* `bool operator==(const <ServiceName>Client&) const` - Returns true if both client objects are pointing to the same service instance.
+
+Service clients have the following static members:
+* `std::optional<<ServiceName>Client> FindFirstInstance() const` - Finds the first instance of a service.
+* `void ForEachInstance(const std::function<void(const <ServiceName>Client&)>&)` - Loops over each instance of the service.
+* `MessageId RegisterNotificationOnEachInstance(const std::function<void(const <ServiceName>Client&)>&)` - Calls the handler each time a new instance of the service appears. This applies retroactively, as the handler is also called for every existing instance of the service.
+* `void UnegisterNotificationOnEachInstance(MessageId)` - Unregisters the handler so it is not called for any more new instances of the service.
+
+Implementations inherit an instance of `<ServiceName>::Server`, override the handlers, then create an instance of it. The interface has the following methods:
+* `void <MethodName>(Request)` - Called when a one-way non-stream request occurs.
+* `void <MethodName>(Request, PermabufResponse<Response> response)` - Called when a two-way non-stream request occurs.
+* `void <MethodName>(Request, Stream stream)` - Called when a stream request occurs.
+
+The PermabufResponse object has the following methods:
+* `void ReplyWith(Response)` - Replies with a reponse. If the response type is a mini-message, then the C++ type is that object, otherwise, the C++ type is `std::unique_ptr<Permebuf<message type>>`, and requests must be moved to the call (because the memory holding the Permebuf is transfered to the caller.)
+* `void ReplyWithStatus(StatusCode)` - Replies with a status code.
+After a PermabufResponse has been replied to, no further calls should be made.
+
+The Permabuftream object has the following methods:
+* `StatusOr<Message> Read()` - Waits for a message.
+* `StatusOr<Message> Write()` - Writes a message.
+* `void FinalWrite(Message)` - Writes a message and closes the stream.
+* `void CloseWithStatus(StatusCode)` - Closes the stream with a status code.
+* `bool HasMessage()` - Did the other side send a message, and is there one waiting?
+* `bool IsOpen()` - Is the stream still open?
 
 
 

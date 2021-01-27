@@ -24,15 +24,16 @@ function compilePermebufToCpp(localPath,
 	const symbolTable = {};
 	const symbolsToGenerate = [];
 	const cppIncludeFiles = {};
+	const cppIncludeLiteFiles = {};
 	const importedFilesMap = {}
 
 	if (!permebufParser.parseFile(localPath, packageName, packageType, importedFilesMap,
-		symbolTable, symbolsToGenerate, cppIncludeFiles, true)) {
+		symbolTable, symbolsToGenerate, cppIncludeFiles, cppIncludeLiteFiles, true)) {
 		return false;
 	}
 
 	if (!permebufGenerator.generateCppSources(localPath, packageName, packageType,
-		symbolTable, symbolsToGenerate, cppIncludeFiles)) {
+		symbolTable, symbolsToGenerate, cppIncludeFiles, cppIncludeLiteFiles)) {
 		return false;
 	}
 

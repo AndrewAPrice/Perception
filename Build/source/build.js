@@ -171,7 +171,6 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 						shouldCompileFile = true;
 					} else {
 						for (let i = 0; i < deps.length; i++) {
-							console.log(deps[i] + ' timestamp is ' + getFileLastModifiedTimestamp(deps[i]) + ' >= ' + outputFileTimestamp);
 							if (getFileLastModifiedTimestamp(deps[i]) >= outputFileTimestamp) {
 								// Compile because one of the dependencies is newer.
 								shouldCompileFile = true;
