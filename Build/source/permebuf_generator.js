@@ -110,11 +110,16 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 	Object.keys(cppIncludeLiteFiles).forEach((includeFile) => {
 		headerCpp += '#include "' + includeFile + '"\n';
 	})
-	let liteHeaderCpp = '#pragma once\n' +
-		'\n#include "permebuf.h"\n' +
-		'\n#include <stddef.h>\n' +
-		'#include <stdint.h>\n';
-	let sourceCpp =  '';
+	let liteHeaderCpp = `#pragma once
+#include "permebuf.h"
+#include <optional>
+#include <stddef.h>
+#include <stdint.h>
+`;
+	let sourceCpp = 
+`#include "perception/messages.h"
+#include "perception/services.h"
+`;
 	Object.keys(cppIncludeFiles).forEach((includeFile) => {
 		sourceCpp += '#include "' + includeFile + '"\n';
 	})
@@ -1392,6 +1397,7 @@ class ${thisService.cppClassName}_Ref : public PermebufService {
 		${thisService.cppClassName}_Ref(::perception::ProcessId process_id, ::perception::MessageId message_id);
 		${thisService.cppClassName}_Ref(const ${thisService.cppClassName}& other);
 		${thisService.cppClassName}_Ref(const ${thisService.cppClassName}_Ref& other);
+		${thisService.cppClassName}_Ref(const ${thisService.cppClassName}_Server& other);
 		${thisService.cppClassName}* operator->();
 		const ${thisService.cppClassName}* operator->() const;
 };
@@ -1413,6 +1419,10 @@ ${thisService.cppClassName}_Ref::${thisService.cppClassName}_Ref(
 	const ${thisService.cppClassName}_Ref& other) :
 	::PermebufService(other.ProcessId(), other.MessageId()) {}
 
+${thisService.cppClassName}_Ref::${thisService.cppClassName}_Ref(
+	const ${thisService.cppClassName}_Server& other) :
+	::PermebufService(other.ProcessId(), other.MessageId()) {}
+
 ${thisService.cppClassName}* ${thisService.cppClassName}_Ref::operator->() {
 	return reinterpret_cast<${thisService.cppClassName}*>(this);
 }
@@ -1429,6 +1439,17 @@ class ${thisService.cppClassName} : public PermebufService {
 		${thisService.cppClassName}(::perception::ProcessId process_id, ::perception::MessageId message_id);
 		${thisService.cppClassName}(const ${thisService.cppClassName}& other);
 		${thisService.cppClassName}(const ${thisService.cppClassName}_Ref& other);
+		${thisService.cppClassName}(const ${thisService.cppClassName}_Server& other);
+
+		static std::optional<${thisService.cppClassName}> FindFirstInstance();
+
+		static void ForEachInstance(const std::function<void(${thisService.cppClassName})>& on_each_instance);
+
+		static ::perception::MessageId NotifyOnEachNewInstance(const std::function<void(${thisService.cppClassName})>& on_each_instance);
+		static void StopNotifyingOnEachNewInstance(::perception::MessageId message_id);
+
+		::perception::MessageId NotifyOnDisappearance(const std::function<void(${thisService.cppClassName})>& on_disappearance);
+		void StopNotifyingOnDisappearance(::perception::MessageId message_id);
 `;
 
 sourceCpp += `
@@ -1446,10 +1467,86 @@ ${thisService.cppClassName}::${thisService.cppClassName}(
 ${thisService.cppClassName}::${thisService.cppClassName}(
 	const ${thisService.cppClassName}_Ref& other) :
 	::PermebufService(other.ProcessId(), other.MessageId()) {}
+
+std::optional<${thisService.cppClassName}> ${thisService.cppClassName}::FindFirstInstance() {
+	::perception::ProcessId process_id;
+	::perception::MessageId message_id;
+	if (::perception::FindFirstInstanceOfService(${thisService.cppClassName}_Server::Name(),
+		process_id, message_id)) {
+		return std::optional<${thisService.cppClassName}>{process_id, message_id};
+	} else {
+		return std::nullopt;
+	}
+}
+
+void ${thisService.cppClassName}::ForEachInstance(
+	const std::function<void(${thisService.cppClassName})>& on_each_instance) {
+		::perception::ForEachInstanceOfService(${thisService.cppClassName}_Server::Name(),
+	[on_each_instance](::perception::ProcessId process_id,
+		::perception::MessageId message_id) {
+			on_each_instance(${thisService.cppClassName}(process_id, message_id));
+		});
+}
+
+::perception::MessageId ${thisService.cppClassName}::NotifyOnEachNewInstance(
+	const std::function<void(${thisService.cppClassName})>& on_each_instance) {
+	return ::perception::NotifyOnEachNewServiceInstance(
+		${thisService.cppClassName}_Server::Name(),
+		[on_each_instance] (::perception::ProcessId process_id,
+			::perception::MessageId message_id) {
+		on_each_instance(${thisService.cppClassName}(process_id, message_id));
+		});
+}
+
+void ${thisService.cppClassName}::StopNotifyingOnEachNewInstance(
+	::perception::MessageId message_id) {
+	::perception::StopNotifyingOnEachService(message_id);
+}
+
+::perception::MessageId ${thisService.cppClassName}::NotifyOnDisappearance(
+	const std::function<void(${thisService.cppClassName})>& on_disappearance) {
+	return ::perception::NotifyWhenServiceDisappears(
+		process_id_, message_id_, on_disappearance);
+}
+
+void ${thisService.cppClassName}::StopNotifyingOnDisappearance(
+	::perception::MessageId message_id) {
+	::perception::StopNotifyWhenServiceDisappears(message_id);
+}
 `;
 
-		let serverHeaderCpp = '';
-		let serverSourceCpp = '';
+		let serverHeaderCpp = `
+class ${thisService.cppClassName}_Server : public ::PermebufServer {
+	public:
+		${thisService.cppClassName}_Server();
+		virtual ~${thisService.cppClassName}_Server();
+
+		static std::string_view Name();
+
+	protected:
+		virtual bool DelegateMessage(::perception::ProcessId sender,
+		size_t metadata, size_t param_1, size_t param_2,
+		size_t param_3, size_t param_4, size_t param_5);
+
+`;
+		let serverSourceCpp = `
+${thisService.cppClassName}_Server::${thisService.cppClassName}_Server() :
+	::PermebufServer(Name()) {}
+
+${thisService.cppClassName}_Server::~${thisService.cppClassName}_Server() {}
+
+std::string_view ${thisService.cppClassName}_Server::Name() {
+	return "${thisService.fullName}";
+}
+
+`;
+
+	let serverDelegator = `
+bool ${thisService.cppClassName}_Server::DelegateMessage(
+	::perception::ProcessId sender,
+	size_t metadata, size_t param_1, size_t param_2,
+	size_t param_3, size_t param_4, size_t param_5) {
+	switch (GetFunctionNumberFromMetadata(metadata)) {`;
 
 		// Size of this message, in bytes.
 		let sizeInBytes = 0;
@@ -1498,17 +1595,36 @@ ${thisService.cppClassName}::${thisService.cppClassName}(
 				return false;
 			}
 
+			serverDelegator += `
+		case ${field.number}:
+			`;
+
 			switch (requestType.type) {
 				case FieldType.MINIMESSAGE:
 					if (responseType == null) {
 						headerCpp +=
-`		void Send${field.name}(const ${requestType.cppClassName}& request) const;
+`		::perception::Status Send${field.name}(const ${requestType.cppClassName}& request) const;
 `;
 						sourceCpp += `
-void ${thisService.cppClassName}::Send${field.name}(
+::perception::Status ${thisService.cppClassName}::Send${field.name}(
 	const ${requestType.cppClassName}& request) const {
-		SendMiniMessage<${requestType.cppClassName}>(${field.number}, request);
+		return SendMiniMessage<${requestType.cppClassName}>(${field.number}, request);
 }
+`;
+						serverDelegator += `return ProcessMiniMessage<${requestType.cppClassName}>(
+				sender, metadata, param_1, param_2, param_3, param_4, param_5,
+				[this](::perception::ProcessId sender,
+					const ${requestType.cppClassName}& request) {
+						Handle${field.name}(sender, request);
+					});
+`;
+						serverHeaderCpp += `
+		virtual void Handle${field.name}(::perception::ProcessId sender,
+			const ${requestType.cppClassName}& request);
+`;
+						serverSourceCpp += `
+void ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
+			const ${requestType.cppClassName}& request) {}
 `;
 					} else if (responseType.type == FieldType.MINIMESSAGE) {
 						headerCpp +=
@@ -1532,6 +1648,27 @@ void ${thisService.cppClassName}::Call${field.name}(
 			>(${field.number}, request, on_response);
 }
 `;
+serverDelegator += `return ProcessMiniMessageForMiniMessage<${requestType.cppClassName}, ${responseType.cppClassName}>(
+				sender, metadata, param_1, param_2, param_3, param_4, param_5,
+				[this](::perception::ProcessId sender,
+					const ${requestType.cppClassName}& request,
+					::PermebufMiniMessageReplier<${responseType.cppClassName}> replier) {
+						Handle${field.name}(sender, request, replier);
+					});
+`;
+
+						serverHeaderCpp += `
+		virtual void Handle${field.name}(::perception::ProcessId sender,
+			const ${requestType.cppClassName}& request,
+			::PermebufMiniMessageReplier<${responseType.cppClassName}> replier);
+`;
+						serverSourceCpp += `
+		void ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
+			const ${requestType.cppClassName}& request,
+			::PermebufMiniMessageReplier<${responseType.cppClassName}> replier)) {
+				replier->ReplyWithStatus(::perception::Status::UNIMPLEMENTED);
+			}
+`;
 					} else if (responseType.type == FieldType.MESSAGE) {
 						headerCpp +=
 `		StatusOr<std::unique_ptr<Permebuf<${responseType.cppClassName}>>> Call${field.name}(
@@ -1554,6 +1691,26 @@ void ${thisService.cppClassName}::Call${field.name}(
 			>(${field.number}, request, on_response);
 }
 `;
+serverDelegator += `return ProcessMiniMessageForMessage<${requestType.cppClassName}, ${responseType.cppClassName}>(
+				sender, metadata, param_1, param_2, param_3, param_4, param_5,
+				[this](::perception::ProcessId sender,
+					const ${requestType.cppClassName}& request,
+					::PermebufMessageReplier<${responseType.cppClassName}> replier) {
+						Handle${field.name}(sender, request, replier);
+					});
+`;
+						serverHeaderCpp += `
+		virtual void Handle${field.name}(::perception::ProcessId sender,
+			const ${requestType.cppClassName}& request,
+			::PermebufMessageReplier<${responseType.cppClassName}> replier);
+`;
+						serverSourceCpp += `
+		void ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
+			const ${requestType.cppClassName}& request,
+			::PermebufMessageReplier<${responseType.cppClassName}> replier)) {
+				replier->ReplyWithStatus(::perception::Status::UNIMPLEMENTED);
+			}
+`;
 					} else {
 						console.log('Function ' + field.name + '/' + field.number + ' in service ' +
 							thisService.fullName +
@@ -1565,13 +1722,29 @@ void ${thisService.cppClassName}::Call${field.name}(
 				case FieldType.MESSAGE:
 					if (responseType == null) {
 						headerCpp +=
-`		void Send${field.name}(std::unique_ptr<Permebuf<${requestType.cppClassName}>> request) const;
+`		::perception::Status Send${field.name}(std::unique_ptr<Permebuf<${requestType.cppClassName}>> request) const;
 `;
 						sourceCpp += `
-void ${thisService.cppClassName}::Send${field.name}(
+::perception::Status ${thisService.cppClassName}::Send${field.name}(
 	std::unique_ptr<Permebuf<${requestType.cppClassName}>> request) const {
-		SendMessage<${requestType.cppClassName}>(${field.number}, std::move(request));
+		return SendMessage<${requestType.cppClassName}>(${field.number}, std::move(request));
 }
+`;
+serverDelegator += `return ProcessMessage<${requestType.cppClassName}>(
+				sender, metadata, param_1, param_2, param_3, param_4, param_5,
+				[this](::perception::ProcessId sender,
+					std::unique_ptr<Permebuf<${requestType.cppClassName}>> request) {
+						Handle${field.name}(sender, std::move(request));
+					});
+`;
+
+						serverHeaderCpp += `
+		virtual void Handle${field.name}(::perception::ProcessId sender,
+			std::unique_ptr<Permebuf<${requestType.cppClassName}>> request);
+`;
+						serverSourceCpp += `
+		void ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
+			std::unique_ptr<Permebuf<${requestType.cppClassName}>> request)) {}
 `;
 					} else if (responseType.type == FieldType.MINIMESSAGE) {
 						headerCpp +=
@@ -1595,6 +1768,26 @@ void ${thisService.cppClassName}::Call${field.name}(
 			>(${field.number}, std::move(request), on_response;
 }
 `;
+serverDelegator += `return ProcessMessageForMiniMessage<${requestType.cppClassName}, ${responseType.cppClassName}>(
+				sender, metadata, param_1, param_2, param_3, param_4, param_5,
+				[this](::perception::ProcessId sender,
+					std::unique_ptr<Permebuf<${requestType.cppClassName}>> request,
+					::PermebufMiniMessageReplier<${responseType.cppClassName}> replier) {
+						Handle${field.name}(sender, std::move(request), replier);
+					});
+`;
+						serverHeaderCpp += `
+		virtual void Handle${field.name}(::perception::ProcessId sender,
+			std::unique_ptr<Permebuf<${requestType.cppClassName}>> request,
+			::PermebufMiniMessageReplier<${responseType.cppClassName}> replier);
+`;
+						serverSourceCpp += `
+		void ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
+			std::unique_ptr<Permebuf<${requestType.cppClassName}>> request,
+			::PermebufMiniMessageReplier<${responseType.cppClassName}> replier)) {
+				replier->ReplyWithStatus(::perception::Status::UNIMPLEMENTED);
+			}
+`;
 					} else if (responseType.type == FieldType.MESSAGE) {
 						headerCpp +=
 `		StatusOr<std::unique_ptr<Permebuf<${responseType.cppClassName}>>> Call${field.name}(
@@ -1616,6 +1809,26 @@ void ${thisService.cppClassName}::Call${field.name}(
 			${requestType.cppClassName},${responseType.cppClassName},
 			>(${field.number}, std::move(request), on_response);
 }
+`;
+serverDelegator += `return ProcessMessageForMessage<${requestType.cppClassName}, ${responseType.cppClassName}>(
+				sender, metadata, param_1, param_2, param_3, param_4, param_5,
+				[this](::perception::ProcessId sender,
+					std::unique_ptr<Permebuf<${requestType.cppClassName}>> request,
+					::PermebufMessageReplier<${responseType.cppClassName}> replier) {
+						Handle${field.name}(sender, std::move(request), replier);
+					});
+`;
+						serverHeaderCpp += `
+		virtual void Handle${field.name}(::perception::ProcessId sender,
+			std::unique_ptr<Permebuf<${requestType.cppClassName}>> request,
+			::PermebufMessageReplier<${responseType.cppClassName}> replier);
+`;
+						serverSourceCpp += `
+		void ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
+			std::unique_ptr<Permebuf<${requestType.cppClassName}>> request,
+			::PermebufMessageReplier<${responseType.cppClassName}> replier)) {
+				replier->ReplyWithStatus(::perception::Status::UNIMPLEMENTED);
+			}
 `;
 					} else {
 						console.log('Function ' + field.name + '/' + field.number + ' in service ' +
@@ -1649,8 +1862,19 @@ void ${thisService.cppClassName}::Call${field.name}(
 };
 `;
 
+serverHeaderCpp += `
+};
+`;
+
+serverDelegator += `
+		default:
+			return false;
+	}
+}
+`;
+
 		headerCpp += serverHeaderCpp;
-		sourceCpp += serverSourceCpp;
+		sourceCpp += serverSourceCpp + serverDelegator;
 		return true;
 	}
 

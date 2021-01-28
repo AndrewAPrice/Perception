@@ -270,22 +270,20 @@ Nothing.
 * `rax` - The ID of the process.
 * `rbx` - The message ID to send when a process disappears.
 
+## Stop notyfing when a process disappears
+
+### Input
+* `rdi` - 31
+* `rax` - The message ID to no longer send.
+
 ### Output
 Nothing.
 
 # Services
 
-## Create service
+## Register service
 
-### Input
-* `rdi` - 31
-
-### Output
-* `rax` - The ID of the service.
-
-## Finalize service
-
-Finishes creating and registers the service.
+Registers the service
 ### Input
 * `rdi` - 32
 * `rbp` - The ID of the service.
@@ -299,12 +297,13 @@ Finishes creating and registers the service.
 * `r12` - Char 56-63.
 * `r13` - Char 64-71.
 * `r14` - Char 72-79.
-* `r15` - Char 80-87.
 
 ### Output
 Nothing.
 
-## Destroy service
+## Unregister service
+
+Unregisters a service
 
 ### Input
 * `rdi` - 33
@@ -317,18 +316,18 @@ Nothing.
 
 ### Input
 * `rdi` - 34
-* `rbp` - Minimum service ID.
-* `rax` - Char 0-7.
-* `rbx` - Char 8-15.
-* `rdx` - Char 16-23.
-* `rsi` - Char 24-31.
-* `r8` - Char 32-39.
-* `r9` - Char 40-47.
-* `r10` - Char 48-55.
-* `r12` - Char 56-63.
-* `r13` - Char 64-71.
-* `r14` - Char 72-79.
-* `r15` - Char 80-87.
+* `rbp` - Minimum process ID.
+* `rax` - Minimum service ID within the minimum process ID.
+* `rbx` - Char 0-7.
+* `rdx` - Char 8-15.
+* `rsi` - Char 16-23.
+* `r8` - Char 24-31.
+* `r9` - Char 32-39.
+* `r10` - Char 40-47.
+* `r12` - Char 48-55.
+* `r13` - Char 56-63.
+* `r14` - Char 64-71.
+* `r15` - Char 72-79.
 
 ### Output
 * `rdi` - Number of service found. If this is above 6 then there are multiple pages.
@@ -361,17 +360,22 @@ Also sends an event for all existing notifications with this name.
 * `r12` - Char 56-63.
 * `r13` - Char 64-71.
 * `r14` - Char 72-79.
-* `r15` - Char 80-87.
 
 ### Output
 Nothing.
+
+## Stop notyfing when service appears.
+
+### Input
+* `rdi` - 36
+* `rax` - The message ID we no longer want to send.
 
 ## Notify when service disappears
 
 Sends the calling process a message when a service or the owning process disappears.
 
 ### Input
-* `rdi` - 36
+* `rdi` - 37
 * `rax` - The ID of the process.
 * `rbx` - The ID of the service.
 * `rdx` - The message ID to send when a process disappears.
@@ -379,44 +383,11 @@ Sends the calling process a message when a service or the owning process disappe
 ### Output
 Nothing.
 
-## Register RPC in service
-
-### Input
-* `rdi` - 37
-* `rax` - The ID of the service.
-* `rbx` - Char 0-7.
-* `rdx` - Char 8-15.
-* `rsi` - Char 16-23.
-* `r8` - Char 24-31.
-* `r9` - Char 32-39.
-* `r10` - Char 40-47.
-* `r12` - Char 48-55.
-* `r13` - Char 56-63.
-* `r14` - Char 64-71.
-* `r15` - Char 72-79.
-
-### Output
-Nothing.
-
-## Find RPC in service
+## Stop notifying when a service dissapears
 
 ### Input
 * `rdi` - 38
-* `rbp` - The ID of the process.
-* `rax` - The ID of the service.
-* `rbx` - Char 0-7.
-* `rdx` - Char 8-15.
-* `rsi` - Char 16-23.
-* `r8` - Char 24-31.
-* `r9` - Char 32-39.
-* `r10` - Char 40-47.
-* `r12` - Char 48-55.
-* `r13` - Char 56-63.
-* `r14` - Char 64-71.
-* `r15` - Char 72-79.
-
-## Output
-* `rax` - The event ID of this service, or 0xFFFFFFFFFFFFFFFF if the process, service, or RPC does not exist.
+* `rax` - The message ID we no longer want to send.
 
 # Messaging
 
@@ -434,11 +405,11 @@ Sends a message to a process.
 * `r8` - The second parameter.
 * `r9` - The third parameter.
 If rdx[0] is '1':
-* `r10` - The size of the message.
-* `r11` - Address of the first memory page.
+* `r10` - Address of the first memory page.
+* `r12` - The number of pages to send.
 If rdx[0] is '0':
 * `r10` - The fourth parameter.
-* `r11` - The fifth parameter.
+* `r12` - The fifth parameter.
 
 If rdx[1] is '1':
 * `r12` - The message ID we want the callee to respond with.
@@ -449,6 +420,10 @@ If rdx[1] is '1':
   * 1 - The process doesn't exist.
   * 2 - The kernel is out of memory.
   * 3 - The receiving process's queue is full.
+  * 4 - Messaging is unsupported on this platform.
+  * 5 - We are attempting to send a page, but the address range wasn't valid.
+
+The memory is left untouched for all statuses other than '0'.
 
 ## Poll for message
 
@@ -461,18 +436,18 @@ Polls for a message, and returns immediately regardless of if there is a message
 If there was a message queued:
 
 * `rax` - The ID of the message.
-* `rbx` - The ID of the process to send the message to.
+* `rbx` - The ID of the process that sent the message.
 * `rdx` - Parameters bitfield:
 	- Bit 0: Are these pages?
 * `rsi` - The first parameter.
 * `r8` - The second parameter.
 * `r9` - The third parameter.
 If rdx[0] is '1':
-* `r10` - The size of the message.
-* `r11` - Address of the first memory page.
+* `r10` - Address of the first memory page.
+* `r12` - The number of pages sent.
 If rdx[0] is '0':
 * `r10` - The fourth parameter.
-* `r11` - The fifth parameter.
+* `r12` - The fifth parameter.
 
 If rdx[1] is '1':
 * `r12` - The message ID to respond with.

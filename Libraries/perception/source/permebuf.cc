@@ -1,8 +1,18 @@
 #include "permebuf.h"
 
 #include "perception/memory.h"
+#include "perception/services.h"
 
 #include <string>
+
+using ::perception::DealWithUnhandledMessage;
+using ::perception::GenerateUniqueMessageId;
+using ::perception::MessageId;
+using ::perception::ProcessId;
+using ::perception::RegisterRawMessageHandler;
+using ::perception::RegisterService;
+using ::perception::UnregisterMessageHandler;
+using ::perception::UnregisterService;
 
 namespace {
 
@@ -635,6 +645,18 @@ PermebufAddressSize PermebufBase::GetAddressSize() const {
 	return address_size_;
 }
 
+// Release the memory. Writing to the Permebuf after this is bad!!!
+// Returns true if the operation was successful.
+bool PermebufBase::ReleaseMemory(void** start, size_t* pages, size_t* size) {
+	if (start_of_memory_ == nullptr)
+		return false;
+	*start = start_of_memory_;
+	*pages = GetNumberOfAllocatedMemoryPages();
+	*size = size_;
+	start_of_memory_ = nullptr;
+	return true;
+}
+
 PermebufBase::PermebufBase(PermebufAddressSize address_size) :
 	address_size_(address_size) {
 	start_of_memory_ = ::perception::AllocateMemoryPages(1);
@@ -654,7 +676,8 @@ PermebufBase::PermebufBase(void* start_of_memory, size_t size) :
 
 PermebufBase::~PermebufBase() {
 	if (start_of_memory_ != nullptr) {
-		::perception::ReleaseMemoryPages(start_of_memory_, size_);
+		::perception::ReleaseMemoryPages(start_of_memory_,
+			GetNumberOfAllocatedMemoryPages());
 	}
 }
 
@@ -783,16 +806,15 @@ void PermebufMiniMessage::Deserialize(size_t a, size_t b, size_t c, size_t d) {
 	words[3] = d;
 }
 
-
 PermebufService::PermebufService(
 	::perception::ProcessId process_id, ::perception::MessageId message_id) :
 	process_id_(process_id), message_id_(message_id) {}
 
-::perception::ProcessId PermebufService::ProcessId() const {
+ProcessId PermebufService::ProcessId() const {
 	return process_id_;
 }
 
-::perception::MessageId PermebufService::MessageId() const {
+MessageId PermebufService::MessageId() const {
 	return message_id_;
 }
 
@@ -800,4 +822,35 @@ PermebufService::PermebufService(
 bool PermebufService::operator==(const PermebufService& other) const {
 	return process_id_ == other.ProcessId() &&
 		message_id_ == other.MessageId();
+}
+
+PermebufServer::PermebufServer(std::string_view service_name) {
+	message_id_ = GenerateUniqueMessageId();
+	RegisterRawMessageHandler(message_id_,
+		[this](::perception::ProcessId sender,
+			size_t metadata, size_t param_1, size_t param_2,
+			size_t param_3, size_t param_4, size_t param_5) {
+			this->MessageHandler(sender, metadata, param_1,
+				param_2, param_3, param_4, param_5);
+		});
+	RegisterService(message_id_, service_name);
+}
+
+PermebufServer::~PermebufServer() {
+	UnregisterService(message_id_);
+	UnregisterMessageHandler(message_id_);
+}
+
+size_t PermebufServer::GetFunctionNumberFromMetadata(size_t metadata) {
+	return metadata >> 3;
+}
+
+void PermebufServer::MessageHandler(::perception::ProcessId sender,
+	size_t metadata, size_t param_1, size_t param_2, size_t param_3,
+	size_t param_4, size_t param_5) {
+	if (!DelegateMessage(sender, metadata, param_1, param_2,
+		param_3, param_4, param_5)) {
+		::perception::DealWithUnhandledMessage(sender, metadata,
+			param_1, param_4, param_5);
+	}
 }

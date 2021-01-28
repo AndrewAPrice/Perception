@@ -303,6 +303,10 @@ public:
 	PermebufAddressSize GetAddressSize() const;
 	size_t GetAddressSizeInBytes() const { return 1 << static_cast<size_t>(GetAddressSize()); }
 
+	// Release the memory. Writing to the Permebuf after this is bad!!!
+	// Returns true if the operation was successful.
+	bool ReleaseMemory(void** start, size_t* pages, size_t* size);
+
 protected:
 	PermebufBase(PermebufAddressSize address_size);
 	PermebufBase(void* start_of_memory, size_t size);
@@ -388,56 +392,154 @@ public:
 
 protected:
 	template <class O>
-	void SendMiniMessage(size_t message_id,
+	::perception::Status SendMiniMessage(size_t message_id,
 		const O& request) const;
 
 	template <class O>
-	void SendPermabuf(size_t message_id, std::unique_ptr<Permebuf<O>> request)
+	::perception::Status SendMessage(size_t message_id, std::unique_ptr<Permebuf<O>> request)
 		const;
 
 	template <class O, class I>
 	StatusOr<I> SendMiniMessageAndWaitForMiniMessage(
-		size_t message_id, const O& request) const;
+		size_t function_id, const O& request) const;
 
 	template <class O, class I>
 	StatusOr<std::unique_ptr<Permebuf<O>>>
-		SendMiniMessageAndWaitForMessage(size_t message_id,
+		SendMiniMessageAndWaitForMessage(size_t function_id,
 			const O& request) const;
 
 	template <class O, class I>
 	void SendMiniMessageAndNotifyOnMiniMessage(
-		size_t message_id, const O& request,
-			const std::function<void(StatusOr<I>)>& on_response);
+		size_t function_id, const O& request,
+		const std::function<void(StatusOr<I>)>& on_response);
 
 	template <class O, class I>
 	void SendMiniMessageAndNotifyOnMessage(
-		size_t message_id, const O& request,
-			const std::function<
-				void(StatusOr<std::unique_ptr<Permebuf<I>>>)>& on_response);
+		size_t function_id, const O& request,
+		const std::function<
+			void(StatusOr<std::unique_ptr<Permebuf<I>>>)>& on_response);
 
 	template <class O, class I>
 	StatusOr<I> SendMessageAndWaitForMiniMessage(
-		size_t message_id, std::unique_ptr<Permebuf<O>> request) const;
+		size_t function_id, std::unique_ptr<Permebuf<O>> request) const;
 
 	template <class O, class I>
 	StatusOr<std::unique_ptr<Permebuf<I>>>
-		SendMessageAndWaitForMessage(size_t message_id,
-			std::unique_ptr<Permebuf<O>> request) const;
+	SendMessageAndWaitForMessage(size_t function_id,
+		std::unique_ptr<Permebuf<O>> request) const;
 
 	template <class O, class I>
 	void SendMessageAndNotifyOnMiniMessage(
-		size_t message_id, std::unique_ptr<Permebuf<O>> request,
-			const std::function<void(StatusOr<I>)>& on_response);
+		size_t function_id, std::unique_ptr<Permebuf<O>> request,
+		const std::function<void(StatusOr<I>)>& on_response);
 
 	template <class O, class I>
 	void SendMessageAndNotifyOnMessage(
-		size_t message_id, std::unique_ptr<Permebuf<O>> request,
-			const std::function<
-				void(StatusOr<std::unique_ptr<Permebuf<I>>>)>& on_response);
+		size_t function_id, std::unique_ptr<Permebuf<O>> request,
+		const std::function<
+			void(StatusOr<std::unique_ptr<Permebuf<I>>>)>& on_response);
 
 	// TODO: Implement streams.
 private:
 	::perception::ProcessId process_id_;
+	::perception::MessageId message_id_;
+};
+
+template <class T>
+class PermebufMessageReplier {
+public:
+	PermebufMessageReplier(
+		::perception::ProcessId process,
+		::perception::MessageId response_channel);
+
+	void Reply(std::unique_ptr<Permebuf<T>> response);
+	void ReplyWithStatus(::perception::Status status);
+private:
+	::perception::ProcessId process_;
+	::perception::MessageId response_channel_;
+};
+
+template <class T>
+class PermebufMiniMessageReplier {
+public:
+	PermebufMiniMessageReplier(
+		::perception::ProcessId process,
+		::perception::MessageId response_channel);
+
+	void Reply(const T& response);
+	void ReplyWithStatus(::perception::Status status);
+private:
+	::perception::ProcessId process_;
+	::perception::MessageId response_channel_;
+};
+
+// TODO: Implement streams.
+
+class PermebufServer {
+public:
+	PermebufServer(std::string_view service_name);
+	virtual ~PermebufServer();
+
+	::perception::ProcessId ProcessId() const;
+
+	::perception::MessageId MessageId() const;
+
+	template <class I>
+	bool ProcessMiniMessage(::perception::ProcessId sender,
+		size_t metadata, size_t param1, size_t param2, size_t param3,
+		size_t param4, size_t param5,
+		const std::function<void(::perception::ProcessId,
+			const I&)>& handler);
+
+	template <class I, class O>
+	bool ProcessMiniMessageForMiniMessage(::perception::ProcessId sender,
+		size_t metadata, size_t param1, size_t param2, size_t param3,
+		size_t param4, size_t param5,
+		const std::function<void(::perception::ProcessId,
+			const I&, PermebufMiniMessageReplier<O>)>& handler);
+
+	template <class I, class O>
+	bool ProcessMiniMessageForMiniMessage(::perception::ProcessId sender,
+		size_t metadata, size_t param1, size_t param2, size_t param3,
+		size_t param4, size_t param5,
+		const std::function<void(::perception::ProcessId,
+			const I&, PermebufMessageReplier<O>)>& handler);
+
+	template <class I>
+	bool ProcessMessage(::perception::ProcessId sender,
+		size_t metadata, size_t param1, size_t param2, size_t param3,
+		size_t param4, size_t param5,
+		const std::function<void(::perception::ProcessId,
+			std::unique_ptr<Permebuf<I>>)>& handler);
+
+	template <class I, class O>
+	bool ProcessMessageForMiniMessage(::perception::ProcessId sender,
+		size_t metadata, size_t param1, size_t param2, size_t param3,
+		size_t param4, size_t param5,
+		const std::function<void(::perception::ProcessId,
+			std::unique_ptr<Permebuf<I>>,
+			PermebufMiniMessageReplier<O>)>& handler);
+
+	template <class I, class O>
+	bool ProcessMessageForMiniMessage(::perception::ProcessId sender,
+		size_t metadata, size_t param1, size_t param2, size_t param3,
+		size_t param4, size_t param5,
+		const std::function<void(::perception::ProcessId,
+			std::unique_ptr<Permebuf<I>>,
+			PermebufMessageReplier<O>)>& handler);
+
+protected:
+	size_t GetFunctionNumberFromMetadata(size_t metadata);
+
+	virtual bool DelegateMessage(::perception::ProcessId sender,
+		size_t metadata, size_t param_1, size_t param_2,
+		size_t param_3, size_t param_4, size_t param_5) = 0;
+
+	void MessageHandler(::perception::ProcessId sender,
+		size_t metadata, size_t param_1, size_t param_2,
+		size_t param_3, size_t param_4, size_t param_5);
+
+private:
 	::perception::MessageId message_id_;
 };
 

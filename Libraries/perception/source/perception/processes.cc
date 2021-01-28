@@ -15,7 +15,7 @@
 #include "perception/processes.h"
 
 #include <functional>
-#include "perception/debug.h" // DO NOT SUBMIT
+#include "perception/messages.h"
 #ifndef PERCEPTION
 #include <iostream>
 #include <sched.h>
@@ -25,14 +25,24 @@
 #endif
 
 namespace perception {
+namespace {
 
-ProcessId GetProcessId() {
 #ifdef PERCEPTION
+ProcessId InvokeSyscallToGetProcessId() {
 	volatile register size_t syscall_num asm ("rdi") = 39;
 	volatile register size_t return_val asm ("rax");
 
 	__asm__ __volatile__ ("syscall\n":"=r"(return_val):"r"(syscall_num): "rcx", "r11");
 	return return_val;
+}
+#endif
+
+}
+
+ProcessId GetProcessId() {
+#ifdef PERCEPTION
+	static ProcessId process_id = InvokeSyscallToGetProcessId();
+	return process_id;
 #else
 	return 0;
 #endif
@@ -252,6 +262,7 @@ std::string GetProcessName(ProcessId pid) {
 
 // Returns true if the process exists.
 bool DoesProcessExist(ProcessId pid) {
+#ifdef PERCEPTION
 	// Add an extra byte for the null terminator.
 	char process_name[kMaximumProcessNameLength + 1];
 	process_name[kMaximumProcessNameLength] = '\0';
@@ -267,17 +278,46 @@ bool DoesProcessExist(ProcessId pid) {
 		"r13", "r14", "r15");
 
 	return was_process_found;
+#endif
 }
 
 // Registers that we want to be notified with a message upon the given process
-// terminating.
-void NotifyUponProcessTermination(ProcessId pid, size_t message_id) {
+// terminating. The handler is automatically unregistered upon terminating
+// (it's safe to accidentally call StopNotifyingUponProcessTermination if the
+// handler has triggered.)
+MessageId NotifyUponProcessTermination(ProcessId pid,
+	const std::function<void()>& on_termination) {
 #ifdef PERCEPTION
+	MessageId message_id = GenerateUniqueMessageId();
+	RegisterMessageHandler(message_id, [message_id, on_termination](
+		ProcessId sender, size_t, size_t, size_t, size_t, size_t) {
+		// We only believe the kernel.
+		if (sender != 0) return;
+		on_termination();
+		UnregisterMessageHandler(message_id);
+	});
+
 	volatile register size_t syscall_num asm ("rdi") = 30;
 	volatile register size_t pid_r asm ("rax") = pid;
 	volatile register size_t message_id_r asm ("rbx") = message_id;
 
 	__asm__ __volatile__ ("syscall\n"::"r"(syscall_num),"r"(pid_r),
+		"r"(message_id_r): "rcx", "r11");
+	return message_id;
+#else
+	return 0;
+#endif
+}
+
+// Registers that we don't want to be notified anymore about a process
+// terminating.
+void StopNotifyingUponProcessTermination(MessageId message_id) {
+#ifdef PERCEPTION
+	UnregisterMessageHandler(message_id);
+	volatile register size_t syscall_num asm ("rdi") = 31;
+	volatile register size_t message_id_r asm ("rax") = message_id;
+
+	__asm__ __volatile__ ("syscall\n"::"r"(syscall_num),
 		"r"(message_id_r): "rcx", "r11");
 #endif
 }

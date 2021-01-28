@@ -18,20 +18,31 @@
 #define MS_PROCESS_DOESNT_EXIST 1
 #define MS_OUT_OF_MEMORY 2
 #define MS_RECEIVERS_QUEUE_IS_FULL 3
+#define MS_UNIMPLEMENTED 4
 
 // Loads an message in to the thread.
 void LoadMessageIntoThread(struct Message* message, struct Thread* thread) {
 	// Set the thread's registers to contain this message.
 	struct Registers* registers = thread->registers;
 	registers->rax = message->message_id;
-	registers->r10 = message->sender_pid;
+	registers->rbx = message->sender_pid;
+	registers->rdx = message->metadata;
 	registers->rsi = message->param1;
-	registers->rdx = message->param2;
-	registers->rbx = message->param3;
-	registers->r8 = message->param4;
-	registers->r9 = message->param5;
+	registers->r8 = message->param2;
+	registers->r9 = message->param3;
+	registers->r10 = message->param4;
+	registers->r12 = message->param5;
 
 	ReleaseMessage(message);
+}
+
+// Is this a message that involves transferring memory pages?
+bool IsPagingMessage(size_t metadata) {
+	if ((metadata & 1) == 1) {
+		PrintString("Sending memory pages isn't yet implemented.");
+	}
+
+	return (metadata & 1) == 1;
 }
 
 // Sends an message to a process.
@@ -103,6 +114,7 @@ void SendKernelMessageToProcess(struct Process* receiver_process, size_t event_i
 	// Creates the message from the parameters.
 	message->message_id = event_id;
 	message->sender_pid = 0;
+	message->metadata = 0;
 	message->param1 = param1;
 	message->param2 = param2;
 	message->param3 = param3;
@@ -119,8 +131,8 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
 	struct Registers* registers = sender_thread->registers;
 
 	// Find the receiver process, which maybe ourselves.
-	struct Process* receiver_process = (registers->r10 == sender_process->pid) ?
-		sender_process : GetProcessFromPid(registers->r10);
+	struct Process* receiver_process = (registers->rbx == sender_process->pid) ?
+		sender_process : GetProcessFromPid(registers->rbx);
 
 	if (receiver_process == NULL) {
 		// Error, process doesn't exist.
@@ -144,11 +156,22 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
 	// Reads the message from the registers.
 	message->message_id = registers->rax;
 	message->sender_pid = sender_process->pid;
+	message->metadata = registers->rdx;
 	message->param1 = registers->rsi;
-	message->param2 = registers->rdx;
-	message->param3 = registers->rbx;
-	message->param4 = registers->r8;
-	message->param5 = registers->r9;
+	message->param2 = registers->r8;
+	message->param3 = registers->r9;
+	if (IsPagingMessage(message->metadata) &&
+		receiver_process != sender_process) {
+		// Transfer memory pages.
+		// r10/param 4 = Address of the first memory page.
+		// r12/param 5 = Size of the message in pages.
+		PrintString("TODO: Transfer memory pages in messages.c:SendMessageFromThreadSyscall\n");
+		registers->rax = MS_UNIMPLEMENTED;
+		ReleaseMessage(message);
+	} else {
+		message->param4 = registers->r10;
+		message->param5 = registers->r12;
+	}
 
 	// Send the message to the receiver.
 	registers->rax = MS_SUCCESS;

@@ -52,7 +52,14 @@ std::string GetProcessName(ProcessId pid);
 bool DoesProcessExist(ProcessId pid);
 
 // Registers that we want to be notified with a message upon the given process
+// terminating. The handler is automatically unregistered upon terminating
+// (it's safe to accidentally call StopNotifyingUponProcessTermination if the
+// handler has triggered.)
+MessageId NotifyUponProcessTermination(ProcessId pid,
+	const std::function<void()>& on_termination);
+
+// Registers that we don't want to be notified anymore about a process
 // terminating.
-void NotifyUponProcessTermination(ProcessId pid, size_t message_id);
+void StopNotifyingUponProcessTermination(MessageId message_id);
 
 }

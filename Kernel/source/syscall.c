@@ -64,15 +64,15 @@ void InitializeSystemCalls() {
 #define GET_PROCESS_BY_NAME 22
 #define GET_NAME_OF_PROCESS 29
 #define NOTIFY_WHEN_PROCESS_DISAPPEARS 30
+#define STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS 31
 // Services
-#define CREATE_SERVICE 31
-#define FINALIZE_SERICE 32
-#define DESTROY_SERVICE 33
+#define REGISTER_SERVICE 32
+#define UNREGISTER_SERVICE 33
 #define GET_SERVICE_BY_NAME 34
 #define NOTIFY_WHEN_SERVICE_APPEARS 35
-#define NOTIFY_WHEN_SERVICE_DISAPPEARS 36
-#define REGISTER_RPC_IN_SERVICE 37
-#define FIND_RPC_IN_SERVICE 38
+#define STOP_NOTIFYING_WHEN_SERVICE_APPEARS 36
+#define NOTIFY_WHEN_SERVICE_DISAPPEARS 37
+#define STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS 38
 // Messaging
 #define SEND_MESSAGE 17
 #define POLL_FOR_MESSAGE 18
@@ -295,14 +295,14 @@ void SyscallHandler(int syscall_number) {
 			}
 			break;
 		}
-		case CREATE_SERVICE:
-			PrintString("Implement CREATE_SERVICE\n");
+		case STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS:
+			PrintString("Implement STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS\n");
 			break;
-		case FINALIZE_SERICE:
-			PrintString("Implement FINALIZE_SERICE\n");
+		case REGISTER_SERVICE:
+			PrintString("Implement REGISTER_SERVICE\n");
 			break;
-		case DESTROY_SERVICE:
-			PrintString("Implement DESTROY_SERVICE\n");
+		case UNREGISTER_SERVICE:
+			PrintString("Implement UNREGISTER_SERVICE\n");
 			break;
 		case GET_SERVICE_BY_NAME:
 			PrintString("Implement GET_SERVICE_BY_NAME\n");
@@ -310,14 +310,14 @@ void SyscallHandler(int syscall_number) {
 		case NOTIFY_WHEN_SERVICE_APPEARS:
 			PrintString("Implement NOTIFY_WHEN_SERVICE_APPEARS\n");
 			break;
+		case STOP_NOTIFYING_WHEN_SERVICE_APPEARS:
+			PrintString("Implement STOP_NOTIFYING_WHEN_SERVICE_APPEARS\n");
+			break;
 		case NOTIFY_WHEN_SERVICE_DISAPPEARS:
 			PrintString("Implement NOTIFY_WHEN_SERVICE_DISAPPEARS\n");
 			break;
-		case REGISTER_RPC_IN_SERVICE:
-			PrintString("Implement REGISTER_RPC_IN_SERVICE\n");
-			break;
-		case FIND_RPC_IN_SERVICE:
-			PrintString("Implement FIND_RPC_IN_SERVICE\n");
+		case STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS:
+			PrintString("Implement STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS\n");
 			break;
 		case SEND_MESSAGE:
 			PrintString("Implement pages and RPC support\n");

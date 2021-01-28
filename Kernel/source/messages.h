@@ -7,6 +7,8 @@ struct Message {
 	size_t message_id;
 	// The sender's PID (passed in r10.)
 	size_t sender_pid;
+	// Message metadata.
+	size_t metadata;
 	// Parameters:
 	size_t param1; // Passed in rsi.
 	size_t param2; // Passed in rdx.

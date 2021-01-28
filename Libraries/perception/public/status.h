@@ -19,7 +19,12 @@
 namespace perception {
 
 enum class Status {
-	OK = 0
+	OK = 0,
+	UNIMPLEMENTED = 1,
+	INTERNAL_ERROR = 2,
+	PROCESS_DOESNT_EXIST = 3,
+	SERVICE_DOESNT_EXIST = 4,
+	OUT_OF_MEMORY = 5
 };
 
 }

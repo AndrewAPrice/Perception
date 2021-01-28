@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "perception/messages.h"
+#include "perception/memory.h"
 
 #include <map>
 
@@ -24,25 +25,27 @@ MessageId next_unique_message_id = 0;
 
 // Sleeps until a message. Returns true if a message was received.
 bool SleepUntilMessage(ProcessId& senders_pid, MessageId& message_id,
-	size_t& param1, size_t& param2, size_t& param3, size_t& param4,
-	size_t& param5) {
+	size_t& metadata, size_t& param1, size_t& param2, size_t& param3,
+	size_t& param4, size_t& param5) {
 #if PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 19;
-	volatile register size_t pid_r asm ("r10");
+	volatile register size_t pid_r asm ("rbx");
 	volatile register size_t message_id_r asm ("rax");
+	volatile register size_t metadata_r asm ("rdx");
 	volatile register size_t param1_r asm ("rsi");
-	volatile register size_t param2_r asm ("rdx");
-	volatile register size_t param3_r asm ("rbx");
-	volatile register size_t param4_r asm ("r8");
-	volatile register size_t param5_r asm ("r9");
+	volatile register size_t param2_r asm ("r8");
+	volatile register size_t param3_r asm ("r9");
+	volatile register size_t param4_r asm ("r10");
+	volatile register size_t param5_r asm ("r12");
 
 	__asm__ __volatile__ ("syscall\n":
-		"=r"(pid_r), "=r"(message_id_r), "=r"(param1_r), "=r"(param2_r),
-		"=r"(param3_r), "=r"(param4_r), "=r"(param5_r): "r" (syscall):
-		"rcx", "r11");
+		"=r"(pid_r), "=r"(message_id_r), "=r"(metadata_r), "=r"(param1_r),
+		"=r"(param2_r), "=r"(param3_r), "=r"(param4_r), "=r"(param5_r):
+		"r" (syscall): "rcx", "r11");
 
 	senders_pid = pid_r;
 	message_id = message_id_r;
+	metadata = metadata_r;
 	param1 = param1_r;
 	param2 = param2_r;
 	param3 = param3_r;
@@ -57,25 +60,28 @@ bool SleepUntilMessage(ProcessId& senders_pid, MessageId& message_id,
 
 // Polls for a message, returning false immediately if no message was received.
 bool PollForMessage(ProcessId& senders_pid, MessageId& message_id,
-	size_t& param1, size_t& param2, size_t& param3, size_t& param4,
-	size_t& param5) {
+	size_t& metadata, size_t& param1, size_t& param2, size_t& param3,
+	size_t& param4, size_t& param5) {
 #if PERCEPTION
+	// TODO: Handle metadata
 	volatile register size_t syscall asm ("rdi") = 18;
-	volatile register size_t pid_r asm ("r10");
+	volatile register size_t pid_r asm ("rbx");
 	volatile register size_t message_id_r asm ("rax");
+	volatile register size_t metadata_r asm ("rdx");
 	volatile register size_t param1_r asm ("rsi");
-	volatile register size_t param2_r asm ("rdx");
-	volatile register size_t param3_r asm ("rbx");
-	volatile register size_t param4_r asm ("r8");
-	volatile register size_t param5_r asm ("r9");
+	volatile register size_t param2_r asm ("r8");
+	volatile register size_t param3_r asm ("r9");
+	volatile register size_t param4_r asm ("r10");
+	volatile register size_t param5_r asm ("r12");
 
 	__asm__ __volatile__ ("syscall\n":
-		"=r"(pid_r), "=r"(message_id_r), "=r"(param1_r), "=r"(param2_r),
-		"=r"(param3_r), "=r"(param4_r), "=r"(param5_r): "r" (syscall):
-		"rcx", "r11");
+		"=r"(pid_r), "=r"(message_id_r), "=r"(metadata_r), "=r"(param1_r),
+		"=r"(param2_r), "=r"(param3_r), "=r"(param4_r), "=r"(param5_r):
+		"r" (syscall): "rcx", "r11");
 
 	senders_pid = pid_r;
 	message_id = message_id_r;
+	metadata = metadata_r;
 	param1 = param1_r;
 	param2 = param2_r;
 	param3 = param3_r;
@@ -88,25 +94,22 @@ bool PollForMessage(ProcessId& senders_pid, MessageId& message_id,
 #endif
 }
 
-// A message handler.
-struct Handler {
-	std::function<void(ProcessId,
-		size_t, size_t, size_t, size_t, size_t)> handler_function;
-};
-
 // The handler for each message ID.
-std::map<MessageId, Handler> handlers_by_message_id;
+std::map<MessageId, std::function<void(ProcessId,
+		size_t /* metadata */, size_t, size_t, size_t, size_t, size_t)>>
+	handlers_by_message_id;
 
 // Handles an individual message.
 void HandleMessage(ProcessId senders_pid, MessageId message_id,
-	size_t param1, size_t param2, size_t param3, size_t param4, size_t param5) {
+	size_t metadata, size_t param1, size_t param2, size_t param3,
+	size_t param4, size_t param5) {
 	const auto& handler_itr = handlers_by_message_id.find(message_id);
 	if (handler_itr == handlers_by_message_id.end()) {
 		// Message handler not defined.
-		// TODO: Release any pages that may have been set.
+		DealWithUnhandledMessage(senders_pid, metadata, param1, param4, param5);
 	} else {
-		handler_itr->second.handler_function(senders_pid, param1, param2,
-			param3, param4, param5);
+		handler_itr->second(senders_pid, metadata, param1,
+			param2, param3, param4, param5);
 	}
 }
 
@@ -117,148 +120,122 @@ MessageId GenerateUniqueMessageId() {
 	return next_unique_message_id++;
 }
 
-// Sends a message to a process.
-MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1, size_t param2, size_t param3,
+// Converts MessageStatus to Status.
+Status ToStatus(MessageStatus status) {
+	switch (status) {
+		case MessageStatus::SUCCESS:
+			return Status::OK;
+	case MessageStatus::PROCESS_DOESNT_EXIST:
+		return Status::PROCESS_DOESNT_EXIST;
+	case MessageStatus::UNSUPPORTED:
+		return Status::UNIMPLEMENTED;
+	case MessageStatus::OUT_OF_MEMORY:
+	case MessageStatus::RECEIVERS_QUEUE_IS_FULL:
+		return Status::OUT_OF_MEMORY;
+	case MessageStatus::INVALID_MEMORY_RANGE:
+	default:
+		return Status::INTERNAL_ERROR;
+	}
+}
+
+// Were memory pages sent in this message?
+bool WereMemoryPagesSentInMessage(size_t metadata) {
+	return (metadata & 1) == 1;
+}
+
+// Deals with unhandled message, to make sure memory is released and RPCs are
+// responded to.
+void DealWithUnhandledMessage(ProcessId sender, size_t metadata, size_t param1,
 	size_t param4, size_t param5) {
+	if (WereMemoryPagesSentInMessage(metadata)) {
+		// Release the memory that was sent to us.
+		ReleaseMemoryPages((void*)param4, param5);
+	}
+
+	if (((metadata >> 1) && 0b11) != 0) {
+		// This is an RPC that expects a response. We need to respond
+		// to tell them this service or channel doesn't exist.
+		SendMessage(sender,
+			/*message_id=*/(::perception::MessageId)param1,
+			/*param_1=*/(size_t)Status::SERVICE_DOESNT_EXIST);
+	}
+}
+
+// Sends a message to a process.
+MessageStatus SendRawMessage(ProcessId pid, MessageId message_id, size_t metadata,
+	size_t param1, size_t param2, size_t param3, size_t param4, size_t param5) {
 #if PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 17;
-	volatile register size_t pid_r asm ("r10") = pid;
+	volatile register size_t pid_r asm ("rbx") = pid;
 	volatile register size_t message_id_r asm ("rax") = message_id;
+	volatile register size_t metadata_r asm ("rdx") = metadata;
 	volatile register size_t param1_r asm ("rsi") = param1;
-	volatile register size_t param2_r asm ("rdx") = param2;
-	volatile register size_t param3_r asm ("rbx") = param3;
-	volatile register size_t param4_r asm ("r8") = param4;
-	volatile register size_t param5_r asm ("r9") = param5;
+	volatile register size_t param2_r asm ("r8") = param2;
+	volatile register size_t param3_r asm ("r9") = param3;
+	volatile register size_t param4_r asm ("r10") = param4;
+	volatile register size_t param5_r asm ("r12") = param5;
 	volatile register size_t return_val asm ("rax");
 
 	__asm__ __volatile__ ("syscall\n":"=r"(return_val):
-		"r" (syscall), "r"(pid_r), "r"(message_id_r), "r"(param1_r), "r"(param2_r), "r"(param3_r),
-		"r"(param4_r), "r"(param5_r):
-		"rcx", "r11");
+		"r" (syscall), "r"(pid_r), "r"(message_id_r), "r"(metadata_r),
+		"r"(param1_r), "r"(param2_r), "r"(param3_r), "r"(param4_r),
+		"r"(param5_r): "rcx", "r11");
 	return (MessageStatus)return_val;
 #else
 	return MessageStatus::UNSUPPORTED;
 #endif
+}
+
+MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1, size_t param2, size_t param3,
+	size_t param4, size_t param5) {
+	return SendRawMessage(pid, message_id, 0, param1, param2, param3, param4, param5);
 }
 
 MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1, size_t param2, size_t param3,
 	size_t param4) {
-#if PERCEPTION
-	volatile register size_t syscall asm ("rdi") = 17;
-	volatile register size_t pid_r asm ("r10") = pid;
-	volatile register size_t message_id_r asm ("rax") = message_id;
-	volatile register size_t param1_r asm ("rsi") = param1;
-	volatile register size_t param2_r asm ("rdx") = param2;
-	volatile register size_t param3_r asm ("rbx") = param3;
-	volatile register size_t param4_r asm ("r8") = param4;
-	volatile register size_t param5_r asm ("r9") = 0;
-	volatile register size_t return_val asm ("rax");
-
-	__asm__ __volatile__ ("syscall\n":"=r"(return_val):
-		"r" (syscall), "r"(pid_r), "r"(message_id_r), "r"(param1_r), "r"(param2_r), "r"(param3_r),
-		"r"(param4_r), "r"(param5_r):
-		"rcx", "r11");
-	return (MessageStatus)return_val;
-#else
-	return MessageStatus::UNSUPPORTED;
-#endif
+	return SendRawMessage(pid, message_id, 0, param1, param2, param3, param4, 0);
 }
 
 MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1, size_t param2, size_t param3) {
-#if PERCEPTION
-	volatile register size_t syscall asm ("rdi") = 17;
-	volatile register size_t pid_r asm ("r10") = pid;
-	volatile register size_t message_id_r asm ("rax") = message_id;
-	volatile register size_t param1_r asm ("rsi") = param1;
-	volatile register size_t param2_r asm ("rdx") = param2;
-	volatile register size_t param3_r asm ("rbx") = param3;
-	volatile register size_t param4_r asm ("r8") = 0;
-	volatile register size_t param5_r asm ("r9") = 0;
-	volatile register size_t return_val asm ("rax");
-
-	__asm__ __volatile__ ("syscall\n":"=r"(return_val):
-		"r" (syscall), "r"(pid_r), "r"(message_id_r), "r"(param1_r), "r"(param2_r), "r"(param3_r),
-		"r"(param4_r), "r"(param5_r):
-		"rcx", "r11");
-	return (MessageStatus)return_val;
-#else
-	return MessageStatus::UNSUPPORTED;
-#endif
+	return SendRawMessage(pid, message_id, 0, param1, param2, param3, 0, 0);
 }
 
 MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1, size_t param2) {
-#if PERCEPTION
-	volatile register size_t syscall asm ("rdi") = 17;
-	volatile register size_t pid_r asm ("r10") = pid;
-	volatile register size_t message_id_r asm ("rax") = message_id;
-	volatile register size_t param1_r asm ("rsi") = param1;
-	volatile register size_t param2_r asm ("rdx") = param2;
-	volatile register size_t param3_r asm ("rbx") = 0;
-	volatile register size_t param4_r asm ("r8") = 0;
-	volatile register size_t param5_r asm ("r9") = 0;
-	volatile register size_t return_val asm ("rax");
-
-	__asm__ __volatile__ ("syscall\n":"=r"(return_val):
-		"r" (syscall), "r"(pid_r), "r"(message_id_r), "r"(param1_r), "r"(param2_r), "r"(param3_r),
-		"r"(param4_r), "r"(param5_r):
-		"rcx", "r11");
-	return (MessageStatus)return_val;
-#else
-	return MessageStatus::UNSUPPORTED;
-#endif
+	return SendRawMessage(pid, message_id, 0, param1, param2, 0, 0, 0);
 }
 
 MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1) {
-#if PERCEPTION
-	volatile register size_t syscall asm ("rdi") = 17;
-	volatile register size_t pid_r asm ("r10") = pid;
-	volatile register size_t message_id_r asm ("rax") = message_id;
-	volatile register size_t param1_r asm ("rsi") = param1;
-	volatile register size_t param2_r asm ("rdx") = 0;
-	volatile register size_t param3_r asm ("rbx") = 0;
-	volatile register size_t param4_r asm ("r8") = 0;
-	volatile register size_t param5_r asm ("r9") = 0;
-	volatile register size_t return_val asm ("rax");
-
-	__asm__ __volatile__ ("syscall\n":"=r"(return_val):
-		"r" (syscall), "r"(pid_r), "r"(message_id_r), "r"(param1_r), "r"(param2_r), "r"(param3_r),
-		"r"(param4_r), "r"(param5_r):
-		"rcx", "r11");
-	return (MessageStatus)return_val;
-#else
-	return MessageStatus::UNSUPPORTED;
-#endif
+	return SendRawMessage(pid, message_id, 0, param1, 0, 0, 0, 0);
 }
 
 MessageStatus SendMessage(ProcessId pid, MessageId message_id) {
-#if PERCEPTION
-	volatile register size_t syscall asm ("rdi") = 17;
-	volatile register size_t pid_r asm ("r10") = pid;
-	volatile register size_t message_id_r asm ("rax") = message_id;
-	volatile register size_t param1_r asm ("rsi") = 0;
-	volatile register size_t param2_r asm ("rdx") = 0;
-	volatile register size_t param3_r asm ("rbx") = 0;
-	volatile register size_t param4_r asm ("r8") = 0;
-	volatile register size_t param5_r asm ("r9") = 0;
-	volatile register size_t return_val asm ("rax");
-
-	__asm__ __volatile__ ("syscall\n":"=r"(return_val):
-		"r" (syscall), "r"(pid_r), "r"(message_id_r), "r"(param1_r), "r"(param2_r), "r"(param3_r),
-		"r"(param4_r), "r"(param5_r):
-		"rcx", "r11");
-	return (MessageStatus)return_val;
-#else
-	return MessageStatus::UNSUPPORTED;
-#endif
+	return SendRawMessage(pid, message_id, 0, 0, 0, 0, 0, 0);
 }
 
 // Registers the message handler to call when a specific message is received.
 void RegisterMessageHandler(MessageId message_id, std::function<void(ProcessId,
 	size_t, size_t, size_t, size_t, size_t)> callback) {
-	Handler handler;
-	handler.handler_function = std::move(callback);
+	RegisterRawMessageHandler(message_id, [callback = std::move(callback)](
+		ProcessId sender, size_t metadata, size_t param1, size_t param2,
+		size_t param3, size_t param4, size_t param5) {
+		if (metadata != 0) {
+			// This is an RPC, and not something a basic message handler should
+			// deal with.
+			DealWithUnhandledMessage(sender, metadata, param1, param4, param5);
+			return;
+		}
+		callback(sender, param1, param2, param3, param4, param5);
+	});
+}
+
+// Registers the message handler to call when a specific message is received. Assigning
+// another handler to the same Message ID will override that handler. If you don't know
+// what you're doing and don't handle memory pages that are sent to you, this can lead
+// to memory leaks.
+void RegisterRawMessageHandler(MessageId message_id, std::function<void(ProcessId,
+	size_t, size_t, size_t, size_t, size_t, size_t)> callback) {
 	handlers_by_message_id.emplace(std::make_pair(message_id,
-		std::move(handler)));
+		std::move(callback)));
 }
 
 // Unregisters the message handler, because we no longer care about handling these messages.
@@ -271,10 +248,11 @@ void UnregisterMessageHandler(MessageId message_id) {
 void HandleQueuedMessages() {
 	ProcessId pid;
 	MessageId message_id;
-	size_t param1, param2, param3, param4, param5;
-	while (PollForMessage(pid, message_id, param1, param2, param3, param4,
-		param5))
-		HandleMessage(pid, message_id, param1, param2, param3, param4, param5);
+	size_t metadata, param1, param2, param3, param4, param5;
+	while (PollForMessage(pid, message_id, metadata, param1, param2, param3,
+		param4, param5))
+		HandleMessage(pid, message_id, metadata, param1, param2, param3,
+			param4, param5);
 }
 
 // Handles any queued messages, otherwise sleeps until we receive at least one message, and
@@ -282,15 +260,16 @@ void HandleQueuedMessages() {
 void SleepAndHandleQueuedMessage() {
 	ProcessId pid;
 	MessageId message_id;
-	size_t param1, param2, param3, param4, param5;
+	size_t metadata, param1, param2, param3, param4, param5;
 
-	if (SleepUntilMessage(pid, message_id, param1, param2, param3, param4,
-		param5)) {
-		HandleMessage(pid, message_id, param1, param2, param3, param4, param5);
-		while (PollForMessage(pid, message_id, param1, param2, param3, param4,
-			param5))
-			HandleMessage(pid, message_id, param1, param2, param3, param4,
-				param5);
+	if (SleepUntilMessage(pid, message_id, metadata, param1, param2, param3,
+		param4, param5)) {
+		HandleMessage(pid, message_id, metadata, param1, param2, param3,
+			param4, param5);
+		while (PollForMessage(pid, message_id, metadata, param1, param2,
+			param3, param4, param5))
+			HandleMessage(pid, message_id, metadata, param1, param2, param3,
+				param4, param5);
 	}
 }
 
@@ -299,13 +278,13 @@ void SleepAndHandleQueuedMessage() {
 void TransferToEventLoop() {
 	ProcessId pid;
 	MessageId message_id;
-	size_t param1, param2, param3, param4, param5;
+	size_t metadata, param1, param2, param3, param4, param5;
 
 	while (true) {
-		if (SleepUntilMessage(pid, message_id, param1, param2, param3, param4,
-			param5))
-			HandleMessage(pid, message_id, param1, param2, param3, param4,
-				param5);
+		if (SleepUntilMessage(pid, message_id, metadata, param1, param2,
+			param3, param4, param5))
+			HandleMessage(pid, message_id, metadata, param1, param2, param3,
+				param4, param5);
 	}
 }
 

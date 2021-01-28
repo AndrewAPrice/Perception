@@ -20,6 +20,7 @@
 
 #include <iostream>
 
+using ::perception::ProcessId;
 using ::perception::Read8BitsFromPort;
 using ::perception::RegisterInterruptHandler;
 using ::perception::Write8BitsToPort;
@@ -60,7 +61,7 @@ public:
 		}
 	}
 
-	virtual void SetMouseListener(const MouseDriver::SetMouseListenerMessage& message) {
+	virtual void HandleSetMouseListener(ProcessId, const MouseDriver::SetMouseListenerMessage& message) {
 		if (!mouse_captor_) {
 			mouse_captor->SendOnMouseRelease(MouseListener::OnMouseReleaseMessage());
 		}
