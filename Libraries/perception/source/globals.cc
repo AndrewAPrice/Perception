@@ -15,7 +15,7 @@
 #include "types.h"
 
 namespace {
-
+/*
 // A function to call upon exiting the program.
 struct ExitFunction {
 	void (*function)(void *);
@@ -25,14 +25,14 @@ struct ExitFunction {
 
 // Linked list of exit functions.
 ExitFunction* last_exit_function = nullptr;
-
+*/
 }
 
 extern "C" {
 	// Used by the compiler, but what for?
 	void *__dso_handle = 0;
 }
-
+/*
 // Registers an exit function. This is a function GCC expects to exist.
 extern "C" int __cxa_atexit(void (function)(void *), void *object, void *dso) {
 	// We don't yet support dynamic shared objects, so we can ignore the dso argument.
@@ -88,4 +88,4 @@ extern "C" void __cxa_finalize(void *function) {
 		}
 
 	}
-}
+}*/

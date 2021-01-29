@@ -1013,6 +1013,7 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 						headerCpp += '\t\t' + typeInformation.cppClassName + '_Ref Get' + field.name + '() const;\n' +
 							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '_Ref& value);\n' +
 							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '& value);\n' +
+							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '_Server& value);\n' +
 							'\t\tbool Has' + field.name + '() const;\n' +
 							'\t\tvoid Clear' + field.name + '();\n';
 
@@ -1037,8 +1038,8 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tbuffer_>Write8Bytes(address_offset, value.ProcessId());\n' +
-							'\tbuffer_>Write8Bytes(address_offset + 1, value.MessageId());\n' +
+							'\tbuffer_>Write8Bytes(address_offset, value.GetProcessId());\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 1, value.GetMessageId());\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
 							'\tsize_t address_offset = ';
@@ -1049,8 +1050,20 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tbuffer_>Write8Bytes(address_offset, value.ProcessId());\n' +
-							'\tbuffer_>Write8Bytes(address_offset + 1, value.MessageId());\n' +
+							'\tbuffer_>Write8Bytes(address_offset, value.GetProcessId());\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 1, value.GetMessageId());\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '_Server& value) {\n' +
+							'\tsize_t address_offset = ';
+						if (sizeInPointers > 0) {
+							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
+						}
+						sourceCpp += sizeInBytes + ';\n' +
+							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
+							'\t\treturn;\n' +
+							'\t}\n' +
+							'\tbuffer_>Write8Bytes(address_offset, value.GetProcessId());\n' +
+							'\tbuffer_>Write8Bytes(address_offset + 1, value.GetMessageId());\n' +
 							'}\n' +
 							'\nbool ' + thisMessage.cppClassName + '_Ref::Has' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
@@ -1311,6 +1324,7 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 						headerCpp += '\t\t' + typeInformation.cppClassName + '_Ref Get' + field.name + '() const;\n' +
 							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '_Ref& value);\n' +
 							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '& value);\n' +
+							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '_Server& value);\n' +
 							'\t\tbool Has' + field.name + '() const;\n' +
 							'\t\tvoid Clear' + field.name + '();\n';
 
@@ -1318,12 +1332,16 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 							'\treturn ' + typeInformation.cppClassName + '_Ref(*(::perception::ProcessId*)&bytes['+sizeInBytes+'],*(::perception::MessageId*)&bytes['+(sizeInBytes+8)+']);\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '_Ref& value) {\n' +
-							'\t*(::perception::ProcessId*)(&bytes[' + sizeInBytes + ']) = value.ProcessId();\n' +
-							'\t*(::perception::MessageId*)(&bytes[' + (sizeInBytes + 8) + ']) = value.MessageId();\n' +
+							'\t*(::perception::ProcessId*)(&bytes[' + sizeInBytes + ']) = value.GetProcessId();\n' +
+							'\t*(::perception::MessageId*)(&bytes[' + (sizeInBytes + 8) + ']) = value.GetMessageId();\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
-							'\t*(::perception::ProcessId*)(&bytes[' + sizeInBytes + ']) = value.ProcessId();\n' +
-							'\t*(::perception::MessageId*)(&bytes[' + (sizeInBytes + 8) + ']) = value.MessageId();\n' +
+							'\t*(::perception::ProcessId*)(&bytes[' + sizeInBytes + ']) = value.GetProcessId();\n' +
+							'\t*(::perception::MessageId*)(&bytes[' + (sizeInBytes + 8) + ']) = value.GetMessageId();\n' +
+							'}\n' +
+							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '_Server& value) {\n' +
+							'\t*(::perception::ProcessId*)(&bytes[' + sizeInBytes + ']) = value.GetProcessId();\n' +
+							'\t*(::perception::MessageId*)(&bytes[' + (sizeInBytes + 8) + ']) = value.GetMessageId();\n' +
 							'}\n' +
 							'\nbool ' + thisMessage.cppClassName + '::Has' + field.name + '() const {\n' +
 							'\treturn *(::perception::ProcessId*)(&bytes[' + sizeInBytes + ']) != 0;\n' +
@@ -1385,8 +1403,6 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 	}
 
 	function generateService(thisService) {
-		console.log(thisService);
-
 		liteHeaderCpp += `
 class ${thisService.cppClassName};
 class ${thisService.cppClassName}_Server;
@@ -1413,15 +1429,15 @@ ${thisService.cppClassName}_Ref::${thisService.cppClassName}_Ref(
 
 ${thisService.cppClassName}_Ref::${thisService.cppClassName}_Ref(
 	const ${thisService.cppClassName}& other) :
-	::PermebufService(other.ProcessId(), other.MessageId()) {}
+	::PermebufService(other.GetProcessId(), other.GetMessageId()) {}
 
 ${thisService.cppClassName}_Ref::${thisService.cppClassName}_Ref(
 	const ${thisService.cppClassName}_Ref& other) :
-	::PermebufService(other.ProcessId(), other.MessageId()) {}
+	::PermebufService(other.GetProcessId(), other.GetMessageId()) {}
 
 ${thisService.cppClassName}_Ref::${thisService.cppClassName}_Ref(
 	const ${thisService.cppClassName}_Server& other) :
-	::PermebufService(other.ProcessId(), other.MessageId()) {}
+	::PermebufService(other.GetProcessId(), other.GetMessageId()) {}
 
 ${thisService.cppClassName}* ${thisService.cppClassName}_Ref::operator->() {
 	return reinterpret_cast<${thisService.cppClassName}*>(this);
@@ -1448,7 +1464,7 @@ class ${thisService.cppClassName} : public PermebufService {
 		static ::perception::MessageId NotifyOnEachNewInstance(const std::function<void(${thisService.cppClassName})>& on_each_instance);
 		static void StopNotifyingOnEachNewInstance(::perception::MessageId message_id);
 
-		::perception::MessageId NotifyOnDisappearance(const std::function<void(${thisService.cppClassName})>& on_disappearance);
+		::perception::MessageId NotifyOnDisappearance(const std::function<void()>& on_disappearance);
 		void StopNotifyingOnDisappearance(::perception::MessageId message_id);
 `;
 
@@ -1462,18 +1478,19 @@ ${thisService.cppClassName}::${thisService.cppClassName}(
 
 ${thisService.cppClassName}::${thisService.cppClassName}(
 	const ${thisService.cppClassName}& other) :
-	::PermebufService(other.ProcessId(), other.MessageId()) {}
+	::PermebufService(other.GetProcessId(), other.GetMessageId()) {}
 
 ${thisService.cppClassName}::${thisService.cppClassName}(
 	const ${thisService.cppClassName}_Ref& other) :
-	::PermebufService(other.ProcessId(), other.MessageId()) {}
+	::PermebufService(other.GetProcessId(), other.GetMessageId()) {}
 
 std::optional<${thisService.cppClassName}> ${thisService.cppClassName}::FindFirstInstance() {
 	::perception::ProcessId process_id;
 	::perception::MessageId message_id;
 	if (::perception::FindFirstInstanceOfService(${thisService.cppClassName}_Server::Name(),
 		process_id, message_id)) {
-		return std::optional<${thisService.cppClassName}>{process_id, message_id};
+		return std::optional<${thisService.cppClassName}>{
+			${thisService.cppClassName}(process_id, message_id)};
 	} else {
 		return std::nullopt;
 	}
@@ -1500,11 +1517,11 @@ void ${thisService.cppClassName}::ForEachInstance(
 
 void ${thisService.cppClassName}::StopNotifyingOnEachNewInstance(
 	::perception::MessageId message_id) {
-	::perception::StopNotifyingOnEachService(message_id);
+	::perception::StopNotifyingOnEachNewServiceInstance(message_id);
 }
 
 ::perception::MessageId ${thisService.cppClassName}::NotifyOnDisappearance(
-	const std::function<void(${thisService.cppClassName})>& on_disappearance) {
+	const std::function<void()>& on_disappearance) {
 	return ::perception::NotifyWhenServiceDisappears(
 		process_id_, message_id_, on_disappearance);
 }

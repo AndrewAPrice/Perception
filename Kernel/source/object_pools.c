@@ -1,8 +1,9 @@
 #include "object_pools.h"
 
+#include "liballoc.h"
 #include "messages.h"
 #include "process.h"
-#include "liballoc.h"
+#include "service.h"
 
 struct ObjectPoolItem {
 	struct ObjectPoolItem* next;
@@ -34,35 +35,25 @@ void FreeObjectsInPool(struct ObjectPoolItem** object_pool) {
 	}
 }
 
-// Messages:
-struct ObjectPoolItem* message_pool = NULL;
+#define OBJECT_POOL(Struct, CamelCase) \
+	struct ObjectPoolItem* CamelCase##_pool = NULL; \
+	struct Struct* Allocate##Struct() { \
+		return (struct Struct*) GrabOrAllocateObject(&CamelCase##_pool,\
+			sizeof (struct Struct)); \
+	} \
+	void Release##Struct(struct Struct* obj) { \
+		ReleaseObjectToPool(&CamelCase##_pool, obj); \
+	}
 
-// Allocate an message.
-struct Message* AllocateMessage() {
-	return (struct Message*) GrabOrAllocateObject(&message_pool, sizeof (struct Message));
-}
-
-// Release an message.
-void ReleaseMessage(struct Message* message) {
-	ReleaseObjectToPool(&message_pool, message);
-}
-
-
-struct ObjectPoolItem* process_to_notify_on_exit_pool = NULL;
-
-// Allocate a ProcessToNotifyOnExit.
-struct ProcessToNotifyOnExit* AllocateProcessToNotifyOnExit() {
-	return (struct ProcessToNotifyOnExit*) GrabOrAllocateObject(
-		&process_to_notify_on_exit_pool, sizeof (struct ProcessToNotifyOnExit));
-}
-
-// Release a ProcessToNotifyOnExit.
-void ReleaseProcessToNotifyOnExit(
-	struct ProcessToNotifyOnExit* process_to_notify_on_exit) {
-	ReleaseObjectToPool(&process_to_notify_on_exit_pool, process_to_notify_on_exit);
-}
+OBJECT_POOL(Message, message)
+OBJECT_POOL(ProcessToNotifyOnExit, process_to_notify_on_exit)
+OBJECT_POOL(Service, service)
+OBJECT_POOL(ProcessToNotifyWhenServiceAppears, process_to_notify_when_service_appears)
 
 // Clean up object pools to gain some memory back.
 void CleanUpObjectPools() {
 	FreeObjectsInPool(&message_pool);
+	FreeObjectsInPool(&process_to_notify_on_exit_pool);
+	FreeObjectsInPool(&service_pool);	
+	FreeObjectsInPool(&process_to_notify_when_service_appears_pool);
 }

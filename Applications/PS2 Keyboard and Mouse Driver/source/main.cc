@@ -34,15 +34,13 @@ constexpr size_t kTimeout = 100000;
 
 class PS2MouseDriver : public MouseDriver::Server {
 public:
-	MouseDriver() : MouseDriver_Server(),
+	PS2MouseDriver() : MouseDriver_Server(),
 		mouse_bytes_received_(0),
-		last_button_left_(false),
-		last_button_middle_(false),
-		last_button_right_(false) {}
+		last_button_state_{false, false, false} {}
 
-	virtual ~MouseDriver() {
+	virtual ~PS2MouseDriver() {
 		if (mouse_captor_) {
-			mouse_captor->SendOnMouseRelease(MouseListener::OnMouseReleaseMessage()));
+			mouse_captor_->SendOnMouseRelease(MouseListener::OnMouseReleaseMessage());
 		}
 	}
 
@@ -56,18 +54,20 @@ public:
 			mouse_bytes_received_ = 0;
 		} else {
 			// Read one of the first 2 bytes.
-			mouse_byte_buffer[mouse_bytes_received_] = val;
+			mouse_byte_buffer_[mouse_bytes_received_] = val;
 			mouse_bytes_received_++;
 		}
 	}
 
-	virtual void HandleSetMouseListener(ProcessId, const MouseDriver::SetMouseListenerMessage& message) {
+	virtual void HandleSetMouseListener(ProcessId,
+		const MouseDriver::SetMouseListenerMessage& message) {
+		std::cout << "I am changing captors!" << std::endl;
 		if (!mouse_captor_) {
-			mouse_captor->SendOnMouseRelease(MouseListener::OnMouseReleaseMessage());
+			mouse_captor_->SendOnMouseRelease(MouseListener::OnMouseReleaseMessage());
 		}
 		if (message.HasNewListener()) {
 			mouse_captor_ = std::make_unique<MouseListener>(message.GetNewListener());
-			mouse_captor->SendOnMouseTakenCaptiveMessage(
+			mouse_captor_->SendOnMouseTakenCaptive(
 				MouseListener::OnMouseTakenCaptiveMessage());
 		} else {
 			mouse_captor_.reset();
@@ -81,9 +81,7 @@ private:
 	uint8 mouse_byte_buffer_[2];
 
 	// The last known state of the mouse buttons.
-	bool last_button_left_;
-	bool last_button_middle_;
-	bool last_button_right_;
+	bool last_button_state_[3];
 
 	// The service we should sent mouse events to.
 	std::unique_ptr<MouseListener> mouse_captor_;
@@ -94,14 +92,15 @@ private:
 		int16 delta_x = (int16)offset_x - (((int16)status << 4) & 0x100);
 		int16 delta_y = -(int16)offset_y + (((int16)status << 3) & 0x100);
 
-		// Reset the cycle.
-		bool button_left = status & (1 << 0);
-		bool button_middle = status & (1 << 2);
-		bool button_right = status & (1 << 1);
+		// Read the left, middle, right buttons.
+		bool buttons[3] = {
+			(status & (1 << 0)) == 1,
+			(status & (1 << 2)) == 1,
+			(status & (1 << 1)) == 1};
 
 		std::cout << "Mouse message: x: " << (int64)delta_x << " y: " <<
-			(int64)delta_y << " left: " << button_left << " middle: " << button_middle <<
-			" right: " << button_right << std::endl;
+			(int64)delta_y << " left: " << buttons[0] << " middle: " << buttons[1] <<
+			" right: " << buttons[2] << std::endl;
 
 		if ((delta_x != 0 || delta_y != 0) && mouse_captor_) {
 			MouseListener::OnMouseMoveMessage message;
@@ -110,33 +109,19 @@ private:
 			mouse_captor_->SendOnMouseMove(message);
 		}
 
-		if (button_left != last_button_left) {
-			last_button_left = button_left;
-			if (mouse_captor_) {
-				MouseListener::OnMouseButtonMessage message;
-				message.SetButton(MouseButton::Left);
-				message.SetIsPressedDown(button_left);
-				mouse_captor_->OnMouseButton(message);
-			}
-		}
-
-		if (button_middle != last_button_middle) {
-			last_button_middle = button_middle;
-			if (mouse_captor_) {
-				MouseListener::OnMouseButtonMessage message;
-				message.SetButton(MouseButton::Middle);
-				message.SetIsPressedDown(button_middle);
-				mouse_captor_->OnMouseButton(message);
-			}
-		}
-
-		if (button_right != last_button_right) {
-			last_button_right = button_right;
-			if (mouse_captor_) {
-				MouseListener::OnMouseButtonMessage message;
-				message.SetButton(MouseButton::Right);
-				message.SetIsPressedDown(button_right);
-				mouse_captor_->OnMouseButton(message);
+		for (int button_index : {0,1,2}) {
+			if (buttons[button_index] != last_button_state_[button_index]) {
+				last_button_state_[button_index] = buttons[button_index];
+				if (mouse_captor_) {
+					MouseListener::OnMouseButtonMessage message;
+					switch (button_index) {
+						case 0: message.SetButton(MouseButton::Left); break;
+						case 1: message.SetButton(MouseButton::Middle); break;
+						case 2: message.SetButton(MouseButton::Right); break;
+					}
+					message.SetIsPressedDown(buttons[button_index]);
+					mouse_captor_->SendOnMouseButton(message);
+				}
 			}
 		}
 	}

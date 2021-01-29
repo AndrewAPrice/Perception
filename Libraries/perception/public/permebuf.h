@@ -379,18 +379,24 @@ protected:
 	};
 };
 
+class PermebufServer;
+
 class PermebufService {
 public:
 	PermebufService(::perception::ProcessId process_id, ::perception::MessageId message_id);
 
-	::perception::ProcessId ProcessId() const;
+	::perception::ProcessId GetProcessId() const;
 
-	::perception::MessageId MessageId() const;
+	::perception::MessageId GetMessageId() const;
 
 	// Does this service refer to the same instance as another service?
 	bool operator==(const PermebufService& other) const;
+	bool operator==(const PermebufServer& other) const;
 
 protected:
+	::perception::ProcessId process_id_;
+	::perception::MessageId message_id_;
+
 	template <class O>
 	::perception::Status SendMiniMessage(size_t message_id,
 		const O& request) const;
@@ -440,9 +446,6 @@ protected:
 			void(StatusOr<std::unique_ptr<Permebuf<I>>>)>& on_response);
 
 	// TODO: Implement streams.
-private:
-	::perception::ProcessId process_id_;
-	::perception::MessageId message_id_;
 };
 
 template <class T>
@@ -480,9 +483,13 @@ public:
 	PermebufServer(std::string_view service_name);
 	virtual ~PermebufServer();
 
-	::perception::ProcessId ProcessId() const;
+	::perception::ProcessId GetProcessId() const;
 
-	::perception::MessageId MessageId() const;
+	::perception::MessageId GetMessageId() const;
+
+	// Does this service refer to the same instance as another service?
+	bool operator==(const PermebufService& other) const;
+	bool operator==(const PermebufServer& other) const;
 
 	template <class I>
 	bool ProcessMiniMessage(::perception::ProcessId sender,
@@ -539,8 +546,8 @@ protected:
 		size_t metadata, size_t param_1, size_t param_2,
 		size_t param_3, size_t param_4, size_t param_5);
 
-private:
 	::perception::MessageId message_id_;
+
 };
 
 #include "permebuf_implementation.inl"

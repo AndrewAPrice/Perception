@@ -6,6 +6,7 @@
 #include "../../third_party/multiboot2.h"
 #include "multiboot_modules.h"
 #include "syscall.h"
+#include "service.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "timer.h"
@@ -30,6 +31,7 @@ void kmain() {
 
 	InitializeProcesses();
 	InitializeThreads();
+	InitializeServices();
 
 	InitializeScheduler();
 	InitializeTimer();
@@ -38,7 +40,7 @@ void kmain() {
 	LoadMultibootModules();
 	DoneWithMultibootMemory();
 
-PrintString("Enabling interrupts\n");
+	PrintString("Enabling interrupts\n");
 
 	asm("sti");
 

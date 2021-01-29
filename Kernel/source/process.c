@@ -5,6 +5,7 @@
 #include "liballoc.h"
 #include "messages.h"
 #include "object_pools.h"
+#include "service.h"
 #include "thread.h"
 #include "virtual_allocator.h"
 
@@ -44,19 +45,23 @@ struct Process *CreateProcess(bool is_driver) {
 	}
 	proc->allocated_pages = 0;
 
-	// Messages.
+
+	// Various linked lists of that should be initialized to NULL.
 	proc->next_message = NULL;
 	proc->last_message = NULL;
 	proc->messages_queued = 0;
 	proc->thread_sleeping_for_message = NULL;
 	proc->message_to_fire_on_interrupt = NULL;
+	proc->processes_to_notify_when_i_die = NULL;
+	proc->processes_i_want_to_be_notified_of_when_they_die = NULL;
+	proc->services_i_want_to_be_notified_of_when_they_appear = NULL;
+	proc->first_service = NULL;
+	proc->last_service = NULL;
 
 	// Threads.
 	proc->threads = 0;
 	proc->thread_count = 0;
 
-	proc->processes_to_notify_when_i_die = NULL;
-	proc->processes_i_want_to_be_notified_of_when_they_die = NULL;
 
 	// Add to the linked list of running processes.
 	if(first_process == NULL) {
@@ -114,9 +119,15 @@ void DestroyProcess(struct Process *process) {
 	// Destroy all threads.
 	DestroyThreadsForProcess(process, true);
 
-	if (process->message_to_fire_on_interrupt != NULL) {
+	if (process->message_to_fire_on_interrupt != NULL)
 		UnregisterAllMessagesToForOnInterruptForProcess(process);
-	}
+
+	while (process->services_i_want_to_be_notified_of_when_they_appear != NULL)
+		StopNotifyingProcessWhenServiceAppears(
+			process->services_i_want_to_be_notified_of_when_they_appear);
+
+	while (process->first_service != NULL)
+		UnregisterService(process->first_service);
 
 	// Free the address space.
 	FreeAddressSpace(process->pml4);

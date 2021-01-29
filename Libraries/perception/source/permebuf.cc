@@ -1,12 +1,14 @@
 #include "permebuf.h"
 
 #include "perception/memory.h"
+#include "perception/processes.h"
 #include "perception/services.h"
 
 #include <string>
 
 using ::perception::DealWithUnhandledMessage;
 using ::perception::GenerateUniqueMessageId;
+using ::perception::GetProcessId;
 using ::perception::MessageId;
 using ::perception::ProcessId;
 using ::perception::RegisterRawMessageHandler;
@@ -810,18 +812,23 @@ PermebufService::PermebufService(
 	::perception::ProcessId process_id, ::perception::MessageId message_id) :
 	process_id_(process_id), message_id_(message_id) {}
 
-ProcessId PermebufService::ProcessId() const {
+ProcessId PermebufService::GetProcessId() const {
 	return process_id_;
 }
 
-MessageId PermebufService::MessageId() const {
+MessageId PermebufService::GetMessageId() const {
 	return message_id_;
 }
 
 // Does this service refer to the same instance as another service?
 bool PermebufService::operator==(const PermebufService& other) const {
-	return process_id_ == other.ProcessId() &&
-		message_id_ == other.MessageId();
+	return process_id_ == other.GetProcessId() &&
+		message_id_ == other.GetMessageId();
+}
+
+bool PermebufService::operator==(const PermebufServer& other) const {
+	return process_id_ == other.GetProcessId() &&
+		message_id_ == other.GetMessageId();
 }
 
 PermebufServer::PermebufServer(std::string_view service_name) {
@@ -840,6 +847,27 @@ PermebufServer::~PermebufServer() {
 	UnregisterService(message_id_);
 	UnregisterMessageHandler(message_id_);
 }
+
+ProcessId PermebufServer::GetProcessId() const {
+	return GetProcessId();
+}
+
+MessageId PermebufServer::GetMessageId() const {
+	return message_id_;
+}
+
+// Does this service refer to the same instance as another service?
+bool PermebufServer::operator==(const PermebufService& other) const {
+	return GetProcessId() == other.GetProcessId() &&
+		message_id_ == other.GetMessageId();
+}
+
+bool PermebufServer::operator==(const PermebufServer& other) const {
+	// No need to compare ProcessIds as two server classes would
+	// belong to the same process.
+	return message_id_ == other.GetMessageId();
+}
+
 
 size_t PermebufServer::GetFunctionNumberFromMetadata(size_t metadata) {
 	return metadata >> 3;

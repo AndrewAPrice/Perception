@@ -13,6 +13,8 @@ typedef size_t reg64;*/
 struct MessageToFireOnInterrupt;
 struct Message;
 struct Process;
+struct ProcessToNotifyWhenServiceAppears;
+struct Service;
 struct Thread;
 
 struct ProcessToNotifyOnExit {
@@ -70,9 +72,18 @@ struct Process {
 	struct Process *next;
 	struct Process *previous;
 
-	// Linked lists.
+	// Linked lists of processes to notify when I die.
 	struct ProcessToNotifyOnExit* processes_to_notify_when_i_die;
+	// Linked lists of processes I want to be notified of when they die.
 	struct ProcessToNotifyOnExit* processes_i_want_to_be_notified_of_when_they_die;
+	// Linked list of services I want to be notified of when they appear.
+	struct ProcessToNotifyWhenServiceAppears* services_i_want_to_be_notified_of_when_they_appear;
+
+	// Linked list of services in this process. System calls that scan for services
+	// expect that services are added to the back of the list, and we must iterate
+	// them from front to back.
+	struct Service* first_service;
+	struct Service* last_service;
 };
 
 // Initializes the internal structures for tracking processes.

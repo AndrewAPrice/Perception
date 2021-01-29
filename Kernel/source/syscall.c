@@ -6,6 +6,7 @@
 #include "process.h"
 #include "registers.h"
 #include "scheduler.h"
+#include "service.h"
 #include "text_terminal.h"
 #include "physical_allocator.h"
 #include "thread.h"
@@ -298,20 +299,54 @@ void SyscallHandler(int syscall_number) {
 		case STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS:
 			PrintString("Implement STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS\n");
 			break;
-		case REGISTER_SERVICE:
-			PrintString("Implement REGISTER_SERVICE\n");
+		case REGISTER_SERVICE: {
+			// Extract the name from the input registers.
+			size_t service_name[SERVICE_NAME_WORDS];
+			service_name[0] = currently_executing_thread_regs->rax;
+			service_name[1] = currently_executing_thread_regs->rbx;
+			service_name[2] = currently_executing_thread_regs->rdx;
+			service_name[3] = currently_executing_thread_regs->rsi;
+			service_name[4] = currently_executing_thread_regs->r8;
+			service_name[5] = currently_executing_thread_regs->r9;
+			service_name[6] = currently_executing_thread_regs->r10;
+			service_name[7] = currently_executing_thread_regs->r12;
+			service_name[8] = currently_executing_thread_regs->r13;
+			service_name[9] = currently_executing_thread_regs->r14;
+
+			RegisterService((char*)service_name, running_thread->process,
+				currently_executing_thread_regs->rbp);
 			break;
+		}
 		case UNREGISTER_SERVICE:
-			PrintString("Implement UNREGISTER_SERVICE\n");
+			UnregisterServiceByMessageId(running_thread->process,
+				currently_executing_thread_regs->rax);
 			break;
 		case GET_SERVICE_BY_NAME:
 			PrintString("Implement GET_SERVICE_BY_NAME\n");
 			break;
-		case NOTIFY_WHEN_SERVICE_APPEARS:
-			PrintString("Implement NOTIFY_WHEN_SERVICE_APPEARS\n");
+		case NOTIFY_WHEN_SERVICE_APPEARS: {
+			// Extract the name from the input registers.
+			size_t service_name[SERVICE_NAME_WORDS];
+			service_name[0] = currently_executing_thread_regs->rax;
+			service_name[1] = currently_executing_thread_regs->rbx;
+			service_name[2] = currently_executing_thread_regs->rdx;
+			service_name[3] = currently_executing_thread_regs->rsi;
+			service_name[4] = currently_executing_thread_regs->r8;
+			service_name[5] = currently_executing_thread_regs->r9;
+			service_name[6] = currently_executing_thread_regs->r10;
+			service_name[7] = currently_executing_thread_regs->r12;
+			service_name[8] = currently_executing_thread_regs->r13;
+			service_name[9] = currently_executing_thread_regs->r14;
+
+			NotifyProcessWhenServiceAppears((char*)service_name,
+				running_thread->process,
+				currently_executing_thread_regs->rbp);
 			break;
+		}
 		case STOP_NOTIFYING_WHEN_SERVICE_APPEARS:
-			PrintString("Implement STOP_NOTIFYING_WHEN_SERVICE_APPEARS\n");
+			StopNotifyingProcessWhenServiceAppearsByMessageId(
+				running_thread->process,
+				currently_executing_thread_regs->rbp);
 			break;
 		case NOTIFY_WHEN_SERVICE_DISAPPEARS:
 			PrintString("Implement NOTIFY_WHEN_SERVICE_DISAPPEARS\n");
@@ -320,15 +355,12 @@ void SyscallHandler(int syscall_number) {
 			PrintString("Implement STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS\n");
 			break;
 		case SEND_MESSAGE:
-			PrintString("Implement pages and RPC support\n");
 			SendMessageFromThreadSyscall(running_thread);
 			break;
 		case POLL_FOR_MESSAGE:
-			PrintString("Implement pages and RPC support\n");
 			LoadNextMessageIntoThread(running_thread);
 			break;
 		case SLEEP_FOR_MESSAGE:
-			PrintString("Implement pages and RPC support\n");
 			if (SleepThreadUntilMessage(running_thread)) {
 				// The thread is now asleep. We need to schedule a new thread.
 				ScheduleNextThread();

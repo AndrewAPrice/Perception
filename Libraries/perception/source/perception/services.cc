@@ -158,7 +158,7 @@ void ForEachInstanceOfService(std::string_view name,
 		__asm__ __volatile__ ("syscall\n":"=r"(number_of_services_r),"=r"(pid_1_r),
 			"=r"(message_id_1_r),"=r"(pid_2_r),"=r"(message_id_2_r),"=r"(pid_3_r),
 			"=r"(message_id_3_r),"=r"(pid_4_r),"=r"(message_id_4_r),"=r"(pid_5_r),
-			"=r"(message_id_6_r),"=r"(pid_6_r),"=r"(message_id_6_r):
+			"=r"(message_id_5_r),"=r"(pid_6_r),"=r"(message_id_6_r):
 		"r"(syscall), "r"(min_pid), "r"(min_message_id), "r"(name_1), "r"(name_2),
 		"r"(name_3), "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8),
 		"r"(name_9), "r"(name_10), "r"(name_10): "rcx", "r11");
