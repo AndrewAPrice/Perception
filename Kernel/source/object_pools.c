@@ -50,6 +50,14 @@ OBJECT_POOL(ProcessToNotifyOnExit, process_to_notify_on_exit)
 OBJECT_POOL(Service, service)
 OBJECT_POOL(ProcessToNotifyWhenServiceAppears, process_to_notify_when_service_appears)
 
+// Initialize the object pools.
+void InitializeObjectPools() {
+	message_pool = NULL;
+	process_to_notify_on_exit_pool = NULL;
+	service_pool = NULL;
+	process_to_notify_when_service_appears_pool = NULL;
+}
+
 // Clean up object pools to gain some memory back.
 void CleanUpObjectPools() {
 	FreeObjectsInPool(&message_pool);

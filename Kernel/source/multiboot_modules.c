@@ -34,12 +34,6 @@ void LoadMultibootModules() {
 		if (tag->type == MULTIBOOT_TAG_TYPE_MODULE) {
 			struct multiboot_tag_module *module_tag = (struct multiboot_tag_module *)tag;
 
-			/*
-			PrintString("Loading module ");
-			PrintString(module_tag->cmdline);
-			PrintChar('\n');
-			*/
-
 			LoadElfProcess(module_tag->mod_start + VIRTUAL_MEMORY_OFFSET,
 				module_tag->mod_end + VIRTUAL_MEMORY_OFFSET,
 				module_tag->cmdline);

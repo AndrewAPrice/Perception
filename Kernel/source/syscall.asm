@@ -47,7 +47,7 @@ syscall_entry:
     ;mov gs, ax
 
     ; Move to the interrupt's stack.
-    mov rsp, interrupt_stack_top
+    mov rsp, [interrupt_stack_top]
 
     ; Call the handler
     mov rax, SyscallHandler

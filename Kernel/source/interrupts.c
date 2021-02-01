@@ -27,6 +27,8 @@
 #include "tss.h"
 #include "virtual_allocator.h"
 
+// #define DEBUG
+
 extern void irq0();
 extern void irq1();
 extern void irq2();
@@ -118,13 +120,13 @@ void AllocateInterruptStack() {
 		__asm__ __volatile__("hlt");
 	}
 
-	MapPhysicalPageToVirtualPage(kernel_pml4, virtual_addr, physical_addr);
+	MapPhysicalPageToVirtualPage(kernel_pml4, virtual_addr, physical_addr, true);
 
-	/*
+#ifdef DEBUG
 	PrintString("Interrupt stack is at ");
 	PrintHex(virtual_addr);
 	PrintChar('\n');
-	*/
+#endif
 
 	interrupt_stack_top = virtual_addr + PAGE_SIZE;
 

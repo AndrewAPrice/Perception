@@ -159,7 +159,6 @@ void ExceptionHandler(int interrupt_no) {
 		PrintRegisters(currently_executing_thread_regs);
 		// Terminate the process.
 		DestroyProcess(process);
-	asm("hlt");
 		JumpIntoThread(); // Doesn't return.
 	} else {
 		PrintString(" outside of a thread.");

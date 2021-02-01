@@ -30,10 +30,14 @@ size_t start_of_free_memory_at_boot;
 // boot.asm only associates the maps the first 8MB of physical memory into
 // virtual memory. The multiboot structure can be quite huge (especially if
 // there are multi-boot modules passed in to the bootloader), and so the
-// multiboot data might extend past this 8MB boundary. The SafeReadUint32/
-// SafeReadUint64 functions make sure the physical memory is temporarily
-// mapped into virtual memory before reading it. This only works if the
-// values are sure not to cross the 2MB page boundaries (which they shouldn't).
+// multiboot data might extend past this 8MB boundary. The SafeReadUint8/
+// SafeReadUint32/SafeReadUint64 functions make sure the physical memory is
+// temporarily mapped into virtual memory before reading it. This only works if
+// the values are sure not to cross the 2MB page boundaries (which they
+// shouldn't).
+uint32 SafeReadUint8(uint8* value) {
+	return *(uint8*)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value);
+}
 uint32 SafeReadUint32(uint32* value) {
 	return *(uint32*)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value);
 }
@@ -176,10 +180,6 @@ void InitializePhysicalAllocator() {
 				}
 
 			}
-		} else if(type == MULTIBOOT_TAG_TYPE_FRAMEBUFFER) {
-			// Not related to the physical memory manager, but since we're iterating through, we've
-			// found something interesting!
-			// handle_vesa_multiboot_header(tag);
 		}
 	}
 }

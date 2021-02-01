@@ -24,6 +24,10 @@ void* AllocateMemoryPages(size_t number);
 
 void ReleaseMemoryPages(void* ptr, size_t number);
 
+// Maps physical memory into this process's address space. Only drivers
+// may call this.
+void* MapPhysicalMemory(size_t physical_address, size_t pages);
+
 bool MaybeResizePages(void** ptr, size_t current_number, size_t new_number);
 
 size_t GetFreeSystemMemory();

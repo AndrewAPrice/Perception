@@ -22,6 +22,9 @@
 #endif
 
 namespace perception {
+namespace {
+	size_t kOutOfMemory = 1;
+}
 
 void* AllocateMemoryPages(size_t number) {
 #if PERCEPTION
@@ -30,7 +33,10 @@ void* AllocateMemoryPages(size_t number) {
 	volatile register size_t return_val asm ("rax");
 
 	__asm__ __volatile__ ("syscall\n":"=r"(return_val):"r"(syscall_num), "r"(param1): "rcx", "r11");
-	return (void*)return_val;
+	if (return_val == kOutOfMemory)
+		return nullptr;
+	else
+		return (void*)return_val;
 #else
 	return malloc(kPageSize * number);
 #endif
@@ -45,6 +51,26 @@ void ReleaseMemoryPages(void* ptr, size_t number) {
 	__asm__ __volatile__ ("syscall\n"::"r"(syscall_num), "r"(param1), "r"(param2): "rcx", "r11");
 #else
 	return free(ptr);
+#endif
+}
+
+// Maps physical memory into this process's address space. Only drivers
+// may call this.
+void* MapPhysicalMemory(size_t physical_address, size_t pages) {
+#if PERCEPTION
+	volatile register size_t syscall_num asm ("rdi") = 41;
+	volatile register size_t physical_address_r asm ("rax") = physical_address;
+	volatile register size_t pages_r asm ("rbx") = pages;
+	volatile register size_t return_val asm ("rax");
+
+	__asm__ __volatile__ ("syscall\n":"=r"(return_val):"r"(syscall_num),
+		"r"(physical_address_r), "r"(pages_r): "rcx", "r11");
+	if (return_val == kOutOfMemory)
+			return nullptr;
+	else
+		return (void*)return_val;
+#else
+	return nullptr;
 #endif
 }
 

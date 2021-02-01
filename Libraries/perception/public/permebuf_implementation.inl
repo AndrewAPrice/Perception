@@ -512,7 +512,7 @@ template <class O>
 	const O& request) const {
 	size_t a, b, c, d;
 	request.Serialize(a, b, c, d);
-	::perception::ToStatus(::perception::SendRawMessage(
+	return ::perception::ToStatus(::perception::SendRawMessage(
 		 process_id_, message_id_,
 		 function_id << 3,
 		 0, a, b, c, d));
@@ -526,13 +526,15 @@ template <class O>
 	size_t number_of_pages;
 	size_t size_in_bytes;
 	request->ReleaseMemory(&memory_address, &number_of_pages, &size_in_bytes);
-	if (::perception::SendRawMessage(process_id_, message_id_,
+	auto status = ::perception::SendRawMessage(process_id_, message_id_,
 		function_id << 3,
-		0, 0, size_in_bytes, (size_t)memory_address, number_of_pages) !=
+		0, 0, size_in_bytes, (size_t)memory_address, number_of_pages);
+	if (status !=
 		::perception::MessageStatus::SUCCESS) {
 		::perception::ReleaseMemoryPages(memory_address,
 			number_of_pages);
 	}
+	return ::perception::ToStatus(status);
 }
 
 template <class O, class I>

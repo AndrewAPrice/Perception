@@ -10,7 +10,7 @@
 #include "virtual_allocator.h"
 
 // The last assigned process ID.
-size_t last_assigned_pid = 0;
+size_t last_assigned_pid;
 
 //  Linked list of processes that are running.
 struct Process *first_process;
@@ -18,6 +18,7 @@ struct Process *last_process;
 
 // Initializes the internal structures for tracking processes.
 void InitializeProcesses() {
+	last_assigned_pid = 0;
 	first_process = NULL;
 	last_process = NULL;
 }

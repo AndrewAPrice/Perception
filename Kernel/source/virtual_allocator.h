@@ -32,11 +32,13 @@ extern void *TemporarilyMapPhysicalMemory(size_t addr, size_t index);
 extern size_t FindFreePageRange(size_t pml4, size_t pages);
 
 // Maps a physical page to a virtual page. Returns if it was successful.
-extern bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr, size_t physicaladdr);
+extern bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr, size_t physicaladdr, bool own);
 
 extern size_t AllocateVirtualMemoryInAddressSpace(size_t pml4, size_t pages);
 
 extern size_t ReleaseVirtualMemoryInAddressSpace(size_t pml4, size_t addr, size_t pages);
+
+extern size_t MapPhysicalMemoryInAddressSpace(size_t pml4, size_t addr, size_t pages);
 
 // Unmaps a virtual page - free specifies if that page should be returned to the physical memory manager.
 extern void UnmapVirtualPage(size_t pml4, size_t virtualaddr, bool free);

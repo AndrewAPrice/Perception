@@ -41,9 +41,14 @@ public:
 
 int main() {
 	MyMouseListener mouse_listener;
+	std::cout << "MyMouseListener is running at PID: " << (int)mouse_listener.GetProcessId() <<
+		" MID: " << (int)mouse_listener.GetMessageId() << std::endl;
+
 	MessageId listener = MouseDriver::NotifyOnEachNewInstance(
 		[&] (MouseDriver mouse_driver) {
-			std::cout << "I'm notified that there's a mouse listener!" << std::endl;
+			std::cout << "I'm notified that there's a mouse driver at PID: " <<
+				(int)mouse_driver.GetProcessId() << " MID: " << (int)mouse_driver.GetMessageId() <<
+					std::endl;
 			// Tell the mouse driver to send us mouse messages.
 			MouseDriver::SetMouseListenerMessage message;
 			message.SetNewListener(mouse_listener);

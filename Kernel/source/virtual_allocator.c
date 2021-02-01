@@ -383,12 +383,20 @@ size_t FindFreePageRange(size_t pml4, size_t pages) {
 	if(start_pml4_entry >= PAGE_TABLE_ENTRIES / 2)
 		addr += 0xFFFF000000000000;
 
+#ifdef DEBUG
+	PrintString("Allocating ");
+	PrintNumber(pages);
+	PrintString(" at ");
+	PrintHex(addr);
+	PrintString("\n");
+#endif
+
 	// Return the virtual address we found.
 	return addr;
 }
 
 // Maps a physical page to a virtual page. Returns if it was successful.
-bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr, size_t physicaladdr) {
+bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr, size_t physicaladdr, bool own) {
 	// Find the index into each PML table.
 	// 6666 5555 5555 5544 4444 4444 4333 3333 3332 2222 2222 2111 1111 111
 	// 4321 0987 6543 2109 8765 4321 0987 6543 2109 8765 4321 0978 6543 2109 8765 4321
@@ -531,7 +539,9 @@ bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr, size_t physic
 	// Write us in PML1.
 	size_t entry = physicaladdr | 0x3 |
 		// Set the user bit.
-		(user_page ? (1 << 2) : 0);
+		(user_page ? (1 << 2) : 0) |
+		// Set the ownership bit (a custom bit.)
+		(own ? (1 << 9) : 0);
 	ptr[pml1_entry] = entry;
 
 
@@ -615,7 +625,7 @@ size_t GetOrCreateVirtualPage(size_t pml4, size_t virtualaddr) {
 		return OUT_OF_MEMORY;
 	}
 
-	if(MapPhysicalPageToVirtualPage(pml4, virtualaddr, physical_address)) {
+	if(MapPhysicalPageToVirtualPage(pml4, virtualaddr, physical_address, true)) {
 		return physical_address;
 	} else {
 		FreePhysicalPage(physical_address);
@@ -646,7 +656,7 @@ size_t AllocateVirtualMemoryInAddressSpace(size_t pml4, size_t pages) {
 		}
 
 		// Map the physical page.
-		MapPhysicalPageToVirtualPage(pml4, addr, phys);
+		MapPhysicalPageToVirtualPage(pml4, addr, phys, true);
 
 		if (current_pml4 == pml4) {
 			FlushVirtualPage(addr);
@@ -661,6 +671,27 @@ size_t ReleaseVirtualMemoryInAddressSpace(size_t pml4, size_t addr, size_t pages
 	for(;i < pages; i++, addr += PAGE_SIZE) {
 		UnmapVirtualPage(pml4, addr, true);
 	}
+}
+
+
+size_t MapPhysicalMemoryInAddressSpace(size_t pml4, size_t addr, size_t pages) {
+	size_t start_virtual_address = FindFreePageRange(pml4, pages);
+	if (start_virtual_address == OUT_OF_MEMORY)
+		return OUT_OF_MEMORY;
+
+	for (size_t virtual_address = start_virtual_address;
+		pages > 0; pages--, virtual_address += PAGE_SIZE, addr += PAGE_SIZE) {
+#ifdef DEBUG
+		PrintString("Mapping ");
+		PrintHex(addr);
+		PrintString(" to ");
+		PrintHex(virtual_address);
+		PrintString("\n");
+#endif
+		MapPhysicalPageToVirtualPage(pml4, virtual_address, addr, false);
+	}
+	return start_virtual_address;
+
 }
 
 // Unmaps a virtual page - free specifies if that page should be returned to the physical memory manager.
@@ -724,11 +755,12 @@ void UnmapVirtualPage(size_t pml4, size_t virtualaddr, bool free) {
 
 	// This adddress was mapped somwhere.
 
-	if(free) {
+	// Should we free it, and it owned by this process?
+	if(free && (ptr[pml1_entry] & (1 << 9)) == 0) {
 		// Return the memory to the physical allocator. This is optional because we don't want to do this if it's shared or
 		// memory mapped IO.
 
-		// Figur eout the physical address that this entry points to and free it.
+		// Figure out the physical address that this entry points to and free it.
 		size_t physicaladdr = ptr[pml1_entry] & ~(PAGE_SIZE - 1);
 		FreePhysicalPage(physicaladdr);
 

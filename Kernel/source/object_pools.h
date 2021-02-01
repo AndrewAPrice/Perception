@@ -33,5 +33,8 @@ struct ProcessToNotifyWhenServiceAppears* AllocateProcessToNotifyWhenServiceAppe
 void ReleaseProcessToNotifyWhenServiceAppears(
 	struct ProcessToNotifyWhenServiceAppears* process_to_notify_when_service_appears);
 
+// Initialize the object pools.
+void InitializeObjectPools();
+
 // Clean up object pools to gain some memory back.
 void CleanUpObjectPools();

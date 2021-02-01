@@ -51,7 +51,7 @@ struct Thread *CreateThread(struct Process *process, size_t entry_point, size_t 
 	}
 
 	// 3) Maps the process's virtual address to the physical page.
-	MapPhysicalPageToVirtualPage(thread->process->pml4, thread->stack, stack_physical_addr);
+	MapPhysicalPageToVirtualPage(thread->process->pml4, thread->stack, stack_physical_addr, true);
 
 	// Sets up the registers that our process will start with.
 	struct Registers *regs = malloc(sizeof(struct Registers));
@@ -82,8 +82,6 @@ struct Thread *CreateThread(struct Process *process, size_t entry_point, size_t 
 		((process->is_driver) ? ((1 << 12) | (1 << 13)) : 0) | // Sets the IOPL bits for drivers.
 		(1 << 9) | // Interrupts are enabled.
 		(1 << 21); // The thread can use CPUID.
-
-	PrintString(process->is_driver ? "Is driver\n" : "is not driver\n");
 
 	// The thread isn't initially awake until we schedule it.
 	thread->awake = false;

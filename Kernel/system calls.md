@@ -152,6 +152,17 @@ Releases memory pages from the process back the operating system. Memory pages a
 ### Output
 Nothing.
 
+## Map physical memory page
+Maps a physical memory page into the process. Only drivers can call this.
+
+### Input
+* `rdi` - 41
+* `rax` - The first physical address.
+* `rbx` - The number of physical pages to map.
+
+### Output
+* `rax` - The starting address of the set of memory pages, or 1 if it could not be allocated.
+
 ## Get free system memory
 Returns the amount of free memory on the system that has not yet been allocated.
 
@@ -491,3 +502,17 @@ Unregisters a message to be sent to this process when an interrupt occurs. Only 
 
 ### Output
 Nothing.
+
+# Drivers
+
+## Grab the multiboot framebuffer information.
+
+### Input
+* `rdi` - 40
+
+### Output
+* `rax` - The physical memory address of the framebuffer.
+* `rbx` - The width of the framebuffer, in pixels.
+* `rdx` - The height of the framebuffer, in pixels.
+* `rsi` - The number of bytes in memory between rows of pixels.
+* `r8` - The number of bits per pixel.

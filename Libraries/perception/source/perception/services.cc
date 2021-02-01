@@ -31,7 +31,7 @@ void RegisterService(perception::MessageId message_id, std::string_view name) {
 	memcpy(service_name_words, &name[0], name.size());
 
 	volatile register size_t syscall asm ("rdi") = 32;
-	volatile register size_t min_pid asm ("rbp") = (size_t)message_id;
+	volatile register size_t message_id_r asm ("rbp") = (size_t)message_id;
 	volatile register size_t name_1 asm ("rax") = service_name_words[0];
 	volatile register size_t name_2 asm ("rbx") = service_name_words[1];
 	volatile register size_t name_3 asm ("rdx") = service_name_words[2];
@@ -44,7 +44,7 @@ void RegisterService(perception::MessageId message_id, std::string_view name) {
 	volatile register size_t name_10 asm ("r14") = service_name_words[9];
 
 	__asm__ __volatile__ ("syscall\n"::
-	"r"(syscall), "r"(message_id), "r"(name_1), "r"(name_2), "r"(name_3), "r"(name_4),
+	"r"(syscall), "r"(message_id_r), "r"(name_1), "r"(name_2), "r"(name_3), "r"(name_4),
 	"r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8), "r"(name_9),
 	"r"(name_10):
 		"rcx", "r11");
@@ -54,10 +54,10 @@ void RegisterService(perception::MessageId message_id, std::string_view name) {
 void UnregisterService(perception::MessageId message_id) {
 #ifdef PERCEPTION
 	volatile register size_t syscall asm ("rdi") = 32;
-	volatile register size_t min_pid asm ("rax") = (size_t)message_id;
+	volatile register size_t message_id_r asm ("rax") = (size_t)message_id;
 
 	__asm__ __volatile__ ("syscall\n"::
-	"r"(syscall), "r"(message_id):
+	"r"(syscall), "r"(message_id_r):
 		"rcx", "r11");
 #endif
 }

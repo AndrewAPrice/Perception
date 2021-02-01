@@ -18,6 +18,8 @@
 #include "object_pools.h"
 #include "process.h"
 
+// #define DEBUG
+
 struct ProcessToNotifyWhenServiceAppears*
 	first_process_to_be_notified_when_a_service_appears = NULL;
 
@@ -47,9 +49,11 @@ void RegisterService(char* service_name, struct Process* process,
 	for (int i = 0; i < SERVICE_NAME_WORDS; i++)
 		((size_t*)service->service_name)[i] = ((size_t*)service_name)[i];
 
+#ifdef DEBUG
 	PrintString("Registering ");
 	PrintString(service_name);
 	PrintString("\n");
+#endif
 
 	// Add to the linked list of services in the process.
 	if (process->first_service == NULL) {

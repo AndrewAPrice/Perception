@@ -151,7 +151,7 @@ irq_common_stub:
 	push r15
 
 	; Move back to the interrupt's stack.
-	mov rsp, interrupt_stack_top
+	mov rsp, [interrupt_stack_top]
 
 	; Move to kernel land data segment
 	mov ax, 0x10

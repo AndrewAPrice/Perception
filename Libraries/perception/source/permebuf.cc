@@ -4,11 +4,11 @@
 #include "perception/processes.h"
 #include "perception/services.h"
 
+#include <iostream>
 #include <string>
 
 using ::perception::DealWithUnhandledMessage;
 using ::perception::GenerateUniqueMessageId;
-using ::perception::GetProcessId;
 using ::perception::MessageId;
 using ::perception::ProcessId;
 using ::perception::RegisterRawMessageHandler;
@@ -849,7 +849,7 @@ PermebufServer::~PermebufServer() {
 }
 
 ProcessId PermebufServer::GetProcessId() const {
-	return GetProcessId();
+	return perception::GetProcessId();
 }
 
 MessageId PermebufServer::GetMessageId() const {

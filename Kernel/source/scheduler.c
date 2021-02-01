@@ -26,9 +26,9 @@ struct Registers *idle_regs;
 struct Registers *currently_executing_thread_regs;
 
 void InitializeScheduler() {
-	first_awake_thread = 0;
-	last_awake_thread = 0;
-	running_thread = 0;
+	first_awake_thread = NULL;
+	last_awake_thread = NULL;
+	running_thread = NULL;
 	currently_executing_thread_regs = malloc(sizeof(struct Registers));
 	if (!currently_executing_thread_regs) {
 		PrintString("Could not allocate object to store the kernel's registers.");

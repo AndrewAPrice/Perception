@@ -41,8 +41,8 @@ ProcessId InvokeSyscallToGetProcessId() {
 
 ProcessId GetProcessId() {
 #ifdef PERCEPTION
-	static ProcessId process_id = InvokeSyscallToGetProcessId();
-	return process_id;
+	//static ProcessId process_id = InvokeSyscallToGetProcessId();
+	return InvokeSyscallToGetProcessId();;
 #else
 	return 0;
 #endif

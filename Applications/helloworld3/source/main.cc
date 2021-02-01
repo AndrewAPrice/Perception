@@ -12,17 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "perception/debug.h"
-#include "perception/messages.h"
+#include <iostream>
 
 int main() {
-	/*
-	size_t senders_pid, message_id, param1, param2, param3, param4, param5;
-
-	while(perception::SleepUntilMessage(&senders_pid, &message_id, &param1, &param2,
-		&param3, &param4, &param5)) {
-		perception::DebugPrinterSingleton << "3: Slept and received " << message_id << " from " << senders_pid << ": "
-			<< param1 << "," << param2 << "," << param3 << "," << param4 << "," << param5 << '\n';
-	}*/
+	std::cout << "Hello world" << std::endl;
 	return 0;
 }

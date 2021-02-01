@@ -40,7 +40,7 @@ void InitializeIdt() {
 
 	size_t idt_physical = GetPhysicalPage();
 	
-	MapPhysicalPageToVirtualPage(kernel_pml4, (size_t)idt, idt_physical);
+	MapPhysicalPageToVirtualPage(kernel_pml4, (size_t)idt, idt_physical, true);
 
 	// Populate the IDT reference to point to the physical memory location where the IDT will be.
 	idt_p.limit = (sizeof (struct idt_entry) * 256) - 1;

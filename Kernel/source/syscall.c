@@ -2,6 +2,7 @@
 
 #include "interrupts.h"
 #include "io.h"
+#include "framebuffer.h"
 #include "messages.h"
 #include "process.h"
 #include "registers.h"
@@ -40,7 +41,7 @@ void InitializeSystemCalls() {
 }
 
 // Syscalls.
-// Next id is 40.
+// Next id is 42.
 #define PRINT_DEBUG_CHARACTER 0
 #define CREATE_THREAD 1
 #define GET_THIS_THREAD_ID 2
@@ -53,8 +54,10 @@ void InitializeSystemCalls() {
 #define YIELD 8
 #define SET_THREAD_SEGMENT 27
 #define SET_ADDRESS_TO_CLEAR_ON_THREAD_TERMINATION 28
+// Memory management
 #define ALLOCATE_MEMORY_PAGES 12
 #define RELEASE_MEMORY_PAGES 13
+#define MAP_PHYSICAL_MEMORY 41
 #define GET_FREE_SYSTEM_MEMORY 14
 #define GET_MEMORY_USED_BY_PROCESS 15
 #define GET_TOTAL_SYSTEM_MEMORY 16
@@ -86,6 +89,8 @@ void InitializeSystemCalls() {
 #define GET_RPC_BY_NAME 24 // TODO
 #define CALL_RPC 25 // TODO
 #define RETURN_FROM_RPC 26 // TODO
+// Drivers
+#define GET_MULTIBOOT_FRAMEBUFFER_INFORMATION 40
 
 extern void JumpIntoThread();
 
@@ -159,12 +164,23 @@ void SyscallHandler(int syscall_number) {
 				AllocateVirtualMemoryInAddressSpace(running_thread->process->pml4,
 					currently_executing_thread_regs->rax);
 			break;
-		case RELEASE_MEMORY_PAGES: {
+		case RELEASE_MEMORY_PAGES:
 			ReleaseVirtualMemoryInAddressSpace(running_thread->process->pml4,
 					currently_executing_thread_regs->rax,
 					currently_executing_thread_regs->rbx);
 			break;
-		}
+		case MAP_PHYSICAL_MEMORY:
+			// Only drivers can map physical memory.
+			if (running_thread->process->is_driver) {
+				currently_executing_thread_regs->rax =
+					MapPhysicalMemoryInAddressSpace(running_thread->process->pml4,
+						currently_executing_thread_regs->rax,
+						currently_executing_thread_regs->rbx);
+			} else {
+				currently_executing_thread_regs->rax =
+					OUT_OF_MEMORY;
+			}
+			break;
 		case GET_FREE_SYSTEM_MEMORY:
 			currently_executing_thread_regs->rax = free_pages * PAGE_SIZE;
 			break;
@@ -313,6 +329,16 @@ void SyscallHandler(int syscall_number) {
 			service_name[8] = currently_executing_thread_regs->r13;
 			service_name[9] = currently_executing_thread_regs->r14;
 
+#ifdef DEBUG
+			PrintString("Registering service ");
+			PrintString((char*)service_name);
+			PrintString(" / ");
+			PrintNumber(currently_executing_thread_regs->rbp);
+			PrintString(" in process ");
+			PrintNumber(running_thread->process->pid);
+			PrintString("\n");
+#endif
+
 			RegisterService((char*)service_name, running_thread->process,
 				currently_executing_thread_regs->rbp);
 			break;
@@ -378,6 +404,10 @@ void SyscallHandler(int syscall_number) {
 				(int)currently_executing_thread_regs->rax,
 				running_thread->process,
 				currently_executing_thread_regs->rbx);
+			break;
+		case GET_MULTIBOOT_FRAMEBUFFER_INFORMATION:
+			PopulateRegistersWithFramebufferDetails(
+				currently_executing_thread_regs);
 			break;
 	}
 #ifdef DEBUG
