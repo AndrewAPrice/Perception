@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "permebuf/Libraries/perception/devices/keyboard_driver.permebuf.h"
+#include "permebuf/Libraries/perception/devices/keyboard_listener.permebuf.h"
 #include "permebuf/Libraries/perception/devices/mouse_driver.permebuf.h"
 #include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
 
@@ -19,6 +21,8 @@
 
 using ::perception::MessageId;
 using ::perception::ProcessId;
+using ::permebuf::perception::devices::KeyboardDriver;
+using ::permebuf::perception::devices::KeyboardListener;
 using ::permebuf::perception::devices::MouseButton;
 using ::permebuf::perception::devices::MouseDriver;
 using ::permebuf::perception::devices::MouseListener;
@@ -38,13 +42,24 @@ public:
 	}
 };
 
+class MyKeyboardListener : public KeyboardListener::Server {
+public:
+	void HandleOnKeyDown(ProcessId,
+		const KeyboardListener::OnKeyDownMessage& message) override {
+		std::cout << "Key " << (int)message.GetKey() << " was pressed." << std::endl;
+	}
+
+	void HandleOnKeyUp(ProcessId,
+		const KeyboardListener::OnKeyUpMessage& message) override {
+		std::cout << "Key " << (int)message.GetKey() << " was released." << std::endl;
+	}
+};
 
 int main() {
 	MyMouseListener mouse_listener;
-	std::cout << "MyMouseListener is running at PID: " << (int)mouse_listener.GetProcessId() <<
-		" MID: " << (int)mouse_listener.GetMessageId() << std::endl;
+	MyKeyboardListener keyboard_listener;
 
-	MessageId listener = MouseDriver::NotifyOnEachNewInstance(
+	MessageId mouse_driver_listener = MouseDriver::NotifyOnEachNewInstance(
 		[&] (MouseDriver mouse_driver) {
 			std::cout << "I'm notified that there's a mouse driver at PID: " <<
 				(int)mouse_driver.GetProcessId() << " MID: " << (int)mouse_driver.GetMessageId() <<
@@ -57,7 +72,24 @@ int main() {
 			// We only care about one instance. We can stop
 			// listening now.
 			MouseDriver::StopNotifyingOnEachNewInstance(
-				listener);
+				mouse_driver_listener);
+	});
+
+	MessageId keyboard_driver_listener = KeyboardDriver::NotifyOnEachNewInstance(
+		[&] (KeyboardDriver keyboard_driver) {
+			std::cout << "I'm notified that there's a keyboard driver at PID: " <<
+				(int)keyboard_driver.GetProcessId() << " MID: " <<
+				(int)keyboard_driver.GetMessageId() <<
+					std::endl;
+			// Tell the mouse driver to send us mouse messages.
+			KeyboardDriver::SetKeyboardListenerMessage message;
+			message.SetNewListener(keyboard_listener);
+			keyboard_driver.SendSetKeyboardListener(message); 
+
+			// We only care about one instance. We can stop
+			// listening now.
+			KeyboardDriver::StopNotifyingOnEachNewInstance(
+				keyboard_driver_listener);
 	});
 	perception::TransferToEventLoop();
 	return 0;

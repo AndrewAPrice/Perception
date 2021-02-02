@@ -15,6 +15,8 @@
 #include "perception/interrupts.h"
 #include "perception/messages.h"
 #include "perception/port_io.h"
+#include "permebuf/Libraries/perception/devices/keyboard_driver.permebuf.h"
+#include "permebuf/Libraries/perception/devices/keyboard_listener.permebuf.h"
 #include "permebuf/Libraries/perception/devices/mouse_driver.permebuf.h"
 #include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
 
@@ -24,6 +26,8 @@ using ::perception::ProcessId;
 using ::perception::Read8BitsFromPort;
 using ::perception::RegisterInterruptHandler;
 using ::perception::Write8BitsToPort;
+using ::permebuf::perception::devices::KeyboardDriver;
+using ::permebuf::perception::devices::KeyboardListener;
 using ::permebuf::perception::devices::MouseButton;
 using ::permebuf::perception::devices::MouseDriver;
 using ::permebuf::perception::devices::MouseListener;
@@ -61,7 +65,7 @@ public:
 	}
 
 	virtual void HandleSetMouseListener(ProcessId,
-		const MouseDriver::SetMouseListenerMessage& message) {
+		const MouseDriver::SetMouseListenerMessage& message) override {
 		if (!mouse_captor_) {
 			// Let the old captor know the mouse has escaped.
 			mouse_captor_->SendOnMouseRelease(MouseListener::OnMouseReleaseMessage());
@@ -127,13 +131,69 @@ private:
 	}
 };
 
+
+class PS2KeyboardDriver : public KeyboardDriver::Server {
+public:
+	PS2KeyboardDriver() {}
+
+	virtual ~PS2KeyboardDriver() {
+		if (keyboard_captor_) {
+			// Tell the captor we had to let the keyboard go.
+			keyboard_captor_->SendOnKeyboardRelease(
+				KeyboardListener::OnKeyboardReleaseMessage());
+		}
+	}
+
+	void HandleKeyboardInterrupt() {
+		uint8 val = Read8BitsFromPort(0x60);
+
+		if (!keyboard_captor_)
+			// No one to send the keyboard event to.
+			return;
+
+		uint8 key = val & 127;
+		if ((val & 128) == 0) {
+			// Send our captor a message that the key was pressed down.
+			KeyboardListener::OnKeyDownMessage message;
+			message.SetKey(key);
+			keyboard_captor_->SendOnKeyDown(message);
+		} else {
+			// Send our captor a message that the key was released.
+			KeyboardListener::OnKeyUpMessage message;
+			message.SetKey(key);
+			keyboard_captor_->SendOnKeyUp(message);
+		}
+
+	}
+
+	virtual void HandleSetKeyboardListener(ProcessId,
+		const KeyboardDriver::SetKeyboardListenerMessage& message) override {
+		if (!keyboard_captor_) {
+			// Let the old captor know the keyboard has escaped.
+			keyboard_captor_->SendOnKeyboardRelease(
+				KeyboardListener::OnKeyboardReleaseMessage());
+		}
+		if (message.HasNewListener()) {
+			keyboard_captor_ = std::make_unique<KeyboardListener>(
+				message.GetNewListener());
+			// Let our captor know they have taken the keybord captive.
+			keyboard_captor_->SendOnKeyboardTakenCaptive(
+				KeyboardListener::OnKeyboardTakenCaptiveMessage());
+		} else {
+			keyboard_captor_.reset();
+		}
+	}
+
+private:
+	// The service we should sent keyboard events to.
+	std::unique_ptr<KeyboardListener> keyboard_captor_;
+};
+
 // Global instance of the mouse driver.
 std::unique_ptr<PS2MouseDriver> mouse_driver;
 
-void HandleKeyboardInterrupt() {
-	uint8 val = Read8BitsFromPort(0x60);
-	std::cout << "Keyboard: " << (size_t)val << std::endl;
-}
+// Global instance of the keyboard driver.
+std::unique_ptr<PS2KeyboardDriver> keyboard_driver;
 
 void InterruptHandler() {
 	uint8 check;
@@ -143,7 +203,7 @@ void InterruptHandler() {
 		if (check & (1 << 5)) {
 			mouse_driver->HandleMouseInterrupt();
 		} else {
-			HandleKeyboardInterrupt();
+			keyboard_driver->HandleKeyboardInterrupt();
 		}
 	}
 }
@@ -206,13 +266,12 @@ void InitializePS2Controller() {
 
 int main() {
 	mouse_driver = std::make_unique<PS2MouseDriver>();
+	keyboard_driver = std::make_unique<PS2KeyboardDriver>();
 	InitializePS2Controller();
 
 	// Listen to the interrupts.
 	RegisterInterruptHandler(1, InterruptHandler);
 	RegisterInterruptHandler(12, InterruptHandler);
-
-	std::cout << "PS2 controller initialized." << std::endl;
 
 	perception::TransferToEventLoop();
 	return 0;

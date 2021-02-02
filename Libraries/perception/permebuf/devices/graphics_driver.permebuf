@@ -1,0 +1,148 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/*
+
+namespace perception.devices;
+
+// Represents drawing commands.
+oneof GraphicsCommand {
+	// Copies an entire texture from A to the top left corner of B.
+	message CopyEntireTexture {
+		// The source texture to copy from.
+		SourceTexture: uint64 = 1;
+
+		// The destination texture to copy to.
+		DestinationTexture: uint64 = 2;
+	}
+	CopyEntireTexture : CopyEntireTexture = 1;
+	// Copies an entire texture from A to the top left corner of B with
+	// alpha blending.
+	CopyEntireTextureWithAlphaBlending : CopyEntireTexture = 2;
+
+	// Copy texture A to a specific position on texture B.
+	message CopyTextureToPosition {
+		// The source texture to copy from.
+		SourceTexture: uint64 = 1;
+
+		// The destination texture to copy to.
+		DestinationTexture: uint64 = 2;
+
+		// The left coordinate, in pixels, to start copying to.
+		LeftDestination: uint32 = 3;
+
+		// The top coordinate, in pixels, to start copying to.
+		TopDestination: uint32 = 4;
+	}
+	CopyTextureToPosition : CopyTextureToPosition = 3;
+
+	// Copy texture A to a specific position on texture B with
+	// alpha blending.
+	CopyTextureToPositionWithAlphaBlending : CopyTextureToPosition = 4;
+
+	// Copy a part of texture A to a specific position on texture B.
+	message CopyPartOfTexture {
+		// The source texture to copy from.
+		SourceTexture: uint64 = 1;
+
+		// The destination texture to copy to.
+		DestinationTexture: uint64 = 2;
+
+		// The left coordinate, in pixels, to start copying from.
+		LeftSource: uint32 = 3;
+
+		// The top coordinate, in pixels, to start copying from.
+		TopSource: uint32 = 4;
+
+		// The left coordinate, in pixels, to copy to.
+		LeftDestination: uint32 = 5;
+
+		// The top coordinate, in pixels, to copy to.
+		TopDestination: uint32 = 6;
+
+		// How wide of an area, in pixels, to copy.
+		Width: uint32 = 7;
+
+		// How tall of an area, in pixels, to copy.
+		Height: uint32 = 8;
+	}
+	CopyPartOfATexture : CopyPartOfATexture = 5;
+
+	// Copy part of texture A to a specific position on texture B
+	// with alpha blending.
+	CopyPartOfATextureWithAlphaBlending : CopyPartOfATexture = 6;
+}
+
+// Represents a graphics device that you can draw pixels on.
+service GraphicsDriver {
+	// Executes a set of graphics commands.
+	message RunCommandsMessage {
+		// The commands to execute.
+		Commands : list<GraphicsCommands> = 1;
+	}
+	RunCommands : RunCommandsMessage = 0;
+
+	// Creates a texture.
+	minimessage CreateTextureRequest {
+		// The width of the texture in pixels.
+		Width : uint32 = 1;
+
+		// The height of the texture in pixels.
+		Height : uint32 = 2;
+	}
+	minimessage CreateTextureResponse {
+		// The texture ID. If 0, the texture could not be created.
+		Texture : uint64 = 1;
+
+		// The shared memory buffer we can write to.
+		SharedMemoryBuffer : uint64 = 2;
+	}
+	CreateTexture : CreateTextureRequest -> CreateTextureResponse = 1;
+
+	// Destroys a texture. Only the process that created a texture can
+	// destroy the texture. Textures are automatically destroyed when
+	// the owning process dies.
+	minimessage DestroyTextureRequest {
+		// The texture to destroy.
+		Texture : uint64 = 1;
+	}
+	DestroyTexture : DestroyTextureMessage = 2;
+
+	// Gets information about a texture.
+	minimessage GetTextureInformationRequest {
+		// The texture to query.
+		Texture : uint64 = 1;
+	}
+	minimessage GetTextureInformationResponse {
+		// The process that owns the texture. 0 if the texture is
+		// invalid.
+		Owner : uint64 = 1;
+
+		// The width of the texture, in pixels.
+		Width : uint32 = 2;
+
+		// The height of the texture, in pixels.
+		Height : uint32 = 3;
+	}
+	GetTextureInformation :
+		GetTextureInformationRequest -> GetTextureInformationResponse = 3;
+
+	// Sets the process that is allowed to draw directly to the screen.
+	minimessage SetProcessAllowedToDrawToScreenMessage {
+		// The process that is allowed to draw to the screen.
+		Process : uint64 = 1;
+	}
+	SetProcessAllowedToDrawToScreen : SetProcessAllowedToDrawToScreenMessage = 4;
+}
+*/
