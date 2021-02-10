@@ -190,6 +190,35 @@ Returns the total amount of memory that the computer has.
 ### Output
 * `rax` - The total amount of memory the computer has, in bytes.
 
+## Create shared memory
+Creates a shared memory block, and joins it into the process.
+
+### Input
+* `rdi` - 42
+* `rax` - The size of the shared memory, in pages.
+
+### Output
+* `rax` - The ID of the shared memory block, or 0 if it could not be created.
+* `rbx` - The address of the shared memory.
+
+## Join shared memory.
+Joins a shared memory block.
+
+### Input
+* `rdi` - 43
+* `rax` - The ID of the shared memory block.
+
+### Output
+* `rax` - The size of the shared memory, in pages, or 0 if it could not be mapped.
+* `rbx` - The address of the shared memory block.
+
+## Leave shared memory.
+Leaves a shared memory block. If there are no more references to the shared memory block then the memory is released from the system.
+
+### Input
+* `rdi` - 44
+* `rax` - The ID of the shared memory block.
+
 # Process Management
 
 ## Get this process's ID

@@ -99,6 +99,7 @@ The built in types are:
 * `pointer` - Only used for reserved fields that may have been a list, array, or pointer.
 * `enum` - Only used for reserved fields that may have been an enum.
 * `oneof` - Only used for oneof fields that may have been an enum.
+* `SharedMemory` - A shared memory buffer.
 
 ### Enums
 Enums are defined as:
@@ -231,6 +232,10 @@ Arrays are stored by a variable length number, indicating how many items are on 
 
 Lists are stored as pointers to the first list entry. A list entry contains a pointer to the next entry, followed by the current entry (which may either be a pointer or an inlined type.)
 
+### Shared memory buffer
+
+A shared memory buffer is stored by its 8-byte identifier.
+
 ### Strings
 
 Strings are stored as a variable length number indiciating how many bytes are in the string, followed by the bytes of the string. Bytes are stored the same as strings.
@@ -320,6 +325,12 @@ Oneof fields and message fields add the following members:
 * `T MutableFIELD()` - Returns a mutable copy of the field. This allocates the object if it doesn't exist.
 * `void SetFIELD(T value)` - Sets the field to a permabuf object (without making another instance of it).
 * `void ClearFIELD()` - Clears the field (but doesn't actually deallocate memory.)
+
+Shared memory buffers have the following members:
+* `bool HasFIELD() const` - Returns true if the field is set.
+* `SharedMemory GetFIELD() const` - Returns the shared memory.
+* `void SetFIELD(const SharedMemory& value)` - Assigns the shared memory buffer.
+* `void ClearField()` - Clears the shared memory buffer.
 
 ### List
 

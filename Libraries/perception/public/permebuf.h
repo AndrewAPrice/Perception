@@ -119,9 +119,9 @@ private:
 };
 
 template <class T>
-class PermebufArrayOfOneofs : public PermebufArray {
+class PermebufArrayOfOneOfs : public PermebufArray {
 public:
-	PermebufArrayOfOneofs(PermebufBase* buffer, size_t offset);
+	PermebufArrayOfOneOfs(PermebufBase* buffer, size_t offset);
 	typename T::Ref Get(int index) const;
 	bool Has(int index) const;
 	void Set(int index, typename T::Ref value);
@@ -190,6 +190,27 @@ public:
 	size_t GetItemAddress() const;
 	size_t Address() const;
 
+	// For range for iteration:
+	class Iterator {
+	public:
+		Iterator(PermebufBase* buffer, size_t offset) :
+			buffer_(buffer), offset_(offset) {}
+		Iterator operator++() {
+			offset_ = T(buffer_, offset_).Next().offset_;
+			return *this;
+		}
+		bool operator!=(const Iterator& other) const {
+			return offset_ != other.offset_;
+		}
+		const auto& operator*() const { return T(buffer_, offset_).Get(); }
+	private:
+		PermebufBase* buffer_;
+		size_t offset_;
+	};
+
+	Iterator begin() const { return Iterator(buffer_, offset_); }
+	Iterator end() const { return Iterator(buffer_, 0); }
+
 protected:
 	PermebufBase* buffer_;
 	size_t offset_;
@@ -227,13 +248,14 @@ public:
 };
 
 template <class T>
-class PermebufListOfOneofs : public PermebufList<PermebufListOfOneofs<T>> {
+class PermebufListOfOneOfs : public PermebufList<PermebufListOfOneOfs<T>> {
 public:
-	PermebufListOfOneofs(PermebufBase* buffer, size_t offset);
+	PermebufListOfOneOfs(PermebufBase* buffer, size_t offset);
 	bool Has() const;
 	T Get() const;
 	void Set(T value);
 	void Clear();
+	static size_t GetSizeInBytes(PermebufBase* buffer);
 };
 
 
@@ -296,6 +318,11 @@ public:
 		return PermebufListOf<T>(this, AllocateMessage(PermebufListOf<T>::GetSizeInBytes(this)));
 	}
 
+	template <class T> PermebufListOfOneOfs<T> AllocateListOfOneOfs() {
+		return PermebufListOfOneOfs<T>(this,
+			AllocateMessage(PermebufListOfOneOfs<T>::GetSizeInBytes(this)));
+	}
+
 	template <class T> T AllocateMessage() {
 		return T(this, AllocateMessage(T::GetSizeInBytes(this)));
 	}
@@ -333,13 +360,16 @@ public:
 	// Creates a new Permebuf.
 	Permebuf(PermebufAddressSize address_size = PermebufAddressSize::BITS_16) : PermebufBase(address_size) {
 		// Allocate the first message in the Permebuf.
-		(void)AllocateMessage<Ref>();
+		root_ = (void)AllocateMessage<T>();
 	}
 
 	// Wraps a Permabug around raw memory. This memory must be page aligned, and we take ownership
 	// of the memory.
 	Permebuf(void* start_of_memory, size_t size) :
 		PermebufBase(start_of_memory, size) {}
+
+	// Allow moving the object with std::move.
+  	Permebuf(Permebuf<T> &&) = default;
 
 	virtual ~Permebuf() {}
 
@@ -353,16 +383,24 @@ public:
 
 	typedef typename T::Ref Ref;
 
-	const Ref operator-> () const {
-		return Ref(this, 1);
+	const T* operator->() const {
+		return &root_;
 	}
 
-	Ref operator-> () {
-		return Ref(this, 1);
+	T* operator->() {
+		return &root_;
+	}
+
+	const T& operator*() const {
+		return root_;
+	}
+
+	T& operator*() {
+		return root_;
 	}
 
 private:
-
+	T root_;
 };
 
 // Represents a small 32-byte message.
@@ -402,7 +440,7 @@ protected:
 		const O& request) const;
 
 	template <class O>
-	::perception::Status SendMessage(size_t message_id, std::unique_ptr<Permebuf<O>> request)
+	::perception::Status SendMessage(size_t message_id, Permebuf<O> request)
 		const;
 
 	template <class O, class I>
@@ -410,40 +448,40 @@ protected:
 		size_t function_id, const O& request) const;
 
 	template <class O, class I>
-	StatusOr<std::unique_ptr<Permebuf<O>>>
+	StatusOr<Permebuf<O>>
 		SendMiniMessageAndWaitForMessage(size_t function_id,
 			const O& request) const;
 
 	template <class O, class I>
 	void SendMiniMessageAndNotifyOnMiniMessage(
 		size_t function_id, const O& request,
-		const std::function<void(StatusOr<I>)>& on_response);
+		const std::function<void(StatusOr<I>)>& on_response) const;
 
 	template <class O, class I>
 	void SendMiniMessageAndNotifyOnMessage(
 		size_t function_id, const O& request,
 		const std::function<
-			void(StatusOr<std::unique_ptr<Permebuf<I>>>)>& on_response);
+			void(StatusOr<Permebuf<I>>)>& on_response) const;
 
 	template <class O, class I>
 	StatusOr<I> SendMessageAndWaitForMiniMessage(
-		size_t function_id, std::unique_ptr<Permebuf<O>> request) const;
+		size_t function_id, Permebuf<O> request) const;
 
 	template <class O, class I>
-	StatusOr<std::unique_ptr<Permebuf<I>>>
+	StatusOr<Permebuf<I>>
 	SendMessageAndWaitForMessage(size_t function_id,
-		std::unique_ptr<Permebuf<O>> request) const;
+		Permebuf<O> request) const;
 
 	template <class O, class I>
 	void SendMessageAndNotifyOnMiniMessage(
-		size_t function_id, std::unique_ptr<Permebuf<O>> request,
-		const std::function<void(StatusOr<I>)>& on_response);
+		size_t function_id, Permebuf<O> request,
+		const std::function<void(StatusOr<I>)>& on_response) const;
 
 	template <class O, class I>
 	void SendMessageAndNotifyOnMessage(
-		size_t function_id, std::unique_ptr<Permebuf<O>> request,
+		size_t function_id, Permebuf<O> request,
 		const std::function<
-			void(StatusOr<std::unique_ptr<Permebuf<I>>>)>& on_response);
+			void(StatusOr<Permebuf<I>>)>& on_response) const;
 
 	// TODO: Implement streams.
 };
@@ -455,7 +493,7 @@ public:
 		::perception::ProcessId process,
 		::perception::MessageId response_channel);
 
-	void Reply(std::unique_ptr<Permebuf<T>> response);
+	void Reply(Permebuf<T> response);
 	void ReplyWithStatus(::perception::Status status);
 private:
 	::perception::ProcessId process_;
@@ -517,14 +555,14 @@ public:
 		size_t metadata, size_t param1, size_t param2, size_t param3,
 		size_t param4, size_t param5,
 		const std::function<void(::perception::ProcessId,
-			std::unique_ptr<Permebuf<I>>)>& handler);
+			Permebuf<I>)>& handler);
 
 	template <class I, class O>
 	bool ProcessMessageForMiniMessage(::perception::ProcessId sender,
 		size_t metadata, size_t param1, size_t param2, size_t param3,
 		size_t param4, size_t param5,
 		const std::function<void(::perception::ProcessId,
-			std::unique_ptr<Permebuf<I>>,
+			Permebuf<I>,
 			PermebufMiniMessageReplier<O>)>& handler);
 
 	template <class I, class O>
@@ -532,7 +570,7 @@ public:
 		size_t metadata, size_t param1, size_t param2, size_t param3,
 		size_t param4, size_t param5,
 		const std::function<void(::perception::ProcessId,
-			std::unique_ptr<Permebuf<I>>,
+			Permebuf<I>,
 			PermebufMessageReplier<O>)>& handler);
 
 protected:

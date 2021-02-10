@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-
 namespace perception.devices;
 
 // Represents drawing commands.
@@ -52,7 +50,7 @@ oneof GraphicsCommand {
 	CopyTextureToPositionWithAlphaBlending : CopyTextureToPosition = 4;
 
 	// Copy a part of texture A to a specific position on texture B.
-	message CopyPartOfTexture {
+	message CopyPartOfATexture {
 		// The source texture to copy from.
 		SourceTexture: uint64 = 1;
 
@@ -89,7 +87,7 @@ service GraphicsDriver {
 	// Executes a set of graphics commands.
 	message RunCommandsMessage {
 		// The commands to execute.
-		Commands : list<GraphicsCommands> = 1;
+		Commands : list<GraphicsCommand> = 1;
 	}
 	RunCommands : RunCommandsMessage = 0;
 
@@ -106,14 +104,14 @@ service GraphicsDriver {
 		Texture : uint64 = 1;
 
 		// The shared memory buffer we can write to.
-		SharedMemoryBuffer : uint64 = 2;
+		PixelBuffer : SharedMemory = 2;
 	}
 	CreateTexture : CreateTextureRequest -> CreateTextureResponse = 1;
 
 	// Destroys a texture. Only the process that created a texture can
 	// destroy the texture. Textures are automatically destroyed when
 	// the owning process dies.
-	minimessage DestroyTextureRequest {
+	minimessage DestroyTextureMessage {
 		// The texture to destroy.
 		Texture : uint64 = 1;
 	}
@@ -145,4 +143,3 @@ service GraphicsDriver {
 	}
 	SetProcessAllowedToDrawToScreen : SetProcessAllowedToDrawToScreenMessage = 4;
 }
-*/

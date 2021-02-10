@@ -41,7 +41,7 @@ void InitializeSystemCalls() {
 }
 
 // Syscalls.
-// Next id is 42.
+// Next id is 45.
 #define PRINT_DEBUG_CHARACTER 0
 #define CREATE_THREAD 1
 #define GET_THIS_THREAD_ID 2
@@ -61,6 +61,9 @@ void InitializeSystemCalls() {
 #define GET_FREE_SYSTEM_MEMORY 14
 #define GET_MEMORY_USED_BY_PROCESS 15
 #define GET_TOTAL_SYSTEM_MEMORY 16
+#define CREATE_SHARED_MEMORY 42
+#define JOIN_SHARED_MEMORY 43
+#define LEAVE_SHARED_MEMORY 44
 // Processes
 #define GET_THIS_PROCESS_ID 39
 #define TERMINATE_THIS_PROCESS 6
@@ -189,6 +192,15 @@ void SyscallHandler(int syscall_number) {
 			break;
 		case GET_TOTAL_SYSTEM_MEMORY:
 			currently_executing_thread_regs->rax = total_system_memory;
+			break;
+		case CREATE_SHARED_MEMORY:
+			PrintString("Implement CREATE_SHARED_MEMORY\n");
+			break;
+		case JOIN_SHARED_MEMORY:
+			PrintString("Implement JOIN_SHARED_MEMORY\n");
+			break;
+		case LEAVE_SHARED_MEMORY:
+			PrintString("Implement LEAVE_SHARED_MEMORY\n");
 			break;
 		case GET_THIS_PROCESS_ID:
 			currently_executing_thread_regs->rax = running_thread->process->pid;

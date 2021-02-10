@@ -92,11 +92,11 @@ void PermebufArrayOf<T>::Clear(int index) {
 }
 
 template <class T>
-PermebufArrayOfOneofs<T>::PermebufArrayOfOneofs(PermebufBase* buffer, size_t offset)
+PermebufArrayOfOneOfs<T>::PermebufArrayOfOneOfs(PermebufBase* buffer, size_t offset)
 	: PermebufArray(buffer, offset) {}
 
 template <class T>
-typename T::Ref PermebufArrayOfOneofs<T>::Get(int index) const {
+typename T::Ref PermebufArrayOfOneOfs<T>::Get(int index) const {
 	if (index >= length_) {
 		return T::Ref(buffer_, 0);
 	}
@@ -109,7 +109,7 @@ typename T::Ref PermebufArrayOfOneofs<T>::Get(int index) const {
 }
 
 template <class T>
-bool PermebufArrayOfOneofs<T>::Has(int index) const {
+bool PermebufArrayOfOneOfs<T>::Has(int index) const {
 	if (index >= length_) {
 		return T::Ref(buffer_, 0);
 	}
@@ -122,7 +122,7 @@ bool PermebufArrayOfOneofs<T>::Has(int index) const {
 }
 
 template <class T>
-void PermebufArrayOfOneofs<T>::Set(int index, typename T::Ref value) {
+void PermebufArrayOfOneOfs<T>::Set(int index, typename T::Ref value) {
 	if (index >= length_) {
 		return;
 	}
@@ -140,7 +140,7 @@ void PermebufArrayOfOneofs<T>::Set(int index, typename T::Ref value) {
 }
 
 template <class T>
-void PermebufArrayOfOneofs<T>::Clear(int index) {
+void PermebufArrayOfOneOfs<T>::Clear(int index) {
 	if (index >= length_) {
 		return;
 	}
@@ -349,11 +349,11 @@ size_t PermebufListOf<T>::GetSizeInBytes(PermebufBase* buffer) {
 	}
 
 template <class T>
-PermebufListOfOneofs<T>::PermebufListOfOneofs(PermebufBase* buffer, size_t offset)
-	: PermebufList<PermebufListOfOneofs<T>>(buffer, offset) {}
+PermebufListOfOneOfs<T>::PermebufListOfOneOfs(PermebufBase* buffer, size_t offset)
+	: PermebufList<PermebufListOfOneOfs<T>>(buffer, offset) {}
 
 template <class T>
-bool PermebufListOfOneofs<T>::Has() const {
+bool PermebufListOfOneOfs<T>::Has() const {
 	if (!this->IsValid()) {
 		return false;
 	}
@@ -361,7 +361,7 @@ bool PermebufListOfOneofs<T>::Has() const {
 }
 
 template <class T>
-T PermebufListOfOneofs<T>::Get() const {
+T PermebufListOfOneOfs<T>::Get() const {
 	if (!this->IsValid()) {
 		return T(this->buffer_, 0);
 	}
@@ -369,7 +369,7 @@ T PermebufListOfOneofs<T>::Get() const {
 }
 
 template <class T>
-void PermebufListOfOneofs<T>::Set(T value) {
+void PermebufListOfOneOfs<T>::Set(T value) {
 	if (!this->IsValid()) {
 		return;
 	}
@@ -385,7 +385,7 @@ void PermebufListOfOneofs<T>::Set(T value) {
 }
 
 template <class T>
-void PermebufListOfOneofs<T>::Clear() {
+void PermebufListOfOneOfs<T>::Clear() {
 	if (!this->IsValid()) {
 		return;
 	}
@@ -396,6 +396,11 @@ void PermebufListOfOneofs<T>::Clear() {
 		0);
 	this->buffer_->WritePointer(destination_oneof_offset + 2,
 		0);
+}
+
+template <class T>
+size_t PermebufListOfOneOfs<T>::GetSizeInBytes(PermebufBase* buffer) {
+	return 2 + buffer->GetAddressSizeInBytes() * 2;
 }
 
 template <class T>
@@ -465,11 +470,11 @@ PermebufMessageReplier<T>::PermebufMessageReplier(
 	process_(process), response_channel_(response_channel_) {}
 
 template <class T>
-void PermebufMessageReplier<T>::Reply(std::unique_ptr<Permebuf<T>> response) {
+void PermebufMessageReplier<T>::Reply(Permebuf<T> response) {
 	void* memory_address;
 	size_t number_of_pages;
 	size_t size_in_bytes;
-	response->ReleaseMemory(&memory_address, &number_of_pages, &size_in_bytes);
+	response.ReleaseMemory(&memory_address, &number_of_pages, &size_in_bytes);
 	if (::perception::SendRawMessage(process_, response_channel_, /*metadata=*/1,
 		(size_t)::perception::Status::OK,
 		0, size_in_bytes, (size_t)memory_address, number_of_pages) !=
@@ -520,12 +525,12 @@ template <class O>
 
 template <class O>
 ::perception::Status PermebufService::SendMessage(size_t function_id,
-	std::unique_ptr<Permebuf<O>> request)
+	Permebuf<O> request)
 	const {
 	void* memory_address;
 	size_t number_of_pages;
 	size_t size_in_bytes;
-	request->ReleaseMemory(&memory_address, &number_of_pages, &size_in_bytes);
+	request.ReleaseMemory(&memory_address, &number_of_pages, &size_in_bytes);
 	auto status = ::perception::SendRawMessage(process_id_, message_id_,
 		function_id << 3,
 		0, 0, size_in_bytes, (size_t)memory_address, number_of_pages);
@@ -544,7 +549,7 @@ StatusOr<I> PermebufService::SendMiniMessageAndWaitForMiniMessage(
 }
 
 template <class O, class I>
-StatusOr<std::unique_ptr<Permebuf<O>>>
+StatusOr<Permebuf<O>>
 	PermebufService::SendMiniMessageAndWaitForMessage(size_t function_id,
 		const O& request) const {
 	std::cout << "TODO: Implement PermebufService::SendMiniMessageAndWaitForMessage" << std::endl;
@@ -553,7 +558,7 @@ StatusOr<std::unique_ptr<Permebuf<O>>>
 template <class O, class I>
 void PermebufService::SendMiniMessageAndNotifyOnMiniMessage(
 	size_t function_id, const O& request,
-		const std::function<void(StatusOr<I>)>& on_response) {
+		const std::function<void(StatusOr<I>)>& on_response) const {
 	std::cout << "TODO: Implement PermebufService::SendMiniMessageAndNotifyOnMiniMessage" << std::endl;
 }
 
@@ -561,35 +566,35 @@ template <class O, class I>
 void PermebufService::SendMiniMessageAndNotifyOnMessage(
 	size_t function_id, const O& request,
 		const std::function<
-			void(StatusOr<std::unique_ptr<Permebuf<I>>>)>& on_response) {
+			void(StatusOr<Permebuf<I>>)>& on_response) const {
 	std::cout << "TODO: Implement PermebufService::SendMiniMessageAndNotifyOnMessage" << std::endl;
 }
 
 template <class O, class I>
 StatusOr<I> PermebufService::SendMessageAndWaitForMiniMessage(
-	size_t message_id, std::unique_ptr<Permebuf<O>> request) const {
+	size_t message_id, Permebuf<O> request) const {
 	std::cout << "TODO: Implement PermebufService::SendMessageAndWaitForMiniMessage" << std::endl;
 }
 
 template <class O, class I>
-StatusOr<std::unique_ptr<Permebuf<I>>>
+StatusOr<Permebuf<I>>
 	PermebufService::SendMessageAndWaitForMessage(size_t function_id,
-		std::unique_ptr<Permebuf<O>> request) const {
+		Permebuf<O> request) const {
 	std::cout << "TODO: Implement PermebufService::SendMessageAndWaitForMessage" << std::endl;
 }
 
 template <class O, class I>
 void PermebufService::SendMessageAndNotifyOnMiniMessage(
-	size_t function_id, std::unique_ptr<Permebuf<O>> request,
-		const std::function<void(StatusOr<I>)>& on_response) {
+	size_t function_id, Permebuf<O> request,
+		const std::function<void(StatusOr<I>)>& on_response) const {
 	std::cout << "TODO: Implement PermebufService::SendMessageAndNotifyOnMiniMessage" << std::endl;
 }
 
 template <class O, class I>
 void PermebufService::SendMessageAndNotifyOnMessage(
-	size_t function_id, std::unique_ptr<Permebuf<O>> request,
+	size_t function_id, Permebuf<O> request,
 		const std::function<
-			void(StatusOr<std::unique_ptr<Permebuf<I>>>)>& on_response) {
+			void(StatusOr<Permebuf<I>>)>& on_response) const {
 	std::cout << "TODO: Implement PermebufService::SendMessageAndNotifyOnMessage" << std::endl;
 }
 
@@ -631,9 +636,9 @@ bool PermebufServer::ProcessMessage(::perception::ProcessId sender,
 	size_t metadata, size_t param1, size_t param2, size_t param3,
 	size_t param4, size_t param5,
 	const std::function<void(::perception::ProcessId,
-		std::unique_ptr<Permebuf<I>>)>& handler) {
+		Permebuf<I>)>& handler) {
 	if ((metadata & 0b111) != 1) return false;
-	handler(sender, std::make_unique<Permebuf<I>>(param4, param3));
+	handler(sender, Permebuf<I>((void*)param4, param3));
 	return true;
 }
 
@@ -643,7 +648,7 @@ bool PermebufServer::ProcessMessageForMiniMessage(
 	size_t metadata, size_t param1, size_t param2, size_t param3,
 	size_t param4, size_t param5,
 	const std::function<void(::perception::ProcessId,
-		std::unique_ptr<Permebuf<I>>,
+		Permebuf<I>,
 		PermebufMiniMessageReplier<O>)>& handler) {
 	std::cout << "TODO: Implement PermebufServer::ProcessMessageForMiniMessage" << std::endl;
 }
@@ -654,7 +659,7 @@ bool PermebufServer::ProcessMessageForMiniMessage(
 	size_t metadata, size_t param1, size_t param2, size_t param3,
 	size_t param4, size_t param5,
 	const std::function<void(::perception::ProcessId,
-		std::unique_ptr<Permebuf<I>>,
+		Permebuf<I>,
 		PermebufMessageReplier<O>)>& handler) {
 	std::cout << "TODO: Implement PermebufServer::ProcessMessageForMiniMessage" << std::endl;
 }

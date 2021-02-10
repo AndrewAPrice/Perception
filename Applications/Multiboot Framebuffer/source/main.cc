@@ -17,6 +17,7 @@
 #include "perception/messages.h"
 #include "perception/memory.h"
 #include "perception/processes.h"
+#include "perception/shared_memory.h"
 #include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
 
 #include <iostream>
@@ -29,8 +30,8 @@ using ::perception::MapPhysicalMemory;
 using ::perception::MessageId;
 using ::perception::NotifyUponProcessTermination;
 using ::perception::ProcessId;
+using ::perception::SharedMemory;
 using ::perception::StopNotifyingUponProcessTermination;
-#if 0
 using ::permebuf::perception::devices::GraphicsCommand;
 using ::permebuf::perception::devices::GraphicsDriver;
 
@@ -44,12 +45,9 @@ struct Texture {
 	// The height of the texture, in pixels.
 	uint32 height;
 
-	// The ID of the shared buffer.
-	SharedBufferId shared_buffer;
-
-	// The raw texture data.
-	void* raw;
-}
+	// The shared buffer.
+	std::unique_ptr<SharedMemory> shared_memory;
+};
 
 struct ProcessInformation {
 	// The listener for handling with the process disappears, so
@@ -72,7 +70,7 @@ public:
 		screen_height_(height),
 		screen_pitch_(pitch),
 		screen_bytes_per_pixel_(bpp / 8),
-		framebuffer_(MapPhysicalMemory(physical_address,
+		framebuffer_(MapPhysicalMemory(physical_address_of_framebuffer,
 			(width * pitch + kPageSize - 1) / kPageSize)),
 		next_texture_id_(1),
 		process_allowed_to_write_to_the_screen_(0) {
@@ -81,15 +79,13 @@ public:
 		texture.owner = 0; // 0 = The kernel.
 		texture.width = screen_width_;
 		texture.height = screen_height_;
-		texture.shared_buffer = 0;
-		texture.raw = framebuffer_;
 
-		textures_[0] = texture;
+		textures_[0] = std::move(texture);
 	}
 
 	void HandleRunCommands(
 		ProcessId sender,
-		std::unique_ptr<Permebuf<GraphicsDriver::RunCommandsMessage>> commands) override {
+		Permebuf<GraphicsDriver::RunCommandsMessage> commands) override {
 		// Run each of the commands.
 		for (GraphicsCommand command : commands->GetCommands())
 			RunCommand(sender, command);
@@ -99,15 +95,15 @@ public:
 		ProcessId sender,
 		const GraphicsDriver::CreateTextureRequest& request,
 		PermebufMiniMessageReplier<GraphicsDriver::CreateTextureResponse> responder) override {
+
 		// Create the texture.
 		uint32 texture_id = next_texture_id_++;
 		Texture texture;
 		texture.owner = sender;
 		texture.width = request.GetWidth();
 		texture.height = request.GetHeight();
-		// TODO: Allocate shared memory, and map it to virtual memory.
-
-		textures_[texture_id] = texture;
+		texture.shared_memory = std::make_unique<SharedMemory>(
+			SharedMemory::FromSize(texture.width * texture.height * 4));
 
 		// Record what textures this process owns.		
 		auto process_information_itr = process_information_.find(sender);
@@ -117,36 +113,37 @@ public:
 			// We want to listen for when the process disappears so we
 			// can release all textures that process owns.
 			process_information.on_process_disappear_listener =
-				NotifyUponProcessTermination([this, sender]() {
+				NotifyUponProcessTermination(sender, [this, sender]() {
 					ReleaseAllResourcesBelongingToProcess(sender);
 				});
 			process_information.textures.insert(texture_id);
 			process_information_[sender] = process_information;
 		} else {
-			process_information_itr->textures.insert(texture_id);
+			process_information_itr->second.textures.insert(texture_id);
 		}
 
 		// Send it back to the client.
 		GraphicsDriver::CreateTextureResponse response;
 		response.SetTexture(texture_id);
+		response.SetPixelBuffer(*texture.shared_memory);
+		responder.Reply(response);
 
-		response.Reply(texture_id);
+		textures_[texture_id] = std::move(texture);
 	}
 
 	void HandleDestroyTexture(
 		ProcessId sender,
-		const GraphicsDriver::DestroyTextureRequest& request) override {
+		const GraphicsDriver::DestroyTextureMessage& request) override {
 		// Try to find the texture.
 		auto texture_itr = textures_.find(request.GetTexture());
 		if (texture_itr == textures_.end())
 			// We couldn't find the texture.
 			return;
 
-		if (texture_itr->owner != sender)
+		if (texture_itr->second.owner != sender)
 			// Only the owner can destroy a texture.
 			return;
 
-		// TODO: Release shared memory.
 		textures_.erase(texture_itr);
 
 		auto process_information_itr = process_information_.find(sender);
@@ -154,13 +151,13 @@ public:
 			// We can't find this process. This shouldn't happen.
 			return;
 
-		process_information_itr->textures.erase(request.GetTexture());
-		if (process_information_itr->textures->empty()) {
+		process_information_itr->second.textures.erase(request.GetTexture());
+		if (process_information_itr->second.textures.empty()) {
 			// This process owns no more textures. We no longer care about
 			// listening for it it disappears.
 			StopNotifyingUponProcessTermination(
-				process_information_itr->on_process_disappear_listener).
-			textures_by_process_itr->erase(textures_by_process_itr);
+				process_information_itr->second.on_process_disappear_listener);
+			process_information_.erase(process_information_itr);
 		}
 	}
 
@@ -173,9 +170,9 @@ public:
 		auto texture_itr = textures_.find(request.GetTexture());
 		if (texture_itr != textures_.end()) {
 			// We found the texture. Respond with details about it.
-			response.SetOwner(texture_itr->second->owner);
-			response.SetWidth(texture_itr->second->width);
-			response.SetHeight(texture_itr->second->height);
+			response.SetOwner(texture_itr->second.owner);
+			response.SetWidth(texture_itr->second.width);
+			response.SetHeight(texture_itr->second.height);
 		}
 		responder.Reply(response);
 	}
@@ -217,12 +214,12 @@ private:
 	// Handles a graphics command
 	void RunCommand(ProcessId sender, const GraphicsCommand& graphics_command) {
 		switch (graphics_command.GetOption()) {
-			case GraphicsCommand::Option::CopyEntireTexture: {
+			case GraphicsCommand::Options::CopyEntireTexture: {
 				GraphicsCommand::CopyEntireTexture command =
-					graphics_command.GetCopyEntireTexture();
-				BitBlit(sender,
-					command->GetSource(),
-					command->GetDestination(),
+					*graphics_command.GetCopyEntireTexture();
+				BitBlt(sender,
+					command.GetSourceTexture(),
+					command.GetDestinationTexture(),
 					/*left_source=*/0,
 					/*top_source=*/0,
 					/*left_destination=*/0,
@@ -232,12 +229,12 @@ private:
 					/*alpha_blend=*/false);
 				break;
 			}
-			case GraphicsCommand::Option::CopyEntireTextureWithAlphaBlending: {
+			case GraphicsCommand::Options::CopyEntireTextureWithAlphaBlending: {
 				GraphicsCommand::CopyEntireTexture command =
-					graphics_command.GetCopyEntireTextureWithAlphaBlending();
-				BitBlit(sender,
-					command->GetSource(),
-					command->GetDestination(),
+					*graphics_command.GetCopyEntireTextureWithAlphaBlending();
+				BitBlt(sender,
+					command.GetSourceTexture(),
+					command.GetDestinationTexture(),
 					/*left_source=*/0,
 					/*top_source=*/0,
 					/*left_destination=*/0,
@@ -247,82 +244,82 @@ private:
 					/*alpha_blend=*/true);
 				break;
 			}
-			case GraphicsCommand::Option::CopyTextureToPosition: {
+			case GraphicsCommand::Options::CopyTextureToPosition: {
 				GraphicsCommand::CopyTextureToPosition command =
-					graphics_command.GetCopyTextureToPosition();
-				BitBlit(sender,
-					command->GetSource(),
-					command->GetDestination(),
+					*graphics_command.GetCopyTextureToPosition();
+				BitBlt(sender,
+					command.GetSourceTexture(),
+					command.GetDestinationTexture(),
 					/*left_source=*/0,
 					/*top_source=*/0,
-					command->GetLeftDestination(),
-					command->GetTopDestination(),
+					command.GetLeftDestination(),
+					command.GetTopDestination(),
 					/*width=*/UINT_MAX,
 					/*height=*/UINT_MAX,
 					/*alpha_blend=*/false);
 				break;
 			}
-			case GraphicsCommand::Option::CopyTextureToPositionWithAlphaBlending: {
+			case GraphicsCommand::Options::CopyTextureToPositionWithAlphaBlending: {
 				GraphicsCommand::CopyTextureToPosition command =
-					graphics_command.GetCopyTextureToPositionWithAlphaBlending();
-				BitBlit(sender,
-					command->GetSource(),
-					command->GetDestination(),
+					*graphics_command.GetCopyTextureToPositionWithAlphaBlending();
+				BitBlt(sender,
+					command.GetSourceTexture(),
+					command.GetDestinationTexture(),
 					/*left_source=*/0,
 					/*top_source=*/0,
-					command->GetLeftDestination(),
-					command->GetTopDestination(),
+					command.GetLeftDestination(),
+					command.GetTopDestination(),
 					/*width=*/UINT_MAX,
 					/*height=*/UINT_MAX,
 					/*alpha_blend=*/true);
 				break;
 			}
-			case GraphicsCommand::Option::CopyPartOfTexture: {
-				GraphicsCommand::CopyPartOfTexture command =
-					graphics_command.GetCopyPartOfTexture();
-				BitBlit(sender,
-					command->GetSource(),
-					command->GetDestination(),
-					command->GetLeftSource(),
-					command->GetTopSource(),
-					command->GetLeftDestination(),
-					command->GetTopDestination(),
-					command->GetWidth(),
-					command->GetHeight(),
+			case GraphicsCommand::Options::CopyPartOfATexture: {
+				GraphicsCommand::CopyPartOfATexture command =
+					*graphics_command.GetCopyPartOfATexture();
+				BitBlt(sender,
+					command.GetSourceTexture(),
+					command.GetDestinationTexture(),
+					command.GetLeftSource(),
+					command.GetTopSource(),
+					command.GetLeftDestination(),
+					command.GetTopDestination(),
+					command.GetWidth(),
+					command.GetHeight(),
 					/*alpha_blend=*/false);
 				break;
 			}
-			case GraphicsCommand::Option::CopyPartOfATextureWithAlphaBlending:{
-				GraphicsCommand::CopyPartOfTexture command =
-					graphics_command.GetCopyPartOfTexture();
-				BitBlit(sender,
-					command->GetSource(),
-					command->GetDestination(),
-					command->GetLeftSource(),
-					command->GetTopSource(),
-					command->GetLeftDestination(),
-					command->GetTopDestination(),
-					command->GetWidth(),
-					command->GetHeight(),
+			case GraphicsCommand::Options::CopyPartOfATextureWithAlphaBlending:{
+				GraphicsCommand::CopyPartOfATexture command =
+					*graphics_command.GetCopyPartOfATexture();
+				BitBlt(sender,
+					command.GetSourceTexture(),
+					command.GetDestinationTexture(),
+					command.GetLeftSource(),
+					command.GetTopSource(),
+					command.GetLeftDestination(),
+					command.GetTopDestination(),
+					command.GetWidth(),
+					command.GetHeight(),
 					/*alpha_blend=*/true);
 				break;
 			}
 		}
 	}
 
-	// Bit blit two textures. The bitblit functions are inlined. The hope is that
+	// Bit blit two textures. The BitBlt functions are inlined. The hope is that
 	// RunCommand() will be HUGE but all the compiler will optimize away dead code
 	// so we'd have a super fast version of each permutation (alpha blend,
 	//    no alpha blending, etc.)
-	inline void BitBlit(ProcessId sender,
+	inline void BitBlt(ProcessId sender,
 		uint64 source_texture,
 		uint64 destination_texture,
 		uint32 left_source,
 		uint32 top_source,
-		uint32 left_destination
+		uint32 left_destination,
 		uint32 top_destination,
-		uint32 width,
-		uint32 height,
+		uint32 width_to_copy,
+		uint32 height_to_copy,
 		bool alpha_blend) {
 		// We can't copy from the frame buffer.
 		if (source_texture == 0)
@@ -342,19 +339,19 @@ private:
 				// We're not that process.
 				return;
 
-			// Call the bitblit function based on pixel depth
+			// Call the BitBlt function based on pixel depth
 			// of the framebuffer. The ordering is the most likely
 			// (in my opinion) pixel depths first.
-			if (screen_bits_per_pixel_ == 3) {
-				BitBlitToTexture(
-					source_texture_itr->raw,
-					source_texture_itr->width,
-					source_texture_itr->height,
-					destination_texture_itr->raw,
-					destination_texture_itr->width,
-					destination_texture_itr->height,
-					/*destination_pitch=*/0,
-					/*destination_bpp=*/2,
+			if (screen_bytes_per_pixel_ == 3) {
+				BitBltToTexture(
+					(char*)**source_texture_itr->second.shared_memory,
+					source_texture_itr->second.width,
+					source_texture_itr->second.height,
+					(char*)framebuffer_,
+					screen_width_,
+					screen_height_,
+					screen_pitch_,
+					/*destination_bpp=*/3,
 					left_source,
 					top_source,
 					left_destination,
@@ -362,15 +359,15 @@ private:
 					width_to_copy,
 					height_to_copy,
 					alpha_blend);
-			} else if (screen_bits_per_pixel_ == 4) {
-				BitBlitToTexture(
-					source_texture_itr->raw,
-					source_texture_itr->width,
-					source_texture_itr->height,
-					destination_texture_itr->raw,
-					destination_texture_itr->width,
-					destination_texture_itr->height,
-					/*destination_pitch=*/0,
+			} else if (screen_bytes_per_pixel_ == 4) {
+				BitBltToTexture(
+					(char*)**source_texture_itr->second.shared_memory,
+					source_texture_itr->second.width,
+					source_texture_itr->second.height,
+					(char*)framebuffer_,
+					screen_width_,
+					screen_height_,
+					screen_pitch_,
 					/*destination_bpp=*/4,
 					left_source,
 					top_source,
@@ -379,15 +376,15 @@ private:
 					width_to_copy,
 					height_to_copy,
 					alpha_blend);
-			} else if (screen_bits_per_pixel_ == 2) {
-				BitBlitToTexture(
-					source_texture_itr->raw,
-					source_texture_itr->width,
-					source_texture_itr->height,
-					destination_texture_itr->raw,
-					destination_texture_itr->width,
-					destination_texture_itr->height,
-					/*destination_pitch=*/0,
+			} else if (screen_bytes_per_pixel_ == 2) {
+				BitBltToTexture(
+					(char*)**source_texture_itr->second.shared_memory,
+					source_texture_itr->second.width,
+					source_texture_itr->second.height,
+					(char*)framebuffer_,
+					screen_width_,
+					screen_height_,
+					screen_pitch_,
 					/*destination_bpp=*/2,
 					left_source,
 					top_source,
@@ -406,14 +403,15 @@ private:
 			if (destination_texture_itr == textures_.end())
 				return;
 
-			BitBlitToTexture(
-				source_texture_itr->raw,
-				source_texture_itr->width,
-				source_texture_itr->height,
-				destination_texture_itr->raw,
-				destination_texture_itr->width,
-				destination_texture_itr->height,
-				/*destination_pitch=*/0,
+			BitBltToTexture(
+				(char*)**source_texture_itr->second.shared_memory,
+				source_texture_itr->second.width,
+				source_texture_itr->second.height,
+				(char*)**destination_texture_itr->second.shared_memory,
+				destination_texture_itr->second.width,
+				destination_texture_itr->second.height,
+				/*destination_pitch=*/
+				destination_texture_itr->second.width * 4,
 				/*destination_bpp=*/4,
 				left_source,
 				top_source,
@@ -426,24 +424,100 @@ private:
 
 	}
 
-	inline void BitBlit(
-		void* source,
+	inline void BitBltToTexture(
+		char* source,
 		uint32 source_width,
 		uint32 source_height,
-		void* destination,
+		char* destination,
 		uint32 destination_width,
 		uint32 destination_height,
 		uint32 destination_pitch,
 		uint32 destination_bpp,
 		uint32 left_source,
 		uint32 top_source,
-		uint32 left_destination
+		uint32 left_destination,
 		uint32 top_destination,
 		uint32 width_to_copy,
 		uint32 height_to_copy,
 		bool alpha_blend) {
-		std::cout << "Implement BitBlitToTexture" << std::endl;
+
+		if (top_source >= source_height ||
+			left_source >= source_width ||
+			top_destination >= destination_height ||
+			left_destination >= source_width) {
+			// Everything to copy is off screen.
+			return;
+		}
+
+		// Shrink the copy region if any of it is out of bounds.
+		if (top_source + height_to_copy > source_height)
+			height_to_copy = source_height - top_source;
+		if (top_destination + height_to_copy > destination_height)
+			height_to_copy = destination_height - top_destination;
+		if (left_source + width_to_copy > source_width)
+			width_to_copy = source_width - left_source;
+		if (left_destination + width_to_copy > destination_width)
+			width_to_copy = destination_width - source_width;
+
+		if (width_to_copy == 0 || height_to_copy == 0) {
+			// Nothing to copy.
+			return;
+		}
+
+		char* source_copy_start =
+			&source[(top_source * source_width + left_source) * 4];
+
+		char* destination_copy_start =
+			&destination[top_destination * destination_pitch +
+				left_destination * destination_bpp];
+
+		// Copy this row.
+		for (;height_to_copy > 0; height_to_copy--) {
+			source = source_copy_start;
+			destination = destination_copy_start;
+
+			for (uint32 i = width_to_copy; i > 0; i--) {
+				switch (destination_bpp) {
+					case 2:
+						if (!alpha_blend || source[0] != 0) {
+							// Trim colors down to 5:6:5-bits.
+							char r = source[1] >> (8-5);
+							char g = source[2] >> (8-6);
+							char b = source[3] >> (8-5);
+
+							*(uint16*)destination =
+								(r << (5 + 6)) |
+								(g << 5) |
+								b;
+						}
+						destination += 2;
+						break;
+					case 3:
+						if (!alpha_blend || source[0] != 0) {
+							destination[0] = source[1];
+							destination[1] = source[2];
+							destination[2] = source[3];
+						}
+						destination += 3;
+						break;
+					case 4:
+						if (!alpha_blend || source[0] != 0) {
+							*(uint32*)destination = *(uint32*)source;	
+						}
+						destination += 4;
+						break;
+				}
+
+				source += 4;
+
+			}
+
+			// More the start pointers to the next row.
+			source_copy_start += source_width * 4;
+			destination_copy_start + destination_pitch;
+		}
 	}
+
 
 	// Releases all of the resources that a process owns.
 	void ReleaseAllResourcesBelongingToProcess(ProcessId process) {
@@ -451,20 +525,18 @@ private:
 		if (process_information_itr == process_information_.end())
 			return; // Cant find this process.
 
-		for (uint64 texture : process_information_itr->textures) {
+		for (uint64 texture : process_information_itr->second.textures) {
 			// Release every texture owned by this process.
-			auto texture_itr = textures_(texture);
+			auto texture_itr = textures_.find(texture);
 			if (texture_itr == textures_.end())
 				// Can't find this texture. This shouldn't happen.
 				continue;
 
-			// TODO: Release shared memory.
 			textures_.erase(texture_itr);
 		}
 		process_information_.erase(process_information_itr);
 	}
 };
-#endif
 
 int main() {
 	size_t physical_address;
@@ -488,10 +560,8 @@ int main() {
 		return 0;
 	}
 
-/*
 	FramebufferGraphicsDriver graphics_driver(
 		physical_address, width, height, pitch, bpp);
-*/
 	perception::TransferToEventLoop();
 	return 0;
 }
