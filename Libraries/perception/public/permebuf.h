@@ -544,7 +544,7 @@ public:
 			const I&, PermebufMiniMessageReplier<O>)>& handler);
 
 	template <class I, class O>
-	bool ProcessMiniMessageForMiniMessage(::perception::ProcessId sender,
+	bool ProcessMiniMessageForMessage(::perception::ProcessId sender,
 		size_t metadata, size_t param1, size_t param2, size_t param3,
 		size_t param4, size_t param5,
 		const std::function<void(::perception::ProcessId,
@@ -566,7 +566,7 @@ public:
 			PermebufMiniMessageReplier<O>)>& handler);
 
 	template <class I, class O>
-	bool ProcessMessageForMiniMessage(::perception::ProcessId sender,
+	bool ProcessMessageForMessage(::perception::ProcessId sender,
 		size_t metadata, size_t param1, size_t param2, size_t param3,
 		size_t param4, size_t param5,
 		const std::function<void(::perception::ProcessId,

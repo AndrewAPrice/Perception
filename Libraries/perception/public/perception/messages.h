@@ -21,6 +21,8 @@
 
 namespace perception {
 
+class Fiber;
+
 enum class MessageStatus {
 	// The message was successfully sent.
 	SUCCESS = 0,
@@ -36,6 +38,24 @@ enum class MessageStatus {
 	// was invalid.
 	INVALID_MEMORY_RANGE = 5
 };
+
+// Represents what to do when a message is received.
+struct MessageHandler {
+	// The fiber to wake up. This is set when a fiber is paused
+	// and waiting on a message.
+	Fiber* fiber_to_wake_up;
+
+	// The handler function to call. This is only set if
+	// fiber_to_wake_up == nullptr.
+	std::function<void(ProcessId, size_t /*metadata*/,
+		size_t, size_t, size_t, size_t, size_t)> handler_function;
+
+	// Temporary variables where we store the message data when we
+	// create or wake up a fiber.
+	ProcessId senders_pid;
+	size_t metadata, param1, param2, param3, param4, param5;
+};
+
 
 // Were memory pages sent in this message?
 bool WereMemoryPagesSentInMessage(size_t metadata);
@@ -84,16 +104,21 @@ void RegisterRawMessageHandler(MessageId message_id, std::function<void(ProcessI
 // Unregisters the message handler, because we no longer care about handling these messages.
 void UnregisterMessageHandler(MessageId message_id);
 
-// Handles any queued messages, and returns when done. Returns immediately if
-// there are no messages queued.
-void HandleQueuedMessages();
+// Sleeps the current fiber until we receive a message. Waiting for a message with a
+// handler assigned to it will override that handler.
+void SleepUntilMessage(MessageId message_id, ProcessId& sender,
+	size_t& metadata, size_t& param1, size_t& param2, size_t& param3,
+	size_t& param4, size_t& param5);
 
-// Handles any queued messages, otherwise sleeps until we receive at least one message, and
-// then tries to handle it.
-void SleepAndHandleQueuedMessage();
+// Sleeps the current fiber until we receive a message. Waiting for a message
+// with a handler assigned to it will override that handler. If you don't know
+// what you're doing and don't handle memory pages that are sent to you, this
+// can lead to memory leaks.
+void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
+	size_t& metadata, size_t& param1, size_t& param2, size_t& param3,
+	size_t& param4, size_t& param5);
 
-// Transfers power to the event loop, where the current thread will sleep and dispatch
-// messages as they are received.
-void TransferToEventLoop();
-	
+// Maybe returns a message handler for the given ID, or nullptr.
+MessageHandler* GetMessageHandler(MessageId message_id);
+
 }

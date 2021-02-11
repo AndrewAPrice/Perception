@@ -20,6 +20,7 @@
 
 #include "perception/messages.h"
 #include "perception/memory.h"
+#include "perception/scheduler.h"
 
 #include <iostream>
 
@@ -495,7 +496,7 @@ template <class T>
 PermebufMiniMessageReplier<T>::PermebufMiniMessageReplier(
 	::perception::ProcessId process,
 	::perception::MessageId response_channel) :
-	process_(process), response_channel_(response_channel_) {}
+	process_(process), response_channel_(response_channel) {}
 
 template <class T>
 void PermebufMiniMessageReplier<T>::Reply(const T& response) {
@@ -531,6 +532,7 @@ template <class O>
 	size_t number_of_pages;
 	size_t size_in_bytes;
 	request.ReleaseMemory(&memory_address, &number_of_pages, &size_in_bytes);
+
 	auto status = ::perception::SendRawMessage(process_id_, message_id_,
 		function_id << 3,
 		0, 0, size_in_bytes, (size_t)memory_address, number_of_pages);
@@ -545,7 +547,40 @@ template <class O>
 template <class O, class I>
 StatusOr<I> PermebufService::SendMiniMessageAndWaitForMiniMessage(
 	size_t function_id, const O& request) const {
-	std::cout << "TODO: Implement PermebufService::SendMiniMessageAndWaitForMiniMessage" << std::endl;
+	// Send the message.
+	size_t a, b, c, d;
+	request.Serialize(a, b, c, d);
+
+	::perception::MessageId message_id_of_response =
+		::perception::GenerateUniqueMessageId();
+
+	auto send_status = ::perception::SendRawMessage(
+		 process_id_, message_id_,
+		 function_id << 3,
+		 message_id_of_response, a, b, c, d);
+
+	if (send_status != ::perception::MessageStatus::SUCCESS)
+		// Something went wrong while sending it out.
+		return ::perception::ToStatus(send_status);
+
+	// Sleep until we get a response.
+	::perception::ProcessId pid;
+	size_t metadata, response_status;
+	do {
+		::perception::SleepUntilMessage(message_id_of_response,
+		pid, metadata, response_status, a, b, c, d);
+	} while (pid != process_id_);
+
+	if (response_status != 0) {
+		// Bad response from the server.
+		return static_cast<::perception::Status>(
+			response_status);
+	}
+
+	// Return the response.
+	I response;
+	response.Deserialize(a, b, c, d);
+	return response;
 }
 
 template <class O, class I>
@@ -559,7 +594,50 @@ template <class O, class I>
 void PermebufService::SendMiniMessageAndNotifyOnMiniMessage(
 	size_t function_id, const O& request,
 		const std::function<void(StatusOr<I>)>& on_response) const {
-	std::cout << "TODO: Implement PermebufService::SendMiniMessageAndNotifyOnMiniMessage" << std::endl;
+	// Send the message.
+	size_t a, b, c, d;
+	request.Serialize(a, b, c, d);
+
+	::perception::MessageId message_id_of_response =
+		::perception::GenerateUniqueMessageId();
+
+	auto send_status = ::perception::SendRawMessage(
+		 process_id_, message_id_,
+		 function_id << 3,
+		 message_id_of_response, a, b, c, d);
+
+	if (send_status != ::perception::MessageStatus::SUCCESS) {
+		// Something went wrong while sending it out.
+		::perception::Defer([on_response, send_status]() {
+			on_response(::perception::ToStatus(send_status));
+		});
+		return;
+	}
+
+	::perception::RegisterMessageHandler(message_id_of_response,
+		[expected_sender = process_id_,
+			message_id_of_response,
+			on_response] (
+		::perception::ProcessId sender,
+		size_t response_status, size_t a, size_t b,
+		size_t c, size_t d) {
+		if (sender != expected_sender)
+			// Not the process we care about.
+			return;
+
+		::perception::UnregisterMessageHandler(message_id_of_response);
+
+		if (response_status != 0) {
+			// Bad response from the server.
+			on_response(static_cast<::perception::Status>(
+				response_status));
+		}
+
+		// Return the response.
+		I response;
+		response.Deserialize(a, b, c, d);
+		on_response(response);
+	});
 }
 
 template <class O, class I>
@@ -618,17 +696,21 @@ bool PermebufServer::ProcessMiniMessageForMiniMessage(
 	size_t param4, size_t param5,
 	const std::function<void(::perception::ProcessId,
 		const I&, PermebufMiniMessageReplier<O>)>& handler) {
-	std::cout << "TODO: Implement PermebufServer::ProcessMiniMessage" << std::endl;
+	if ((metadata & 0b111) != 0) return false;
+	I request;
+	request.Deserialize(param2, param3, param4, param5);
+	handler(sender, request, PermebufMiniMessageReplier<O>(sender, param1));
+	return true;
 }
 
 template <class I, class O>
-bool PermebufServer::ProcessMiniMessageForMiniMessage(
+bool PermebufServer::ProcessMiniMessageForMessage(
 	::perception::ProcessId sender,
 	size_t metadata, size_t param1, size_t param2, size_t param3,
 	size_t param4, size_t param5,
 	const std::function<void(::perception::ProcessId,
 		const I&, PermebufMessageReplier<O>)>& handler) {
-	std::cout << "TODO: Implement PermebufServer::ProcessMiniMessageForMiniMessage" << std::endl;
+	std::cout << "TODO: Implement PermebufServer::ProcessMiniMessageForMessage" << std::endl;
 }
 
 template <class I>
@@ -654,12 +736,12 @@ bool PermebufServer::ProcessMessageForMiniMessage(
 }
 
 template <class I, class O>
-bool PermebufServer::ProcessMessageForMiniMessage(
+bool PermebufServer::ProcessMessageForMessage(
 	::perception::ProcessId sender,
 	size_t metadata, size_t param1, size_t param2, size_t param3,
 	size_t param4, size_t param5,
 	const std::function<void(::perception::ProcessId,
 		Permebuf<I>,
 		PermebufMessageReplier<O>)>& handler) {
-	std::cout << "TODO: Implement PermebufServer::ProcessMessageForMiniMessage" << std::endl;
+	std::cout << "TODO: Implement PermebufServer::ProcessMessageForMessage" << std::endl;
 }

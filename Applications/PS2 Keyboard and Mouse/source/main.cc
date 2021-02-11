@@ -15,6 +15,7 @@
 #include "perception/interrupts.h"
 #include "perception/messages.h"
 #include "perception/port_io.h"
+#include "perception/scheduler.h"
 #include "permebuf/Libraries/perception/devices/keyboard_driver.permebuf.h"
 #include "permebuf/Libraries/perception/devices/keyboard_listener.permebuf.h"
 #include "permebuf/Libraries/perception/devices/mouse_driver.permebuf.h"
@@ -66,7 +67,7 @@ public:
 
 	virtual void HandleSetMouseListener(ProcessId,
 		const MouseDriver::SetMouseListenerMessage& message) override {
-		if (!mouse_captor_) {
+		if (mouse_captor_) {
 			// Let the old captor know the mouse has escaped.
 			mouse_captor_->SendOnMouseRelease(MouseListener::OnMouseReleaseMessage());
 		}
@@ -168,7 +169,7 @@ public:
 
 	virtual void HandleSetKeyboardListener(ProcessId,
 		const KeyboardDriver::SetKeyboardListenerMessage& message) override {
-		if (!keyboard_captor_) {
+		if (keyboard_captor_) {
 			// Let the old captor know the keyboard has escaped.
 			keyboard_captor_->SendOnKeyboardRelease(
 				KeyboardListener::OnKeyboardReleaseMessage());
@@ -273,6 +274,6 @@ int main() {
 	RegisterInterruptHandler(1, InterruptHandler);
 	RegisterInterruptHandler(12, InterruptHandler);
 
-	perception::TransferToEventLoop();
+	perception::HandOverControl();
 	return 0;
 }

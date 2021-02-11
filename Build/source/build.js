@@ -84,7 +84,7 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 
 	if (packageType == PackageType.LIBRARY) {
 		if (librariesToBuild[packageName] != undefined) {
-			// Library is already being built. Just add it's public directory and return.
+			// Library is already being built. Just add its public directory and return.
 			// This supports recursive dependencies between libraries.
 			Object.keys(librariesToBuild[packageName]).forEach((define) => {
 				defines[define] = true;

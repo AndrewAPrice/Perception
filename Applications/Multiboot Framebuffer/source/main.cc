@@ -17,6 +17,7 @@
 #include "perception/messages.h"
 #include "perception/memory.h"
 #include "perception/processes.h"
+#include "perception/scheduler.h"
 #include "perception/shared_memory.h"
 #include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
 
@@ -24,6 +25,7 @@
 #include <map>
 #include <set>
 
+using ::perception::Fiber;
 using ::perception::GetMultibootFramebufferDetails;
 using ::perception::kPageSize;
 using ::perception::MapPhysicalMemory;
@@ -183,6 +185,17 @@ public:
 		// TODO: Implement some kind of security.
 		process_allowed_to_write_to_the_screen_ = request.GetProcess();
 	}
+
+	void HandleGetScreenSize(
+		ProcessId,
+		const GraphicsDriver::GetScreenSizeRequest& request,
+		PermebufMiniMessageReplier<GraphicsDriver::GetScreenSizeResponse> responder) override {
+		GraphicsDriver::GetScreenSizeResponse response;
+		response.SetWidth(screen_width_);
+		response.SetHeight(screen_height_);
+		responder.Reply(response);
+	}
+
 private:
 	// The width of the screen, in pixels.
 	uint32 screen_width_;
@@ -551,8 +564,8 @@ int main() {
 		return 0;
 	}
 
-	std::cout << "The bootloader has set up a " << width << "x" <<
-		height << " (" << (int)bpp << "-bit) framebuffer." << std::endl;
+	// std::cout << "The bootloader has set up a " << width << "x" <<
+	//	height << " (" << (int)bpp << "-bit) framebuffer." << std::endl;
 
 	if (bpp != 16 && bpp != 24 && bpp != 32) {
 		std::cout << "The framebuffer is not 16, 24, or 32 bits per pixel." <<
@@ -562,6 +575,6 @@ int main() {
 
 	FramebufferGraphicsDriver graphics_driver(
 		physical_address, width, height, pitch, bpp);
-	perception::TransferToEventLoop();
+	perception::HandOverControl();
 	return 0;
 }

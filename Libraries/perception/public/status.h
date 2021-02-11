@@ -51,12 +51,12 @@ public:
 		return value_;
 	}
 
-	T& operator->() {
-		return value_;
+	T* operator->() {
+		return &value_;
 	}
 
-	const T& operator->() const {
-		return value_;
+	const T* operator->() const {
+		return &value_;
 	}
 private:
 	::perception::Status status_;

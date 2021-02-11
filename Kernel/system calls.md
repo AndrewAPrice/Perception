@@ -452,7 +452,7 @@ If rdx[0] is '0':
 * `r12` - The fifth parameter.
 
 If rdx[1] is '1':
-* `r12` - The message ID we want the callee to respond with.
+* `rsi` - The message ID we want the callee to respond with.
 
 ### Output
 * `rax` - The status, which may be:
@@ -490,7 +490,7 @@ If rdx[0] is '0':
 * `r12` - The fifth parameter.
 
 If rdx[1] is '1':
-* `r12` - The message ID to respond with.
+* `rsi` - The message ID to respond with.
 
 If there were no messages queued:
 

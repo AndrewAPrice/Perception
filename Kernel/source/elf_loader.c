@@ -193,10 +193,6 @@ bool LoadSegments(const Elf64_Ehdr* header,
 			return false;
 		}
 
-		if (segment_header->p_type == PT_TLS) {
-			PrintString("We've encountered a TLS segment.");
-		}
-
 #ifdef DEBUG
 		PrintString("Found segment. Flags: ");
 		PrintHex(segment_header->p_flags);

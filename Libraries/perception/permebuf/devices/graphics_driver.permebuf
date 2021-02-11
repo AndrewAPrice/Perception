@@ -142,4 +142,15 @@ service GraphicsDriver {
 		Process : uint64 = 1;
 	}
 	SetProcessAllowedToDrawToScreen : SetProcessAllowedToDrawToScreenMessage = 4;
+
+	// Queries for information about the screen size.
+	minimessage GetScreenSizeRequest {}
+	minimessage GetScreenSizeResponse {
+		// The width of the screen, in pixels.
+		Width : uint32 = 1;
+
+		// The height of the screen, in pixels.
+		Height : uint32 = 2;
+	}
+	GetScreenSize : GetScreenSizeRequest -> GetScreenSizeResponse = 5;
 }

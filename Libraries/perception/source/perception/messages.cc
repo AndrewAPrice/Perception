@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "perception/fibers.h"
 #include "perception/messages.h"
 #include "perception/memory.h"
+#include "perception/scheduler.h"
 
+#include <iostream>
 #include <map>
 
 namespace perception {
@@ -23,95 +26,8 @@ namespace {
 // The next unique message identifier.
 MessageId next_unique_message_id = 0;
 
-// Sleeps until a message. Returns true if a message was received.
-bool SleepUntilMessage(ProcessId& senders_pid, MessageId& message_id,
-	size_t& metadata, size_t& param1, size_t& param2, size_t& param3,
-	size_t& param4, size_t& param5) {
-#if PERCEPTION
-	volatile register size_t syscall asm ("rdi") = 19;
-	volatile register size_t pid_r asm ("rbx");
-	volatile register size_t message_id_r asm ("rax");
-	volatile register size_t metadata_r asm ("rdx");
-	volatile register size_t param1_r asm ("rsi");
-	volatile register size_t param2_r asm ("r8");
-	volatile register size_t param3_r asm ("r9");
-	volatile register size_t param4_r asm ("r10");
-	volatile register size_t param5_r asm ("r12");
-
-	__asm__ __volatile__ ("syscall\n":
-		"=r"(pid_r), "=r"(message_id_r), "=r"(metadata_r), "=r"(param1_r),
-		"=r"(param2_r), "=r"(param3_r), "=r"(param4_r), "=r"(param5_r):
-		"r" (syscall): "rcx", "r11");
-
-	senders_pid = pid_r;
-	message_id = message_id_r;
-	metadata = metadata_r;
-	param1 = param1_r;
-	param2 = param2_r;
-	param3 = param3_r;
-	param4 = param4_r;
-	param5 = param5_r;
-
-	return message_id_r != 0xFFFFFFFFFFFFFFFF;
-#else
-	return false;
-#endif
-}
-
-// Polls for a message, returning false immediately if no message was received.
-bool PollForMessage(ProcessId& senders_pid, MessageId& message_id,
-	size_t& metadata, size_t& param1, size_t& param2, size_t& param3,
-	size_t& param4, size_t& param5) {
-#if PERCEPTION
-	// TODO: Handle metadata
-	volatile register size_t syscall asm ("rdi") = 18;
-	volatile register size_t pid_r asm ("rbx");
-	volatile register size_t message_id_r asm ("rax");
-	volatile register size_t metadata_r asm ("rdx");
-	volatile register size_t param1_r asm ("rsi");
-	volatile register size_t param2_r asm ("r8");
-	volatile register size_t param3_r asm ("r9");
-	volatile register size_t param4_r asm ("r10");
-	volatile register size_t param5_r asm ("r12");
-
-	__asm__ __volatile__ ("syscall\n":
-		"=r"(pid_r), "=r"(message_id_r), "=r"(metadata_r), "=r"(param1_r),
-		"=r"(param2_r), "=r"(param3_r), "=r"(param4_r), "=r"(param5_r):
-		"r" (syscall): "rcx", "r11");
-
-	senders_pid = pid_r;
-	message_id = message_id_r;
-	metadata = metadata_r;
-	param1 = param1_r;
-	param2 = param2_r;
-	param3 = param3_r;
-	param4 = param4_r;
-	param5 = param5_r;
-
-	return message_id_r != 0xFFFFFFFFFFFFFFFF;
-#else
-	return false;
-#endif
-}
-
 // The handler for each message ID.
-std::map<MessageId, std::function<void(ProcessId,
-		size_t /* metadata */, size_t, size_t, size_t, size_t, size_t)>>
-	handlers_by_message_id;
-
-// Handles an individual message.
-void HandleMessage(ProcessId senders_pid, MessageId message_id,
-	size_t metadata, size_t param1, size_t param2, size_t param3,
-	size_t param4, size_t param5) {
-	const auto& handler_itr = handlers_by_message_id.find(message_id);
-	if (handler_itr == handlers_by_message_id.end()) {
-		// Message handler not defined.
-		DealWithUnhandledMessage(senders_pid, metadata, param1, param4, param5);
-	} else {
-		handler_itr->second(senders_pid, metadata, param1,
-			param2, param3, param4, param5);
-	}
-}
+std::map<MessageId, MessageHandler> handlers_by_message_id;
 
 }
 
@@ -234,8 +150,11 @@ void RegisterMessageHandler(MessageId message_id, std::function<void(ProcessId,
 // to memory leaks.
 void RegisterRawMessageHandler(MessageId message_id, std::function<void(ProcessId,
 	size_t, size_t, size_t, size_t, size_t, size_t)> callback) {
+	MessageHandler handler;
+	handler.fiber_to_wake_up = nullptr;
+	handler.handler_function = std::move(callback);
 	handlers_by_message_id.emplace(std::make_pair(message_id,
-		std::move(callback)));
+		std::move(handler)));
 }
 
 // Unregisters the message handler, because we no longer care about handling these messages.
@@ -243,49 +162,75 @@ void UnregisterMessageHandler(MessageId message_id) {
 	handlers_by_message_id.erase(message_id);
 }
 
-// Handles any queued messages, and returns when done. Returns immediately if
-// there are no messages queued.
-void HandleQueuedMessages() {
-	ProcessId pid;
-	MessageId message_id;
-	size_t metadata, param1, param2, param3, param4, param5;
-	while (PollForMessage(pid, message_id, metadata, param1, param2, param3,
-		param4, param5))
-		HandleMessage(pid, message_id, metadata, param1, param2, param3,
-			param4, param5);
-}
-
-// Handles any queued messages, otherwise sleeps until we receive at least one message, and
-// then tries to handle it.
-void SleepAndHandleQueuedMessage() {
-	ProcessId pid;
-	MessageId message_id;
-	size_t metadata, param1, param2, param3, param4, param5;
-
-	if (SleepUntilMessage(pid, message_id, metadata, param1, param2, param3,
-		param4, param5)) {
-		HandleMessage(pid, message_id, metadata, param1, param2, param3,
-			param4, param5);
-		while (PollForMessage(pid, message_id, metadata, param1, param2,
-			param3, param4, param5))
-			HandleMessage(pid, message_id, metadata, param1, param2, param3,
-				param4, param5);
+// Sleeps the current fiber until we receive a message. Waiting for a message
+// with a handler assigned to it will override that handler.
+void SleepUntilMessage(MessageId message_id, ProcessId& sender,
+	size_t& metadata, size_t& param1, size_t& param2, size_t& param3,
+	size_t& param4, size_t& param5) {
+	SleepUntilRawMessage(message_id, sender, metadata, param1, param2, param3,
+		param4, param5);
+	if (metadata != 0) {
+		// This is an RPC, and not something a basic message handler should
+		// deal with.
+		DealWithUnhandledMessage(sender, metadata, param1, param4, param5);
+		sender = 0;
+		metadata = 0;
+		param1 = 0;
+		param2 = 0;
+		param3 = 0;
+		param4 = 0;
+		param5 = 0;
 	}
 }
 
-// Transfers power to the event loop, where the current thread will sleep and dispatch
-// messages as they are received.
-void TransferToEventLoop() {
-	ProcessId pid;
-	MessageId message_id;
-	size_t metadata, param1, param2, param3, param4, param5;
+// Sleeps the current fiber until we receive a message. Waiting for a message
+// with a handler assigned to it will override that handler. If you don't know
+// what you're doing and don't handle memory pages that are sent to you, this
+// can lead to memory leaks.
+void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
+	size_t& metadata, size_t& param1, size_t& param2, size_t& param3,
+	size_t& param4, size_t& param5) {
+	// Register the handler to wake us up.
+	MessageHandler handler;
+	handler.fiber_to_wake_up = GetCurrentlyExecutingFiber();
+	handlers_by_message_id.emplace(std::make_pair(message_id,
+		std::move(handler)));
 
-	while (true) {
-		if (SleepUntilMessage(pid, message_id, metadata, param1, param2,
-			param3, param4, param5))
-			HandleMessage(pid, message_id, metadata, param1, param2, param3,
-				param4, param5);
+	// Yield this fiber.
+	Sleep();
+
+	// Get our handler.
+	auto handler_itr = handlers_by_message_id.find(message_id);
+	if (handler_itr == handlers_by_message_id.end()) {
+		// This should never happen, but we'll have to return something.
+		sender = 0;
+		metadata = 0;
+		param1 = 0;
+		param2 = 0;
+		param3 = 0;
+		param4 = 0;
+		param5 = 0;
+		return;
 	}
+
+	sender = handler_itr->second.senders_pid;
+	metadata = handler_itr->second.metadata;
+	param1 = handler_itr->second.param1;
+	param2 = handler_itr->second.param2;
+	param3 = handler_itr->second.param3;
+	param4 = handler_itr->second.param4;
+	param5 = handler_itr->second.param5;
+
+	// We can stop listening now.
+	handlers_by_message_id.erase(handler_itr);
+}
+// Maybe returns a message handler for the given ID, or nullptr.
+MessageHandler* GetMessageHandler(MessageId message_id) {
+	auto handler_itr = handlers_by_message_id.find(message_id);
+	if (handler_itr == handlers_by_message_id.end())
+		return nullptr;
+	else
+		return &handler_itr->second;
 }
 
 }

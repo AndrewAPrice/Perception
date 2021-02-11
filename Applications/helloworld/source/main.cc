@@ -12,15 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "perception/fibers.h"
+#include "perception/scheduler.h"
+#include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
 #include "permebuf/Libraries/perception/devices/keyboard_driver.permebuf.h"
 #include "permebuf/Libraries/perception/devices/keyboard_listener.permebuf.h"
 #include "permebuf/Libraries/perception/devices/mouse_driver.permebuf.h"
 #include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
-
 #include <iostream>
 
+using ::perception::Fiber;
 using ::perception::MessageId;
 using ::perception::ProcessId;
+using ::perception::Sleep;
+using ::permebuf::perception::devices::GraphicsDriver;
 using ::permebuf::perception::devices::KeyboardDriver;
 using ::permebuf::perception::devices::KeyboardListener;
 using ::permebuf::perception::devices::MouseButton;
@@ -91,6 +96,35 @@ int main() {
 			KeyboardDriver::StopNotifyingOnEachNewInstance(
 				keyboard_driver_listener);
 	});
-	perception::TransferToEventLoop();
+
+	// Sleep until we get the graphics driver.
+	auto main_fiber = perception::GetCurrentlyExecutingFiber();
+	GraphicsDriver graphics_driver;
+	MessageId graphics_driver_listener = GraphicsDriver::NotifyOnEachNewInstance(
+		[&] (GraphicsDriver driver) {
+			graphics_driver = driver;
+			// We only care about one instance. We can stop
+			// listening now.
+			GraphicsDriver::StopNotifyingOnEachNewInstance(
+				graphics_driver_listener);
+
+			main_fiber->WakeUp();
+		});
+	Sleep();
+
+	graphics_driver.CallGetScreenSize(
+		GraphicsDriver::GetScreenSizeRequest(), [](
+			StatusOr<GraphicsDriver::GetScreenSizeResponse> response) {
+			std::cout << "Async screen size is " << response->GetWidth() << " x "
+				<< response->GetHeight() << std::endl;
+		});
+
+	auto screen_size = *graphics_driver.CallGetScreenSize(
+		GraphicsDriver::GetScreenSizeRequest());
+	std::cout << "Sync Screen size is " << screen_size.GetWidth() << " x "
+		<< screen_size.GetHeight() << std::endl;
+
+
+	perception::HandOverControl();
 	return 0;
 }
