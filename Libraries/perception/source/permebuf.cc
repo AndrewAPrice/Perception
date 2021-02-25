@@ -279,6 +279,9 @@ size_t PermebufListOfBooleans::GetSizeInBytes(PermebufBase* buffer) {
 	return buffer->GetAddressSizeInBytes() + 1;
 }
 
+PermebufListOfBooleans PermebufListOfBooleans::Allocate(PermebufBase* buffer) {
+	return buffer->AllocateListOfBooleans();
+}
 
 PermebufListOfStrings::PermebufListOfStrings(PermebufBase* buffer, size_t offset)
 	: PermebufList<PermebufListOfStrings>(buffer, offset) {}
@@ -318,6 +321,14 @@ void PermebufListOfStrings::Clear() {
 	buffer_->WritePointer(GetItemAddress(), 0);
 }
 
+size_t PermebufListOfStrings::GetSizeInBytes(PermebufBase* buffer) {
+	return buffer->GetAddressSizeInBytes() * 2;
+}
+
+PermebufListOfStrings PermebufListOfStrings::Allocate(PermebufBase* buffer) {
+	return buffer->AllocateListOfStrings();
+}
+
 PermebufListOfBytes::PermebufListOfBytes(PermebufBase* buffer, size_t offset)
 	: PermebufList<PermebufListOfBytes>(buffer, offset) {}
 
@@ -354,6 +365,14 @@ void PermebufListOfBytes::Clear() {
 		return;
 	}
 	buffer_->WritePointer(GetItemAddress(), 0);
+}
+
+size_t PermebufListOfBytes::GetSizeInBytes(PermebufBase* buffer) {
+	return buffer->GetAddressSizeInBytes() * 2;
+}
+
+PermebufListOfBytes PermebufListOfBytes::Allocate(PermebufBase* buffer) {
+	return buffer->AllocateListOfBytes();
 }
 
 uint8_t PermebufBase::Read1Byte(size_t address) const {

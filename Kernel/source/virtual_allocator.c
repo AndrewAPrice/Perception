@@ -1,6 +1,9 @@
 #include "virtual_allocator.h"
 
+#include "object_pools.h"
 #include "physical_allocator.h"
+#include "process.h"
+#include "shared_memory.h"
 #include "text_terminal.h"
 
 // Our paging structures made at boot time, these can be freed after the virtual allocator has been initialized.
@@ -946,4 +949,114 @@ void FlushVirtualPage(size_t addr) {
 	This gives me an assembler error:
 		Error: junk `(%rbp))' after expression*/
 	 __asm__ __volatile__ ( "invlpg (%0)" : : "b"(addr) : "memory" );
+}
+
+
+// Maps shared memory into a process's virtual address space. Returns NULL if
+// there was an issue.
+struct SharedMemoryInProcess* MapSharedMemoryIntoProcess(
+	struct Process* process, struct SharedMemory* shared_memory) {
+
+	// Find a free page range to map this shared memory into.
+	size_t virtual_address = FindFreePageRange(
+		process->pml4, shared_memory->size_in_pages);
+	if (virtual_address == OUT_OF_MEMORY) {
+		// No space to allocate these pages to!
+		return NULL;
+	}
+
+	struct SharedMemoryInProcess* shared_memory_in_process =
+		AllocateSharedMemoryInProcess();
+	if (shared_memory_in_process == NULL) {
+		// Out of memory.
+		return NULL;
+	}
+
+#ifdef DEBUG
+	PrintString("Process ");
+	PrintNumber(process->pid);
+	PrintString(" joined shared memory at ");
+	PrintHex(virtual_address);
+	PrintString("\n");
+#endif
+
+	// Increment the references to this shared memory block.
+	shared_memory->processes_referencing_this_block++;
+
+	shared_memory_in_process->shared_memory = shared_memory;
+	shared_memory_in_process->virtual_address = virtual_address;
+	shared_memory_in_process->references = 1;
+
+	// The next shared memory block in the process.
+	struct SharedMemoryInProcess* next_in_process;
+
+	// Add it to our linked list.
+	shared_memory_in_process->next_in_process = process->shared_memory;
+	process->shared_memory = shared_memory_in_process;
+
+	// Map the physical pages into memory.
+	struct SharedMemoryPage* shared_memory_page = shared_memory->first_page;
+	while (shared_memory_page != NULL) {
+		// Map the physical page to the virtual address.
+		MapPhysicalPageToVirtualPage(process->pml4,
+			virtual_address, shared_memory_page->physical_address, false);
+
+		// Iterate to the next page.
+		virtual_address += PAGE_SIZE;
+		shared_memory_page = shared_memory_page->next;
+	}
+
+	return shared_memory_in_process;
+}
+
+// Unmaps shared memory from a process and releases the SharedMemoryInProcess
+// object.
+void UnmapSharedMemoryFromProcess(struct Process* process,
+	struct SharedMemoryInProcess* shared_memory_in_process) {
+
+#ifdef DEBUG
+	PrintString("Process ");
+	PrintNumber(process->pid);
+	PrintString(" is leaving shared memory.\n");
+#endif
+
+	// Unmap the virtual pages.
+	ReleaseVirtualMemoryInAddressSpace(process->pml4,
+		shared_memory_in_process->virtual_address,
+		shared_memory_in_process->shared_memory->size_in_pages);
+
+	// Remove from linked list in the process.
+	if (process->shared_memory == shared_memory_in_process) {
+		// First element in the linked list.
+		process->shared_memory = shared_memory_in_process->next_in_process;
+	} else {
+		// Iterate through until we find it.
+		struct SharedMemoryInProcess* previous = process->shared_memory;
+		while (previous != NULL &&
+			previous->next_in_process != shared_memory_in_process) {
+			previous = previous->next_in_process;
+		}
+
+		if (previous == NULL) {
+			PrintString("Shared memory can't be unmapped from a process that "
+				"it's not mapped to.\n");
+			return;
+		}
+
+		// Remove us from the linked list.
+		previous->next_in_process = shared_memory_in_process->next_in_process;
+	}
+
+
+	// Decrement the references to this shared memory block.
+	shared_memory_in_process->shared_memory->
+		processes_referencing_this_block--;
+	if (shared_memory_in_process->shared_memory->
+			processes_referencing_this_block == 0) {
+		// There are no more refernces to this shared memory block, so we can
+		// release the memory.
+		ReleaseSharedMemoryBlock(shared_memory_in_process->shared_memory);
+	}
+
+	ReleaseSharedMemoryInProcess(shared_memory_in_process);
 }

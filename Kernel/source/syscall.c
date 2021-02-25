@@ -8,6 +8,7 @@
 #include "registers.h"
 #include "scheduler.h"
 #include "service.h"
+#include "shared_memory.h"
 #include "text_terminal.h"
 #include "physical_allocator.h"
 #include "thread.h"
@@ -193,14 +194,47 @@ void SyscallHandler(int syscall_number) {
 		case GET_TOTAL_SYSTEM_MEMORY:
 			currently_executing_thread_regs->rax = total_system_memory;
 			break;
-		case CREATE_SHARED_MEMORY:
-			PrintString("Implement CREATE_SHARED_MEMORY\n");
+		case CREATE_SHARED_MEMORY: {
+			struct SharedMemoryInProcess* shared_memory =
+				CreateAndMapSharedMemoryBlockIntoProcess(
+					running_thread->process,
+					currently_executing_thread_regs->rax);
+			if (shared_memory == NULL) {
+				// Could not create the shared memory block.
+				currently_executing_thread_regs->rax = 0;
+				currently_executing_thread_regs->rbx = 0;
+			} else {
+				// Created the shared memory block.
+				currently_executing_thread_regs->rax =
+					shared_memory->shared_memory->id;
+				currently_executing_thread_regs->rbx =
+					shared_memory->virtual_address;
+			}
 			break;
-		case JOIN_SHARED_MEMORY:
-			PrintString("Implement JOIN_SHARED_MEMORY\n");
+		}
+		case JOIN_SHARED_MEMORY: {
+			struct SharedMemoryInProcess* shared_memory =
+				JoinSharedMemory(
+					running_thread->process,
+					currently_executing_thread_regs->rax);
+
+			if (shared_memory == NULL) {
+				// Could not join the shared memory block.
+				currently_executing_thread_regs->rax = 0;
+				currently_executing_thread_regs->rbx = 0;
+			} else {
+				// Joined the shared memory block.
+				currently_executing_thread_regs->rax =
+					shared_memory->shared_memory->size_in_pages;
+				currently_executing_thread_regs->rbx =
+					shared_memory->virtual_address;
+			}
 			break;
+		}
 		case LEAVE_SHARED_MEMORY:
-			PrintString("Implement LEAVE_SHARED_MEMORY\n");
+			LeaveSharedMemory(
+				running_thread->process,
+				currently_executing_thread_regs->rax);
 			break;
 		case GET_THIS_PROCESS_ID:
 			currently_executing_thread_regs->rax = running_thread->process->pid;

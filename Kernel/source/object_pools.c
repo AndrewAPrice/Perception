@@ -4,6 +4,7 @@
 #include "messages.h"
 #include "process.h"
 #include "service.h"
+#include "shared_memory.h"
 
 struct ObjectPoolItem {
 	struct ObjectPoolItem* next;
@@ -47,21 +48,30 @@ void FreeObjectsInPool(struct ObjectPoolItem** object_pool) {
 
 OBJECT_POOL(Message, message)
 OBJECT_POOL(ProcessToNotifyOnExit, process_to_notify_on_exit)
-OBJECT_POOL(Service, service)
 OBJECT_POOL(ProcessToNotifyWhenServiceAppears, process_to_notify_when_service_appears)
+OBJECT_POOL(Service, service)
+OBJECT_POOL(SharedMemory, shared_memory)
+OBJECT_POOL(SharedMemoryInProcess, shared_memory_in_process)
+OBJECT_POOL(SharedMemoryPage, shared_memory_page)
 
 // Initialize the object pools.
 void InitializeObjectPools() {
 	message_pool = NULL;
 	process_to_notify_on_exit_pool = NULL;
-	service_pool = NULL;
 	process_to_notify_when_service_appears_pool = NULL;
+	service_pool = NULL;
+	shared_memory_pool = NULL;
+	shared_memory_in_process_pool = NULL;
+	shared_memory_page_pool = NULL;
 }
 
 // Clean up object pools to gain some memory back.
 void CleanUpObjectPools() {
 	FreeObjectsInPool(&message_pool);
 	FreeObjectsInPool(&process_to_notify_on_exit_pool);
-	FreeObjectsInPool(&service_pool);	
 	FreeObjectsInPool(&process_to_notify_when_service_appears_pool);
+	FreeObjectsInPool(&service_pool);	
+	FreeObjectsInPool(&shared_memory_pool);
+	FreeObjectsInPool(&shared_memory_in_process_pool);
+	FreeObjectsInPool(&shared_memory_page_pool);
 }

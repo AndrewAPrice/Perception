@@ -199,8 +199,6 @@ void ForEachInstanceOfService(std::string_view name,
 		starting_pid = pid_6;
 		starting_message_id = message_id_6 + 1;
 	}
-#else
-	return false;
 #endif
 }
 

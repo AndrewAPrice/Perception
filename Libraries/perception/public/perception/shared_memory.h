@@ -17,6 +17,7 @@
 #include "types.h"
 
 #include <functional>
+#include <memory>
 
 namespace perception {
 
@@ -45,7 +46,7 @@ public:
 
 	// Creates a shared memory block of a specific size. The size is rounded up
 	// to the nearest page size.
-	static SharedMemory FromSize(size_t size_in_bytes);
+	static std::unique_ptr<SharedMemory> FromSize(size_t size_in_bytes);
 
 	// Creates another instance of the SharedMemory object that points to the
 	// same shared memory.

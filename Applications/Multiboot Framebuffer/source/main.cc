@@ -104,8 +104,7 @@ public:
 		texture.owner = sender;
 		texture.width = request.GetWidth();
 		texture.height = request.GetHeight();
-		texture.shared_memory = std::make_unique<SharedMemory>(
-			SharedMemory::FromSize(texture.width * texture.height * 4));
+		texture.shared_memory = SharedMemory::FromSize(texture.width * texture.height * 4);
 
 		// Record what textures this process owns.		
 		auto process_information_itr = process_information_.find(sender);
@@ -128,6 +127,7 @@ public:
 		GraphicsDriver::CreateTextureResponse response;
 		response.SetTexture(texture_id);
 		response.SetPixelBuffer(*texture.shared_memory);
+
 		responder.Reply(response);
 
 		textures_[texture_id] = std::move(texture);
@@ -229,7 +229,7 @@ private:
 		switch (graphics_command.GetOption()) {
 			case GraphicsCommand::Options::CopyEntireTexture: {
 				GraphicsCommand::CopyEntireTexture command =
-					*graphics_command.GetCopyEntireTexture();
+					graphics_command.GetCopyEntireTexture();
 				BitBlt(sender,
 					command.GetSourceTexture(),
 					command.GetDestinationTexture(),
@@ -244,7 +244,7 @@ private:
 			}
 			case GraphicsCommand::Options::CopyEntireTextureWithAlphaBlending: {
 				GraphicsCommand::CopyEntireTexture command =
-					*graphics_command.GetCopyEntireTextureWithAlphaBlending();
+					graphics_command.GetCopyEntireTextureWithAlphaBlending();
 				BitBlt(sender,
 					command.GetSourceTexture(),
 					command.GetDestinationTexture(),
@@ -259,7 +259,7 @@ private:
 			}
 			case GraphicsCommand::Options::CopyTextureToPosition: {
 				GraphicsCommand::CopyTextureToPosition command =
-					*graphics_command.GetCopyTextureToPosition();
+					graphics_command.GetCopyTextureToPosition();
 				BitBlt(sender,
 					command.GetSourceTexture(),
 					command.GetDestinationTexture(),
@@ -274,7 +274,7 @@ private:
 			}
 			case GraphicsCommand::Options::CopyTextureToPositionWithAlphaBlending: {
 				GraphicsCommand::CopyTextureToPosition command =
-					*graphics_command.GetCopyTextureToPositionWithAlphaBlending();
+					graphics_command.GetCopyTextureToPositionWithAlphaBlending();
 				BitBlt(sender,
 					command.GetSourceTexture(),
 					command.GetDestinationTexture(),
@@ -289,7 +289,7 @@ private:
 			}
 			case GraphicsCommand::Options::CopyPartOfATexture: {
 				GraphicsCommand::CopyPartOfATexture command =
-					*graphics_command.GetCopyPartOfATexture();
+					graphics_command.GetCopyPartOfATexture();
 				BitBlt(sender,
 					command.GetSourceTexture(),
 					command.GetDestinationTexture(),
@@ -304,7 +304,7 @@ private:
 			}
 			case GraphicsCommand::Options::CopyPartOfATextureWithAlphaBlending:{
 				GraphicsCommand::CopyPartOfATexture command =
-					*graphics_command.GetCopyPartOfATexture();
+					graphics_command.GetCopyPartOfATexture();
 				BitBlt(sender,
 					command.GetSourceTexture(),
 					command.GetDestinationTexture(),

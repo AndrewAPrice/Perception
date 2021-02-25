@@ -14,7 +14,28 @@
 
 #include <iostream>
 
+class Dog;
+
+class Cat {
+public:
+	Dog MakeDog();
+};
+
+class Dog {
+public:
+	Dog() {
+		std::cout << "Dog goes woof!" << std::endl;
+	}
+};
+
+Dog Cat::MakeDog() {
+	return Dog();
+}
+
 int main() {
 	std::cout << "Hello world" << std::endl;
+	Cat cat;
+	cat.MakeDog();
+
 	return 0;
 }

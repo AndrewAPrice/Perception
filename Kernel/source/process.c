@@ -58,6 +58,7 @@ struct Process *CreateProcess(bool is_driver) {
 	proc->services_i_want_to_be_notified_of_when_they_appear = NULL;
 	proc->first_service = NULL;
 	proc->last_service = NULL;
+	proc->shared_memory = NULL;
 
 	// Threads.
 	proc->threads = 0;
@@ -129,6 +130,10 @@ void DestroyProcess(struct Process *process) {
 
 	while (process->first_service != NULL)
 		UnregisterService(process->first_service);
+
+	// Release any shared memory mapped into this process.
+	while (process->shared_memory != NULL) 
+		UnmapSharedMemoryFromProcess(process, process->shared_memory);
 
 	// Free the address space.
 	FreeAddressSpace(process->pml4);

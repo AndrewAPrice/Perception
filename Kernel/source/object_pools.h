@@ -4,6 +4,9 @@ struct Message;
 struct ProcessToNotifyOnExit;
 struct ProcessToNotifyWhenServiceAppears;
 struct Service;
+struct SharedMemory;
+struct SharedMemoryInProcess;
+struct SharedMemoryPage;
 
 // Object pools, for fast grabbing and releasing objects that are created/destoyed a lot.
 
@@ -32,6 +35,25 @@ struct ProcessToNotifyWhenServiceAppears* AllocateProcessToNotifyWhenServiceAppe
 // Release a ProcessToNotifyWhenServiceAppears.
 void ReleaseProcessToNotifyWhenServiceAppears(
 	struct ProcessToNotifyWhenServiceAppears* process_to_notify_when_service_appears);
+
+
+// Allocate a SharedMemory.
+struct SharedMemory* AllocateSharedMemory();
+
+// Release a SharedMemory.
+void ReleaseSharedMemory(struct SharedMemory* shared_memory);
+
+// Allocate a SharedMemoryInProcess.
+struct SharedMemoryInProcess* AllocateSharedMemoryInProcess();
+
+// Release a SharedMemoryInProcess.
+void ReleaseSharedMemoryInProcess(struct SharedMemoryInProcess* shared_memory_in_process);
+
+// Allocate a SharedMemoryPage.
+struct SharedMemoryPage* AllocateSharedMemoryPage();
+
+// Release a SharedMemoryPage.
+void ReleaseSharedMemoryPage(struct SharedMemoryPage* shared_memory_page);
 
 // Initialize the object pools.
 void InitializeObjectPools();

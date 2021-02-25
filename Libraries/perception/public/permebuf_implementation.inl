@@ -51,19 +51,19 @@ PermebufArrayOf<T>::PermebufArrayOf(PermebufBase* buffer, size_t offset)
 	: PermebufArray(buffer, offset) {}
 
 template <class T>
-typename T::Ref PermebufArrayOf<T>::Get(int index) const {
+T PermebufArrayOf<T>::Get(int index) const {
 	if (index >= length_) {
-		return T::Ref(buffer_, 0);
+		return T(buffer_, 0);
 	}
 
-	return T::Ref(buffer_, buffer_->ReadPointer(first_item_address_ +
+	return T(buffer_, buffer_->ReadPointer(first_item_address_ +
 		index << static_cast<size_t>(buffer_->GetAddressSize())));
 }
 
 template <class T>
 bool PermebufArrayOf<T>::Has(int index) const {
 	if (index >= length_) {
-		return T::Ref(buffer_, 0);
+		return T(buffer_, 0);
 	}
 
 	return buffer_->ReadPointer(first_item_address_ +
@@ -71,7 +71,7 @@ bool PermebufArrayOf<T>::Has(int index) const {
 }
 
 template <class T>
-void PermebufArrayOf<T>::Set(int index, typename T::Ref value) {
+void PermebufArrayOf<T>::Set(int index, T value) {
 	if (index >= length_) {
 		return;
 	}
@@ -97,22 +97,22 @@ PermebufArrayOfOneOfs<T>::PermebufArrayOfOneOfs(PermebufBase* buffer, size_t off
 	: PermebufArray(buffer, offset) {}
 
 template <class T>
-typename T::Ref PermebufArrayOfOneOfs<T>::Get(int index) const {
+T PermebufArrayOfOneOfs<T>::Get(int index) const {
 	if (index >= length_) {
-		return T::Ref(buffer_, 0);
+		return T(buffer_, 0);
 	}
 
 	size_t oneof_offset = first_item_address_ +
 		index << static_cast<size_t>(buffer_->GetAddressSize()) +
 		index * 2;
 
-	return T::Ref(buffer_, oneof_offset);
+	return T(buffer_, oneof_offset);
 }
 
 template <class T>
 bool PermebufArrayOfOneOfs<T>::Has(int index) const {
 	if (index >= length_) {
-		return T::Ref(buffer_, 0);
+		return T(buffer_, 0);
 	}
 
 	size_t oneof_offset = first_item_address_ +
@@ -123,7 +123,7 @@ bool PermebufArrayOfOneOfs<T>::Has(int index) const {
 }
 
 template <class T>
-void PermebufArrayOfOneOfs<T>::Set(int index, typename T::Ref value) {
+void PermebufArrayOfOneOfs<T>::Set(int index, T value) {
 	if (index >= length_) {
 		return;
 	}
@@ -238,6 +238,18 @@ int PermebufList<T>::Count() const {
 }
 
 template <class T>
+T PermebufList<T>::InsertAfter() const {
+	if (!IsValid()) {
+		return T(buffer_, 0);
+	}
+
+	size_t next = buffer_->ReadPointer(offset_);
+	T new_item = T::Allocate(buffer_);
+	buffer_->WritePointer(new_item.GetAddress());
+	return new_item;
+}
+
+template <class T>
 T PermebufList<T>::Next() const {
 	if (!IsValid()) {
 		return T(buffer_, 0);
@@ -309,6 +321,16 @@ void PermebufListOfEnums<T>::Set(T value) {
 }
 
 template <class T>
+size_t PermebufListOfEnums<T>::GetSizeInBytes(PermebufBase* buffer) {
+	return buffer->GetAddressSizeInBytes() + 2;
+}
+
+template <class T>
+PermebufListOfEnums<T> PermebufListOfEnums<T>::Allocate(PermebufBase* buffer) {
+	return buffer->AllocateListOfEnums<T>();
+}
+
+template <class T>
 PermebufListOf<T>::PermebufListOf(PermebufBase* buffer, size_t offset)
 	: PermebufList<PermebufListOf<T>>(buffer, offset) {}
 
@@ -346,8 +368,13 @@ void PermebufListOf<T>::Clear() {
 
 template <class T>
 size_t PermebufListOf<T>::GetSizeInBytes(PermebufBase* buffer) {
-		return buffer->GetAddressSizeInBytes() * 2;
-	}
+	return buffer->GetAddressSizeInBytes() * 2;
+}
+
+template <class T>
+PermebufListOf<T> PermebufListOf<T>::Allocate(PermebufBase* buffer) {
+	return buffer->AllocateListOf<T>();
+}
 
 template <class T>
 PermebufListOfOneOfs<T>::PermebufListOfOneOfs(PermebufBase* buffer, size_t offset)
@@ -402,6 +429,11 @@ void PermebufListOfOneOfs<T>::Clear() {
 template <class T>
 size_t PermebufListOfOneOfs<T>::GetSizeInBytes(PermebufBase* buffer) {
 	return 2 + buffer->GetAddressSizeInBytes() * 2;
+}
+
+template <class T>
+PermebufListOfOneOfs<T> PermebufListOfOneOfs<T>::Allocate(PermebufBase* buffer) {
+	return buffer->AllocateListOfOneOfs<T>();
 }
 
 template <class T>
@@ -462,6 +494,16 @@ void PermebufListOfNumbers<T>::Set(T value) {
 		default:
 			break;
 	}
+}
+
+template <class T>
+size_t PermebufListOfNumbers<T>::GetSizeInBytes(PermebufBase* buffer) {
+	return buffer->GetAddressSizeInBytes() + sizeof(T);
+}
+
+template <class T>
+PermebufListOfNumbers<T> PermebufListOfNumbers<T>::Allocate(PermebufBase* buffer) {
+	return buffer->AllocateListOfNumbers<T>();
 }
 
 template <class T>

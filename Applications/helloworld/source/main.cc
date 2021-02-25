@@ -25,6 +25,7 @@ using ::perception::Fiber;
 using ::perception::MessageId;
 using ::perception::ProcessId;
 using ::perception::Sleep;
+using ::permebuf::perception::devices::GraphicsCommand;
 using ::permebuf::perception::devices::GraphicsDriver;
 using ::permebuf::perception::devices::KeyboardDriver;
 using ::permebuf::perception::devices::KeyboardListener;
@@ -124,6 +125,28 @@ int main() {
 	std::cout << "Sync Screen size is " << screen_size.GetWidth() << " x "
 		<< screen_size.GetHeight() << std::endl;
 
+	GraphicsDriver::CreateTextureRequest create_texture_request;
+	create_texture_request.SetWidth(300);
+	create_texture_request.SetHeight(300);
+	auto create_texture_response = *graphics_driver.CallCreateTexture(
+		create_texture_request);
+	size_t texture_id = create_texture_response.GetTexture();
+	create_texture_response.GetPixelBuffer().Apply([](void* data, size_t size) {
+		uint32* pixels = (uint32*)data;
+		for(int i = 0; i < 300 * 300; i++) {
+			pixels[i] = (i % 2 == 0) ? 0xFFFFFFFF : 0x00000000;
+		}
+	});
+
+	Permebuf<GraphicsDriver::RunCommandsMessage> run_commands_message;
+	auto command_1 = run_commands_message.AllocateListOfOneOfs<GraphicsCommand>();
+	auto command_1_copy_texture_to_position = command_1.Get().MutableCopyTextureToPosition();
+	command_1_copy_texture_to_position.SetSourceTexture(texture_id);
+	command_1_copy_texture_to_position.SetDestinationTexture(0); // The screen
+	command_1_copy_texture_to_position.SetLeftDestination(10);
+	command_1_copy_texture_to_position.SetTopDestination(10);
+	run_commands_message->SetCommands(command_1);
+	graphics_driver.SendRunCommands(std::move(run_commands_message));
 
 	perception::HandOverControl();
 	return 0;

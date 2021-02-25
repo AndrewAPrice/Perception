@@ -107,9 +107,9 @@ template <class T>
 class PermebufArrayOf : public PermebufArray {
 public:
 	PermebufArrayOf(PermebufBase* buffer, size_t offset);
-	typename T::Ref Get(int index) const;
+	T Get(int index) const;
 	bool Has(int index) const;
-	void Set(int index, typename T::Ref value);
+	void Set(int index, T value);
 	void Clear(int index);
 
 private:
@@ -122,9 +122,9 @@ template <class T>
 class PermebufArrayOfOneOfs : public PermebufArray {
 public:
 	PermebufArrayOfOneOfs(PermebufBase* buffer, size_t offset);
-	typename T::Ref Get(int index) const;
+	T Get(int index) const;
 	bool Has(int index) const;
-	void Set(int index, typename T::Ref value);
+	void Set(int index, T value);
 	void Clear(int index);
 
 private:
@@ -183,6 +183,7 @@ public:
 	bool IsValid() const;
 	bool HasNext() const;
 	int Count() const;
+	T InsertAfter() const;
 	T Next() const;
 	T Get(int index) const;
 	T RemoveNext() const;
@@ -222,6 +223,7 @@ public:
 	bool Get() const;
 	void Set(bool value);
 	static size_t GetSizeInBytes(PermebufBase* buffer);
+	static PermebufListOfBooleans Allocate(PermebufBase* buffer);
 };
 
 template <class T>
@@ -230,10 +232,8 @@ public:
 	PermebufListOfEnums(PermebufBase* buffer, size_t offset);
 	T Get() const;
 	void Set(T value);
-/*
-	static template <class T> size_t GetSizeInBytes(PermebufBase* buffer) {
-		return buffer->GetAddressSizeInBytes() + 2;
-	}*/
+	static size_t GetSizeInBytes(PermebufBase* buffer);
+	static PermebufListOfEnums<T> Allocate(PermebufBase* buffer);
 };
 
 template <class T>
@@ -245,6 +245,7 @@ public:
 	void Set(T value);
 	void Clear();
 	static size_t GetSizeInBytes(PermebufBase* buffer);
+	static PermebufListOf<T> Allocate(PermebufBase* buffer);
 };
 
 template <class T>
@@ -256,6 +257,7 @@ public:
 	void Set(T value);
 	void Clear();
 	static size_t GetSizeInBytes(PermebufBase* buffer);
+	static PermebufListOfOneOfs<T> Allocate(PermebufBase* buffer);
 };
 
 
@@ -267,6 +269,8 @@ public:
 	void Set(PermebufString value);
 	void Set(std::string_view value);
 	void Clear();
+	static size_t GetSizeInBytes(PermebufBase* buffer);
+	static PermebufListOfStrings Allocate(PermebufBase* buffer);
 };
 
 class PermebufListOfBytes : public PermebufList<PermebufListOfBytes> {
@@ -277,6 +281,8 @@ public:
 	void Set(PermebufBytes value);
 	void Set(void* value, size_t length);
 	void Clear();
+	static size_t GetSizeInBytes(PermebufBase* buffer);
+	static PermebufListOfBytes Allocate(PermebufBase* buffer);
 };
 
 template <class T>
@@ -285,6 +291,8 @@ public:
 	PermebufListOfNumbers(PermebufBase* buffer, size_t offset);
 	T Get() const;
 	void Set(T const);
+	static size_t GetSizeInBytes(PermebufBase* buffer);
+	static PermebufListOfNumbers<T> Allocate(PermebufBase* buffer);
 };
 
 class PermebufBase {
@@ -314,13 +322,39 @@ public:
 
 	// TODO - allocate array
 
+	template <class T> PermebufListOfEnums<T> AllocateListOfEnums() {
+		return PermebufListOfEnums<T>(this,
+			AllocateMessage(PermebufListOfEnums<T>::GetSizeInBytes(this)));
+	}
+
 	template <class T> PermebufListOf<T> AllocateListOf() {
-		return PermebufListOf<T>(this, AllocateMessage(PermebufListOf<T>::GetSizeInBytes(this)));
+		return PermebufListOf<T>(this, AllocateMessage(PermebufListOf<
+			T>::GetSizeInBytes(this)));
 	}
 
 	template <class T> PermebufListOfOneOfs<T> AllocateListOfOneOfs() {
 		return PermebufListOfOneOfs<T>(this,
 			AllocateMessage(PermebufListOfOneOfs<T>::GetSizeInBytes(this)));
+	}
+
+	PermebufListOfBooleans AllocateListOfBooleans() {
+		return PermebufListOfBooleans(this,
+			AllocateMessage(PermebufListOfBooleans::GetSizeInBytes(this)));
+	}
+
+	PermebufListOfStrings AllocateListOfStrings() {
+		return PermebufListOfStrings(this,
+			AllocateMessage(PermebufListOfStrings::GetSizeInBytes(this)));
+	}
+	
+	PermebufListOfBytes AllocateListOfBytes() {
+		return PermebufListOfBytes(this,
+			AllocateMessage(PermebufListOfBytes::GetSizeInBytes(this)));
+	}
+
+	template <class T> PermebufListOfNumbers<T> AllocateListOfNumbers() {
+		return PermebufListOfNumbers<T>(this,
+			AllocateMessage(PermebufListOfNumbers<T>::GetSizeInBytes(this)));
 	}
 
 	template <class T> T AllocateMessage() {
@@ -360,7 +394,7 @@ public:
 	// Creates a new Permebuf.
 	Permebuf(PermebufAddressSize address_size = PermebufAddressSize::BITS_16) : PermebufBase(address_size) {
 		// Allocate the first message in the Permebuf.
-		root_ = (void)AllocateMessage<T>();
+		root_ = AllocateMessage<T>();
 	}
 
 	// Wraps a Permabug around raw memory. This memory must be page aligned, and we take ownership
@@ -380,8 +414,6 @@ public:
 	Permebuf<T> Clone() const {
 		// TODO
 	}
-
-	typedef typename T::Ref Ref;
 
 	const T* operator->() const {
 		return &root_;

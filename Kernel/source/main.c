@@ -7,6 +7,7 @@
 #include "physical_allocator.h"
 #include "process.h"
 #include "scheduler.h"
+#include "shared_memory.h"
 #include "syscall.h"
 #include "service.h"
 #include "text_terminal.h"
@@ -34,6 +35,7 @@ void kmain() {
 	InitializeProcesses();
 	InitializeThreads();
 	InitializeServices();
+	InitializeSharedMemory();
 
 	InitializeScheduler();
 	InitializeTimer();

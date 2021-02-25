@@ -8,6 +8,10 @@
 
 #include "types.h"
 
+struct Process;
+struct SharedMemoryInProcess;
+struct SharedMemory;
+
 // The offset from physical to virtual memory.
 #define VIRTUAL_MEMORY_OFFSET 0xFFFFFFFF80000000 // 0x8000000000 = 256gb
 
@@ -46,18 +50,33 @@ extern void UnmapVirtualPage(size_t pml4, size_t virtualaddr, bool free);
 // Return the physical address mapped at a virtual address, returning OUT_OF_MEMORY if is not mapped.
 extern size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr);
 
-// Gets or creates a virtual page in an address space, returning the physical address or OUT_OF_MEMORY if it fails.
+// Gets or creates a virtual page in an address space, returning the physical
+// address or OUT_OF_MEMORY if it fails.
 extern size_t GetOrCreateVirtualPage(size_t pml4, size_t virtualaddr);
 
-// Creates a virtual address space, returns the PML4. Returns OUT_OF_MEMORY if it fails.
+// Creates a virtual address space, returns the PML4. Returns OUT_OF_MEMORY if
+// it fails.
 extern size_t CreateAddressSpace();
 
-// Frees an address space. Everything it finds will be returned to the physical allocator so unmap any shared memory before. Please
-// don't pass it the kernel's PML4.
+// Frees an address space. Everything it finds will be returned to the physical
+// allocator so unmap any shared memory before. Please don't pass it the
+// kernel's PML4.
 extern void FreeAddressSpace(size_t pml4);
 
-/* Switch to a virtual address space. Remember to call this if allocating or freeing pages to flush the changes! */
+// Switch to a virtual address space. Remember to call this if allocating or
+// freeing pages to flush the changes! 
 extern void SwitchToAddressSpace(size_t pml4);
 
 // Flush the CPU lookup for a particular virtual address.
 extern void FlushVirtualPage(size_t addr);
+
+// Maps shared memory into a process's virtual address space. Returns NULL if
+// there was an issue.
+extern struct SharedMemoryInProcess* MapSharedMemoryIntoProcess(
+	struct Process* process, struct SharedMemory* shared_memory);
+
+// Unmaps shared memory from a process and releases the SharedMemoryInProcess
+// object.
+extern void UnmapSharedMemoryFromProcess(struct Process* process,
+	struct SharedMemoryInProcess* shared_memory_in_process);
+

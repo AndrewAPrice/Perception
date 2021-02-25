@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "perception/memory.h"
 #include "perception/shared_memory.h"
+
+#ifndef PERCEPTION
+#include <map>
+#endif
+
+#include "perception/memory.h"
 
 namespace perception {
 namespace {
@@ -27,7 +32,7 @@ struct SharedMemoryBlock {
 	void* data;
 	size_t size_in_pages;
 	size_t references;
-}
+};
 
 // The last unique buffer ID - where the first allocated buffer starts from 1
 // because 0 means invalid buffer.
@@ -76,7 +81,7 @@ void JoinSharedMemory(size_t id, void*& ptr, size_t& size_in_pages) {
 	size_in_pages = size_r;
 #else
 	// Find the shared memory block.
-	auto& shared_memory_block_itr = shared_memory_blocks.find(id);
+	auto shared_memory_block_itr = shared_memory_blocks.find(id);
 	if (shared_memory_block_itr == shared_memory_blocks.end()) {
 		// Can't find this memory block.
 		ptr = nullptr;
@@ -87,7 +92,7 @@ void JoinSharedMemory(size_t id, void*& ptr, size_t& size_in_pages) {
 	// Increment the references and return a pointer to the data.
 	shared_memory_block_itr->second.references++;
 	ptr = shared_memory_block_itr->second.data;
-	size_in_pages = shared_memory_block_itr->itr.size_in_pages;
+	size_in_pages = shared_memory_block_itr->second.size_in_pages;
 #endif
 }
 
@@ -101,17 +106,17 @@ void ReleaseSharedMemory(size_t id) {
 		"r"(syscall_num), "r"(id_r): "rcx", "r11");
 #else
 	// Find the shared memory block.
-	auto& shared_memory_block_itr = shared_memory_blocks.find(id);
+	auto shared_memory_block_itr = shared_memory_blocks.find(id);
 	if (shared_memory_block_itr == shared_memory_blocks.end())
 		// Can't find this memory block.
 		return;
 
 	// Decerement the references.
 	shared_memory_block_itr->second.references--;
-	if (shared_memory_blocks->second.references == 0) {
+	if (shared_memory_block_itr->second.references == 0) {
 		// There are no more references to this memory block so we can
 		// unallocate the memory.
-		delete shared_memory_blocks->second.data;
+		free(shared_memory_block_itr->second.data);
 		shared_memory_blocks.erase(shared_memory_block_itr);
 	}
 #endif
@@ -132,12 +137,12 @@ SharedMemory::~SharedMemory() {
 }
 
 // Creates a shared memory block of a specific size. The size is rounded up
-	// to the nearest page size.
-SharedMemory SharedMemory::FromSize(size_t size_in_bytes) {
+// to the nearest page size.
+std::unique_ptr<SharedMemory> SharedMemory::FromSize(size_t size_in_bytes) {
 	size_t size_in_pages = (size_in_bytes + kPageSize - 1) / kPageSize;
 	if (size_in_pages == 0)
 		// Shared memory is empty.
-		return SharedMemory(0);
+		return std::make_unique<SharedMemory>(0);
 
 	size_t id = 0;
 	void* ptr = nullptr;
@@ -145,14 +150,14 @@ SharedMemory SharedMemory::FromSize(size_t size_in_bytes) {
 
 	if (id == 0)
 		// Could not create the shared memory.
-		return SharedMemory(0);
+		return std::make_unique<SharedMemory>(0);
 
 	// We've created and allocated a shared memory, so now let's wrap it in a
 	// SharedMemory object.
-	SharedMemory shared_memory(id);
-	shared_memory.ptr_ = ptr;
-	shared_memory.size_in_bytes_ = size_in_pages * kPageSize;
-	return std::move(shared_memory);
+	auto shared_memory = std::make_unique<SharedMemory >(id);
+	shared_memory->ptr_ = ptr;
+	shared_memory->size_in_bytes_ = size_in_pages * kPageSize;
+	return shared_memory;
 }
 
 // Creates another instance of the SharedMemory object that points to the

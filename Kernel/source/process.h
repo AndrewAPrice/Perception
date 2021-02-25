@@ -15,6 +15,7 @@ struct Message;
 struct Process;
 struct ProcessToNotifyWhenServiceAppears;
 struct Service;
+struct SharedMemoryInProcess;
 struct Thread;
 
 struct ProcessToNotifyOnExit {
@@ -84,6 +85,9 @@ struct Process {
 	// them from front to back.
 	struct Service* first_service;
 	struct Service* last_service;
+
+	// Linked list of shared memory mapped into this process.
+	struct SharedMemoryInProcess* shared_memory;
 };
 
 // Initializes the internal structures for tracking processes.
