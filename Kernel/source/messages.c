@@ -1,11 +1,13 @@
 #include "messages.h"
 
 #include "object_pools.h"
+#include "physical_allocator.h"
 #include "process.h"
 #include "registers.h"
 #include "scheduler.h"
 #include "text_terminal.h"
 #include "thread.h"
+#include "virtual_allocator.h"
 
 // The maximum number of messages that can be queued.
 #define MAX_EVENTS_QUEUED 1024
@@ -38,10 +40,6 @@ void LoadMessageIntoThread(struct Message* message, struct Thread* thread) {
 
 // Is this a message that involves transferring memory pages?
 bool IsPagingMessage(size_t metadata) {
-	if ((metadata & 1) == 1) {
-		PrintString("Sending memory pages isn't yet implemented.");
-	}
-
 	return (metadata & 1) == 1;
 }
 
@@ -165,9 +163,71 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
 		// Transfer memory pages.
 		// r10/param 4 = Address of the first memory page.
 		// r12/param 5 = Size of the message in pages.
-		PrintString("TODO: Transfer memory pages in messages.c:SendMessageFromThreadSyscall\n");
-		registers->rax = MS_UNIMPLEMENTED;
-		ReleaseMessage(message);
+
+		// Figure out where to move the memory from and to.
+		size_t size_in_pages = registers->r12;
+		size_t source_virtual_address = registers->r10;
+		size_t destination_virtual_address =
+			FindFreePageRange(receiver_process->pml4, size_in_pages);
+
+		#if DEBUG
+			PrintString("Moving pages - Source address: ");
+			PrintHex(source_virtual_address);
+			PrintString(" Destination address: ");
+			PrintHex(destination_virtual_address);
+			PrintString("\n");
+		#endif
+
+		if (destination_virtual_address == OUT_OF_MEMORY) {
+			// Out of memory - release message and all source pages.
+			ReleaseVirtualMemoryInAddressSpace(
+				sender_process->pml4, source_virtual_address, size_in_pages);
+			registers->rax = MS_OUT_OF_MEMORY;
+			ReleaseMessage(message);
+			return;
+		}
+
+		// Move each page over.
+		for (size_t page = 0; page < size_in_pages; page++) {
+			// Get the physical address of this page.
+			size_t page_physical_address = GetPhysicalAddress(
+				sender_process->pml4, source_virtual_address + page * PAGE_SIZE,
+				/*ignore_unownwed_pages=*/true);
+			if (page_physical_address == OUT_OF_MEMORY) {
+				#if DEBUG
+					PrintString("Page ");
+					PrintNumber(page);
+					PrintString("/");
+					PrintNumber(size_in_pages);
+					PrintString(" at ");
+					PrintHex(source_virtual_address + page * PAGE_SIZE);
+					PrintString(" doesn't exist.");
+				#endif
+
+				// No memory was mapped to this area. Release message and all
+				// source and destination pages.
+				ReleaseVirtualMemoryInAddressSpace(
+					sender_process->pml4, source_virtual_address, size_in_pages);
+				ReleaseVirtualMemoryInAddressSpace(
+					receiver_process->pml4, destination_virtual_address, size_in_pages);
+				registers->rax = MS_OUT_OF_MEMORY;
+				ReleaseMessage(message);
+				return;
+			}
+
+			// Unmap the physical page from the old process.
+			UnmapVirtualPage(sender_process->pml4,
+				source_virtual_address + page * PAGE_SIZE, false);
+
+			// Map the physical page to the new process.
+			MapPhysicalPageToVirtualPage(receiver_process->pml4,
+				destination_virtual_address + page * PAGE_SIZE,
+				page_physical_address, /*own=*/ true);
+		}
+
+		// Point our message to the new virtual address.
+		message->param4 = destination_virtual_address;
+		message->param5 = size_in_pages;
 	} else {
 		message->param4 = registers->r10;
 		message->param5 = registers->r12;

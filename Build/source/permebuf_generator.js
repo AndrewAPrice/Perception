@@ -429,7 +429,9 @@ class ${thisMessage.cppClassName} {
 		${thisMessage.cppClassName}() {}
 		${thisMessage.cppClassName}(::PermebufBase* buffer, size_t offset);
 		${thisMessage.cppClassName}(const ${thisMessage.cppClassName}& other) = default;
-		size_t Address() const { return offset_; }
+		size_t Address() const {
+			return offset_ - PermebufBase::GetBytesNeededForVariableLengthNumber(size_);
+		}
 		static size_t GetSizeInBytes(::PermebufBase* buffer);
 `;
 

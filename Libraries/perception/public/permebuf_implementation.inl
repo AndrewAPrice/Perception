@@ -245,7 +245,7 @@ T PermebufList<T>::InsertAfter() const {
 
 	size_t next = buffer_->ReadPointer(offset_);
 	T new_item = T::Allocate(buffer_);
-	buffer_->WritePointer(new_item.GetAddress());
+	buffer_->WritePointer(offset_, new_item.Address());
 	return new_item;
 }
 
@@ -292,7 +292,7 @@ T PermebufList<T>::RemoveAllAfter() const {
 
 template <class T>
 size_t PermebufList<T>::GetItemAddress() const {
-	return offset_ + 1 << static_cast<size_t>(buffer_->GetAddressSize());
+	return offset_ + buffer_->GetAddressSizeInBytes();
 }
 
 template <class T>
@@ -385,15 +385,15 @@ bool PermebufListOfOneOfs<T>::Has() const {
 	if (!this->IsValid()) {
 		return false;
 	}
-	return this->buffer_->ReadPointer(this->GetItemAddress() + 2) != 0;
+	return this->buffer_->ReadPointer(this->GetItemAddress()) != 0;
 }
 
 template <class T>
 T PermebufListOfOneOfs<T>::Get() const {
-	if (!this->IsValid()) {
+	if (!this->IsValid())
 		return T(this->buffer_, 0);
-	}
-	return T(this->buffer_, this->GetItemAddress());
+	size_t addr = this->buffer_->ReadPointer(this->GetItemAddress());
+	return T(this->buffer_, this->buffer_->ReadPointer(this->GetItemAddress()));
 }
 
 template <class T>
@@ -402,6 +402,8 @@ void PermebufListOfOneOfs<T>::Set(T value) {
 		return;
 	}
 
+	this->buffer_->WritePointer(this->GetItemAddress(), value.Address());
+	/*
 	size_t source_oneof_offset = value.Address();
 
 	size_t destination_oneof_offset = this->GetItemAddress();
@@ -410,6 +412,7 @@ void PermebufListOfOneOfs<T>::Set(T value) {
 		this->buffer_->Read2Bytes(source_oneof_offset));
 	this->buffer_->WritePointer(destination_oneof_offset + 2,
 		this->buffer_->ReadPointer(source_oneof_offset + 2));
+	*/
 }
 
 template <class T>
@@ -418,17 +421,12 @@ void PermebufListOfOneOfs<T>::Clear() {
 		return;
 	}
 
-	size_t destination_oneof_offset = this->GetItemAddress();
-
-	this->buffer_->Write2Bytes(destination_oneof_offset,
-		0);
-	this->buffer_->WritePointer(destination_oneof_offset + 2,
-		0);
+	this->buffer_->WritePointer(this->GetItemAddress(), 0);
 }
 
 template <class T>
 size_t PermebufListOfOneOfs<T>::GetSizeInBytes(PermebufBase* buffer) {
-	return 2 + buffer->GetAddressSizeInBytes() * 2;
+	return buffer->GetAddressSizeInBytes() * 2;
 }
 
 template <class T>
@@ -576,7 +574,7 @@ template <class O>
 	request.ReleaseMemory(&memory_address, &number_of_pages, &size_in_bytes);
 
 	auto status = ::perception::SendRawMessage(process_id_, message_id_,
-		function_id << 3,
+		(function_id << 3) | 1,
 		0, 0, size_in_bytes, (size_t)memory_address, number_of_pages);
 	if (status !=
 		::perception::MessageStatus::SUCCESS) {
@@ -629,7 +627,6 @@ template <class O, class I>
 StatusOr<Permebuf<O>>
 	PermebufService::SendMiniMessageAndWaitForMessage(size_t function_id,
 		const O& request) const {
-	std::cout << "TODO: Implement PermebufService::SendMiniMessageAndWaitForMessage" << std::endl;
 }
 
 template <class O, class I>

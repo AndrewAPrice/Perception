@@ -596,6 +596,37 @@ void PermebufBase::WriteVariableLengthNumber(size_t address, size_t value) {
 	}
 }
 
+size_t PermebufBase::GetBytesNeededForVariableLengthNumber(size_t value) {
+	if (!(value & 0b1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1000'0000)) {
+		// 7 bit number
+		return 1;
+	} else if (!(value & 0b1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1100'0000'0000'0000)) {
+		// 14 bit number
+		return 2;
+	} else if (!(value & 0b1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1110'0000'0000'0000'0000'0000)) {
+		// 21 bit number
+		return 3;
+	} else if (!(value & 0b1111'1111'1111'1111'1111'1111'1111'1111'1111'0000'0000'0000'0000'0000'0000'0000)) {
+		// 28 bit number
+		return 4;
+	} else if (!(value & 0b1111'1111'1111'1111'1111'1111'1111'1000'0000'0000'0000'0000'0000'0000'0000'0000)) {
+		// 35 bit number
+		return 5;
+	} else if (!(value & 0b1111'1111'1111'1111'1111'1100'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000)) {
+		// 42 bit number
+		return 6;
+	} else if (!(value & 0b1111'1111'1111'1110'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000)) {
+		// 49 bit number
+		return 7;
+	} else if (!(value & 0b1111'1111'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000)) {
+		// 56 bit number
+		return 8;
+	} else {
+		// 64 bit number
+		return 9;
+	}
+}
+
 
 void* PermebufBase::GetRawPointer(size_t address, size_t data_length) {
 	if (address + data_length > size_) {
@@ -713,6 +744,28 @@ size_t PermebufBase::AllocateMessage(size_t size) {
 	// Attempt to grow the buffer by the size of the message.
 	if (GrowTo(size_ + total_length)) {
 		WriteVariableLengthNumber(current_ptr, size);
+
+		// Erase memory between current_ptr + size_bytes and total_length.
+		memset(reinterpret_cast<void *>(
+				reinterpret_cast<size_t>(start_of_memory_) +
+					current_ptr + size_bytes), 0, size);
+		return current_ptr;
+	} else {
+		// Couldn't grow the PermebufBase to this size.
+		return 0;
+	}
+}
+
+size_t PermebufBase::AllocateMemory(size_t size) {
+	// The new message will be allocated at the current end of the buffer.
+	size_t current_ptr = size_;
+
+	// Attempt to grow the buffer by the size of the message.
+	if (GrowTo(size_ + size)) {
+		// Erase the newly allocated memory.
+		memset(reinterpret_cast<void *>(
+				reinterpret_cast<size_t>(start_of_memory_) + current_ptr),
+				0, size);
 		return current_ptr;
 	} else {
 		// Couldn't grow the PermebufBase to this size.
@@ -774,37 +827,6 @@ bool PermebufBase::GrowTo(size_t size) {
 
 size_t PermebufBase::GetNumberOfAllocatedMemoryPages() const {
 	return (size_ + kPageSize - 1) / kPageSize;;
-}
-
-size_t PermebufBase::GetBytesNeededForVariableLengthNumber(size_t value) const {
-	if (!(value & 0b1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1000'0000)) {
-		// 7 bit number
-		return 1;
-	} else if (!(value & 0b1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1100'0000'0000'0000)) {
-		// 14 bit number
-		return 2;
-	} else if (!(value & 0b1111'1111'1111'1111'1111'1111'1111'1111'1111'1111'1110'0000'0000'0000'0000'0000)) {
-		// 21 bit number
-		return 3;
-	} else if (!(value & 0b1111'1111'1111'1111'1111'1111'1111'1111'1111'0000'0000'0000'0000'0000'0000'0000)) {
-		// 28 bit number
-		return 4;
-	} else if (!(value & 0b1111'1111'1111'1111'1111'1111'1111'1000'0000'0000'0000'0000'0000'0000'0000'0000)) {
-		// 35 bit number
-		return 5;
-	} else if (!(value & 0b1111'1111'1111'1111'1111'1100'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000)) {
-		// 42 bit number
-		return 6;
-	} else if (!(value & 0b1111'1111'1111'1110'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000)) {
-		// 49 bit number
-		return 7;
-	} else if (!(value & 0b1111'1111'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000)) {
-		// 56 bit number
-		return 8;
-	} else {
-		// 64 bit number
-		return 9;
-	}
 }
 
 PermebufMiniMessage::PermebufMiniMessage() {

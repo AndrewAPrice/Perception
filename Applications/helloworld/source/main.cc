@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "perception/fibers.h"
+#include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
 #include "permebuf/Libraries/perception/devices/keyboard_driver.permebuf.h"
@@ -22,6 +23,7 @@
 #include <iostream>
 
 using ::perception::Fiber;
+using ::perception::GetProcessId;
 using ::perception::MessageId;
 using ::perception::ProcessId;
 using ::perception::Sleep;
@@ -99,8 +101,8 @@ int main() {
 	});
 
 	// Sleep until we get the graphics driver.
-	auto main_fiber = perception::GetCurrentlyExecutingFiber();
 	GraphicsDriver graphics_driver;
+	auto main_fiber = perception::GetCurrentlyExecutingFiber();
 	MessageId graphics_driver_listener = GraphicsDriver::NotifyOnEachNewInstance(
 		[&] (GraphicsDriver driver) {
 			graphics_driver = driver;
@@ -125,6 +127,7 @@ int main() {
 	std::cout << "Sync Screen size is " << screen_size.GetWidth() << " x "
 		<< screen_size.GetHeight() << std::endl;
 
+	// Create a texture.
 	GraphicsDriver::CreateTextureRequest create_texture_request;
 	create_texture_request.SetWidth(300);
 	create_texture_request.SetHeight(300);
@@ -138,15 +141,33 @@ int main() {
 		}
 	});
 
-	Permebuf<GraphicsDriver::RunCommandsMessage> run_commands_message;
-	auto command_1 = run_commands_message.AllocateListOfOneOfs<GraphicsCommand>();
-	auto command_1_copy_texture_to_position = command_1.Get().MutableCopyTextureToPosition();
+	// Tell the driver we're allowed to draw to fullscreen.
+	GraphicsDriver::SetProcessAllowedToDrawToScreenMessage allow_draw_to_screen_message;
+	allow_draw_to_screen_message.SetProcess(GetProcessId());
+	graphics_driver.SendSetProcessAllowedToDrawToScreen(allow_draw_to_screen_message);
+
+	// Create two draw calls. One at 10,10 and one at 200,200.
+	Permebuf<GraphicsDriver::RunCommandsMessage> commands;
+	auto command_1 = commands->MutableCommands();
+	auto command_1_oneof = commands.AllocateOneOf<GraphicsCommand>();
+	command_1.Set(command_1_oneof);
+	auto command_1_copy_texture_to_position = command_1_oneof.MutableCopyTextureToPosition();
 	command_1_copy_texture_to_position.SetSourceTexture(texture_id);
 	command_1_copy_texture_to_position.SetDestinationTexture(0); // The screen
 	command_1_copy_texture_to_position.SetLeftDestination(10);
 	command_1_copy_texture_to_position.SetTopDestination(10);
-	run_commands_message->SetCommands(command_1);
-	graphics_driver.SendRunCommands(std::move(run_commands_message));
+
+	auto command_2 = command_1.InsertAfter();
+	auto command_2_oneof = commands.AllocateOneOf<GraphicsCommand>();
+	command_2.Set(command_2_oneof);
+	auto command_2_copy_texture_to_position = command_2_oneof.MutableCopyTextureToPosition();
+	command_2_copy_texture_to_position.SetSourceTexture(texture_id);
+	command_2_copy_texture_to_position.SetDestinationTexture(0); // The screen
+	command_2_copy_texture_to_position.SetLeftDestination(200);
+	command_2_copy_texture_to_position.SetTopDestination(200);
+
+	// Send the draw calls.
+	graphics_driver.SendRunCommands(std::move(commands));
 
 	perception::HandOverControl();
 	return 0;

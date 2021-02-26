@@ -17,6 +17,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string_view>
+
 #include "types.h"
 #include "status.h"
 
@@ -203,13 +204,17 @@ public:
 		bool operator!=(const Iterator& other) const {
 			return offset_ != other.offset_;
 		}
-		const auto& operator*() const { return T(buffer_, offset_).Get(); }
+		const auto operator*() const {
+			return T(buffer_, offset_).Get();
+		}
 	private:
 		PermebufBase* buffer_;
 		size_t offset_;
 	};
 
-	Iterator begin() const { return Iterator(buffer_, offset_); }
+	Iterator begin() const {
+		return Iterator(buffer_, offset_);
+	}
 	Iterator end() const { return Iterator(buffer_, 0); }
 
 protected:
@@ -304,6 +309,7 @@ public:
 	size_t ReadPointer(size_t address) const;
 	size_t ReadVariableLengthNumber(size_t address) const;
 	size_t ReadVariableLengthNumber(size_t address, size_t& bytes) const;
+	static size_t GetBytesNeededForVariableLengthNumber(size_t value);
 
 	void Write1Byte(size_t address, uint8_t value);
 	void Write2Bytes(size_t address, uint16_t value);
@@ -324,41 +330,45 @@ public:
 
 	template <class T> PermebufListOfEnums<T> AllocateListOfEnums() {
 		return PermebufListOfEnums<T>(this,
-			AllocateMessage(PermebufListOfEnums<T>::GetSizeInBytes(this)));
+			AllocateMessage(PermebufListOfEnums<T>::AllocateMemory(this)));
 	}
 
 	template <class T> PermebufListOf<T> AllocateListOf() {
-		return PermebufListOf<T>(this, AllocateMessage(PermebufListOf<
+		return PermebufListOf<T>(this, AllocateMemory(PermebufListOf<
 			T>::GetSizeInBytes(this)));
 	}
 
 	template <class T> PermebufListOfOneOfs<T> AllocateListOfOneOfs() {
 		return PermebufListOfOneOfs<T>(this,
-			AllocateMessage(PermebufListOfOneOfs<T>::GetSizeInBytes(this)));
+			AllocateMemory(PermebufListOfOneOfs<T>::GetSizeInBytes(this)));
 	}
 
 	PermebufListOfBooleans AllocateListOfBooleans() {
 		return PermebufListOfBooleans(this,
-			AllocateMessage(PermebufListOfBooleans::GetSizeInBytes(this)));
+			AllocateMemory(PermebufListOfBooleans::GetSizeInBytes(this)));
 	}
 
 	PermebufListOfStrings AllocateListOfStrings() {
 		return PermebufListOfStrings(this,
-			AllocateMessage(PermebufListOfStrings::GetSizeInBytes(this)));
+			AllocateMemory(PermebufListOfStrings::GetSizeInBytes(this)));
 	}
 	
 	PermebufListOfBytes AllocateListOfBytes() {
 		return PermebufListOfBytes(this,
-			AllocateMessage(PermebufListOfBytes::GetSizeInBytes(this)));
+			AllocateMemory(PermebufListOfBytes::GetSizeInBytes(this)));
 	}
 
 	template <class T> PermebufListOfNumbers<T> AllocateListOfNumbers() {
 		return PermebufListOfNumbers<T>(this,
-			AllocateMessage(PermebufListOfNumbers<T>::GetSizeInBytes(this)));
+			AllocateMemory(PermebufListOfNumbers<T>::GetSizeInBytes(this)));
 	}
 
 	template <class T> T AllocateMessage() {
 		return T(this, AllocateMessage(T::GetSizeInBytes(this)));
+	}
+
+	template <class T> T AllocateOneOf() {
+		return T(this, AllocateMemory(T::GetSizeInBytes(this)));
 	}
 
 	PermebufAddressSize GetAddressSize() const;
@@ -375,9 +385,9 @@ protected:
 
 private:
 	size_t AllocateMessage(size_t size);
+	size_t AllocateMemory(size_t size);
 	bool GrowTo(size_t size);
 	size_t GetNumberOfAllocatedMemoryPages() const;
-	size_t GetBytesNeededForVariableLengthNumber(size_t value) const;
 
 	PermebufAddressSize address_size_;
 
@@ -400,7 +410,11 @@ public:
 	// Wraps a Permabug around raw memory. This memory must be page aligned, and we take ownership
 	// of the memory.
 	Permebuf(void* start_of_memory, size_t size) :
-		PermebufBase(start_of_memory, size) {}
+		PermebufBase(start_of_memory, size) {
+		// Set the first message to be at the start of the Permebuf, just
+		// beyond the initial metadata.
+		root_ = T(this, 1);
+	}
 
 	// Allow moving the object with std::move.
   	Permebuf(Permebuf<T> &&) = default;

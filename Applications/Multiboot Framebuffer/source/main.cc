@@ -89,8 +89,9 @@ public:
 		ProcessId sender,
 		Permebuf<GraphicsDriver::RunCommandsMessage> commands) override {
 		// Run each of the commands.
-		for (GraphicsCommand command : commands->GetCommands())
+		for (GraphicsCommand command : commands->GetCommands()) {
 			RunCommand(sender, command);
+		}
 	}
 
 	void HandleCreateTexture(
@@ -348,13 +349,18 @@ private:
 
 			// Only one process is allowed to write to the screen's
 			// framebuffer.
-			if (sender != process_allowed_to_write_to_the_screen_)
+			if (sender != process_allowed_to_write_to_the_screen_) {
+				std::cout << "Not allowed to draw to the screen." << std::endl;
 				// We're not that process.
 				return;
+			}
 
-			// Call the BitBlt function based on pixel depth
-			// of the framebuffer. The ordering is the most likely
-			// (in my opinion) pixel depths first.
+			// Call the BitBlt function based on pixel depth of the
+			// framebuffer. The ordering is the most likely in my opinion)
+			// pixel depths first. We branch on screen_bytes_per_pixel_ then
+			// call BitBltToTexture with the same value because we want the
+			// compiler to inline BitBltToTexture with the pixel depth constant
+			// folded.
 			if (screen_bytes_per_pixel_ == 3) {
 				BitBltToTexture(
 					(char*)**source_texture_itr->second.shared_memory,
@@ -457,7 +463,7 @@ private:
 		if (top_source >= source_height ||
 			left_source >= source_width ||
 			top_destination >= destination_height ||
-			left_destination >= source_width) {
+			left_destination >= destination_width) {
 			// Everything to copy is off screen.
 			return;
 		}
@@ -470,7 +476,7 @@ private:
 		if (left_source + width_to_copy > source_width)
 			width_to_copy = source_width - left_source;
 		if (left_destination + width_to_copy > destination_width)
-			width_to_copy = destination_width - source_width;
+			width_to_copy = destination_width - left_destination;
 
 		if (width_to_copy == 0 || height_to_copy == 0) {
 			// Nothing to copy.
@@ -527,7 +533,7 @@ private:
 
 			// More the start pointers to the next row.
 			source_copy_start += source_width * 4;
-			destination_copy_start + destination_pitch;
+			destination_copy_start += destination_pitch;
 		}
 	}
 

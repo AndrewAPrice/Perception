@@ -563,7 +563,7 @@ bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr, size_t physic
 }
 
 // Return the physical address mapped at a virtual address, returning OUT_OF_MEMORY if is not mapped.
-size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr) {
+size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr, bool ignore_unowned_pages) {
 	size_t pml4_entry = (virtualaddr >> 39) & 511;
 	size_t pml3_entry = (virtualaddr >> 30) & 511;
 	size_t pml2_entry = (virtualaddr >> 21) & 511;
@@ -611,6 +611,10 @@ size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr) {
 	ptr = (size_t *)TemporarilyMapPhysicalMemory(pml1, 3);;
 	if(ptr[pml1_entry] == 0) {
 		return OUT_OF_MEMORY;
+	} else if (ignore_unowned_pages &&
+		(ptr[pml1_entry] & (1 << 9)) == 0) {
+		// We don't own this page, and we want to ignore unowned pages.
+		return OUT_OF_MEMORY;
 	} else {
 		return ptr[pml1_entry] & 0xFFFFFFFFFFFFF000;
 	}
@@ -618,7 +622,8 @@ size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr) {
 
 // Return the physical address mapped at a virtual address, returning OUT_OF_MEMORY if is not mapped.
 size_t GetOrCreateVirtualPage(size_t pml4, size_t virtualaddr) {
-	size_t physical_address = GetPhysicalAddress(pml4, virtualaddr);
+	size_t physical_address = GetPhysicalAddress(pml4, virtualaddr,
+		/*ignore_unowned_pages=*/ false);
 	if (physical_address != OUT_OF_MEMORY) {
 		return physical_address;
 	}
@@ -759,7 +764,7 @@ void UnmapVirtualPage(size_t pml4, size_t virtualaddr, bool free) {
 	// This adddress was mapped somwhere.
 
 	// Should we free it, and it owned by this process?
-	if(free && (ptr[pml1_entry] & (1 << 9)) == 0) {
+	if(free && (ptr[pml1_entry] & (1 << 9)) != 0) {
 		// Return the memory to the physical allocator. This is optional because we don't want to do this if it's shared or
 		// memory mapped IO.
 

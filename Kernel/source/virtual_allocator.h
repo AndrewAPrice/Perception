@@ -48,7 +48,7 @@ extern size_t MapPhysicalMemoryInAddressSpace(size_t pml4, size_t addr, size_t p
 extern void UnmapVirtualPage(size_t pml4, size_t virtualaddr, bool free);
 
 // Return the physical address mapped at a virtual address, returning OUT_OF_MEMORY if is not mapped.
-extern size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr);
+extern size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr, bool ignore_unowned_pages);
 
 // Gets or creates a virtual page in an address space, returning the physical
 // address or OUT_OF_MEMORY if it fails.
