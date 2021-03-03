@@ -1,0 +1,100 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "screen.h"
+
+#include "perception/fibers.h"
+#include "perception/processes.h"
+#include "perception/shared_memory.h"
+
+using ::perception::GetCurrentlyExecutingFiber;
+using ::perception::GetProcessId;
+using ::perception::Fiber;
+using ::perception::MessageId;
+using ::perception::ProcessId;
+using ::perception::SharedMemory;
+using ::perception::Sleep;
+using ::permebuf::perception::devices::GraphicsCommand;
+using ::permebuf::perception::devices::GraphicsDriver;
+
+namespace {
+
+GraphicsDriver graphics_driver;
+int screen_width;
+int screen_height;
+int window_manager_texture_id;
+SharedMemory window_manager_texture_buffer;
+
+}
+
+void InitializeScreen() {
+	// Sleep until we get the graphics driver.
+	auto main_fiber = perception::GetCurrentlyExecutingFiber();
+	MessageId graphics_driver_listener = GraphicsDriver::NotifyOnEachNewInstance(
+		[&] (GraphicsDriver driver) {
+			graphics_driver = driver;
+			// We only care about one instance. We can stop
+			// listening now.
+			GraphicsDriver::StopNotifyingOnEachNewInstance(
+				graphics_driver_listener);
+
+			main_fiber->WakeUp();
+		});
+	Sleep();
+	
+	// Query the screen size.
+	auto screen_size = *graphics_driver.CallGetScreenSize(
+		GraphicsDriver::GetScreenSizeRequest());
+	screen_width = screen_size.GetWidth();
+	screen_height = screen_size.GetHeight();
+
+	// Allow the windnow manager to draw to the screen.
+	GraphicsDriver::SetProcessAllowedToDrawToScreenMessage allow_draw_to_screen_message;
+	allow_draw_to_screen_message.SetProcess(GetProcessId());
+	graphics_driver.SendSetProcessAllowedToDrawToScreen(allow_draw_to_screen_message);
+
+	// Create a texture.
+	GraphicsDriver::CreateTextureRequest create_texture_request;
+	create_texture_request.SetWidth(screen_width);
+	create_texture_request.SetHeight(screen_height);
+
+	auto create_texture_response = *graphics_driver.CallCreateTexture(
+		create_texture_request);
+	window_manager_texture_id = create_texture_response.GetTexture();
+	window_manager_texture_buffer = std::move(create_texture_response.GetPixelBuffer());
+	window_manager_texture_buffer.Join();
+}
+
+int GetScreenWidth() {
+	return screen_width;
+}
+
+int GetScreenHeight() {
+	return screen_height;
+}
+
+size_t GetWindowManagerTextureId() {
+	return window_manager_texture_id;
+}
+
+uint32* GetWindowManagerTextureData() {
+	return reinterpret_cast<uint32*>(*window_manager_texture_buffer);
+}
+
+void RunDrawCommands(Permebuf<
+	::permebuf::perception::devices::GraphicsDriver::RunCommandsMessage> commands) {
+	// Send the draw calls.
+	graphics_driver.SendRunCommands(std::move(commands));
+}
+

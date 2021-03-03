@@ -1,0 +1,57 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "compositor.h"
+#include "frame.h"
+#include "highlighter.h"
+#include "mouse.h"
+#include "screen.h"
+#include "window.h"
+
+#include "perception/scheduler.h"
+#include <iostream>
+
+using ::perception::WaitForMessagesThenReturn;
+
+
+int main() {
+	InitializeScreen();
+	InitializeMouse();
+	InitializeCompositor();
+	InitializeHighlighter();
+	InitializeFrames();
+	InitializeWindows();
+
+	for (int i = 0; i < 6; i++) {
+		Window::CreateWindow("Test 1");
+	}
+
+	for (int i = 0; i < 2; i++) {
+		Window::CreateDialog("Test 2", 200, 100);
+	}
+
+	// Draw the entire screen.
+	InvalidateScreen(0, 0, GetScreenWidth(), GetScreenHeight());
+	DrawScreen();
+
+	while (true) {
+		// Sleep until we have messages, then process them.
+		WaitForMessagesThenReturn();
+
+		// Redraw the screen once we are done processing all messages.
+		DrawScreen();		
+	}
+
+	return 0;
+}

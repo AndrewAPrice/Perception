@@ -418,6 +418,7 @@ public:
 
 	// Allow moving the object with std::move.
   	Permebuf(Permebuf<T> &&) = default;
+	Permebuf& operator=(Permebuf<T>&&) = default;
 
 	virtual ~Permebuf() {}
 

@@ -29,6 +29,7 @@ thread_local Fiber* last_scheduled_fiber = nullptr;
 // The fiber to return to when we're out of work instead of sleeping. This is
 // the caller of HandleEverything.
 thread_local Fiber* fiber_to_return_to_when_were_out_of_work = nullptr;
+thread_local Fiber* fiber_to_return_to_after_sleeping_when_were_out_of_work = nullptr;
 
 // Sleeps until a message. Returns true if a message was received.
 bool SleepThreadUntilMessage(ProcessId& senders_pid, MessageId& message_id,
@@ -110,10 +111,12 @@ void Defer(const std::function<void()>& function) {
 
 // Hand over control to the scheduler. This function never returns.
 void HandOverControl() {
-	if (fiber_to_return_to_when_were_out_of_work != nullptr) {
-		std::cerr << "We can't nest ::perception::HandOverControl "
-			<< "inside of ::perception::FinishAnyPendingWork because "
-			<< "it never return." << std::endl;
+	if (fiber_to_return_to_when_were_out_of_work != nullptr ||
+		fiber_to_return_to_after_sleeping_when_were_out_of_work != nullptr) {
+		std::cerr << "We can't nest ::perception::HandOverControl " <<
+			"inside of ::perception::FinishAnyPendingWork or " <<
+			"WaitForMessagesThenReturn because it will never return." <<
+			std::endl;
 		 return;
 	}
 
@@ -124,9 +127,11 @@ void HandOverControl() {
 // Runs all fibers, handles all events, then returns when there's
 // nothing else to do.
 void FinishAnyPendingWork() {
-	if (fiber_to_return_to_when_were_out_of_work != nullptr) {
+	if (fiber_to_return_to_when_were_out_of_work != nullptr ||
+		fiber_to_return_to_after_sleeping_when_were_out_of_work != nullptr) {
 		std::cerr << "We can't have nested calls" <<
-		  "::perception::FinishAnyPendingWork" << std::endl;
+		  "::perception::FinishAnyPendingWork and " << 
+		  "WaitForMessagesThenReturn" << std::endl;
 		 return;
 	}
 
@@ -140,6 +145,31 @@ void FinishAnyPendingWork() {
 	// We're back here once there is no more work to do.
 	fiber_to_return_to_when_were_out_of_work = nullptr;
 }
+
+
+void WaitForMessagesThenReturn() {
+	if (fiber_to_return_to_when_were_out_of_work != nullptr ||
+		fiber_to_return_to_after_sleeping_when_were_out_of_work != nullptr) {
+		std::cerr << "We can't have nested calls" <<
+		  "::perception::FinishAnyPendingWork and " << 
+		  "WaitForMessagesThenReturn" << std::endl;
+		 return;
+	}
+
+	// Remember where we are right now.
+	fiber_to_return_to_after_sleeping_when_were_out_of_work =
+		GetCurrentlyExecutingFiber();
+
+
+	// Switch to the next scheduled fiber.
+	Scheduler::GetNextFiberToRun()->SwitchTo();
+
+	// We're back here once there is no more work to do.
+	fiber_to_return_to_when_were_out_of_work = nullptr;
+	fiber_to_return_to_after_sleeping_when_were_out_of_work = nullptr;
+
+}
+
 
 // Gets the next fiber to run, or sleeps until there is one.
 Fiber* Scheduler::GetNextFiberToRun() {
@@ -165,6 +195,13 @@ Fiber* Scheduler::GetNextFiberToRun() {
 	size_t metadata, param1, param2, param3, param4, param5;
 
 	if (fiber_to_return_to_when_were_out_of_work == nullptr) {
+		if (fiber_to_return_to_after_sleeping_when_were_out_of_work != nullptr) {
+			// We want to sleep first, then return immediately when we run out
+			// of work.
+			fiber_to_return_to_when_were_out_of_work = 
+				fiber_to_return_to_after_sleeping_when_were_out_of_work;
+		}
+
 		// Nothing is waiting for to finish, so we'll sleep for the next
 		// message.
 		while (true) {
@@ -217,7 +254,6 @@ void Scheduler::ScheduleFiber(Fiber* fiber) {
 		last_scheduled_fiber = fiber;
 	}
 }
-
 // Returns a fiber to handle the message, or nullptr if there's
 // nothing to do.
 Fiber* Scheduler::GetFiberToHandleMessage(ProcessId senders_pid, MessageId message_id,

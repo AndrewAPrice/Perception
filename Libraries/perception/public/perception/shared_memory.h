@@ -32,6 +32,7 @@ public:
 
 	// Allow moving the object with std::move.
   	SharedMemory(SharedMemory&&) = default;
+  	SharedMemory& operator=(SharedMemory&&) = default;
 
 	// Each instance of SharedMemory is responsible for joining/releasing its
 	// reference to the shared memory block. Call std::move() if you want to

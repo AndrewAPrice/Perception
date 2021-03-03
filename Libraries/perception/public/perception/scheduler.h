@@ -32,6 +32,10 @@ void HandOverControl();
 // nothing else to do.
 void FinishAnyPendingWork();
 
+// Sleeps until a message is received, then handles all messages and
+// events and returns where there's nothing else to do.
+void WaitForMessagesThenReturn();
+
 class Scheduler {
 public:
 	// Gets the next fiber to run, which might sleep if there's nothing
