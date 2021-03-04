@@ -67,7 +67,7 @@ void UnregisterService(perception::MessageId message_id) {
 bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
 	MessageId& message) {
 #ifdef PERCEPTION
-	if (name.size() > kMaxServiceNameLength)
+	if (name.size() >= kMaxServiceNameLength)
 		return false;
 
 	size_t service_name_words[kMaxServiceNameLength / 8];
@@ -100,8 +100,9 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
 		"r"(name_8), "r"(name_9), "r"(name_10):
 		"rcx", "r11");
 
-	if (number_of_services < 1)
+	if (number_of_services < 1) {
 		return false;
+	}
 	process = pid_1;
 	message = message_id_1;
 	return true;
@@ -114,7 +115,7 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
 void ForEachInstanceOfService(std::string_view name,
 	const std::function<void(ProcessId, MessageId)>& on_each_service) {
 #ifdef PERCEPTION
-	if (name.size() > kMaxServiceNameLength)
+	if (name.size() >= kMaxServiceNameLength)
 		return;
 
 	size_t service_name_words[kMaxServiceNameLength / 8];

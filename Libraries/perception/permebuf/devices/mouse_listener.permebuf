@@ -93,6 +93,6 @@ service MouseListener {
 	OnMouseTakenCaptive : OnMouseTakenCaptiveMessage = 7;
 
 	// The mouse has been released.
-	minimessage OnMouseReleaseMessage {}
-	OnMouseRelease : OnMouseReleaseMessage = 8;
+	minimessage OnMouseReleasedMessage {}
+	OnMouseReleased : OnMouseReleasedMessage = 8;
 }

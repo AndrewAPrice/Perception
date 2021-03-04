@@ -958,9 +958,9 @@ class ${thisMessage.cppClassName} {
 							'\t\treturn ' + typeInformation.cppClassName + ' + ();\n' +
 							'\t}\n' +
 							'\t' + typeInformation.cppClassName + ' message;\n'+
-							'\tmessage.Deserialize(buffer_->Read8Bytes(address_offset),\n'+
-							'\t\tbuffer_->Read8Bytes(address_offset + 1), buffer_->Read8Bytes(address_offset + 2),\n' +
-							'\t\tbuffer_->Read8Bytes(address_offset + 3));\n' +
+							'\tmessage.Deserialize(buffer_->Read8Bytes(offset_ + address_offset),\n'+
+							'\t\tbuffer_->Read8Bytes(offset_ + address_offset + 1), buffer_->Read8Bytes(offset_ + address_offset + 2),\n' +
+							'\t\tbuffer_->Read8Bytes(offset_ + address_offset + 3));\n' +
 							'\treturn message;\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
@@ -974,10 +974,10 @@ class ${thisMessage.cppClassName} {
 							'\t}\n' +
 							'\tsize_t a, b, c, d;\n' +
 							'\tvalue.Serialize(a, b, c, d);\n' +
-							'\tbuffer_->Write8Bytes(address_offset, a);\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 1, b);\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 2, c);\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 3, d);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset, a);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 1, b);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 2, c);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 3, d);\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
 							'\tsize_t address_offset = ';
@@ -990,10 +990,10 @@ class ${thisMessage.cppClassName} {
 							'\t}\n' +
 							'\tsize_t a, b, c, d;\n' +
 							'\tvalue.Serialize(a, b, c, d);\n' +
-							'\tbuffer_->Write8Bytes(address_offset, a);\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 1, b);\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 2, c);\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 3, d);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset, a);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 1, b);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 2, c);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 3, d);\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
 							'\tsize_t address_offset = ';
@@ -1004,15 +1004,14 @@ class ${thisMessage.cppClassName} {
 							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tbuffer_->Write8Bytes(address_offset, 0);\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 1, 0);\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 2, 0);\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 3, 0);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset, 0);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 1, 0);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 2, 0);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 3, 0);\n' +
 							'}\n';
 						break;
 					case FieldType.SERVICE:
 						headerCpp += '\t\t' + typeInformation.cppClassName + ' Get' + field.name + '() const;\n' +
-							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '& value);\n' +
 							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '& value);\n' +
 							'\t\tvoid Set' + field.name + '(const ' + typeInformation.cppClassName + '_Server& value);\n' +
 							'\t\tbool Has' + field.name + '() const;\n' +
@@ -1025,10 +1024,10 @@ class ${thisMessage.cppClassName} {
 						}
 						sourceCpp += sizeInBytes + ';\n' +
 							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
-							'\t\treturn ' + typeInformation.cppClassName + ' + ();\n' +
+							'\t\treturn ' + typeInformation.cppClassName + '();\n' +
 							'\t}\n' +
 							'\treturn ' + typeInformation.cppClassName + '(\n'+
-							'\t\tbuffer_->Read8Bytes(address_offset), buffer_->Read8Bytes(address_offset + 1));\n' +
+							'\t\tbuffer_->Read8Bytes(offset_ + address_offset), buffer_->Read8Bytes(offset_ + address_offset + 1));\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
 							'\tsize_t address_offset = ';
@@ -1039,20 +1038,8 @@ class ${thisMessage.cppClassName} {
 							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tbuffer_->Write8Bytes(address_offset, value.GetProcessId());\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 1, value.GetMessageId());\n' +
-							'}\n' +
-							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
-							'\tsize_t address_offset = ';
-						if (sizeInPointers > 0) {
-							sourceCpp += '('+ sizeInPointers + ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
-						}
-						sourceCpp += sizeInBytes + ';\n' +
-							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
-							'\t\treturn;\n' +
-							'\t}\n' +
-							'\tbuffer_->Write8Bytes(address_offset, value.GetProcessId());\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 1, value.GetMessageId());\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset, value.GetProcessId());\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 1, value.GetMessageId());\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '_Server& value) {\n' +
 							'\tsize_t address_offset = ';
@@ -1063,8 +1050,8 @@ class ${thisMessage.cppClassName} {
 							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tbuffer_->Write8Bytes(address_offset, value.GetProcessId());\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 1, value.GetMessageId());\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset, value.GetProcessId());\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 1, value.GetMessageId());\n' +
 							'}\n' +
 							'\nbool ' + thisMessage.cppClassName + '::Has' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
@@ -1075,7 +1062,7 @@ class ${thisMessage.cppClassName} {
 							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
 							'\t\treturn false;\n' +
 							'\t}\n' +
-							'\treturn buffer_->Read8Bytes(address_offset) != 0;\n' +
+							'\treturn buffer_->Read8Bytes(offset_ + address_offset) != 0;\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name + '() {\n' +
 							'\tsize_t address_offset = ';
@@ -1086,8 +1073,8 @@ class ${thisMessage.cppClassName} {
 							'\tif (address_offset + ' + typeInformation.sizeInBytes + ' > size_) {\n' +
 							'\t\treturn;\n' +
 							'\t}\n' +
-							'\tbuffer_->Write8Bytes(address_offset, 0);\n' +
-							'\tbuffer_->Write8Bytes(address_offset + 1, 0);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset, 0);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 1, 0);\n' +
 							'}\n';
 						break;
 					case FieldType.SHARED_MEMORY:
@@ -1107,7 +1094,7 @@ bool ${thisMessage.cppClassName}::Has${field.name}() const {
 	if (address_offset + ${typeInformation.sizeInBytes} > size_) {
 		return false;
 	}
-	return buffer_->Read8Bytes(address_offset) != 0;
+	return buffer_->Read8Bytes(offset_ + address_offset) != 0;
 }
 
 ::perception::SharedMemory ${thisMessage.cppClassName}::Get${field.name}() const {
@@ -1119,7 +1106,7 @@ bool ${thisMessage.cppClassName}::Has${field.name}() const {
 	if (address_offset + ${typeInformation.sizeInBytes} > size_) {
 		return ::perception::SharedMemory(0);
 	}
-	return ::perception::SharedMemory(buffer_->Read8Bytes(address_offset));
+	return ::perception::SharedMemory(buffer_->Read8Bytes(offset_ + address_offset));
 }
 
 void ${thisMessage.cppClassName}::Set' + field.name + '(const ::perception::SharedMemory& value) {
@@ -1131,7 +1118,7 @@ void ${thisMessage.cppClassName}::Set' + field.name + '(const ::perception::Shar
 	if (address_offset + ${typeInformation.sizeInBytes} > size_) {
 		return;
 	}
-	buffer_->Write8Bytes(address_offset, value.GetId());
+	buffer_->Write8Bytes(offset_ + address_offset, value.GetId());
 }
 
 void ${thisMessage.cppClassName}::Clear${field.name}() {
@@ -2185,7 +2172,7 @@ serverDelegator += `
 			namespaceLevels--;
 			headerCpp += '\n}';
 			if (sourceToo)
-				sourceToo += '\n}';
+				sourceCpp += '\n}';
 		}
 		namespaceParts.splice(lowestCommonPartIndex);
 

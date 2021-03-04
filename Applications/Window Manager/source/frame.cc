@@ -17,6 +17,7 @@
 #include "compositor.h"
 #include "highlighter.h"
 #include "perception/draw.h"
+#include "perception/font.h"
 #include "screen.h"
 #include "window.h"
 
@@ -25,6 +26,7 @@ using ::perception::DrawXLineAlpha;
 using ::perception::DrawYLine;
 using ::perception::DrawYLineAlpha;
 using ::perception::FillRectangle;
+using ::perception::Font;
 using ::permebuf::perception::devices::MouseButton;
 
 namespace {
@@ -746,7 +748,7 @@ void Frame::MouseButtonEvent(int screen_x, int screen_y,
 					// We clicked on this window's tab.
 					if (button == MouseButton::Left && is_button_down) {
 						// Maybe a drag or closing a tab.
-						window->HandleTabClick(screen_y - title_x,
+						window->HandleTabClick(screen_x - title_x,
 							title_x, next_title_y - WINDOW_TITLE_HEIGHT - 1);
 					} else {
 						// Focus this tab.
@@ -808,6 +810,8 @@ void Frame::Draw(int min_x, int min_y, int max_x, int max_y) {
 			DrawYLine(x, y + 1, WINDOW_TITLE_HEIGHT, WINDOW_BORDER_COLOUR,
 				GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
 
+			Font* font = GetWindowTitleFont();
+
 			Window *w = DockFrame.first_window_;
 			while(w) {
 				if(width_ + x_ <= x + w->title_width_ + 1) {
@@ -838,14 +842,15 @@ void Frame::Draw(int min_x, int min_y, int max_x, int max_y) {
 					w == DockFrame.focused_window_ ? UNFOCUSED_WINDOW_COLOUR : UNSELECTED_WINDOW_COLOUR);
 
 				/* write the title */
-				// draw_string(x + 1, y + 3, w->title, w->title_length, WINDOW_TITLE_TEXT_COLOUR,
-				//	GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+				font->DrawString(x + 1, y + 3, w->title_, WINDOW_TITLE_TEXT_COLOUR,
+					GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
 
 
 				/* draw the close button */
-//				if(focused_window == w)
-//					draw_string(x + w->title_width - 9, y + 3, "X", 1, WINDOW_CLOSE_BUTTON_COLOUR,
-//						GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+				if(w->IsFocused()) {
+					font->DrawString(x + w->title_width_ - 9, y + 3, "X", WINDOW_CLOSE_BUTTON_COLOUR,
+						GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+				}
 		
 
 				x += w->title_width_ + 1;

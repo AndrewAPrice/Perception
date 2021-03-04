@@ -18,6 +18,7 @@
 #include "mouse.h"
 #include "screen.h"
 #include "window.h"
+#include "window_manager.h"
 
 #include "perception/scheduler.h"
 #include <iostream>
@@ -32,14 +33,7 @@ int main() {
 	InitializeHighlighter();
 	InitializeFrames();
 	InitializeWindows();
-
-	for (int i = 0; i < 6; i++) {
-		Window::CreateWindow("Test 1");
-	}
-
-	for (int i = 0; i < 2; i++) {
-		Window::CreateDialog("Test 2", 200, 100);
-	}
+	WindowManager window_manager;
 
 	// Draw the entire screen.
 	InvalidateScreen(0, 0, GetScreenWidth(), GetScreenHeight());

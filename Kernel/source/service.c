@@ -30,9 +30,10 @@ void InitializeServices() {
 
 // Do two service names (of length SERVICE_NAME_LENGTH) match?
 bool DoServiceNamesMatch(const char* a, const char* b) {
-	for (int word = 0; word < SERVICE_NAME_WORDS; word++)
+	for (int word = 0; word < SERVICE_NAME_WORDS; word++) {
 		if (((size_t*)a)[word] != ((size_t*)b)[word])
 			return false;
+	}
 
 	return true;
 }
@@ -225,8 +226,10 @@ struct Service* FindNextServiceWithName(
 
 		// Jump to the next process.
 		process = process->next;
-		service = process->first_service;
+		if (process != NULL)
+			service = process->first_service;
 	}
+	return NULL;
 }
 
 // Registers that we want this process to be notified when a service of the

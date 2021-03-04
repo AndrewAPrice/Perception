@@ -1,0 +1,72 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "window_manager.h"
+#include "window.h"
+
+#include <iostream>
+
+void WindowManager::HandleCreateWindow(
+	::perception::ProcessId sender,
+	Permebuf<WindowManager::WM::CreateWindowRequest> request,
+	PermebufMiniMessageReplier<WindowManager::WM::CreateWindowResponse> responder) {
+	Window* window;
+
+	if (request->GetIsDialog()) {
+		window = Window::CreateDialog(
+			*request->GetTitle(),
+			request->GetDesiredDialogWidth(),
+			request->GetDesiredDialogHeight(),
+			request->GetFillColor(),
+			request->GetWindow(),
+			request->GetKeyboardListener(),
+			request->GetMouseListener());
+	} else {
+		window = Window::CreateWindow(
+			*request->GetTitle(),
+			request->GetFillColor(),
+			request->GetWindow(),
+			request->GetKeyboardListener(),
+			request->GetMouseListener());
+	}
+
+	WindowManager::WM::CreateWindowResponse response;
+	response.SetWidth(window->GetWidth());
+	response.SetHeight(window->GetHeight());
+	responder.Reply(response);
+}
+
+void WindowManager::HandleCloseWindow(
+	::perception::ProcessId sender,
+	const WindowManager::WM::CloseWindowMessage& message) {
+	std::cout << "Implement WindowManager::HandleCloseWindow" << std::endl;
+}
+
+void WindowManager::HandleSetWindowTexture(
+	::perception::ProcessId sender,
+	const WindowManager::WM::SetWindowTextureMessage& message) {
+	std::cout << "Implement WindowManager::HandleSetWindowTexture" << std::endl;
+}
+
+void WindowManager::HandleWindowTitle(
+	::perception::ProcessId sender,
+	Permebuf<WindowManager::WM::SetWindowTitleMessage> message) {
+	std::cout << "Implement WindowManager::HandleWindowTitle" << std::endl;
+}
+
+void WindowManager::HandleSystemButtonPushed(
+	::perception::ProcessId sender,
+	const WindowManager::WM::SystemButtonPushedMessage& message) {
+	std::cout << "Implement WindowManager::HandleSystemButtonPushed" << std::endl;
+}

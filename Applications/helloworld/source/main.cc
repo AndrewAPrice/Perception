@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
+#include <vector>
+
 #include "perception/fibers.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
@@ -20,7 +23,8 @@
 #include "permebuf/Libraries/perception/devices/keyboard_listener.permebuf.h"
 #include "permebuf/Libraries/perception/devices/mouse_driver.permebuf.h"
 #include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
-#include <iostream>
+#include "permebuf/Libraries/perception/window.permebuf.h"
+#include "permebuf/Libraries/perception/window_manager.permebuf.h"
 
 using ::perception::Fiber;
 using ::perception::GetProcessId;
@@ -34,141 +38,149 @@ using ::permebuf::perception::devices::KeyboardListener;
 using ::permebuf::perception::devices::MouseButton;
 using ::permebuf::perception::devices::MouseDriver;
 using ::permebuf::perception::devices::MouseListener;
+using ::permebuf::perception::Window;
+using ::permebuf::perception::WindowManager;
 
-class MyMouseListener : public MouseListener::Server {
+WindowManager window_manager;
+
+class MyWindow : public MouseListener::Server,
+				 public KeyboardListener::Server,
+				 public Window::Server {
 public:
+	MyWindow(std::string_view title, uint32 bg_color,
+			bool dialog = false, int dialog_width = 0, int dialog_height = 0) :
+		title_(title) {
+		Permebuf<WindowManager::CreateWindowRequest> create_window_request;
+		create_window_request->SetWindow(*this);
+		create_window_request->SetTitle(title);
+		create_window_request->SetFillColor(bg_color);
+		create_window_request->SetKeyboardListener(*this);
+		create_window_request->SetMouseListener(*this);
+		if (dialog) {
+			create_window_request->SetIsDialog(true);
+			create_window_request->SetDesiredDialogWidth(dialog_width);
+			create_window_request->SetDesiredDialogHeight(dialog_height);
+		}
+
+		auto status_or_result = window_manager.CallCreateWindow(
+			std::move(create_window_request));
+		if (status_or_result) {
+			std::cout << title_ << " is " << status_or_result->GetWidth() << "x" <<
+				status_or_result->GetHeight() << std::endl;
+		}
+	}
+
 	void HandleOnMouseMove(
 		ProcessId, const MouseListener::OnMouseMoveMessage& message) override {
-			std::cout << "X:" << message.GetDeltaX() <<
-				" Y:" << message.GetDeltaY() << std::endl;
+			std::cout << title_ << " - x:" << message.GetDeltaX() <<
+				" y:" << message.GetDeltaY() << std::endl;
+	}
+
+	void HandleOnMouseScroll(
+		ProcessId, const MouseListener::OnMouseScrollMessage& message) override {
+		std::cout << title_ << " mouse scroled" << message.GetDelta() << std::endl;
 	}
 
 	void HandleOnMouseButton(
 		ProcessId, const MouseListener::OnMouseButtonMessage& message) override {
-		std::cout << "Button: " << (int)message.GetButton() <<
-			" Down: " << message.GetIsPressedDown() << std::endl;
+		std::cout << title_ << " - button: " << (int)message.GetButton() <<
+			" down: " << message.GetIsPressedDown() << std::endl;
 	}
-};
 
-class MyKeyboardListener : public KeyboardListener::Server {
-public:
+	void HandleOnMouseClick(
+		ProcessId, const MouseListener::OnMouseClickMessage& message) override {
+		std::cout << title_ << " - mouse clicked - button: " << (int)message.GetButton() <<
+			" down: " << message.GetWasPressedDown() << " x: " << message.GetX() <<
+			" y: " << message.GetY() << std::endl;
+	}
+
+	void HandleOnMouseHover(
+		ProcessId, const MouseListener::OnMouseHoverMessage& message) override {
+		std::cout << title_ << " - mouse hover: " << " x: " << message.GetX() <<
+			" y: " << message.GetY() << std::endl;
+	}
+
+	void HandleOnMouseTakenCaptive(
+		ProcessId, const MouseListener::OnMouseTakenCaptiveMessage& message) override {
+		std::cout << title_ << " - mouse taken captive." << std::endl;
+	}
+
+	void HandleOnMouseReleased(
+		ProcessId, const MouseListener::OnMouseReleasedMessage& message) override {
+		std::cout << title_ << " - mouse has been released." << std::endl;
+	}
+
 	void HandleOnKeyDown(ProcessId,
 		const KeyboardListener::OnKeyDownMessage& message) override {
-		std::cout << "Key " << (int)message.GetKey() << " was pressed." << std::endl;
+		std::cout << title_ << " - key " << (int)message.GetKey() << " was pressed." << std::endl;
 	}
 
 	void HandleOnKeyUp(ProcessId,
 		const KeyboardListener::OnKeyUpMessage& message) override {
-		std::cout << "Key " << (int)message.GetKey() << " was released." << std::endl;
+		std::cout << title_ << " - key " << (int)message.GetKey() << " was released." << std::endl;
 	}
+
+	void HandleOnKeyboardTakenCaptive(ProcessId,
+		const KeyboardListener::OnKeyboardTakenCaptiveMessage& message) override {
+		std::cout << title_ << " - keyboard taken captive." << std::endl;
+	}
+
+	void HandleOnKeyboardReleased(ProcessId,
+		const KeyboardListener::OnKeyboardReleasedMessage& message) override {
+		std::cout << title_ << " - keyboard has been released." << std::endl;
+	}
+
+	void HandleSetSize(ProcessId,
+		const Window::SetSizeMessage& message) override {
+		std::cout << title_ << " is " << message.GetWidth() << "x" <<
+				message.GetHeight() << std::endl;
+	}
+
+	void HandleClosed(ProcessId,
+		const Window::ClosedMessage& message) override {
+		std::cout << title_ << " closed" << std::endl;
+	}
+
+	void HandleGainedFocus(ProcessId,
+		const Window::GainedFocusMessage& message) override {
+		std::cout << title_ << " gained focus" << std::endl;
+	}
+
+	void HandleLostFocus(ProcessId,
+		const Window::LostFocusMessage& message) override {
+		std::cout << title_ << " lost focus" << std::endl;
+	}
+private:
+	std::string title_;
 };
 
 int main() {
-	MyMouseListener mouse_listener;
-	MyKeyboardListener keyboard_listener;
-
-	MessageId mouse_driver_listener = MouseDriver::NotifyOnEachNewInstance(
-		[&] (MouseDriver mouse_driver) {
-			std::cout << "I'm notified that there's a mouse driver at PID: " <<
-				(int)mouse_driver.GetProcessId() << " MID: " << (int)mouse_driver.GetMessageId() <<
-					std::endl;
-			// Tell the mouse driver to send us mouse messages.
-			MouseDriver::SetMouseListenerMessage message;
-			message.SetNewListener(mouse_listener);
-			mouse_driver.SendSetMouseListener(message); 
-
-			// We only care about one instance. We can stop
-			// listening now.
-			MouseDriver::StopNotifyingOnEachNewInstance(
-				mouse_driver_listener);
-	});
-
-	MessageId keyboard_driver_listener = KeyboardDriver::NotifyOnEachNewInstance(
-		[&] (KeyboardDriver keyboard_driver) {
-			std::cout << "I'm notified that there's a keyboard driver at PID: " <<
-				(int)keyboard_driver.GetProcessId() << " MID: " <<
-				(int)keyboard_driver.GetMessageId() <<
-					std::endl;
-			// Tell the mouse driver to send us mouse messages.
-			KeyboardDriver::SetKeyboardListenerMessage message;
-			message.SetNewListener(keyboard_listener);
-			keyboard_driver.SendSetKeyboardListener(message); 
-
-			// We only care about one instance. We can stop
-			// listening now.
-			KeyboardDriver::StopNotifyingOnEachNewInstance(
-				keyboard_driver_listener);
-	});
-
 	// Sleep until we get the graphics driver.
-	GraphicsDriver graphics_driver;
 	auto main_fiber = perception::GetCurrentlyExecutingFiber();
-	MessageId graphics_driver_listener = GraphicsDriver::NotifyOnEachNewInstance(
-		[&] (GraphicsDriver driver) {
-			graphics_driver = driver;
+	MessageId wm_listener = WindowManager::NotifyOnEachNewInstance(
+		[&] (WindowManager wm) {
+			window_manager = wm;
 			// We only care about one instance. We can stop
 			// listening now.
-			GraphicsDriver::StopNotifyingOnEachNewInstance(
-				graphics_driver_listener);
+			WindowManager::StopNotifyingOnEachNewInstance(
+				wm_listener);
 
 			main_fiber->WakeUp();
 		});
 	Sleep();
 
-	graphics_driver.CallGetScreenSize(
-		GraphicsDriver::GetScreenSizeRequest(), [](
-			StatusOr<GraphicsDriver::GetScreenSizeResponse> response) {
-			std::cout << "Async screen size is " << response->GetWidth() << " x "
-				<< response->GetHeight() << std::endl;
-		});
+	std::vector<MyWindow> windows = {
+		MyWindow("Raspberry", 0x0ed321ff),
+		MyWindow("Blueberry", 0xc5c20dff),
+		MyWindow("Blackberry", 0xa5214eff),
+		MyWindow("Strawberry", 0x90bdee),
+		MyWindow("Boysenberry", 0x25993fff),
+		MyWindow("Chicken", 0x4900a4ff, true, 400, 400),
+		MyWindow("Beef", 0x99e41dff, true, 200, 100),
+		MyWindow("Rabbit", 0x65e979ff, true, 100, 200),
+		MyWindow("Ox", 0x7c169aff, true, 80, 80)
+	};
 
-	auto screen_size = *graphics_driver.CallGetScreenSize(
-		GraphicsDriver::GetScreenSizeRequest());
-	std::cout << "Sync Screen size is " << screen_size.GetWidth() << " x "
-		<< screen_size.GetHeight() << std::endl;
-
-	// Create a texture.
-	GraphicsDriver::CreateTextureRequest create_texture_request;
-	create_texture_request.SetWidth(300);
-	create_texture_request.SetHeight(300);
-	auto create_texture_response = *graphics_driver.CallCreateTexture(
-		create_texture_request);
-	size_t texture_id = create_texture_response.GetTexture();
-	create_texture_response.GetPixelBuffer().Apply([](void* data, size_t size) {
-		uint32* pixels = (uint32*)data;
-		for(int i = 0; i < 300 * 300; i++) {
-			pixels[i] = (i % 2 == 0) ? 0xFFFFFFFF : 0x00000000;
-		}
-	});
-
-	// Tell the driver we're allowed to draw to fullscreen.
-	GraphicsDriver::SetProcessAllowedToDrawToScreenMessage allow_draw_to_screen_message;
-	allow_draw_to_screen_message.SetProcess(GetProcessId());
-	graphics_driver.SendSetProcessAllowedToDrawToScreen(allow_draw_to_screen_message);
-
-	// Create two draw calls. One at 10,10 and one at 200,200.
-	/*Permebuf<GraphicsDriver::RunCommandsMessage> commands;
-	auto command_1 = commands->MutableCommands();
-	auto command_1_oneof = commands.AllocateOneOf<GraphicsCommand>();
-	command_1.Set(command_1_oneof);
-	auto command_1_copy_texture_to_position = command_1_oneof.MutableCopyTextureToPosition();
-	command_1_copy_texture_to_position.SetSourceTexture(texture_id);
-	command_1_copy_texture_to_position.SetDestinationTexture(0); // The screen
-	command_1_copy_texture_to_position.SetLeftDestination(10);
-	command_1_copy_texture_to_position.SetTopDestination(10);
-
-	auto command_2 = command_1.InsertAfter();
-	auto command_2_oneof = commands.AllocateOneOf<GraphicsCommand>();
-	command_2.Set(command_2_oneof);
-	auto command_2_copy_texture_to_position = command_2_oneof.MutableCopyTextureToPosition();
-	command_2_copy_texture_to_position.SetSourceTexture(texture_id);
-	command_2_copy_texture_to_position.SetDestinationTexture(0); // The screen
-	command_2_copy_texture_to_position.SetLeftDestination(200);
-	command_2_copy_texture_to_position.SetTopDestination(200);
-
-	// Send the draw calls.
-	graphics_driver.SendRunCommands(std::move(commands));
-*/
 	perception::HandOverControl();
 	return 0;
 }

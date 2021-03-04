@@ -17,15 +17,30 @@
 #include <functional>
 #include <string>
 
+#include "permebuf/Libraries/perception/devices/keyboard_listener.permebuf.h"
 #include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
+#include "permebuf/Libraries/perception/window.permebuf.h"
 #include "types.h"
+
+namespace perception {
+class Font;
+}
 
 class Frame;
 
 class Window {
 public:
-	static Window* CreateDialog(std::string_view title, int width, int height);
-	static Window* CreateWindow(std::string_view title);
+	static Window* CreateDialog(std::string_view title,
+		int width, int height,
+		uint32 background_color,
+		::permebuf::perception::Window window_listener,
+		::permebuf::perception::devices::KeyboardListener keyboard_listener,
+		::permebuf::perception::devices::MouseListener mouse_listener);
+	static Window* CreateWindow(std::string_view title,
+		uint32 background_color,
+		::permebuf::perception::Window window_listener,
+		::permebuf::perception::devices::KeyboardListener keyboard_listener,
+		::permebuf::perception::devices::MouseListener mouse_listener);
 
 	void Focus();
 	bool IsFocused();
@@ -86,6 +101,16 @@ private:
 	// Next/previous windows in the Z-order of things.
 	Window* next_;
 	Window* previous_;
+
+	uint32 fill_color_;
+
+	::permebuf::perception::Window window_listener_;
+
+	::permebuf::perception::devices::KeyboardListener keyboard_listener_;
+
+	::permebuf::perception::devices::MouseListener mouse_listener_;
 };
 
 void InitializeWindows();
+
+::perception::Font* GetWindowTitleFont();

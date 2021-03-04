@@ -39,6 +39,8 @@ public:
 		return status_ == ::perception::Status::OK;
 	}
 
+	operator bool() const { return Ok(); }
+
 	::perception::Status Status() const {
 		return status_;
 	}

@@ -1,0 +1,108 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import "devices/keyboard_listener.permebuf";
+import "devices/mouse_listener.permebuf";
+import "window.permebuf";
+
+namespace perception;
+
+// Represents a graphics device that you can draw pixels on.
+service WindowManager {
+	// Creates a window.
+	message CreateWindowRequest {
+		// The window we want to open.
+		Window : Window = 1;
+
+		// The title of the window
+		Title : string = 2;
+
+		// Should this be a dialog (a floating window), rather
+		// than a regular docking window?
+		IsDialog : bool = 3;
+
+		// The desired width of the dialog.
+		DesiredDialogWidth : int16 = 4;
+
+		// The desired height of the dialog.
+		DesiredDialogHeight : int16 = 5;
+
+		// The fill color, if there's no to fill the contents
+		// with.
+		FillColor : uint32 = 6;
+
+		// The keyboard listener, if this window cares about
+		// keyboard events.
+		KeyboardListener : devices.KeyboardListener = 7;
+
+		// The mouse listener, if this window cares about
+		// mouse events.
+		MouseListener : devices.MouseListener = 8;
+	}
+	minimessage CreateWindowResponse {
+		// The width of the window.
+		Width : int16 = 1;
+
+		// The height of the window.
+		Height : int16 = 2;
+	}
+	CreateWindow : CreateWindowRequest -> CreateWindowResponse = 0;
+
+	// Closes a window.
+	minimessage CloseWindowMessage {
+		// The window we want to close.
+		Window : Window = 1;
+	}
+	CloseWindow : CloseWindowMessage = 2;
+
+	// Sets the window's texture.
+	minimessage SetWindowTextureMessage {
+		// The window we want to change the texture of.
+		Window : Window = 1;
+
+		// The ID of the window's texture.
+		// 0 = no texture, and we'll just show the fill color.
+		TextureId : uint64 = 2;
+	}
+	SetWindowTexture : SetWindowTextureMessage = 3;
+
+	// Set's the window's title.
+	message SetWindowTitleMessage {
+		// The window we want to change the title of.
+		Window : Window = 1;
+
+		// The new title of the window.
+		Title : string = 2;
+	}
+	SetWindowTitle : SetWindowTitleMessage = 4;
+
+	// Notifies the window manager that the system button has been
+	// pushed.
+	minimessage SystemButtonPushedMessage {}
+	SystemButtonPushed : SystemButtonPushedMessage = 5;
+
+	// Notifies the window manager that the contents of the window
+	// has changed and needs to be redrawn.
+	minimessage InvalidateWindowMessage {
+		// The window that was invalidated.
+		Window : Window = 1;
+
+		// The region that was invalidated.
+		Left : uint16 = 2; // Inclusive.
+		Top : uint16 = 3; // Inclusive.
+		Right : uint16 = 4; // Exclusive.
+		Bottom : uint16 = 5; // Exclusive.
+	}
+	InvalidateWindow : InvalidateWindowMessage = 6;
+}

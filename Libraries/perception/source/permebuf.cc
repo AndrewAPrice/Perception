@@ -32,12 +32,14 @@ std::string_view PermebufString::operator->() const {
 }
 
 std::string_view PermebufString::operator*() const {
-	if (address_ == 0)
+	if (address_ == 0) {
 		return kEmptyString;
+	}
 	size_t bytes;
 	size_t length = buffer_->ReadVariableLengthNumber(address_, bytes);
-	if (length == 0)
+	if (length == 0) {
 		return kEmptyString;
+	}
 	return std::string_view((const char *)buffer_->GetRawPointer(address_ + bytes, length), length);
 }
 

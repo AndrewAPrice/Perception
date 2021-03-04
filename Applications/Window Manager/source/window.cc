@@ -15,6 +15,7 @@
 #include "window.h"
 
 #include "perception/draw.h"
+#include "perception/font.h"
 #include "compositor.h"
 #include "frame.h"
 #include "highlighter.h"
@@ -25,10 +26,15 @@ using ::perception::DrawXLineAlpha;
 using ::perception::DrawYLine;
 using ::perception::DrawYLineAlpha;
 using ::perception::FillRectangle;
+using ::perception::Font;
+using ::perception::FontFace;
 using ::permebuf::perception::devices::MouseButton;
 
 namespace {
 
+constexpr int kMaxTitleLength = 50;
+
+Font* window_title_font;
 Window* dragging_window;
 Window* focused_window;
 Window* first_dialog;
@@ -42,12 +48,23 @@ int dragging_offset_y;
 }
 
 
-Window* Window::CreateDialog(std::string_view title, int width, int height) {
+Window* Window::CreateDialog(std::string_view title, int width, int height,
+		uint32 background_color,
+		::permebuf::perception::Window window_listener,
+		::permebuf::perception::devices::KeyboardListener keyboard_listener,
+		::permebuf::perception::devices::MouseListener mouse_listener) {
+	if (title.size() > kMaxTitleLength) {
+		title = title.substr(0, kMaxTitleLength);
+	}
 	Window* window = new Window();
 	window->title_ = title;
-	window->title_width_ = 100; // MeasureString(title);
+	window->title_width_ = window_title_font->MeasureString(title) + WINDOW_TITLE_WIDTH_PADDING;
 	window->is_dialog_ = true;
 	window->texture_id_ = 0;
+	window->fill_color_ = background_color;
+	window->window_listener_ = window_listener;
+	window->keyboard_listener_ = keyboard_listener;
+	window->mouse_listener_ = mouse_listener;
 
 	// Window can't be smaller than the title, or larger than the screen.
 	window->width_ = std::min(
@@ -86,12 +103,24 @@ Window* Window::CreateDialog(std::string_view title, int width, int height) {
 	return window;
 }
 
-Window* Window::CreateWindow(std::string_view title) {
+Window* Window::CreateWindow(std::string_view title,
+		uint32 background_color,
+		::permebuf::perception::Window window_listener,
+		::permebuf::perception::devices::KeyboardListener keyboard_listener,
+		::permebuf::perception::devices::MouseListener mouse_listener) {
+	if (title.size() > kMaxTitleLength) {
+		title = title.substr(0, kMaxTitleLength);
+	}
+
 	Window* window = new Window();
 	window->title_ = title;
-	window->title_width_ = 100; // MeasureString(title);
+	window->title_width_ = window_title_font->MeasureString(title) + WINDOW_TITLE_WIDTH_PADDING;
 	window->is_dialog_ = false;
 	window->texture_id_ = 0;
+	window->fill_color_ = background_color;
+	window->window_listener_ = window_listener;
+	window->keyboard_listener_ = keyboard_listener;
+	window->mouse_listener_ = mouse_listener;
 
 	Frame::AddWindowToLastFocusedFrame(*window);
 
@@ -308,6 +337,12 @@ bool Window::MouseButtonEvent(int screen_x, int screen_y,
 		}
 
 		if (button == MouseButton::Left && is_button_down) {
+			if (IsFocused() && screen_x >=
+				x_ + title_width_ - 1 - WINDOW_TITLE_WIDTH_PADDING) {
+				// We clicked the close button.
+				Close();
+				return true;
+			}
 			// We're starting to drag the window.
 			dragging_window = this;
 			dragging_offset_x = screen_x - x_;
@@ -336,7 +371,12 @@ bool Window::MouseButtonEvent(int screen_x, int screen_y,
 
 void Window::HandleTabClick(int offset_along_tab,
 		int original_tab_x, int original_tab_y) {
-	// TODO: Test if we closed the window.
+	if (IsFocused() && offset_along_tab >=
+		title_width_ - WINDOW_TITLE_WIDTH_PADDING) {
+		// We clicked the close button.
+		Close();
+		return;
+	}
 	dragging_window = this;
 	dragging_offset_x = original_tab_x;
 	dragging_offset_y = original_tab_y;
@@ -375,13 +415,14 @@ void Window::Draw(int min_x, int min_y, int max_x, int max_y) {
 		focused_window==this? FOCUSED_WINDOW_COLOUR : UNFOCUSED_WINDOW_COLOUR);
 
 	/* write the title */
-//	draw_string(x + 2, y + 3, title_, title_length_, WINDOW_TITLE_TEXT_COLOUR,
-//		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+	window_title_font->DrawString(x + 2, y + 3, title_, WINDOW_TITLE_TEXT_COLOUR,
+		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
 
 	/* draw the close button */
-//	if(focused_window == this)
-//		draw_string(x + title_width_ - 8, y + 3, "X", 1, WINDOW_CLOSE_BUTTON_COLOUR,
-//			GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+	if(focused_window == this) {
+		window_title_font->DrawString(x + title_width_ - 8, y + 3, "X", WINDOW_CLOSE_BUTTON_COLOUR,
+			GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+	}
 
 	y += WINDOW_TITLE_HEIGHT + 1;
 
@@ -420,7 +461,7 @@ void Window::DrawWindowContents(int x, int y, int min_x, int min_y, int max_x, i
 	int draw_max_y = std::min(y + height_, max_y);
 	FillRectangle(draw_min_x, draw_min_y,
 		draw_max_x, draw_max_y,
-		WINDOW_NO_CONTENTS_COLOUR,
+		fill_color_,
 		GetWindowManagerTextureData(),
 		GetScreenWidth(), GetScreenHeight());
 }
@@ -429,4 +470,9 @@ void InitializeWindows() {
 	dragging_window = nullptr;
 	focused_window = nullptr;
 	first_dialog = nullptr;
+	window_title_font = Font::LoadFont(FontFace::DejaVuSans);
+}
+
+Font* GetWindowTitleFont() {
+	return window_title_font;
 }

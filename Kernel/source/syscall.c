@@ -272,7 +272,7 @@ void SyscallHandler(int syscall_number) {
 			process_name[10] = currently_executing_thread_regs->r15;
 
 			// Loop over all processes starting from the provided PID
-			// until we run out of proesses. We will keep track of
+			// until we run out of processes. We will keep track of
 			// the pids of the first 12 that we find.
 			size_t pids[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 			size_t processes_found = 0;
@@ -393,9 +393,58 @@ void SyscallHandler(int syscall_number) {
 			UnregisterServiceByMessageId(running_thread->process,
 				currently_executing_thread_regs->rax);
 			break;
-		case GET_SERVICE_BY_NAME:
-			PrintString("Implement GET_SERVICE_BY_NAME\n");
+		case GET_SERVICE_BY_NAME: {
+			// Extract the name from the input registers.
+			size_t service_name[SERVICE_NAME_WORDS];
+			service_name[0] = currently_executing_thread_regs->rbx;
+			service_name[1] = currently_executing_thread_regs->rdx;
+			service_name[2] = currently_executing_thread_regs->rsi;
+			service_name[3] = currently_executing_thread_regs->r8;
+			service_name[4] = currently_executing_thread_regs->r9;
+			service_name[5] = currently_executing_thread_regs->r10;
+			service_name[6] = currently_executing_thread_regs->r12;
+			service_name[7] = currently_executing_thread_regs->r13;
+			service_name[8] = currently_executing_thread_regs->r14;
+			service_name[9] = currently_executing_thread_regs->r15;
+
+			size_t min_pid = currently_executing_thread_regs->rbp;
+			size_t min_sid = currently_executing_thread_regs->rax;
+
+			// Loop over all processes starting from the provided PID
+			// and services starting from the provided SID until we
+			// run out of processes. We will keep track of the pids and
+			// sids of the first 6 that we find.
+			size_t pids[6] = {0, 0, 0, 0, 0, 0};
+			size_t sids[6] = {0, 0, 0, 0, 0, 0};
+			size_t services_found = 0;
+			for (struct Service* service =
+					FindNextServiceByPidAndMidWithName((char *)service_name,
+						min_pid, min_sid);
+				service != NULL;
+				service = FindNextServiceWithName(
+					(char *)service_name, service)) {
+				if (services_found < 6) {
+					pids[services_found] = service->process->pid;
+					sids[services_found] = service->message_id;
+				}
+				services_found++;
+			}
+			// Write out the list of found PIDs.
+			currently_executing_thread_regs->rdi = services_found;
+			currently_executing_thread_regs->rbp = pids[0];
+			currently_executing_thread_regs->rax = sids[0];
+			currently_executing_thread_regs->rbx = pids[1];
+			currently_executing_thread_regs->rdx = sids[1];
+			currently_executing_thread_regs->rsi = pids[2];
+			currently_executing_thread_regs->r8 = sids[2];
+			currently_executing_thread_regs->r9 = pids[3];
+			currently_executing_thread_regs->r10 = sids[3];
+			currently_executing_thread_regs->r12 = pids[4];
+			currently_executing_thread_regs->r13 = sids[4];
+			currently_executing_thread_regs->r14 = pids[5];
+			currently_executing_thread_regs->r15 = sids[5];
 			break;
+		}
 		case NOTIFY_WHEN_SERVICE_APPEARS: {
 			// Extract the name from the input registers.
 			size_t service_name[SERVICE_NAME_WORDS];

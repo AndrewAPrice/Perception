@@ -20,6 +20,7 @@
 #include "permebuf/Libraries/perception/devices/keyboard_listener.permebuf.h"
 #include "permebuf/Libraries/perception/devices/mouse_driver.permebuf.h"
 #include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
+#include "permebuf/Libraries/perception/window_manager.permebuf.h"
 
 #include <iostream>
 
@@ -32,10 +33,15 @@ using ::permebuf::perception::devices::KeyboardListener;
 using ::permebuf::perception::devices::MouseButton;
 using ::permebuf::perception::devices::MouseDriver;
 using ::permebuf::perception::devices::MouseListener;
+using ::permebuf::perception::WindowManager;
 
 namespace {
 
 constexpr size_t kTimeout = 100000;
+
+// The system key (set to Escape) to send to the window manager.
+constexpr uint8 kSystemKeyDown = 1;
+constexpr uint8 kSystemKeyUp = 129;
 
 class PS2MouseDriver : public MouseDriver::Server {
 public:
@@ -46,7 +52,8 @@ public:
 	virtual ~PS2MouseDriver() {
 		if (mouse_captor_) {
 			// Tell the captor we had to let the mouse go.
-			mouse_captor_->SendOnMouseRelease(MouseListener::OnMouseReleaseMessage());
+			mouse_captor_->SendOnMouseReleased(
+				MouseListener::OnMouseReleasedMessage());
 		}
 	}
 
@@ -69,7 +76,8 @@ public:
 		const MouseDriver::SetMouseListenerMessage& message) override {
 		if (mouse_captor_) {
 			// Let the old captor know the mouse has escaped.
-			mouse_captor_->SendOnMouseRelease(MouseListener::OnMouseReleaseMessage());
+			mouse_captor_->SendOnMouseReleased(
+				MouseListener::OnMouseReleasedMessage());
 		}
 		if (message.HasNewListener()) {
 			mouse_captor_ = std::make_unique<MouseListener>(message.GetNewListener());
@@ -140,13 +148,24 @@ public:
 	virtual ~PS2KeyboardDriver() {
 		if (keyboard_captor_) {
 			// Tell the captor we had to let the keyboard go.
-			keyboard_captor_->SendOnKeyboardRelease(
-				KeyboardListener::OnKeyboardReleaseMessage());
+			keyboard_captor_->SendOnKeyboardReleased(
+				KeyboardListener::OnKeyboardReleasedMessage());
 		}
 	}
 
 	void HandleKeyboardInterrupt() {
 		uint8 val = Read8BitsFromPort(0x60);
+		if (val == 1) {
+			// The system key was pressed. Notify the window manager.
+			auto window_manager = WindowManager::FindFirstInstance();
+			if (window_manager)
+				window_manager->SendSystemButtonPushed(
+					WindowManager::SystemButtonPushedMessage());
+
+		} else if (val == kSystemKeyUp) {
+			// Ignore releasing the system key.
+			return;
+		}
 
 		if (!keyboard_captor_)
 			// No one to send the keyboard event to.
@@ -171,8 +190,8 @@ public:
 		const KeyboardDriver::SetKeyboardListenerMessage& message) override {
 		if (keyboard_captor_) {
 			// Let the old captor know the keyboard has escaped.
-			keyboard_captor_->SendOnKeyboardRelease(
-				KeyboardListener::OnKeyboardReleaseMessage());
+			keyboard_captor_->SendOnKeyboardReleased(
+				KeyboardListener::OnKeyboardReleasedMessage());
 		}
 		if (message.HasNewListener()) {
 			keyboard_captor_ = std::make_unique<KeyboardListener>(

@@ -37,6 +37,6 @@ service KeyboardListener {
 
 	// The keyboard has been released, and we will no longer get
 	// keyboard events.
-	minimessage OnKeyboardReleaseMessage {}
-	OnKeyboardRelease : OnKeyboardReleaseMessage = 3;
+	minimessage OnKeyboardReleasedMessage {}
+	OnKeyboardReleased : OnKeyboardReleasedMessage = 3;
 }

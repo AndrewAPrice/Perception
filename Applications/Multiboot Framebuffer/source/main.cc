@@ -698,7 +698,6 @@ private:
 			render_state.destination_texture->owner == 0) {
 			// No destination texture or we're trying to fill to
 			// the framebuffer.
-			std::cout << "Bad destination" << std::endl;
 			return;
 		}
 
