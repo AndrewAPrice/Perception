@@ -137,7 +137,7 @@ Frame* Frame::GetDropFrame(
 					return nullptr; // On the border.
 			}
 		} else {
-			if (current_frame->DockFrame.first_window_ != &window && 
+			if (current_frame->DockFrame.first_window_ != &window || 
 				current_frame->DockFrame.last_window_ != &window) {
 				// We can split this dock if the window we're trying to put here
 				// isn't this frame's only child.

@@ -61,7 +61,6 @@ Fiber::Fiber(bool custom_stack) :
 	is_scheduled_to_run_(false) {
 	if (custom_stack) {
 		bottom_of_stack_ = (size_t*)AllocateMemoryPages(1);
-
 	} else {
 		bottom_of_stack_ = nullptr;
 	}

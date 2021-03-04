@@ -16,70 +16,86 @@ namespace perception.devices;
 
 // Represents drawing commands.
 oneof GraphicsCommand {
-	// Copies an entire texture from A to the top left corner of B.
-	message CopyEntireTexture {
-		// The source texture to copy from.
-		SourceTexture: uint64 = 1;
-
-		// The destination texture to copy to.
-		DestinationTexture: uint64 = 2;
+	// Refernce to a texture.
+	message TextureReference {
+		// ID of the texture. 0 = the screen.
+		Texture : uint64 = 1;
 	}
-	CopyEntireTexture : CopyEntireTexture = 1;
+	// Sets the texture to write to.
+	SetDestinationTexture : TextureReference = 1;
+
+	// Sets the texture to read from.
+	SetSourceTexture : TextureReference = 2;
+
+	// Copies an entire texture from A to the top left corner of B.
+	message CopyEntireTexture { }
+	// One of the only few operations allowed to the framebuffer.
+	CopyEntireTexture : CopyEntireTexture = 3;
+
 	// Copies an entire texture from A to the top left corner of B with
 	// alpha blending.
-	CopyEntireTextureWithAlphaBlending : CopyEntireTexture = 2;
+	CopyEntireTextureWithAlphaBlending : CopyEntireTexture = 4;
 
 	// Copy texture A to a specific position on texture B.
 	message CopyTextureToPosition {
-		// The source texture to copy from.
-		SourceTexture: uint64 = 1;
-
-		// The destination texture to copy to.
-		DestinationTexture: uint64 = 2;
-
 		// The left coordinate, in pixels, to start copying to.
-		LeftDestination: uint32 = 3;
+		LeftDestination: uint32 = 1;
 
 		// The top coordinate, in pixels, to start copying to.
-		TopDestination: uint32 = 4;
+		TopDestination: uint32 = 2;
 	}
-	CopyTextureToPosition : CopyTextureToPosition = 3;
+	// One of the only few operations allowed to the framebuffer.
+	CopyTextureToPosition : CopyTextureToPosition = 5;
 
 	// Copy texture A to a specific position on texture B with
 	// alpha blending.
-	CopyTextureToPositionWithAlphaBlending : CopyTextureToPosition = 4;
+	CopyTextureToPositionWithAlphaBlending : CopyTextureToPosition = 6;
 
 	// Copy a part of texture A to a specific position on texture B.
 	message CopyPartOfATexture {
-		// The source texture to copy from.
-		SourceTexture: uint64 = 1;
-
-		// The destination texture to copy to.
-		DestinationTexture: uint64 = 2;
-
 		// The left coordinate, in pixels, to start copying from.
-		LeftSource: uint32 = 3;
+		LeftSource: uint32 = 1;
 
 		// The top coordinate, in pixels, to start copying from.
-		TopSource: uint32 = 4;
+		TopSource: uint32 = 2;
 
 		// The left coordinate, in pixels, to copy to.
-		LeftDestination: uint32 = 5;
+		LeftDestination: uint32 = 3;
 
 		// The top coordinate, in pixels, to copy to.
-		TopDestination: uint32 = 6;
+		TopDestination: uint32 = 4;
 
 		// How wide of an area, in pixels, to copy.
-		Width: uint32 = 7;
+		Width: uint32 = 5;
 
 		// How tall of an area, in pixels, to copy.
-		Height: uint32 = 8;
+		Height: uint32 = 6;
 	}
-	CopyPartOfATexture : CopyPartOfATexture = 5;
+	// One of the only few operations allowed to the framebuffer.
+	CopyPartOfATexture : CopyPartOfATexture = 7;
 
 	// Copy part of texture A to a specific position on texture B
 	// with alpha blending.
-	CopyPartOfATextureWithAlphaBlending : CopyPartOfATexture = 6;
+	CopyPartOfATextureWithAlphaBlending : CopyPartOfATexture = 8;
+
+	// Files a rectangle with a constant color.
+	message FillRectangle {
+		// The left coordinate, in pixels, to start filling from.
+		Left: uint32 = 1;
+
+		// The top coordinate, in pixels, to start filling from.
+		Top: uint32 = 2;
+
+		// The right coordinate, in pixels, to stop filling at.
+		Right: uint32 = 3;
+
+		// The bottom coordinate, in pixels, to stop filling at.
+		Bottom: uint32 = 4;
+
+		// The color to fill with. In 32-bit RGBA format.
+		Color: uint32 = 5;
+	}
+	FillRectangle : FillRectangle = 9;
 }
 
 // Represents a graphics device that you can draw pixels on.
@@ -90,6 +106,10 @@ service GraphicsDriver {
 		Commands : list<GraphicsCommand> = 1;
 	}
 	RunCommands : RunCommandsMessage = 0;
+
+	// Executes a set of commands and replies when they are done.
+	minimessage EmptyResponse {}
+	RunCommandsAndWait : RunCommandsMessage -> EmptyResponse = 1;
 
 	// Creates a texture.
 	minimessage CreateTextureRequest {
@@ -106,7 +126,7 @@ service GraphicsDriver {
 		// The shared memory buffer we can write to.
 		PixelBuffer : SharedMemory = 2;
 	}
-	CreateTexture : CreateTextureRequest -> CreateTextureResponse = 1;
+	CreateTexture : CreateTextureRequest -> CreateTextureResponse = 2;
 
 	// Destroys a texture. Only the process that created a texture can
 	// destroy the texture. Textures are automatically destroyed when
@@ -115,7 +135,7 @@ service GraphicsDriver {
 		// The texture to destroy.
 		Texture : uint64 = 1;
 	}
-	DestroyTexture : DestroyTextureMessage = 2;
+	DestroyTexture : DestroyTextureMessage = 3;
 
 	// Gets information about a texture.
 	minimessage GetTextureInformationRequest {
@@ -134,14 +154,14 @@ service GraphicsDriver {
 		Height : uint32 = 3;
 	}
 	GetTextureInformation :
-		GetTextureInformationRequest -> GetTextureInformationResponse = 3;
+		GetTextureInformationRequest -> GetTextureInformationResponse = 4;
 
 	// Sets the process that is allowed to draw directly to the screen.
 	minimessage SetProcessAllowedToDrawToScreenMessage {
 		// The process that is allowed to draw to the screen.
 		Process : uint64 = 1;
 	}
-	SetProcessAllowedToDrawToScreen : SetProcessAllowedToDrawToScreenMessage = 4;
+	SetProcessAllowedToDrawToScreen : SetProcessAllowedToDrawToScreenMessage = 5;
 
 	// Queries for information about the screen size.
 	minimessage GetScreenSizeRequest {}
@@ -152,5 +172,5 @@ service GraphicsDriver {
 		// The height of the screen, in pixels.
 		Height : uint32 = 2;
 	}
-	GetScreenSize : GetScreenSizeRequest -> GetScreenSizeResponse = 5;
+	GetScreenSize : GetScreenSizeRequest -> GetScreenSizeResponse = 6;
 }

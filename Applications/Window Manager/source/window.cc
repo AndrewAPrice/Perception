@@ -274,6 +274,8 @@ void Window::DraggedTo(int screen_x, int screen_y) {
 }
 
 void Window::DroppedAt(int screen_x, int screen_y) {
+	dragging_window = nullptr;
+
 	if (!is_dialog_) {
 		// Dragging a tabbed frame.
 		if (screen_x >= dragging_offset_x &&
@@ -287,7 +289,6 @@ void Window::DroppedAt(int screen_x, int screen_y) {
 		Frame::DropInWindow(*this, screen_x, screen_y);
 		DisableHighlighter();
 	}
-	dragging_window = nullptr;
 }
 
 bool Window::MouseButtonEvent(int screen_x, int screen_y,
@@ -410,7 +411,6 @@ void Window::DrawHeaderBackground(int x, int y, int width, uint32 color) {
 	DrawXLine(x, y, width, outer_line, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
 	FillRectangle(x, y + 1, width + x, WINDOW_TITLE_HEIGHT + y - 1, color, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
 	DrawXLine(x, y + WINDOW_TITLE_HEIGHT - 1 , width, outer_line, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-
 }
 
 void Window::DrawWindowContents(int x, int y, int min_x, int min_y, int max_x, int max_y) {

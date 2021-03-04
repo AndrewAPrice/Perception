@@ -37,6 +37,20 @@ using ::perception::StopNotifyingUponProcessTermination;
 using ::permebuf::perception::devices::GraphicsCommand;
 using ::permebuf::perception::devices::GraphicsDriver;
 
+// Beyer ditchering pattern.
+constexpr uint8 kDitheringTable[] = {
+	0, 48, 12, 60, 3, 51, 15, 63,
+	32, 16, 44, 28, 35, 19, 47, 31,
+	8, 56, 4, 52, 11, 59, 7, 55,
+	40, 24, 36, 20, 43, 27, 39, 23,
+	2, 50, 14, 62, 1, 49, 13, 61,
+	34, 18, 46, 30, 33, 17, 46, 29,
+	10, 58, 6, 54, 9, 57, 5, 53,
+	42, 26, 38, 22, 41, 25, 37, 21
+	};
+
+constexpr int kDitheringTableWidth = 8;
+
 struct Texture {
 	// The owner of the texture.
 	ProcessId owner;
@@ -60,6 +74,14 @@ struct ProcessInformation {
 	std::set<uint64> textures;
 };
 
+struct RenderState {
+	// The texture to render to.
+	Texture* source_texture = nullptr;
+
+	// The texture to render from.
+	Texture* destination_texture = nullptr;
+};
+
 class FramebufferGraphicsDriver : GraphicsDriver::Server {
 public:
 	FramebufferGraphicsDriver(
@@ -71,7 +93,7 @@ public:
 		screen_width_(width),
 		screen_height_(height),
 		screen_pitch_(pitch),
-		screen_bytes_per_pixel_(bpp / 8),
+		screen_bits_per_pixel_(bpp),
 		framebuffer_(MapPhysicalMemory(physical_address_of_framebuffer,
 			(width * pitch + kPageSize - 1) / kPageSize)),
 		next_texture_id_(1),
@@ -88,11 +110,22 @@ public:
 	void HandleRunCommands(
 		ProcessId sender,
 		Permebuf<GraphicsDriver::RunCommandsMessage> commands) override {
+		RenderState render_state;
+
 		// Run each of the commands.
 		for (GraphicsCommand command : commands->GetCommands()) {
-			RunCommand(sender, command);
+			RunCommand(sender, command, render_state);
 		}
 	}
+
+	void HandleRunCommandsAndWait(
+		ProcessId sender,
+		Permebuf<GraphicsDriver::RunCommandsMessage> commands,
+		PermebufMiniMessageReplier<GraphicsDriver::EmptyResponse> responder) override {
+		HandleRunCommands(sender, std::move(commands));
+		responder.Reply(GraphicsDriver::EmptyResponse());
+	}
+
 
 	void HandleCreateTexture(
 		ProcessId sender,
@@ -207,8 +240,8 @@ private:
 	// Number of bytes between rows of pixels on the screen.
 	uint32 screen_pitch_;
 
-	// The number of bytes per pixel on the screen.
-	uint8 screen_bytes_per_pixel_;
+	// The number of bits per pixel on the screen.
+	uint8 screen_bits_per_pixel_;
 
 	// Pointer to the screen's framebuffer.
 	void* framebuffer_;
@@ -226,14 +259,38 @@ private:
 	ProcessId process_allowed_to_write_to_the_screen_;
 
 	// Handles a graphics command
-	void RunCommand(ProcessId sender, const GraphicsCommand& graphics_command) {
+	void RunCommand(ProcessId sender, const GraphicsCommand& graphics_command,
+		RenderState& render_state) {
 		switch (graphics_command.GetOption()) {
+			case GraphicsCommand::Options::SetDestinationTexture:
+				SetDestinationTexture(
+					sender,
+					graphics_command.GetSetDestinationTexture().GetTexture(),
+					render_state);
+				break;
+			case GraphicsCommand::Options::SetSourceTexture:
+				SetSourceTexture(
+					graphics_command.GetSetSourceTexture().GetTexture(),
+					render_state);
+				break;
+			case GraphicsCommand::Options::FillRectangle: {
+				GraphicsCommand::FillRectangle command =
+					graphics_command.GetFillRectangle();
+					FillRectangle(
+						command.GetLeft(),
+						command.GetTop(),
+						command.GetRight(),
+						command.GetBottom(),
+						command.GetColor(),
+						render_state
+					);
+				break;
+			}
 			case GraphicsCommand::Options::CopyEntireTexture: {
 				GraphicsCommand::CopyEntireTexture command =
 					graphics_command.GetCopyEntireTexture();
 				BitBlt(sender,
-					command.GetSourceTexture(),
-					command.GetDestinationTexture(),
+					render_state,
 					/*left_source=*/0,
 					/*top_source=*/0,
 					/*left_destination=*/0,
@@ -247,8 +304,7 @@ private:
 				GraphicsCommand::CopyEntireTexture command =
 					graphics_command.GetCopyEntireTextureWithAlphaBlending();
 				BitBlt(sender,
-					command.GetSourceTexture(),
-					command.GetDestinationTexture(),
+					render_state,
 					/*left_source=*/0,
 					/*top_source=*/0,
 					/*left_destination=*/0,
@@ -262,8 +318,7 @@ private:
 				GraphicsCommand::CopyTextureToPosition command =
 					graphics_command.GetCopyTextureToPosition();
 				BitBlt(sender,
-					command.GetSourceTexture(),
-					command.GetDestinationTexture(),
+					render_state,
 					/*left_source=*/0,
 					/*top_source=*/0,
 					command.GetLeftDestination(),
@@ -277,8 +332,7 @@ private:
 				GraphicsCommand::CopyTextureToPosition command =
 					graphics_command.GetCopyTextureToPositionWithAlphaBlending();
 				BitBlt(sender,
-					command.GetSourceTexture(),
-					command.GetDestinationTexture(),
+					render_state,
 					/*left_source=*/0,
 					/*top_source=*/0,
 					command.GetLeftDestination(),
@@ -292,8 +346,7 @@ private:
 				GraphicsCommand::CopyPartOfATexture command =
 					graphics_command.GetCopyPartOfATexture();
 				BitBlt(sender,
-					command.GetSourceTexture(),
-					command.GetDestinationTexture(),
+					render_state,
 					command.GetLeftSource(),
 					command.GetTopSource(),
 					command.GetLeftDestination(),
@@ -307,8 +360,7 @@ private:
 				GraphicsCommand::CopyPartOfATexture command =
 					graphics_command.GetCopyPartOfATexture();
 				BitBlt(sender,
-					command.GetSourceTexture(),
-					command.GetDestinationTexture(),
+					render_state,
 					command.GetLeftSource(),
 					command.GetTopSource(),
 					command.GetLeftDestination(),
@@ -321,13 +373,53 @@ private:
 		}
 	}
 
+	void SetDestinationTexture(ProcessId sender, uint64 texture_id,
+		RenderState& render_state) {
+		auto texture_itr = textures_.find(texture_id);
+		if (texture_itr == textures_.end()) {
+			render_state.destination_texture = nullptr;
+		}
+		else {
+			// Check if we have permission to write to this texture.
+			if (texture_itr->second.owner == 0) {
+				// Only one process is allowed to write to the screen's
+				// framebuffer.
+				if (sender != process_allowed_to_write_to_the_screen_) {
+					std::cout << "Not allowed to draw to the screen." << std::endl;
+					// We're not that process.
+					render_state.destination_texture = nullptr;
+					return;
+				}
+			} else if (texture_itr->second.owner != sender) {
+				// We're not the owner of this texture.
+				render_state.destination_texture = nullptr;
+				return;
+			}
+			render_state.destination_texture = &texture_itr->second;
+		}
+	}
+
+	void SetSourceTexture(uint64 texture_id, RenderState& render_state) {
+		// We can't copy from the frame buffer.
+		if (texture_id == 0) {
+			render_state.source_texture = nullptr;
+			return;
+		}
+
+		auto texture_itr = textures_.find(texture_id);
+		if (texture_itr == textures_.end())
+			render_state.source_texture = nullptr;
+		else
+			render_state.source_texture = &texture_itr->second;
+	}
+
+
 	// Bit blit two textures. The BitBlt functions are inlined. The hope is that
 	// RunCommand() will be HUGE but all the compiler will optimize away dead code
 	// so we'd have a super fast version of each permutation (alpha blend,
 	//    no alpha blending, etc.)
 	inline void BitBlt(ProcessId sender,
-		uint64 source_texture,
-		uint64 destination_texture,
+		const RenderState& render_state,
 		uint32 left_source,
 		uint32 top_source,
 		uint32 left_destination,
@@ -335,103 +427,115 @@ private:
 		uint32 width_to_copy,
 		uint32 height_to_copy,
 		bool alpha_blend) {
-		// We can't copy from the frame buffer.
-		if (source_texture == 0)
+		if (render_state.source_texture == nullptr ||
+			render_state.destination_texture == nullptr) {
+			// Nowhere to copy to/from.
 			return;
+		}
 
-		// Find the source texture.
-		auto source_texture_itr = textures_.find(source_texture);
-		if (source_texture_itr == textures_.end())
-			return;
-
-		if (destination_texture == 0) {
+		if (render_state.destination_texture->owner == 0) {
 			// We're writing to the screen's frame buffer.
 
-			// Only one process is allowed to write to the screen's
-			// framebuffer.
-			if (sender != process_allowed_to_write_to_the_screen_) {
-				std::cout << "Not allowed to draw to the screen." << std::endl;
-				// We're not that process.
+			if (alpha_blend) {
+				// It's probably best not to support alpha blending with the
+				// framebuffer, because a) reading from the frame buffer could
+				// be slow, and b) if we downsample to a lower bit depth, we'd
+				// loose precision and it'll be a low quality blend. So it's
+				// better if we just don't allow alpha blending with the
+				// framebuffer.
 				return;
 			}
-
+		
 			// Call the BitBlt function based on pixel depth of the
 			// framebuffer. The ordering is the most likely in my opinion)
-			// pixel depths first. We branch on screen_bytes_per_pixel_ then
+			// pixel depths first. We branch on screen_bitss_per_pixel_ then
 			// call BitBltToTexture with the same value because we want the
 			// compiler to inline BitBltToTexture with the pixel depth constant
 			// folded.
-			if (screen_bytes_per_pixel_ == 3) {
+			if (screen_bits_per_pixel_ == 24) {
 				BitBltToTexture(
-					(char*)**source_texture_itr->second.shared_memory,
-					source_texture_itr->second.width,
-					source_texture_itr->second.height,
-					(char*)framebuffer_,
+					(uint8*)**render_state.source_texture->shared_memory,
+					render_state.source_texture->width,
+					render_state.source_texture->height,
+					(uint8*)framebuffer_,
 					screen_width_,
 					screen_height_,
 					screen_pitch_,
-					/*destination_bpp=*/3,
+					/*destination_bpp=*/24,
 					left_source,
 					top_source,
 					left_destination,
 					top_destination,
 					width_to_copy,
 					height_to_copy,
-					alpha_blend);
-			} else if (screen_bytes_per_pixel_ == 4) {
+					/*alpha_blend=*/false);
+			} else if (screen_bits_per_pixel_ == 32) {
 				BitBltToTexture(
-					(char*)**source_texture_itr->second.shared_memory,
-					source_texture_itr->second.width,
-					source_texture_itr->second.height,
-					(char*)framebuffer_,
+					(uint8*)**render_state.source_texture->shared_memory,
+					render_state.source_texture->width,
+					render_state.source_texture->height,
+					(uint8*)framebuffer_,
 					screen_width_,
 					screen_height_,
 					screen_pitch_,
-					/*destination_bpp=*/4,
+					/*destination_bpp=*/32,
 					left_source,
 					top_source,
 					left_destination,
 					top_destination,
 					width_to_copy,
 					height_to_copy,
-					alpha_blend);
-			} else if (screen_bytes_per_pixel_ == 2) {
+					/*alpha_blend=*/false);
+			} else if (screen_bits_per_pixel_ == 16) {
 				BitBltToTexture(
-					(char*)**source_texture_itr->second.shared_memory,
-					source_texture_itr->second.width,
-					source_texture_itr->second.height,
-					(char*)framebuffer_,
+					(uint8*)**render_state.source_texture->shared_memory,
+					render_state.source_texture->width,
+					render_state.source_texture->height,
+					(uint8*)framebuffer_,
 					screen_width_,
 					screen_height_,
 					screen_pitch_,
-					/*destination_bpp=*/2,
+					/*destination_bpp=*/16,
 					left_source,
 					top_source,
 					left_destination,
 					top_destination,
 					width_to_copy,
 					height_to_copy,
-					alpha_blend);
+					/*alpha_blend=*/false);
+			}  if (screen_bits_per_pixel_ == 15) {
+				BitBltToTexture(
+					(uint8*)**render_state.source_texture->shared_memory,
+					render_state.source_texture->width,
+					render_state.source_texture->height,
+					(uint8*)framebuffer_,
+					screen_width_,
+					screen_height_,
+					screen_pitch_,
+					/*destination_bpp=*/15,
+					left_source,
+					top_source,
+					left_destination,
+					top_destination,
+					width_to_copy,
+					height_to_copy,
+					/*alpha_blend=*/false);
 			} else {
 				// Unsupported bits per pixel for the screen.
 			}
 
 		} else {
 			// We're writing to another texture.
-			auto destination_texture_itr = textures_.find(destination_texture);
-			if (destination_texture_itr == textures_.end())
-				return;
-
 			BitBltToTexture(
-				(char*)**source_texture_itr->second.shared_memory,
-				source_texture_itr->second.width,
-				source_texture_itr->second.height,
-				(char*)**destination_texture_itr->second.shared_memory,
-				destination_texture_itr->second.width,
-				destination_texture_itr->second.height,
+				(uint8*)**render_state.source_texture->shared_memory,
+				render_state.source_texture->width,
+				render_state.source_texture->height,
+				(uint8*)**render_state.destination_texture->shared_memory,
+				render_state.destination_texture->width,
+				render_state.destination_texture->height,
 				/*destination_pitch=*/
-				destination_texture_itr->second.width * 4,
-				/*destination_bpp=*/4,
+				render_state.destination_texture->width * 4,
+				/*destination_bpp=*/32,
 				left_source,
 				top_source,
 				left_destination,
@@ -444,10 +548,10 @@ private:
 	}
 
 	inline void BitBltToTexture(
-		char* source,
+		uint8* source,
 		uint32 source_width,
 		uint32 source_height,
-		char* destination,
+		uint8* destination,
 		uint32 destination_width,
 		uint32 destination_height,
 		uint32 destination_pitch,
@@ -459,7 +563,6 @@ private:
 		uint32 width_to_copy,
 		uint32 height_to_copy,
 		bool alpha_blend) {
-
 		if (top_source >= source_height ||
 			left_source >= source_width ||
 			top_destination >= destination_height ||
@@ -483,52 +586,93 @@ private:
 			return;
 		}
 
-		char* source_copy_start =
+		width_to_copy = std::min(width_to_copy, source_width);
+		height_to_copy = std::min(height_to_copy, source_height);
+
+		uint8* source_copy_start =
 			&source[(top_source * source_width + left_source) * 4];
 
-		char* destination_copy_start =
-			&destination[top_destination * destination_pitch +
-				left_destination * destination_bpp];
+		int bytes_per_pixel;
+		switch (destination_bpp) {
+			case 15:
+			case 16:
+				bytes_per_pixel = 2;
+				break;
+			case 24:
+				bytes_per_pixel = 3;
+				break;
+			case 32:
+				bytes_per_pixel = 4;
+				break;
+			break;
+		}
 
+		uint8* destination_copy_start =
+			&destination[top_destination * destination_pitch +
+				left_destination * bytes_per_pixel];
+
+		int y = top_destination;
 		// Copy this row.
-		for (;height_to_copy > 0; height_to_copy--) {
+		for (;height_to_copy > 0; height_to_copy--, y++) {
 			source = source_copy_start;
 			destination = destination_copy_start;
+			int x = left_destination;
 
-			for (uint32 i = width_to_copy; i > 0; i--) {
+			for (uint32 i = width_to_copy; i > 0; i--, x++) {
 				switch (destination_bpp) {
-					case 2:
-						if (!alpha_blend || source[0] != 0) {
-							// Trim colors down to 5:6:5-bits.
-							char r = source[1] >> (8-5);
-							char g = source[2] >> (8-6);
-							char b = source[3] >> (8-5);
-
-							*(uint16*)destination =
-								(r << (5 + 6)) |
-								(g << 5) |
-								b;
-						}
-						destination += 2;
-						break;
-					case 3:
-						if (!alpha_blend || source[0] != 0) {
-							destination[0] = source[1];
-							destination[1] = source[2];
-							destination[2] = source[3];
-						}
-						destination += 3;
-						break;
-					case 4:
-						if (!alpha_blend || source[0] != 0) {
+					case 32:
+						if (!alpha_blend || source[0] == 0xFF) {
 							*(uint32*)destination = *(uint32*)source;	
+						} else if (source[0] > 0) {
+							int alpha = source[0];
+							int inv_alpha = 255 - source[0];
+
+							destination[1] = (uint8)((alpha * (int)source[1] + inv_alpha * (int)destination[1]) >> 8);
+							destination[2] = (uint8)((alpha * (int)source[2] + inv_alpha * (int)destination[2]) >> 8);
+							destination[3] = (uint8)((alpha * (int)source[3] + inv_alpha * (int)destination[3]) >> 8);
 						}
 						destination += 4;
 						break;
+					case 24:
+						destination[0] = source[1];
+						destination[1] = source[2];
+						destination[2] = source[3];
+						destination += 3;
+						break;
+					case 16: {
+						uint16 dither_val = (uint16)kDitheringTable[
+							x % kDitheringTableWidth +
+							(y % kDitheringTableWidth) * kDitheringTableWidth];
+						// Trim colors down to 5:6:5-bits.
+						// Beyer color table is 6-bit (0 to 63).
+						// 5-bit color has 32 values (increments of 8).
+						// 6-bit color has 64 values (increments of 4).
+						// We divide the dither value to be in the range of
+						// the color into the next increment.
+						uint16 red = std::min(((uint16)source[1] + dither_val / 8) >> (8-5), 31);
+						uint16 green = std::min(((uint16)source[2] + dither_val / 4) >> (8-6), 63);
+						uint16 blue = std::min(((uint16)source[3] + dither_val / 8) >> (8-5), 31);
+						*(uint16*)destination =
+							(blue << 11) | (green << 5) | red;
+						destination += 2;
+						break;
+					}
+					case 15: {
+						uint16 dither_val = (uint16)kDitheringTable[
+							x % kDitheringTableWidth +
+							(y % kDitheringTableWidth) * kDitheringTableWidth];
+						// Trim colors down to 5:5:5-bits.
+						uint16 red = std::min(((uint16)source[1] + dither_val / 8) >> (8-5), 31);
+						uint16 green = std::min(((uint16)source[2] + dither_val / 8) >> (8-5), 31);
+						uint16 blue = std::min(((uint16)source[3] + dither_val / 8) >> (8-5), 31);
+
+						*(uint16*)destination =
+							(blue << 10) | (green << 5) | red;
+						destination += 2;
+						break;
+					}
 				}
-
 				source += 4;
-
 			}
 
 			// More the start pointers to the next row.
@@ -537,6 +681,67 @@ private:
 		}
 	}
 
+	void FillRectangle(
+		uint32 left,
+		uint32 top,
+		uint32 right,
+		uint32 bottom,
+		uint32 color,
+		RenderState& render_state) {
+		uint8* color_channels = (uint8*)&color;
+		if (color_channels[0] == 0) {
+			// Completely transparent, nothing to draw.
+			return;
+		}
+
+		if (render_state.destination_texture == nullptr ||
+			render_state.destination_texture->owner == 0) {
+			// No destination texture or we're trying to fill to
+			// the framebuffer.
+			std::cout << "Bad destination" << std::endl;
+			return;
+		}
+
+		uint8* destination = (uint8*)**render_state.destination_texture->shared_memory;
+		uint32 destination_width = render_state.destination_texture->width;
+		uint32 destination_height = render_state.destination_texture->height;
+
+		left = std::max((uint32)0, left);
+		top = std::max((uint32)0, top);
+		right = std::min(right, destination_width);
+		bottom = std::min(bottom, destination_height);
+
+		if (color_channels[0] == 0xFF) {
+			// Completely solid color.
+			int indx = (destination_width * top + left) * 4;
+			int _x, _y;
+			for(_y = top; _y < bottom; _y++) {
+				int next_indx = indx + destination_width * 4;
+				for(_x = left; _x < right; _x++) {
+					*(uint32*)&destination[indx] = color;
+					indx += 4;
+				}
+				indx = next_indx;
+			}
+		} else {
+			// Alpha blend.
+			int alpha = color_channels[0] ;
+			int inv_alpha = 255 - color_channels[0];
+
+			int indx = (destination_width * top + left) * 4;
+			int _x, _y;
+			for(_y = top; _y < bottom; _y++) {
+				int next_indx = indx + destination_width * 4;
+				for(_x = left; _x < right; _x++) {
+					destination[indx + 1] = (uint8)((alpha * (int)color_channels[1] + inv_alpha * (int)destination[indx + 1]) >> 8);
+					destination[indx + 2] = (uint8)((alpha * (int)color_channels[2] + inv_alpha * (int)destination[indx + 2]) >> 8);
+					destination[indx + 3] = (uint8)((alpha * (int)color_channels[3] + inv_alpha * (int)destination[indx + 3]) >> 8);
+					indx += 4;
+				}
+				indx = next_indx;
+			}
+		}
+	}
 
 	// Releases all of the resources that a process owns.
 	void ReleaseAllResourcesBelongingToProcess(ProcessId process) {
@@ -573,8 +778,8 @@ int main() {
 	// std::cout << "The bootloader has set up a " << width << "x" <<
 	//	height << " (" << (int)bpp << "-bit) framebuffer." << std::endl;
 
-	if (bpp != 16 && bpp != 24 && bpp != 32) {
-		std::cout << "The framebuffer is not 16, 24, or 32 bits per pixel." <<
+	if (bpp != 15 && bpp != 16 && bpp != 24 && bpp != 32) {
+		std::cout << "The framebuffer is not 15, 16, 24, or 32 bits per pixel." <<
 			std::endl;
 		return 0;
 	}

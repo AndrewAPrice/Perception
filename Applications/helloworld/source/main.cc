@@ -147,7 +147,7 @@ int main() {
 	graphics_driver.SendSetProcessAllowedToDrawToScreen(allow_draw_to_screen_message);
 
 	// Create two draw calls. One at 10,10 and one at 200,200.
-	Permebuf<GraphicsDriver::RunCommandsMessage> commands;
+	/*Permebuf<GraphicsDriver::RunCommandsMessage> commands;
 	auto command_1 = commands->MutableCommands();
 	auto command_1_oneof = commands.AllocateOneOf<GraphicsCommand>();
 	command_1.Set(command_1_oneof);
@@ -168,7 +168,7 @@ int main() {
 
 	// Send the draw calls.
 	graphics_driver.SendRunCommands(std::move(commands));
-
+*/
 	perception::HandOverControl();
 	return 0;
 }

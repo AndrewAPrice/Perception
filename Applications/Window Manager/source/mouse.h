@@ -14,6 +14,12 @@
 
 #pragma once
 
+#include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
+
 void InitializeMouse();
 int GetMouseX();
 int GetMouseY();
+void DrawMouse(
+	Permebuf<::permebuf::perception::devices::GraphicsDriver::RunCommandsMessage>& commands,
+	PermebufListOfOneOfs<::permebuf::perception::devices::GraphicsCommand>& last_graphics_command,
+	int min_x, int min_y, int max_x, int max_y);

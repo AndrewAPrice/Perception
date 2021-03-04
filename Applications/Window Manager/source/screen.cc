@@ -36,6 +36,9 @@ int screen_height;
 int window_manager_texture_id;
 SharedMemory window_manager_texture_buffer;
 
+bool screen_is_drawing;
+bool waiting_on_screen_to_finish_drawing;
+
 }
 
 void InitializeScreen() {
@@ -74,6 +77,13 @@ void InitializeScreen() {
 	window_manager_texture_id = create_texture_response.GetTexture();
 	window_manager_texture_buffer = std::move(create_texture_response.GetPixelBuffer());
 	window_manager_texture_buffer.Join();
+
+	screen_is_drawing = false;
+	waiting_on_screen_to_finish_drawing = false;
+}
+
+::permebuf::perception::devices::GraphicsDriver& GetGraphicsDriver() {
+	return graphics_driver;
 }
 
 int GetScreenWidth() {
@@ -92,9 +102,23 @@ uint32* GetWindowManagerTextureData() {
 	return reinterpret_cast<uint32*>(*window_manager_texture_buffer);
 }
 
+void SleepUntilWeAreReadyToStartDrawing() {
+	if (screen_is_drawing) {
+		waiting_on_screen_to_finish_drawing = true;
+		Sleep();
+	}
+}
+
 void RunDrawCommands(Permebuf<
 	::permebuf::perception::devices::GraphicsDriver::RunCommandsMessage> commands) {
 	// Send the draw calls.
-	graphics_driver.SendRunCommands(std::move(commands));
+
+	auto main_fiber = perception::GetCurrentlyExecutingFiber();
+	graphics_driver.CallRunCommandsAndWait(std::move(commands),
+		[main_fiber](StatusOr<GraphicsDriver::EmptyResponse> response) { 
+			screen_is_drawing = false;
+			if (waiting_on_screen_to_finish_drawing)
+				main_fiber->WakeUp();
+		});
 }
 

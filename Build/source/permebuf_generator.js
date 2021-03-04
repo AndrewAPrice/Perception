@@ -2036,7 +2036,7 @@ serverDelegator += `return ProcessMessage<${requestType.cppClassName}>(
 					} else if (responseType.type == FieldType.MINIMESSAGE) {
 						headerCpp +=
 `		StatusOr<${responseType.cppClassName}> Call${field.name}(
-			Permebuf<${requestType.cppClassName}>& request) const;
+			Permebuf<${requestType.cppClassName}> request) const;
 		void Call${field.name}(Permebuf<${requestType.cppClassName}> request,
 			const std::function<void(StatusOr<${responseType.cppClassName}>)>& on_response) const;
 `;
@@ -2052,7 +2052,7 @@ void ${thisService.cppClassName}::Call${field.name}(
 	const std::function<void(StatusOr<${responseType.cppClassName}>)>& on_response) const {
 		return SendMessageAndNotifyOnMiniMessage<
 			${requestType.cppClassName},${responseType.cppClassName}
-			>(${field.number}, std::move(request), on_response;
+			>(${field.number}, std::move(request), on_response);
 }
 `;
 serverDelegator += `return ProcessMessageForMiniMessage<${requestType.cppClassName}, ${responseType.cppClassName}>(
@@ -2087,7 +2087,7 @@ StatusOr<Permebuf<${responseType.cppClassName}>> ${thisService.cppClassName}::Ca
 	Permebuf<${requestType.cppClassName}> request) const {
 		return SendMessageAndWaitForMessage<
 			${requestType.cppClassName},${responseType.cppClassName}
-			>(${field.number}, std::move(request), request);
+			>(${field.number}, std::move(request));
 }
 void ${thisService.cppClassName}::Call${field.name}(
 	Permebuf<${requestType.cppClassName}> request,

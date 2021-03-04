@@ -43,33 +43,6 @@ void DrawBackground(int min_x, int min_y, int max_x, int max_y) {
 		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
 }
 
-void DrawMouse(int min_x, int min_y, int max_x, int max_y) {
-	uint32 mouse_sprite[] = {
-		0x000000FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-		0x000000FF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-		0x000000FF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000,
-		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000,
-		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000,
-		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF,
-		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x000000FF, 0x000000FF,
-		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000,
-		0x000000FF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0xC3C3C3FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000,
-		0x000000FF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x000000FF, 0xC3C3C3FF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000,
-		0x000000FF, 0x000000FF, 0x00000000, 0x00000000, 0x000000FF, 0xC3C3C3FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000,
-		0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x000000FF, 0xC3C3C3FF, 0xC3C3C3FF, 0xC3C3C3FF, 0x000000FF, 0x00000000,
-		0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x000000FF, 0x000000FF, 0x000000FF, 0x00000000, 0x00000000
-	};
-
-
-	DrawSprite1bitAlpha(GetMouseX(), GetMouseY(), mouse_sprite, 11, 17,
-		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight(),
-		min_x, min_y, max_x, max_y);
-}
-
 }
 
 void InitializeCompositor() {
@@ -89,6 +62,11 @@ void InvalidateScreen(int min_x, int min_y, int max_x, int max_y) {
 		invalidated_area_max_y = max_y;
 		has_invalidated_area = true;
 	}
+
+	invalidated_area_min_x = std::max(0, invalidated_area_min_x);
+	invalidated_area_min_y = std::max(0, invalidated_area_min_y);
+	invalidated_area_max_x = std::min(invalidated_area_max_x, GetScreenWidth());
+	invalidated_area_max_y = std::min(invalidated_area_max_y, GetScreenHeight());
 }
 
 void DrawScreen() {
@@ -101,6 +79,8 @@ void DrawScreen() {
 	int max_x = std::min(GetScreenWidth(), invalidated_area_max_x);
 	int max_y = std::min(GetScreenHeight(), invalidated_area_max_y);
 
+	SleepUntilWeAreReadyToStartDrawing();
+
 	DrawBackground(min_x, min_y, max_x, max_y);
 
 	Frame* root_frame = Frame::GetRootFrame();
@@ -111,25 +91,42 @@ void DrawScreen() {
 		window.Draw(min_x, min_y, max_x, max_y);
 	});
 
-	DrawHighlighter(min_x, min_y, max_x, max_y);
-	DrawMouse(min_x, min_y, max_x, max_y);
 
 	// Draw the screen.
 	Permebuf<GraphicsDriver::RunCommandsMessage> commands;
 
+	// Set the destination to the Window Manager texture.
+	auto last_command = commands->MutableCommands();
+	auto set_destination_to_wm_texture_oneof = commands.AllocateOneOf<GraphicsCommand>();
+	last_command.Set(set_destination_to_wm_texture_oneof);
+	set_destination_to_wm_texture_oneof.MutableSetDestinationTexture()
+		.SetTexture(GetWindowManagerTextureId());
+
+	// Draw some overlays.
+	DrawHighlighter(commands, last_command, min_x, min_y, max_x, max_y);
+	DrawMouse(commands, last_command, min_x, min_y, max_x, max_y);
+
 	// Copy the part that has changed.
-	auto command_1 = commands->MutableCommands();
+	last_command = last_command.InsertAfter();
 	auto command_1_oneof = commands.AllocateOneOf<GraphicsCommand>();
-	command_1.Set(command_1_oneof);
-	auto command_1_copy_texture = command_1_oneof.MutableCopyPartOfATexture();
-	command_1_copy_texture.SetSourceTexture(GetWindowManagerTextureId());
-	command_1_copy_texture.SetDestinationTexture(0); // The screen
-	command_1_copy_texture.SetLeftSource(min_x);
-	command_1_copy_texture.SetTopSource(min_y);
-	command_1_copy_texture.SetLeftDestination(min_x);
-	command_1_copy_texture.SetTopDestination(min_y);
-	command_1_copy_texture.SetWidth(max_x - min_x);
-	command_1_copy_texture.SetHeight(max_y - min_y);
+	last_command.Set(command_1_oneof);
+	command_1_oneof.MutableSetSourceTexture()
+		.SetTexture(GetWindowManagerTextureId());
+	last_command = last_command.InsertAfter();
+	auto command_2_oneof = commands.AllocateOneOf<GraphicsCommand>();
+	last_command.Set(command_2_oneof);
+	command_2_oneof.MutableSetDestinationTexture()
+		.SetTexture(0); // The screen
+	last_command = last_command.InsertAfter();
+	auto command_3_oneof = commands.AllocateOneOf<GraphicsCommand>();
+	last_command.Set(command_3_oneof);
+	auto command_3_copy_texture = command_3_oneof.MutableCopyPartOfATexture();
+	command_3_copy_texture.SetLeftSource(min_x);
+	command_3_copy_texture.SetTopSource(min_y);
+	command_3_copy_texture.SetLeftDestination(min_x);
+	command_3_copy_texture.SetTopDestination(min_y);
+	command_3_copy_texture.SetWidth(max_x - min_x);
+	command_3_copy_texture.SetHeight(max_y - min_y);
 
 	RunDrawCommands(std::move(commands));
 }

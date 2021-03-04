@@ -627,6 +627,7 @@ template <class O, class I>
 StatusOr<Permebuf<O>>
 	PermebufService::SendMiniMessageAndWaitForMessage(size_t function_id,
 		const O& request) const {
+	std::cout << "TODO: Implement PermebufService::SendMiniMessageAndWaitForMessage" << std::endl;
 }
 
 template <class O, class I>
@@ -689,8 +690,47 @@ void PermebufService::SendMiniMessageAndNotifyOnMessage(
 
 template <class O, class I>
 StatusOr<I> PermebufService::SendMessageAndWaitForMiniMessage(
-	size_t message_id, Permebuf<O> request) const {
-	std::cout << "TODO: Implement PermebufService::SendMessageAndWaitForMiniMessage" << std::endl;
+	size_t function_id, Permebuf<O> request) const {
+	// Send the message.
+	void* memory_address;
+	size_t number_of_pages;
+	size_t size_in_bytes;
+	request.ReleaseMemory(&memory_address, &number_of_pages, &size_in_bytes);
+
+	::perception::MessageId message_id_of_response =
+		::perception::GenerateUniqueMessageId();
+
+	auto status = ::perception::SendRawMessage(process_id_, message_id_,
+		(function_id << 3) | 1,
+		message_id_of_response, 0, size_in_bytes,
+		(size_t)memory_address, number_of_pages);
+	if (status !=
+		::perception::MessageStatus::SUCCESS) {
+		// Something went wrong while sending the message.
+		::perception::ReleaseMemoryPages(memory_address,
+			number_of_pages);
+		return ::perception::ToStatus(status);
+	}
+
+
+	// Sleep until we get a response.
+	::perception::ProcessId pid;
+	size_t metadata, response_status, a, b, c, d;
+	do {
+		::perception::SleepUntilMessage(message_id_of_response,
+			pid, metadata, response_status, a, b, c, d);
+	} while (pid != process_id_);
+
+	if (response_status != 0) {
+		// Bad response from the server.
+		return static_cast<::perception::Status>(
+			response_status);
+	}
+
+	// Return the response.
+	I response;
+	response.Deserialize(a, b, c, d);
+	return response;
 }
 
 template <class O, class I>
@@ -704,7 +744,54 @@ template <class O, class I>
 void PermebufService::SendMessageAndNotifyOnMiniMessage(
 	size_t function_id, Permebuf<O> request,
 		const std::function<void(StatusOr<I>)>& on_response) const {
-	std::cout << "TODO: Implement PermebufService::SendMessageAndNotifyOnMiniMessage" << std::endl;
+	// Send the message.
+	void* memory_address;
+	size_t number_of_pages;
+	size_t size_in_bytes;
+	request.ReleaseMemory(&memory_address, &number_of_pages, &size_in_bytes);
+
+	::perception::MessageId message_id_of_response =
+		::perception::GenerateUniqueMessageId();
+
+	auto send_status = ::perception::SendRawMessage(process_id_, message_id_,
+		(function_id << 3) | 1,
+		message_id_of_response, 0, size_in_bytes,
+		(size_t)memory_address, number_of_pages);
+	if (send_status !=
+		::perception::MessageStatus::SUCCESS) {
+		// Something went wrong while sending the message.
+		::perception::ReleaseMemoryPages(memory_address,
+			number_of_pages);
+		::perception::Defer([on_response, send_status]() {
+			on_response(::perception::ToStatus(send_status));
+		});
+		return;
+	}
+
+	::perception::RegisterMessageHandler(message_id_of_response,
+		[expected_sender = process_id_,
+			message_id_of_response,
+			on_response] (
+		::perception::ProcessId sender,
+		size_t response_status, size_t a, size_t b,
+		size_t c, size_t d) {
+		if (sender != expected_sender)
+			// Not the process we care about.
+			return;
+
+		::perception::UnregisterMessageHandler(message_id_of_response);
+
+		if (response_status != 0) {
+			// Bad response from the server.
+			on_response(static_cast<::perception::Status>(
+				response_status));
+		}
+
+		// Return the response.
+		I response;
+		response.Deserialize(a, b, c, d);
+		on_response(response);
+	});
 }
 
 template <class O, class I>
@@ -771,7 +858,10 @@ bool PermebufServer::ProcessMessageForMiniMessage(
 	const std::function<void(::perception::ProcessId,
 		Permebuf<I>,
 		PermebufMiniMessageReplier<O>)>& handler) {
-	std::cout << "TODO: Implement PermebufServer::ProcessMessageForMiniMessage" << std::endl;
+	if ((metadata & 0b111) != 1) return false;
+	handler(sender, Permebuf<I>((void*)param4, param3),
+		PermebufMiniMessageReplier<O>(sender, param1));
+	return true;
 }
 
 template <class I, class O>

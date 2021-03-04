@@ -25,15 +25,40 @@
 
 using ::perception::MessageId;
 using ::perception::ProcessId;
+using ::permebuf::perception::devices::GraphicsCommand;
+using ::permebuf::perception::devices::GraphicsDriver;
 using ::permebuf::perception::devices::MouseButton;
 using ::permebuf::perception::devices::MouseDriver;
 using ::permebuf::perception::devices::MouseListener;
-
 namespace {
 
 int mouse_x;
 int mouse_y;
 MessageId mouse_driver_listener;
+int mouse_texture_id;
+
+constexpr uint32 kMousePointer[] = {
+		0x000000FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+		0x000000FF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+		0x000000FF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000,
+		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000,
+		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000,
+		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF,
+		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x000000FF, 0x000000FF,
+		0x000000FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000, 0x00000000,
+		0x000000FF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0xC3C3C3FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000,
+		0x000000FF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x000000FF, 0xC3C3C3FF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000, 0x00000000,
+		0x000000FF, 0x000000FF, 0x00000000, 0x00000000, 0x000000FF, 0xC3C3C3FF, 0xFFFFFFFF, 0xFFFFFFFF, 0xC3C3C3FF, 0x000000FF, 0x00000000,
+		0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x000000FF, 0xC3C3C3FF, 0xC3C3C3FF, 0xC3C3C3FF, 0x000000FF, 0x00000000,
+		0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x000000FF, 0x000000FF, 0x000000FF, 0x00000000, 0x00000000
+	};
+
+constexpr int kMousePointerWidth = 11;
+constexpr int kMousePointerHeight = 17;
 
 class MyMouseListener : public MouseListener::Server {
 public:
@@ -134,6 +159,21 @@ void InitializeMouse() {
 			MouseDriver::StopNotifyingOnEachNewInstance(
 				mouse_driver_listener);
 		});
+
+	// Create a texture for the mouse.
+	GraphicsDriver::CreateTextureRequest create_texture_request;
+	create_texture_request.SetWidth(kMousePointerWidth);
+	create_texture_request.SetHeight(kMousePointerHeight);
+
+	auto create_texture_response = *GetGraphicsDriver().CallCreateTexture(
+		create_texture_request);
+	mouse_texture_id = create_texture_response.GetTexture();
+	create_texture_response.GetPixelBuffer().Apply([](void* data, size_t) {
+		uint32* destination = (uint32*)data;
+		for (int i = 0; i < kMousePointerWidth * kMousePointerHeight; i++) {
+			destination[i] = kMousePointer[i];
+		}
+	});
 }
 
 int GetMouseX() {
@@ -142,4 +182,32 @@ int GetMouseX() {
 
 int GetMouseY() {
 	return mouse_y;
+}
+
+void DrawMouse(
+	Permebuf<GraphicsDriver::RunCommandsMessage>& commands,
+	PermebufListOfOneOfs<GraphicsCommand>& last_graphics_command,
+	int min_x, int min_y, int max_x, int max_y) {
+	if (min_x >= mouse_x + kMousePointerWidth ||
+		min_y >= mouse_y + kMousePointerHeight ||
+		max_x <= mouse_x || max_y <= mouse_y) {
+		// The mouse is outside of the draw area.
+		return;
+	}
+
+	// Set the mouse as the source texture.
+	last_graphics_command = last_graphics_command.InsertAfter();
+	auto texture_oneof = commands.AllocateOneOf<GraphicsCommand>();
+	last_graphics_command.Set(texture_oneof);
+	texture_oneof.MutableSetSourceTexture()
+		.SetTexture(mouse_texture_id);
+
+	// Draw the mouse cursor.
+	last_graphics_command = last_graphics_command.InsertAfter();
+	auto draw_command_oneof = commands.AllocateOneOf<GraphicsCommand>();
+	last_graphics_command.Set(draw_command_oneof);
+	auto copy_texture_with_alpha =
+		draw_command_oneof.MutableCopyTextureToPositionWithAlphaBlending();
+	copy_texture_with_alpha.SetLeftDestination(mouse_x);
+	copy_texture_with_alpha.SetTopDestination(mouse_y);
 }

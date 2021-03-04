@@ -18,7 +18,8 @@
 #include "perception/draw.h"
 #include "screen.h"
 
-using ::perception::FillRectangleAlpha;
+using ::permebuf::perception::devices::GraphicsCommand;
+using ::permebuf::perception::devices::GraphicsDriver;
 
 namespace {
 
@@ -66,19 +67,29 @@ void DisableHighlighter() {
 		highlighter_max_x, highlighter_max_y);
 }
 
-void DrawHighlighter(int min_x, int min_y, int max_x, int max_y) {
+void DrawHighlighter(
+	Permebuf<GraphicsDriver::RunCommandsMessage>& commands,
+	PermebufListOfOneOfs<GraphicsCommand>& last_graphics_command,
+	int min_x, int min_y, int max_x, int max_y) {
 	if (!highlighter_enabled)
 		return;
+	if (min_x >= highlighter_max_x ||
+		min_y >= highlighter_max_y ||
+		max_x <= highlighter_min_x ||
+		max_y <= highlighter_min_y) {
+		// The highlighting is outside of the draw area.
+		return;
+	}
 
-	int draw_min_x = std::max(highlighter_min_x, min_x);
-	int draw_min_y = std::max(highlighter_min_y, min_y);
-	int draw_max_x = std::min(highlighter_max_x, max_x);
-	int draw_max_y = std::min(highlighter_max_y, max_y);
-
-	FillRectangleAlpha(draw_min_x, draw_min_y,
-		draw_max_x, draw_max_y,
-		HIGHLIGHTER_TINT,
-		GetWindowManagerTextureData(),
-		GetScreenWidth(), GetScreenHeight());
-	
+	// Draw the highlighting cursor.
+	last_graphics_command = last_graphics_command.InsertAfter();
+	auto draw_command_oneof = commands.AllocateOneOf<GraphicsCommand>();
+	last_graphics_command.Set(draw_command_oneof);
+	auto fill_rectangle_with_alpha =
+		draw_command_oneof.MutableFillRectangle();
+	fill_rectangle_with_alpha.SetLeft(std::max(min_x, highlighter_min_x));
+	fill_rectangle_with_alpha.SetTop(std::max(min_y, highlighter_min_y));
+	fill_rectangle_with_alpha.SetRight(std::min(max_x, highlighter_max_x));
+	fill_rectangle_with_alpha.SetBottom(std::min(max_y, highlighter_max_y));
+	fill_rectangle_with_alpha.SetColor(HIGHLIGHTER_TINT);
 }
