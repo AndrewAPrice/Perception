@@ -608,7 +608,7 @@ size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr, bool ignore_unowned_p
 	size_t pml1 = ptr[pml2_entry] & ~(PAGE_SIZE - 1);
 
 	// Look in PML1.
-	ptr = (size_t *)TemporarilyMapPhysicalMemory(pml1, 3);;
+	ptr = (size_t *)TemporarilyMapPhysicalMemory(pml1, 3);
 	if(ptr[pml1_entry] == 0) {
 		return OUT_OF_MEMORY;
 	} else if (ignore_unowned_pages &&

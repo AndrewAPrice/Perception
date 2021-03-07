@@ -851,6 +851,8 @@ void PermebufMiniMessage::Deserialize(size_t a, size_t b, size_t c, size_t d) {
 	words[3] = d;
 }
 
+PermebufService::PermebufService() : process_id_(0), message_id_(0) {}
+
 PermebufService::PermebufService(
 	::perception::ProcessId process_id, ::perception::MessageId message_id) :
 	process_id_(process_id), message_id_(message_id) {}

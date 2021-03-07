@@ -34,7 +34,6 @@ namespace {
 
 int mouse_x;
 int mouse_y;
-MessageId mouse_driver_listener;
 int mouse_texture_id;
 
 constexpr uint32 kMousePointer[] = {
@@ -147,17 +146,12 @@ void InitializeMouse() {
 	mouse_listener = std::make_unique<MyMouseListener>();
 
 	// Sleep until we get the mouse driver.
-	mouse_driver_listener = MouseDriver::NotifyOnEachNewInstance(
-		[&] (MouseDriver mouse_driver) {
+	(void) MouseDriver::NotifyOnEachNewInstance(
+		[] (MouseDriver mouse_driver) {
 			// Tell the mouse driver to send us mouse messages.
 			MouseDriver::SetMouseListenerMessage message;
 			message.SetNewListener(*mouse_listener);
 			mouse_driver.SendSetMouseListener(message); 
-
-			// We only care about one instance. We can stop
-			// listening now.
-			MouseDriver::StopNotifyingOnEachNewInstance(
-				mouse_driver_listener);
 		});
 
 	// Create a texture for the mouse.

@@ -16,14 +16,18 @@
 
 #include "idt.h"
 #include "interrupts.h"
+#include "physical_allocator.h"
 #include "process.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "registers.h"
 #include "scheduler.h"
+#include "virtual_allocator.h"
+
+// The maximum number of levels to print up the call stack for a stack trace.
+#define STACK_TRACE_DEPTH 20
 
 // The first 32 interrupts are used for processor exceptions.
-
 extern void isr0();
 extern void isr1();
 extern void isr2();
@@ -131,6 +135,52 @@ char *exception_messages[] = {
 
 extern void JumpIntoThread();
 
+void PrintStackTrace() {
+	size_t pml4 = running_thread->process->pml4;
+	size_t rbp = currently_executing_thread_regs->rbp;
+	size_t rip = currently_executing_thread_regs->rip;
+
+	PrintString("Stack trace:\n");
+	PrintString(" ");
+	PrintHex(rip);
+	PrintString("\n");
+
+	// Walk up the call stack.
+	for (int i = 0; i < STACK_TRACE_DEPTH; i++) {
+		if (rbp & 7 != 0) {
+			// RBP is not aligned, we'll avoid reading the memory address
+			// that RBP points to as it could jump across pages boundaries.
+			return;
+		}
+
+		// Read the RIP.
+		size_t rip_address = rbp + 8;
+		// Map the page into memory.
+		size_t physical_page_addr = GetPhysicalAddress(pml4, rip_address, false);
+		if (physical_page_addr == OUT_OF_MEMORY) {
+			// Doesn't point to valid memory.
+			return;
+		}
+		size_t* memory = (size_t*)TemporarilyMapPhysicalMemory(physical_page_addr, 4);
+		// Read the new RIP value.
+		rip = memory[(rip_address & (PAGE_SIZE - 1)) >> 3];
+		PrintString(" ^ ");
+		PrintHex(rip);
+		PrintString("\n");
+
+		// Now read new next RBP.
+		// Map the page into memory.
+		physical_page_addr = GetPhysicalAddress(pml4, rbp, false);
+		if (physical_page_addr == OUT_OF_MEMORY) {
+			// Doesn't point to valid memory.
+			return;
+		}
+		memory = (size_t*)TemporarilyMapPhysicalMemory(physical_page_addr, 4);
+		// Read the new RBP value.
+		rbp = memory[(rbp & (PAGE_SIZE - 1)) >> 3];
+	}
+}
+
 // The exception handler.
 void ExceptionHandler(int interrupt_no) {
 	// Output the exception that occured.
@@ -141,12 +191,14 @@ void ExceptionHandler(int interrupt_no) {
 		PrintNumber(interrupt_no);
 		PrintChar(')');
 	} else {
-		// This should never trigger, because we haven't registered ourselves for interrupts >= 32.
+		// This should never trigger, because we haven't registered ourselves
+		// for interrupts >= 32.
 		PrintString("\nUnknown exception: ");
 		PrintNumber(interrupt_no);
 	}
 
-	// The below code doesn't take into account if kernel code caused an exception - such as in a syscall or an interrupt handler.
+	// The below code doesn't take into account if kernel code caused an
+	// exception - such as in a syscall or an interrupt handler.
 	if (running_thread != NULL) {
 		PrintString(" by PID ");
 		struct Process* process = running_thread->process;
@@ -157,6 +209,7 @@ void ExceptionHandler(int interrupt_no) {
 		PrintNumber(running_thread->id);
 		PrintChar('\n');
 		PrintRegisters(currently_executing_thread_regs);
+		PrintStackTrace();
 		// Terminate the process.
 		DestroyProcess(process);
 		JumpIntoThread(); // Doesn't return.

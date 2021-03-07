@@ -70,6 +70,10 @@ public:
 		}
 	}
 
+	~MyWindow() {
+		std::cout << title_ << " - destroyed" << std::endl;
+	}
+
 	void HandleOnMouseMove(
 		ProcessId, const MouseListener::OnMouseMoveMessage& message) override {
 			std::cout << title_ << " - x:" << message.GetDeltaX() <<
@@ -160,26 +164,23 @@ int main() {
 	MessageId wm_listener = WindowManager::NotifyOnEachNewInstance(
 		[&] (WindowManager wm) {
 			window_manager = wm;
-			// We only care about one instance. We can stop
-			// listening now.
-			WindowManager::StopNotifyingOnEachNewInstance(
-				wm_listener);
-
 			main_fiber->WakeUp();
 		});
 	Sleep();
 
-	std::vector<MyWindow> windows = {
-		MyWindow("Raspberry", 0x0ed321ff),
-		MyWindow("Blueberry", 0xc5c20dff),
-		MyWindow("Blackberry", 0xa5214eff),
-		MyWindow("Strawberry", 0x90bdee),
-		MyWindow("Boysenberry", 0x25993fff),
-		MyWindow("Chicken", 0x4900a4ff, true, 400, 400),
-		MyWindow("Beef", 0x99e41dff, true, 200, 100),
-		MyWindow("Rabbit", 0x65e979ff, true, 100, 200),
-		MyWindow("Ox", 0x7c169aff, true, 80, 80)
-	};
+	// We only care about one instance. We can stop
+	// listening now.
+	WindowManager::StopNotifyingOnEachNewInstance(wm_listener);
+
+	MyWindow a = MyWindow("Raspberry", 0x0ed321ff);
+	MyWindow b = MyWindow("Blueberry", 0xc5c20dff);
+	MyWindow c = MyWindow("Blackberry", 0xa5214eff);
+	MyWindow d = MyWindow("Strawberry", 0x90bdee);
+	MyWindow e = MyWindow("Boysenberry", 0x25993fff);
+	MyWindow f = MyWindow("Chicken", 0x4900a4ff, true, 400, 400);
+	MyWindow g = MyWindow("Beef", 0x99e41dff, true, 200, 100);
+	MyWindow h = MyWindow("Rabbit", 0x65e979ff, true, 100, 200);
+	MyWindow i = MyWindow("Ox", 0x7c169aff, true, 80, 80);
 
 	perception::HandOverControl();
 	return 0;

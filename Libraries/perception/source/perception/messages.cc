@@ -150,6 +150,13 @@ void RegisterMessageHandler(MessageId message_id, std::function<void(ProcessId,
 // to memory leaks.
 void RegisterRawMessageHandler(MessageId message_id, std::function<void(ProcessId,
 	size_t, size_t, size_t, size_t, size_t, size_t)> callback) {
+	// Erase already existing message handler.
+	auto handlers_by_message_id_itr = handlers_by_message_id.find(message_id);
+	if (handlers_by_message_id_itr != handlers_by_message_id.end()) {
+		std::cout << "Multiple message handlers trying to handle " << message_id << std::endl;
+		handlers_by_message_id.erase(handlers_by_message_id_itr);
+	}
+
 	MessageHandler handler;
 	handler.fiber_to_wake_up = nullptr;
 	handler.handler_function = std::move(callback);
@@ -159,7 +166,9 @@ void RegisterRawMessageHandler(MessageId message_id, std::function<void(ProcessI
 
 // Unregisters the message handler, because we no longer care about handling these messages.
 void UnregisterMessageHandler(MessageId message_id) {
-	handlers_by_message_id.erase(message_id);
+	auto handlers_by_message_id_itr = handlers_by_message_id.find(message_id);
+	if (handlers_by_message_id_itr != handlers_by_message_id.end())
+		handlers_by_message_id.erase(message_id);
 }
 
 // Sleeps the current fiber until we receive a message. Waiting for a message

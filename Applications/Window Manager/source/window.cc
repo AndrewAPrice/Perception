@@ -14,11 +14,14 @@
 
 #include "window.h"
 
+#include <map>
+
 #include "perception/draw.h"
 #include "perception/font.h"
 #include "compositor.h"
 #include "frame.h"
 #include "highlighter.h"
+#include "keyboard.h"
 #include "screen.h"
 
 using ::perception::DrawXLine;
@@ -28,6 +31,7 @@ using ::perception::DrawYLineAlpha;
 using ::perception::FillRectangle;
 using ::perception::Font;
 using ::perception::FontFace;
+using ::permebuf::perception::devices::KeyboardDriver;
 using ::permebuf::perception::devices::MouseButton;
 
 namespace {
@@ -45,6 +49,8 @@ Window* last_dialog;
 int dragging_offset_x;
 int dragging_offset_y;
 
+std::map<::permebuf::perception::Window, Window*> windows_by_service;
+
 }
 
 
@@ -53,12 +59,18 @@ Window* Window::CreateDialog(std::string_view title, int width, int height,
 		::permebuf::perception::Window window_listener,
 		::permebuf::perception::devices::KeyboardListener keyboard_listener,
 		::permebuf::perception::devices::MouseListener mouse_listener) {
+	if (window_listener.GetProcessId() == 0 ||
+		windows_by_service.count(window_listener) > 0) {
+		// Window already exists or a window listener wasn't specified.
+		return nullptr;
+	}
 	if (title.size() > kMaxTitleLength) {
 		title = title.substr(0, kMaxTitleLength);
 	}
 	Window* window = new Window();
 	window->title_ = title;
-	window->title_width_ = window_title_font->MeasureString(title) + WINDOW_TITLE_WIDTH_PADDING;
+	window->title_width_ = window_title_font->MeasureString(title) +
+		WINDOW_TITLE_WIDTH_PADDING;
 	window->is_dialog_ = true;
 	window->texture_id_ = 0;
 	window->fill_color_ = background_color;
@@ -95,11 +107,9 @@ Window* Window::CreateDialog(std::string_view title, int width, int height,
 	}
 
 	// Focus on it.
-	focused_window = window;
+	window->Focus();
 
-	InvalidateScreen(window->x_, window->y_,
-		window->x_ + window->width_ + DIALOG_BORDER_WIDTH + DIALOG_SHADOW_WIDTH,
-		window->y_ + window->height_ + DIALOG_BORDER_HEIGHT + DIALOG_SHADOW_WIDTH);
+	windows_by_service[window_listener] = window;
 	return window;
 }
 
@@ -108,26 +118,45 @@ Window* Window::CreateWindow(std::string_view title,
 		::permebuf::perception::Window window_listener,
 		::permebuf::perception::devices::KeyboardListener keyboard_listener,
 		::permebuf::perception::devices::MouseListener mouse_listener) {
+	if (!window_listener ||
+		windows_by_service.count(window_listener) > 0) {
+		// Window already exists or a window listener wasn't specified.
+		return nullptr;
+	}
+
 	if (title.size() > kMaxTitleLength) {
 		title = title.substr(0, kMaxTitleLength);
 	}
 
 	Window* window = new Window();
 	window->title_ = title;
-	window->title_width_ = window_title_font->MeasureString(title) + WINDOW_TITLE_WIDTH_PADDING;
+	window->title_width_ = window_title_font->MeasureString(title) +
+		WINDOW_TITLE_WIDTH_PADDING;
 	window->is_dialog_ = false;
 	window->texture_id_ = 0;
 	window->fill_color_ = background_color;
+
+	Frame::AddWindowToLastFocusedFrame(*window);
+
+	// Set the listeners after we add the window to the frame, so we don't
+	// issue a resize message during creation.
 	window->window_listener_ = window_listener;
 	window->keyboard_listener_ = keyboard_listener;
 	window->mouse_listener_ = mouse_listener;
 
-	Frame::AddWindowToLastFocusedFrame(*window);
-
 	// Focus on it.
 	focused_window = window;
 
+	windows_by_service[window_listener] = window;
 	return window;
+}
+
+Window* Window::GetWindow(
+	const ::permebuf::perception::Window& window_listener) {
+	auto window_itr = windows_by_service.find(window_listener);
+	if (window_itr == windows_by_service.end())
+		return nullptr;
+	return window_itr->second;
 }
 
 void Window::Focus() {
@@ -140,11 +169,15 @@ void Window::Focus() {
 		} else {
 			focused_window->frame_->Invalidate();
 		}
+
+		// Tell the old window they lost focus.
+		if (focused_window->window_listener_) {
+			focused_window->window_listener_.SendLostFocus(
+				::permebuf::perception::Window::LostFocusMessage());
+		}
 	}
 
 	if (is_dialog_) {
-		focused_window = this;
-
 		// Move us to the front of the linked list, if we're not already.
 		if (previous_ != nullptr) {
 			// Remove from current position.
@@ -165,9 +198,24 @@ void Window::Focus() {
 		InvalidateDialogAndTitle();
 	} else {
 		frame_->DockFrame.focused_window_ = this;
-		focused_window = this;
 		frame_->Invalidate();
 	}
+	focused_window = this;
+
+	if (window_listener_) {
+		std::cout << "Sendingn focused message" << std::endl;
+		window_listener_.SendGainedFocus(
+			::permebuf::perception::Window::GainedFocusMessage());
+	} else {
+		std::cout << "No window listener to send focused message" << std::endl;
+
+	}
+
+	// We now want to send keyboard events to this window.
+	KeyboardDriver::SetKeyboardListenerMessage keyboard_listener_message;
+	keyboard_listener_message.SetNewListener(keyboard_listener_);
+	GetKeyboardDriver().SendSetKeyboardListener(
+		keyboard_listener_message);
 }
 
 bool Window::IsFocused() {
@@ -175,6 +223,12 @@ bool Window::IsFocused() {
 }
 
 void Window::Resized() {
+	if (window_listener_) {
+		::permebuf::perception::Window::SetSizeMessage message;
+		message.SetWidth(width_);
+		message.SetHeight(height_);
+		focused_window->window_listener_.SendSetSize(message);
+	}
 }
 
 void Window::Close() {
@@ -226,12 +280,25 @@ void Window::Close() {
 
 	/* todo: notify the process their application has closed */
 
+	if (window_listener_) {
+		window_listener_.SendClosed(
+			::permebuf::perception::Window::ClosedMessage());
+	}
+
+	windows_by_service.erase(window_listener_);
+
 	delete this;
 
 	InvalidateScreen(min_x, min_y, max_x, max_y);
 }
 
 void Window::UnfocusAllWindows() {
+	if (focused_window && focused_window->window_listener_) {
+			focused_window->window_listener_.SendLostFocus(
+				::permebuf::perception::Window::LostFocusMessage());
+	}
+	GetKeyboardDriver().SendSetKeyboardListener(
+		KeyboardDriver::SetKeyboardListenerMessage());
 }
 
 bool Window::ForEachFrontToBackDialog(const std::function<bool(Window&)>& on_each_dialog) {

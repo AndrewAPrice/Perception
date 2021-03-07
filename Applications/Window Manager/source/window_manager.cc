@@ -20,7 +20,8 @@
 void WindowManager::HandleCreateWindow(
 	::perception::ProcessId sender,
 	Permebuf<WindowManager::WM::CreateWindowRequest> request,
-	PermebufMiniMessageReplier<WindowManager::WM::CreateWindowResponse> responder) {
+	PermebufMiniMessageReplier<WindowManager::WM::CreateWindowResponse>
+		responder) {
 	Window* window;
 
 	if (request->GetIsDialog()) {
@@ -42,8 +43,12 @@ void WindowManager::HandleCreateWindow(
 	}
 
 	WindowManager::WM::CreateWindowResponse response;
-	response.SetWidth(window->GetWidth());
-	response.SetHeight(window->GetHeight());
+	if (window != nullptr) {
+		// Respond with the window dimensions if we were able to create this
+		// window.
+		response.SetWidth(window->GetWidth());
+		response.SetHeight(window->GetHeight());
+	}
 	responder.Reply(response);
 }
 

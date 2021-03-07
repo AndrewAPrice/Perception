@@ -42,6 +42,9 @@ public:
 		::permebuf::perception::devices::KeyboardListener keyboard_listener,
 		::permebuf::perception::devices::MouseListener mouse_listener);
 
+	static Window* GetWindow(
+		const ::permebuf::perception::Window& window_listener);
+
 	void Focus();
 	bool IsFocused();
 	void Resized();

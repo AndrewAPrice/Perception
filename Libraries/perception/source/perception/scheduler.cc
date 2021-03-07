@@ -23,13 +23,14 @@ namespace perception {
 namespace {
 
 // Queue of fibers that are scheduled to run.
-thread_local Fiber* first_scheduled_fiber = nullptr;
-thread_local Fiber* last_scheduled_fiber = nullptr;
+// NOTE: Thread local memory isn't always clear.
+/*thread_local*/ Fiber* first_scheduled_fiber = nullptr;
+/*thread_local*/ Fiber* last_scheduled_fiber = nullptr;
 
 // The fiber to return to when we're out of work instead of sleeping. This is
 // the caller of HandleEverything.
-thread_local Fiber* fiber_to_return_to_when_were_out_of_work = nullptr;
-thread_local Fiber* fiber_to_return_to_after_sleeping_when_were_out_of_work = nullptr;
+/*thread_local*/ Fiber* fiber_to_return_to_when_were_out_of_work = nullptr;
+/*thread_local*/ Fiber* fiber_to_return_to_after_sleeping_when_were_out_of_work = nullptr;
 
 // Sleeps until a message. Returns true if a message was received.
 bool SleepThreadUntilMessage(ProcessId& senders_pid, MessageId& message_id,
@@ -211,6 +212,7 @@ Fiber* Scheduler::GetNextFiberToRun() {
 				// happen.
 				continue;
 			}
+				
 			// Get the fiber to handle this message.
 			Fiber* fiber = GetFiberToHandleMessage(senders_pid, message_id, metadata,
 				param1, param2, param3, param4, param5);
@@ -261,7 +263,6 @@ Fiber* Scheduler::GetFiberToHandleMessage(ProcessId senders_pid, MessageId messa
 	size_t param4, size_t param5) {
 	MessageHandler* handler = GetMessageHandler(message_id);
 	if (handler == nullptr) {
-		std::cout << "Nobody can handle " << message_id << std::endl;
 		// Message handler not defined.
 		DealWithUnhandledMessage(senders_pid, metadata, param1, param4, param5);
 		return nullptr;

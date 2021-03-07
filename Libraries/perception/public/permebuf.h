@@ -468,6 +468,7 @@ class PermebufServer;
 
 class PermebufService {
 public:
+	PermebufService();
 	PermebufService(::perception::ProcessId process_id, ::perception::MessageId message_id);
 
 	::perception::ProcessId GetProcessId() const;
@@ -477,6 +478,18 @@ public:
 	// Does this service refer to the same instance as another service?
 	bool operator==(const PermebufService& other) const;
 	bool operator==(const PermebufServer& other) const;
+
+	// Is this a valid instance of a service?
+	operator bool() const {
+		// The kernel can't have services.
+		return process_id_ != 0;
+	}
+
+	bool operator<(const PermebufService& other) const {
+		return process_id_ < other.process_id_ ||
+			(process_id_ == other.process_id_ &&
+			message_id_ < other.message_id_);
+	}
 
 protected:
 	::perception::ProcessId process_id_;

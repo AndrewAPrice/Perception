@@ -24,10 +24,10 @@ namespace perception {
 namespace {
 
 // The currently executing fiber.
-thread_local Fiber* currently_executing_fiber = nullptr;
+/*thread_local*/ Fiber* currently_executing_fiber = nullptr;
 
 // Linked list of unused fibers we can recycle.
-thread_local Fiber* next_free_fiber = nullptr;
+/*thread_local*/ Fiber* next_free_fiber = nullptr;
 
 extern "C" void fiber_single_parameter_entrypoint();
 

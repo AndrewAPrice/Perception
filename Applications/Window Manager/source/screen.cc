@@ -18,6 +18,8 @@
 #include "perception/processes.h"
 #include "perception/shared_memory.h"
 
+#include <iostream>
+
 using ::perception::GetCurrentlyExecutingFiber;
 using ::perception::GetProcessId;
 using ::perception::Fiber;
@@ -45,16 +47,16 @@ void InitializeScreen() {
 	// Sleep until we get the graphics driver.
 	auto main_fiber = perception::GetCurrentlyExecutingFiber();
 	MessageId graphics_driver_listener = GraphicsDriver::NotifyOnEachNewInstance(
-		[&] (GraphicsDriver driver) {
+		[main_fiber] (GraphicsDriver driver) {
 			graphics_driver = driver;
-			// We only care about one instance. We can stop
-			// listening now.
-			GraphicsDriver::StopNotifyingOnEachNewInstance(
-				graphics_driver_listener);
-
 			main_fiber->WakeUp();
 		});
 	Sleep();
+
+	// We only care about one instance. We can stop
+	// listening now.
+	GraphicsDriver::StopNotifyingOnEachNewInstance(
+		graphics_driver_listener);
 	
 	// Query the screen size.
 	auto screen_size = *graphics_driver.CallGetScreenSize(
@@ -62,7 +64,7 @@ void InitializeScreen() {
 	screen_width = screen_size.GetWidth();
 	screen_height = screen_size.GetHeight();
 
-	// Allow the windnow manager to draw to the screen.
+	// Allow the window manager to draw to the screen.
 	GraphicsDriver::SetProcessAllowedToDrawToScreenMessage allow_draw_to_screen_message;
 	allow_draw_to_screen_message.SetProcess(GetProcessId());
 	graphics_driver.SendSetProcessAllowedToDrawToScreen(allow_draw_to_screen_message);

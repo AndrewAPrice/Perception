@@ -39,6 +39,15 @@ ProcessId InvokeSyscallToGetProcessId() {
 
 }
 
+#ifdef debug_BUILD_
+// We can't pass RBP in and out of inline assembly in debug builds, so we'll
+// use these variables to temporarily store and overwrite RBP.
+extern "C" {
+	size_t _perception_processes__temp_rbp;
+	size_t _perception_processes__syscall_rbp;
+}
+#endif
+
 ProcessId GetProcessId() {
 #ifdef PERCEPTION
 	//static ProcessId process_id = InvokeSyscallToGetProcessId();
@@ -77,7 +86,12 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
 	memcpy(process_name, &name[0], name.size());
 
 	volatile register size_t syscall asm ("rdi") = 22;
+#ifdef debug_BUILD_
+	// TODO: Mutex for debug builds.
+	_perception_processes__syscall_rbp = 0;
+#else
 	volatile register size_t min_pid asm ("rbp") = 0;
+#endif
 	volatile register size_t name_1 asm ("rax") = process_name[0];
 	volatile register size_t name_2 asm ("rbx") = process_name[1];
 	volatile register size_t name_3 asm ("rdx") = process_name[2];
@@ -92,6 +106,20 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
 	
 	// We only care about the first PID.
 	volatile register size_t number_of_processes asm ("rdi");
+#ifdef debug_BUILD_
+	__asm__ __volatile__ (R"(
+		mov %%rbp, _perception_processes__temp_rbp
+		mov _perception_processes__syscall_rbp, %%rbp
+		syscall
+		mov %%rbp, _perception_processes__syscall_rbp
+		mov _perception_processes__temp_rbp, %%rbp
+	)":"=r"(number_of_processes):
+	"r"(syscall), "r"(name_1), "r"(name_2), "r"(name_3), "r"(name_4),
+	"r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8), "r"(name_9),
+	"r"(name_10), "r"(name_11):
+		"rcx", "r11", "memory");
+	size_t pid_1 = _perception_processes__syscall_rbp;
+#else
 	volatile register size_t pid_1 asm ("rbp");
 
 	__asm__ __volatile__ ("syscall\n":"=r"(number_of_processes),"=r"(pid_1):
@@ -99,6 +127,7 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
 	"r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8), "r"(name_9),
 	"r"(name_10), "r"(name_11):
 		"rcx", "r11");
+#endif
 
 	if (number_of_processes == 0)
 		return false;
@@ -125,7 +154,12 @@ void ForEachProcessWithName(std::string_view name,
 	while (true) {
 		// Fetch this page of results.
 		volatile register size_t syscall asm ("rdi") = 22;
-		volatile register size_t min_pid asm ("rbp") = starting_pid;
+#ifdef debug_BUILD_
+		// TODO: Mutex. for debug builds.
+		_perception_processes__syscall_rbp = 0;
+#else
+		volatile register size_t starting_pid asm ("rbp") = 0;
+#endif
 		volatile register size_t name_1 asm ("rax") = process_name[0];
 		volatile register size_t name_2 asm ("rbx") = process_name[1];
 		volatile register size_t name_3 asm ("rdx") = process_name[2];
@@ -139,7 +173,9 @@ void ForEachProcessWithName(std::string_view name,
 		volatile register size_t name_11 asm ("r15") = process_name[10];
 
 		volatile register size_t number_of_processes_r asm ("rdi");
+#ifndef debug_BUILD_
 		volatile register size_t pid_1_r asm ("rbp");
+#endif
 		volatile register size_t pid_2_r asm ("rax");
 		volatile register size_t pid_3_r asm ("rbx");
 		volatile register size_t pid_4_r asm ("rdx");
@@ -152,13 +188,30 @@ void ForEachProcessWithName(std::string_view name,
 		volatile register size_t pid_11_r asm ("r14");
 		volatile register size_t pid_12_r asm ("r15");
 
+#ifdef debug_BUILD_
+		__asm__ __volatile__ (R"(
+		mov %%rbp, _perception_processes__temp_rbp
+		mov _perception_processes__syscall_rbp, %%rbp
+		syscall
+		mov %%rbp, _perception_processes__syscall_rbp
+		mov _perception_processes__temp_rbp, %%rbp
+			)":"=r"(number_of_processes_r),
+			"=r"(pid_2_r),"=r"(pid_3_r),"=r"(pid_4_r),"=r"(pid_5_r),"=r"(pid_6_r),"=r"(pid_7_r),
+			"=r"(pid_8_r),"=r"(pid_9_r),"=r"(pid_10_r),"=r"(pid_11_r),"=r"(pid_12_r):
+		"r"(syscall), "r"(name_1), "r"(name_2), "r"(name_3), "r"(name_4),
+		"r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8), "r"(name_9),
+		"r"(name_10), "r"(name_11):
+		"rcx", "r11", "memory");
+		size_t pid_1_r = _perception_processes__syscall_rbp;
+#else
 		__asm__ __volatile__ ("syscall\n":"=r"(number_of_processes_r),"=r"(pid_1_r),
 			"=r"(pid_2_r),"=r"(pid_3_r),"=r"(pid_4_r),"=r"(pid_5_r),"=r"(pid_6_r),"=r"(pid_7_r),
 			"=r"(pid_8_r),"=r"(pid_9_r),"=r"(pid_10_r),"=r"(pid_11_r),"=r"(pid_12_r):
-		"r"(syscall), "r"(min_pid), "r"(name_1), "r"(name_2), "r"(name_3), "r"(name_4),
+		"r"(syscall), "r"(starting_pid), "r"(name_1), "r"(name_2), "r"(name_3), "r"(name_4),
 		"r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8), "r"(name_9),
 		"r"(name_10), "r"(name_11):
 		"rcx", "r11");
+#endif
 
 		size_t number_of_processes = number_of_processes_r;
 		size_t pid_1 = pid_1_r;
@@ -175,7 +228,7 @@ void ForEachProcessWithName(std::string_view name,
 		size_t pid_12 = pid_12_r;
 
 		// Call backs.
-		if (number_of_processes >= 1)
+		 if (number_of_processes >= 1)
 			on_each_process(pid_1);
 		if (number_of_processes >= 2)
 			on_each_process(pid_2);
