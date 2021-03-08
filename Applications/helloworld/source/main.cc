@@ -51,6 +51,9 @@ public:
 			bool dialog = false, int dialog_width = 0, int dialog_height = 0) :
 		title_(title) {
 		Permebuf<WindowManager::CreateWindowRequest> create_window_request;
+		std::cout << title_ << "'s message id is: " << 
+		((Window::Server*)this)->GetProcessId() << ":" <<
+			((Window::Server*)this)->GetMessageId() << std::endl;
 		create_window_request->SetWindow(*this);
 		create_window_request->SetTitle(title);
 		create_window_request->SetFillColor(bg_color);

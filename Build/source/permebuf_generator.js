@@ -1027,7 +1027,7 @@ class ${thisMessage.cppClassName} {
 							'\t\treturn ' + typeInformation.cppClassName + '();\n' +
 							'\t}\n' +
 							'\treturn ' + typeInformation.cppClassName + '(\n'+
-							'\t\tbuffer_->Read8Bytes(offset_ + address_offset), buffer_->Read8Bytes(offset_ + address_offset + 1));\n' +
+							'\t\tbuffer_->Read8Bytes(offset_ + address_offset), buffer_->Read8Bytes(offset_ + address_offset + 8));\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '& value) {\n' +
 							'\tsize_t address_offset = ';
@@ -1039,7 +1039,7 @@ class ${thisMessage.cppClassName} {
 							'\t\treturn;\n' +
 							'\t}\n' +
 							'\tbuffer_->Write8Bytes(offset_ + address_offset, value.GetProcessId());\n' +
-							'\tbuffer_->Write8Bytes(offset_ + address_offset + 1, value.GetMessageId());\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 8, value.GetMessageId());\n' +
 							'}\n' +
 							'\nvoid ' + thisMessage.cppClassName + '::Set' + field.name + '(const ' + typeInformation.cppClassName + '_Server& value) {\n' +
 							'\tsize_t address_offset = ';
@@ -1051,7 +1051,7 @@ class ${thisMessage.cppClassName} {
 							'\t\treturn;\n' +
 							'\t}\n' +
 							'\tbuffer_->Write8Bytes(offset_ + address_offset, value.GetProcessId());\n' +
-							'\tbuffer_->Write8Bytes(offset_ + address_offset + 1, value.GetMessageId());\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 8, value.GetMessageId());\n' +
 							'}\n' +
 							'\nbool ' + thisMessage.cppClassName + '::Has' + field.name + '() const {\n' +
 							'\tsize_t address_offset = ';
@@ -1074,7 +1074,7 @@ class ${thisMessage.cppClassName} {
 							'\t\treturn;\n' +
 							'\t}\n' +
 							'\tbuffer_->Write8Bytes(offset_ + address_offset, 0);\n' +
-							'\tbuffer_->Write8Bytes(offset_ + address_offset + 1, 0);\n' +
+							'\tbuffer_->Write8Bytes(offset_ + address_offset + 8, 0);\n' +
 							'}\n';
 						break;
 					case FieldType.SHARED_MEMORY:

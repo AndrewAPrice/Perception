@@ -78,6 +78,8 @@ Window* Window::CreateDialog(std::string_view title, int width, int height,
 	window->keyboard_listener_ = keyboard_listener;
 	window->mouse_listener_ = mouse_listener;
 
+	std::cout << title << "'s message is: " << window_listener.GetMessageId() << std::endl;
+
 	// Window can't be smaller than the title, or larger than the screen.
 	window->width_ = std::min(
 		std::max(width, window->title_width_), GetScreenWidth() - 2);
@@ -135,6 +137,8 @@ Window* Window::CreateWindow(std::string_view title,
 	window->is_dialog_ = false;
 	window->texture_id_ = 0;
 	window->fill_color_ = background_color;
+
+	std::cout << title << "'s message is: " << window_listener.GetMessageId() << std::endl;
 
 	Frame::AddWindowToLastFocusedFrame(*window);
 
@@ -203,7 +207,8 @@ void Window::Focus() {
 	focused_window = this;
 
 	if (window_listener_) {
-		std::cout << "Sendingn focused message" << std::endl;
+		std::cout << "Sending focused message for " << title_ << " to message id " <<
+			window_listener_.GetProcessId() << ":" << window_listener_.GetMessageId() << std::endl;
 		window_listener_.SendGainedFocus(
 			::permebuf::perception::Window::GainedFocusMessage());
 	} else {
