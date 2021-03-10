@@ -136,6 +136,27 @@ SharedMemory::~SharedMemory() {
 		ReleaseSharedMemory(shared_memory_id_);
 }
 
+SharedMemory::SharedMemory(SharedMemory&& other) {
+	shared_memory_id_ = other.shared_memory_id_;
+	ptr_ = other.ptr_;
+	size_in_bytes_ = other.size_in_bytes_;
+
+	other.shared_memory_id_ = 0;
+	other.ptr_ = nullptr;
+	other.size_in_bytes_ = 0;
+}
+
+SharedMemory& SharedMemory::operator=(SharedMemory&& other)  {
+	shared_memory_id_ = other.shared_memory_id_;
+	ptr_ = other.ptr_;
+	size_in_bytes_ = other.size_in_bytes_;
+
+	other.shared_memory_id_ = 0;
+	other.ptr_ = nullptr;
+	other.size_in_bytes_ = 0;
+	return *this;
+}
+
 // Creates a shared memory block of a specific size. The size is rounded up
 // to the nearest page size.
 std::unique_ptr<SharedMemory> SharedMemory::FromSize(size_t size_in_bytes) {

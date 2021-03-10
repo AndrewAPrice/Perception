@@ -33,6 +33,7 @@ using ::perception::Font;
 using ::perception::FontFace;
 using ::permebuf::perception::devices::KeyboardDriver;
 using ::permebuf::perception::devices::MouseButton;
+using ::permebuf::perception::devices::MouseListener;
 
 namespace {
 
@@ -77,8 +78,6 @@ Window* Window::CreateDialog(std::string_view title, int width, int height,
 	window->window_listener_ = window_listener;
 	window->keyboard_listener_ = keyboard_listener;
 	window->mouse_listener_ = mouse_listener;
-
-	std::cout << title << "'s message is: " << window_listener.GetMessageId() << std::endl;
 
 	// Window can't be smaller than the title, or larger than the screen.
 	window->width_ = std::min(
@@ -137,8 +136,6 @@ Window* Window::CreateWindow(std::string_view title,
 	window->is_dialog_ = false;
 	window->texture_id_ = 0;
 	window->fill_color_ = background_color;
-
-	std::cout << title << "'s message is: " << window_listener.GetMessageId() << std::endl;
 
 	Frame::AddWindowToLastFocusedFrame(*window);
 
@@ -207,13 +204,8 @@ void Window::Focus() {
 	focused_window = this;
 
 	if (window_listener_) {
-		std::cout << "Sending focused message for " << title_ << " to message id " <<
-			window_listener_.GetProcessId() << ":" << window_listener_.GetMessageId() << std::endl;
 		window_listener_.SendGainedFocus(
 			::permebuf::perception::Window::GainedFocusMessage());
-	} else {
-		std::cout << "No window listener to send focused message" << std::endl;
-
 	}
 
 	// We now want to send keyboard events to this window.
@@ -428,9 +420,15 @@ bool Window::MouseButtonEvent(int screen_x, int screen_y,
 		int local_x = screen_x - x_ - 1;
 		int local_y = screen_y - y_ - WINDOW_TITLE_HEIGHT - 2;
 		if (local_x >= 0 && local_y >= 0 &&
-			local_x < width_ && local_y < height_) {
-			std::cout << "Clicked window at " <<
-				local_x << "," << local_y << std::endl;
+			local_x < width_ && local_y < height_ &&
+			mouse_listener_) {
+			// Let the mouse listener know they were clicked.
+			MouseListener::OnMouseClickMessage message;
+			message.SetButton(button);
+			message.SetX(local_x);
+			message.SetY(local_y);
+			message.SetWasPressedDown(is_button_down);
+			mouse_listener_.SendOnMouseClick(message);
 		}
 	}
 

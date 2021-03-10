@@ -15,8 +15,9 @@
 #include "perception/liballoc.h"
 #include "perception/memory.h"
 
-#ifndef PERCEPTION
 #include <iostream>
+
+#ifndef PERCEPTION
 #include <stdlib.h>
 #include <unistd.h>
 #endif
@@ -76,7 +77,7 @@ void* MapPhysicalMemory(size_t physical_address, size_t pages) {
 
 bool MaybeResizePages(void** ptr, size_t current_number, size_t new_number) {
 #if PERCEPTION
-	// TODO
+	std::cout << "Implement MaybeResizePages." << std::endl;
 	return false;
 #else
 	void* maybe_new_ptr = realloc(*ptr, new_number * kPageSize);

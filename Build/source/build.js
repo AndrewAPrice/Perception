@@ -20,7 +20,7 @@ const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
 const {getToolPath} = require('./tools');
 const {escapePath} = require('./escape_path');
 const {foreachSourceFile, foreachPermebufSourceFile} = require('./source_files');
-const {getFileLastModifiedTimestamp} = require('./file_timestamps');
+const {forgetFileLastModifiedTimestamp, getFileLastModifiedTimestamp} = require('./file_timestamps');
 const {getBuildCommand, getLinkerCommand, buildPrefix} = require('./build_commands');
 const {getPackageDirectory} = require('./package_directory');
 const {compilePermebufToCpp} = require('./permebufs');
@@ -422,13 +422,13 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 			linkerInput += ' ' + escapePath(libraryToLink);
 		});
 
-		let command =  getLinkerCommand(
+		let command = getLinkerCommand(
 			PackageType.APPLICATION, escapePath(binaryPath),
 			linkerInput, buildSettings);
-		// console.log(command);
 		try {
 			child_process.execSync(command);
 			compiled = true;
+			forgetFileLastModifiedTimestamp(binaryPath);
 		} catch (exp) {
 			return BuildResult.FAILED;
 		}

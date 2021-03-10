@@ -383,12 +383,6 @@ protected:
 	PermebufBase(void* start_of_memory, size_t size);
 	virtual ~PermebufBase();
 
-private:
-	size_t AllocateMessage(size_t size);
-	size_t AllocateMemory(size_t size);
-	bool GrowTo(size_t size);
-	size_t GetNumberOfAllocatedMemoryPages() const;
-
 	PermebufAddressSize address_size_;
 
 	// Start of the first page.
@@ -396,6 +390,12 @@ private:
 
 	// Size of the Permebuf.
 	size_t size_;
+
+private:
+	size_t AllocateMessage(size_t size);
+	size_t AllocateMemory(size_t size);
+	bool GrowTo(size_t size);
+	size_t GetNumberOfAllocatedMemoryPages() const;
 };
 
 template <class T>
@@ -417,8 +417,22 @@ public:
 	}
 
 	// Allow moving the object with std::move.
-  	Permebuf(Permebuf<T> &&) = default;
-	Permebuf& operator=(Permebuf<T>&&) = default;
+  	Permebuf(Permebuf<T>&& other) :
+  		PermebufBase(other.start_of_memory_, other.size_) {
+  		root_ = T(this, 1);
+  		other.start_of_memory_ = nullptr;
+  		other.size_ = 0;
+  	}
+
+	Permebuf<T>& operator=(Permebuf<T>&& other) {
+		start_of_memory_ = other.start_of_memory_;
+		size_ = other.size_;
+		address_size_ = other.address_size_;
+  		root_ = other.root_;
+  		other.start_of_memory_ = nullptr;
+  		other.size_ = 0;
+		return *this;
+  	}
 
 	virtual ~Permebuf() {}
 

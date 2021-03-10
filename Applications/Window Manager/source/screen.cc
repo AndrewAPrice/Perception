@@ -114,13 +114,17 @@ void SleepUntilWeAreReadyToStartDrawing() {
 void RunDrawCommands(Permebuf<
 	::permebuf::perception::devices::GraphicsDriver::RunCommandsMessage> commands) {
 	// Send the draw calls.
+	screen_is_drawing = true;
 
 	auto main_fiber = perception::GetCurrentlyExecutingFiber();
 	graphics_driver.CallRunCommandsAndWait(std::move(commands),
 		[main_fiber](StatusOr<GraphicsDriver::EmptyResponse> response) { 
 			screen_is_drawing = false;
-			if (waiting_on_screen_to_finish_drawing)
+			if (waiting_on_screen_to_finish_drawing) {
+				waiting_on_screen_to_finish_drawing = false;
 				main_fiber->WakeUp();
+			}
 		});
+
 }
 

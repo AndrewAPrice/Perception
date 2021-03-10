@@ -30,6 +30,11 @@ function getFileLastModifiedTimestamp(file) {
 	return timestamp;
 }
 
+function forgetFileLastModifiedTimestamp(file) {
+	lastModifiedTimestampByFile[file] = undefined;;
+}
+
 module.exports = {
+	forgetFileLastModifiedTimestamp, forgetFileLastModifiedTimestamp,
 	getFileLastModifiedTimestamp: getFileLastModifiedTimestamp
 };

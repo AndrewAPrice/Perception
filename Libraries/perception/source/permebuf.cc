@@ -704,6 +704,7 @@ PermebufAddressSize PermebufBase::GetAddressSize() const {
 bool PermebufBase::ReleaseMemory(void** start, size_t* pages, size_t* size) {
 	if (start_of_memory_ == nullptr)
 		return false;
+
 	*start = start_of_memory_;
 	*pages = GetNumberOfAllocatedMemoryPages();
 	*size = size_;
@@ -726,6 +727,10 @@ PermebufBase::PermebufBase(void* start_of_memory, size_t size) :
 	// Read the address size from the metadata byte.
 	uint8_t metadata_byte = *static_cast<uint8_t*>(start_of_memory_);
 	address_size_ = static_cast<PermebufAddressSize>(metadata_byte & 0b11);
+
+	if ((size_t)start_of_memory_ & (PAGE_SIZE - 1) != 0) {
+		std::cout << "Permebuf start_of_memory isn't page aligned." << std::endl;
+	}
 }
 
 PermebufBase::~PermebufBase() {
