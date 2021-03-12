@@ -166,6 +166,8 @@ void PrintStackTrace() {
 		rip = memory[(rip_address & (PAGE_SIZE - 1)) >> 3];
 		PrintString(" ^ ");
 		PrintHex(rip);
+		PrintString(" Stack base: ");
+		PrintHex(rbp);
 		PrintString("\n");
 
 		// Now read new next RBP.

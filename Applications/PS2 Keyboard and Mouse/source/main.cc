@@ -155,13 +155,14 @@ public:
 
 	void HandleKeyboardInterrupt() {
 		uint8 val = Read8BitsFromPort(0x60);
-		if (val == 1) {
+		if (val == kSystemKeyDown) {
 			// The system key was pressed. Notify the window manager.
 			auto window_manager = WindowManager::FindFirstInstance();
-			if (window_manager)
+			if (window_manager) {
 				window_manager->SendSystemButtonPushed(
 					WindowManager::SystemButtonPushedMessage());
-
+			}
+			return;
 		} else if (val == kSystemKeyUp) {
 			// Ignore releasing the system key.
 			return;

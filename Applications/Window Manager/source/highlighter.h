@@ -19,6 +19,12 @@
 void InitializeHighlighter();
 void SetHighlighter(int min_x, int min_y, int max_x, int max_y);
 void DisableHighlighter();
+
+// Preps the overlays for drawing, which will mark which areas need to be drawn
+// to the window manager's texture and not directly to the screen.
+void PrepHighlighterForDrawing(int min_x, int min_y, int max_x, int max_y);
+
+// Draws the highlighter.
 void DrawHighlighter(
 	Permebuf<::permebuf::perception::devices::GraphicsDriver::RunCommandsMessage>& commands,
 	PermebufListOfOneOfs<::permebuf::perception::devices::GraphicsCommand>& last_graphics_command,

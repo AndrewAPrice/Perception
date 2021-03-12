@@ -180,11 +180,12 @@ private:
 template <class T>
 class PermebufList {
 public:
-	PermebufList(PermebufBase* buffer, size_t offset);
+	PermebufList(PermebufBase* buffer = 0, size_t offset = 0);
 	bool IsValid() const;
 	bool HasNext() const;
 	int Count() const;
 	T InsertAfter() const;
+	void SetNext(T next);
 	T Next() const;
 	T Get(int index) const;
 	T RemoveNext() const;
@@ -224,7 +225,7 @@ protected:
 
 class PermebufListOfBooleans : public PermebufList<PermebufListOfBooleans> {
 public:
-	PermebufListOfBooleans(PermebufBase* buffer, size_t offset);
+	PermebufListOfBooleans(PermebufBase* buffer = 0, size_t offset = 0);
 	bool Get() const;
 	void Set(bool value);
 	static size_t GetSizeInBytes(PermebufBase* buffer);
@@ -234,7 +235,7 @@ public:
 template <class T>
 class PermebufListOfEnums : public PermebufList<PermebufListOfEnums<T>> {
 public:
-	PermebufListOfEnums(PermebufBase* buffer, size_t offset);
+	PermebufListOfEnums(PermebufBase* buffer = 0, size_t offset = 0);
 	T Get() const;
 	void Set(T value);
 	static size_t GetSizeInBytes(PermebufBase* buffer);
@@ -244,7 +245,7 @@ public:
 template <class T>
 class PermebufListOf : public PermebufList<PermebufListOf<T>> {
 public:
-	PermebufListOf(PermebufBase* buffer, size_t offset);
+	PermebufListOf(PermebufBase* buffer = 0, size_t offset = 0);
 	bool Has() const;
 	T Get() const;
 	void Set(T value);
@@ -256,7 +257,7 @@ public:
 template <class T>
 class PermebufListOfOneOfs : public PermebufList<PermebufListOfOneOfs<T>> {
 public:
-	PermebufListOfOneOfs(PermebufBase* buffer, size_t offset);
+	PermebufListOfOneOfs(PermebufBase* buffer = 0, size_t offset = 0);
 	bool Has() const;
 	T Get() const;
 	void Set(T value);
@@ -268,7 +269,7 @@ public:
 
 class PermebufListOfStrings : public PermebufList<PermebufListOfStrings> {
 public:
-	PermebufListOfStrings(PermebufBase* buffer, size_t offset);
+	PermebufListOfStrings(PermebufBase* buffer = 0, size_t offset = 0);
 	PermebufString Get() const;
 	bool Has() const;
 	void Set(PermebufString value);
@@ -280,7 +281,7 @@ public:
 
 class PermebufListOfBytes : public PermebufList<PermebufListOfBytes> {
 public:
-	PermebufListOfBytes(PermebufBase* buffer, size_t offset);
+	PermebufListOfBytes(PermebufBase* buffer = 0, size_t offset = 0);
 	bool Has() const;
 	PermebufBytes Get() const;
 	void Set(PermebufBytes value);
@@ -293,7 +294,7 @@ public:
 template <class T>
 class PermebufListOfNumbers : public PermebufList<PermebufListOfNumbers<T>> {
 public:
-	PermebufListOfNumbers(PermebufBase* buffer, size_t offset);
+	PermebufListOfNumbers(PermebufBase* buffer = 0, size_t offset = 0);
 	T Get() const;
 	void Set(T const);
 	static size_t GetSizeInBytes(PermebufBase* buffer);

@@ -702,13 +702,15 @@ PermebufAddressSize PermebufBase::GetAddressSize() const {
 // Release the memory. Writing to the Permebuf after this is bad!!!
 // Returns true if the operation was successful.
 bool PermebufBase::ReleaseMemory(void** start, size_t* pages, size_t* size) {
-	if (start_of_memory_ == nullptr)
+	if (start_of_memory_ == nullptr) {
 		return false;
+	}
 
 	*start = start_of_memory_;
 	*pages = GetNumberOfAllocatedMemoryPages();
 	*size = size_;
 	start_of_memory_ = nullptr;
+
 	return true;
 }
 
@@ -781,7 +783,7 @@ size_t PermebufBase::AllocateMemory(size_t size) {
 }
 
 bool PermebufBase::GrowTo(size_t size) {
-	if (size < size_) {
+	if (size <= size_) {
 		// Already big enough!
 		return true;
 	}

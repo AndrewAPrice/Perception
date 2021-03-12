@@ -67,6 +67,24 @@ void DisableHighlighter() {
 		highlighter_max_x, highlighter_max_y);
 }
 
+void PrepHighlighterForDrawing(int min_x, int min_y, int max_x, int max_y) {
+	if (!highlighter_enabled)
+		return;
+	if (min_x >= highlighter_max_x ||
+		min_y >= highlighter_max_y ||
+		max_x <= highlighter_min_x ||
+		max_y <= highlighter_min_y) {
+		// The highlighting is outside of the draw area.
+		return;
+	}
+
+	CopySectionOfScreenIntoWindowManagersTexture(
+		std::max(min_x, highlighter_min_x),
+		std::max(min_y, highlighter_min_y),
+		std::min(max_x, highlighter_max_x),
+		std::min(max_y, highlighter_max_y));
+}
+
 void DrawHighlighter(
 	Permebuf<GraphicsDriver::RunCommandsMessage>& commands,
 	PermebufListOfOneOfs<GraphicsCommand>& last_graphics_command,
@@ -79,6 +97,16 @@ void DrawHighlighter(
 		max_y <= highlighter_min_y) {
 		// The highlighting is outside of the draw area.
 		return;
+	}
+
+	if (!last_graphics_command.IsValid()) {
+		// First graphics command. Set the window manager's texture as
+		// the destination texture.
+		last_graphics_command = commands->MutableCommands();
+		auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
+		last_graphics_command.Set(command_one_of);
+		command_one_of.MutableSetDestinationTexture()
+			.SetTexture(GetWindowManagerTextureId());
 	}
 
 	// Draw the highlighting cursor.

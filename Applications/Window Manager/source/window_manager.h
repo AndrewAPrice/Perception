@@ -27,22 +27,22 @@ public:
 	void HandleCreateWindow(
 		::perception::ProcessId sender,
 		Permebuf<WM::CreateWindowRequest> request,
-		PermebufMiniMessageReplier<WM::CreateWindowResponse> responder);
+		PermebufMiniMessageReplier<WM::CreateWindowResponse> responder) override;
 
 	void HandleCloseWindow(
 		::perception::ProcessId sender,
-		const WM::CloseWindowMessage& message);
+		const WM::CloseWindowMessage& message) override;
 
 	void HandleSetWindowTexture(
 		::perception::ProcessId sender,
-		const WM::SetWindowTextureMessage& message);
+		const WM::SetWindowTextureMessage& message) override;
 
-	void HandleWindowTitle(
+	void HandleSetWindowTitle(
 		::perception::ProcessId sender,
-		Permebuf<WM::SetWindowTitleMessage> message);
+		Permebuf<WM::SetWindowTitleMessage> message) override;
 
 	void HandleSystemButtonPushed(
 		::perception::ProcessId sender,
-		const WM::SystemButtonPushedMessage& message);
+		const WM::SystemButtonPushedMessage& message) override;
 };
 

@@ -33,14 +33,20 @@ public:
 	static Window* CreateDialog(std::string_view title,
 		int width, int height,
 		uint32 background_color,
-		::permebuf::perception::Window window_listener,
-		::permebuf::perception::devices::KeyboardListener keyboard_listener,
-		::permebuf::perception::devices::MouseListener mouse_listener);
+		::permebuf::perception::Window window_listener
+		 = ::permebuf::perception::Window(),
+		::permebuf::perception::devices::KeyboardListener keyboard_listener
+		 = ::permebuf::perception::devices::KeyboardListener(),
+		::permebuf::perception::devices::MouseListener mouse_listener
+		 = ::permebuf::perception::devices::MouseListener());
 	static Window* CreateWindow(std::string_view title,
 		uint32 background_color,
-		::permebuf::perception::Window window_listener,
-		::permebuf::perception::devices::KeyboardListener keyboard_listener,
-		::permebuf::perception::devices::MouseListener mouse_listener);
+		::permebuf::perception::Window window_listener
+		 = ::permebuf::perception::Window(),
+		::permebuf::perception::devices::KeyboardListener keyboard_listener
+		 = ::permebuf::perception::devices::KeyboardListener(),
+		::permebuf::perception::devices::MouseListener mouse_listener
+		 = ::permebuf::perception::devices::MouseListener());
 
 	static Window* GetWindow(
 		const ::permebuf::perception::Window& window_listener);
@@ -54,9 +60,10 @@ public:
 	static bool ForEachFrontToBackDialog(const std::function<bool(Window&)>& on_each_dialog);
 	static void ForEachBackToFrontDialog(const std::function<void(Window&)>& on_each_dialog);
 	static Window* GetWindowBeingDragged();
+	static void MouseNotHoveringOverWindowContents();
 	void DraggedTo(int screen_x, int screen_y);
 	void DroppedAt(int screen_x, int screen_y);
-	bool MouseButtonEvent(int screen_x, int screen_y,
+	bool MouseEvent(int screen_x, int screen_y,
 		::permebuf::perception::devices::MouseButton button,
 		bool is_button_down);
 	void HandleTabClick(int offset_along_tab,
@@ -75,6 +82,8 @@ private:
 	friend Frame;
 
 	static void DrawHeaderBackground(int x, int y, int width, uint32 color);
+
+	void DrawDecorations(int min_x, int min_y, int max_x, int max_y);
 	void DrawWindowContents(int x, int y, int min_x, int min_y, int max_x, int max_y);
 
 	// The window's title.

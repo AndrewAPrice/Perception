@@ -16,12 +16,12 @@
 
 #include <map>
 
-#include "perception/draw.h"
-#include "perception/font.h"
 #include "compositor.h"
 #include "frame.h"
 #include "highlighter.h"
 #include "keyboard.h"
+#include "perception/draw.h"
+#include "perception/font.h"
 #include "screen.h"
 
 using ::perception::DrawXLine;
@@ -32,6 +32,7 @@ using ::perception::FillRectangle;
 using ::perception::Font;
 using ::perception::FontFace;
 using ::permebuf::perception::devices::KeyboardDriver;
+using ::permebuf::perception::devices::KeyboardListener;
 using ::permebuf::perception::devices::MouseButton;
 using ::permebuf::perception::devices::MouseListener;
 
@@ -39,11 +40,21 @@ namespace {
 
 constexpr int kMaxTitleLength = 50;
 
+// Font to use for window title.
 Font* window_title_font;
+
+// The window being dragged.
 Window* dragging_window;
+
+// The currently focused window.
 Window* focused_window;
+
+// Linked list of dialogs.
 Window* first_dialog;
 Window* last_dialog;
+
+// Window that the mouse is currently over the contents of.
+Window* hovered_window;
 
 // When dragging a dialog: offset
 // When dragging a window: top left of the original title
@@ -58,12 +69,12 @@ std::map<::permebuf::perception::Window, Window*> windows_by_service;
 Window* Window::CreateDialog(std::string_view title, int width, int height,
 		uint32 background_color,
 		::permebuf::perception::Window window_listener,
-		::permebuf::perception::devices::KeyboardListener keyboard_listener,
-		::permebuf::perception::devices::MouseListener mouse_listener) {
+		KeyboardListener keyboard_listener,
+		MouseListener mouse_listener) {
 	if (window_listener.GetProcessId() == 0 ||
 		windows_by_service.count(window_listener) > 0) {
 		// Window already exists or a window listener wasn't specified.
-		return nullptr;
+		//return nullptr;
 	}
 	if (title.size() > kMaxTitleLength) {
 		title = title.substr(0, kMaxTitleLength);
@@ -122,7 +133,7 @@ Window* Window::CreateWindow(std::string_view title,
 	if (!window_listener ||
 		windows_by_service.count(window_listener) > 0) {
 		// Window already exists or a window listener wasn't specified.
-		return nullptr;
+		// return nullptr;
 	}
 
 	if (title.size() > kMaxTitleLength) {
@@ -136,14 +147,14 @@ Window* Window::CreateWindow(std::string_view title,
 	window->is_dialog_ = false;
 	window->texture_id_ = 0;
 	window->fill_color_ = background_color;
+	window->keyboard_listener_ = keyboard_listener;
+	window->mouse_listener_ = mouse_listener;
 
 	Frame::AddWindowToLastFocusedFrame(*window);
 
-	// Set the listeners after we add the window to the frame, so we don't
-	// issue a resize message during creation.
+	// Set the window listener after we add the window to the frame, so we
+	// don't issue a resize message during creation.
 	window->window_listener_ = window_listener;
-	window->keyboard_listener_ = keyboard_listener;
-	window->mouse_listener_ = mouse_listener;
 
 	// Focus on it.
 	focused_window = window;
@@ -211,6 +222,7 @@ void Window::Focus() {
 	// We now want to send keyboard events to this window.
 	KeyboardDriver::SetKeyboardListenerMessage keyboard_listener_message;
 	keyboard_listener_message.SetNewListener(keyboard_listener_);
+
 	GetKeyboardDriver().SendSetKeyboardListener(
 		keyboard_listener_message);
 }
@@ -273,6 +285,9 @@ void Window::Close() {
 	if(this == dragging_window)
 		dragging_window = nullptr;
 
+	if(this == hovered_window)
+		hovered_window = nullptr;
+
 	/* todo: free the memory buffer */
 
 	/* todo: notify the process their application has closed */
@@ -298,7 +313,8 @@ void Window::UnfocusAllWindows() {
 		KeyboardDriver::SetKeyboardListenerMessage());
 }
 
-bool Window::ForEachFrontToBackDialog(const std::function<bool(Window&)>& on_each_dialog) {
+bool Window::ForEachFrontToBackDialog(
+	const std::function<bool(Window&)>& on_each_dialog) {
 	Window* dialog = first_dialog;
 	while (dialog != nullptr) {	
 		if (on_each_dialog(*dialog))
@@ -309,7 +325,8 @@ bool Window::ForEachFrontToBackDialog(const std::function<bool(Window&)>& on_eac
 	return false;
 }
 
-void Window::ForEachBackToFrontDialog(const std::function<void(Window&)>& on_each_dialog) {
+void Window::ForEachBackToFrontDialog(
+	const std::function<void(Window&)>& on_each_dialog) {
 	Window* dialog = last_dialog;
 	while (dialog != nullptr) {
 		on_each_dialog(*dialog);
@@ -319,6 +336,16 @@ void Window::ForEachBackToFrontDialog(const std::function<void(Window&)>& on_eac
 
 Window* Window::GetWindowBeingDragged() {
 	return dragging_window;
+}
+
+void Window::MouseNotHoveringOverWindowContents() {
+	if (hovered_window != nullptr) {
+		if (hovered_window->mouse_listener_) {
+			hovered_window->mouse_listener_.SendOnMouseLeave(
+				MouseListener::OnMouseLeaveMessage());
+		}
+		hovered_window = nullptr;
+	}
 }
 
 void Window::DraggedTo(int screen_x, int screen_y) {
@@ -336,8 +363,10 @@ void Window::DraggedTo(int screen_x, int screen_y) {
 		if (old_x != x_ || old_y != y_) {
 			InvalidateScreen(std::min(old_x, x_),
 				std::min(old_y, y_),
-				std::max(old_x, x_) + width_ + DIALOG_BORDER_WIDTH + DIALOG_SHADOW_WIDTH,
-				std::max(old_y, y_) + height_ + DIALOG_BORDER_HEIGHT + DIALOG_SHADOW_WIDTH);
+				std::max(old_x, x_) + width_ +
+					DIALOG_BORDER_WIDTH + DIALOG_SHADOW_WIDTH,
+				std::max(old_y, y_) + height_ +
+					DIALOG_BORDER_HEIGHT + DIALOG_SHADOW_WIDTH);
 		}
 	} else {
 		// Dragging a tabbed frame.
@@ -384,7 +413,7 @@ void Window::DroppedAt(int screen_x, int screen_y) {
 	}
 }
 
-bool Window::MouseButtonEvent(int screen_x, int screen_y,
+bool Window::MouseEvent(int screen_x, int screen_y,
 	MouseButton button,
 		bool is_button_down) {
 	if(x_ >= screen_x || y_ >= screen_y ||
@@ -400,6 +429,9 @@ bool Window::MouseButtonEvent(int screen_x, int screen_y,
 			return false;
 		}
 
+		// We're over the title and not the contents.
+		MouseNotHoveringOverWindowContents();
+
 		if (button == MouseButton::Left && is_button_down) {
 			if (IsFocused() && screen_x >=
 				x_ + title_width_ - 1 - WINDOW_TITLE_WIDTH_PADDING) {
@@ -411,31 +443,60 @@ bool Window::MouseButtonEvent(int screen_x, int screen_y,
 			dragging_window = this;
 			dragging_offset_x = screen_x - x_;
 			dragging_offset_y = screen_y - y_;
-
-
-			// TODO: Test if we closed the window.
 		}
 	} else {
 		// Test if we're clicking in the window's contents.
 		int local_x = screen_x - x_ - 1;
 		int local_y = screen_y - y_ - WINDOW_TITLE_HEIGHT - 2;
 		if (local_x >= 0 && local_y >= 0 &&
-			local_x < width_ && local_y < height_ &&
-			mouse_listener_) {
-			// Let the mouse listener know they were clicked.
-			MouseListener::OnMouseClickMessage message;
-			message.SetButton(button);
-			message.SetX(local_x);
-			message.SetY(local_y);
-			message.SetWasPressedDown(is_button_down);
-			mouse_listener_.SendOnMouseClick(message);
+			local_x < width_ && local_y < height_) {
+			// We're over the contents.
+			if (hovered_window != this) {
+				// We just entered this window.
+				if (hovered_window != nullptr &&
+					hovered_window->mouse_listener_) {
+					// Let the old window we were hovering over know the mouse has
+					// left the premises.
+					hovered_window->mouse_listener_.SendOnMouseLeave(
+						MouseListener::OnMouseLeaveMessage());
+				}
+				hovered_window = this;
+				if (window_listener_) {
+					// Let our window know the mouse has entered the premises.
+					mouse_listener_.SendOnMouseEnter(
+						MouseListener::OnMouseEnterMessage());
+				}
+			}
+
+			if (mouse_listener_) {
+				if (button == MouseButton::Unknown) {
+					// We were hovered over.
+					MouseListener::OnMouseHoverMessage message;
+					message.SetX(local_x);
+					message.SetY(local_y);
+					mouse_listener_.SendOnMouseHover(message);
+				} else {
+					// We were clicked.
+					MouseListener::OnMouseClickMessage message;
+					message.SetButton(button);
+					message.SetX(local_x);
+					message.SetY(local_y);
+					message.SetWasPressedDown(is_button_down);
+					mouse_listener_.SendOnMouseClick(message);
+				}
+			}
+		} else {
+			// We're over the frame but not the contents.
+			MouseNotHoveringOverWindowContents();
 		}
 	}
 
-	// We're in focus!
-	Focus();
+	if (button != MouseButton::Unknown) {
+		// We're in focus!
+		Focus();
+	}
 
-	// Handle mouse down in this window.
+	// Handle mouse in this window.
 	return true;
 }
 
@@ -463,52 +524,10 @@ void Window::Draw(int min_x, int min_y, int max_x, int max_y) {
 		return;
 	}
 
-	int x = x_;
-	int y = y_;
-
-	/* draw the left border */
-	DrawYLine(x, y, WINDOW_TITLE_HEIGHT + height_ + 3, DIALOG_BORDER_COLOUR, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-
-	/* draw the borders around the top frame */
-	DrawXLine(x, y, title_width_ + 2, DIALOG_BORDER_COLOUR, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-	DrawYLine(x + title_width_ + 1, y, WINDOW_TITLE_HEIGHT + 1, DIALOG_BORDER_COLOUR,
-		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-
-	/* draw shadows */
-	DrawYLineAlpha(x + title_width_ + 2, y + 1, WINDOW_TITLE_HEIGHT, DIALOG_SHADOW_0,
-		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-	DrawYLineAlpha(x + title_width_ + 3, y + 2, WINDOW_TITLE_HEIGHT - 1, DIALOG_SHADOW_1,
-		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-
-	/* fill in the colour behind it */
-	DrawHeaderBackground(x + 1, y + 1, title_width_,
-		focused_window==this? FOCUSED_WINDOW_COLOUR : UNFOCUSED_WINDOW_COLOUR);
-
-	/* write the title */
-	window_title_font->DrawString(x + 2, y + 3, title_, WINDOW_TITLE_TEXT_COLOUR,
-		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-
-	/* draw the close button */
-	if(focused_window == this) {
-		window_title_font->DrawString(x + title_width_ - 8, y + 3, "X", WINDOW_CLOSE_BUTTON_COLOUR,
-			GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-	}
-
-	y += WINDOW_TITLE_HEIGHT + 1;
-
-	/* draw the rest of the borders */
-	DrawXLine(x + 1, y, width_, DIALOG_BORDER_COLOUR, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-	DrawXLine(x + 1, y + height_ + 1, width_, DIALOG_BORDER_COLOUR, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-	DrawYLine(x + width_ + 1, y, height_ + 2, DIALOG_BORDER_COLOUR, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-
-	/* draw shadows */
-	DrawXLineAlpha(x + 2, y + height_ + 2, width_ + 1, DIALOG_SHADOW_0, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-	DrawXLineAlpha(x + 3, y + height_ + 3, width_ + 1, DIALOG_SHADOW_1, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-	DrawYLineAlpha(x + width_ + 2, y + 1, height_ + 1, DIALOG_SHADOW_0, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-	DrawYLineAlpha(x + width_ + 3, y + 2, height_ + 1, DIALOG_SHADOW_1, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-			
-	/* draw the contents */
-	DrawWindowContents(x + 1, y + 1, min_x, min_y, max_x, max_y);
+	DrawDecorations(min_x, min_y, max_x, max_y);
+	// Draw the contents of the window.
+	DrawWindowContents(x_ + 1, y_ + WINDOW_TITLE_HEIGHT + 2, min_x, min_y, max_x,
+		max_y);
 }
 
 void Window::InvalidateDialogAndTitle() {
@@ -519,27 +538,98 @@ void Window::InvalidateDialogAndTitle() {
 
 void Window::DrawHeaderBackground(int x, int y, int width, uint32 color) {
 	uint32 outer_line = color - 0x10101000;
-	DrawXLine(x, y, width, outer_line, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-	FillRectangle(x, y + 1, width + x, WINDOW_TITLE_HEIGHT + y - 1, color, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-	DrawXLine(x, y + WINDOW_TITLE_HEIGHT - 1 , width, outer_line, GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+	DrawXLine(x, y, width, outer_line, GetWindowManagerTextureData(),
+		GetScreenWidth(), GetScreenHeight());
+	FillRectangle(x, y + 1, width + x, WINDOW_TITLE_HEIGHT + y - 1, color,
+		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+	DrawXLine(x, y + WINDOW_TITLE_HEIGHT - 1 , width, outer_line,
+		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
 }
 
-void Window::DrawWindowContents(int x, int y, int min_x, int min_y, int max_x, int max_y) {
+
+void Window::DrawDecorations(int min_x, int min_y, int max_x, int max_y) {
+/*	if (min_x >= x_ + 1 && min_y >= y_ + WINDOW_TITLE_HEIGHT + 2 &&
+		max_x <= x_ + width_ + 1 &&
+		max_y <= y_ + height_ + WINDOW_TITLE_HEIGHT + 2) {
+		// The draw region only included the window's contents, so we can skip
+		// drawing the window's frame.
+		return;
+	}*/
+
+	int x = x_;
+	int y = y_;
+
+	/* draw the left border */
+	DrawYLine(x, y, WINDOW_TITLE_HEIGHT + height_ + 3, DIALOG_BORDER_COLOUR,
+		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+
+	// Is the header in our draw region?
+//	if (max_x > x_ + 1 && max_y > y_ + 1 &&
+//		min_x <= x_ + title_width_ + 2 &&
+//		min_y <= y_ + WINDOW_TITLE_HEIGHT + 2) {
+		/* draw the borders around the top frame */
+		DrawXLine(x, y, title_width_ + 2, DIALOG_BORDER_COLOUR,
+			GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+		DrawYLine(x + title_width_ + 1, y, WINDOW_TITLE_HEIGHT + 1,
+			DIALOG_BORDER_COLOUR, GetWindowManagerTextureData(),
+			GetScreenWidth(), GetScreenHeight());
+
+		/* fill in the colour behind it */
+		DrawHeaderBackground(x + 1, y + 1, title_width_,
+			focused_window==this? FOCUSED_WINDOW_COLOUR : UNFOCUSED_WINDOW_COLOUR);
+
+		/* write the title */
+		window_title_font->DrawString(x + 2, y + 3, title_,
+			WINDOW_TITLE_TEXT_COLOUR, GetWindowManagerTextureData(),
+			GetScreenWidth(), GetScreenHeight());
+
+		/* draw the close button */
+		if(focused_window == this) {
+			window_title_font->DrawString(x + title_width_ - 8, y + 3, "X",
+				WINDOW_CLOSE_BUTTON_COLOUR, GetWindowManagerTextureData(),
+				GetScreenWidth(), GetScreenHeight());
+		}
+
+		CopyTexture(std::max(x_, min_x), std::max(y, min_y),
+			std::min(x_ + title_width_ + 2, max_x),
+			std::min(y + WINDOW_TITLE_HEIGHT + 1, max_y),
+			GetWindowManagerTextureId(),
+			std::max(x_, min_x), std::max(y, min_y));
+//	}
+
+	y += WINDOW_TITLE_HEIGHT + 1;
+
+	/* draw the rest of the borders */
+	DrawXLine(x + 1, y, width_, DIALOG_BORDER_COLOUR,
+		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+	DrawXLine(x + 1, y + height_ + 1, width_, DIALOG_BORDER_COLOUR,
+		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+	DrawYLine(x + width_ + 1, y, height_ + 2, DIALOG_BORDER_COLOUR,
+		GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+
+	CopyTexture(std::max(x_, min_x), std::max(y, min_y),
+		std::min(x_ + width_ + 2, max_x), std::min(y + height_ + 2, max_y),
+		GetWindowManagerTextureId(),
+		std::max(x_, min_x), std::max(y, min_y));
+
+}
+
+void Window::DrawWindowContents(
+	int x, int y, int min_x, int min_y, int max_x, int max_y) {
 	int draw_min_x = std::max(x, min_x);
 	int draw_min_y = std::max(y, min_y);
 	int draw_max_x = std::min(x + width_, max_x);
 	int draw_max_y = std::min(y + height_, max_y);
-	FillRectangle(draw_min_x, draw_min_y,
-		draw_max_x, draw_max_y,
-		fill_color_,
-		GetWindowManagerTextureData(),
-		GetScreenWidth(), GetScreenHeight());
+
+	DrawSolidColor(draw_min_x, draw_min_y, draw_max_x, draw_max_y,
+		fill_color_);
 }
 
 void InitializeWindows() {
 	dragging_window = nullptr;
 	focused_window = nullptr;
 	first_dialog = nullptr;
+	hovered_window = nullptr;
 	window_title_font = Font::LoadFont(FontFace::DejaVuSans);
 }
 

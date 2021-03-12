@@ -93,7 +93,22 @@ public:
 				return;
 			}
 
-			// TODO: Handle enter/leaving/hovering.
+			// Test if any of the dialogs (from front to back) can handle this
+			// click.
+			if (Window::ForEachFrontToBackDialog([&](Window& window) {
+					return window.MouseEvent(mouse_x, mouse_y,
+						MouseButton::Unknown, false);
+				}))
+				return;
+
+			// Send the click to the frames.
+			Frame* root_frame = Frame::GetRootFrame();
+			if (root_frame) {
+				root_frame->MouseEvent(mouse_x, mouse_y,
+					MouseButton::Unknown, false);
+			} else {
+				Window::MouseNotHoveringOverWindowContents();
+			}
 		}
 	}
 
@@ -122,16 +137,19 @@ public:
 		// Test if any of the dialogs (from front to back) can handle this
 		// click.
 		if (Window::ForEachFrontToBackDialog([&](Window& window) {
-				return window.MouseButtonEvent(mouse_x, mouse_y,
+				return window.MouseEvent(mouse_x, mouse_y,
 					message.GetButton(), message.GetIsPressedDown());
 			}))
 			return;
 
 		// Send the click to the frames.
 		Frame* root_frame = Frame::GetRootFrame();
-		if (root_frame)
-			root_frame->MouseButtonEvent(mouse_x, mouse_y,
+		if (root_frame) {
+			root_frame->MouseEvent(mouse_x, mouse_y,
 				message.GetButton(), message.GetIsPressedDown());
+		} else {
+			Window::MouseNotHoveringOverWindowContents();
+		}
 	}
 };
 
@@ -178,6 +196,21 @@ int GetMouseY() {
 	return mouse_y;
 }
 
+
+void PrepMouseForDrawing(int min_x, int min_y, int max_x, int max_y) {
+	if (min_x >= mouse_x + kMousePointerWidth ||
+		min_y >= mouse_y + kMousePointerHeight ||
+		max_x <= mouse_x || max_y <= mouse_y) {
+		// The mouse is outside of the draw area.
+		return;
+	}
+
+	CopySectionOfScreenIntoWindowManagersTexture(
+		std::max(mouse_x, min_x), std::max(mouse_y, min_y),
+		std::min(mouse_x + kMousePointerWidth, max_x),
+		std::min(mouse_y + kMousePointerHeight, max_y));
+}
+
 void DrawMouse(
 	Permebuf<GraphicsDriver::RunCommandsMessage>& commands,
 	PermebufListOfOneOfs<GraphicsCommand>& last_graphics_command,
@@ -187,6 +220,16 @@ void DrawMouse(
 		max_x <= mouse_x || max_y <= mouse_y) {
 		// The mouse is outside of the draw area.
 		return;
+	}
+
+	if (!last_graphics_command.IsValid()) {
+		// First graphics command. Set the window manager's texture as
+		// the destination texture.
+		last_graphics_command = commands->MutableCommands();
+		auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
+		last_graphics_command.Set(command_one_of);
+		command_one_of.MutableSetDestinationTexture()
+			.SetTexture(GetWindowManagerTextureId());
 	}
 
 	// Set the mouse as the source texture.

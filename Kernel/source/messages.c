@@ -171,7 +171,9 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
 			FindFreePageRange(receiver_process->pml4, size_in_pages);
 
 		#if DEBUG
-			PrintString("Moving pages - Source address: ");
+			PrintString("Moving ");
+			PrintNumber(size_in_pages);
+			PrintString(" pages - Source address: ");
 			PrintHex(source_virtual_address);
 			PrintString(" Destination address: ");
 			PrintHex(destination_virtual_address);

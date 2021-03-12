@@ -243,10 +243,18 @@ T PermebufList<T>::InsertAfter() const {
 		return T(buffer_, 0);
 	}
 
-	size_t next = buffer_->ReadPointer(offset_);
 	T new_item = T::Allocate(buffer_);
 	buffer_->WritePointer(offset_, new_item.Address());
 	return new_item;
+}
+
+template <class T>
+void PermebufList<T>::SetNext(T next) {
+	if (!IsValid()) {
+		return;
+	}
+
+	buffer_->WritePointer(offset_, next.Address());
 }
 
 template <class T>

@@ -16,7 +16,7 @@
 
 #include "types.h"
 
-constexpr uint32 kBackgroundColor = (0 << 16) + (78 << 16) + (152 << 8);
+constexpr uint32 kBackgroundColor = (78 << 16) + (152 << 8) + 0xFF;
 
 #define WINDOW_TITLE_HEIGHT 12
 #define WINDOW_BORDER_COLOUR 0x000000FF
@@ -44,8 +44,7 @@ constexpr uint32 kBackgroundColor = (0 << 16) + (78 << 16) + (152 << 8);
 #define SPLIT_FRAME_COLOUR 0xC3C3C3FF
 
 #define SPLIT_BORDER_WIDTH 2
-#define SPLIT_BORDER_COL_0 ((212 << 24) + (212 << 16) + (212 << 8))
-#define SPLIT_BORDER_COL_1 ((199 << 24) + (199 << 16) + (199 << 8))
+#define SPLIT_BORDER_COLOR ((212 << 24) + (212 << 16) + (212 << 8))
 
 #define DIALOG_BORDER_COLOUR 0x00000000
 #define DIALOG_SHADOW_0 (40 | DIALOG_BORDER_COLOUR)
@@ -53,5 +52,23 @@ constexpr uint32 kBackgroundColor = (0 << 16) + (78 << 16) + (152 << 8);
 #define DIALOG_SHADOW_WIDTH 2
 
 void InitializeCompositor();
+
+// Invalidates a section of the screen.
 void InvalidateScreen(int min_x, int min_y, int max_x, int max_y);
+
+// Draws any invalidated sections of the screen.
 void DrawScreen();
+
+// Drawing commmands for composing the screen, for use inside of DrawScreen()
+// and its subcallees:
+
+// Draws a solid color on the screen.
+void DrawSolidColor(int min_x, int min_y, int max_x, int max_y,
+	uint32 fill_color);
+
+// Copies a part of a texture onto the screen.
+void CopyTexture(int min_x, int min_y, int max_x, int max_y, size_t texture_id,
+	int texture_x, int texture_y);
+
+void CopySectionOfScreenIntoWindowManagersTexture(int min_x, int min_y,
+	int max_x, int max_y);

@@ -23,6 +23,8 @@
 namespace perception {
 namespace {
 
+constexpr int kNumberOfStackPages = 4;
+
 // The currently executing fiber.
 /*thread_local*/ Fiber* currently_executing_fiber = nullptr;
 
@@ -60,7 +62,9 @@ void Sleep() {
 Fiber::Fiber(bool custom_stack) : 
 	is_scheduled_to_run_(false) {
 	if (custom_stack) {
-		bottom_of_stack_ = (size_t*)AllocateMemoryPages(1);
+		bottom_of_stack_ = (size_t*)AllocateMemoryPages(kNumberOfStackPages);
+		std::cout << "Created fiber with stack: " << std::hex << (size_t)bottom_of_stack_
+			<< std::dec << std::endl;
 	} else {
 		bottom_of_stack_ = nullptr;
 	}
@@ -74,7 +78,8 @@ Fiber* Fiber::Create(const std::function<void()>& function) {
 	fiber->root_function_ = function;
 
 	// Point to the top of the stack, just under the red-zone.
-	size_t* top_of_stack = &fiber->bottom_of_stack_[kPageSize / 8 - 128/8];
+	size_t* top_of_stack = &fiber->bottom_of_stack_[
+		kPageSize * kNumberOfStackPages / 8 - 128/8];
 
 	// Write the pointer to the fiber to the stack.
 	top_of_stack--;
@@ -99,7 +104,8 @@ Fiber* Fiber::Create(const MessageHandler& message_handler) {
 	Fiber* fiber = Create();
 
 	// Point to the top of the stack, just under the red-zone.
-	size_t* top_of_stack = &fiber->bottom_of_stack_[kPageSize / 8 - 128/8];
+	size_t* top_of_stack = &fiber->bottom_of_stack_[
+		kPageSize * kNumberOfStackPages / 8 - 128/8];
 
 	// Write the pointer to the message handler to the stack.
 	top_of_stack--;
@@ -185,6 +191,16 @@ void Fiber::Release(Fiber* fiber) {
 	if (fiber->is_scheduled_to_run_) {
 		std::cout << "Something went wrong. Fiber::Release is being called on "
 			<< "a fiber that is scheduled to run." << std::endl;
+
+		volatile int i = 0;
+		std::cout << 4 / i << std::endl;
+	}
+	if (fiber->bottom_of_stack_ == nullptr) {
+		std::cout << "Something went wrong. Fiber::Release is being called on "
+			<< "the default fiber." << std::endl;
+
+		volatile int i = 0;
+		std::cout << 4 / i << std::endl;
 	}
 	// Release any associated closures.
 	fiber->root_function_ = std::function<void()>();

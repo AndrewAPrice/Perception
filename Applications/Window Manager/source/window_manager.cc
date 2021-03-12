@@ -64,7 +64,7 @@ void WindowManager::HandleSetWindowTexture(
 	std::cout << "Implement WindowManager::HandleSetWindowTexture" << std::endl;
 }
 
-void WindowManager::HandleWindowTitle(
+void WindowManager::HandleSetWindowTitle(
 	::perception::ProcessId sender,
 	Permebuf<WindowManager::WM::SetWindowTitleMessage> message) {
 	std::cout << "Implement WindowManager::HandleWindowTitle" << std::endl;

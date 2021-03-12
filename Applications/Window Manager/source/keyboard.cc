@@ -45,5 +45,6 @@ void InitializeKeyboard() {
 }
 
 const KeyboardDriver& GetKeyboardDriver() {
+	std::cout << "keyboard_driver is " << keyboard_driver.GetProcessId() << ":" << keyboard_driver.GetMessageId() << std::endl;
 	return keyboard_driver;
 }

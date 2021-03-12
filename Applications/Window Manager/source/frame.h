@@ -42,7 +42,7 @@ public:
 
 	static void AddWindowToLastFocusedFrame(Window& window);
 
-	void MouseButtonEvent(int screen_x, int screen_y,
+	void MouseEvent(int screen_x, int screen_y,
 		::permebuf::perception::devices::MouseButton button,
 		bool is_button_down);
 

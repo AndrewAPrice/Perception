@@ -16,6 +16,8 @@
 
 #include "perception/messages.h"
 
+#include <iostream>
+
 namespace perception {
 namespace {
 constexpr int kMaxServiceNameLength = 80;
@@ -143,7 +145,7 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
 	size_t pid_1 = _perception_services__syscall_rbp;
 #else
 	__asm__ __volatile__ ("syscall\n":
-		"=r"(number_of_services), "=r"(message_id_1) :
+		"=r"(number_of_services), "=r"(message_id_1), "=r"(pid_1) :
 		"r"(syscall), "r"(min_pid), "r"(min_message_id), "r"(name_1), "r"(name_2),
 		"r"(name_3), "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7),
 		"r"(name_8), "r"(name_9), "r"(name_10):

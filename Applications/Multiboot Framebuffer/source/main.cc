@@ -25,6 +25,8 @@
 #include <map>
 #include <set>
 
+// #define DEBUG
+
 using ::perception::Fiber;
 using ::perception::GetMultibootFramebufferDetails;
 using ::perception::kPageSize;
@@ -112,10 +114,16 @@ public:
 		Permebuf<GraphicsDriver::RunCommandsMessage> commands) override {
 		RenderState render_state;
 
+#ifdef DEBUG
+		std::cout << "Start commands" << std::endl;
+#endif
 		// Run each of the commands.
 		for (GraphicsCommand command : commands->GetCommands()) {
 			RunCommand(sender, command, render_state);
 		}
+#ifdef DEBUG
+		std::cout << "End commands" << std::endl;
+#endif
 	}
 
 	void HandleRunCommandsAndWait(
@@ -263,12 +271,20 @@ private:
 		RenderState& render_state) {
 		switch (graphics_command.GetOption()) {
 			case GraphicsCommand::Options::SetDestinationTexture:
+#ifdef DEBUG
+				std::cout << "Set destination texture to " << 
+					graphics_command.GetSetDestinationTexture().GetTexture() << std::endl;
+#endif
 				SetDestinationTexture(
 					sender,
 					graphics_command.GetSetDestinationTexture().GetTexture(),
 					render_state);
 				break;
 			case GraphicsCommand::Options::SetSourceTexture:
+#ifdef DEBUG
+				std::cout << "Set source texture to " << 
+					graphics_command.GetSetSourceTexture().GetTexture() << std::endl;
+#endif
 				SetSourceTexture(
 					graphics_command.GetSetSourceTexture().GetTexture(),
 					render_state);
@@ -276,14 +292,15 @@ private:
 			case GraphicsCommand::Options::FillRectangle: {
 				GraphicsCommand::FillRectangle command =
 					graphics_command.GetFillRectangle();
-					FillRectangle(
-						command.GetLeft(),
-						command.GetTop(),
-						command.GetRight(),
-						command.GetBottom(),
-						command.GetColor(),
-						render_state
-					);
+
+				FillRectangle(
+					command.GetLeft(),
+					command.GetTop(),
+					command.GetRight(),
+					command.GetBottom(),
+					command.GetColor(),
+					render_state
+				);
 				break;
 			}
 			case GraphicsCommand::Options::CopyEntireTexture: {
@@ -345,6 +362,7 @@ private:
 			case GraphicsCommand::Options::CopyPartOfATexture: {
 				GraphicsCommand::CopyPartOfATexture command =
 					graphics_command.GetCopyPartOfATexture();
+
 				BitBlt(sender,
 					render_state,
 					command.GetLeftSource(),
@@ -427,6 +445,15 @@ private:
 		uint32 width_to_copy,
 		uint32 height_to_copy,
 		bool alpha_blend) {
+#ifdef DEBUG
+		std::cout << "Copy texture " <<
+			command.GetLeftDestination() << "," <<
+			command.GetTopDestination() << " -> " <<
+			(command.GetWidth() + command.GetLeftDestination()) << "," <<
+			(command.GetHeight() + command.GetTopDestination()) << " @ " <<
+			command.GetLeftSource() << "," <<
+			command.GetTopSource() << std::endl;
+#endif
 		if (render_state.source_texture == nullptr ||
 			render_state.destination_texture == nullptr) {
 			// Nowhere to copy to/from.
@@ -448,7 +475,7 @@ private:
 		
 			// Call the BitBlt function based on pixel depth of the
 			// framebuffer. The ordering is the most likely in my opinion)
-			// pixel depths first. We branch on screen_bitss_per_pixel_ then
+			// pixel depths first. We branch on screen_bits_per_pixel_ then
 			// call BitBltToTexture with the same value because we want the
 			// compiler to inline BitBltToTexture with the pixel depth constant
 			// folded.
@@ -523,7 +550,6 @@ private:
 			} else {
 				// Unsupported bits per pixel for the screen.
 			}
-
 		} else {
 			// We're writing to another texture.
 			BitBltToTexture(
@@ -688,39 +714,179 @@ private:
 		uint32 bottom,
 		uint32 color,
 		RenderState& render_state) {
+#ifdef DEBUG
+		std::cout << "Fill rectangle " <<
+			command.GetLeft() << "," <<
+			command.GetTop() << " -> " <<
+			command.GetRight() << "," <<
+			command.GetBottom() << " with " <<
+			std::hex << command.GetColor() << std::dec << std::endl;
+#endif
 		uint8* color_channels = (uint8*)&color;
 		if (color_channels[0] == 0) {
 			// Completely transparent, nothing to draw.
 			return;
 		}
 
-		if (render_state.destination_texture == nullptr ||
-			render_state.destination_texture->owner == 0) {
-			// No destination texture or we're trying to fill to
-			// the framebuffer.
+		if (render_state.destination_texture == nullptr) {
+			// No destination texture.
 			return;
 		}
 
-		uint8* destination = (uint8*)**render_state.destination_texture->shared_memory;
-		uint32 destination_width = render_state.destination_texture->width;
-		uint32 destination_height = render_state.destination_texture->height;
+		if (render_state.destination_texture->owner == 0) {
+			// Filling to the frame buffer.
+			// Call the FillRectangle function based on pixel depth of the
+			// framebuffer. The ordering is the most likely in my opinion)
+			// pixel depths first. We branch on screen_bits_per_pixel_ then
+			// call FillRectangle with the same value because we want the
+			// compiler to inline FillRectangle with the pixel depth constant
+			// folded.
+			if (screen_bits_per_pixel_ == 24) {
+				FillRectangle(
+					left, right, top, bottom,
+					(uint8*)framebuffer_,
+					screen_width_,
+					screen_height_,
+					screen_pitch_,
+					/*destination_bpp=*/24,
+					color,
+					/*alpha_blend=*/false);
+			} else if (screen_bits_per_pixel_ == 32) {
+				FillRectangle(
+					left, right, top, bottom,
+					(uint8*)framebuffer_,
+					screen_width_,
+					screen_height_,
+					screen_pitch_,
+					/*destination_bpp=*/32,
+					color,
+					/*alpha_blend=*/false);
+			} else if (screen_bits_per_pixel_ == 16) {
+				FillRectangle(
+					left, right, top, bottom,
+					(uint8*)framebuffer_,
+					screen_width_,
+					screen_height_,
+					screen_pitch_,
+					/*destination_bpp=*/16,
+					color,
+					/*alpha_blend=*/false);
+			}  if (screen_bits_per_pixel_ == 15) {
+				FillRectangle(
+					left, right, top, bottom,
+					(uint8*)framebuffer_,
+					screen_width_,
+					screen_height_,
+					screen_pitch_,
+					/*destination_bpp=*/15,
+					color,
+					/*alpha_blend=*/false);
+			} else {
+				// Unsupported bits per pixel for the screen.
+			}
+		} else {
+			// Filling another texture.
+			FillRectangle(
+				left, right, top, bottom,
+				(uint8*)**render_state.destination_texture->shared_memory,
+				render_state.destination_texture->width,
+				render_state.destination_texture->height,
+				/*destination_pitch=*/
+				render_state.destination_texture->width * 4,
+				/*destination_bpp=*/32,
+				color,
+				/*alpha_blend=*/true);
+		}
+	}
+
+	inline void FillRectangle(
+		uint32 left, uint32 right, uint32 top, uint32 bottom,
+		uint8* destination,
+		uint32 destination_width,
+		uint32 destination_height,
+		uint32 destination_pitch,
+		uint32 destination_bpp,
+		uint32 color,
+		bool alpha_blend) {
+		uint8* color_channels = (uint8*)&color;
 
 		left = std::max((uint32)0, left);
 		top = std::max((uint32)0, top);
 		right = std::min(right, destination_width);
 		bottom = std::min(bottom, destination_height);
 
-		if (color_channels[0] == 0xFF) {
+		if (color_channels[0] == 0xFF || !alpha_blend) {
 			// Completely solid color.
-			int indx = (destination_width * top + left) * 4;
-			int _x, _y;
-			for(_y = top; _y < bottom; _y++) {
-				int next_indx = indx + destination_width * 4;
-				for(_x = left; _x < right; _x++) {
-					*(uint32*)&destination[indx] = color;
-					indx += 4;
+			int bytes_per_pixel;
+			switch (destination_bpp) {
+				case 15:
+				case 16:
+					bytes_per_pixel = 2;
+					break;
+				case 24:
+					bytes_per_pixel = 3;
+					break;
+				case 32:
+					bytes_per_pixel = 4;
+					break;
+			}
+
+			uint8* destination_copy_start =
+				&destination[top * destination_pitch +
+					left * bytes_per_pixel];
+			// Copy this row.
+			for (int y = top; y < bottom; y++) {
+				destination = destination_copy_start;
+
+				for (int x = left; x < right; x++) {
+					switch (destination_bpp) {
+						case 32:
+							*(uint32*)destination = color;
+							destination += 4;
+							break;
+						case 24:
+							destination[0] = color_channels[1];
+							destination[1] = color_channels[2];
+							destination[2] = color_channels[3];
+							destination += 3;
+							break;
+						case 16: {
+							uint16 dither_val = (uint16)kDitheringTable[
+								x % kDitheringTableWidth +
+								(y % kDitheringTableWidth) * kDitheringTableWidth];
+							// Trim colors down to 5:6:5-bits.
+							// Beyer color table is 6-bit (0 to 63).
+							// 5-bit color has 32 values (increments of 8).
+							// 6-bit color has 64 values (increments of 4).
+							// We divide the dither value to be in the range of
+							// the color into the next increment.
+							uint16 red = std::min(((uint16)color_channels[1] + dither_val / 8) >> (8-5), 31);
+							uint16 green = std::min(((uint16)color_channels[2] + dither_val / 4) >> (8-6), 63);
+							uint16 blue = std::min(((uint16)color_channels[3] + dither_val / 8) >> (8-5), 31);
+							*(uint16*)destination =
+								(blue << 11) | (green << 5) | red;
+							destination += 2;
+							break;
+						}
+						case 15: {
+							uint16 dither_val = (uint16)kDitheringTable[
+								x % kDitheringTableWidth +
+								(y % kDitheringTableWidth) * kDitheringTableWidth];
+							// Trim colors down to 5:5:5-bits.
+							uint16 red = std::min(((uint16)color_channels[1] + dither_val / 8) >> (8-5), 31);
+							uint16 green = std::min(((uint16)color_channels[2] + dither_val / 8) >> (8-5), 31);
+							uint16 blue = std::min(((uint16)color_channels[3] + dither_val / 8) >> (8-5), 31);
+
+							*(uint16*)destination =
+								(blue << 10) | (green << 5) | red;
+							destination += 2;
+							break;
+						}
+					}
 				}
-				indx = next_indx;
+
+				// More the start pointers to the next row.
+				destination_copy_start += destination_pitch;
 			}
 		} else {
 			// Alpha blend.

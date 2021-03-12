@@ -85,7 +85,7 @@ public:
 
 	void HandleOnMouseScroll(
 		ProcessId, const MouseListener::OnMouseScrollMessage& message) override {
-		std::cout << title_ << " mouse scroled" << message.GetDelta() << std::endl;
+		std::cout << title_ << " mouse scrolled" << message.GetDelta() << std::endl;
 	}
 
 	void HandleOnMouseButton(
@@ -99,6 +99,16 @@ public:
 		std::cout << title_ << " - mouse clicked - button: " << (int)message.GetButton() <<
 			" down: " << message.GetWasPressedDown() << " x: " << message.GetX() <<
 			" y: " << message.GetY() << std::endl;
+	}
+
+	void HandleOnMouseEnter(
+		ProcessId, const MouseListener::OnMouseEnterMessage& message) override {
+		std::cout << title_ << " - mouse entered." << std::endl;
+	}
+
+	void HandleOnMouseLeave(
+		ProcessId, const MouseListener::OnMouseLeaveMessage& message) override {
+		std::cout << title_ << " - mouse left." << std::endl;
 	}
 
 	void HandleOnMouseHover(

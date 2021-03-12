@@ -115,23 +115,30 @@ Frame* Frame::GetDropFrame(
 		// Is this already a split frame?
 		if(current_frame->is_split_frame_) {
 			if(current_frame->SplitFrame.is_split_vertically_) {
-				if(mouse_y < current_frame->y_ + current_frame->SplitFrame.split_point_)
+				if(mouse_y < current_frame->y_ +
+					current_frame->SplitFrame.split_point_)
 					current_frame = current_frame->SplitFrame.child_a_;
-				else if(mouse_y > current_frame->y_ + current_frame->SplitFrame.split_point_)
+				else if(mouse_y > current_frame->y_ +
+					current_frame->SplitFrame.split_point_)
 					current_frame = current_frame->SplitFrame.child_b_;
 				else
 					return nullptr; // On the border
 
 			} else {
-				// Could we deal with being split vertically? will our title fit in the new frame?
-				if(mouse_x < current_frame->x_ + current_frame->SplitFrame.split_point_) {
+				// Could we deal with being split vertically? will our title fit
+				// in the new frame?
+				if(mouse_x < current_frame->x_ +
+					current_frame->SplitFrame.split_point_) {
 					// Can our title fit in this frame?
-					if(window.title_width_ + 2 < current_frame->SplitFrame.child_a_->width_)
+					if(window.title_width_ + 2 <
+						current_frame->SplitFrame.child_a_->width_)
 						current_frame = current_frame->SplitFrame.child_a_;
 					else
 						return nullptr;
-				} else if(mouse_x > current_frame->y_ + current_frame->SplitFrame.split_point_) {
-					if(window.title_width_ + 2 < current_frame->SplitFrame.child_b_->width_)
+				} else if(mouse_x > current_frame->y_ +
+					current_frame->SplitFrame.split_point_) {
+					if(window.title_width_ + 2 < 
+						current_frame->SplitFrame.child_b_->width_)
 						current_frame = current_frame->SplitFrame.child_b_;
 					else
 						return nullptr;
@@ -148,7 +155,8 @@ Frame* Frame::GetDropFrame(
 
 				// Split the top.
 				if(mouse_x > q_width + current_frame->x_ &&
-					mouse_x < current_frame->x_ + current_frame->width_ - q_width &&
+					mouse_x < current_frame->x_ +
+						current_frame->width_ -q_width &&
 					mouse_y < current_frame->y_ + q_height &&
 					current_frame->height_ > WINDOW_MINIMUM_HEIGHT) {
 
@@ -162,27 +170,34 @@ Frame* Frame::GetDropFrame(
 
 				// Split the bottom.
 				if(mouse_x > q_width + current_frame->x_ &&
-					mouse_x < current_frame->x_ + current_frame->width_ - q_width &&
-					mouse_y > current_frame->y_ + current_frame->height_ - q_height &&
+					mouse_x < current_frame->x_ +
+						current_frame->width_ - q_width &&
+					mouse_y > current_frame->y_ +
+						current_frame->height_ - q_height &&
 					current_frame->height_ > WINDOW_MINIMUM_HEIGHT) {
 
 					min_x = current_frame->x_;
-					min_y = current_frame->y_ + current_frame->height_ / 2 + SPLIT_BORDER_WIDTH;
+					min_y = current_frame->y_ + current_frame->height_ / 2 +
+						SPLIT_BORDER_WIDTH;
 					max_x = current_frame->x_ + current_frame->width_;
 					max_y = current_frame->y_ + current_frame->height_;
 
 					return current_frame;
 				}
 
-				// Could we deal with being split horizontally? will our title fit in the new frame?
+				// Could we deal with being split horizontally? Will our title
+				// fit in the new frame?
 				bool can_split_horizontally =
-					(window.title_width_ + 2) < current_frame->width_ / 2 - SPLIT_BORDER_WIDTH &&
-					current_frame->LongestWindowTitleWidth() + 2 < current_frame->width_ / 2 - SPLIT_BORDER_WIDTH;
+					(window.title_width_ + 2) < current_frame->width_ / 2 -
+						SPLIT_BORDER_WIDTH &&
+					current_frame->LongestWindowTitleWidth() + 2 <
+						current_frame->width_ / 2 - SPLIT_BORDER_WIDTH;
 
 				if(can_split_horizontally) {
 					// Split the left.
 					if(mouse_y > q_height + current_frame->y_ &&
-						mouse_y < current_frame->y_ + current_frame->height_ - q_height &&
+						mouse_y < current_frame->y_ + current_frame->height_ -
+							q_height &&
 						mouse_x < current_frame->x_ + q_width) {
 					
 						min_x = current_frame->x_;
@@ -194,10 +209,13 @@ Frame* Frame::GetDropFrame(
 
 					// Split the right.
 					if(mouse_y > q_height + current_frame->y_ &&
-						mouse_y < current_frame->y_ + current_frame->height_ - q_height &&
-						mouse_x > current_frame->x_ + current_frame->width_ - q_width) {
+						mouse_y < current_frame->y_ + current_frame->height_ -
+							q_height &&
+						mouse_x > current_frame->x_ + current_frame->width_ -
+							q_width) {
 					
-						min_x = current_frame->x_ + current_frame->width_ / 2 + SPLIT_BORDER_WIDTH;
+						min_x = current_frame->x_ + current_frame->width_ / 2 +
+							SPLIT_BORDER_WIDTH;
 						min_y = current_frame->y_;
 						max_x = current_frame->x_ + current_frame->width_;
 						max_y = current_frame->y_ + current_frame->height_;
@@ -499,8 +517,9 @@ void Frame::UpdateFrame(bool resized) {
 		if(resized) {
 			/* update the split point */
 			if(SplitFrame.is_split_vertically_) {
-				int split_point = (int)((float)height_ * SplitFrame.split_percent_);
-				//if(split_point != SplitFrame.split_point) {
+				int split_point = (int)((float)height_ *
+					SplitFrame.split_percent_);
+				// if(split_point != SplitFrame.split_point) {
 					SplitFrame.split_point_ = split_point;
 					SplitFrame.child_a_->x_ = x_;
 					SplitFrame.child_a_->y_ = y_;
@@ -509,13 +528,16 @@ void Frame::UpdateFrame(bool resized) {
 					SplitFrame.child_a_->UpdateFrame(true);
 
 					SplitFrame.child_b_->x_ = x_;
-					SplitFrame.child_b_->y_ = y_ + split_point + SPLIT_BORDER_WIDTH;
+					SplitFrame.child_b_->y_ = y_ + split_point +
+						SPLIT_BORDER_WIDTH;
 					SplitFrame.child_b_->width_ = width_;
-					SplitFrame.child_b_->height_ = height_ - split_point - SPLIT_BORDER_WIDTH;
+					SplitFrame.child_b_->height_ = height_ - split_point -
+						SPLIT_BORDER_WIDTH;
 					SplitFrame.child_b_->UpdateFrame(true);
 				//}
 			} else {
-				int split_point = (int)((float)width_ * SplitFrame.split_percent_);
+				int split_point = (int)((float)width_ *
+					SplitFrame.split_percent_);
 				//if(split_point != SplitFrame.split_point) {
 					SplitFrame.split_point_ = split_point;
 					SplitFrame.child_a_->x_ = x_;
@@ -524,9 +546,11 @@ void Frame::UpdateFrame(bool resized) {
 					SplitFrame.child_a_->height_ = height_;
 					SplitFrame.child_a_->UpdateFrame(true);
 
-					SplitFrame.child_b_->x_ = x_ + split_point + SPLIT_BORDER_WIDTH;
+					SplitFrame.child_b_->x_ = x_ + split_point +
+						SPLIT_BORDER_WIDTH;
 					SplitFrame.child_b_->y_ = y_;
-					SplitFrame.child_b_->width_ = width_ - split_point - SPLIT_BORDER_WIDTH;
+					SplitFrame.child_b_->width_ = width_ - split_point -
+						SPLIT_BORDER_WIDTH;
 					SplitFrame.child_b_->height_ = height_;
 					SplitFrame.child_b_->UpdateFrame(true);		
 				//}
@@ -557,14 +581,18 @@ void Frame::UpdateFrame(bool resized) {
 			return;
 		}
 
-		/* update title height */
+		// Update the title height.
 		size_t old_title_height = DockFrame.title_height_;
-		size_t new_title_height = WINDOW_TITLE_HEIGHT + 1; /* top border and initial row */
-		size_t titles_on_this_line = 1; /* left border */
+		// Top border and initial row.
+		size_t new_title_height = WINDOW_TITLE_HEIGHT + 1;
+		// Left border.
+		size_t titles_on_this_line = 1;
 		struct Window *w = DockFrame.first_window_;
 		while(w) {
-			if(width_ > titles_on_this_line + w->title_width_ + 1)
-				titles_on_this_line += w->title_width_ + 1; /* title and right border */
+			if(width_ > titles_on_this_line + w->title_width_ + 1) {
+				// Title and right border.
+				titles_on_this_line += w->title_width_ + 1;
+			}
 			else {
 				new_title_height += WINDOW_TITLE_HEIGHT + 1;
 				titles_on_this_line = 1;
@@ -575,10 +603,11 @@ void Frame::UpdateFrame(bool resized) {
 
 		new_title_height++; /* bottom border */
 		size_t new_client_height;
-		new_client_height = new_title_height > height_ ? 0 : height_ - new_title_height;
+		new_client_height = new_title_height > height_ ? 0 : height_ -
+			new_title_height;
 
 		if(new_title_height != old_title_height || resized) {
-			/* if the title height has changed, resize each window */
+			// Resize each window if the title height has changed.
 			w = DockFrame.first_window_;
 			while(w) {
 				w->x_ = x_;
@@ -597,7 +626,7 @@ void Frame::UpdateFrame(bool resized) {
 }
 
 void Frame::AddWindow(Window& window) {
-	/* we are a split frame, add us to our largest */
+	// We are a split frame, add us to our largest side.
 	if(is_split_frame_) {
 		if(SplitFrame.split_percent_ > 0.5f)
 			return SplitFrame.child_a_->AddWindow(window);
@@ -605,7 +634,7 @@ void Frame::AddWindow(Window& window) {
 			return SplitFrame.child_b_->AddWindow(window);
 	}
 
-	/* add them to this frame */
+	// Add them to this frame.
 	window.next_ = nullptr;
 
 	if(DockFrame.first_window_) {
@@ -622,7 +651,8 @@ void Frame::AddWindow(Window& window) {
 	DockFrame.focused_window_ = &window;
 	window.frame_ = this;
 
-	UpdateFrame(false); /* updates the frame's title height */
+	// Updates the frame's title height.
+	UpdateFrame(false);
 
 	window.x_ = x_;
 	window.y_ = y_ + DockFrame.title_height_;
@@ -677,7 +707,7 @@ void Frame::AddWindowToLastFocusedFrame(Window& window) {
 }
 
 
-void Frame::MouseButtonEvent(int screen_x, int screen_y,
+void Frame::MouseEvent(int screen_x, int screen_y,
 	::permebuf::perception::devices::MouseButton button,
 	bool is_button_down) {
 	if (is_split_frame_) {
@@ -685,7 +715,7 @@ void Frame::MouseButtonEvent(int screen_x, int screen_y,
 		if (SplitFrame.is_split_vertically_) {
 			if (screen_y < y_ + SplitFrame.split_point_) {
 				// Clicked the top frame.
-				SplitFrame.child_a_->MouseButtonEvent(
+				SplitFrame.child_a_->MouseEvent(
 					screen_x, screen_y, button, is_button_down);
 			}
 			else if (screen_y < y_ + SplitFrame.split_point_ +
@@ -697,16 +727,17 @@ void Frame::MouseButtonEvent(int screen_x, int screen_y,
 					frame_dragging_offset = screen_y - 
 						SplitFrame.split_point_ + SPLIT_BORDER_WIDTH;
 				}
+				Window::MouseNotHoveringOverWindowContents();
 				return;
 			} else {
 				// Clicked the bottom frame.
-				SplitFrame.child_b_->MouseButtonEvent(
+				SplitFrame.child_b_->MouseEvent(
 					screen_x, screen_y, button, is_button_down);
 			}
 		} else {
 			if (screen_x < x_ + SplitFrame.split_point_) {
 				// Clicked the left frame.
-				SplitFrame.child_a_->MouseButtonEvent(
+				SplitFrame.child_a_->MouseEvent(
 					screen_x, screen_y, button, is_button_down);
 			} else if (screen_x < x_ + SplitFrame.split_point_ +
 				SPLIT_BORDER_WIDTH) {
@@ -717,17 +748,21 @@ void Frame::MouseButtonEvent(int screen_x, int screen_y,
 					frame_dragging_offset = screen_x - 
 						SplitFrame.split_point_ + SPLIT_BORDER_WIDTH;
 				}
+				Window::MouseNotHoveringOverWindowContents();
 				return;
 			} else {
 				// Clicked the right frame.
-				SplitFrame.child_b_->MouseButtonEvent(
+				SplitFrame.child_b_->MouseEvent(
 					screen_x, screen_y, button, is_button_down);
 			}
 		}
 	} else {
 		// Dock frame.
 		if (screen_y < y_ + DockFrame.title_height_) {
-			// Clicked the title, see who's title we clicked.
+			// Clicked the title.
+			Window::MouseNotHoveringOverWindowContents();
+
+			// See who's title we clicked.
 			Window* window = DockFrame.first_window_;
 
 			int next_title_y = y_ + WINDOW_TITLE_HEIGHT + 2;
@@ -750,7 +785,7 @@ void Frame::MouseButtonEvent(int screen_x, int screen_y,
 						// Maybe a drag or closing a tab.
 						window->HandleTabClick(screen_x - title_x,
 							title_x, next_title_y - WINDOW_TITLE_HEIGHT - 1);
-					} else {
+					} else if (button != MouseButton::Unknown) {
 						// Focus this tab.
 						window->Focus();
 					}
@@ -763,7 +798,7 @@ void Frame::MouseButtonEvent(int screen_x, int screen_y,
 			}
 		} else {
 			// Clicked the body of the window.
-			(void)DockFrame.focused_window_->MouseButtonEvent(
+			(void)DockFrame.focused_window_->MouseEvent(
 				screen_x, screen_y, button, is_button_down);
 		}
 	}
@@ -777,38 +812,49 @@ void Frame::Draw(int min_x, int min_y, int max_x, int max_y) {
 	}
 
 	if (is_split_frame_) {
-		/* split frame */
+		// We are a split fram, with a middle and two children.
 		if(SplitFrame.is_split_vertically_) {
-			/* draw middle */
-			DrawXLine(x_, y_ + SplitFrame.split_point_, width_, SPLIT_BORDER_COL_0,
-				GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-			DrawXLine(x_, y_ + SplitFrame.split_point_ + 1, width_, SPLIT_BORDER_COL_1,
-				GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+			// We are split vertically.
+			int y = y_ + SplitFrame.split_point_;
+			if (y + 1 >= min_y && y <= max_y) {
+				// The middle bar in the draw region.
+				DrawSolidColor(std::max(x_, min_x),
+					std::max(y, min_y),
+					std::min(x_ + width_, max_x),
+					std::min(y + 2, max_y),
+					SPLIT_BORDER_COLOR);
+			}
 		} else {
-			/* draw middle */
-			DrawYLine(x_ + SplitFrame.split_point_, y_, height_, SPLIT_BORDER_COL_0,
-				GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-			DrawYLine(x_ + SplitFrame.split_point_ + 1, y_, height_, SPLIT_BORDER_COL_1,
-				GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+			// We are split horizontally.
+			int x = x_ + SplitFrame.split_point_;
+			if (x + 1 >= min_x && x <= max_x) {
+				// The middle bar in the draw region.
+				DrawSolidColor(std::max(x, min_x),
+					std::max(y_, min_y),
+					std::min(x + 2, max_x),
+					std::min(y_ + height_, max_y),
+					SPLIT_BORDER_COLOR);
+			}
 		}
 
 		SplitFrame.child_a_->Draw(min_x, min_y, max_x, max_y);
 		SplitFrame.child_b_->Draw(min_x, min_y, max_x, max_y);
 	} else {
-		/* dock frame */
+		// This is a dock frame that contains windows.
 		if(min_y < y_ + DockFrame.title_height_) {
-			/* draw titles */
+			// The title area is within our redraw region.
+		/*	// Draw the background behind the title.
 			FillRectangle(x_, y_, x_ + width_, y_ + DockFrame.title_height_,
-				kBackgroundColor,
-				GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-
+				kBackgroundColor, GetWindowManagerTextureData(),
+				GetScreenWidth(), GetScreenHeight());*/
 
 			int y = y_;
 			int x = x_ + 1;
 
-			/* draw title's left border */
+			// Draw title's left border.
 			DrawYLine(x, y + 1, WINDOW_TITLE_HEIGHT, WINDOW_BORDER_COLOUR,
-				GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+				GetWindowManagerTextureData(), GetScreenWidth(),
+				GetScreenHeight());
 
 			Font* font = GetWindowTitleFont();
 
@@ -817,41 +863,54 @@ void Frame::Draw(int min_x, int min_y, int max_x, int max_y) {
 				if(width_ + x_ <= x + w->title_width_ + 1) {
 					/* draw previous title row's top and bottom border */
 					DrawXLine(x_, y, x - x_, WINDOW_BORDER_COLOUR,
-						GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+						GetWindowManagerTextureData(), GetScreenWidth(),
+						GetScreenHeight());
+
+					CopyTexture(std::max(x_, min_x), std::max(y, min_y),
+						std::min(x, max_x),
+						std::min(y + WINDOW_TITLE_HEIGHT + 2, max_y),
+						GetWindowManagerTextureId(),
+						std::max(x_, min_x), std::max(y, min_y));
 
 					/* move to the next line */
 					y += WINDOW_TITLE_HEIGHT + 1;
 					
 					DrawXLine(x_, y, x - x_, WINDOW_BORDER_COLOUR,
-						GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+						GetWindowManagerTextureData(), GetScreenWidth(),
+						GetScreenHeight());
 
 					x = x_ + 1;
 
 					/* draw header's left border */
-					DrawYLine(x, y + 1, WINDOW_TITLE_HEIGHT, WINDOW_BORDER_COLOUR,
-						GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+					DrawYLine(x, y + 1, WINDOW_TITLE_HEIGHT,
+						WINDOW_BORDER_COLOUR, GetWindowManagerTextureData(),
+						GetScreenWidth(),GetScreenHeight());
 				}
 
 				/* draw title's right border */
-				DrawYLine(x + w->title_width_, y + 1, WINDOW_TITLE_HEIGHT, WINDOW_BORDER_COLOUR,
-					GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+				DrawYLine(x + w->title_width_, y + 1, WINDOW_TITLE_HEIGHT,
+					WINDOW_BORDER_COLOUR, GetWindowManagerTextureData(),
+					GetScreenWidth(), GetScreenHeight());
 
 				/* draw title's background */
 				Window::DrawHeaderBackground(x, y + 1, w->title_width_,
 					w->IsFocused() ? FOCUSED_WINDOW_COLOUR :
-					w == DockFrame.focused_window_ ? UNFOCUSED_WINDOW_COLOUR : UNSELECTED_WINDOW_COLOUR);
+					w == DockFrame.focused_window_ ? UNFOCUSED_WINDOW_COLOUR :
+					UNSELECTED_WINDOW_COLOUR);
 
 				/* write the title */
-				font->DrawString(x + 1, y + 3, w->title_, WINDOW_TITLE_TEXT_COLOUR,
-					GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+				font->DrawString(x + 1, y + 3, w->title_,
+					WINDOW_TITLE_TEXT_COLOUR, GetWindowManagerTextureData(),
+					GetScreenWidth(), GetScreenHeight());
 
 
 				/* draw the close button */
 				if(w->IsFocused()) {
-					font->DrawString(x + w->title_width_ - 9, y + 3, "X", WINDOW_CLOSE_BUTTON_COLOUR,
-						GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+					font->DrawString(x + w->title_width_ - 9, y + 3, "X",
+						WINDOW_CLOSE_BUTTON_COLOUR,
+						GetWindowManagerTextureData(), GetScreenWidth(),
+						GetScreenHeight());
 				}
-		
 
 				x += w->title_width_ + 1;
 
@@ -860,14 +919,24 @@ void Frame::Draw(int min_x, int min_y, int max_x, int max_y) {
 
 			/* draw previous title row's top border */
 			DrawXLine(x_, y, x - x_, WINDOW_BORDER_COLOUR,
-				GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+				GetWindowManagerTextureData(), GetScreenWidth(),
+				GetScreenHeight());
+
+			CopyTexture(std::max(x_, min_x), std::max(y, min_y),
+				std::min(x, max_x),
+				std::min(y + WINDOW_TITLE_HEIGHT + 1, max_y),
+				GetWindowManagerTextureId(),
+				std::max(x_, min_x), std::max(y, min_y));
 
 			/* draw bottom border */
-			DrawXLine(x_, y + WINDOW_TITLE_HEIGHT + 1, width_, WINDOW_BORDER_COLOUR,
-				GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+			DrawSolidColor(std::max(x_, min_x),
+				std::max(y + WINDOW_TITLE_HEIGHT + 1, min_y),
+				std::min(x_ + width_, max_x),
+				std::min(y + WINDOW_TITLE_HEIGHT + 2, max_y),
+				WINDOW_BORDER_COLOUR);
 		}
 
-		/* draw the focused window */
+		// Draw the contents of the focused window.
 		DockFrame.focused_window_->DrawWindowContents(
 			x_, y_ + DockFrame.title_height_,
 			min_x, min_y, max_x, max_y);
@@ -896,14 +965,16 @@ int Frame::LongestWindowTitleWidth() {
 bool Frame::IsValidSize(int width, int height) {
 	if (is_split_frame_) {
 		if (SplitFrame.is_split_vertically_) {
-			int new_split_point = (int)((float)height * SplitFrame.split_percent_);
+			int new_split_point = (int)((float)height *
+				SplitFrame.split_percent_);
 			int h1 = new_split_point;
 			int h2 = height - new_split_point - SPLIT_BORDER_WIDTH;
 
 			return SplitFrame.child_a_->IsValidSize(width, h1) &&
 				SplitFrame.child_a_->IsValidSize(width, h2);
 		} else {
-			int new_split_point = (int)((float)width * SplitFrame.split_percent_);
+			int new_split_point = (int)((float)width *
+				SplitFrame.split_percent_);
 			int w1 = new_split_point;
 			int w2 = width - new_split_point - SPLIT_BORDER_WIDTH;
 
