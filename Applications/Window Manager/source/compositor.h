@@ -44,7 +44,7 @@ constexpr uint32 kBackgroundColor = (78 << 16) + (152 << 8) + 0xFF;
 #define SPLIT_FRAME_COLOUR 0xC3C3C3FF
 
 #define SPLIT_BORDER_WIDTH 2
-#define SPLIT_BORDER_COLOR ((212 << 24) + (212 << 16) + (212 << 8)) + 0xFF;
+#define SPLIT_BORDER_COLOR ((212 << 24) + (212 << 16) + (212 << 8) + 0xFF)
 
 #define DIALOG_BORDER_COLOUR 0x00000000
 #define DIALOG_SHADOW_0 (40 | DIALOG_BORDER_COLOUR)
