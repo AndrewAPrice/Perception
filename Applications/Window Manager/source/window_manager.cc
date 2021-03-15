@@ -61,7 +61,9 @@ void WindowManager::HandleCloseWindow(
 void WindowManager::HandleSetWindowTexture(
 	::perception::ProcessId sender,
 	const WindowManager::WM::SetWindowTextureMessage& message) {
-	std::cout << "Implement WindowManager::HandleSetWindowTexture" << std::endl;
+	Window* window = Window::GetWindow(message.GetWindow());
+	if (window != nullptr)
+		window->SetTextureId(message.GetTextureId());
 }
 
 void WindowManager::HandleSetWindowTitle(
@@ -74,4 +76,15 @@ void WindowManager::HandleSystemButtonPushed(
 	::perception::ProcessId sender,
 	const WindowManager::WM::SystemButtonPushedMessage& message) {
 	std::cout << "Implement WindowManager::HandleSystemButtonPushed" << std::endl;
+}
+
+void WindowManager::HandleInvalidateWindow(
+	::perception::ProcessId sender,
+	const WindowManager::WM::InvalidateWindowMessage& message) {
+	Window* window = Window::GetWindow(message.GetWindow());
+	if (window != nullptr)
+		window->InvalidateContents(message.GetLeft(),
+			message.GetTop(), message.GetRight(),
+			message.GetBottom());
+
 }

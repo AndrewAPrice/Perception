@@ -35,6 +35,7 @@ namespace {
 constexpr int kFontHeight = 8;
 
 std::map<FontFace, std::unique_ptr<Font>> fonts;
+Font* ui_font = nullptr;
 
 }
 
@@ -147,6 +148,15 @@ Font* Font::LoadFont(FontFace font_face) {
 	Font* to_return = font.get();
 	fonts[font_face] = std::move(font);
 	return to_return;
+}
+
+
+Font* GetUiFont() {
+	if (ui_font == nullptr) {
+		ui_font = Font::LoadFont(FontFace::DejaVuSans);
+	}
+
+	return ui_font;
 }
 
 }

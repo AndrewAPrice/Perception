@@ -163,7 +163,7 @@ void InitializeMouse() {
 
 	mouse_listener = std::make_unique<MyMouseListener>();
 
-	// Sleep until we get the mouse driver.
+	// Tell each mouse driver who we are.
 	(void) MouseDriver::NotifyOnEachNewInstance(
 		[] (MouseDriver mouse_driver) {
 			// Tell the mouse driver to send us mouse messages.

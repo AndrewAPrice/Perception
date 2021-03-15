@@ -14,39 +14,37 @@
 
 #pragma once
 
+#include "perception/ui/widget.h"
+
+#include <functional>
 #include <string_view>
-
-#include "types.h"
-
-struct stb_fontchar;
+#include <string>
 
 namespace perception {
+namespace ui {
 
-enum class FontFace {
-	DejaVuSans = 0
-};
+struct DrawContext;
 
-class Font {
+class Button : public Widget {
 public:
-	Font(uint8* font_bitmap, stb_fontchar* font_chars);
-	~Font();
+	Button();
+	virtual ~Button();
 
-	int GetHeight();
-
-	int MeasureString(std::string_view string);
-
-	void DrawString(int x, int y, std::string_view string,
-		uint32 color, uint32* buffer, int buffer_width,
-		int buffer_height);
-
-	static Font* LoadFont(FontFace font_face);
+	Button* SetLabel(std::string_view label);
+	Button* SetPadding(int padding);
+	Button* OnClick(std::function<void()> on_click_handler);
 
 private:
+    virtual void Draw(DrawContext& draw_context) override;
 
-	uint8* font_bitmap_;
-	stb_fontchar* font_chars_;
+	virtual int CalculateContentWidth() override;
+    virtual int CalculateContentHeight() override;
+    
+	std::string label_;
+	int padding_;
+	std::function<void()> on_click_handler_;
+	bool is_pushed_down_;
 };
 
-Font* GetUiFont();
-
+}
 }

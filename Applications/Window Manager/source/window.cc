@@ -19,10 +19,10 @@
 #include "compositor.h"
 #include "frame.h"
 #include "highlighter.h"
-#include "keyboard.h"
 #include "perception/draw.h"
 #include "perception/font.h"
 #include "screen.h"
+#include "permebuf/Libraries/perception/devices/keyboard_driver.permebuf.h"
 
 using ::perception::DrawXLine;
 using ::perception::DrawXLineAlpha;
@@ -223,7 +223,7 @@ void Window::Focus() {
 	KeyboardDriver::SetKeyboardListenerMessage keyboard_listener_message;
 	keyboard_listener_message.SetNewListener(keyboard_listener_);
 
-	GetKeyboardDriver().SendSetKeyboardListener(
+	KeyboardDriver::Get().SendSetKeyboardListener(
 		keyboard_listener_message);
 }
 
@@ -309,7 +309,7 @@ void Window::UnfocusAllWindows() {
 			focused_window->window_listener_.SendLostFocus(
 				::permebuf::perception::Window::LostFocusMessage());
 	}
-	GetKeyboardDriver().SendSetKeyboardListener(
+	KeyboardDriver::Get().SendSetKeyboardListener(
 		KeyboardDriver::SetKeyboardListenerMessage());
 }
 
@@ -535,6 +535,15 @@ void Window::InvalidateDialogAndTitle() {
 		y_ + height_ + DIALOG_BORDER_HEIGHT);
 }
 
+void Window::InvalidateContents(int min_x, int min_y, int max_x, int max_y) {
+	max_x = std::min(max_x, width_);
+	max_y = std::min(max_y, height_);
+	InvalidateScreen(x_ + min_x, y_ + min_y, x_ + max_x, y_ + max_y);
+}
+
+void Window::SetTextureId(int texture_id) {
+	texture_id_ = texture_id;
+}
 
 void Window::DrawHeaderBackground(int x, int y, int width, uint32 color) {
 	uint32 outer_line = color - 0x10101000;

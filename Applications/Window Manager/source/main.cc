@@ -15,7 +15,6 @@
 #include "compositor.h"
 #include "frame.h"
 #include "highlighter.h"
-#include "keyboard.h"
 #include "mouse.h"
 #include "screen.h"
 #include "window.h"
@@ -30,7 +29,6 @@ using ::perception::WaitForMessagesThenReturn;
 int main() {
 	InitializeScreen();
 	InitializeMouse();
-	InitializeKeyboard();
 	InitializeCompositor();
 	InitializeHighlighter();
 	InitializeFrames();

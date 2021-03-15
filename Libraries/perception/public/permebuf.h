@@ -506,6 +506,10 @@ public:
 			message_id_ < other.message_id_);
 	}
 
+	bool IsValid() const {
+		return process_id_ != 0;
+	}
+
 protected:
 	::perception::ProcessId process_id_;
 	::perception::MessageId message_id_;

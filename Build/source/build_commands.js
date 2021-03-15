@@ -20,6 +20,7 @@ const {rootDirectory} = require('./root_directory');
 function generateBuildCommand(language, buildSettings) {
 	let cParams = ' -D' + buildSettings.os.toUpperCase().replace(/-/g, '_') + ' ' +
 					' -D' + buildSettings.build + '_BUILD_ ';
+					// + '-fdata-sections -ffunction-sections ';
 	if (buildSettings.build == 'optimized')
 		cParams += '-O3 ';
 	else if (buildSettings.build == 'debug')
@@ -88,15 +89,24 @@ function getBuildCommand(filePath, packageType, cParams, buildSettings) {
 
 function getLinkerCommand(packageType, outputFile, inputFiles, buildSettings) {
 	switch(packageType) {
-		case PackageType.KERNEL:
-			return getToolPath('ld') + ' -nodefaultlibs -T ' + escapePath(rootDirectory) + 'Kernel/source/linker.ld -o ' + outputFile + ' ' + inputFiles;
-			// getToolPath('gcc') + ' -nostdlib -nodefaultlibs -T ' + rootDirectory + 'Kernel/source/linker.ld '
-		case PackageType.APPLICATION:
+		case PackageType.KERNEL: {
 			let extras = '';
 			if (buildSettings.build == 'optimized') {
-				extras = ' -O3 ';
+				extras = ' -s '
 			} else {
-				extras = ' -g';
+				extras += ' -g ';
+			}
+			return getToolPath('ld') + ' -nodefaultlibs ' + extras + ' -T ' +
+				escapePath(rootDirectory) + 'Kernel/source/linker.ld -o ' +
+				outputFile + ' ' + inputFiles;
+			// getToolPath('gcc') + ' -nostdlib -nodefaultlibs -T ' + rootDirectory + 'Kernel/source/linker.ld '
+		}
+		case PackageType.APPLICATION: {
+			let extras = '';//' -Wl,--gc-sections ';
+			if (buildSettings.build == 'optimized') {
+				extras += ' -O3 -s ';
+			} else {
+				extras += ' -g ';
 
 			}
 			if (buildSettings.os == 'Perception')
@@ -111,6 +121,7 @@ function getLinkerCommand(packageType, outputFile, inputFiles, buildSettings) {
 				//	inputFiles + ' -Wl,' + endGroup;
 				return getToolPath('local-gcc') + extras + ' -o ' + outputFile + ' ' + inputFiles;
 			}
+		}
 		case PackageType.LIBRARY:
 		    if (buildSettings.os == 'Perception') {
 				return getToolPath('ar') + ' rvs -o ' + outputFile + ' '  + inputFiles;

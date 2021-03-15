@@ -14,7 +14,17 @@
 
 #pragma once
 
-#include "permebuf/Libraries/perception/devices/keyboard_driver.permebuf.h"
+#include "types.h"
 
-void InitializeKeyboard();
-const ::permebuf::perception::devices::KeyboardDriver& GetKeyboardDriver();
+namespace perception {
+namespace ui {
+
+struct DrawContext {
+	int x, y;
+	uint32* buffer;
+	int buffer_width;
+	int buffer_height;
+};
+
+}
+}

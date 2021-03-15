@@ -71,12 +71,15 @@ public:
 
 	void Draw(int min_x, int min_y, int max_x, int max_y);
 	void InvalidateDialogAndTitle();
+	void InvalidateContents(int min_x, int min_y, int max_x, int max_y);
 
 	int GetX() { return x_; }
 	int GetY() { return y_; }
 	int GetWidth() { return width_; }
 	int GetHeight() { return height_; }
 	bool IsDialog() { return is_dialog_; }
+
+	void SetTextureId(int texture_id);
 
 private:
 	friend Frame;

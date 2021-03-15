@@ -44,5 +44,9 @@ public:
 	void HandleSystemButtonPushed(
 		::perception::ProcessId sender,
 		const WM::SystemButtonPushedMessage& message) override;
+
+	void HandleInvalidateWindow(
+		::perception::ProcessId sender,
+		const WM::InvalidateWindowMessage& message) override;
 };
 

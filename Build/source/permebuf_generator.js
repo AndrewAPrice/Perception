@@ -120,7 +120,8 @@ function generateCppSources(localPath, packageName, packageType, symbolTable, sy
 `;
 
 	let sourceCpp = 
-`#include "perception/messages.h"
+`#include "perception/fibers.h"
+#include "perception/messages.h"
 #include "perception/services.h"
 `;
 	Object.keys(cppIncludeFiles).forEach((includeFile) => {
@@ -1720,6 +1721,7 @@ class ${thisService.cppClassName} : public PermebufService {
 		${thisService.cppClassName}(const ${thisService.cppClassName}& other);
 		${thisService.cppClassName}(const ${thisService.cppClassName}_Server& other);
 
+		static ${thisService.cppClassName} Get();
 		static std::optional<${thisService.cppClassName}> FindFirstInstance();
 
 		static void ForEachInstance(const std::function<void(${thisService.cppClassName})>& on_each_instance);
@@ -1753,6 +1755,22 @@ std::optional<${thisService.cppClassName}> ${thisService.cppClassName}::FindFirs
 	} else {
 		return std::nullopt;
 	}
+}
+
+${thisService.cppClassName} ${thisService.cppClassName}::singleton_;
+
+${thisService.cppClassName} ${thisService.cppClassName}::Get() {
+	// TODO: Mutex.
+	if (singleton_.IsValid())
+		return singleton_;
+
+	auto main_fiber = ::perception::GetCurrentlyExecutingFiber();
+	NotifyOnEachNewInstance([main_fiber] (${thisService.cppClassName} instance) {
+		singleton_ = instance;
+		main_fiber->WakeUp();
+	});
+	::perception::Sleep();
+	return singleton_;
 }
 
 void ${thisService.cppClassName}::ForEachInstance(
@@ -2133,6 +2151,8 @@ serverDelegator += `return ProcessMessageForMessage<${requestType.cppClassName},
 
 		headerCpp +=
 `		typedef ${thisService.cppClassName}_Server Server;
+private:
+		static ${thisService.cppClassName} singleton_;
 };
 `;
 

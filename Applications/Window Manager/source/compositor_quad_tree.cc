@@ -93,7 +93,7 @@ Rectangle* CompositorQuadTree::AllocateRectangle() {
 // the foreground. Make sure that the Rectangles at least overlap before
 // calling this.
 void CompositorQuadTree::CreateSubRectanglesForEachBackgroundPartThatPokesOut(
-		Rectangle* background, Rectangle* foreground) {
+	Rectangle* background, Rectangle* foreground) {
 	// Divides the rectangle up into 4 parts that could peak out:
 	// #####
 	// %%i**

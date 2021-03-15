@@ -12,41 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
-
-#include <string_view>
-
 #include "types.h"
 
-struct stb_fontchar;
-
 namespace perception {
+namespace ui {
 
-enum class FontFace {
-	DejaVuSans = 0
-};
+constexpr uint32 kBackgroundWindowColor = 0x2d3d40ff;
+constexpr uint32 kButtonBackgroundColor = 0x8cb7bfff;
+constexpr uint32 kButtonPushedBackgroundColor = 0x779da3ff;
+constexpr uint32 kButtonBrightColor = 0xb1e6f0ff;
+constexpr uint32 kButtonDarkColor = 0x5f7d82ff;
+constexpr uint32 kButtonTextColor = 0x000000ff;
+constexpr uint32 kTextBoxBackgroundColor = kButtonBackgroundColor;
+constexpr uint32 kTextBoxOutlineColor = 0x779da3ff;
+constexpr uint32 kTextBoxTextColor = 0x000000ff;
+constexpr uint32 kTextBoxNonEditableTextColor = 0x111111ff;
 
-class Font {
-public:
-	Font(uint8* font_bitmap, stb_fontchar* font_chars);
-	~Font();
 
-	int GetHeight();
-
-	int MeasureString(std::string_view string);
-
-	void DrawString(int x, int y, std::string_view string,
-		uint32 color, uint32* buffer, int buffer_width,
-		int buffer_height);
-
-	static Font* LoadFont(FontFace font_face);
-
-private:
-
-	uint8* font_bitmap_;
-	stb_fontchar* font_chars_;
-};
-
-Font* GetUiFont();
-
+}
 }

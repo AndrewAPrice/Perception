@@ -45,18 +45,7 @@ bool waiting_on_screen_to_finish_drawing;
 
 void InitializeScreen() {
 	// Sleep until we get the graphics driver.
-	auto main_fiber = perception::GetCurrentlyExecutingFiber();
-	MessageId graphics_driver_listener = GraphicsDriver::NotifyOnEachNewInstance(
-		[main_fiber] (GraphicsDriver driver) {
-			graphics_driver = driver;
-			main_fiber->WakeUp();
-		});
-	Sleep();
-
-	// We only care about one instance. We can stop
-	// listening now.
-	GraphicsDriver::StopNotifyingOnEachNewInstance(
-		graphics_driver_listener);
+	graphics_driver = GraphicsDriver::Get();
 	
 	// Query the screen size.
 	auto screen_size = *graphics_driver.CallGetScreenSize(

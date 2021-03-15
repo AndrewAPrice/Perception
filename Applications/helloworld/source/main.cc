@@ -18,182 +18,30 @@
 #include "perception/fibers.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
-#include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
-#include "permebuf/Libraries/perception/devices/keyboard_driver.permebuf.h"
-#include "permebuf/Libraries/perception/devices/keyboard_listener.permebuf.h"
-#include "permebuf/Libraries/perception/devices/mouse_driver.permebuf.h"
-#include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
-#include "permebuf/Libraries/perception/window.permebuf.h"
-#include "permebuf/Libraries/perception/window_manager.permebuf.h"
+#include "perception/ui/ui_window.h"
 
 using ::perception::Fiber;
 using ::perception::GetProcessId;
 using ::perception::MessageId;
 using ::perception::ProcessId;
 using ::perception::Sleep;
-using ::permebuf::perception::devices::GraphicsCommand;
-using ::permebuf::perception::devices::GraphicsDriver;
-using ::permebuf::perception::devices::KeyboardDriver;
-using ::permebuf::perception::devices::KeyboardListener;
-using ::permebuf::perception::devices::MouseButton;
-using ::permebuf::perception::devices::MouseDriver;
-using ::permebuf::perception::devices::MouseListener;
-using ::permebuf::perception::Window;
-using ::permebuf::perception::WindowManager;
+using ::perception::ui::UiWindow;
 
-WindowManager window_manager;
-
-class MyWindow : public MouseListener::Server,
-				 public KeyboardListener::Server,
-				 public Window::Server {
-public:
-	MyWindow(std::string_view title, uint32 bg_color,
-			bool dialog = false, int dialog_width = 0, int dialog_height = 0) :
-		title_(title) {
-		Permebuf<WindowManager::CreateWindowRequest> create_window_request;
-		std::cout << title_ << "'s message id from HelloWorld is: " << 
-		((Window::Server*)this)->GetProcessId() << ":" <<
-			((Window::Server*)this)->GetMessageId() << std::endl;
-		create_window_request->SetWindow(*this);
-		create_window_request->SetTitle(title);
-		create_window_request->SetFillColor(bg_color);
-		create_window_request->SetKeyboardListener(*this);
-		create_window_request->SetMouseListener(*this);
-		if (dialog) {
-			create_window_request->SetIsDialog(true);
-			create_window_request->SetDesiredDialogWidth(dialog_width);
-			create_window_request->SetDesiredDialogHeight(dialog_height);
-		}
-
-		auto status_or_result = window_manager.CallCreateWindow(
-			std::move(create_window_request));
-		if (status_or_result) {
-			std::cout << title_ << " is " << status_or_result->GetWidth() << "x" <<
-				status_or_result->GetHeight() << std::endl;
-		}
-	}
-
-	~MyWindow() {
-		std::cout << title_ << " - destroyed" << std::endl;
-	}
-
-	void HandleOnMouseMove(
-		ProcessId, const MouseListener::OnMouseMoveMessage& message) override {
-			std::cout << title_ << " - x:" << message.GetDeltaX() <<
-				" y:" << message.GetDeltaY() << std::endl;
-	}
-
-	void HandleOnMouseScroll(
-		ProcessId, const MouseListener::OnMouseScrollMessage& message) override {
-		std::cout << title_ << " mouse scrolled" << message.GetDelta() << std::endl;
-	}
-
-	void HandleOnMouseButton(
-		ProcessId, const MouseListener::OnMouseButtonMessage& message) override {
-		std::cout << title_ << " - button: " << (int)message.GetButton() <<
-			" down: " << message.GetIsPressedDown() << std::endl;
-	}
-
-	void HandleOnMouseClick(
-		ProcessId, const MouseListener::OnMouseClickMessage& message) override {
-		std::cout << title_ << " - mouse clicked - button: " << (int)message.GetButton() <<
-			" down: " << message.GetWasPressedDown() << " x: " << message.GetX() <<
-			" y: " << message.GetY() << std::endl;
-	}
-
-	void HandleOnMouseEnter(
-		ProcessId, const MouseListener::OnMouseEnterMessage& message) override {
-		std::cout << title_ << " - mouse entered." << std::endl;
-	}
-
-	void HandleOnMouseLeave(
-		ProcessId, const MouseListener::OnMouseLeaveMessage& message) override {
-		std::cout << title_ << " - mouse left." << std::endl;
-	}
-
-	void HandleOnMouseHover(
-		ProcessId, const MouseListener::OnMouseHoverMessage& message) override {
-		std::cout << title_ << " - mouse hover: " << " x: " << message.GetX() <<
-			" y: " << message.GetY() << std::endl;
-	}
-
-	void HandleOnMouseTakenCaptive(
-		ProcessId, const MouseListener::OnMouseTakenCaptiveMessage& message) override {
-		std::cout << title_ << " - mouse taken captive." << std::endl;
-	}
-
-	void HandleOnMouseReleased(
-		ProcessId, const MouseListener::OnMouseReleasedMessage& message) override {
-		std::cout << title_ << " - mouse has been released." << std::endl;
-	}
-
-	void HandleOnKeyDown(ProcessId,
-		const KeyboardListener::OnKeyDownMessage& message) override {
-		std::cout << title_ << " - key " << (int)message.GetKey() << " was pressed." << std::endl;
-	}
-
-	void HandleOnKeyUp(ProcessId,
-		const KeyboardListener::OnKeyUpMessage& message) override {
-		std::cout << title_ << " - key " << (int)message.GetKey() << " was released." << std::endl;
-	}
-
-	void HandleOnKeyboardTakenCaptive(ProcessId,
-		const KeyboardListener::OnKeyboardTakenCaptiveMessage& message) override {
-		std::cout << title_ << " - keyboard taken captive." << std::endl;
-	}
-
-	void HandleOnKeyboardReleased(ProcessId,
-		const KeyboardListener::OnKeyboardReleasedMessage& message) override {
-		std::cout << title_ << " - keyboard has been released." << std::endl;
-	}
-
-	void HandleSetSize(ProcessId,
-		const Window::SetSizeMessage& message) override {
-		std::cout << title_ << " is " << message.GetWidth() << "x" <<
-				message.GetHeight() << std::endl;
-	}
-
-	void HandleClosed(ProcessId,
-		const Window::ClosedMessage& message) override {
-		std::cout << title_ << " closed" << std::endl;
-	}
-
-	void HandleGainedFocus(ProcessId,
-		const Window::GainedFocusMessage& message) override {
-		std::cout << title_ << " gained focus" << std::endl;
-	}
-
-	void HandleLostFocus(ProcessId,
-		const Window::LostFocusMessage& message) override {
-		std::cout << title_ << " lost focus" << std::endl;
-	}
-private:
-	std::string title_;
-};
+void CreateWindow(std::string_view title, uint32 color,
+	bool dialog = false, int width = 0, int height = 0) {
+	new UiWindow(title, dialog, width, height);
+}
 
 int main() {
-	// Sleep until we get the graphics driver.
-	auto main_fiber = perception::GetCurrentlyExecutingFiber();
-	MessageId wm_listener = WindowManager::NotifyOnEachNewInstance(
-		[&] (WindowManager wm) {
-			window_manager = wm;
-			main_fiber->WakeUp();
-		});
-	Sleep();
-
-	// We only care about one instance. We can stop
-	// listening now.
-	WindowManager::StopNotifyingOnEachNewInstance(wm_listener);
-
-	MyWindow a = MyWindow("Raspberry", 0x0ed321ff);
-	MyWindow b = MyWindow("Blueberry", 0xc5c20dff);
-	MyWindow c = MyWindow("Blackberry", 0xa5214eff);
-	MyWindow d = MyWindow("Strawberry", 0x90bdee);
-	MyWindow e = MyWindow("Boysenberry", 0x25993fff);
-	MyWindow f = MyWindow("Chicken", 0x4900a4ff, true, 400, 400);
-	MyWindow g = MyWindow("Beef", 0x99e41dff, true, 200, 100);
-	MyWindow h = MyWindow("Rabbit", 0x65e979ff, true, 100, 200);
-	MyWindow i = MyWindow("Ox", 0x7c169aff, true, 80, 80);
+	CreateWindow("Raspberry", 0x0ed321ff);
+	CreateWindow("Blueberry", 0xc5c20dff);
+	CreateWindow("Blackberry", 0xa5214eff);
+	CreateWindow("Strawberry", 0x90bdee);
+	CreateWindow("Boysenberry", 0x25993fff);
+	CreateWindow("Chicken", 0x4900a4ff, true, 400, 400);
+	CreateWindow("Beef", 0x99e41dff, true, 200, 100);
+	CreateWindow("Rabbit", 0x65e979ff, true, 100, 200);
+	CreateWindow("Ox", 0x7c169aff, true, 80, 80);
 
 	perception::HandOverControl();
 	return 0;

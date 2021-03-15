@@ -63,8 +63,8 @@ Fiber::Fiber(bool custom_stack) :
 	is_scheduled_to_run_(false) {
 	if (custom_stack) {
 		bottom_of_stack_ = (size_t*)AllocateMemoryPages(kNumberOfStackPages);
-		std::cout << "Created fiber with stack: " << std::hex << (size_t)bottom_of_stack_
-			<< std::dec << std::endl;
+		//std::cout << "Created fiber with stack: " << std::hex << (size_t)bottom_of_stack_
+		//	<< std::dec << std::endl;
 	} else {
 		bottom_of_stack_ = nullptr;
 	}

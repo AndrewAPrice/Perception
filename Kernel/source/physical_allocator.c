@@ -58,10 +58,18 @@ void CalculateStartOfFreeMemoryAtBoot() {
 		SafeReadUint32(&tag->type) != MULTIBOOT_TAG_TYPE_END;
 		tag = (struct multiboot_tag *)((size_t) tag + (size_t)((
 			SafeReadUint32(&tag->size) + 7) & ~7))) {
+		// Make sure we're enough to fit in this tag.
+		size_t tag_end = (size_t)tag + SafeReadUint32(&tag->size);
+		if (tag_end > start_of_free_memory_at_boot) {
+			start_of_free_memory_at_boot = tag_end;
+		}
+
 		if (SafeReadUint32(&tag->type) == MULTIBOOT_TAG_TYPE_MODULE) {
 			struct multiboot_tag_module *module_tag = (struct multiboot_tag_module *)tag;
 			uint32 mod_end = SafeReadUint32(&module_tag->mod_end);
 
+			// If this is a multiboot module, make sure we're enough to fit
+			// it in.
 			if (mod_end > start_of_free_memory_at_boot) {
 				start_of_free_memory_at_boot = mod_end;
 			}
@@ -71,13 +79,13 @@ void CalculateStartOfFreeMemoryAtBoot() {
 	// Round up to the nearest whole page.
 	start_of_free_memory_at_boot = (start_of_free_memory_at_boot + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 	
-#ifdef DEBUG
+ #ifdef DEBUG
 	PrintString("End of kernel: ");
 	PrintHex((size_t)&bssEnd);
 	PrintString(" Start of free memory: ");
 	PrintHex(start_of_free_memory_at_boot);
 	PrintChar('\n');
-#endif
+ #endif
 }
 
 void InitializePhysicalAllocator() {
