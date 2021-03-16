@@ -26,28 +26,15 @@ namespace ui {
 
 struct DrawContext;
 
-class Button : public Widget {
+class Label : public Widget {
 public:
-	Button();
-	virtual ~Button();
+	Label();
+	virtual ~Label();
 
-	Button* SetLabel(std::string_view label);
-	Button* SetPadding(int padding);
-	Button* SetTextAlignment(TextAlignment alignment);
-	Button* OnClick(std::function<void()> on_click_handler);
-
-    virtual bool GetWidgetAt(int x, int y,
-        std::shared_ptr<Widget>& widget,
-        int& x_in_selected_widget,
-        int& y_in_selected_widget) override;
-
-    virtual void OnMouseLeave() override;
-    virtual void OnMouseButtonDown(int x, int y,
-        ::permebuf::perception::devices::MouseButton button)
-    	override;
-    virtual void OnMouseButtonUp(int x, int y,
-        ::permebuf::perception::devices::MouseButton button)
-    	override;
+	Label* SetLabel(std::string_view label);
+	std::string_view GetLabel();
+	Label* SetPadding(int padding);
+	Label* SetTextAlignment(TextAlignment alignment);
 
 private:
     virtual void Draw(DrawContext& draw_context) override;
@@ -60,8 +47,6 @@ private:
     
 	std::string label_;
 	int padding_;
-	std::function<void()> on_click_handler_;
-	bool is_pushed_down_;
 	TextAlignment text_alignment_;
 	bool realign_text_;
 	int text_x_, text_y_;

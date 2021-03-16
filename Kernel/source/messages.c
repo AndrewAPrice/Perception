@@ -123,6 +123,8 @@ void SendKernelMessageToProcess(struct Process* receiver_process, size_t event_i
 	SendMessageToProcess(message, receiver_process);
 }
 
+void PrintStackTrace();
+
 // Sends an message from a thread. This is intended to be called from within a syscall.
 void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
 	struct Process* sender_process = sender_thread->process;
@@ -143,6 +145,15 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
 		registers->rax = MS_RECEIVERS_QUEUE_IS_FULL;
 		return;
 	}
+
+		PrintString(sender_process->name);
+		PrintString("is sending a message to");
+		PrintString(receiver_process->name);
+		PrintString("\n");
+
+		if (sender_process->name[0] == 'L' && receiver_process->name[0] == 'P') {
+PrintStackTrace();
+		}
 
 	struct Message* message = AllocateMessage();
 	if (message == NULL) {

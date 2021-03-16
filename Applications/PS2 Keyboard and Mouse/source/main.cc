@@ -14,6 +14,7 @@
 
 #include "perception/interrupts.h"
 #include "perception/messages.h"
+#include "perception/processes.h"
 #include "perception/port_io.h"
 #include "perception/scheduler.h"
 #include "permebuf/Libraries/perception/devices/keyboard_driver.permebuf.h"
@@ -72,8 +73,9 @@ public:
 		}
 	}
 
-	virtual void HandleSetMouseListener(ProcessId,
+	virtual void HandleSetMouseListener(ProcessId sender,
 		const MouseDriver::SetMouseListenerMessage& message) override {
+		std::cout << ::perception::GetProcessName(sender) << " is telling us there's a new captor" << std::endl;
 		if (mouse_captor_) {
 			// Let the old captor know the mouse has escaped.
 			mouse_captor_->SendOnMouseReleased(

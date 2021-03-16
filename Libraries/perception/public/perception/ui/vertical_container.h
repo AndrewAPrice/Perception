@@ -38,6 +38,10 @@ public:
 	VerticalContainer* SetMargin(int margin);
 	VerticalContainer* SetSpacing(int spacing);
 
+    virtual bool GetWidgetAt(int x, int y,
+        std::shared_ptr<Widget>& widget,
+        int& x_in_selected_widget,
+        int& y_in_selected_widget) override;
 protected:
     virtual void Draw(DrawContext& draw_context) override;
 

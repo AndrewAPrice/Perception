@@ -63,6 +63,7 @@ class MyMouseListener : public MouseListener::Server {
 public:
 	void HandleOnMouseMove(
 		ProcessId, const MouseListener::OnMouseMoveMessage& message) override {
+		std::cout << "Has mouse message" << std::endl;
 		int old_mouse_x = mouse_x;
 		int old_mouse_y = mouse_y;
 

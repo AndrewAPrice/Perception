@@ -13,9 +13,13 @@
 // limitations under the License.
 
 #include "window_manager.h"
-#include "window.h"
 
 #include <iostream>
+
+#include "perception/launcher.h"
+#include "window.h"
+
+using ::perception::ShowLauncher;
 
 void WindowManager::HandleCreateWindow(
 	::perception::ProcessId sender,
@@ -75,7 +79,7 @@ void WindowManager::HandleSetWindowTitle(
 void WindowManager::HandleSystemButtonPushed(
 	::perception::ProcessId sender,
 	const WindowManager::WM::SystemButtonPushedMessage& message) {
-	std::cout << "Implement WindowManager::HandleSystemButtonPushed" << std::endl;
+	ShowLauncher();
 }
 
 void WindowManager::HandleInvalidateWindow(

@@ -16,6 +16,8 @@
 
 #include <memory>
 
+#include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
+
 namespace perception {
 namespace ui {
 
@@ -59,6 +61,26 @@ public:
 
     virtual void InvalidateCalculatedWidth();
     virtual void InvalidateCalculatedHeight();
+
+    // Gets the widget at X/Y.
+    // If x,y points to a selectable widget, sets widget, x_in_selected_widget,
+    // y_in_selected_widget and returns true.
+    // If the mouse is within the bounds of this widget, but this widget isn't
+    // selectable, sets widget to nullptr, but returns true.
+    // If the mouse is outside of the bounds of this widget, returns false, and
+    // doesn't touch the mutable parameters.
+    virtual bool GetWidgetAt(int x, int y,
+        std::shared_ptr<Widget>& widget,
+        int& x_in_selected_widget,
+        int& y_in_selected_widget);
+
+    virtual void OnMouseEnter();
+    virtual void OnMouseLeave();
+    virtual void OnMouseMove(int x, int y);
+    virtual void OnMouseButtonDown(int x, int y,
+        ::permebuf::perception::devices::MouseButton button);
+    virtual void OnMouseButtonUp(int x, int y,
+        ::permebuf::perception::devices::MouseButton button);
 
 protected:
 

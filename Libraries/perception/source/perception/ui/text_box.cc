@@ -23,7 +23,8 @@
 namespace perception {
 namespace ui {
 
-TextBox::TextBox() : value_(""), padding_(8), is_editable_(false) {}
+TextBox::TextBox() : value_(""), padding_(8), is_editable_(false),
+	text_alignment_(TextAlignment::MiddleLeft), realign_text_(true) {}
 
 TextBox::~TextBox() {}
 
@@ -31,10 +32,13 @@ TextBox* TextBox::SetValue(std::string_view value) {
 	if (value_ == value)
 		return this;
 
+	value_ = value;
+
     if (width_ == kFitContent)
         InvalidateSize();
 
     InvalidateRender();
+	realign_text_ = true;
     return this;
 }
 
@@ -51,6 +55,16 @@ TextBox* TextBox::SetPadding(int padding) {
 		InvalidateSize();
 
 	InvalidateRender();
+	realign_text_ = true;
+	return this;
+}
+
+TextBox* TextBox::SetTextAlignment(TextAlignment alignment) {
+	if (text_alignment_ == alignment)
+		return this;
+
+	text_alignment_ = alignment;
+	realign_text_ = true;
 	return this;
 }
 
@@ -80,45 +94,55 @@ void TextBox::Draw(DrawContext& draw_context) {
 		text_color = kTextBoxTextColor;
 	}
 
+	int width = GetCalculatedWidth();
+	int height = GetCalculatedHeight();
+
 	// Left line.
 	DrawYLine(draw_context.x, draw_context.y,
-		calculated_height_, kTextBoxOutlineColor,
+		height, kTextBoxTopLeftOutlineColor,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
 	// Top line.
 	DrawXLine(draw_context.x + 1, draw_context.y,
-		calculated_width_ - 1, kTextBoxOutlineColor,
+		width - 1, kTextBoxTopLeftOutlineColor,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
 	// Right line.
-	DrawYLine(draw_context.x + calculated_width_ - 1,
+	DrawYLine(draw_context.x + width - 1,
 		draw_context.y + 1,
-		calculated_height_ - 1, kTextBoxOutlineColor,
+		height - 1, kTextBoxBottomRightOutlineColor,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
 	// Bottom line.
 	DrawXLine(draw_context.x + 1,
-		draw_context.y + calculated_height_ - 1,
-		calculated_width_ - 2, kTextBoxOutlineColor,
+		draw_context.y + height - 1,
+		width - 2, kTextBoxBottomRightOutlineColor,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
 	// Draw background
 	FillRectangle(draw_context.x + 1,
 		draw_context.y + 1,
-		draw_context.x + calculated_width_ - 2,
-		draw_context.y + calculated_height_ - 2,
+		draw_context.x + width - 1,
+		draw_context.y + height - 1,
 		kTextBoxBackgroundColor,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
+	if (realign_text_) {
+		CalculateTextAlignment(
+			value_, width - 2 - padding_ * 2, height - 2 - padding_ * 2,
+			text_alignment_, *GetUiFont(), text_x_, text_y_);
+		realign_text_ = false;
+	}
+
 	// Draw button text.
 	GetUiFont()->DrawString(
-		draw_context.x + padding_ + 1,
-		draw_context.y + padding_ + 1, value_,
+		draw_context.x + padding_ + 1 + text_x_,
+		draw_context.y + padding_ + 1 + text_y_, value_,
 		text_color,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
@@ -130,6 +154,14 @@ int TextBox::CalculateContentWidth() {
 
 int TextBox::CalculateContentHeight() {
 	return GetUiFont()->GetHeight() + padding_ * 2;
+}
+
+void TextBox::OnNewWidth(int width) {
+	realign_text_ = true;
+}
+
+void TextBox::OnNewHeight(int height) {
+	realign_text_ = true;
 }
 
 }

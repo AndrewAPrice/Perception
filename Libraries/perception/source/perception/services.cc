@@ -82,7 +82,7 @@ void RegisterService(perception::MessageId message_id, std::string_view name) {
 
 void UnregisterService(perception::MessageId message_id) {
 #ifdef PERCEPTION
-	volatile register size_t syscall asm ("rdi") = 32;
+	volatile register size_t syscall asm ("rdi") = 33;
 	volatile register size_t message_id_r asm ("rax") = (size_t)message_id;
 
 	__asm__ __volatile__ ("syscall\n"::

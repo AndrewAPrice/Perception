@@ -41,6 +41,10 @@ public:
 	FixedGrid* SetSpacing(int spacing);
     FixedGrid* SetMargin(int margin);
 
+    virtual bool GetWidgetAt(int x, int y,
+        std::shared_ptr<Widget>& widget,
+        int& x_in_selected_widget,
+        int& y_in_selected_widget) override;
 protected:
     struct FixedGridItem {
         int x, y, columns, rows;

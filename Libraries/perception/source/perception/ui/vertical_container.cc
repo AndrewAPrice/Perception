@@ -67,15 +67,48 @@ VerticalContainer* VerticalContainer::SetSpacing(int spacing) {
 	return this;
 }
 
+bool VerticalContainer::GetWidgetAt(int x, int y,
+        std::shared_ptr<Widget>& widget,
+        int& x_in_selected_widget,
+        int& y_in_selected_widget) {
+    int width = GetCalculatedWidth();
+    int height = GetCalculatedHeight();
+
+    if (x < 0 || y < 0 || x >= width || y >= height) {
+        // Out of bounds.
+        return false;
+    }
+
+    // Remove the margins.
+    x -= margin_;
+    y -= margin_;
+
+    for (auto& child : children_) {
+        if (child->GetWidgetAt(x, y, widget,
+            x_in_selected_widget, y_in_selected_widget)) {
+            // Widget in this child.
+            return true;
+        }
+
+        y -= child->GetCalculatedHeight() - spacing_;
+    }
+
+    // Within bounds, but not over a selectable widget.
+    widget.reset();
+    return true;
+}
+
 void VerticalContainer::Draw(DrawContext& draw_context) {
     VerifyCalculatedSize();
 
+    int x = draw_context.x + margin_;
+    int y = draw_context.y + margin_;
+
     for (auto& child : children_) {
-        int x = draw_context.x;
-        int y = draw_context.y;
-        child->Draw(draw_context);
         draw_context.x = x;
-        draw_context.y = y + child->GetCalculatedHeight() + spacing_;
+        draw_context.y = y;
+        child->Draw(draw_context);
+        y += + child->GetCalculatedHeight() + spacing_;
     }
 }
 

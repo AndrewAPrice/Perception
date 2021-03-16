@@ -174,6 +174,7 @@ void WaitForMessagesThenReturn() {
 
 // Gets the next fiber to run, or sleeps until there is one.
 Fiber* Scheduler::GetNextFiberToRun() {
+
 	// Return a fiber if there's one scheduled.
 	if (first_scheduled_fiber != nullptr) {
 		Fiber* fiber = first_scheduled_fiber;
@@ -261,6 +262,7 @@ void Scheduler::ScheduleFiber(Fiber* fiber) {
 Fiber* Scheduler::GetFiberToHandleMessage(ProcessId senders_pid, MessageId message_id,
 	size_t metadata, size_t param1, size_t param2, size_t param3,
 	size_t param4, size_t param5) {
+
 	MessageHandler* handler = GetMessageHandler(message_id);
 	if (handler == nullptr) {
 		// Message handler not defined.

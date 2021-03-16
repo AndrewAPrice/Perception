@@ -14,18 +14,23 @@
 
 #include <iostream>
 #include <vector>
+#include <sstream>
 
+#include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/ui/button.h"
 #include "perception/ui/fixed_grid.h"
 #include "perception/ui/text_box.h"
 #include "perception/ui/ui_window.h"
 #include "perception/ui/vertical_container.h"
+#include "perception/ui/text_alignment.h"
 
 using ::perception::HandOverControl;
+using ::perception::TerminateProcess;
 using ::perception::ui::kFillParent;
 using ::perception::ui::Button;
 using ::perception::ui::FixedGrid;
+using ::perception::ui::TextAlignment;
 using ::perception::ui::TextBox;
 using ::perception::ui::UiWindow;
 using ::perception::ui::VerticalContainer;
@@ -48,11 +53,15 @@ double decimal_multiplier = 0.1;
 std::shared_ptr<TextBox> display;
 
 void UpdateDisplay() {
+	// std::to_string converts the number to fixed decimal places, which doesn't
+	// behave as you'd expect a calculator to.
+	std::stringstream buffer;
+	buffer << current_number;
 	if (decimal_pressed && decimal_multiplier == 0.1) {
 		display->SetValue(
-			std::to_string(current_number) + ".");
+			buffer.str() + ".");
 	} else {
-		display->SetValue(std::to_string(current_number));
+		display->SetValue(buffer.str());
 	}
 }
 
@@ -134,7 +143,9 @@ void PressClear() {
 int main() {
 	auto window = std::make_shared<UiWindow>("Calculator");
 	display = std::static_pointer_cast<TextBox>(
-		std::make_shared<TextBox>()->SetHeight(kFillParent)->ToSharedPtr());
+		std::make_shared<TextBox>()->
+		SetTextAlignment(TextAlignment::MiddleRight)->
+		SetValue("")->SetWidth(kFillParent)->SetHeight(50)->ToSharedPtr());
 
 	window->SetRoot(
 		std::make_shared<VerticalContainer>()->
@@ -143,11 +154,11 @@ int main() {
 				AddChildren({
 					std::make_shared<Button>()->SetLabel("C")->
 						OnClick(PressClear)->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("±")->
+					std::make_shared<Button>()->SetLabel("+-")->
 						OnClick(PressFlipSign)->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("÷")->
+					std::make_shared<Button>()->SetLabel("/")->
 						OnClick(std::bind(PressOperator, DIVIDE))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("×")->
+					std::make_shared<Button>()->SetLabel("x")->
 						OnClick(std::bind(PressOperator, MULTIPLY))->ToSharedPtr(),
 					std::make_shared<Button>()->SetLabel("7")->
 						OnClick(std::bind(PressNumber, 7))->ToSharedPtr(),
@@ -174,14 +185,15 @@ int main() {
 				AddChild(
 					std::make_shared<Button>()->SetLabel("=")->
 						OnClick(PressEquals)->ToSharedPtr(),
-						/*x=*/2, /*y=*/3, /*columns=*/0, /*rows=*/2)->
+						/*x=*/3, /*y=*/3, /*columns=*/1, /*rows=*/2)->
 				AddChild(std::make_shared<Button>()->SetLabel("0")->
 						OnClick(std::bind(PressNumber, 0))->ToSharedPtr(),
-						/*x=*/0, /*y=*/4, /*columns=*/2, /*rows=*/0)->
+						/*x=*/0, /*y=*/4, /*columns=*/2, /*rows=*/1)->
 				AddChild(std::make_shared<Button>()->SetLabel(".")->
 						OnClick(PressDecimal)->ToSharedPtr())
-				->ToSharedPtr()
-			)->ToSharedPtr());
+				->SetSize(kFillParent)->ToSharedPtr()
+			)->SetMargin(8)->SetSize(kFillParent)->ToSharedPtr())->
+		OnClose([]() { TerminateProcess(); });
 
 	HandOverControl();
 	return 0;

@@ -49,6 +49,7 @@ public:
 	UiWindow* SetRoot(std::shared_ptr<Widget> root);
 	UiWindow* SetBackgroundColor(uint32 background_color);
 	std::shared_ptr<Widget> GetRoot();
+	UiWindow* OnClose(std::function<void()> on_close_handler);
 
 	void Draw();
 
@@ -98,18 +99,28 @@ protected:
 
     virtual void InvalidateRender() override;
 
+    virtual bool GetWidgetAt(int x, int y,
+        std::shared_ptr<Widget>& widget,
+        int& x_in_selected_widget,
+        int& y_in_selected_widget) override;
+
 private:
 	bool invalidated_;
 
 	std::string title_;
 	std::shared_ptr<Widget> root_;
 	uint32 background_color_;
+	std::function<void()> on_close_handler_;
 
+	std::weak_ptr<Widget> widget_mouse_is_over_;
+
+	bool rebuild_texture_;
 	int texture_id_;
 	int frontbuffer_texture_id_;
 	SharedMemory texture_shared_memory_;
 	SharedMemory frontbuffer_shared_memory_;
 
+	void SwitchToMouseOverWidget(std::shared_ptr<Widget> widget);
 	void ReleaseTextures();
 };
 

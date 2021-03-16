@@ -74,7 +74,7 @@ Window* Window::CreateDialog(std::string_view title, int width, int height,
 	if (window_listener.GetProcessId() == 0 ||
 		windows_by_service.count(window_listener) > 0) {
 		// Window already exists or a window listener wasn't specified.
-		//return nullptr;
+		return nullptr;
 	}
 	if (title.size() > kMaxTitleLength) {
 		title = title.substr(0, kMaxTitleLength);
@@ -133,7 +133,7 @@ Window* Window::CreateWindow(std::string_view title,
 	if (!window_listener ||
 		windows_by_service.count(window_listener) > 0) {
 		// Window already exists or a window listener wasn't specified.
-		// return nullptr;
+		return nullptr;
 	}
 
 	if (title.size() > kMaxTitleLength) {
@@ -236,7 +236,7 @@ void Window::Resized() {
 		::permebuf::perception::Window::SetSizeMessage message;
 		message.SetWidth(width_);
 		message.SetHeight(height_);
-		focused_window->window_listener_.SendSetSize(message);
+		window_listener_.SendSetSize(message);
 	}
 }
 
@@ -250,8 +250,12 @@ void Window::Close() {
 		max_x = x_ + width_ + DIALOG_BORDER_WIDTH + DIALOG_SHADOW_WIDTH;
 		max_y = y_ + height_ + DIALOG_BORDER_HEIGHT + DIALOG_SHADOW_WIDTH;
 
-		if(this == focused_window && next_)
-			next_->Focus();
+		if(this == focused_window) {
+			if (next_)
+				next_->Focus();
+			else
+				UnfocusAllWindows();
+		}
 
 		if(next_)
 			next_->previous_ = previous_;
@@ -288,10 +292,6 @@ void Window::Close() {
 	if(this == hovered_window)
 		hovered_window = nullptr;
 
-	/* todo: free the memory buffer */
-
-	/* todo: notify the process their application has closed */
-
 	if (window_listener_) {
 		window_listener_.SendClosed(
 			::permebuf::perception::Window::ClosedMessage());
@@ -316,7 +316,7 @@ void Window::UnfocusAllWindows() {
 bool Window::ForEachFrontToBackDialog(
 	const std::function<bool(Window&)>& on_each_dialog) {
 	Window* dialog = first_dialog;
-	while (dialog != nullptr) {	
+	while (dialog != nullptr) {
 		if (on_each_dialog(*dialog))
 			return true;
 
@@ -437,6 +437,7 @@ bool Window::MouseEvent(int screen_x, int screen_y,
 				x_ + title_width_ - 1 - WINDOW_TITLE_WIDTH_PADDING) {
 				// We clicked the close button.
 				Close();
+				std::cout << "Window closed" << std::endl;
 				return true;
 			}
 			// We're starting to drag the window.
@@ -630,8 +631,14 @@ void Window::DrawWindowContents(
 	int draw_max_x = std::min(x + width_, max_x);
 	int draw_max_y = std::min(y + height_, max_y);
 
-	DrawSolidColor(draw_min_x, draw_min_y, draw_max_x, draw_max_y,
-		fill_color_);
+	if (texture_id_ == 0) {
+		DrawSolidColor(draw_min_x, draw_min_y, draw_max_x, draw_max_y,
+			fill_color_);
+	} else {
+		CopyTexture(draw_min_x, draw_min_y, draw_max_x, draw_max_y,
+			texture_id_,
+			draw_min_x - x, draw_min_y - y);
+	}
 }
 
 void InitializeWindows() {

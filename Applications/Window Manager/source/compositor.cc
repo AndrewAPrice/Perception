@@ -174,10 +174,10 @@ void DrawScreen() {
 					last_draw_into_wm_texture_command.Set(
 						command_one_of);
 					auto command = command_one_of.MutableCopyPartOfATexture();
-					command.SetLeftDestination(rectangle->min_x);
-					command.SetTopDestination(rectangle->min_y);
 					command.SetLeftSource(rectangle->texture_x);
 					command.SetTopSource(rectangle->texture_y);
+					command.SetLeftDestination(rectangle->min_x);
+					command.SetTopDestination(rectangle->min_y);
 					command.SetWidth(rectangle->max_x - rectangle->min_x);
 					command.SetHeight(rectangle->max_y - rectangle->min_y);
 				}
@@ -255,10 +255,10 @@ void DrawScreen() {
 				last_draw_into_framebuffer_command.Set(
 					command_one_of);
 				auto command = command_one_of.MutableCopyPartOfATexture();
-				command.SetLeftSource(rectangle->min_x);
-				command.SetTopSource(rectangle->min_y);
-				command.SetLeftDestination(rectangle->texture_x);
-				command.SetTopDestination(rectangle->texture_y);
+				command.SetLeftSource(rectangle->texture_x);
+				command.SetTopSource(rectangle->texture_y);
+				command.SetLeftDestination(rectangle->min_x);
+				command.SetTopDestination(rectangle->min_y);
 				command.SetWidth(rectangle->max_x - rectangle->min_x);
 				command.SetHeight(rectangle->max_y - rectangle->min_y);
 			}

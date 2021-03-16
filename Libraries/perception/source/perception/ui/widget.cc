@@ -171,7 +171,21 @@ void Widget::InvalidateCalculatedHeight() {
         }
     }
     InvalidateChildrensCalculatedHeight();
+}
 
+bool Widget::GetWidgetAt(int x, int y,
+    std::shared_ptr<Widget>& widget,
+    int& x_in_selected_widget,
+    int& y_in_selected_widget) {
+    if (x >= 0 && x < GetCalculatedWidth() &&
+        y >= 0 && y < GetCalculatedHeight()) {
+        // Within our bounds, but not selectable.
+        widget.reset();
+        return true;
+    } else {
+        // Outside our bounds.
+        return false;
+    }
 }
 
 // Components that have children or some other calculation should
@@ -192,6 +206,14 @@ int Widget::CalculateContentWidth() {
 int Widget::CalculateContentHeight() {
 	return 0;
 }
+
+void Widget::OnMouseEnter() { }
+void Widget::OnMouseLeave() {}
+void Widget::OnMouseMove(int x, int y) {}
+void Widget::OnMouseButtonDown(int x, int y,
+    ::permebuf::perception::devices::MouseButton button) {}
+void Widget::OnMouseButtonUp(int x, int y,
+    ::permebuf::perception::devices::MouseButton button) {}
 
 void Widget::InvalidateRender() {
     if (auto parent = parent_.lock()) {

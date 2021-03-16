@@ -14,33 +14,28 @@
 
 #include <iostream>
 #include <vector>
+#include <sstream>
 
-#include "perception/fibers.h"
-#include "perception/processes.h"
+#include "launcher.h"
 #include "perception/scheduler.h"
+#include "perception/ui/label.h"
 #include "perception/ui/ui_window.h"
 
-using ::perception::Fiber;
-using ::perception::GetProcessId;
-using ::perception::MessageId;
-using ::perception::ProcessId;
-using ::perception::Sleep;
+using ::perception::HandOverControl;
+using ::perception::ui::kFillParent;
+using ::perception::ui::Label;
+using ::perception::ui::TextAlignment;
 using ::perception::ui::UiWindow;
 
-void CreateWindow(std::string_view title, uint32 color,
-	bool dialog = false, int width = 0, int height = 0) {
-	new UiWindow(title, dialog, width, height);
-}
-
 int main() {
-	CreateWindow("Raspberry", 0x0ed321ff);
-	CreateWindow("Blueberry", 0xc5c20dff);
-	CreateWindow("Blackberry", 0xa5214eff);
-	CreateWindow("Strawberry", 0x90bdee);
-	CreateWindow("Boysenberry", 0x25993fff);
-	CreateWindow("Popup Dialog", 0x65e979ff, true, 100, 200);
-	CreateWindow("Another Dialog", 0x7c169aff, true, 80, 80);
+	auto window = std::make_shared<UiWindow>("Welcome!", true, 300, 50);
+	window->SetRoot(
+		std::make_shared<Label>()->
+		SetTextAlignment(TextAlignment::MiddleCenter)->
+		SetLabel("Welcome to Perception. Press the ESCAPE key to open the launcher.")->
+		SetSize(kFillParent)->ToSharedPtr());
 
-	perception::HandOverControl();
+	auto launcher = std::make_unique<Launcher>();
+	HandOverControl();
 	return 0;
 }

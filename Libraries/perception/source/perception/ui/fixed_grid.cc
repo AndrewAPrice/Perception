@@ -45,6 +45,7 @@ FixedGrid* FixedGrid::AddChild(std::shared_ptr<Widget> child,
     item.y = y;
     item.columns = columns;
     item.rows = rows;
+    item.widget = child;
 	children_.push_back(item);
 	child->SetParent(ToSharedPtr());
     InvalidateSize();
@@ -86,16 +87,49 @@ FixedGrid* FixedGrid::SetSpacing(int spacing) {
     return this;
 }
 
+bool FixedGrid::GetWidgetAt(int x, int y,
+        std::shared_ptr<Widget>& widget,
+        int& x_in_selected_widget,
+        int& y_in_selected_widget) {
+    int width = GetCalculatedWidth();
+    int height = GetCalculatedHeight();
+
+    if (x < 0 || y < 0 || x >= width || y >= height) {
+        // Out of bounds.
+        return false;
+    }
+
+    // Remove the margins.
+    x -= margin_;
+    y -= margin_;
+
+    for (auto& child : children_) {
+        if (child.widget->GetWidgetAt(
+            x - child.x * x_spacing_,
+            y - child.y * y_spacing_,
+            widget, x_in_selected_widget,
+            y_in_selected_widget)) {
+            // Widget in this child.
+            return true;
+        }
+    }
+
+    // Within bounds, but not over a selectable widget.
+    widget.reset();
+    return true;
+}
+
 void FixedGrid::Draw(DrawContext& draw_context) {
     VerifyCalculatedSize();
 
-    int start_x = draw_context.x;
-    int start_y = draw_context.y;
+    int start_x = draw_context.x + margin_;
+    int start_y = draw_context.y + margin_;
 
-    for (const auto& item: children_) {
-        draw_context.x = start_x + item.x * x_spacing_;
-        draw_context.y = start_y + item.y * y_spacing_;
-        item.widget->Draw(draw_context);
+    for (const auto& child: children_) {
+        draw_context.x = start_x + child.x * x_spacing_;
+        draw_context.y = start_y + child.y * y_spacing_;
+
+        child.widget->Draw(draw_context);
     }
 }
 
@@ -107,7 +141,7 @@ void FixedGrid::OnNewWidth(int width) {
     for (const auto& item: children_) {
         if (item.widget->GetWidth() == kFillParent) {
             item.widget->SetCalculatedWidth(
-                column_width + spacing_ * (item.columns - 1));
+                column_width + x_spacing_ * (item.columns - 1));
         }
     }
 }
@@ -120,7 +154,7 @@ void FixedGrid::OnNewHeight(int height) {
     for (const auto& item : children_) {
         if (item.widget->GetHeight() == kFillParent) {
             item.widget->SetCalculatedHeight(
-                row_height + spacing_ * (item.rows - 1));
+                row_height + y_spacing_ * (item.rows - 1));
         }
     }
 }
@@ -143,10 +177,10 @@ bool FixedGrid::IsValidEmptyPosition(int x, int y,
 
     // Check if we overlap any existing children.
     for (const auto& child : children_) {
-        if (!(x + columns < child.x ||
-            x > child.x + child.columns ||
-            y + rows < child.y ||
-            y > child.y + child.rows))
+        if (!(x + columns <= child.x ||
+            x >= child.x + child.columns ||
+            y + rows <= child.y ||
+            y >= child.y + child.rows))
             // We overlap this child.
             return false;
     }

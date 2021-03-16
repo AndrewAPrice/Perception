@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "perception/ui/text_alignment.h"
 #include "perception/ui/widget.h"
 
 #include <functional>
@@ -33,6 +34,7 @@ public:
 	TextBox* SetValue(std::string_view value);
 	std::string_view GetValue();
 	TextBox* SetPadding(int padding);
+	TextBox* SetTextAlignment(TextAlignment alignment);
 	TextBox* SetEditable(bool editable);
 	bool IsEditable();
 	TextBox* OnChange(std::function<void()> on_change_handler);
@@ -42,11 +44,17 @@ private:
 
 	virtual int CalculateContentWidth() override;
     virtual int CalculateContentHeight() override;
+
+    virtual void OnNewWidth(int width) override;
+    virtual void OnNewHeight(int height) override;
     
 	std::string value_;
 	int padding_;
 	bool is_editable_;
 	std::function<void()> on_change_handler_;
+	TextAlignment text_alignment_;
+	bool realign_text_;
+	int text_x_, text_y_;
 };
 
 }

@@ -22,24 +22,24 @@ function generateBuildCommand(language, buildSettings) {
 					' -D' + buildSettings.build + '_BUILD_ ';
 					// + '-fdata-sections -ffunction-sections ';
 	if (buildSettings.build == 'optimized')
-		cParams += '-O3 ';
+		cParams += '-g -O3 ';
 	else if (buildSettings.build == 'debug')
-		cParams += '-g ';
+		cParams += '-g -Og ';
 
 	const isLocalBuild = buildSettings.os != 'Perception';
 
 	if (language == 'C++') {
 		let command = '';
 		if (isLocalBuild)
-			return getToolPath('local-gcc') + ' -g -c -std=c++17 -MD -MF temp.d' + cParams;
+			return getToolPath('local-gcc') + ' -c -std=c++17 -MD -MF temp.d' + cParams;
 		else
-			return getToolPath('gcc') + ' -g -fverbose-asm -m64 -ffreestanding -nostdlib ' +
+			return getToolPath('gcc') + ' -fverbose-asm -m64 -ffreestanding -nostdlib ' +
 				'-nostdinc++ -mno-red-zone -c -std=c++17 -MD -MF temp.d' + cParams;
 	} else if (language == 'C') {
 		if (isLocalBuild)
-			return getToolPath('local-gcc') + ' -g -c -MD -MF temp.d' + cParams;
+			return getToolPath('local-gcc') + ' -c -MD -MF temp.d' + cParams;
 		else
-			return getToolPath('gcc') + ' -g -D PERCEPTION -m64 -ffreestanding -nostdlib ' +
+			return getToolPath('gcc') + ' -D PERCEPTION -m64 -ffreestanding -nostdlib ' +
 			'-mno-red-zone -c -MD -MF temp.d' + cParams;
 	} else if (language == 'Kernel C') {
 		return  getToolPath('gcc') + ' -m64 -mcmodel=kernel ' +
@@ -92,7 +92,7 @@ function getLinkerCommand(packageType, outputFile, inputFiles, buildSettings) {
 		case PackageType.KERNEL: {
 			let extras = '';
 			if (buildSettings.build == 'optimized') {
-				extras = ' -s '
+				 extras = ' -s ';
 			} else {
 				extras += ' -g ';
 			}
@@ -104,7 +104,7 @@ function getLinkerCommand(packageType, outputFile, inputFiles, buildSettings) {
 		case PackageType.APPLICATION: {
 			let extras = '';//' -Wl,--gc-sections ';
 			if (buildSettings.build == 'optimized') {
-				extras += ' -O3 -s ';
+				extras += ' -O3 -g '; // -s
 			} else {
 				extras += ' -g ';
 
