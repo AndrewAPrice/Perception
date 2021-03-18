@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
-
 #include "device_manager.h"
+
+#include "pci.h"
+#include "pci_device_names.h"
 
 using ::perception::ProcessId;
 using ::permebuf::perception::devices::PciDevice;
@@ -40,15 +41,16 @@ void DeviceManager::HandleQueryPciDevices(
 			}
 			auto device = response.AllocateMessage<PciDevice>();
 			device.SetBaseClass(base_class);
-			device.SeSubClass(sub_class);
+			device.SetSubClass(sub_class);
 			device.SetProgIf(prog_if);
 			device.SetVendor(vendor);
 			device.SetDeviceId(device_id);
 			device.SetBus(bus);
 			device.SetSlot(slot);
 			device.SetFunction(function);
+			device.SetName(GetPciDeviceName(base_class, sub_class, prog_if));
 			last_device.Set(device);
 		});
 
-	responser.Reply(std::move(response));
+	responder.Reply(std::move(response));
 }

@@ -22,7 +22,7 @@ bool LoadPciDriver(uint8 base_class, uint8 sub_class, uint8 prog_if,
 		case 0x01: // Mass storage controller
 			switch(sub_class) {
 				case 0x01:
-					AddDriverToLoad("IDE Controller Driver");
+					AddDriverToLoad("IDE Controller");
 					return true;
 				default: return false;
 			}

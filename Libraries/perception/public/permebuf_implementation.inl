@@ -363,7 +363,7 @@ void PermebufListOf<T>::Set(T value) {
 	if (!this->IsValid()) {
 		return;
 	}
-	this->buffer_->WritePointer(this->GetItemAddress(), value);
+	this->buffer_->WritePointer(this->GetItemAddress(), value.Address());
 }
 
 template <class T>
@@ -516,7 +516,7 @@ template <class T>
 PermebufMessageReplier<T>::PermebufMessageReplier(
 	::perception::ProcessId process,
 	::perception::MessageId response_channel) :
-	process_(process), response_channel_(response_channel_) {}
+	process_(process), response_channel_(response_channel) {}
 
 template <class T>
 void PermebufMessageReplier<T>::Reply(Permebuf<T> response) {
@@ -642,6 +642,7 @@ PermebufService::SendMiniMessageAndWaitForMessage(size_t function_id,
 	::perception::MessageId message_id_of_response =
 		::perception::GenerateUniqueMessageId();
 
+
 	auto send_status = ::perception::SendRawMessage(
 		 process_id_, message_id_,
 		 function_id << 3,
@@ -660,7 +661,7 @@ PermebufService::SendMiniMessageAndWaitForMessage(size_t function_id,
 			param5);
 		if (pid != process_id_) {
 			// Not the process we care about.
-			if ((metadata & 0b111) == 1) {
+			if ((metadata & 1) == 1) {
 				// This other process sent us memory we don't care about.
 				::perception::ReleaseMemoryPages((void*)param4, param5);
 			}
@@ -669,10 +670,14 @@ PermebufService::SendMiniMessageAndWaitForMessage(size_t function_id,
 
 	if (response_status != 0) {
 		// Bad response from the server.
+		if ((metadata & 1) == 1) {
+			// This other process sent us memory we don't care about.
+			::perception::ReleaseMemoryPages((void*)param4, param5);
+		}
 		return static_cast<::perception::Status>(response_status);
 	}
 
-	if ((metadata & 0b111) != 0) {
+	if ((metadata & 1) != 1) {
 		// We expected memory pages.
 		return ::perception::Status::INTERNAL_ERROR;
 	}

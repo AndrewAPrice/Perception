@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,30 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
+#include "perception/scheduler.h"
+#include "permebuf/Libraries/perception/devices/storage_device.permebuf.h"
 
-class Dog;
-
-class Cat {
-public:
-	Dog MakeDog();
-};
-
-class Dog {
-public:
-	Dog() {
-		std::cout << "Dog goes woof!" << std::endl;
-	}
-};
-
-Dog Cat::MakeDog() {
-	return Dog();
-}
+using ::perception::HandOverControl;
+using ::permebuf::perception::devices::StorageDevice;
 
 int main() {
-	std::cout << "Hello world" << std::endl;
-	Cat cat;
-	cat.MakeDog();
+	StorageDevice::NotifyOnEachNewInstance([](StorageDevice storage_device) {
+		std::cout << "We have a storage device.";
+		auto status_or_device_details = storage_device.CallGetDeviceDetails(
+			StorageDevice::GetDeviceDetailsRequest());
+		std::cout << " It is " << status_or_device_details->GetSizeInBytes() << " bytes" << std::endl;
+	});
+
+	HandOverControl();
 
 	return 0;
 }

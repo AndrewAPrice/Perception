@@ -12,18 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <memory>
-#include <vector>
+#pragma once
 
-#include "ide.h"
-#include "perception/scheduler.h"
-
-using ::perception::HandOverControl;
-
-int main() {
-	InitializeIdeControllers();
-
-	HandOverControl();
-	return 0;
-}
+void InitializeIdeControllers();

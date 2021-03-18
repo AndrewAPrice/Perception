@@ -12,18 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <memory>
-#include <vector>
+#pragma once
 
-#include "ide.h"
-#include "perception/scheduler.h"
+#include <string>
 
-using ::perception::HandOverControl;
+#include "types.h"
 
-int main() {
-	InitializeIdeControllers();
+enum class DirectoryEntryType {
+	UNKNOWN = 0,
+	FILE = 1,
+	DIRECTORY = 2
+};
 
-	HandOverControl();
-	return 0;
-}
+struct DirectoryEntry {
+	std::string name;
+
+	DirectoryEntryType type;
+
+	size_t size;
+};

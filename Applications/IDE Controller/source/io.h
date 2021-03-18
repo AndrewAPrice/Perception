@@ -12,18 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <memory>
-#include <vector>
+#pragma once
 
-#include "ide.h"
-#include "perception/scheduler.h"
+#include "types.h"
 
-using ::perception::HandOverControl;
+struct IdeChannelRegisters;
 
-int main() {
-	InitializeIdeControllers();
-
-	HandOverControl();
-	return 0;
-}
+void WriteByteToIdeController(IdeChannelRegisters *channel, uint8 reg, uint8 data);
+uint8 ReadByteFromIdeController(IdeChannelRegisters *channel, uint8 reg);
+void ReadBytesFromIdeControllerIntoBuffer(IdeChannelRegisters *channel, uint8 reg, void *buffer, size_t quads);

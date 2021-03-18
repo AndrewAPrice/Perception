@@ -16,7 +16,7 @@
 
 #include "permebuf/Libraries/perception/devices/device_manager.permebuf.h"
 
-class DeviceManager :: public ::permebuf::perception::devices::DeviceManager::Server {
+class DeviceManager : public ::permebuf::perception::devices::DeviceManager::Server {
 public:
 	typedef ::permebuf::perception::devices::DeviceManager DM;
 

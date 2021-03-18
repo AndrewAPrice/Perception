@@ -247,6 +247,8 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 		parentPublicIncludeDirs.push(includeDir);
 	});
 
+	params += ' -isystem '+ escapePath(packageDirectory) + 'source';
+
 	Object.keys(defines).forEach((define) => {
 		params += ' -D' + define;
 	});

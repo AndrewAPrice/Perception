@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <memory>
-#include <vector>
+#include "file_systems/file_system.h"
 
-#include "ide.h"
-#include "perception/scheduler.h"
+#include "file_systems/iso9660.h"
 
-using ::perception::HandOverControl;
+using ::permebuf::perception::devices::StorageDevice;
 
-int main() {
-	InitializeIdeControllers();
+namespace file_system {
 
-	HandOverControl();
-	return 0;
+std::unique_ptr<FileSystem> InitializeStorageDevice(
+		::permebuf::perception::devices::StorageDevice storage_device) {
+	// Try each known file system to see which one we can initialize.
+	return InitializeIso9960ForStorageDevice(storage_device);
+}
+
 }

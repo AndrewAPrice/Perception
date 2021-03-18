@@ -12,18 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <memory>
-#include <vector>
+#pragma once
 
-#include "ide.h"
-#include "perception/scheduler.h"
+#include "perception/shared_memory.h"
 
-using ::perception::HandOverControl;
-
-int main() {
-	InitializeIdeControllers();
-
-	HandOverControl();
-	return 0;
-}
+class File {
+public:
+	virtual void Close() = 0;
+	virtual size_t GetSize() = 0;
+	virtual void Read(SharedMemory& buffer, size_t offset_in_file,
+		size_t offset_in_buffer, size_t bytes_to_read) = 0;
+};

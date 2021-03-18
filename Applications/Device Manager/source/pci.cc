@@ -16,6 +16,7 @@
 
 #include <iostream>
 #include <functional>
+#include <vector>
 
 #include "pci_device_names.h"
 #include "pci_drivers.h"
@@ -77,8 +78,8 @@ void ForEachPciDeviceInBusAndSlot(uint8 bus, uint8 slot,
 	const std::function<void(
 		uint8, uint8, uint8, uint16, uint16, uint8, uint8, uint8)>& on_each_pci_device) {
 	/* check if there is a device here - on function 0 */
-	uint16 vendor = Read16BitsFromPciConfig(bus, slot, 0, kPciHdrVendorId);
-	if(vendor == 0xFFFF) return;
+	uint16 vendor_id = Read16BitsFromPciConfig(bus, slot, 0, kPciHdrVendorId);
+	if(vendor_id == 0xFFFF) return;
 
 	/* check what functions it performs */
 	ParsePciBusSlotFunction(bus, slot, 0, on_each_pci_device);
@@ -131,7 +132,7 @@ void InitializePci() {
 				GetPciDeviceName(base_class, sub_class, prog_if) << std::endl;
 		}
 
-		Device device;
+		PciDevice device;
 		device.base_class = base_class;
 		device.sub_class = sub_class;
 		device.prog_if = prog_if;
@@ -146,20 +147,20 @@ void InitializePci() {
 }
 
 void ForEachPciDeviceThatMatchesQuery(int16 base_class, int16 sub_class,
-	int16 prog_if, int32 vendor, int32 device_id, int16 bus, int16 slot,
+	int16 prog_if, int32 vendor_id, int32 device_id, int16 bus, int16 slot,
 	int16 function, const std::function<void(uint8, uint8, uint8, uint16,
 		uint16, uint8, uint8, uint8)>& on_each_device) {
-	for (const Device& device : devices) {
+	for (const PciDevice& device : devices) {
 		if ((base_class == -1 || base_class == device.base_class) &&
 			(sub_class == -1 || sub_class == device.sub_class) &&
 			(prog_if == -1 || prog_if == device.prog_if) &&
-			(vendor == -1 || vendor == device.vendor) &&
+			(vendor_id == -1 || vendor_id == device.vendor_id) &&
 			(device_id == -1 || device_id == device.device_id) &&
 			(bus == -1 || bus == device.bus) &&
 			(slot == -1 || slot == device.slot) &&
-			(function == -1 || function = device.function)) {
+			(function == -1 || function == device.function)) {
 			on_each_device(device.base_class, device.sub_class,
-				device.prog_if, device.vendor, device.device_id,
+				device.prog_if, device.vendor_id, device.device_id,
 				device.bus, device.slot, device.function);
 		}
 	}

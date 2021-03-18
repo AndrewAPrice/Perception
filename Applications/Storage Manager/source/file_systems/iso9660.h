@@ -1,0 +1,42 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#pragma once
+
+#include <memory>
+
+#include "file_systems/file_system.h"
+
+namespace file_systems {
+
+class Iso9660 : public FileSystem {
+public:
+	// Opens a file.
+	virtual std::unique_ptr<File> OpenFile(std::string_view path) override;
+
+	// Counts the number of entries in a directory.
+	virtual size_t CountEntriesInDirectory(std::string_view path) override;
+
+	// If count is 0, then we will iterate over all of the entries in
+	// a directory.
+	virtual void ForEachEntryInDirectory(std::string_view path,
+		size_t start_index, size_t count,
+		const std::function<void(const DirectoryEntry&)>& on_each_entry) override;
+};
+
+// Returns a FileSystem instance if this device is in the Iso 9660 format.
+std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
+	::permebuf::perception::devices::StorageDevice storage_device);
+
+}
