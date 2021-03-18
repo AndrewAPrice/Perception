@@ -16,8 +16,6 @@
 
 #include "perception/messages.h"
 
-#include <iostream>
-
 namespace perception {
 namespace {
 constexpr int kMaxServiceNameLength = 80;

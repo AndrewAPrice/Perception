@@ -41,10 +41,8 @@ std::shared_ptr<UiWindow> launcher_window;
 void ShowLauncherWindow() {
 	if (launcher_window) {
 		// Launcher window is already open.
-		std::cout << "Launcher window already open." << std::endl;
 		return;
 	}
-	std::cout << "Opening launcher window." << std::endl;
 
 	// Query the screen size.
 	auto screen_size = *GraphicsDriver::Get().CallGetScreenSize(
@@ -61,7 +59,8 @@ void ShowLauncherWindow() {
 		SetTextAlignment(TextAlignment::MiddleCenter)->
 		SetLabel("TODO: Implement")->
 		SetSize(kFillParent)->ToSharedPtr())->OnClose([]() {
-			std::cout << "Launcher window closed." << std::endl;
-			Defer([]() { launcher_window.reset(); });
+			Defer([]() {
+				launcher_window.reset();
+			});
 		});
 }

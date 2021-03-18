@@ -17,7 +17,6 @@
 #include "perception/memory.h"
 #include "perception/scheduler.h"
 
-#include <iostream>
 #include <map>
 
 namespace perception {
@@ -68,7 +67,7 @@ void DealWithUnhandledMessage(ProcessId sender, size_t metadata, size_t param1,
 		ReleaseMemoryPages((void*)param4, param5);
 	}
 
-	if (((metadata >> 1) && 0b11) != 0) {
+	if (((metadata >> 1) & 0b11) != 0) {
 		// This is an RPC that expects a response. We need to respond
 		// to tell them this service or channel doesn't exist.
 		SendMessage(sender,
@@ -152,10 +151,8 @@ void RegisterRawMessageHandler(MessageId message_id, std::function<void(ProcessI
 	size_t, size_t, size_t, size_t, size_t, size_t)> callback) {
 	// Erase already existing message handler.
 	auto handlers_by_message_id_itr = handlers_by_message_id.find(message_id);
-	if (handlers_by_message_id_itr != handlers_by_message_id.end()) {
-		std::cout << "Multiple message handlers trying to handle " << message_id << std::endl;
+	if (handlers_by_message_id_itr != handlers_by_message_id.end())
 		handlers_by_message_id.erase(handlers_by_message_id_itr);
-	}
 
 	MessageHandler handler;
 	handler.fiber_to_wake_up = nullptr;

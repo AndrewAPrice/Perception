@@ -32,7 +32,8 @@ enum class Status {
 template<class T>
 class StatusOr {
 public:
-	StatusOr(T& value) : status_(::perception::Status::OK), value_(std::move(value)) {}
+	StatusOr(T&& value) : status_(::perception::Status::OK), value_(std::move(value)) {}
+	StatusOr(T& value) : status_(::perception::Status::OK), value_(value) {}
 	StatusOr(::perception::Status status) : status_(status) {}
 
 	bool Ok() const {

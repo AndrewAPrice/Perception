@@ -632,10 +632,53 @@ StatusOr<I> PermebufService::SendMiniMessageAndWaitForMiniMessage(
 }
 
 template <class O, class I>
-StatusOr<Permebuf<O>>
-	PermebufService::SendMiniMessageAndWaitForMessage(size_t function_id,
-		const O& request) const {
-	std::cout << "TODO: Implement PermebufService::SendMiniMessageAndWaitForMessage" << std::endl;
+StatusOr<Permebuf<I>>
+PermebufService::SendMiniMessageAndWaitForMessage(size_t function_id,
+	const O& request) const {
+	// Send the message.
+	size_t a, b, c, d;
+	request.Serialize(a, b, c, d);
+
+	::perception::MessageId message_id_of_response =
+		::perception::GenerateUniqueMessageId();
+
+	auto send_status = ::perception::SendRawMessage(
+		 process_id_, message_id_,
+		 function_id << 3,
+		 message_id_of_response, a, b, c, d);
+
+	if (send_status != ::perception::MessageStatus::SUCCESS) {
+		// Something went wrong while sending it out.
+		return ::perception::ToStatus(send_status);
+	}
+
+	::perception::ProcessId pid;
+	size_t metadata, response_status, param2, param3, param4, param5;
+	do {
+		::perception::SleepUntilRawMessage(message_id_of_response,
+			pid, metadata, response_status, param2, param3, param4,
+			param5);
+		if (pid != process_id_) {
+			// Not the process we care about.
+			if ((metadata & 0b111) == 1) {
+				// This other process sent us memory we don't care about.
+				::perception::ReleaseMemoryPages((void*)param4, param5);
+			}
+		}
+	} while (pid != process_id_);
+
+	if (response_status != 0) {
+		// Bad response from the server.
+		return static_cast<::perception::Status>(response_status);
+	}
+
+	if ((metadata & 0b111) != 0) {
+		// We expected memory pages.
+		return ::perception::Status::INTERNAL_ERROR;
+	}
+
+	// Return the response.
+	return Permebuf<I>((void*)param4, param3);
 }
 
 template <class O, class I>
@@ -844,7 +887,11 @@ bool PermebufServer::ProcessMiniMessageForMessage(
 	size_t param4, size_t param5,
 	const std::function<void(::perception::ProcessId,
 		const I&, PermebufMessageReplier<O>)>& handler) {
-	std::cout << "TODO: Implement PermebufServer::ProcessMiniMessageForMessage" << std::endl;
+	if ((metadata & 0b111) != 0) return false;
+	I request;
+	request.Deserialize(param2, param3, param4, param5);
+	handler(sender, request, PermebufMessageReplier<O>(sender, param1));
+	return true;
 }
 
 template <class I>

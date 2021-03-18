@@ -390,9 +390,6 @@ void SyscallHandler(int syscall_number) {
 			break;
 		}
 		case UNREGISTER_SERVICE:
-
-		PrintString(running_thread->process->name);
-		PrintString("is unregistering a service\n");
 			UnregisterServiceByMessageId(running_thread->process,
 				currently_executing_thread_regs->rax);
 			break;

@@ -527,7 +527,7 @@ protected:
 		size_t function_id, const O& request) const;
 
 	template <class O, class I>
-	StatusOr<Permebuf<O>>
+	StatusOr<Permebuf<I>>
 		SendMiniMessageAndWaitForMessage(size_t function_id,
 			const O& request) const;
 

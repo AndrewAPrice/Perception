@@ -539,7 +539,9 @@ void Window::InvalidateDialogAndTitle() {
 void Window::InvalidateContents(int min_x, int min_y, int max_x, int max_y) {
 	max_x = std::min(max_x, width_);
 	max_y = std::min(max_y, height_);
-	InvalidateScreen(x_ + min_x, y_ + min_y, x_ + max_x, y_ + max_y);
+	int x = x_ + 2;
+	int y = y_ + WINDOW_TITLE_HEIGHT + 2;
+	InvalidateScreen(x + min_x, y + min_y, x + max_x, y + max_y);
 }
 
 void Window::SetTextureId(int texture_id) {

@@ -1,0 +1,5 @@
+# Object files used during building.
+build/
+
+# Generated files.
+generated/

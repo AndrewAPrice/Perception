@@ -146,15 +146,6 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
 		return;
 	}
 
-		PrintString(sender_process->name);
-		PrintString("is sending a message to");
-		PrintString(receiver_process->name);
-		PrintString("\n");
-
-		if (sender_process->name[0] == 'L' && receiver_process->name[0] == 'P') {
-PrintStackTrace();
-		}
-
 	struct Message* message = AllocateMessage();
 	if (message == NULL) {
 		// Error, out of memory.
