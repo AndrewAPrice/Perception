@@ -1110,7 +1110,7 @@ bool ${thisMessage.cppClassName}::Has${field.name}() const {
 	return ::perception::SharedMemory(buffer_->Read8Bytes(offset_ + address_offset));
 }
 
-void ${thisMessage.cppClassName}::Set' + field.name + '(const ::perception::SharedMemory& value) {
+void ${thisMessage.cppClassName}::Set${field.name}(const ::perception::SharedMemory& value) {
 	size_t address_offset = `;
 						if (sizeInPointers > 0) {
 							sourceCpp += `('${sizeInPointers} << static_cast<size_t>(buffer_->GetAddressSize())) + `;

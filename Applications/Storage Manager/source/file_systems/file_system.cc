@@ -18,7 +18,16 @@
 
 using ::permebuf::perception::devices::StorageDevice;
 
-namespace file_system {
+namespace file_systems {
+
+FileSystem::FileSystem(StorageDevice storage_device) :
+	storage_device_(storage_device) {
+	auto status_or_device_details = storage_device.CallGetDeviceDetails(
+		StorageDevice::GetDeviceDetailsRequest());
+	device_name_ = std::string(*(*status_or_device_details)->GetName());
+	storage_type_ = (*status_or_device_details)->GetType();
+	is_writable_ = (*status_or_device_details)->GetIsWritable();
+}
 
 std::unique_ptr<FileSystem> InitializeStorageDevice(
 		::permebuf::perception::devices::StorageDevice storage_device) {

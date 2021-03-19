@@ -14,13 +14,7 @@
 
 #pragma once
 
-#include "perception/shared_memory.h"
+#include "file_systems/file_system.h"
 
-class File {
-public:
-	virtual void Close() = 0;
-	virtual size_t GetSize() = 0;
-	virtual void Read(::perception::SharedMemory& buffer,
-		size_t offset_in_file,
-		size_t offset_in_buffer, size_t bytes_to_read) = 0;
-};
+void MountFileSystem(
+	std::unique_ptr<file_systems::FileSystem> file_system);

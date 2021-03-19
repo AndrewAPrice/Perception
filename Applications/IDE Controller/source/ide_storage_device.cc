@@ -27,18 +27,20 @@ using ::perception::Write8BitsToPort;
 using ::perception::Write16BitsToPort;
 using ::perception::Yield;
 using ::permebuf::perception::devices::StorageDevice;
+using ::permebuf::perception::devices::StorageDeviceStatus;
 using ::permebuf::perception::devices::StorageType;
 
 IdeStorageDevice::IdeStorageDevice(IdeDevice* device) : device_(device) {}
 
 void IdeStorageDevice::HandleGetDeviceDetails(::perception::ProcessId sender,
 	const StorageDevice::GetDeviceDetailsRequest& request,
-	PermebufMiniMessageReplier<StorageDevice::GetDeviceDetailsResponse> responder) {
-	StorageDevice::GetDeviceDetailsResponse response;
-	response.SetSizeInBytes(device_->size_in_bytes);
-	response.SetIsWritable(device_->is_writable);
-	response.SetType(StorageType::Optical);
-	responder.Reply(response);
+	PermebufMessageReplier<StorageDevice::GetDeviceDetailsResponse> responder) {
+	Permebuf<StorageDevice::GetDeviceDetailsResponse> response;
+	response->SetSizeInBytes(device_->size_in_bytes);
+	response->SetIsWritable(device_->is_writable);
+	response->SetType(StorageType::Optical);
+	response->SetName(device_->name);
+	responder.Reply(std::move(response));
 }
 
 void IdeStorageDevice::HandleRead(::perception::ProcessId sender,
@@ -46,22 +48,45 @@ void IdeStorageDevice::HandleRead(::perception::ProcessId sender,
 	PermebufMiniMessageReplier<StorageDevice::ReadResponse> responder) {
 	SharedMemory destination_shared_memory = request.GetBuffer();
 	if (!destination_shared_memory.Join()) {
-		responder.Reply(StorageDevice::ReadResponse());
+		StorageDevice::ReadResponse response;
+		response.SetStatus(StorageDeviceStatus::InvalidBuffer);
+		responder.Reply(response);
 		return;
 	}
 
-	size_t bytes_to_copy = request.GetBytesToCopy();
-	size_t device_offset_start = request.GetOffsetOnDevice();
-	size_t buffer_offset_start = request.GetOffsetInBuffer();
+	int64 bytes_to_copy = request.GetBytesToCopy();
+	int64 device_offset_start = request.GetOffsetOnDevice();
+	int64 buffer_offset_start = request.GetOffsetInBuffer();
+
 	uint8* destination_buffer = (uint8*)*destination_shared_memory;
 
-	if (bytes_to_copy == 0 ||
-		device_offset_start + bytes_to_copy > device_->size_in_bytes ||
-		buffer_offset_start + bytes_to_copy > destination_shared_memory.GetSize()) {
-		// Nothing to copy or the region overflows.
-		responder.Reply(StorageDevice::ReadResponse());
+	if (bytes_to_copy == 0) {
+		// Nothing to copy.
+		StorageDevice::ReadResponse response;
+		response.SetStatus(StorageDeviceStatus::Successful);
+		responder.Reply(response);
 		return;
 	}
+
+	if (device_offset_start + bytes_to_copy > device_->size_in_bytes) {
+		// Reading beyond end of the device.
+		StorageDevice::ReadResponse response;
+		response.SetStatus(StorageDeviceStatus::BeyondEndOfDevice);
+		responder.Reply(response);
+		return;
+
+	}
+
+	if (buffer_offset_start + bytes_to_copy > destination_shared_memory.GetSize()) {
+		// Writing beyond the end of the buffer.
+		StorageDevice::ReadResponse response;
+		response.SetStatus(StorageDeviceStatus::BeyondEndOfBuffer);
+		responder.Reply(response);
+		return;
+	}
+
+
+	int64 buffer_offset = buffer_offset_start - device_offset_start;
 
 	/* select drive - master/slave */
 	uint16 bus = device_->channel ? ATA_BUS_SECONDARY : ATA_BUS_PRIMARY;
@@ -96,7 +121,9 @@ void IdeStorageDevice::HandleRead(::perception::ProcessId sender,
 		/* is there an error ? */
 		if(status & 0x1) {
 			/* no disk */
-			responder.Reply(SD::ReadResponse());
+			StorageDevice::ReadResponse response;
+			response.SetStatus(StorageDeviceStatus::NoDisk);
+			responder.Reply(response);
 			return;
 		}
 
@@ -122,17 +149,19 @@ void IdeStorageDevice::HandleRead(::perception::ProcessId sender,
 
 			if(indx == device_offset_start + bytes_to_copy - 1) {
 				// Copy just the last byte.
-				destination_buffer[indx - buffer_offset_start] = (b > 8) & 0xFF;
+				destination_buffer[indx + buffer_offset] = (b > 8) & 0xFF;
 			} else if (indx + 1 == device_offset_start) {
 				// Copy just the first byte.
-				destination_buffer[indx - buffer_offset_start] = b & 0xFF;
+				destination_buffer[indx + 1 + buffer_offset_start] = b & 0xFF;
 			} else if(indx >= device_offset_start &&
 				indx < device_offset_start + bytes_to_copy) {
 				// Copy both bytes.
-				*(uint16 *)&destination_buffer[indx - buffer_offset_start] = b;
+				*(uint16 *)&destination_buffer[indx + buffer_offset] = b;
 			}
 		}
 	}
 
-	responder.Reply(StorageDevice::ReadResponse());
+	StorageDevice::ReadResponse response;
+	response.SetStatus(StorageDeviceStatus::Successful);
+	responder.Reply(response);
 }

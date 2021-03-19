@@ -39,7 +39,8 @@ struct IdeDevice {
 	uint32 size; /* size in sectors */
 	uint64 size_in_bytes;
 	bool is_writable;
-	unsigned char model[41]; /* model string */
+	std::string name;
+	// unsigned char model[41]; /* model string */
 	IdeController* controller;
 	std::unique_ptr<IdeStorageDevice> storage_device;
 };

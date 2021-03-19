@@ -18,11 +18,19 @@ enum StorageType {
 	Optical = 1;	
 }
 
+enum StorageDeviceStatus {
+	Successful = 1;
+	InvalidBuffer = 2;
+	BeyondEndOfDevice = 3;
+	BeyondEndOfBuffer = 4;
+	NoDisk = 5;
+}
+
 // A device that stores data, such as a hard disk.
 service StorageDevice {
 	// Gets details about this storage device.
 	minimessage GetDeviceDetailsRequest {}
-	minimessage GetDeviceDetailsResponse {
+	message GetDeviceDetailsResponse {
 		// Size of the device in bytes.
 		SizeInBytes : uint64 = 1;
 
@@ -31,6 +39,9 @@ service StorageDevice {
 
 		// The type of storage device this is.
 		Type : StorageType = 3;
+
+		// The name of the device.odel
+		Name : string = 4;
 	}
 	GetDeviceDetails : GetDeviceDetailsRequest -> GetDeviceDetailsResponse = 0;
 
@@ -42,13 +53,17 @@ service StorageDevice {
 		// The offset in the buffer to start writing to.
 		OffsetInBuffer : uint64 = 2;
 
-		// The number of bytes to copy from the deivce into the buffer.
+		// The number of bytes to copy from the device into the buffer.
 		BytesToCopy : uint64 = 3;
 
 		// The shared memory buffer to write to.
 		Buffer : SharedMemory = 4;
 	}
-	minimessage ReadResponse {}
+	minimessage ReadResponse {
+		// The status of the read. Anything other than Successful
+		// did not copy data.
+		Status : StorageDeviceStatus = 1;
+	}
 	Read : ReadRequest -> ReadResponse = 1;
 
 }

@@ -16,11 +16,10 @@
 
 #include "perception/shared_memory.h"
 
-class File {
-public:
-	virtual void Close() = 0;
-	virtual size_t GetSize() = 0;
-	virtual void Read(::perception::SharedMemory& buffer,
-		size_t offset_in_file,
-		size_t offset_in_buffer, size_t bytes_to_read) = 0;
+struct PooledSharedMemory {
+	std::unique_ptr<::perception::SharedMemory> shared_memory;
 };
+
+std::unique_ptr<PooledSharedMemory> GetSharedMemory();
+void ReleaseSharedMemory(
+	std::unique_ptr<PooledSharedMemory> shared_memory);

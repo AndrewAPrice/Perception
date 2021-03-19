@@ -27,7 +27,7 @@ public:
 
 	virtual void HandleGetDeviceDetails(::perception::ProcessId sender,
 		const SD::GetDeviceDetailsRequest& request,
-		PermebufMiniMessageReplier<SD::GetDeviceDetailsResponse> responder) override;
+		PermebufMessageReplier<SD::GetDeviceDetailsResponse> responder) override;
 
 	virtual void HandleRead(::perception::ProcessId sender,
 		const SD::ReadRequest& request,

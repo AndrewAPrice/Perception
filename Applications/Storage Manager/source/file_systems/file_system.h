@@ -18,6 +18,7 @@
 #include <memory>
 #include <string_view>
 
+#include "file.h"
 #include "permebuf/Libraries/perception/devices/storage_device.permebuf.h"
 
 class DirectoryEntry;
@@ -27,6 +28,8 @@ namespace file_systems {
 
 class FileSystem {
 public:
+	FileSystem(::permebuf::perception::devices::StorageDevice storage_device);
+
 	virtual ~FileSystem() {}
 
 	// Opens a file.
@@ -40,12 +43,39 @@ public:
 	virtual void ForEachEntryInDirectory(std::string_view path,
 		size_t start_index, size_t count,
 		const std::function<void(const DirectoryEntry&)>& on_each_entry) = 0;
+
+	virtual std::string_view GetFileSystemType() = 0;
+
+	::permebuf::perception::devices::StorageType GetStorageType() {
+		return storage_type_;
+	}
+
+	std::string_view GetDeviceName() {
+		return device_name_;
+	}
+
+	bool IsWritable() {
+		return is_writable_;
+	}
+
+protected:
+	// Storage device.
+	::permebuf::perception::devices::StorageDevice storage_device_;
+
+	// The type of storage device this is.
+	::permebuf::perception::devices::StorageType storage_type_;
+
+	// The name of the device.
+	std::string device_name_;
+
+	// Is this device writable?
+	bool is_writable_;
 };
 
 
 // Returns a FileSystem instance for accessing this storage device if it's
 // a file system we can handle, otherwise returns a nullptr.
-static std::unique_ptr<FileSystem> InitializeStorageDevice(
+std::unique_ptr<FileSystem> InitializeStorageDevice(
 	::permebuf::perception::devices::StorageDevice storage_device);
 
 }

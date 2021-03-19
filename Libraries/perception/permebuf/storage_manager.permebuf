@@ -1,0 +1,122 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+namespace perception;
+
+enum FileStatus {
+	Successful = 1;
+	NotFound = 2;
+	NotAFile = 3;
+	NotADirectory = 4;
+	BeyondEndOfFile = 5;
+	BeyondEndOfBuffer = 6;
+}
+
+// The type of entry in a directory.
+enum DirectoryEntryType {
+	// This directory entry is a file.
+	File = 1;
+
+	// Thie directory entry is a directory.
+	Directory = 2;	
+}
+
+message DirectoryEntry {
+	// Name of the directory entry.
+	Name : string = 1;
+
+	// Type of entry this is.
+	Type : DirectoryEntryType = 2;
+
+	// The size of this entry, in bytes, if it's
+	// a file.
+	SizeInBytes : uint64 = 3;
+}
+
+// A device that stores data, such as a hard disk.
+service StorageDevice {
+	// Opens a file.
+	message OpenFileRequest {
+		// The path to open.
+		Path : string = 1;
+	}
+	minimessage OpenFileResponse {
+		// The status of attempting to open this file. Anything
+		// other than Successful did not open the file.
+		Status : FileStatus = 1;
+
+		// If the file was succesfully opened, this is
+		// the identifier used to refer to this file in
+		// proceeding operations.
+		FileIdentifier : uint64 = 2;
+
+		// The size of this file, in bytes.
+		SizeInBytes : uint64 = 3;
+	}
+	OpenFile : OpenFileRequest -> OpenFileResponse = 0;
+
+	// Closes a file.
+	minimessage CloseFileRequest {
+		// The identifier of the file to close.
+		FileIdentifier : uint64 = 1;
+	}
+	minimessage CloseFileResponse {}
+	CloseFile : CloseFileRequest -> CloseFileResponse = 1;
+
+	// Reads the contents of a file.
+	message ReadFileRequest {
+		// The identifier of the file to read.
+		FileIdentifer : uint64 = 1;
+
+		// The offset in the file to start reading from.
+		OffsetInFile : uint64 = 2;
+
+		// The offset in the buffer to start writing to.
+		OffsetInDestinationBuffer : uint64 = 3;
+
+		// The bytes to copy from the file into the buffer.
+		BytesToCopy : uint64 = 4;
+
+		// The buffer to write into.
+		BufferToCopyInto : SharedMemory = 5;
+	}
+	message ReadFileResponse {
+		Status : FileStatus = 1;
+	}
+	ReadFile : ReadFileRequest -> ReadFileResponse = 2;
+
+	// Reads the entries in a directory.
+	message ReadDirectoryRequest {
+		// The path of the directory to open.
+		Path : string = 1;
+
+		// The index of the first item to return. Useful
+		// for paginating the request.
+		FirstIndex : uint64 = 2;
+
+		// The maximum number of entries to return.
+		// '0' is no limit.
+		MaximumNumberOfEntries : uint64 = 3;
+	}
+	message ReadDirectoryResponse {
+		// The status of reading this directory. Aything other
+		// than Succesfull didn't read this directory.
+		Status : FileStatus = 1;
+
+		// Each entry in the directory.
+		Entries : list<DirectoryEntry> = 2;
+	}
+	ReadDirectory : ReadDirectoryRequest -> ReadDirectoryResponse = 3;
+
+}

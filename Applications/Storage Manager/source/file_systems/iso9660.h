@@ -22,6 +22,14 @@ namespace file_systems {
 
 class Iso9660 : public FileSystem {
 public:
+	Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
+		std::unique_ptr<char[]> root_directory,
+		::permebuf::perception::devices::StorageDevice storage_device);
+
+	virtual ~Iso9660() {}
+
+	virtual std::string_view GetFileSystemType() override;
+
 	// Opens a file.
 	virtual std::unique_ptr<File> OpenFile(std::string_view path) override;
 
@@ -33,6 +41,16 @@ public:
 	virtual void ForEachEntryInDirectory(std::string_view path,
 		size_t start_index, size_t count,
 		const std::function<void(const DirectoryEntry&)>& on_each_entry) override;
+
+private:
+	// Size of the volume, in logical blocks.
+	uint32 size_in_blocks_;
+
+	// Logical block size, in bytes.
+	uint16 logical_block_size_;
+
+	// Root directory entry.
+	std::unique_ptr<char[]> root_directory_;
 };
 
 // Returns a FileSystem instance if this device is in the Iso 9660 format.

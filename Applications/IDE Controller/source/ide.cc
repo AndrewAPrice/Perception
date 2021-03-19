@@ -14,6 +14,7 @@
 
 #include "ide.h"
 
+#include <cctype>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -47,7 +48,7 @@ std::vector<std::unique_ptr<IdeController>> ide_controllers;
 void MaybeInitializeIdeDevice(IdeDevice* device) {
 	if (device->type != IDE_ATAPI) {
 		// We currently only support CD drives.
-		std::cout << "Not sure what to do with " << device->model << std::endl;
+		std::cout << "Not sure what to do with " << device->name << std::endl;
 		return;
 	}
 
@@ -114,7 +115,6 @@ void MaybeInitializeIdeDevice(IdeDevice* device) {
 	device->size_in_bytes = returnLba * blockLengthInBytes;
 	device->is_writable = false;
 
-	std::cout << "Detected disk in " << device->model << std::endl;
 	device->storage_device = std::make_unique<IdeStorageDevice>(device);
 }
 
@@ -189,12 +189,23 @@ void MaybeInitializeIdeDevices(IdeController* controller) {
 				device->size = *(uint32 *)&buffer[ATA_IDENT_MAX_LBA];
 			}
 
-			// Copy out the device mode.
-			for (int k = 0; k < 40; k++) {
-				device->model[k] = buffer[ATA_IDENT_MODEL + k + 1];
-				device->model[k + 1] = buffer[ATA_IDENT_MODEL + k];
+			auto model_chars = std::make_unique<char[]>(41);
+
+			// Copy out the device model name.
+			for (int k = 0; k < 40; k+=2) {
+				model_chars[k] = buffer[ATA_IDENT_MODEL + k + 1];
+				model_chars[k + 1] = buffer[ATA_IDENT_MODEL + k];
 			}
-			device->model[40] = 0;
+			// Trim whitespace off the end.
+			for (int k = 39; k >= 0; k--) {
+				if (std::isspace(model_chars[k])) {
+					model_chars[k] = 0;
+				} else {
+					break;
+				}
+			}
+			model_chars[40] = 0;
+			device->name = model_chars.get();
 
 			MaybeInitializeIdeDevice(device.get());
 
