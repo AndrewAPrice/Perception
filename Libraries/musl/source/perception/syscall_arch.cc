@@ -445,7 +445,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5, 
 		case SYS_clone3:
 			return ::perception::linux_syscalls::clone3();
 		case SYS_close:
-			return ::perception::linux_syscalls::close();
+			return ::perception::linux_syscalls::close(a1);
 		case SYS_connect:
 			return ::perception::linux_syscalls::connect();
 		case SYS_copy_file_range:
@@ -509,7 +509,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5, 
 		case SYS_fchownat:
 			return ::perception::linux_syscalls::fchownat();
 		case SYS_fcntl:
-			return ::perception::linux_syscalls::fcntl();
+			return ::perception::linux_syscalls::fcntl(a1, a2, a3);
 		case SYS_fdatasync:
 			return ::perception::linux_syscalls::fdatasync();
 		case SYS_fgetxattr:
@@ -561,7 +561,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5, 
 		case SYS_getdents:
 			return ::perception::linux_syscalls::getdents();
 		case SYS_getdents64:
-			return ::perception::linux_syscalls::getdents64();
+			return ::perception::linux_syscalls::getdents64(
+				a1, (dirent*)a2, a3);
 		case SYS_getegid:
 			return ::perception::linux_syscalls::getegid();
 		case SYS_geteuid:
@@ -759,7 +760,10 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5, 
 		case SYS_nfsservctl:
 			return ::perception::linux_syscalls::nfsservctl();
 		case SYS_open:
-			return ::perception::linux_syscalls::open();
+			return ::perception::linux_syscalls::open(
+				reinterpret_cast<const char *>(a1),
+				*(int *)&a2,
+				*(mode_t *)&a3);
 		case SYS_open_by_handle_at:
 			return ::perception::linux_syscalls::open_by_handle_at();
 		case SYS_open_tree:

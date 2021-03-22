@@ -110,8 +110,9 @@ function getLinkerCommand(packageType, outputFile, inputFiles, buildSettings) {
 
 			}
 			if (buildSettings.os == 'Perception')
-				return getToolPath('gcc') + extras + ' -nostdlib -nodefaultlibs -nolibc -nostartfiles -z max-page-size=1 -T userland.ld -o ' + outputFile +
-					' -Wl,--start-group ' + inputFiles + ' -Wl,--end-group';
+				return getToolPath('gcc') + extras + ' -nostdlib  -nodefaultlibs ' +
+					' -nolibc -nostartfiles -z max-page-size=1 -T userland.ld -o ' + outputFile +
+					' -Wl,--start-group ' + inputFiles + ' -Wl,--end-group -Wl,-lgcc';
 			else {
 				// whole-archive/no-whole-archive is less efficient than --start-group/--end-group because it links in dead code, but
 				// the LD that comes with MacOS doesn't support --start-group/--end-group.

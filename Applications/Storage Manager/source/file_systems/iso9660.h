@@ -31,7 +31,8 @@ public:
 	virtual std::string_view GetFileSystemType() override;
 
 	// Opens a file.
-	virtual std::unique_ptr<File> OpenFile(std::string_view path) override;
+	virtual std::unique_ptr<File> OpenFile(std::string_view path,
+		::perception::ProcessId process) override;
 
 	// Counts the number of entries in a directory.
 	virtual size_t CountEntriesInDirectory(std::string_view path) override;
@@ -40,7 +41,9 @@ public:
 	// a directory.
 	virtual void ForEachEntryInDirectory(std::string_view path,
 		size_t start_index, size_t count,
-		const std::function<void(const DirectoryEntry&)>& on_each_entry) override;
+		const std::function<void(std::string_view,
+			::permebuf::perception::DirectoryEntryType,
+			size_t)>& on_each_entry) override;
 
 private:
 	// Size of the volume, in logical blocks.

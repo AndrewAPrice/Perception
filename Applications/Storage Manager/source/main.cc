@@ -18,6 +18,7 @@
 #include "perception/scheduler.h"
 #include "permebuf/Libraries/perception/devices/storage_device.permebuf.h"
 #include "virtual_file_system.h"
+#include "storage_manager.h"
 
 using ::file_systems::InitializeStorageDevice;
 using ::perception::HandOverControl;
@@ -35,6 +36,8 @@ int main() {
 				*(*status_or_device_details)->GetName() << "." << std::endl;
 		}
 	});
+
+	auto storage_manager = std::make_unique<StorageManager>();
 
 	HandOverControl();
 

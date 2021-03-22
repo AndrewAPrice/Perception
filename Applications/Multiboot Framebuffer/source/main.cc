@@ -126,19 +126,16 @@ public:
 #endif
 	}
 
-	void HandleRunCommandsAndWait(
+	StatusOr<GraphicsDriver::EmptyResponse> HandleRunCommandsAndWait(
 		ProcessId sender,
-		Permebuf<GraphicsDriver::RunCommandsMessage> commands,
-		PermebufMiniMessageReplier<GraphicsDriver::EmptyResponse> responder) override {
+		Permebuf<GraphicsDriver::RunCommandsMessage> commands) override {
 		HandleRunCommands(sender, std::move(commands));
-		responder.Reply(GraphicsDriver::EmptyResponse());
+		return GraphicsDriver::EmptyResponse();
 	}
 
-
-	void HandleCreateTexture(
+	StatusOr<GraphicsDriver::CreateTextureResponse> HandleCreateTexture(
 		ProcessId sender,
-		const GraphicsDriver::CreateTextureRequest& request,
-		PermebufMiniMessageReplier<GraphicsDriver::CreateTextureResponse> responder) override {
+		const GraphicsDriver::CreateTextureRequest& request) override {
 
 		// Create the texture.
 		uint32 texture_id = next_texture_id_++;
@@ -170,9 +167,9 @@ public:
 		response.SetTexture(texture_id);
 		response.SetPixelBuffer(*texture.shared_memory);
 
-		responder.Reply(response);
-
 		textures_[texture_id] = std::move(texture);
+
+		return response;
 	}
 
 	void HandleDestroyTexture(
@@ -205,10 +202,9 @@ public:
 		}
 	}
 
-	void HandleGetTextureInformation(
+	StatusOr<GraphicsDriver::GetTextureInformationResponse> HandleGetTextureInformation(
 		ProcessId,
-		const GraphicsDriver::GetTextureInformationRequest& request,
-		PermebufMiniMessageReplier<GraphicsDriver::GetTextureInformationResponse> responder) override {
+		const GraphicsDriver::GetTextureInformationRequest& request) override {
 		GraphicsDriver::GetTextureInformationResponse response;
 		// Try to find the texture.
 		auto texture_itr = textures_.find(request.GetTexture());
@@ -218,7 +214,7 @@ public:
 			response.SetWidth(texture_itr->second.width);
 			response.SetHeight(texture_itr->second.height);
 		}
-		responder.Reply(response);
+		return response;
 	}
 
 	void HandleSetProcessAllowedToDrawToScreen(
@@ -228,14 +224,13 @@ public:
 		process_allowed_to_write_to_the_screen_ = request.GetProcess();
 	}
 
-	void HandleGetScreenSize(
+	StatusOr<GraphicsDriver::GetScreenSizeResponse> HandleGetScreenSize(
 		ProcessId,
-		const GraphicsDriver::GetScreenSizeRequest& request,
-		PermebufMiniMessageReplier<GraphicsDriver::GetScreenSizeResponse> responder) override {
+		const GraphicsDriver::GetScreenSizeRequest& request) override {
 		GraphicsDriver::GetScreenSizeResponse response;
 		response.SetWidth(screen_width_);
 		response.SetHeight(screen_height_);
-		responder.Reply(response);
+		return response;
 	}
 
 private:

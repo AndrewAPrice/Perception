@@ -25,13 +25,13 @@ public:
 	IdeStorageDevice(IdeDevice* device);
 	virtual ~IdeStorageDevice() {}
 
-	virtual void HandleGetDeviceDetails(::perception::ProcessId sender,
-		const SD::GetDeviceDetailsRequest& request,
-		PermebufMessageReplier<SD::GetDeviceDetailsResponse> responder) override;
+	StatusOr<Permebuf<SD::GetDeviceDetailsResponse>>
+		HandleGetDeviceDetails(::perception::ProcessId sender,
+		const SD::GetDeviceDetailsRequest& request) override;
 
-	virtual void HandleRead(::perception::ProcessId sender,
-		const SD::ReadRequest& request,
-		PermebufMiniMessageReplier<SD::ReadResponse> responder) override;
+	StatusOr<SD::ReadResponse> HandleRead(
+		::perception::ProcessId sender,
+		const SD::ReadRequest& request) override;
 
 private:
 	IdeDevice* device_;

@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,20 +14,20 @@
 
 #pragma once
 
-#include <functional>
-#include <string>
+#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 
-#include "permebuf/Libraries/perception/launcher.permebuf.h"
-
-class Launcher : public ::permebuf::perception::Launcher::Server {
+class StorageManager : public ::permebuf::perception::StorageManager::Server {
 public:
-	StatusOr<::permebuf::perception::Launcher::LaunchApplicationResponse>
-		HandleLaunchApplication(
-		::perception::ProcessId sender,
-		Permebuf<::permebuf::perception::Launcher::LaunchApplicationRequest> request) override;
+	typedef ::permebuf::perception::StorageManager SM;
 
-	virtual void HandleShowLauncher(
+	StorageManager();
+	virtual ~StorageManager();
+
+	virtual StatusOr<SM::OpenFileResponse> HandleOpenFile(
 		::perception::ProcessId sender,
-		const ::permebuf::perception::Launcher::ShowLauncherMessage& message) override;
+		Permebuf<SM::OpenFileRequest> request) override;
+
+	virtual StatusOr<Permebuf<SM::ReadDirectoryResponse>> HandleReadDirectory(
+		::perception::ProcessId sender,
+		Permebuf<SM::ReadDirectoryRequest> request) override;
 };
-

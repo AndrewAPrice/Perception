@@ -14,20 +14,4 @@
 
 #pragma once
 
-#include <functional>
-#include <string>
-
-#include "permebuf/Libraries/perception/launcher.permebuf.h"
-
-class Launcher : public ::permebuf::perception::Launcher::Server {
-public:
-	StatusOr<::permebuf::perception::Launcher::LaunchApplicationResponse>
-		HandleLaunchApplication(
-		::perception::ProcessId sender,
-		Permebuf<::permebuf::perception::Launcher::LaunchApplicationRequest> request) override;
-
-	virtual void HandleShowLauncher(
-		::perception::ProcessId sender,
-		const ::permebuf::perception::Launcher::ShowLauncherMessage& message) override;
-};
-
+void InitializeApplications();

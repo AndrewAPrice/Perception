@@ -18,14 +18,6 @@ enum StorageType {
 	Optical = 1;	
 }
 
-enum StorageDeviceStatus {
-	Successful = 1;
-	InvalidBuffer = 2;
-	BeyondEndOfDevice = 3;
-	BeyondEndOfBuffer = 4;
-	NoDisk = 5;
-}
-
 // A device that stores data, such as a hard disk.
 service StorageDevice {
 	// Gets details about this storage device.
@@ -59,11 +51,7 @@ service StorageDevice {
 		// The shared memory buffer to write to.
 		Buffer : SharedMemory = 4;
 	}
-	minimessage ReadResponse {
-		// The status of the read. Anything other than Successful
-		// did not copy data.
-		Status : StorageDeviceStatus = 1;
-	}
+	minimessage ReadResponse {}
 	Read : ReadRequest -> ReadResponse = 1;
 
 }

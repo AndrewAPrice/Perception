@@ -15,7 +15,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long close();
+long close(long fd);
 
 }
 }

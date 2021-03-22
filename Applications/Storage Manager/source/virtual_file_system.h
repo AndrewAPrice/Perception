@@ -14,7 +14,18 @@
 
 #pragma once
 
+#include <functional>
+#include <string_view>
+
 #include "file_systems/file_system.h"
+#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 
 void MountFileSystem(
 	std::unique_ptr<file_systems::FileSystem> file_system);
+
+
+void ForEachEntryInDirectory(std::string_view directory,
+	int offset, int count,
+	const std::function<void(std::string_view,
+		::permebuf::perception::DirectoryEntryType,
+		size_t)>& on_each_entry);

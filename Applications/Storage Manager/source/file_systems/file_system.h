@@ -20,8 +20,8 @@
 
 #include "file.h"
 #include "permebuf/Libraries/perception/devices/storage_device.permebuf.h"
+#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 
-class DirectoryEntry;
 class File;
 
 namespace file_systems {
@@ -33,7 +33,8 @@ public:
 	virtual ~FileSystem() {}
 
 	// Opens a file.
-	virtual std::unique_ptr<File> OpenFile(std::string_view path) = 0;
+	virtual std::unique_ptr<File> OpenFile(std::string_view path,
+		::perception::ProcessId process) = 0;
 
 	// Counts the number of entries in a directory.
 	virtual size_t CountEntriesInDirectory(std::string_view path) = 0;
@@ -42,7 +43,9 @@ public:
 	// a directory.
 	virtual void ForEachEntryInDirectory(std::string_view path,
 		size_t start_index, size_t count,
-		const std::function<void(const DirectoryEntry&)>& on_each_entry) = 0;
+		const std::function<void(std::string_view,
+			::permebuf::perception::DirectoryEntryType,
+			size_t)>& on_each_entry) = 0;
 
 	virtual std::string_view GetFileSystemType() = 0;
 

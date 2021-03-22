@@ -14,15 +14,6 @@
 
 namespace perception;
 
-enum FileStatus {
-	Successful = 1;
-	NotFound = 2;
-	NotAFile = 3;
-	NotADirectory = 4;
-	BeyondEndOfFile = 5;
-	BeyondEndOfBuffer = 6;
-}
-
 // The type of entry in a directory.
 enum DirectoryEntryType {
 	// This directory entry is a file.
@@ -44,57 +35,45 @@ message DirectoryEntry {
 	SizeInBytes : uint64 = 3;
 }
 
+// A file on a disk.
+service File {
+	// Closes the file.
+	minimessage CloseFileMessage {}
+	CloseFile : CloseFileMessage = 0;
+
+	// Reads the contents of a file.
+	minimessage ReadFileRequest {
+		// The offset in the file to start reading from.
+		OffsetInFile : uint64 = 1;
+
+		// The offset in the buffer to start writing to.
+		OffsetInDestinationBuffer : uint64 = 2;
+
+		// The bytes to copy from the file into the buffer.
+		BytesToCopy : uint64 = 3;
+
+		// The buffer to write into.
+		BufferToCopyInto : SharedMemory = 4;
+	}
+	minimessage ReadFileResponse {}
+	ReadFile : ReadFileRequest -> ReadFileResponse = 1;
+}
+
 // A device that stores data, such as a hard disk.
-service StorageDevice {
+service StorageManager {
 	// Opens a file.
 	message OpenFileRequest {
 		// The path to open.
 		Path : string = 1;
 	}
 	minimessage OpenFileResponse {
-		// The status of attempting to open this file. Anything
-		// other than Successful did not open the file.
-		Status : FileStatus = 1;
-
-		// If the file was succesfully opened, this is
-		// the identifier used to refer to this file in
-		// proceeding operations.
-		FileIdentifier : uint64 = 2;
+		// The file handle.
+		File : File = 1;
 
 		// The size of this file, in bytes.
-		SizeInBytes : uint64 = 3;
+		SizeInBytes : uint64 = 2;
 	}
 	OpenFile : OpenFileRequest -> OpenFileResponse = 0;
-
-	// Closes a file.
-	minimessage CloseFileRequest {
-		// The identifier of the file to close.
-		FileIdentifier : uint64 = 1;
-	}
-	minimessage CloseFileResponse {}
-	CloseFile : CloseFileRequest -> CloseFileResponse = 1;
-
-	// Reads the contents of a file.
-	message ReadFileRequest {
-		// The identifier of the file to read.
-		FileIdentifer : uint64 = 1;
-
-		// The offset in the file to start reading from.
-		OffsetInFile : uint64 = 2;
-
-		// The offset in the buffer to start writing to.
-		OffsetInDestinationBuffer : uint64 = 3;
-
-		// The bytes to copy from the file into the buffer.
-		BytesToCopy : uint64 = 4;
-
-		// The buffer to write into.
-		BufferToCopyInto : SharedMemory = 5;
-	}
-	message ReadFileResponse {
-		Status : FileStatus = 1;
-	}
-	ReadFile : ReadFileRequest -> ReadFileResponse = 2;
 
 	// Reads the entries in a directory.
 	message ReadDirectoryRequest {
@@ -110,13 +89,9 @@ service StorageDevice {
 		MaximumNumberOfEntries : uint64 = 3;
 	}
 	message ReadDirectoryResponse {
-		// The status of reading this directory. Aything other
-		// than Succesfull didn't read this directory.
-		Status : FileStatus = 1;
-
 		// Each entry in the directory.
-		Entries : list<DirectoryEntry> = 2;
+		Entries : list<DirectoryEntry> = 1;
 	}
-	ReadDirectory : ReadDirectoryRequest -> ReadDirectoryResponse = 3;
+	ReadDirectory : ReadDirectoryRequest -> ReadDirectoryResponse = 1;
 
 }

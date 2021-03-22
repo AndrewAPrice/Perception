@@ -24,7 +24,11 @@ enum class Status {
 	INTERNAL_ERROR = 2,
 	PROCESS_DOESNT_EXIST = 3,
 	SERVICE_DOESNT_EXIST = 4,
-	OUT_OF_MEMORY = 5
+	OUT_OF_MEMORY = 5,
+	INVALID_ARGUMENT = 6,
+	OVERFLOW = 7,
+	MISSING_MEDIA = 8,
+	NOT_ALLOWED = 9
 };
 
 }
@@ -65,3 +69,12 @@ private:
 	::perception::Status status_;
 	T value_;
 };
+
+#define ASSIGN_OR_RETURN(var, expr) \
+	auto _status_or_var_##__line__ = (expr); \
+	if (!_status_or_var_##__line__) return _status_or_var_##__line__.Status(); \
+	expr = *std::move(_status_or_var_##__line__);
+
+#define RETURN_ON_ERROR(var, expr) \
+	auto __status__##__line__ = (expr); \
+	if (!__status_##__line__) return __status__##__line__;

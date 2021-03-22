@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <dirent.h>
+
 namespace perception {
 namespace linux_syscalls {
 
-long getdents64();
+long getdents64(unsigned int fd, dirent *dirp,
+	unsigned int count);
 
 }
 }

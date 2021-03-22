@@ -27,31 +27,27 @@ using ::perception::Write8BitsToPort;
 using ::perception::Write16BitsToPort;
 using ::perception::Yield;
 using ::permebuf::perception::devices::StorageDevice;
-using ::permebuf::perception::devices::StorageDeviceStatus;
 using ::permebuf::perception::devices::StorageType;
 
 IdeStorageDevice::IdeStorageDevice(IdeDevice* device) : device_(device) {}
 
-void IdeStorageDevice::HandleGetDeviceDetails(::perception::ProcessId sender,
-	const StorageDevice::GetDeviceDetailsRequest& request,
-	PermebufMessageReplier<StorageDevice::GetDeviceDetailsResponse> responder) {
+StatusOr<Permebuf<StorageDevice::GetDeviceDetailsResponse>>
+	IdeStorageDevice::HandleGetDeviceDetails(::perception::ProcessId sender,
+	const StorageDevice::GetDeviceDetailsRequest& request) {
 	Permebuf<StorageDevice::GetDeviceDetailsResponse> response;
 	response->SetSizeInBytes(device_->size_in_bytes);
 	response->SetIsWritable(device_->is_writable);
 	response->SetType(StorageType::Optical);
 	response->SetName(device_->name);
-	responder.Reply(std::move(response));
+	return response;
 }
 
-void IdeStorageDevice::HandleRead(::perception::ProcessId sender,
-	const StorageDevice::ReadRequest& request,
-	PermebufMiniMessageReplier<StorageDevice::ReadResponse> responder) {
+StatusOr<StorageDevice::ReadResponse>
+	IdeStorageDevice::HandleRead(::perception::ProcessId sender,
+	const StorageDevice::ReadRequest& request) {
 	SharedMemory destination_shared_memory = request.GetBuffer();
 	if (!destination_shared_memory.Join()) {
-		StorageDevice::ReadResponse response;
-		response.SetStatus(StorageDeviceStatus::InvalidBuffer);
-		responder.Reply(response);
-		return;
+		return ::perception::Status::INVALID_ARGUMENT;
 	}
 
 	int64 bytes_to_copy = request.GetBytesToCopy();
@@ -62,27 +58,18 @@ void IdeStorageDevice::HandleRead(::perception::ProcessId sender,
 
 	if (bytes_to_copy == 0) {
 		// Nothing to copy.
-		StorageDevice::ReadResponse response;
-		response.SetStatus(StorageDeviceStatus::Successful);
-		responder.Reply(response);
-		return;
+		return StorageDevice::ReadResponse();
 	}
 
 	if (device_offset_start + bytes_to_copy > device_->size_in_bytes) {
 		// Reading beyond end of the device.
-		StorageDevice::ReadResponse response;
-		response.SetStatus(StorageDeviceStatus::BeyondEndOfDevice);
-		responder.Reply(response);
-		return;
+		return ::perception::Status::OVERFLOW;
 
 	}
 
 	if (buffer_offset_start + bytes_to_copy > destination_shared_memory.GetSize()) {
 		// Writing beyond the end of the buffer.
-		StorageDevice::ReadResponse response;
-		response.SetStatus(StorageDeviceStatus::BeyondEndOfBuffer);
-		responder.Reply(response);
-		return;
+		return ::perception::Status::OVERFLOW;
 	}
 
 
@@ -121,10 +108,7 @@ void IdeStorageDevice::HandleRead(::perception::ProcessId sender,
 		/* is there an error ? */
 		if(status & 0x1) {
 			/* no disk */
-			StorageDevice::ReadResponse response;
-			response.SetStatus(StorageDeviceStatus::NoDisk);
-			responder.Reply(response);
-			return;
+			return ::perception::Status::MISSING_MEDIA;
 		}
 
 		/* send the atapi packet - must be 6 words (12 bytes) long */
@@ -161,7 +145,5 @@ void IdeStorageDevice::HandleRead(::perception::ProcessId sender,
 		}
 	}
 
-	StorageDevice::ReadResponse response;
-	response.SetStatus(StorageDeviceStatus::Successful);
-	responder.Reply(response);
+	return StorageDevice::ReadResponse();
 }

@@ -20,12 +20,11 @@
 #include "window.h"
 
 using ::perception::ShowLauncher;
+using WM = ::permebuf::perception::WindowManager;
 
-void WindowManager::HandleCreateWindow(
+StatusOr<WM::CreateWindowResponse> WindowManager::HandleCreateWindow(
 	::perception::ProcessId sender,
-	Permebuf<WindowManager::WM::CreateWindowRequest> request,
-	PermebufMiniMessageReplier<WindowManager::WM::CreateWindowResponse>
-		responder) {
+	Permebuf<WindowManager::WM::CreateWindowRequest> request) {
 	Window* window;
 
 	if (request->GetIsDialog()) {
@@ -53,7 +52,7 @@ void WindowManager::HandleCreateWindow(
 		response.SetWidth(window->GetWidth());
 		response.SetHeight(window->GetHeight());
 	}
-	responder.Reply(response);
+	return response;
 }
 
 void WindowManager::HandleCloseWindow(

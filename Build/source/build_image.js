@@ -13,6 +13,7 @@
 // limitations under the License.
 
 const fs = require('fs');
+const path = require('path');
 const child_process = require('child_process');
 const {build} = require('./build');
 const {buildPrefix} = require('./build_commands');
@@ -33,6 +34,11 @@ function copyIfNewer(source, destination) {
 			return false;
 
 		fs.unlinkSync(destination);
+	}
+
+	const destinationDir = path.parse(destination).dir;
+	if(!fs.existsSync(destinationDir)) {
+		fs.mkdirSync(destinationDir, {recursive: true});
 	}
 
 	console.log('Copying ' + destination);
@@ -103,7 +109,7 @@ async function buildImage(buildSettings) {
 
 				somethingChanged |= copyIfNewer(
 					rootDirectory + 'Applications/' + applicationName + '/build/' + prefix + '.app',
-					rootDirectory + 'fs/' + applicationName + '.app');
+					rootDirectory + 'fs/Applications/' + applicationName + '/' + applicationName + '.app');
 			}
 		}
 

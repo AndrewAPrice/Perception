@@ -14,13 +14,13 @@
 
 #include "perception/linux_syscalls/close.h"
 
-#include "perception/debug.h"
+#include "perception/files.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long close() {
-	perception::DebugPrinterSingleton << "System call close is unimplemented.\n";
+long close(long fd) {
+	CloseFile(fd);
 	return 0;
 }
 

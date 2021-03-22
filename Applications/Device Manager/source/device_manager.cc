@@ -19,11 +19,12 @@
 
 using ::perception::ProcessId;
 using ::permebuf::perception::devices::PciDevice;
+using DM = ::permebuf::perception::devices::DeviceManager;
 
-void DeviceManager::HandleQueryPciDevices(
+StatusOr<Permebuf<DM::QueryPciDevicesResponse>>
+	DeviceManager::HandleQueryPciDevices(
 	ProcessId sender,
-	const DM::QueryPciDevicesRequest& request,
-	PermebufMessageReplier<DM::QueryPciDevicesResponse> responder) {
+	const DM::QueryPciDevicesRequest& request) {
 
 	Permebuf<DM::QueryPciDevicesResponse> response;
 	PermebufListOf<PciDevice> last_device;
@@ -52,5 +53,5 @@ void DeviceManager::HandleQueryPciDevices(
 			last_device.Set(device);
 		});
 
-	responder.Reply(std::move(response));
+	return response;
 }

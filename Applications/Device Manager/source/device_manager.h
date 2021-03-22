@@ -20,9 +20,9 @@ class DeviceManager : public ::permebuf::perception::devices::DeviceManager::Ser
 public:
 	typedef ::permebuf::perception::devices::DeviceManager DM;
 
-	virtual void HandleQueryPciDevices(
+	virtual StatusOr<Permebuf<DM::QueryPciDevicesResponse>>
+		HandleQueryPciDevices(
 		::perception::ProcessId sender,
-		const DM::QueryPciDevicesRequest& request,
-		PermebufMessageReplier<DM::QueryPciDevicesResponse> responder) override;
+		const DM::QueryPciDevicesRequest& request) override;
 
 };

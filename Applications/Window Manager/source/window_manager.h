@@ -24,10 +24,9 @@ class WindowManager : ::permebuf::perception::WindowManager::Server {
 public:
 	typedef ::permebuf::perception::WindowManager WM;
 
-	void HandleCreateWindow(
+	StatusOr<WM::CreateWindowResponse> HandleCreateWindow(
 		::perception::ProcessId sender,
-		Permebuf<WM::CreateWindowRequest> request,
-		PermebufMiniMessageReplier<WM::CreateWindowResponse> responder) override;
+		Permebuf<WM::CreateWindowRequest> request) override;
 
 	void HandleCloseWindow(
 		::perception::ProcessId sender,

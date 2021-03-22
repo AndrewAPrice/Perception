@@ -1943,22 +1943,20 @@ void ${thisService.cppClassName}::Call${field.name}(
 serverDelegator += `return ProcessMiniMessageForMiniMessage<${requestType.cppClassName}, ${responseType.cppClassName}>(
 				sender, metadata, param_1, param_2, param_3, param_4, param_5,
 				[this](::perception::ProcessId sender,
-					const ${requestType.cppClassName}& request,
-					::PermebufMiniMessageReplier<${responseType.cppClassName}> replier) {
-						Handle${field.name}(sender, request, replier);
+					const ${requestType.cppClassName}& request) {
+						return Handle${field.name}(sender, request);
 					});
 `;
 
 						serverHeaderCpp += `
-		virtual void Handle${field.name}(::perception::ProcessId sender,
-			const ${requestType.cppClassName}& request,
-			::PermebufMiniMessageReplier<${responseType.cppClassName}> replier);
+		virtual StatusOr<${responseType.cppClassName}> Handle${field.name}(
+			::perception::ProcessId sender,
+			const ${requestType.cppClassName}& request);
 `;
 						serverSourceCpp += `
-		void ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
-			const ${requestType.cppClassName}& request,
-			::PermebufMiniMessageReplier<${responseType.cppClassName}> replier) {
-				replier.ReplyWithStatus(::perception::Status::UNIMPLEMENTED);
+		StatusOr<${responseType.cppClassName}> ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
+			const ${requestType.cppClassName}& request) {
+				return ::perception::Status::UNIMPLEMENTED;
 			}
 `;
 					} else if (responseType.type == FieldType.MESSAGE) {
@@ -1986,21 +1984,19 @@ void ${thisService.cppClassName}::Call${field.name}(
 serverDelegator += `return ProcessMiniMessageForMessage<${requestType.cppClassName}, ${responseType.cppClassName}>(
 				sender, metadata, param_1, param_2, param_3, param_4, param_5,
 				[this](::perception::ProcessId sender,
-					const ${requestType.cppClassName}& request,
-					::PermebufMessageReplier<${responseType.cppClassName}> replier) {
-						Handle${field.name}(sender, request, replier);
+					const ${requestType.cppClassName}& request) {
+						return Handle${field.name}(sender, request);
 					});
 `;
 						serverHeaderCpp += `
-		virtual void Handle${field.name}(::perception::ProcessId sender,
-			const ${requestType.cppClassName}& request,
-			::PermebufMessageReplier<${responseType.cppClassName}> replier);
+		virtual StatusOr<Permebuf<${responseType.cppClassName}>> Handle${field.name}(
+			::perception::ProcessId sender,
+			const ${requestType.cppClassName}& request);
 `;
 						serverSourceCpp += `
-		void ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
-			const ${requestType.cppClassName}& request,
-			::PermebufMessageReplier<${responseType.cppClassName}> replier) {
-				replier.ReplyWithStatus(::perception::Status::UNIMPLEMENTED);
+		StatusOr<Permebuf<${responseType.cppClassName}>> ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
+			const ${requestType.cppClassName}& request) {
+				return ::perception::Status::UNIMPLEMENTED;
 			}
 `;
 					} else {
@@ -2063,21 +2059,19 @@ void ${thisService.cppClassName}::Call${field.name}(
 serverDelegator += `return ProcessMessageForMiniMessage<${requestType.cppClassName}, ${responseType.cppClassName}>(
 				sender, metadata, param_1, param_2, param_3, param_4, param_5,
 				[this](::perception::ProcessId sender,
-					Permebuf<${requestType.cppClassName}> request,
-					::PermebufMiniMessageReplier<${responseType.cppClassName}> replier) {
-						Handle${field.name}(sender, std::move(request), replier);
+					Permebuf<${requestType.cppClassName}> request) {
+						return Handle${field.name}(sender, std::move(request));
 					});
 `;
 						serverHeaderCpp += `
-		virtual void Handle${field.name}(::perception::ProcessId sender,
-			Permebuf<${requestType.cppClassName}> request,
-			::PermebufMiniMessageReplier<${responseType.cppClassName}> replier);
+		virtual StatusOr<${responseType.cppClassName}> Handle${field.name}(
+			::perception::ProcessId sender,
+			Permebuf<${requestType.cppClassName}> request);
 `;
 						serverSourceCpp += `
-		void ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
-			Permebuf<${requestType.cppClassName}> request,
-			::PermebufMiniMessageReplier<${responseType.cppClassName}> replier) {
-				replier.ReplyWithStatus(::perception::Status::UNIMPLEMENTED);
+		StatusOr<${responseType.cppClassName}>  ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
+			Permebuf<${requestType.cppClassName}> request) {
+				return ::perception::Status::UNIMPLEMENTED;
 			}
 `;
 					} else if (responseType.type == FieldType.MESSAGE) {
@@ -2105,21 +2099,19 @@ void ${thisService.cppClassName}::Call${field.name}(
 serverDelegator += `return ProcessMessageForMessage<${requestType.cppClassName}, ${responseType.cppClassName}>(
 				sender, metadata, param_1, param_2, param_3, param_4, param_5,
 				[this](::perception::ProcessId sender,
-					Permebuf<${requestType.cppClassName}> request,
-					::PermebufMessageReplier<${responseType.cppClassName}> replier) {
-						Handle${field.name}(sender, std::move(request), replier);
+					Permebuf<${requestType.cppClassName}> request) {
+						return Handle${field.name}(sender, std::move(request));
 					});
 `;
 						serverHeaderCpp += `
-		virtual void Handle${field.name}(::perception::ProcessId sender,
-			Permebuf<${requestType.cppClassName}> request,
-			::PermebufMessageReplier<${responseType.cppClassName}> replier);
+		virtual StatusOr<Permebuf<${responseType.cppClassName}>> Handle${field.name}(
+			::perception::ProcessId sender,
+			Permebuf<${requestType.cppClassName}> request);
 `;
 						serverSourceCpp += `
-		void ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
-			Permebuf<${requestType.cppClassName}> request,
-			::PermebufMessageReplier<${responseType.cppClassName}> replier) {
-				replier.ReplyWithStatus(::perception::Status::UNIMPLEMENTED);
+		StatusOr<Permebuf<${responseType.cppClassName}>> ${thisService.cppClassName}_Server::Handle${field.name}(::perception::ProcessId sender,
+			Permebuf<${requestType.cppClassName}> request) {
+				return ::perception::Status::UNIMPLEMENTED;
 			}
 `;
 					} else {

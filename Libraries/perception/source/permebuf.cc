@@ -934,3 +934,12 @@ void PermebufServer::MessageHandler(::perception::ProcessId sender,
 			param_1, param_4, param_5);
 	}
 }
+
+void PermebufServer::ReplyWithStatus(
+	::perception::ProcessId process,
+	::perception::MessageId response_channel,
+	::perception::Status status) {
+	::perception::SendMessage(process, response_channel,
+		(size_t)status);
+}
+

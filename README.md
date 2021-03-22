@@ -10,6 +10,8 @@ Very few right now.
 * We have a C and C++ standard library for user applications.
 * Programs can discover and register [Permebuf](Build/Permebuf.md) services and send RPCs to one another.
 * We have a tiling window manager (floating windows are also supported!)
+* Mounting ISO 9660 disks and reading files.
+* Press ESCAPE to open the launcher.
 
 ## Building and running
 See [building.md](building.md). Perception has only been tested in [QEMU](https://www.qemu.org/). Currently text only and outputs via COM1.

@@ -512,55 +512,6 @@ PermebufListOfNumbers<T> PermebufListOfNumbers<T>::Allocate(PermebufBase* buffer
 	return buffer->AllocateListOfNumbers<T>();
 }
 
-template <class T>
-PermebufMessageReplier<T>::PermebufMessageReplier(
-	::perception::ProcessId process,
-	::perception::MessageId response_channel) :
-	process_(process), response_channel_(response_channel) {}
-
-template <class T>
-void PermebufMessageReplier<T>::Reply(Permebuf<T> response) {
-	void* memory_address;
-	size_t number_of_pages;
-	size_t size_in_bytes;
-	response.ReleaseMemory(&memory_address, &number_of_pages, &size_in_bytes);
-	if (::perception::SendRawMessage(process_, response_channel_, /*metadata=*/1,
-		(size_t)::perception::Status::OK,
-		0, size_in_bytes, (size_t)memory_address, number_of_pages) !=
-		::perception::MessageStatus::SUCCESS) {
-		::perception::ReleaseMemoryPages(memory_address,
-			number_of_pages);
-	}
-}
-
-template <class T>
-void PermebufMessageReplier<T>::ReplyWithStatus(
-	::perception::Status status) {
-	::perception::SendMessage(process_, response_channel_,
-		(size_t)status);
-}
-
-template <class T>
-PermebufMiniMessageReplier<T>::PermebufMiniMessageReplier(
-	::perception::ProcessId process,
-	::perception::MessageId response_channel) :
-	process_(process), response_channel_(response_channel) {}
-
-template <class T>
-void PermebufMiniMessageReplier<T>::Reply(const T& response) {
-	size_t a, b, c, d;
-	response.Serialize(a, b, c, d);
-	::perception::SendMessage(process_, response_channel_,
-		(size_t)::perception::Status::OK, a, b, c, d);
-}
-
-template <class T>
-void PermebufMiniMessageReplier<T>::ReplyWithStatus(
-	::perception::Status status) {
-	::perception::SendMessage(process_, response_channel_,
-		(size_t)status);
-}
-
 template <class O>
 ::perception::Status PermebufService::SendMiniMessage(size_t function_id,
 	const O& request) const {
@@ -793,7 +744,58 @@ template <class O, class I>
 StatusOr<Permebuf<I>>
 	PermebufService::SendMessageAndWaitForMessage(size_t function_id,
 		Permebuf<O> request) const {
-	std::cout << "TODO: Implement PermebufService::SendMessageAndWaitForMessage" << std::endl;
+	// Send the message.
+	void* memory_address;
+	size_t number_of_pages;
+	size_t size_in_bytes;
+	request.ReleaseMemory(&memory_address, &number_of_pages, &size_in_bytes);
+
+	::perception::MessageId message_id_of_response =
+		::perception::GenerateUniqueMessageId();
+
+	auto status = ::perception::SendRawMessage(process_id_, message_id_,
+		(function_id << 3) | 1,
+		message_id_of_response, 0, size_in_bytes,
+		(size_t)memory_address, number_of_pages);
+	if (status !=
+		::perception::MessageStatus::SUCCESS) {
+		// Something went wrong while sending the message.
+		::perception::ReleaseMemoryPages(memory_address,
+			number_of_pages);
+		return ::perception::ToStatus(status);
+	}
+
+	::perception::ProcessId pid;
+	size_t metadata, response_status, param2, param3, param4, param5;
+	do {
+		::perception::SleepUntilRawMessage(message_id_of_response,
+			pid, metadata, response_status, param2, param3, param4,
+			param5);
+		if (pid != process_id_) {
+			// Not the process we care about.
+			if ((metadata & 1) == 1) {
+				// This other process sent us memory we don't care about.
+				::perception::ReleaseMemoryPages((void*)param4, param5);
+			}
+		}
+	} while (pid != process_id_);
+
+	if (response_status != 0) {
+		// Bad response from the server.
+		if ((metadata & 1) == 1) {
+			// This other process sent us memory we don't care about.
+			::perception::ReleaseMemoryPages((void*)param4, param5);
+		}
+		return static_cast<::perception::Status>(response_status);
+	}
+
+	if ((metadata & 1) != 1) {
+		// We expected memory pages.
+		return ::perception::Status::INTERNAL_ERROR;
+	}
+
+	// Return the response.
+	return Permebuf<I>((void*)param4, param3);
 }
 
 template <class O, class I>
@@ -876,12 +878,12 @@ bool PermebufServer::ProcessMiniMessageForMiniMessage(
 	::perception::ProcessId sender,
 	size_t metadata, size_t param1, size_t param2, size_t param3,
 	size_t param4, size_t param5,
-	const std::function<void(::perception::ProcessId,
-		const I&, PermebufMiniMessageReplier<O>)>& handler) {
+	const std::function<StatusOr<O>(::perception::ProcessId,
+		const I&)>& handler) {
 	if ((metadata & 0b111) != 0) return false;
 	I request;
 	request.Deserialize(param2, param3, param4, param5);
-	handler(sender, request, PermebufMiniMessageReplier<O>(sender, param1));
+	ReplyWithStatusOrMiniMessage(sender, param1, handler(sender, request));
 	return true;
 }
 
@@ -890,12 +892,12 @@ bool PermebufServer::ProcessMiniMessageForMessage(
 	::perception::ProcessId sender,
 	size_t metadata, size_t param1, size_t param2, size_t param3,
 	size_t param4, size_t param5,
-	const std::function<void(::perception::ProcessId,
-		const I&, PermebufMessageReplier<O>)>& handler) {
+	const std::function<StatusOr<Permebuf<O>>(::perception::ProcessId,
+		const I&)>& handler) {
 	if ((metadata & 0b111) != 0) return false;
 	I request;
 	request.Deserialize(param2, param3, param4, param5);
-	handler(sender, request, PermebufMessageReplier<O>(sender, param1));
+	ReplyWithStatusOrMessage(sender, param1, handler(sender, request));
 	return true;
 }
 
@@ -915,12 +917,12 @@ bool PermebufServer::ProcessMessageForMiniMessage(
 	::perception::ProcessId sender,
 	size_t metadata, size_t param1, size_t param2, size_t param3,
 	size_t param4, size_t param5,
-	const std::function<void(::perception::ProcessId,
-		Permebuf<I>,
-		PermebufMiniMessageReplier<O>)>& handler) {
+	const std::function<StatusOr<O>(::perception::ProcessId,
+		Permebuf<I>)>& handler) {
 	if ((metadata & 0b111) != 1) return false;
-	handler(sender, Permebuf<I>((void*)param4, param3),
-		PermebufMiniMessageReplier<O>(sender, param1));
+
+	ReplyWithStatusOrMiniMessage(sender, param1,
+		handler(sender, Permebuf<I>((void*)param4, param3)));
 	return true;
 }
 
@@ -929,8 +931,54 @@ bool PermebufServer::ProcessMessageForMessage(
 	::perception::ProcessId sender,
 	size_t metadata, size_t param1, size_t param2, size_t param3,
 	size_t param4, size_t param5,
-	const std::function<void(::perception::ProcessId,
-		Permebuf<I>,
-		PermebufMessageReplier<O>)>& handler) {
-	std::cout << "TODO: Implement PermebufServer::ProcessMessageForMessage" << std::endl;
+	const std::function<StatusOr<Permebuf<O>>(::perception::ProcessId,
+		Permebuf<I>)>& handler) {
+	if ((metadata & 0b111) != 1) return false;
+
+	ReplyWithStatusOrMessage(sender, param1,
+		handler(sender, Permebuf<I>((void*)param4, param3)));
+	return true;
+}
+
+template <class O>
+void PermebufServer::ReplyWithStatusOrMessage(
+	::perception::ProcessId process,
+	::perception::MessageId response_channel,
+	StatusOr<Permebuf<O>> status_or_message) {
+	if (status_or_message) {
+		void* memory_address;
+		size_t number_of_pages;
+		size_t size_in_bytes;
+		status_or_message->ReleaseMemory(
+			&memory_address, &number_of_pages, &size_in_bytes);
+		if (::perception::SendRawMessage(process, response_channel, /*metadata=*/1,
+			(size_t)::perception::Status::OK,
+			0, size_in_bytes, (size_t)memory_address, number_of_pages) !=
+			::perception::MessageStatus::SUCCESS) {
+			::perception::ReleaseMemoryPages(memory_address,
+				number_of_pages);
+		} else {
+			ReplyWithStatus(process, response_channel,
+				::perception::Status::INTERNAL_ERROR);
+		}
+	} else {
+		ReplyWithStatus(process, response_channel,
+			status_or_message.Status());
+	}
+}
+
+template <class O>
+void PermebufServer::ReplyWithStatusOrMiniMessage(
+	::perception::ProcessId process,
+	::perception::MessageId response_channel,
+	StatusOr<O> status_or_mini_message) {
+	if (status_or_mini_message) {
+		size_t a, b, c, d;
+		status_or_mini_message->Serialize(a, b, c, d);
+		::perception::SendMessage(process, response_channel,
+			(size_t)::perception::Status::OK, a, b, c, d);
+	} else {
+		ReplyWithStatus(process, response_channel,
+			status_or_mini_message.Status());
+	}
 }

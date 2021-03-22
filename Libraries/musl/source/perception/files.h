@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,20 +14,26 @@
 
 #pragma once
 
-#include <functional>
 #include <string>
 
-#include "permebuf/Libraries/perception/launcher.permebuf.h"
+namespace perception {
 
-class Launcher : public ::permebuf::perception::Launcher::Server {
-public:
-	StatusOr<::permebuf::perception::Launcher::LaunchApplicationResponse>
-		HandleLaunchApplication(
-		::perception::ProcessId sender,
-		Permebuf<::permebuf::perception::Launcher::LaunchApplicationRequest> request) override;
+struct FileDescriptor {
+	enum Type {
+		DIRECTORY = 0
+	};
+	Type type;
 
-	virtual void HandleShowLauncher(
-		::perception::ProcessId sender,
-		const ::permebuf::perception::Launcher::ShowLauncherMessage& message) override;
+	struct Directory {
+		std::string name;
+		int iterating_offset;
+	} directory;
 };
 
+long OpenDirectory(const char* path);
+
+std::shared_ptr<FileDescriptor> GetFileDescriptor(long id);
+
+void CloseFile(long id);
+
+}
