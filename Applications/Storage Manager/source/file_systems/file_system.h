@@ -40,8 +40,10 @@ public:
 	virtual size_t CountEntriesInDirectory(std::string_view path) = 0;
 
 	// If count is 0, then we will iterate over all of the entries in
-	// a directory.
-	virtual void ForEachEntryInDirectory(std::string_view path,
+	// a directory. Returns if we have no more files in this directory
+	// to iterate over, otherwise returns false if we aborted early
+	// because we have more entries than what is in 'count'.
+	virtual bool ForEachEntryInDirectory(std::string_view path,
 		size_t start_index, size_t count,
 		const std::function<void(std::string_view,
 			::permebuf::perception::DirectoryEntryType,

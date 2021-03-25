@@ -29,7 +29,7 @@ long getdents64(unsigned int fd, dirent *dirp,
 	unsigned int count) {
 	auto descriptor = GetFileDescriptor(fd);
 	if (!descriptor || descriptor->type != FileDescriptor::DIRECTORY ||
-		count == 0) {
+		count == 0 || descriptor->directory.finished_iterating) {
 		return 0;
 	}
 
@@ -72,6 +72,7 @@ long getdents64(unsigned int fd, dirent *dirp,
 	}
 
 	descriptor->directory.iterating_offset += return_index;
+	descriptor->directory.finished_iterating = !(*status_or_response)->GetHasMoreEntries();
 
 	return return_size;
 }

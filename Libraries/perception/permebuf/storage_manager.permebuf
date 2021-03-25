@@ -91,6 +91,10 @@ service StorageManager {
 	message ReadDirectoryResponse {
 		// Each entry in the directory.
 		Entries : list<DirectoryEntry> = 1;
+
+		// If there are more additional entries beyond
+		// what was requested in MaximumNumberOfEntries.
+		HasMoreEntries : bool = 2;
 	}
 	ReadDirectory : ReadDirectoryRequest -> ReadDirectoryResponse = 1;
 

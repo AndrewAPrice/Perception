@@ -7,6 +7,7 @@
 #include "object_pools.h"
 #include "service.h"
 #include "thread.h"
+#include "timer.h"
 #include "virtual_allocator.h"
 
 // The last assigned process ID.
@@ -59,6 +60,7 @@ struct Process *CreateProcess(bool is_driver) {
 	proc->first_service = NULL;
 	proc->last_service = NULL;
 	proc->shared_memory = NULL;
+	proc->timer_event = NULL;
 
 	// Threads.
 	proc->threads = 0;
@@ -130,6 +132,9 @@ void DestroyProcess(struct Process *process) {
 
 	while (process->first_service != NULL)
 		UnregisterService(process->first_service);
+
+	if (process->timer_event != NULL)
+		CancelAllTimerEventsForProcess(process);
 
 	// Release any shared memory mapped into this process.
 	while (process->shared_memory != NULL) 

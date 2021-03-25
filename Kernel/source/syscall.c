@@ -10,6 +10,7 @@
 #include "service.h"
 #include "shared_memory.h"
 #include "text_terminal.h"
+#include "timer.h"
 #include "physical_allocator.h"
 #include "thread.h"
 #include "virtual_allocator.h"
@@ -43,6 +44,7 @@ void InitializeSystemCalls() {
 
 // Syscalls.
 // Next id is 45.
+// Free: 26
 #define PRINT_DEBUG_CHARACTER 0
 #define CREATE_THREAD 1
 #define GET_THIS_THREAD_ID 2
@@ -88,13 +90,12 @@ void InitializeSystemCalls() {
 // Interrupts
 #define REGISTER_MESSAGE_TO_SEND_ON_INTERRUPT 20
 #define UNREGISTER_MESSAGE_TO_SEND_ON_INTERRUPT 21
-// RPCS
-#define REGISTER_RPC 23 // TODO
-#define GET_RPC_BY_NAME 24 // TODO
-#define CALL_RPC 25 // TODO
-#define RETURN_FROM_RPC 26 // TODO
 // Drivers
 #define GET_MULTIBOOT_FRAMEBUFFER_INFORMATION 40
+// Time
+#define SEND_MESSAGE_AFTER_X_MICROSECONDS 23
+#define SEND_MESSAGE_AT_TIMESTAMP 24
+#define GET_CURRENT_TIMESTAMP 25
 
 extern void JumpIntoThread();
 
@@ -503,6 +504,21 @@ void SyscallHandler(int syscall_number) {
 		case GET_MULTIBOOT_FRAMEBUFFER_INFORMATION:
 			PopulateRegistersWithFramebufferDetails(
 				currently_executing_thread_regs);
+			break;
+		case SEND_MESSAGE_AFTER_X_MICROSECONDS:
+			SendMessageToProcessAtMicroseconds(running_thread->process,
+				currently_executing_thread_regs->rax +
+					GetCurrentTimestampInMicroseconds(),
+				(int)currently_executing_thread_regs->rbx);
+			break;
+		case SEND_MESSAGE_AT_TIMESTAMP:
+			SendMessageToProcessAtMicroseconds(running_thread->process,
+				currently_executing_thread_regs->rax,
+				(int)currently_executing_thread_regs->rbx);
+			break;
+		case GET_CURRENT_TIMESTAMP:
+			currently_executing_thread_regs->rax =
+				GetCurrentTimestampInMicroseconds();
 			break;
 	}
 #ifdef DEBUG

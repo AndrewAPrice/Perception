@@ -545,3 +545,34 @@ Nothing.
 * `rdx` - The height of the framebuffer, in pixels.
 * `rsi` - The number of bytes in memory between rows of pixels.
 * `r8` - The number of bits per pixel.
+
+# Time
+
+## Send message after x microseconds
+Sends a message to the calling process after a specified number of microseconds have passed.
+
+### Input
+* `rdi` - 23
+* `rax` - The number of microseconds until we send this message.
+* `rbx` - The message ID to send after the elapsed time has passed.
+
+## Send message at timestamp
+Sends a message to the calling process at or after a specific timestamp.
+
+### Input
+* `rdi` - 24
+* `rax` - The number of microseconds since the kernel started that we should send this message.
+* `rbx` - The message ID to send after the elapsed time has passed.
+
+## Get current timestamp
+Returns the time (in microseconds) since the kernel started.
+
+### Input
+* `rdi` - 25
+
+### Output
+* `rax` - The number of microseconds since the kernel started.
+
+
+### Output
+Nothing.

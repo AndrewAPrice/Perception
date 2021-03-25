@@ -19,8 +19,8 @@ const {rootDirectory} = require('./root_directory');
 
 function generateBuildCommand(language, buildSettings) {
 	let cParams = ' -D' + buildSettings.os.toUpperCase().replace(/-/g, '_') + ' ' +
-					' -D' + buildSettings.build + '_BUILD_ ';
-					// + '-fdata-sections -ffunction-sections ';
+					' -D' + buildSettings.build + '_BUILD_ '
+					 + '-fdata-sections -ffunction-sections ';
 	if (buildSettings.build == 'optimized')
 		cParams += '-g -O3 ';
 	else if (buildSettings.build == 'debug')
@@ -102,9 +102,9 @@ function getLinkerCommand(packageType, outputFile, inputFiles, buildSettings) {
 			// getToolPath('gcc') + ' -nostdlib -nodefaultlibs -T ' + rootDirectory + 'Kernel/source/linker.ld '
 		}
 		case PackageType.APPLICATION: {
-			let extras = '';//' -Wl,--gc-sections ';
+			let extras = ' -Wl,--gc-sections ';
 			if (buildSettings.build == 'optimized') {
-				extras += ' -O3 -g '; // -s
+				extras += ' -O3 -g -s';
 			} else {
 				extras += ' -g ';
 

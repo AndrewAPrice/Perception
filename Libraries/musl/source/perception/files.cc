@@ -37,6 +37,7 @@ long OpenDirectory(const char* path) {
 	descriptor->type = FileDescriptor::DIRECTORY;
 	descriptor->directory.name = path;
 	descriptor->directory.iterating_offset = 0;
+	descriptor->directory.finished_iterating = false;
 
 	open_files[id] = descriptor;
 

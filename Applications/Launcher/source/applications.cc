@@ -24,6 +24,7 @@ namespace {
 void ForEachApplicationFolder(
 	const std::function<void(std::string_view)> on_each_application_folder) {
 	for (const auto& root_entry : std::filesystem::directory_iterator("/")) {
+		std::cout << "root level" << std::string(root_entry.path()) << std::endl;
 		for (const auto& application_entry : std::filesystem::directory_iterator(
 			std::string(root_entry.path()) + "/Applications")) {
 			on_each_application_folder(std::string(application_entry.path()));

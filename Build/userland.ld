@@ -35,11 +35,11 @@ SECTIONS
   .rodata ALIGN(0x1000) : AT(ADDR(.rodata))
   {
     start_ctors = .;
-    *(SORT(.ctors*))
+    KEEP(*(SORT(.ctors*)))
     end_ctors = .;
 
     start_dtors = .;
-    *(SORT(.dtors*))
+    KEEP(*(SORT(.dtors*)))
     end_dtors = .;
 
     *(.rodata*)

@@ -55,22 +55,29 @@ void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
 	mounted_file_systems[mount_name] = std::move(file_system);
 }
 
-void ForEachEntryInDirectory(std::string_view directory,
+bool ForEachEntryInDirectory(std::string_view directory,
 	int offset, int count, const std::function<void(std::string_view,
 		DirectoryEntryType, size_t)>& on_each_entry) {
+	std::cout << "Iterating through " << directory << std::endl;
 	if (directory.empty() || directory[0] != '/')
-		return;
+		return true;
 
 	if (directory == "/") {
 		int index = 0;
 		// Iterating the root directory, return each mount point.
 		for (const auto& mounted_file_system : mounted_file_systems) {
-			if (index >= offset && (index < count || count == 0)) {
+			if (count != 0 && index >= offset + count) {
+				// We are terminating early, but there is still more to
+				// iterate.
+				return false;
+			}
+			if (index >= offset && (index < offset + count || count == 0)) {
 				on_each_entry(mounted_file_system.first,
 					DirectoryEntryType::Directory, 0);
 			}
 			index++;
 		}
+		return true;  // Nothing more to iterate.
 	} else {
 		// Split the path into the mount path and everything else.
 
@@ -98,10 +105,10 @@ void ForEachEntryInDirectory(std::string_view directory,
 		// Does the mount point exist?
 		auto mount_point_itr = mounted_file_systems.find(mount_point);
 		if (mount_point_itr == mounted_file_systems.end())
-			return;  // No.
+			return true;  // No mount point.
 
 		// Scan the directory within the file system.
-		mount_point_itr->second->ForEachEntryInDirectory(
+		return mount_point_itr->second->ForEachEntryInDirectory(
 			directory, offset, count, on_each_entry);
 	}
 }

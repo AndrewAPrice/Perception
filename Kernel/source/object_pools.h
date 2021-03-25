@@ -7,6 +7,7 @@ struct Service;
 struct SharedMemory;
 struct SharedMemoryInProcess;
 struct SharedMemoryPage;
+struct TimerEvent;
 
 // Object pools, for fast grabbing and releasing objects that are created/destoyed a lot.
 
@@ -54,6 +55,12 @@ struct SharedMemoryPage* AllocateSharedMemoryPage();
 
 // Release a SharedMemoryPage.
 void ReleaseSharedMemoryPage(struct SharedMemoryPage* shared_memory_page);
+
+// Allocate a TimerEvent.
+struct TimerEvent* AllocateTimerEvent();
+
+// Release a TimerEvent.
+void ReleaseTimerEvent(struct TimerEvent* timer_event);
 
 // Initialize the object pools.
 void InitializeObjectPools();

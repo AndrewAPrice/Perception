@@ -5,6 +5,7 @@
 #include "process.h"
 #include "service.h"
 #include "shared_memory.h"
+#include "timer_event.h"
 
 struct ObjectPoolItem {
 	struct ObjectPoolItem* next;
@@ -53,6 +54,7 @@ OBJECT_POOL(Service, service)
 OBJECT_POOL(SharedMemory, shared_memory)
 OBJECT_POOL(SharedMemoryInProcess, shared_memory_in_process)
 OBJECT_POOL(SharedMemoryPage, shared_memory_page)
+OBJECT_POOL(TimerEvent, timer_event)
 
 // Initialize the object pools.
 void InitializeObjectPools() {
@@ -63,6 +65,7 @@ void InitializeObjectPools() {
 	shared_memory_pool = NULL;
 	shared_memory_in_process_pool = NULL;
 	shared_memory_page_pool = NULL;
+	timer_event_pool = NULL;
 }
 
 // Clean up object pools to gain some memory back.
@@ -74,4 +77,5 @@ void CleanUpObjectPools() {
 	FreeObjectsInPool(&shared_memory_pool);
 	FreeObjectsInPool(&shared_memory_in_process_pool);
 	FreeObjectsInPool(&shared_memory_page_pool);
+	FreeObjectsInPool(&timer_event_pool);
 }

@@ -152,11 +152,17 @@ bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
 		PrintHex(to_page);
 		PrintChar('\n');
 #endif
-		// We don't need to do anything to the memory, because if the page was freshly
-		// allocated, it'd be initialized to 0.
+		size_t temp_addr = (size_t)TemporarilyMapPhysicalMemory(physical_page_address, 5);
+		// Indices where to start/finish clearing within the page.
+		size_t offset_in_page_to_start_copying_at =	to_start > to_page ? to_start - to_page : 0;
+		size_t offset_in_page_to_finish_copying_at = to_page + PAGE_SIZE > to_end ? to_end - to_page : PAGE_SIZE;
+		size_t copy_length = offset_in_page_to_finish_copying_at - offset_in_page_to_start_copying_at;
+		memset((unsigned char*)(temp_addr + offset_in_page_to_start_copying_at), 0, copy_length);
+
 	}
 	return true;
 }
+
 
 bool LoadSegments(const Elf64_Ehdr* header,
 			size_t memory_start, size_t memory_end,

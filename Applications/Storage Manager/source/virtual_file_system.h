@@ -24,7 +24,7 @@ void MountFileSystem(
 	std::unique_ptr<file_systems::FileSystem> file_system);
 
 
-void ForEachEntryInDirectory(std::string_view directory,
+bool ForEachEntryInDirectory(std::string_view directory,
 	int offset, int count,
 	const std::function<void(std::string_view,
 		::permebuf::perception::DirectoryEntryType,

@@ -41,7 +41,8 @@ StatusOr<Permebuf<SM::ReadDirectoryResponse>> StorageManager::HandleReadDirector
 
 	PermebufListOf<DirectoryEntry> last_directory_entry;
 
-	ForEachEntryInDirectory(*request->GetPath(), request->GetFirstIndex(),
+	bool no_more_entries = ForEachEntryInDirectory(*request->GetPath(),
+		request->GetFirstIndex(),
 		request->GetMaximumNumberOfEntries(),
 	[&](std::string_view name, DirectoryEntryType type, size_t size) {
 		auto directory_entry = response.AllocateMessage<DirectoryEntry>();
@@ -57,5 +58,7 @@ StatusOr<Permebuf<SM::ReadDirectoryResponse>> StorageManager::HandleReadDirector
 		}
 		last_directory_entry.Set(directory_entry);
 	});
+	std::cout << "Has more entries " << !no_more_entries << std::endl;
+	response->SetHasMoreEntries(!no_more_entries);
 	return response;
 }

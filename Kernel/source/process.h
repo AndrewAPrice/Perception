@@ -17,6 +17,7 @@ struct ProcessToNotifyWhenServiceAppears;
 struct Service;
 struct SharedMemoryInProcess;
 struct Thread;
+struct TimerEvent;
 
 struct ProcessToNotifyOnExit {
 	// The process to trigger a message for when it dies.
@@ -88,6 +89,9 @@ struct Process {
 
 	// Linked list of shared memory mapped into this process.
 	struct SharedMemoryInProcess* shared_memory;
+
+	// Linked list of timer events that are scheduled for this process.
+	struct TimerEvent* timer_event;
 };
 
 // Initializes the internal structures for tracking processes.

@@ -27,6 +27,7 @@ struct FileDescriptor {
 	struct Directory {
 		std::string name;
 		int iterating_offset;
+		bool finished_iterating;
 	} directory;
 };
 
