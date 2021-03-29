@@ -1,0 +1,9 @@
+{
+	"dependencies":[
+		"perception",
+		"libcxx",
+		"musl"
+	],
+	"third_party": true
+}
+

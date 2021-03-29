@@ -20,22 +20,22 @@
 namespace perception {
 
 // Returns the time since the kernel started.
-std::chrono::duration GetTimeSinceKernelStarted();
+std::chrono::microseconds GetTimeSinceKernelStarted();
 
 // Sleeps the current fiber and returns after the duration has passed.
-void SleepForDuration(std::chrono::duration time);
+void SleepForDuration(std::chrono::microseconds time);
 
 // Sleeps the current fiber and returns after the duration since the
 // kernel started has passed.
-void SleepUntilTimeSinceKernelStarted(std::chrono::duration time);
+void SleepUntilTimeSinceKernelStarted(std::chrono::microseconds time);
 
 // Calls the on_duration function after a duration has passed.
-void AfterDuration(std::chrono::duration time,
+void AfterDuration(std::chrono::microseconds time,
 	std::function<void()> on_duration);
 
-// Calls the on_duration function after the duration since the kernel
+// Calls the at_time function after the duration since the kernel
 // started has passed.
-void AfterTimeSinceKernelStarted(std::chrono::duration time,
-	std::function<void()> on_duration);
+void AfterTimeSinceKernelStarted(std::chrono::microseconds time,
+	std::function<void()> at_time);
 
 }

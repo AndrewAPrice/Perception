@@ -15,7 +15,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long futex();
+long futex(volatile int *addr, int op, int val, void *ts);
 
 }
 }

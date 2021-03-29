@@ -25,6 +25,14 @@ long open(const char* pathname, int flags, mode_t mode) {
 	// Flags that are safe to ignore: D_CLOEXEC, D_TMPFILE
 	if (flags & O_DIRECTORY) {
 		return OpenDirectory(pathname);
+	} else if (flags == 0) {
+		long id = OpenFile(pathname);
+		if (id == 0) {
+			std::cout << "Can't open file" << std::endl;
+			return EACCES;
+		}
+			std::cout << "Open file" << std::endl;
+		return id;
 	} else {
 		std::cout << "Invoking MUSL syncall open() on " << pathname << " with flags:";
 		if (flags & O_APPEND) std::cout << " O_APPEND";

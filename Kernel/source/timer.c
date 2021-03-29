@@ -34,7 +34,8 @@ void TimerHandler() {
 
 		// Remove this timer event from the front of the queue.
 		next_scheduled_timer_event = timer_event->next_scheduled_timer_event;
-		next_scheduled_timer_event->previous_scheduled_timer_event = NULL;
+		if(next_scheduled_timer_event != NULL)
+			next_scheduled_timer_event->previous_scheduled_timer_event = NULL;
 
 		// Remove this timer event from the process.
 		if (timer_event->previous_timer_event_in_process == NULL) {
@@ -93,22 +94,31 @@ void SendMessageToProcessAtMicroseconds(
 	// Add to global queue, in assending order based on timestamp.
 
 	// Find the timer event we should insert ourselves after.
-	struct TimerEvent* previous_timer_event = next_scheduled_timer_event;
-	while (previous_timer_event != NULL &&
-		previous_timer_event->timestamp_to_trigger_at < timestamp) {
-		previous_timer_event = previous_timer_event->next_scheduled_timer_event;
+	struct TimerEvent* previous_timer_event = NULL;
+	if (next_scheduled_timer_event != NULL &&
+		next_scheduled_timer_event->timestamp_to_trigger_at < timestamp) {
+		// We have events to trigger before us.
+		previous_timer_event = next_scheduled_timer_event;
+
+		// Keep iterating if there are still events to trigger before us.
+		while (previous_timer_event->next_scheduled_timer_event != NULL &&
+			previous_timer_event->next_scheduled_timer_event
+				->timestamp_to_trigger_at < timestamp) {
+
+			previous_timer_event = previous_timer_event->next_scheduled_timer_event;
+	}
 	}
 
-	// Insert ourselves after this timestamp.
 	if (previous_timer_event == NULL) {
 		// We're at the front of the queue!
 		timer_event->previous_scheduled_timer_event = NULL;
-		timer_event->next_scheduled_timer_event = previous_timer_event;
-		if (previous_timer_event != NULL) {
-			previous_timer_event->previous_scheduled_timer_event = timer_event;
+		if (next_scheduled_timer_event != NULL) {
+			next_scheduled_timer_event->previous_scheduled_timer_event = timer_event;
 		}
+		timer_event->next_scheduled_timer_event = next_scheduled_timer_event;
 		next_scheduled_timer_event = timer_event;
 	} else {
+		// Insert ourselves after this timestamp.
 		timer_event->previous_scheduled_timer_event =
 			previous_timer_event;
 		timer_event->next_scheduled_timer_event =

@@ -12,20 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <memory>
-#include <vector>
+#pragma once
 
-#include "ide.h"
-#include "interrupts.h"
-#include "perception/scheduler.h"
+void ResetInterrupt(bool primary_bus);
 
-using ::perception::HandOverControl;
+void WaitForInterrupt(bool primary_bus);
 
-int main() {
-	InitializeInterrupts();
-	InitializeIdeControllers();
-
-	HandOverControl();
-	return 0;
-}
+void InitializeInterrupts();

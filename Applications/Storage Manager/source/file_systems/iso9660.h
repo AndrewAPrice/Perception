@@ -31,8 +31,9 @@ public:
 	virtual std::string_view GetFileSystemType() override;
 
 	// Opens a file.
-	virtual std::unique_ptr<File> OpenFile(std::string_view path,
-		::perception::ProcessId process) override;
+	virtual StatusOr<std::unique_ptr<::permebuf::perception::File::Server>>
+		OpenFile(std::string_view path, size_t size_in_bytes,
+			::perception::ProcessId sender) override;
 
 	// Counts the number of entries in a directory.
 	virtual size_t CountEntriesInDirectory(std::string_view path) override;

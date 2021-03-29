@@ -18,11 +18,8 @@
 #include <memory>
 #include <string_view>
 
-#include "file.h"
 #include "permebuf/Libraries/perception/devices/storage_device.permebuf.h"
 #include "permebuf/Libraries/perception/storage_manager.permebuf.h"
-
-class File;
 
 namespace file_systems {
 
@@ -33,8 +30,9 @@ public:
 	virtual ~FileSystem() {}
 
 	// Opens a file.
-	virtual std::unique_ptr<File> OpenFile(std::string_view path,
-		::perception::ProcessId process) = 0;
+	virtual StatusOr<std::unique_ptr<::permebuf::perception::File::Server>>
+		OpenFile(std::string_view path, size_t size_in_bytes,
+			::perception::ProcessId sender) = 0;
 
 	// Counts the number of entries in a directory.
 	virtual size_t CountEntriesInDirectory(std::string_view path) = 0;

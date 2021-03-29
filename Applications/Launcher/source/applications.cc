@@ -15,19 +15,33 @@
 #include "applications.h"
 
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <string_view>
 
 namespace {
 
-void ForEachApplicationFolder(
-	const std::function<void(std::string_view)> on_each_application_folder) {
+void MaybeLoadApplication(std::string_view path) {
+	std::cout << "Maybe load " << path << std::endl;
+	std::ifstream launcher_metadata_file(std::string(path) + "/launcher.json");
+	if (!launcher_metadata_file.is_open()) {
+		std::cout << "Unable to open launcher.json" << std::endl;
+		return;
+	}
+	char c = launcher_metadata_file.get();
+	while (launcher_metadata_file.good()) {
+	    std::cout << c;
+	    c = launcher_metadata_file.get();
+  	}
+  	launcher_metadata_file.close();
+}
+
+void LoadApplications() {
 	for (const auto& root_entry : std::filesystem::directory_iterator("/")) {
-		std::cout << "root level" << std::string(root_entry.path()) << std::endl;
 		for (const auto& application_entry : std::filesystem::directory_iterator(
 			std::string(root_entry.path()) + "/Applications")) {
-			on_each_application_folder(std::string(application_entry.path()));
+			MaybeLoadApplication(std::string(application_entry.path()));
 		}
 	}
 }
@@ -40,7 +54,5 @@ void InitializeApplications() {
 	if (applications_initialized)
 		return;
 	applications_initialized = true;
-	ForEachApplicationFolder([](std::string_view application_folder) {
-		std::cout << "Possible application in " << application_folder << std::endl;
-	});
+	LoadApplications();
 }

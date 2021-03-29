@@ -23,6 +23,13 @@
 void MountFileSystem(
 	std::unique_ptr<file_systems::FileSystem> file_system);
 
+StatusOr<::permebuf::perception::File::Server*> OpenFile(
+	std::string_view path,
+	size_t& size_in_bytes,
+	::perception::ProcessId sender);
+
+void CloseFile(::perception::ProcessId sender,
+	::permebuf::perception::File::Server* file);
 
 bool ForEachEntryInDirectory(std::string_view directory,
 	int offset, int count,

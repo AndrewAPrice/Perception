@@ -12,15 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#define NANOSVG_IMPLEMENTATION
 
-#include "perception/shared_memory.h"
+#include <stdio.h>
 
-class File {
-public:
-	virtual void Close() = 0;
-	virtual size_t GetSize() = 0;
-	virtual void Read(::perception::SharedMemory& buffer,
-		size_t offset_in_file,
-		size_t offset_in_buffer, size_t bytes_to_read) = 0;
-};
+#include "nanosvg.h"
+#include "nanosvgrast.h"

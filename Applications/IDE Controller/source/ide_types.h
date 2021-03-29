@@ -29,9 +29,8 @@ struct IdeChannelRegisters {
 struct IdeController;
 
 struct IdeDevice {
-	uint8 reserved; /* 0 - empty, 1 - exists */
-	uint8 channel; /* 0 - primary, 1 - secondary */
-	uint8 drive; /* 0 - master, 1 - slave */
+	bool primary_channel;
+	bool master_drive;
 	uint16 type;
 	uint16 signature;
 	uint16 capabilities;

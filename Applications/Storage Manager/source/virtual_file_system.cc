@@ -17,17 +17,23 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <vector>
 
 using ::file_systems::FileSystem;
+using ::perception::Status;
+using ::perception::ProcessId;
 using ::permebuf::perception::devices::StorageType;
 using ::permebuf::perception::DirectoryEntryType;
+using ::permebuf::perception::File;
 
 namespace {
 
 std::map<std::string, std::unique_ptr<FileSystem>, std::less<>> mounted_file_systems;
 
-int next_optical_drive_index = 0;
-int next_unknown_device_index = 0;
+std::map<ProcessId, std::vector<std::unique_ptr<File::Server>>> open_files_by_process_id;
+
+int next_optical_drive_index = 1;
+int next_unknown_device_index = 1;
 
 std::string GetMountNameForFileSystem(FileSystem& file_system) {
 	switch (file_system.GetStorageType()) {
@@ -42,7 +48,6 @@ std::string GetMountNameForFileSystem(FileSystem& file_system) {
 			return name;
 		}
 	}
-
 }
 
 }
@@ -55,10 +60,58 @@ void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
 	mounted_file_systems[mount_name] = std::move(file_system);
 }
 
+
+StatusOr<::permebuf::perception::File::Server*> OpenFile(
+	std::string_view path,
+	size_t& size_in_bytes,
+	ProcessId sender) {
+	if (path.empty() || path[0] != '/')
+		return Status::FILE_NOT_FOUND;
+
+	// Jump over the initial '/'.
+	path = path.substr(1);
+
+	// Find the split point (/) between the mount path and everything else.
+	int split_point = path.find_first_of('/');
+
+	if (split_point == std::string_view::npos)
+		return Status::FILE_NOT_FOUND;
+
+	std::string_view mount_point = path.substr(0, split_point);
+	path = path.substr(split_point + 1);
+
+	// Does the mount point exist?
+	auto mount_point_itr = mounted_file_systems.find(mount_point);
+	if (mount_point_itr == mounted_file_systems.end())
+		return Status::FILE_NOT_FOUND;  // No mount point.
+
+	// Scan the directory within the file system.
+	ASSIGN_OR_RETURN(auto file, mount_point_itr->second->OpenFile(
+		path, size_in_bytes, sender));
+	File::Server* file_ptr = file.get();
+
+	auto itr = open_files_by_process_id.find(sender);
+	if (itr == open_files_by_process_id.end()) {
+		// First file open by this process.
+		std::vector<std::unique_ptr<File::Server>> files;
+		files.push_back(std::move(file));
+		open_files_by_process_id[sender] = std::move(files);
+	} else {
+		itr->second.push_back(std::move(file));
+	}
+
+	return file_ptr;
+}
+
+
+void CloseFile(::perception::ProcessId sender,
+	::permebuf::perception::File::Server* file) {
+	std::cout << "TODO: Implement CloseFile" << std::endl;
+}
+
 bool ForEachEntryInDirectory(std::string_view directory,
 	int offset, int count, const std::function<void(std::string_view,
 		DirectoryEntryType, size_t)>& on_each_entry) {
-	std::cout << "Iterating through " << directory << std::endl;
 	if (directory.empty() || directory[0] != '/')
 		return true;
 
@@ -99,7 +152,6 @@ bool ForEachEntryInDirectory(std::string_view directory,
 		} else {
 			mount_point = directory.substr(0, split_point);
 			directory = directory.substr(split_point + 1);
-
 		}
 
 		// Does the mount point exist?

@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 namespace perception {
 namespace linux_syscalls {
 
-long lseek();
+off_t lseek(long fd, off_t offset, int whence);
 
 }
 }

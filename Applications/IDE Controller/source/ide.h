@@ -14,4 +14,8 @@
 
 #pragma once
 
+#include <mutex>
+
 void InitializeIdeControllers();
+
+std::mutex& GetIdeMutex();

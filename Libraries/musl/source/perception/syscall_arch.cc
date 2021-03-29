@@ -543,7 +543,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5, 
 		case SYS_ftruncate:
 			return ::perception::linux_syscalls::ftruncate();
 		case SYS_futex:
-			return ::perception::linux_syscalls::futex();
+			return ::perception::linux_syscalls::futex(
+				(int *)a1, a2, a3, (void *)a4);
 		case SYS_futimesat:
 			return ::perception::linux_syscalls::futimesat();
 		case SYS_get_kernel_syms:
@@ -678,7 +679,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5, 
 		case SYS_lremovexattr:
 			return ::perception::linux_syscalls::lremovexattr();
 		case SYS_lseek:
-			return ::perception::linux_syscalls::lseek();
+			return (long)::perception::linux_syscalls::lseek(
+				a1, (off_t)a2, a3);
 		case SYS_lsetxattr:
 			return ::perception::linux_syscalls::lsetxattr();
 		case SYS_lstat:
@@ -835,7 +837,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5, 
 		case SYS_readlinkat:
 			return ::perception::linux_syscalls::readlinkat();
 		case SYS_readv:
-			return ::perception::linux_syscalls::readv();
+			return (long)::perception::linux_syscalls::readv(
+				a1, (void *)a2, a3);
 		case SYS_reboot:
 			return ::perception::linux_syscalls::reboot();
 		case SYS_recvfrom:

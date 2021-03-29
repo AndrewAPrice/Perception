@@ -16,6 +16,9 @@
 
 #include <map>
 
+using ::permebuf::perception::File;
+using ::permebuf::perception::StorageManager;
+
 namespace perception {
 namespace {
 
@@ -44,6 +47,24 @@ long OpenDirectory(const char* path) {
 	return id;
 }
 
+long OpenFile(const char* path) {
+	long id = GetUniqueFileId();
+
+	Permebuf<StorageManager::OpenFileRequest> request;
+	request->SetPath(path);
+	auto status_or_response = StorageManager::Get().CallOpenFile(std::move(request));
+	if (!status_or_response) {
+		return 0;
+	}
+
+	auto descriptor = std::make_shared<FileDescriptor>();
+	descriptor->type = FileDescriptor::FILE;
+	descriptor->file.file = status_or_response->GetFile();
+	descriptor->file.size_in_bytes = status_or_response->GetSizeInBytes();
+
+	return id;
+}
+
 std::shared_ptr<FileDescriptor> GetFileDescriptor(long id) {
 	auto itr = open_files.find(id);
 	if (itr == open_files.end())
@@ -56,6 +77,10 @@ void CloseFile(long id) {
 	auto itr = open_files.find(id);
 	if (itr == open_files.end())
 		return;
+
+	if (itr->second->type == FileDescriptor::FILE) {
+		itr->second->file.file.SendCloseFile(File::CloseFileMessage());
+	}
 
 	open_files.erase(itr);
 }

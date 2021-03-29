@@ -21,10 +21,12 @@
 
 #include "ata.h"
 #include "ide_types.h"
+#include "interrupts.h"
 #include "io.h"
 #include "perception/pci.h"
 #include "perception/threads.h"
 #include "perception/port_io.h"
+#include "perception/time.h"
 #include "permebuf/Libraries/perception/devices/device_manager.permebuf.h"
 
 using ::permebuf::perception::devices::DeviceManager;
@@ -37,6 +39,7 @@ using ::perception::kPciHdrBar4;
 using ::perception::Read8BitsFromPort;
 using ::perception::Read16BitsFromPciConfig;
 using ::perception::Read16BitsFromPort;
+using ::perception::SleepForDuration;
 using ::perception::Write8BitsToPort;
 using ::perception::Write16BitsToPort;
 using ::perception::Yield;
@@ -44,6 +47,7 @@ using ::perception::Yield;
 namespace {
 
 std::vector<std::unique_ptr<IdeController>> ide_controllers;
+std::mutex ide_mutex;
 
 void MaybeInitializeIdeDevice(IdeDevice* device) {
 	if (device->type != IDE_ATAPI) {
@@ -53,8 +57,8 @@ void MaybeInitializeIdeDevice(IdeDevice* device) {
 	}
 
 	// Select the drive.
-	uint16 bus = device->channel ? ATA_BUS_SECONDARY : ATA_BUS_PRIMARY;
-	Write8BitsToPort(ATA_DRIVE_SELECT(bus), device->drive << 4);
+	uint16 bus = device->primary_channel ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
+	Write8BitsToPort(ATA_DRIVE_SELECT(bus), (!device->master_drive) << 4);
 	// Wait 400ns.
 	ATA_SELECT_DELAY(bus);
 
@@ -71,16 +75,17 @@ void MaybeInitializeIdeDevice(IdeDevice* device) {
 	// Poll.
 	uint8 status;
 	while((status = Read8BitsFromPort(ATA_COMMAND(bus))) & 0x80) /* busy */
-		Yield();
-
+		SleepForDuration(std::chrono::milliseconds(1));
 
 	while(!((status = Read8BitsFromPort(ATA_COMMAND(bus))) & 0x8) && !(status & 0x1))
-		Yield();
+		SleepForDuration(std::chrono::milliseconds(1));
 
 	if(status & 0x1) {
 		// There is an error - likely no disk.
 		return;
 	}
+
+	ResetInterrupt(device->primary_channel);
 
 	// send the atapi packet - must be 6 words (12 bytes) long.
 	uint8 atapi_packet[12] = {0x25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -88,8 +93,7 @@ void MaybeInitializeIdeDevice(IdeDevice* device) {
 		Write16BitsToPort(ATA_DATA(bus),*(uint16 *)&atapi_packet[byte]);
 	}
 
-	// TODO: Wait for an irq.
-	Yield();
+	WaitForInterrupt(device->primary_channel);
 			
 	// Read 4 words (8 bytes) from the data register.
 	uint32 returnLba = 
@@ -129,15 +133,15 @@ void MaybeInitializeIdeDevices(IdeController* controller) {
 			// Select drive.
 			WriteByteToIdeController(&controller->channels[i], ATA_REG_HDDEVSEL, 0xA0 | (j << 4));
 
-			Yield(); // TODO: Sleep 1 ms.
+			SleepForDuration(std::chrono::milliseconds(1));
 
 			// Send the identify command.
 			WriteByteToIdeController(&controller->channels[i], ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
 
-			Yield(); // TODO: Sleep 1 ms.
+			SleepForDuration(std::chrono::milliseconds(1));
 
 			if (ReadByteFromIdeController(&controller->channels[i], ATA_REG_STATUS) == 0) {
-				// No device.s
+				// No device.
 				continue;
 			}
 
@@ -163,16 +167,15 @@ void MaybeInitializeIdeDevices(IdeController* controller) {
 				}
 
 				WriteByteToIdeController(&controller->channels[i], ATA_REG_COMMAND, ATA_CMD_IDENTIFY_PACKET);
-				Yield(); // TODO: Sleep 1 ms.
+				SleepForDuration(std::chrono::milliseconds(1));
 			}
 
 			ReadBytesFromIdeControllerIntoBuffer(&controller->channels[i], ATA_REG_DATA,
 				buffer.get(), 128);
 			auto device = std::make_unique<IdeDevice>();
-			device->reserved = 0;
 			device->type = type;
-			device->channel = i;
-			device->drive = j;
+			device->primary_channel = i == 0;
+			device->master_drive = j == 0;
 			device->signature = *(uint16 *)&buffer[ATA_IDENT_DEVICETYPE];
 			device->capabilities = *(uint16 *)&buffer[ATA_IDENT_CAPABILITIES];
 			device->command_sets = *(uint32 *)&buffer[ATA_IDENT_COMMANDSETS];
@@ -215,6 +218,8 @@ void MaybeInitializeIdeDevices(IdeController* controller) {
 }
 
 void InitializeIdeController(uint8 bus, uint8 slot, uint8 function, uint8 prog_if) {
+	std::lock_guard<std::mutex> mutex(GetIdeMutex());
+
 	auto controller = std::make_unique<IdeController>();
 
 	// Read in the ports.
@@ -271,4 +276,9 @@ void InitializeIdeControllers() {
 		InitializeIdeController(device.GetBus(), device.GetSlot(),
 			device.GetFunction(), device.GetProgIf());
 	}
+}
+
+
+std::mutex& GetIdeMutex() {
+	return ide_mutex;
 }

@@ -15,19 +15,22 @@
 #include "ide_storage_device.h"
 
 #include "ata.h"
+#include "ide.h"
 #include "ide_types.h"
+#include "interrupts.h"
 #include "perception/port_io.h"
 #include "perception/shared_memory.h"
 #include "perception/threads.h"
+#include "perception/time.h"
 
 using ::perception::SharedMemory;
 using ::perception::Read8BitsFromPort;
 using ::perception::Read16BitsFromPort;
 using ::perception::Write8BitsToPort;
 using ::perception::Write16BitsToPort;
-using ::perception::Yield;
 using ::permebuf::perception::devices::StorageDevice;
 using ::permebuf::perception::devices::StorageType;
+using ::perception::SleepForDuration;
 
 IdeStorageDevice::IdeStorageDevice(IdeDevice* device) : device_(device) {}
 
@@ -72,12 +75,13 @@ StatusOr<StorageDevice::ReadResponse>
 		return ::perception::Status::OVERFLOW;
 	}
 
-
+	std::lock_guard<std::mutex> mutex(GetIdeMutex());
+	
 	int64 buffer_offset = buffer_offset_start - device_offset_start;
 
 	/* select drive - master/slave */
-	uint16 bus = device_->channel ? ATA_BUS_SECONDARY : ATA_BUS_PRIMARY;
-	Write8BitsToPort(ATA_DRIVE_SELECT(bus),device_->drive << 4);
+	uint16 bus = device_->primary_channel ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
+	Write8BitsToPort(ATA_DRIVE_SELECT(bus),(!device_->master_drive) << 4);
 	/* wait 400ns */
 	ATA_SELECT_DELAY(bus);
 
@@ -98,12 +102,10 @@ StatusOr<StorageDevice::ReadResponse>
 		/* poll */
 		uint8 status;
 		while((status = Read8BitsFromPort(ATA_COMMAND(bus))) & 0x80) /* busy */
-			Yield();
-
+			SleepForDuration(std::chrono::milliseconds(10));
 
 		while(!((status = Read8BitsFromPort(ATA_COMMAND(bus))) & 0x8) && !(status & 0x1))
-			Yield();
-
+			SleepForDuration(std::chrono::milliseconds(10));
 
 		/* is there an error ? */
 		if(status & 0x1) {
@@ -118,13 +120,13 @@ StatusOr<StorageDevice::ReadResponse>
 			uint8((lba >> 0x08) & 0xFF),
 			uint8((lba >> 0x00) & 0xFF), 0, 0, 0, 1, 0, 0};
 
+		ResetInterrupt(device_->primary_channel);
+
 		for(status = 0; status < 12; status += 2) {
 			Write16BitsToPort(ATA_DATA(bus),*(uint16 *)&atapi_packet[status]);
 		}
 
-		/* todo - wait for an irq */
-		for(status = 0; status < 15; status++)
-			Yield();
+		WaitForInterrupt(device_->primary_channel);
 
 		/* read in the data */
 		size_t indx = lba * ATAPI_SECTOR_SIZE;

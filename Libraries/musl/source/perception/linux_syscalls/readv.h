@@ -15,7 +15,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long readv();
+long readv(long fd, void *iov, long iovcnt);
 
 }
 }

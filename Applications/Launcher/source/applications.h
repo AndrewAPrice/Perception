@@ -14,4 +14,16 @@
 
 #pragma once
 
+#include <string>
+
+#include "nanosvg.h"
+
+struct Application {
+	std::string name;
+
+	std::string description;
+
+	NSVGimage* icon;
+};
+
 void InitializeApplications();

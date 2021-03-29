@@ -21,6 +21,7 @@
 using ::perception::ProcessId;
 using ::permebuf::perception::DirectoryEntry;
 using ::permebuf::perception::DirectoryEntryType;
+using ::permebuf::perception::File;
 using SM = ::permebuf::perception::StorageManager;
 
 StorageManager::StorageManager() {}
@@ -30,8 +31,14 @@ StorageManager::~StorageManager() {}
 StatusOr<SM::OpenFileResponse> StorageManager::HandleOpenFile(
 	::perception::ProcessId sender,
 	Permebuf<SM::OpenFileRequest> request) {
-	std::cout << "Implement StorageManager::HandleOpenFile" << std::endl;
-	return ::perception::Status::UNIMPLEMENTED;
+	size_t size_in_bytes = 0;
+	ASSIGN_OR_RETURN(File::Server* file,
+		OpenFile(*request->GetPath(), size_in_bytes, sender));
+
+	SM::OpenFileResponse response;
+	response.SetFile(*file);
+	response.SetSizeInBytes(size_in_bytes);
+	return response;
 }
 
 StatusOr<Permebuf<SM::ReadDirectoryResponse>> StorageManager::HandleReadDirectory(
@@ -58,7 +65,6 @@ StatusOr<Permebuf<SM::ReadDirectoryResponse>> StorageManager::HandleReadDirector
 		}
 		last_directory_entry.Set(directory_entry);
 	});
-	std::cout << "Has more entries " << !no_more_entries << std::endl;
 	response->SetHasMoreEntries(!no_more_entries);
 	return response;
 }

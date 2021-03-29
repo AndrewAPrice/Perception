@@ -16,11 +16,14 @@
 
 #include <string>
 
+#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
+
 namespace perception {
 
 struct FileDescriptor {
 	enum Type {
-		DIRECTORY = 0
+		DIRECTORY = 0,
+		FILE = 1
 	};
 	Type type;
 
@@ -29,11 +32,19 @@ struct FileDescriptor {
 		int iterating_offset;
 		bool finished_iterating;
 	} directory;
+
+	struct File {
+		::permebuf::perception::File file;
+		size_t size_in_bytes;
+		size_t offset_in_file;
+	} file;
 };
 
 long OpenDirectory(const char* path);
+long OpenFile(const char* path);
 
 std::shared_ptr<FileDescriptor> GetFileDescriptor(long id);
+bool ReadAndIncrementFile(long id, void* buffer, long bytes);
 
 void CloseFile(long id);
 

@@ -28,7 +28,8 @@ enum class Status {
 	INVALID_ARGUMENT = 6,
 	OVERFLOW = 7,
 	MISSING_MEDIA = 8,
-	NOT_ALLOWED = 9
+	NOT_ALLOWED = 9,
+	FILE_NOT_FOUND = 10
 };
 
 }
@@ -71,10 +72,10 @@ private:
 };
 
 #define ASSIGN_OR_RETURN(var, expr) \
-	auto _status_or_var_##__line__ = (expr); \
-	if (!_status_or_var_##__line__) return _status_or_var_##__line__.Status(); \
-	expr = *std::move(_status_or_var_##__line__);
+	auto _status_or_var_##__LINE__ = (expr); \
+	if (!_status_or_var_##__LINE__) return _status_or_var_##__LINE__.Status(); \
+	var = std::move(*std::move(_status_or_var_##__LINE__));
 
-#define RETURN_ON_ERROR(var, expr) \
-	auto __status__##__line__ = (expr); \
-	if (!__status_##__line__) return __status__##__line__;
+#define RETURN_ON_ERROR(expr) \
+	auto __status__##__LINE__ = (expr); \
+	if (!__status__##__LINE__) return __status__##__LINE__.Status();

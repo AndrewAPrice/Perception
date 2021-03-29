@@ -593,7 +593,6 @@ PermebufService::SendMiniMessageAndWaitForMessage(size_t function_id,
 	::perception::MessageId message_id_of_response =
 		::perception::GenerateUniqueMessageId();
 
-
 	auto send_status = ::perception::SendRawMessage(
 		 process_id_, message_id_,
 		 function_id << 3,

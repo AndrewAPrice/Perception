@@ -14,14 +14,36 @@
 
 #include "perception/linux_syscalls/lseek.h"
 
-#include "perception/debug.h"
+#include <iostream>
+
+#include "perception/files.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long lseek() {
-	perception::DebugPrinterSingleton << "System call lseek is unimplemented.\n";
-	return 0;
+off_t lseek(long fd, off_t offset, int whence) {
+	auto file = GetFileDescriptor(fd);
+	if (!file || file->type != FileDescriptor::Type::FILE) {
+		// File not open or not a file.
+		return -1;
+	}
+
+	switch (whence) {
+		case SEEK_SET:
+			file->file.offset_in_file = offset;
+			break;
+		case SEEK_CUR:
+			file->file.offset_in_file += offset;
+			break;
+		case SEEK_END:
+			file->file.offset_in_file = file->file.size_in_bytes + offset;
+			break;
+		default:
+			std::cout << "Unknown whence passed to lseek: " << whence << std::endl;
+			return -1;
+	}
+
+	return (off_t)file->file.offset_in_file;
 }
 
 }

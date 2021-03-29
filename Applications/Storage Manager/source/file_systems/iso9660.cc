@@ -18,11 +18,15 @@
 
 #include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 #include "shared_memory_pool.h"
+#include "perception/scheduler.h"
+#include "virtual_file_system.h"
 
-// using ::permebuf::perception::File;
 using ::permebuf::perception::devices::StorageDevice;
 using ::permebuf::perception::DirectoryEntryType;
+using ::permebuf::perception::File;
+using ::perception::Defer;
 using ::perception::ProcessId;
+using ::perception::Status;
 
 namespace file_systems {
 namespace {
@@ -30,8 +34,8 @@ namespace {
 constexpr int kIso9660SectorSize = 2048;
 std::string kIso9660Name = "ISO 9660";
 
-/*
-class Iso9660File : public File {
+
+class Iso9660File : public File::Server {
 public:
 	Iso9660File(
 		StorageDevice storage_device,
@@ -49,7 +53,9 @@ public:
 		if (sender != allowed_process_)
 			return;
 
-		std::cout << "Implement Iso9660File::HandleCloseFile" << std::endl;
+		Defer([sender, this]() {
+			CloseFile(sender, this);
+		});
 	}
 
 	virtual StatusOr<File::ReadFileResponse>
@@ -69,7 +75,7 @@ public:
 		read_request.SetBytesToCopy(request.GetBytesToCopy());
 		read_request.SetBuffer(request.GetBufferToCopyInto());
 
-		RETURN_IF_ERROR(storage_device_.CallRead(read_request));		
+		RETURN_ON_ERROR(storage_device_.CallRead(read_request));		
 
 		return File::ReadFileResponse();
 	}
@@ -81,7 +87,7 @@ private:
 	ProcessId allowed_process_;
 	bool open_;
 };
-*/
+
 }
 
 
@@ -91,13 +97,53 @@ Iso9660::Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
 	root_directory_(std::move(root_directory)), FileSystem(storage_device) {}
 
 // Opens a file.
-std::unique_ptr<File> Iso9660::OpenFile(std::string_view path, ProcessId process) {
-	return std::unique_ptr<File>();
+StatusOr<std::unique_ptr<File::Server>> Iso9660::OpenFile(std::string_view path, size_t size_in_bytes,
+	ProcessId sender) {
+	std::string_view directory, file_name;
+	// Find the split point (/) between the mount path and everything else.
+	int split_point = path.find_last_of('/');
+
+	if (split_point == std::string_view::npos) {
+		directory = "";
+		file_name = path;
+	} else {
+		directory = path.substr(0, split_point);
+		file_name = path.substr(split_point + 1);
+	}
+
+	std::unique_ptr<File::Server> file;
+	ForRawEachEntryInDirectory(directory,
+		[&](std::string_view name, DirectoryEntryType type,
+			size_t start_lba, size_t size) {
+			if (name == file_name) {
+				file = std::make_unique<Iso9660File>(
+					storage_device_,
+					start_lba * logical_block_size_,
+					size,
+					sender);
+				size_in_bytes = size;
+				return true;
+			}
+			return false;
+		});
+
+	if (file) {
+		return file;
+	} else {
+		return Status::FILE_NOT_FOUND;
+	}
 }
 
 // Counts the number of entries in a directory.
 size_t Iso9660::CountEntriesInDirectory(std::string_view path) {
-	return 0;
+	int number_of_entries = 0;
+	ForRawEachEntryInDirectory(path,
+		[&](std::string_view, DirectoryEntryType,
+			size_t, size_t) {
+		number_of_entries++;
+		return false;
+	});
+	return number_of_entries;
 }
 
 bool Iso9660::ForEachEntryInDirectory(std::string_view path,
@@ -105,14 +151,11 @@ bool Iso9660::ForEachEntryInDirectory(std::string_view path,
 	const std::function<void(std::string_view,
 			DirectoryEntryType, size_t)>& on_each_entry) {
 
-	std::cout << "ForEachEntryInDirectory " << path << std::endl;
-	
 	int index = 0;
 	bool more_entries_than_we_can_count = false;
 	ForRawEachEntryInDirectory(path,
 		[&](std::string_view name, DirectoryEntryType type,
 			size_t start_lba, size_t size) {
-			std::cout << "name: " << name << " index: " << index << " start: " << start_index << " count: " << count << std::endl;
 			if (count > 0 && index >= start_index + count) {
 				more_entries_than_we_can_count = true;
 				return true;
@@ -129,9 +172,6 @@ bool Iso9660::ForEachEntryInDirectory(std::string_view path,
 void Iso9660::ForRawEachEntryInDirectory(std::string_view path,
 	const std::function<bool(std::string_view,
 			DirectoryEntryType, size_t, size_t)>& on_each_entry) {
-
-	std::cout << "ForRawEachEntryInDirectory " << path << std::endl;
-
 	auto pooled_shared_memory = GetSharedMemory();
 	char* buffer = (char*)**pooled_shared_memory->shared_memory;
 
@@ -171,7 +211,6 @@ void Iso9660::ForRawEachEntryInDirectory(std::string_view path,
 				// allowed to cross sector boundaries.
 				size_t directory_start = directory_lba * logical_block_size_;
 				read_request.SetOffsetOnDevice(directory_start);
-
 				auto status_or_response =
 					storage_device_.CallRead(read_request);
 				if (!status_or_response) {

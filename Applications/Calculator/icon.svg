@@ -1,0 +1,22 @@
+<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+
+ <g>
+  <title>Layer 1</title>
+  <rect stroke="#000" id="svg_1" height="245" width="201" y="24.5" x="42.5" opacity="undefined" fill="#a0a0a0"/>
+  <rect stroke="#000" id="svg_2" height="37" width="184" y="34.5" x="52.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" fill="#ffffff"/>
+  <rect stroke="#000" id="svg_3" height="77" width="40" y="174.5" x="197.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" fill="#d6d6d6"/>
+  <rect id="svg_5" height="34" width="40" y="217.5" x="148.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" stroke="#000" fill="#d6d6d6"/>
+  <rect stroke="#000" id="svg_7" height="34" width="90" y="217.5" x="50.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" fill="#d6d6d6"/>
+  <rect id="svg_9" height="34" width="40" y="172.5" x="148.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" stroke="#000" fill="#d6d6d6"/>
+  <rect id="svg_10" height="34" width="40" y="172.5" x="99.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" stroke="#000" fill="#d6d6d6"/>
+  <rect id="svg_11" height="34" width="40" y="172.5" x="50.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" stroke="#000" fill="#d6d6d6"/>
+  <rect id="svg_12" height="34" width="40" y="131.5" x="197.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" stroke="#000" fill="#d6d6d6"/>
+  <rect id="svg_13" height="34" width="40" y="131.5" x="148.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" stroke="#000" fill="#d6d6d6"/>
+  <rect id="svg_14" height="34" width="40" y="131.5" x="99.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" stroke="#000" fill="#d6d6d6"/>
+  <rect id="svg_15" height="34" width="40" y="131.5" x="50.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" stroke="#000" fill="#d6d6d6"/>
+  <rect id="svg_16" height="34" width="40" y="86.5" x="197.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" stroke="#000" fill="#d6d6d6"/>
+  <rect id="svg_17" height="34" width="40" y="86.5" x="148.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" stroke="#000" fill="#d6d6d6"/>
+  <rect id="svg_18" height="34" width="40" y="86.5" x="99.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" stroke="#000" fill="#d6d6d6"/>
+  <rect id="svg_19" height="34" width="40" y="86.5" x="50.5" opacity="undefined" stroke-opacity="null" stroke-dasharray="null" stroke-width="null" stroke="#000" fill="#d6d6d6"/>
+ </g>
+</svg>

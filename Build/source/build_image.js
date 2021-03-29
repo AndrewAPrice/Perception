@@ -28,6 +28,9 @@ const GRUB_MKRESCUE_COMMAND = getToolPath('grub-mkrescue') + ' -o ' + escapePath
 	 'Perception.iso' + ' ' + rootDirectory + 'fs';
 	 
 function copyIfNewer(source, destination) {
+	if (!fs.existsSync(source))
+		return false;
+
 	if (fs.existsSync(destination)) {
 		// Don't copy if the source older or same age as the destination.
 		if (getFileLastModifiedTimestamp(source) <= getFileLastModifiedTimestamp(destination))
@@ -110,6 +113,14 @@ async function buildImage(buildSettings) {
 				somethingChanged |= copyIfNewer(
 					rootDirectory + 'Applications/' + applicationName + '/build/' + prefix + '.app',
 					rootDirectory + 'fs/Applications/' + applicationName + '/' + applicationName + '.app');
+
+				somethingChanged |= copyIfNewer(
+					rootDirectory + 'Applications/' + applicationName + '/icon.svg',
+					rootDirectory + 'fs/Applications/' + applicationName + '/icon.svg');
+
+				somethingChanged |= copyIfNewer(
+					rootDirectory + 'Applications/' + applicationName + '/launcher.json',
+					rootDirectory + 'fs/Applications/' + applicationName + '/launcher.json');
 			}
 		}
 
