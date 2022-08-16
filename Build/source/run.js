@@ -34,7 +34,6 @@ async function run(package, buildSettings) {
 		}
 		const success = await buildImage(buildSettings);
 		if (success) {
-			console.log(EMULATOR_COMMAND);
 			child_process.execSync(EMULATOR_COMMAND, {stdio: 'inherit'});
 		}
 	} else {

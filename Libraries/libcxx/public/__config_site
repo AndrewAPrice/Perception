@@ -1,0 +1,49 @@
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP___CONFIG_SITE
+#define _LIBCPP___CONFIG_SITE
+
+#define _LIBCPP_ABI_VERSION 1
+// #define _LIBCPP_ABI_NAMESPACE
+//#define _LIBCPP_ABI_FORCE_ITANIUM 0
+//#define _LIBCPP_ABI_FORCE_MICROSOFT 0
+//#define _LIBCPP_HAS_NO_THREADS 0
+//#define _LIBCPP_HAS_NO_MONOTONIC_CLOCK 0
+#define _LIBCPP_HAS_MUSL_LIBC 1
+#define _LIBCPP_HAS_THREAD_API_PTHREAD 1
+//#define _LIBCPP_HAS_THREAD_API_EXTERNAL 0
+//#define _LIBCPP_HAS_THREAD_API_WIN32 0
+//#define _LIBCPP_HAS_THREAD_LIBRARY_EXTERNAL 0
+//#define _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS 0
+//#define _LIBCPP_HAS_NO_VENDOR_AVAILABILITY_ANNOTATIONS 0
+#define _LIBCPP_NO_VCRUNTIME 1
+// #define _LIBCPP_TYPEINFO_COMPARISON_IMPLEMENTATION
+// #define _LIBCPP_HAS_NO_FILESYSTEM_LIBRARY
+// #define _LIBCPP_HAS_PARALLEL_ALGORITHMS
+// #define _LIBCPP_HAS_NO_RANDOM_DEVICE
+// #define _LIBCPP_HAS_NO_LOCALIZATION
+// #define _LIBCPP_HAS_NO_WIDE_CHARACTERS
+// #define _LIBCPP_ENABLE_ASSERTIONS_DEFAULT
+// #define _LIBCPP_ENABLE_DEBUG_MODE
+#define _LIBCPP_NO_ABI_TAG
+
+// __USE_MINGW_ANSI_STDIO gets redefined on MinGW
+#ifdef __clang__
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wmacro-redefined"
+#endif
+
+// @_LIBCPP_ABI_DEFINES@
+// @_LIBCPP_EXTRA_SITE_DEFINES@
+
+#ifdef __clang__
+#  pragma clang diagnostic pop
+#endif
+
+#endif // _LIBCPP___CONFIG_SITE

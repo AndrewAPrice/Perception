@@ -199,9 +199,19 @@ void DoneWithMultibootMemory() {
 	size_t start = (end_of_kernel_memory + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // Round up.
 	size_t end = start_of_free_memory_at_boot;// (start_of_free_memory_at_boot + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // Round up.
 	
+	#ifdef DEBUG
+		PrintString("Done with multiboot memory, freeing from ");
+		PrintHex(start);
+		PrintString(" to ");
+		PrintHex(end);
+		PrintChar('\n');
+	#endif
+
 	for (size_t page = start; page < end; page += PAGE_SIZE) {
 		#ifdef DEBUG
 			PrintString("Unmapping ");
+			PrintHex(page);
+			PrintString(" at virtual address ");
 			PrintHex(page + VIRTUAL_MEMORY_OFFSET);
 			PrintChar('\n');
 		#endif

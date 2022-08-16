@@ -25,7 +25,7 @@ if (!fs.existsSync('third_party')) {
 	// Grab it from github.
 	// const command = 'git clone ' + llvm_git_repository + ' third_party';
 	try {
-		child_process.execSync('git clone --no-checkout --depth 1 git://github.com/llvm/llvm-project.git third_party', {stdio: 'inherit'});
+		child_process.execSync('git clone --no-checkout --depth 1 ' + llvm_git_repository + ' third_party', {stdio: 'inherit'});
 		child_process.execSync('git config core.sparseCheckout true', {cwd: 'third_party', stdio: 'inherit'});
 		child_process.execSync('git config pull.rebase true', {cwd: 'third_party', stdio: 'inherit'});
 		fs.appendFileSync('third_party/.git/info/sparse-checkout', 'libcxx/\n', 'utf8');

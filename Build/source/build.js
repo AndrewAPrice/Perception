@@ -43,7 +43,7 @@ function getDisplayFilename(filename) {
 async function build(packageType, packageName, buildSettings, librariesToLink, parentPublicIncludeDirs,
 	librariesToBuild, defines) {
 	if (librariesToLink == undefined) {
-		librariesToLink = [];
+		librariesToLink = {};
 	}
 	if (parentPublicIncludeDirs == undefined) {
 		parentPublicIncludeDirs = [];
@@ -84,19 +84,27 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 
 	if (packageType == PackageType.LIBRARY) {
 		if (librariesToBuild[packageName] != undefined) {
-			// Library is already being built. Just add its public directory and return.
+			// Library is already being built. Just add its public defines and library path and return.
 			// This supports recursive dependencies between libraries.
-			Object.keys(librariesToBuild[packageName]).forEach((define) => {
+			const libraryToBuild = librariesToBuild[packageName];
+
+			Object.keys(libraryToBuild.defines).forEach((define) => {
 				defines[define] = true;
+			});
+			Object.keys(libraryToBuild.librariesToLink).forEach((libraryToLink) => {
+				librariesToLink[libraryToLink] = true;
 			});
 			return BuildResult.COMPILED;
 		}
 		if (alreadyBuiltLibraries[packageName] != undefined) {
-			librariesToLink.push(packageDirectory + 'build/' + buildPrefix(buildSettings) + '.lib');
 			const alreadyBuiltLibrary = alreadyBuiltLibraries[packageName];
 
 			Object.keys(alreadyBuiltLibrary.defines).forEach((define) => {
 				defines[define] = true;
+			});
+
+			Object.keys(alreadyBuiltLibrary.librariesToLink).forEach((libraryToLink) => {
+				librariesToLink[libraryToLink] = true;
 			});
 
 			return alreadyBuiltLibrary.status;
@@ -108,7 +116,10 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 			defines[define] = true;
 		});
 	}
-	librariesToBuild[packageName] = defines;
+	librariesToBuild[packageName] = {
+		defines: defines,
+		librariesToLink: librariesToLink,
+	};
 
 	if (metadata.third_party) {
 		if (fs.existsSync(packageDirectory + 'prepare.js') && !fs.existsSync(packageDirectory + 'third_party_files.json')) {
@@ -116,7 +127,7 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 			try {
 				child_process.execSync('node prepare', {cwd: packageDirectory, stdio: 'inherit'});
 			} catch (exp) {
-				return ERROR;
+				return BuildResult.ERROR;
 			}
 		}
 	}
@@ -138,6 +149,8 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 
 	const depsFile = packageDirectory + 'build/' + buildPrefix(buildSettings) + '/dependencies.json';
 	let dependenciesPerFile = fs.existsSync(depsFile) ? JSON.parse(fs.readFileSync(depsFile)) : {};
+
+	let anythingChanged = false;
 
 	if (packageType != PackageType.KERNEL) {
 		// Construct generated files.
@@ -190,6 +203,7 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 						errors = true;
 					}
 					dependenciesPerFile[fullPath] = deps;
+					anythingChanged = true;
 				}
 			});
 
@@ -209,6 +223,11 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 				childDefines);
 			if (!success) {
 				console.log('Dependency ' + dependency + ' failed to build.');
+
+			    if (anythingChanged) {
+					fs.writeFileSync(depsFile, JSON.stringify(dependenciesPerFile));
+				}
+
 				return BuildResult.FAILED;
 			};
 			Object.keys(childDefines).forEach((define) => {
@@ -219,9 +238,14 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 
 	let params = '';
 
+	let alreadyIncludedSource = false;
+
 	if (metadata.include) {
 		metadata.include.forEach((includeDir) => {
 			params += ' -isystem ' + packageDirectory + includeDir;
+			if (includeDir == 'source') {
+				alreadyIncludedSource = true;
+			}
 		});
 	}
 
@@ -247,20 +271,31 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 		parentPublicIncludeDirs.push(includeDir);
 	});
 
-	params += ' -isystem '+ escapePath(packageDirectory) + 'source';
 
-	Object.keys(defines).forEach((define) => {
-		params += ' -D' + define;
-	});
+	if (!alreadyIncludedSource) {
+		params += ' -isystem '+ escapePath(packageDirectory) + 'source';
+	}
 
+	let localDefines = defines;
 	if (metadata.define) {
+		localDefines = Object.assign({}, defines);
 		metadata.define.forEach((define) => {
-			params += ' -D' + define;
+			if (define.startsWith('-')) {
+				const symbol = define.substr(1);
+				if (localDefines[symbol]) {
+					delete localDefines[symbol];
+				}
+			} else {
+				localDefines[define] = true;
+			}
 		});
 	}
 
+	Object.keys(localDefines).forEach((define) => {
+		params += ' -D' + define;
+	});
+
 	let objectFiles = [];
-	let anythingChanged = false;
 
     await foreachSourceFile(packageDirectory,
     	buildSettings,
@@ -303,6 +338,7 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 				anythingChanged = true;
 				console.log('Compiling ' + getDisplayFilename(file));
 				const command = buildCommand + ' -o ' + escapePath(objectFile) + ' ' + escapePath(file);
+
 				// console.log(" with command: " + command);
 				var compiled = false;
 				try {
@@ -349,6 +385,7 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 		if (packageType == PackageType.LIBRARY) {
 			alreadyBuiltLibraries[packageName] = {
 				defines: {},
+				librariesToLink: {},
 				status: BuildResult.FAILED
 			};
 		}
@@ -358,17 +395,19 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 		if (packageType == PackageType.LIBRARY) {
 			alreadyBuiltLibraries[packageName] = {
 				defines: {},
+				librariesToLink: {},
 				status: BuildResult.FAILED
 			};
 		}
 		return BuildResult.FAILED;
 	} else if (packageType == PackageType.LIBRARY) {
 		const binaryPath = packageDirectory + 'build/' + buildPrefix(buildSettings) + '.lib';
-		librariesToLink.push(binaryPath);
+		librariesToLink[binaryPath] = true;
 		if (!anythingChanged && fs.existsSync(binaryPath)) {
 			const status = forceRelinkIfApplication ? BuildResult.COMPILED : BuildResult.ALREADY_BUILT;
 			alreadyBuiltLibraries[packageName] = {
 				defines: defines,
+				librariesToLink: librariesToLink,
 				status: status
 			};
 			return status;
@@ -388,6 +427,7 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 		} catch (exp) {
 			alreadyBuiltLibraries[packageName] = {
 				defines: {},
+				librariesToLink: {},
 				status: BuildResult.FAILED
 			};
 			return BuildResult.FAILED;
@@ -395,6 +435,7 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 
 		alreadyBuiltLibraries[packageName] = {
 			defines: defines,
+			librariesToLink: librariesToLink,
 			status: BuildResult.COMPILED
 		};
 		return BuildResult.COMPILED;
@@ -404,14 +445,13 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 			&& !forceRelinkIfApplication) {
 			// We already exist. Check if any libraries are newer that us (even if they didn't recompile.)
 			const ourTimestamp = getFileLastModifiedTimestamp(binaryPath);
-			for (let i = 0; i < librariesToLink.length && !forceRelinkIfApplication; i++) {
-				const libraryTimestamp = getFileLastModifiedTimestamp(librariesToLink[i]);
-				if (libraryTimestamp > ourTimestamp) { // The library is newer than us, relink.
-					forceRelinkIfApplication = true;
-				}
-			}
 
-			if (!forceRelinkIfApplication) {
+			if (Object.keys(librariesToLink).find(libraryToLink => {
+					const libraryTimestamp = getFileLastModifiedTimestamp(libraryToLink);
+					if (libraryTimestamp > ourTimestamp) { // The library is newer than us, relink.
+						return true;
+					}
+				}) == undefined) {
 				return BuildResult.ALREADY_BUILT;
 			}
 		}
@@ -420,7 +460,7 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 		}
 		console.log("Building application " + packageName);
 		let linkerInput = objectFiles.join(' ') /* pre-escaped */;
-		librariesToLink.forEach((libraryToLink) => {
+		Object.keys(librariesToLink).forEach((libraryToLink) => {
 			linkerInput += ' ' + escapePath(libraryToLink);
 		});
 

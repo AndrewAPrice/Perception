@@ -178,6 +178,7 @@ copyFilesInDirectory('third_party/src/fcntl', 'source/fctnl');
 copyFilesInDirectory('third_party/src/fenv', 'source/fenv', true);
 copyFilesInDirectory('third_party/src/fenv/x86_64', 'source/fenv');
 copyFilesInDirectory('third_party/src/include', 'source/include');
+replaceInFile('include/unistd.h', 'long syscall(long, ...);', '#ifndef syscall\nlong syscall(long, ...);\n#endif');
 copyFilesInDirectory('third_party/src/internal', 'source/internal');
 copyFilesInDirectory('third_party/src/ipc', 'source/ipc');
 copyFilesInDirectory('third_party/src/ldso', 'source/ldso', true);
@@ -191,6 +192,8 @@ copyFilesInDirectory('third_party/src/math', 'source/math', true);
 rename('source/math/fma.c', 'source/math/fma.c.inl');
 rename('source/math/fmaf.c', 'source/math/fmaf.c.inl');
 copyFilesInDirectory('third_party/src/math/x86_64', 'source/math');
+replaceInFile('source/math/fma.c', '#include "../fma.c"', '#include "fma.c.inl"');
+replaceInFile('source/math/fmaf.c', '#include "../fmaf.c"', '#include "fmaf.c.inl"');
 copyFilesInDirectory('third_party/src/misc', 'source/misc');
 copyFilesInDirectory('third_party/src/mman', 'source/mman');
 copyFilesInDirectory('third_party/src/mq', 'source/mq');
@@ -221,6 +224,7 @@ copyFilesInDirectory('third_party/src/thread', 'source/thread', true);
 // Needs syscalls:
 // copyFilesInDirectory('third_party/src/thread/x86_64', 'source/thread');
 copyFilesInDirectory('third_party/src/time', 'source/time');
+replaceInFile('source/time/__tz.c', 'index', 'tindex');
 copyFilesInDirectory('third_party/src/unistd', 'source/unistd', true);
 // copyFilesInDirectory('third_party/compat', 'source/compat');
 
@@ -241,10 +245,15 @@ copyFilesInDirectory('third_party/src/unistd', 'source/unistd', true);
 	}
 	if (rebuildAllTypes) {
 		console.log('Generating include/alltypes.h');
+		const command = 'sed -f third_party/tools/mkalltypes.sed include/bits/alltypes.h.in ' +
+				'include/alltypes.h.in > include/bits/alltypes.h';
 		try {
-			child_process.execSync('sed -f third_party/tools/mkalltypes.sed include/bits/alltypes.h.in ' +
-				'include/alltypes.h.in > include/bits/alltypes.h', {stdio: 'inherit'});
-		} catch {}
+			child_process.execSync(command, {stdio: 'inherit'});
+		} catch (ex) {
+			console.log('Error running: ' + command);
+			console.log('Error was: ' + ex);
+
+		}
 	}
 }
 
@@ -252,7 +261,7 @@ copyFilesInDirectory('third_party/src/unistd', 'source/unistd', true);
 // SED syscall.h
 {
 	let rebuildSyscall = false;
-	if (!fs.existsSync('include/bits/syscall.h.in')) {
+	if (!fs.existsSync('include/bits/syscall.h')) {
 		rebuildSyscall = true;
 	} else {
 		const destUpdateTime = fs.lstatSync('include/bits/syscall.h').mtimeMs;
@@ -264,10 +273,15 @@ copyFilesInDirectory('third_party/src/unistd', 'source/unistd', true);
 	}
 	if (rebuildSyscall) {
 		console.log('Generating include/syscall.h');
+		const command = 'sed -e s/__NR_/SYS_/p include/bits/syscall.h.in '+
+				'> include/bits/syscall.h';
 		try {
-			child_process.execSync('sed -e s/__NR_/SYS_/p include/bits/syscall.h.in '+
-				'> include/bits/syscall.h', {stdio: 'inherit'});
-		} catch {}
+			child_process.execSync(command, {stdio: 'inherit'});
+		} catch (ex) {
+			console.log('Error running: ' + command);
+			console.log('Error was: ' + ex);
+
+		}
 	}
 }
 

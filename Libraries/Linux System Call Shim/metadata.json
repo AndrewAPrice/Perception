@@ -1,0 +1,9 @@
+{
+	"dependencies":[
+		"libcxx",
+		"musl",
+		"perception"
+	],
+	"skip_local": true
+}
+

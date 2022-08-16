@@ -1,0 +1,11 @@
+# Object files used during building.
+build/
+
+# Generated files.
+generated/
+
+# The built library.
+library.lib
+
+# Build dependencies.
+dependencies.json

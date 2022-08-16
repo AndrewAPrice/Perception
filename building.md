@@ -30,7 +30,31 @@ Otherwise, you can will have to [build GRUB 2 from source] (https://www.gnu.org/
 ### Mac OS
 If you have [Homebrew](https://brew.sh/), you can install everything you need with:
 
-`brew install node git nasm qemu x86_64-elf-binutils x86_64-elf-gcc x86_64-elf-ld i386-elf-grub`
+```
+brew tap nativeos/i386-elf-toolchain
+brew install node git nasm qemu x86_64-elf-binutils x86_64-elf-gcc i386-elf-grub xorriso`
+```
+
+If you're building on an M1 and get:
+```
+Undefined symbols for architecture arm64:
+  "_host_hooks", referenced from:
+      gt_pch_save(__sFILE*) in libbackend.a(ggc-common.o)
+      gt_pch_restore(__sFILE*) in libbackend.a(ggc-common.o)
+      toplev::main(int, char**) in libbackend.a(toplev.o)
+```
+
+Run:
+`brew edit i386-elf-gcc`
+Change the `url`, `version`, `sha256` to:
+
+```
+	url "https://ftp.gnu.org/gnu/gcc/gcc-12.1.0/gcc-12.1.0.tar.xz"
+  version "12.1.0"
+  sha256 "62fd634889f31c02b64af2c468f064b47ad1ca78411c45abe6ac4b5f8dd19c7b"
+```
+
+Then rerun the above `brew install` command to continue installing everything.
 
 ## Preparation
 - Create a file Build/tools.json with the paths to the above tools.

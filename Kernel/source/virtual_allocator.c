@@ -6,6 +6,8 @@
 #include "shared_memory.h"
 #include "text_terminal.h"
 
+// #define DEBUG
+
 // Our paging structures made at boot time, these can be freed after the virtual allocator has been initialized.
 extern size_t Pml4[];
 extern size_t Pdpt[];

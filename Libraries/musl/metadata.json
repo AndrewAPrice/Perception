@@ -7,12 +7,16 @@
 		"source/include",
 		"source/internal"
 	],
+	"define": [
+		"_XOPEN_SOURCE=700",
+		"-_GNU_SOURCE"
+	],
 	"public_define": [
 		"_GNU_SOURCE"
 	],
 	"dependencies":[
-		"perception",
-		"libcxx"
+		"libcxx",
+		"Linux System Call Shim"
 	],
 	"third_party": true,
 	"skip_local": true

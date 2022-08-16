@@ -2,4 +2,4 @@ A port of [musl libc](https://musl.libc.org/) to Perception, an implementation o
 
 Fun facts:
 - The public include folder in this directory is called 'include/' instead of the Perception-standard 'public/' because many of the source files reference "../../include/" in the #include path.
-- musl is built around Linux's system calls. We (incompletely) emulate Linux's system calls in [source/perception/syscall_arch.cc].
+- musl is built around Linux's system calls. We (incompletely) emulate Linux's system calls in a [shim](../Linux System Call Shim/README.md).

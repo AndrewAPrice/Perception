@@ -23,7 +23,7 @@ function maybeDelete(path) {
 	const fileStats = fs.lstatSync(path);
 	console.log('Removing ' + path);
 	if (fileStats.isDirectory()) {
-		fs.rmdirSync(path, { recursive: true });
+		fs.rmSync(path, { recursive: true });
 	} else {
 		fs.unlinkSync(path);
 	}
