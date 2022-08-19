@@ -184,7 +184,7 @@ void PrintStackTrace() {
 }
 
 // The exception handler.
-void ExceptionHandler(int interrupt_no) {
+void ExceptionHandler(int interrupt_no, size_t cr2) {
 	// Output the exception that occured.
 	if(interrupt_no < 32) {
 		PrintString("\nException occured: ");
@@ -209,6 +209,10 @@ void ExceptionHandler(int interrupt_no) {
 		PrintString(process->name);
 		PrintString(") in TID ");
 		PrintNumber(running_thread->id);
+		if (interrupt_no == 14) {
+			PrintString(" for trying to access ");
+			PrintHex(cr2);
+		}
 		PrintChar('\n');
 		PrintRegisters(currently_executing_thread_regs);
 		PrintStackTrace();

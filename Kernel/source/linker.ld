@@ -53,7 +53,7 @@ SECTIONS
   .bss ALIGN(0x1000) : AT(ADDR(.bss) - VIRT_BASE)
   {
     *(COMMON)
-    *(.bss)
+    *(.bss*)
     *(.gnu.linkonce.b*)
   }
   

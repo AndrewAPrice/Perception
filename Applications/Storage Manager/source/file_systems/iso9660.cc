@@ -172,7 +172,7 @@ bool Iso9660::ForEachEntryInDirectory(std::string_view path,
 void Iso9660::ForRawEachEntryInDirectory(std::string_view path,
 	const std::function<bool(std::string_view,
 			DirectoryEntryType, size_t, size_t)>& on_each_entry) {
-	auto pooled_shared_memory = GetSharedMemory();
+	auto pooled_shared_memory = kSharedMemoryPool.GetSharedMemory();
 	char* buffer = (char*)**pooled_shared_memory->shared_memory;
 
 	StorageDevice::ReadRequest read_request;
@@ -215,7 +215,7 @@ void Iso9660::ForRawEachEntryInDirectory(std::string_view path,
 					storage_device_.CallRead(read_request);
 				if (!status_or_response) {
 					// Error reading sector.
-					ReleaseSharedMemory(std::move(pooled_shared_memory));
+					kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
 					return;
 				}
 
@@ -302,7 +302,7 @@ void Iso9660::ForRawEachEntryInDirectory(std::string_view path,
 					if (on_each_entry(entry_name,
 						is_directory ? DirectoryEntryType::Directory : DirectoryEntryType::File,
 						entry_start_lba, entry_size)) {
-						ReleaseSharedMemory(std::move(pooled_shared_memory));
+						kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
 						return;
 					}
 				} else if (folder_to_find == entry_name) {
@@ -326,7 +326,7 @@ void Iso9660::ForRawEachEntryInDirectory(std::string_view path,
 
 		if (!found_sub_directory) {
 			// There is no subdirectory to enter.
-			ReleaseSharedMemory(std::move(pooled_shared_memory));
+			kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
 			return;
 		}
 	}
@@ -343,7 +343,7 @@ std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
 		StorageDevice::GetDeviceDetailsRequest());
 	std::string_view device_name = *(*status_or_device_details)->GetName();
 
-	auto pooled_shared_memory = GetSharedMemory();
+	auto pooled_shared_memory = kSharedMemoryPool.GetSharedMemory();
 	char* buffer = (char*)**pooled_shared_memory->shared_memory;
 
 	StorageDevice::ReadRequest read_request;
@@ -361,7 +361,7 @@ std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
 		auto status_or_response = storage_device.CallRead(read_request);
 		if (!status_or_response) {
 			// Probably ran past the end of the disk.
-			ReleaseSharedMemory(std::move(pooled_shared_memory));
+			kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
 			return std::unique_ptr<FileSystem>(); 
 		}
 
@@ -369,7 +369,7 @@ std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
 		if (buffer[1] != 'C' || buffer[2] != 'D' || buffer[3] != '0' ||
 			buffer[4] != '0' || buffer[5] != '1') {
 			// No more volume descriptors.
-			ReleaseSharedMemory(std::move(pooled_shared_memory));
+			kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
 			return std::unique_ptr<FileSystem>(); 
 		}
 
@@ -385,21 +385,21 @@ std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
 	if (buffer[6] != 0x01) {
 		std::cout << "Unknown ISO 9660 Version number on " <<
 			device_name << std::endl;
-		ReleaseSharedMemory(std::move(pooled_shared_memory));
+		kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
 		return std::unique_ptr<FileSystem>();
 	} // Check version
 
 	if (*(uint16 *)&buffer[120] != 1) {
 		std::cout << "We only support single set ISO 9660 disks on " <<
 			device_name << std::endl;
-		ReleaseSharedMemory(std::move(pooled_shared_memory));
+		kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
 		return std::unique_ptr<FileSystem>();
 	} 
 
 	if (buffer[881] != 0x01) {
 		std::cout << "Unsupported ISO 9660 directory records and path table on " <<
 			device_name << std::endl;
-		ReleaseSharedMemory(std::move(pooled_shared_memory));
+		kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
 		return std::unique_ptr<FileSystem>(); 
 	}
 
@@ -410,7 +410,7 @@ std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
 	auto root_directory = std::make_unique<char[]>(34);
 	memcpy(root_directory.get(), &buffer[156], 34);
 
-	ReleaseSharedMemory(std::move(pooled_shared_memory));
+	kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
 	return std::unique_ptr<Iso9660>(new Iso9660(size_in_blocks,
 		logical_block_size, std::move(root_directory),
 		storage_device));

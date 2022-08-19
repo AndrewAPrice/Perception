@@ -22,28 +22,30 @@ namespace perception {
 namespace linux_syscalls {
 
 long open(const char* pathname, int flags, mode_t mode) {
-	// Flags that are safe to ignore: D_CLOEXEC, D_TMPFILE
 	if (flags & O_DIRECTORY) {
 		return OpenDirectory(pathname);
-	} else if (flags == 0) {
+	} 
+
+	// Flags that are safe to ignore:
+	flags &= ~(O_CLOEXEC | O_TMPFILE | O_LARGEFILE);
+
+	if (flags == 0) {
 		long id = OpenFile(pathname);
 		if (id == 0) {
 			std::cout << "Can't open file" << std::endl;
 			return EACCES;
 		}
-			std::cout << "Open file" << std::endl;
+		std::cout << "Opened " << pathname << " as " << id << std::endl;
 		return id;
 	} else {
-		std::cout << "Invoking MUSL syncall open() on " << pathname << " with flags:";
+		std::cout << "Invoking MUSL syscall open() on " << pathname << " with flags:";
 		if (flags & O_APPEND) std::cout << " O_APPEND";
 		if (flags & O_ASYNC) std::cout << " O_ASYNC";
 		if (flags & O_CREAT) std::cout << " O_CREAT";
-		if (flags & O_CLOEXEC) std::cout << " O_CLOEXEC";
 		if (flags & O_DIRECT) std::cout << " O_DIRECT";
 		if (flags & O_DIRECTORY) std::cout << " O_DIRECTORY";
 		if (flags & O_DSYNC) std::cout << " O_DSYNC";
 		if (flags & O_EXCL) std::cout << " O_EXCL";
-		if (flags & O_LARGEFILE) std::cout << " O_LARGEFILE";
 		if (flags & O_NOATIME) std::cout << " O_NOATIME";
 		if (flags & O_NOCTTY) std::cout << " O_NOCTTY";
 		if (flags & O_NOFOLLOW) std::cout << " O_NOFOLLOW";
@@ -51,7 +53,6 @@ long open(const char* pathname, int flags, mode_t mode) {
 		if (flags & O_NDELAY) std::cout << " O_NDELAY";
 		if (flags & O_PATH) std::cout << " O_PATH";
 		if (flags & O_SYNC) std::cout << " O_SYNC";
-		if (flags & O_TMPFILE) std::cout << " O_TMPFILE";
 		if (flags & O_TRUNC) std::cout << " O_TRUNC";
 		std::cout << std::endl;
 		return 0;

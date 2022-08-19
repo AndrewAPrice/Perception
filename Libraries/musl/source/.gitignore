@@ -1,7 +1,5 @@
 *
 !.gitignore
-!env/
 !include/
 !internal/
-!perception/
 !thread/

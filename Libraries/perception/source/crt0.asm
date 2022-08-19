@@ -14,11 +14,9 @@
 
 [BITS 64]
 [GLOBAL crt0_entry]
+[GLOBAL call_global_constructors]
 [extern main]
-[extern call_global_constructors]
 [extern __libc_start_main]
-[extern start_ctors]
-[extern end_ctors]
 [extern start_dtors]
 [extern end_dtors]
 [extern __cxa_finalize]
@@ -55,18 +53,3 @@ crt0_entry:
 	; Terminate the process if main returns.
 	mov rdi, 6
 	syscall
-
-
-; Call the global constructors.
-call_global_constructors:
-	push rbx
-	mov rbx, start_ctors
-	jmp .checkIfWeHaveAGlobalConstructor
-.callGlobalConstructor:
-	call [rbx]
-	add rbx, 8
-.checkIfWeHaveAGlobalConstructor:
-	cmp rbx, end_ctors
-	jb .callGlobalConstructor
-	pop rbx
-	ret

@@ -14,36 +14,7 @@
 
 #include "shared_memory_pool.h"
 
-#include <stack>
-
-#include "perception/memory.h"
-
 using ::perception::kPageSize;
-using ::perception::SharedMemory;
+using ::perception::SharedMemoryPool;
 
-namespace {
-
-std::stack<std::unique_ptr<PooledSharedMemory>> shared_memory_pool;
-
-}
-
-std::unique_ptr<PooledSharedMemory> GetSharedMemory() {
-	if (shared_memory_pool.empty()) {
-		auto pooled_shared_memory =
-			std::make_unique<PooledSharedMemory>();
-		pooled_shared_memory->shared_memory =
-			SharedMemory::FromSize(kPageSize);
-		(void)pooled_shared_memory->shared_memory->Join();
-		return pooled_shared_memory;
-	} else {
-		auto pooled_shared_memory =
-			std::move(shared_memory_pool.top());
-		shared_memory_pool.pop();
-		return pooled_shared_memory;
-	}
-}
-
-void ReleaseSharedMemory(
-	std::unique_ptr<PooledSharedMemory> pooled_shared_memory) {
-	shared_memory_pool.push(std::move(pooled_shared_memory));
-}
+SharedMemoryPool<kPageSize> kSharedMemoryPool;

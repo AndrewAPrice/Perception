@@ -22,21 +22,21 @@ SECTIONS
 
   .text ALIGN(0x1000) : AT(ADDR(.text))
   {
-    *(.text)
+    *(.text*)
     *(.gnu.linkonce.t*)
   }
   
   .data ALIGN(0x1000) : AT(ADDR(.data))
   {
-    *(.data)
+    *(.data*)
     *(.gnu.linkonce.d*)
   }
   
   .rodata ALIGN(0x1000) : AT(ADDR(.rodata))
   {
-    start_ctors = .;
+    __init_array_start = .;
     KEEP(*(SORT(.ctors*)))
-    end_ctors = .;
+    __init_array_end = .;
 
     start_dtors = .;
     KEEP(*(SORT(.dtors*)))
@@ -49,7 +49,7 @@ SECTIONS
   .bss ALIGN(0x1000) : AT(ADDR(.bss))
   {
     *(COMMON)
-    *(.bss)
+    *(.bss*)
     *(.gnu.linkonce.b*)
   }
   

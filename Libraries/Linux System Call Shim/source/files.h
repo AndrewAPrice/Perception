@@ -18,7 +18,11 @@
 
 #include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 
+#include "perception/shared_memory_pool.h"
+
 namespace perception {
+
+extern SharedMemoryPool<kPageSize> kSharedMemoryPool;
 
 struct FileDescriptor {
 	enum Type {

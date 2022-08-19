@@ -33,6 +33,8 @@ long GetUniqueFileId() {
 
 }
 
+SharedMemoryPool<kPageSize> kSharedMemoryPool;
+
 long OpenDirectory(const char* path) {
 	long id = GetUniqueFileId();
 
@@ -61,6 +63,8 @@ long OpenFile(const char* path) {
 	descriptor->type = FileDescriptor::FILE;
 	descriptor->file.file = status_or_response->GetFile();
 	descriptor->file.size_in_bytes = status_or_response->GetSizeInBytes();
+
+	open_files[id] = descriptor;
 
 	return id;
 }

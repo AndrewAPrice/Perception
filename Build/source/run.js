@@ -25,6 +25,8 @@ const {getToolPath} = require('./tools');
 const EMULATOR_COMMAND = getToolPath('qemu') + ' -boot d -cdrom ' + escapePath(rootDirectory) +
 	'Perception.iso -m 512 -serial stdio';
 
+// For debugging the kernel, it's useful to add '-no-reboot -d int,cpu_reset'.
+
 // Builds everything and runs the emulator.
 async function run(package, buildSettings) {
 	if (buildSettings.os == 'Perception') {

@@ -314,6 +314,10 @@ exception_common_stub:
     mov fs, ax
     mov gs, ax
 
+    ; rdi is already populated with the interrupt number, and we can pass
+    ; in additional arguments to the handler.
+    mov rsi, cr2
+
     ; Call the handler
     ; mov rdi, [rbp - 46] ; pass interrupt number as argument
     ; Interrupt number is in rdi and will get passed as an argument.

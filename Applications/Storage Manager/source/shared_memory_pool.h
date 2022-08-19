@@ -14,12 +14,6 @@
 
 #pragma once
 
-#include "perception/shared_memory.h"
+#include "perception/shared_memory_pool.h"
 
-struct PooledSharedMemory {
-	std::unique_ptr<::perception::SharedMemory> shared_memory;
-};
-
-std::unique_ptr<PooledSharedMemory> GetSharedMemory();
-void ReleaseSharedMemory(
-	std::unique_ptr<PooledSharedMemory> shared_memory);
+extern ::perception::SharedMemoryPool<::perception::kPageSize> kSharedMemoryPool;
