@@ -32,7 +32,7 @@ public:
 
 	// Opens a file.
 	virtual StatusOr<std::unique_ptr<::permebuf::perception::File::Server>>
-		OpenFile(std::string_view path, size_t size_in_bytes,
+		OpenFile(std::string_view path, size_t& size_in_bytes,
 			::perception::ProcessId sender) override;
 
 	// Counts the number of entries in a directory.

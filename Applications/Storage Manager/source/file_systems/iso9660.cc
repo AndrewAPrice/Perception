@@ -97,8 +97,8 @@ Iso9660::Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
 	root_directory_(std::move(root_directory)), FileSystem(storage_device) {}
 
 // Opens a file.
-StatusOr<std::unique_ptr<File::Server>> Iso9660::OpenFile(std::string_view path, size_t size_in_bytes,
-	ProcessId sender) {
+StatusOr<std::unique_ptr<File::Server>> Iso9660::OpenFile(std::string_view path,
+	size_t& size_in_bytes, ProcessId sender) {
 	std::string_view directory, file_name;
 	// Find the split point (/) between the mount path and everything else.
 	int split_point = path.find_last_of('/');

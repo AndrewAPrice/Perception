@@ -27,15 +27,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long readv(long fd, void *iov, long iovcnt) {
-		std::cout << "Reading " << fd << std::endl;
 
 	auto descriptor = GetFileDescriptor(fd);
 	if (!descriptor || descriptor->type != FileDescriptor::FILE) {
-		if (descriptor == nullptr) {
-		std::cout << fd << " is null" << std::endl;
-		} else if (descriptor->type != FileDescriptor::FILE) {
-		std::cout << fd << " is of type" << descriptor->type << std::endl;
-		}
 		errno = EINVAL;
 		return -1;
 	}
