@@ -14,7 +14,7 @@ Very few right now.
 * Press ESCAPE to open the launcher.
 
 ## Building and running
-See [building.md](building.md). Perception has only been tested in [QEMU](https://www.qemu.org/). Currently text only and outputs via COM1.
+See [building.md](building.md). Perception has only been tested in [QEMU](https://www.qemu.org/). Has a graphical interface and also outputs debugging text via COM1.
 
 ## Directory Structure
 - Applications - User programs.
