@@ -32,10 +32,8 @@ long open(const char* pathname, int flags, mode_t mode) {
 	if (flags == 0) {
 		long id = OpenFile(pathname);
 		if (id == 0) {
-			std::cout << "Can't open file" << std::endl;
 			return EACCES;
 		}
-		std::cout << "Opened " << pathname << " as " << id << std::endl;
 		return id;
 	} else {
 		std::cout << "Invoking MUSL syscall open() on " << pathname << " with flags:";

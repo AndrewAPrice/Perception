@@ -106,7 +106,25 @@ StatusOr<::permebuf::perception::File::Server*> OpenFile(
 
 void CloseFile(::perception::ProcessId sender,
 	::permebuf::perception::File::Server* file) {
-	std::cout << "TODO: Implement CloseFile" << std::endl;
+	auto itr = open_files_by_process_id.find(sender);
+	if (itr == open_files_by_process_id.end()) {
+		std::cout << "CloseFile() called but something went wrong as " << sender
+			<< " doesn't own any files." << std::endl;
+		return;
+	}
+
+	// Iterate through the files owned by the sender.
+	for (auto itr_2 = itr->second.begin();
+		itr_2 != itr->second.end(); itr_2++) {
+		if (itr_2->get() == file) {
+			// We found our file.
+			itr->second.erase(itr_2);
+			return;
+		}
+	}
+
+	std::cout << "CloseFile() called but something went wrong as " << sender
+		<< " doesn't own this file or it is already closed." << std::endl;
 }
 
 bool ForEachEntryInDirectory(std::string_view directory,

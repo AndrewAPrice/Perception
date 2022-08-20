@@ -23,10 +23,9 @@
 namespace {
 
 void MaybeLoadApplication(std::string_view path) {
-	std::cout << "Maybe load " << path << std::endl;
 	std::ifstream launcher_metadata_file(std::string(path) + "/launcher.json");
 	if (!launcher_metadata_file.is_open()) {
-		std::cout << "Unable to open launcher.json" << std::endl;
+		// The application is missing a launcher.json so we won't show it in the launcher.
 		return;
 	}
 	char c = launcher_metadata_file.get();
