@@ -183,6 +183,11 @@ void PrintStackTrace() {
 	}
 }
 
+void PrintRegistersAndStackTrace() {
+	PrintRegisters(currently_executing_thread_regs);
+	PrintStackTrace();
+}
+
 // The exception handler.
 void ExceptionHandler(int interrupt_no, size_t cr2) {
 	// Output the exception that occured.
@@ -214,8 +219,7 @@ void ExceptionHandler(int interrupt_no, size_t cr2) {
 			PrintHex(cr2);
 		}
 		PrintChar('\n');
-		PrintRegisters(currently_executing_thread_regs);
-		PrintStackTrace();
+		PrintRegistersAndStackTrace();
 		// Terminate the process.
 		DestroyProcess(process);
 		JumpIntoThread(); // Doesn't return.

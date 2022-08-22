@@ -20,6 +20,7 @@ using ::permebuf::perception::Launcher;
 
 namespace perception {
 
+/*
 std::optional<ProcessId> LaunchApplication(std::string_view name) {
 	Permebuf<Launcher::LaunchApplicationRequest> request;
 	request->SetName(name);
@@ -30,7 +31,7 @@ std::optional<ProcessId> LaunchApplication(std::string_view name) {
 	} else {
 		return std::nullopt;
 	}
-}
+}*/
 
 void ShowLauncher() {
 	Launcher::Get().SendShowLauncher(

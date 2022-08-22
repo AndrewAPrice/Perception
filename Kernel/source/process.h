@@ -48,6 +48,9 @@ struct Process {
 	// Is this a process a driver? Drivers have permission to do IO.
 	bool is_driver;
 
+	// Is this process allowed to create other processes?
+	bool can_create_processes;
+
 	// The physical address of this process's pml4. This represents the virtual
 	// address space that is unique to this process.
 	size_t pml4;
@@ -98,7 +101,7 @@ struct Process {
 extern void InitializeProcesses();
 
 // Creates a process, returns ERROR if there was an error.
-extern struct Process *CreateProcess(bool is_driver);
+extern struct Process *CreateProcess(bool is_driver, bool can_create_processes);
 
 // Destroys a process - DO NOT CALL THIS DIRECTLY, destroy a process by
 // destroying all of it's threads!

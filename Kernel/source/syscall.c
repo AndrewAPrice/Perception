@@ -1,5 +1,6 @@
 #include "syscall.h"
 
+#include "exceptions.h"
 #include "interrupts.h"
 #include "io.h"
 #include "framebuffer.h"
@@ -44,8 +45,9 @@ void InitializeSystemCalls() {
 
 // Syscalls.
 // Next id is 45.
-// Free: 26
 #define PRINT_DEBUG_CHARACTER 0
+#define PRINT_REGISTERS_AND_STACK 26
+// Threading
 #define CREATE_THREAD 1
 #define GET_THIS_THREAD_ID 2
 #define SLEEP_THIS_THREAD 3
@@ -109,6 +111,9 @@ void SyscallHandler(int syscall_number) {
 	switch (syscall_number) {
 		case PRINT_DEBUG_CHARACTER:
 			PrintChar((unsigned char)currently_executing_thread_regs->rax);
+			break;
+		case PRINT_REGISTERS_AND_STACK:
+			PrintRegistersAndStackTrace();
 			break;
 		case CREATE_THREAD: {
 			struct Thread* new_thread = CreateThread(running_thread->process,

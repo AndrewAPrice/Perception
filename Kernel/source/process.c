@@ -25,7 +25,7 @@ void InitializeProcesses() {
 }
 
 // Creates a process, returns ERROR if there was an error.
-struct Process *CreateProcess(bool is_driver) {
+struct Process *CreateProcess(bool is_driver, bool can_create_processes) {
 	// Create a memory space for it.
 	struct Process *proc = malloc(sizeof(struct Process));
 	if(proc == 0) {
@@ -33,6 +33,7 @@ struct Process *CreateProcess(bool is_driver) {
 		return (struct Process *)ERROR;
 	}
 	proc->is_driver = is_driver;
+	proc->can_create_processes = can_create_processes;
 
 	// Assign a name and process ID.
 	memset(proc->name, 0, PROCESS_NAME_LENGTH); // Clear the name.

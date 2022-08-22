@@ -17,11 +17,13 @@ const {buildPrefix} = require('./build_commands');
 
 // Calls 'foreachFunc' for each file in the package directory.
 async function foreachSourceFile (packageDir, buildSettings, foreachFunc) {
-	await foreachSourceFileInSourceDir(
-			packageDir + 'source/',
-			packageDir + 'build/' + buildPrefix(buildSettings) + '/',
-			true,
-			foreachFunc);
+	if (fs.existsSync(packageDir + 'source/')) {
+		await foreachSourceFileInSourceDir(
+				packageDir + 'source/',
+				packageDir + 'build/' + buildPrefix(buildSettings) + '/',
+				true,
+				foreachFunc);
+	}
 
 	if (fs.existsSync(packageDir + 'generated/source/')) {
 		await foreachSourceFileInSourceDir(

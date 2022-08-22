@@ -391,13 +391,14 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 		}
 		return BuildResult.FAILED;
 	} else if (objectFiles.length == 0) {
-		console.log('Nothing was compiled.');
+		// Nothing to link. This might be a header only library.
 		if (packageType == PackageType.LIBRARY) {
 			alreadyBuiltLibraries[packageName] = {
-				defines: {},
-				librariesToLink: {},
-				status: BuildResult.FAILED
+				defines: defines,
+				librariesToLink: librariesToLink,
+				status: BuildResult.COMPILED
 			};
+			return BuildResult.COMPILED;
 		}
 		return BuildResult.FAILED;
 	} else if (packageType == PackageType.LIBRARY) {

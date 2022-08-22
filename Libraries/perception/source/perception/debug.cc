@@ -94,4 +94,12 @@ extern "C" void DebugNumber(long l) {
 	DebugPrinterSingleton << (size_t)l;
 }
 
+void DumpRegistersAndStackTrace() {
+#ifdef PERCEPTION
+	register unsigned long long int syscall_num asm ("rdi") = 26;
+
+	__asm__ ("syscall\n"::"r"(syscall_num): "rcx", "r11");
+#endif
+}
+
 }

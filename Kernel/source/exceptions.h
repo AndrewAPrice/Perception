@@ -15,5 +15,8 @@
 #pragma once
 #include "types.h"
 
+// Prints the registers and a stack trace of the currently running thread.
+extern void PrintRegistersAndStackTrace();
+
 // Register the CPU exception interrupts.
 extern void RegisterExceptionInterrupts();

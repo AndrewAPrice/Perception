@@ -261,34 +261,70 @@ bool LoadSegments(const Elf64_Ehdr* header,
 	return true;
 }
 
+// Parses the name of the process, which has the permissions of the process before
+// the title, e.g. "abc Some Program" is a process titled "Some Program" with the
+// permissions a, b, and c.
+bool ParseName(char** name,
+	size_t* name_length,
+	bool* is_driver,
+	bool* can_create_processes) {
+	*name_length = strlen(*name);
+
+	while (true) {
+		if (*name_length == 0)
+			return false; // Out of letters.
+
+		if (**name == ' ') {
+			// Reached a space.
+
+			// Jumped over the space.
+			(*name_length)--;
+			(*name)++;
+
+			// A valid name if we still have at least 1 character.
+			return *name_length >= 1;
+		}
+
+		// Switch over this permission.
+		switch (**name) {
+			case 'd':
+				*is_driver = true;
+				break;
+			case 'l':
+				*can_create_processes = true;
+				break;
+			case '-':
+				break;
+			default:
+				PrintString("Unknown attribute '");
+				PrintChar(**name);
+				PrintString("'. ");
+				return false;
+		}
+
+		// Jump over this character.
+		(*name)++;
+		(*name_length)--;
+	}
+}
+
 void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
-	size_t name_length = strlen(name);
-	if (name_length <= 3 || name[1] != ' ') {
+	char* original_name = name;
+	size_t name_length = 0;
+	bool is_driver = false;
+	bool can_create_processes = false;
+
+	if (!ParseName(&name, &name_length, &is_driver, &can_create_processes)) {
 		PrintString("Can't load module \"");
-		PrintString(name);
+		PrintString(original_name);
 		PrintString("\" because the name is not in the correct format.\n");
 		return;
 	}
 
-	bool is_driver = false;
-	char type = name[0];
-	name += 2; // Skip over the module type.
-	name_length -= 2;
-	switch (type) {
-		case 'd':
-			PrintString("Loading driver ");
-			is_driver = true;
-			break;
-		case 'a':
-			PrintString("Loading application ");
-			break;
-		default:
-			PrintString("Module \"");
-			PrintString(name);
-			PrintString("\" has an unknown type: ");
-			PrintChar(type);
-			PrintChar('\n');
-			return;
+	if (is_driver) {
+		PrintString("Loading driver ");
+	} else {
+		PrintString("Loading application ");
 	}
 
 	PrintString(name);
@@ -304,7 +340,7 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
 		return;
 	}
 
-	struct Process* process = CreateProcess(is_driver);
+	struct Process* process = CreateProcess(is_driver, can_create_processes);
 	if (!process) {
 		PrintString("Out of memory to create the process.\n");
 		return;

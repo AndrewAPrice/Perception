@@ -14,21 +14,9 @@
 
 namespace perception;
 
-// Represents a graphics device that you can draw pixels on.
+// Represents a launcher from which you can select an application to run.
 service Launcher {
-	// Tells a window that it has resized.
-	message LaunchApplicationRequest {
-		// The name of the application to launch.
-		Name : string = 1;
-	}
-	minimessage LaunchApplicationResponse {
-		// The ID of the newly launched process.
-		ProcessId : uint64 = 1;
-	}
-	LaunchApplication :
-		LaunchApplicationRequest -> LaunchApplicationResponse = 0;
-
 	// Shows the launcher.
 	minimessage ShowLauncherMessage {}
-	ShowLauncher : ShowLauncherMessage = 1;
+	ShowLauncher : ShowLauncherMessage = 0;
 }

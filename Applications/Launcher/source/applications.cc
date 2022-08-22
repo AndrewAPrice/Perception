@@ -14,11 +14,15 @@
 
 #include "applications.h"
 
+// #include "nlohmann/json.hpp"
+
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <string_view>
+
+// using json = ::nlohmann::json;
 
 namespace {
 
@@ -28,12 +32,10 @@ void MaybeLoadApplication(std::string_view path) {
 		// The application is missing a launcher.json so we won't show it in the launcher.
 		return;
 	}
-	char c = launcher_metadata_file.get();
-	while (launcher_metadata_file.good()) {
-	    std::cout << c;
-	    c = launcher_metadata_file.get();
-  	}
-  	launcher_metadata_file.close();
+//	json data = json::parse(launcher_metadata_file);
+//	std::cout << data.dump() << std::endl;
+	launcher_metadata_file.close();
+
 }
 
 void LoadApplications() {

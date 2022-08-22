@@ -1,6 +1,7 @@
 {"dependencies":[
 	"perception",
 	"libcxx",
+	"nlohmann json",
 	"musl",
 	"Nano SVG"
 ]}

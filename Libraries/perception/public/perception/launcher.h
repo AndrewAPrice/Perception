@@ -21,7 +21,7 @@
 
 namespace perception {
 
-std::optional<ProcessId> LaunchApplication(std::string_view name);
+// std::optional<ProcessId> LaunchApplication(std::string_view name);
 
 void ShowLauncher();
 
