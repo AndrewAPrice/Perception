@@ -31,9 +31,7 @@ long open(const char* pathname, int flags, mode_t mode) {
 
 	if (flags == 0) {
 		long id = OpenFile(pathname);
-		if (id == 0) {
-			return EACCES;
-		}
+		if (id == -1) errno = EINVAL;
 		return id;
 	} else {
 		std::cout << "Invoking MUSL syscall open() on " << pathname << " with flags:";
@@ -53,7 +51,8 @@ long open(const char* pathname, int flags, mode_t mode) {
 		if (flags & O_SYNC) std::cout << " O_SYNC";
 		if (flags & O_TRUNC) std::cout << " O_TRUNC";
 		std::cout << std::endl;
-		return 0;
+		errno = EINVAL;
+		return -1;
 	}
 }
 

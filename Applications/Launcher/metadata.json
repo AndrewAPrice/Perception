@@ -3,5 +3,6 @@
 	"libcxx",
 	"nlohmann json",
 	"musl",
-	"Nano SVG"
+	"Nano SVG",
+	"richgel999 fpng"
 ]}

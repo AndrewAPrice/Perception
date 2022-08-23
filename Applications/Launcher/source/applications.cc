@@ -14,7 +14,7 @@
 
 #include "applications.h"
 
-// #include "nlohmann/json.hpp"
+#include "nlohmann/json.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -22,19 +22,25 @@
 #include <string>
 #include <string_view>
 
-// using json = ::nlohmann::json;
+using json = ::nlohmann::json;
 
 namespace {
 
 void MaybeLoadApplication(std::string_view path) {
+	try {
 	std::ifstream launcher_metadata_file(std::string(path) + "/launcher.json");
 	if (!launcher_metadata_file.is_open()) {
+		std::cout << path << " is missing a launcher.json" << std::endl;
 		// The application is missing a launcher.json so we won't show it in the launcher.
 		return;
 	}
-//	json data = json::parse(launcher_metadata_file);
-//	std::cout << data.dump() << std::endl;
+		std::cout << path << " has a launcher.json" << std::endl;
+	json data = json::parse(launcher_metadata_file);
+	std::cout << data.dump() << std::endl;
 	launcher_metadata_file.close();
+} catch (...) {
+	std::cout << "Unhandled exception" << std::endl;
+}
 
 }
 

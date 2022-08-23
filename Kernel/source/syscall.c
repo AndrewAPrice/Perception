@@ -113,6 +113,15 @@ void SyscallHandler(int syscall_number) {
 			PrintChar((unsigned char)currently_executing_thread_regs->rax);
 			break;
 		case PRINT_REGISTERS_AND_STACK:
+			PrintString("Dump requested by PID ");
+			struct Process* process = running_thread->process;
+			PrintNumber(running_thread->process->pid);
+			PrintString(" (");
+			PrintString(running_thread->process->name);
+			PrintString(") in TID ");
+			PrintNumber(running_thread->id);
+			PrintChar('\n');
+
 			PrintRegistersAndStackTrace();
 			break;
 		case CREATE_THREAD: {

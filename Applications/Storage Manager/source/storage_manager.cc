@@ -32,8 +32,13 @@ StatusOr<SM::OpenFileResponse> StorageManager::HandleOpenFile(
 	::perception::ProcessId sender,
 	Permebuf<SM::OpenFileRequest> request) {
 	size_t size_in_bytes = 0;
-	ASSIGN_OR_RETURN(File::Server* file,
-		OpenFile(*request->GetPath(), size_in_bytes, sender));
+	auto status_or_file = OpenFile(*request->GetPath(), size_in_bytes, sender);
+
+	if (!status_or_file.Ok()) {
+		return status_or_file.Status();
+	}
+
+	ASSIGN_OR_RETURN(File::Server* file, status_or_file);
 
 	SM::OpenFileResponse response;
 	response.SetFile(*file);

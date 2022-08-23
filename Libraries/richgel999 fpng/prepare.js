@@ -17,27 +17,27 @@ const child_process = require('child_process');
 const path = require('path');
 const process = require('process');
 
-const git_repository = 'https://github.com/nlohmann/json.git';
+const git_repository = 'https://github.com/richgel999/fpng.git';
 
 // Check that the third directory exists.
 if (!fs.existsSync('third_party')) {
-	console.log('Downloading nlohmann/json');
+	console.log('Downloading richgel999/fpng');
 	// Grab it from github.
 	const command = 'git clone ' + git_repository + ' third_party';
 	try {
 		child_process.execSync(command, {stdio: 'inherit'});
 	} catch (exp) {
-		console.log('Error downloading nlohmann/json: ' + exp);
+		console.log('Error downloading richgel999/fpng: ' + exp);
 		process.exit(1);
 	}
 } else {
-	console.log('Attempting to update nlohmann/json');
+	console.log('Attempting to update richgel999/fpng');
 	// Try to update it.
 	const command = 'git pull ' + git_repository;
 	try {
 		child_process.execSync(command, {cwd: 'third_party', stdio: 'inherit'});
 	} catch (exp) {
-		console.log('Error updating nlohmann/json: ' + exp);
+		console.log('Error updating richgel999/fpng: ' + exp);
 		process.exit(1);
 	}
 }
@@ -93,6 +93,10 @@ function copyFile(fromPath, toPath, fromFileStats) {
 	fs.copyFileSync(fromPath, toPath);
 }
 
+const filesToIgnore = {
+	'source/fpng.h': true,
+	'source/fpng_test.cpp': true
+};
 
 function copyFilesInDirectory(from, to) {
 	const filesInDirectory = fs.readdirSync(from);
@@ -117,7 +121,8 @@ function replaceInFile(filename, needle, replaceWith) {
 }
 
 
-copyFilesInDirectory('third_party/single_include', 'public');
+copyFilesInDirectory('third_party/src', 'source');
+copyFile('third_party/src/fpng.h', 'public/fpng.h');
 
 // Remove any third party files that don't exist in the latest build.
 Object.keys(third_party_files_from_last_run).forEach(function (filePath) {
@@ -128,6 +133,5 @@ Object.keys(third_party_files_from_last_run).forEach(function (filePath) {
 	};
 });
 fs.writeFileSync('third_party_files.json', JSON.stringify(third_party_files));
-
 
 

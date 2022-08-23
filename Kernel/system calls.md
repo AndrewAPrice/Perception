@@ -17,6 +17,16 @@ Prints a debug character. Currently, this character gets outputted via COM1.
 ### Output
 Nothing.
 
+## Print registers and stack
+
+Prints the current thread's registers and stacks on COM1.
+
+### Input
+* `rdi` - 26
+
+### Output
+Nothing.
+
 # Threading
 
 # Create Thread

@@ -48,7 +48,6 @@ void DrawBackground(int min_x, int min_y, int max_x, int max_y) {
 
 void InitializeCompositor() {
 	has_invalidated_area = false;
-	quad_tree = CompositorQuadTree();
 }
 
 void InvalidateScreen(int min_x, int min_y, int max_x, int max_y) {

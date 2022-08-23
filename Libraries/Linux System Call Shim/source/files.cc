@@ -56,7 +56,7 @@ long OpenFile(const char* path) {
 	request->SetPath(path);
 	auto status_or_response = StorageManager::Get().CallOpenFile(std::move(request));
 	if (!status_or_response) {
-		return 0;
+		return -1;
 	}
 
 	auto descriptor = std::make_shared<FileDescriptor>();

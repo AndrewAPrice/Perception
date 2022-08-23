@@ -52,12 +52,16 @@ SECTIONS
     *(.bss*)
     *(.gnu.linkonce.b*)
   }
+
+  .eh_frame_hdr : { *(.eh_frame_hdr) }
+  .eh_frame : { *(.eh_frame) }
+  .gcc_except_table : { *(.gcc_except_table .gcc_except_table.*) }
+  .exception_ranges : { *(.exception_ranges .exception_ranges*) }
   
   bssEnd = .;
   
   /DISCARD/ :
   {
     *(.comment)
-    *(.eh_frame)
   }
 }

@@ -1,0 +1,10 @@
+{
+	"dependencies":[
+		"libcxx",
+		"musl"
+	],
+	"define": [
+		"FPNG_NO_SSE"	
+	],
+	"third_party": true
+}
