@@ -19,63 +19,14 @@ namespace ui {
 
 Widget::Widget() :
 	width_(kFillParent), height_(kFillParent),
-	calculated_width_invalidated_(true),
-	calculated_height_invalidated_(true) {}
-
-Widget::~Widget() {}
-
-Widget* Widget::SetWidth(int width) {
-	if (width_ != width) {
-		width_ = width;
-		InvalidateCalculatedWidth();
-	}
-	return this;
+	layout_dirtied_(true), yoga_node_(YGNodeNew()) {
+    YGNodeSetContext(yoga_node_, this);
+    YGNodeSetDirtiedFunc(yoga_node_, &Widget::LayoutDirtied);
 }
 
-Widget* Widget::SetHeight(int height) {
-	if (height_ != height) {
-		height_ = height;
-		InvalidateCalculatedHeight();
-	}
-	return this;
-}
-
-Widget* Widget::SetSize(int width, int height) {
-    return SetWidth(width)->SetHeight(height);
-}
-
-Widget* Widget::SetSize(int width_and_height) {
-    return SetWidth(width_and_height)->
-        SetHeight(width_and_height);
-}
-
-int Widget::GetWidth() {
-	return width_;
-}
-
-int Widget::GetHeight() {
-	return height_;
-}
-
-int Widget::GetCalculatedWidth() {
-	if (calculated_height_invalidated_)
-		RecalculateWidth();
-	return calculated_width_;
-}
-
-int Widget::GetCalculatedHeight() {
-	if (calculated_height_invalidated_)
-		RecalculateHeight();
-	return calculated_height_;
-}
-
-void Widget::VerifyCalculatedSize() {
-    if (calculated_width_invalidated_) {
-        RecalculateWidth();
-    }
-    if (calculated_height_invalidated_) {
-        RecalculateHeight();
-    }
+Widget::~Widget() {
+    // This does some extra work than merely deleting the node.
+    YGNodeFree(yoga_node_);
 }
 
 std::weak_ptr<Widget> Widget::GetParent() {
@@ -90,135 +41,449 @@ void Widget::ClearParent() {
 	parent_.reset();
 }
 
-void Widget::SetCalculatedWidth(int width) {
-    if (calculated_width_ != width) {
-        calculated_width_ = width;
-        OnNewWidth(width);
+
+Widget* Widget::AddChildren(
+    const std::vector<std::shared_ptr<Widget>>& children) {
+    for (auto child : children) {
+        AddChild(child);
+        YGNodeInsertChild(yoga_node_, child->yoga_node_,
+            children_.size());
     }
-    calculated_width_invalidated_ = false;
+    return this;
 }
 
-void Widget::SetCalculatedHeight(int height)  {
-    if (calculated_height_ != height) {
-        calculated_height_ = height;
-        OnNewHeight(height);
-    }
-    calculated_height_invalidated_ = false;
+Widget* Widget::AddChild(std::shared_ptr<Widget> child) {
+    children_.push_back(child);
+    child->SetParent(ToSharedPtr());
+    YGNodeInsertChild(yoga_node_, child->yoga_node_,
+        children_.size());
+    return this;
 }
 
-void Widget::RecalculateWidth() {
-    if (width_ >= 0) {
-        SetCalculatedWidth(width_);
-    } else if (width_ == kFillParent) {
-        if (auto parent = parent_.lock()) {
-            parent->RecalculateWidth();
-        } else {
-            // No parent.
-            SetCalculatedWidth(0);
-        }
-    } else if (width_ == kFitContent) {
-        SetCalculatedWidth(CalculateContentWidth());
-    } else {
-        SetCalculatedWidth(0);
-    }
+Widget* Widget::RemoveChild(std::shared_ptr<Widget> child) {
+    child->ClearParent();
+    children_.remove(child);
+    YGNodeRemoveChild(yoga_node_, child->yoga_node_);
+    return this;
 }
 
-void Widget::RecalculateHeight() {
-    if (height_ >= 0) {
-        SetCalculatedHeight(height_);
-    } else if (height_ == kFillParent) {
-        if (auto parent = parent_.lock()) {
-            parent->RecalculateHeight();
-        } else {
-            // No parent.
-            SetCalculatedHeight(0);
-        }
-    } else if (height_ == kFitContent) {
-        SetCalculatedHeight(CalculateContentHeight());
-    } else {
-        SetCalculatedHeight(0);
+Widget* Widget::RemoveChildren() {
+    for (auto child : children_) {
+        child->ClearParent();
     }
+    children_.clear();
+    YGNodeRemoveAllChildren(yoga_node_);
+    return this;
 }
 
-void Widget::InvalidateSize() {
-    InvalidateCalculatedWidth();
-    InvalidateCalculatedHeight();
+const std::list<std::shared_ptr<Widget>>& Widget::GetChildren() {
+    return children_;
 }
 
-void Widget::InvalidateCalculatedWidth() {
-    if (calculated_width_invalidated_) {
-        return;
-    }
-    calculated_width_invalidated_ = true;
-
-    if (auto parent = parent_.lock()) {
-        if (parent->GetWidth() == kFitContent) {
-            parent->InvalidateCalculatedWidth();
-        }
-    }
-    InvalidateChildrensCalculatedWidth();
+Widget* Widget::SetIsReferenceBaseline(int is_reference_baseline) {
+    YGNodeSetIsReferenceBaseline(yoga_node_, is_reference_baseline);
+    return this;
 }
 
-void Widget::InvalidateCalculatedHeight() {
-    if (calculated_height_invalidated_) {
-        return;
-    }
-    calculated_height_invalidated_ = true;
-
-    if (auto parent = parent_.lock()) {
-        if (parent->GetHeight() == kFitContent) {
-            parent->InvalidateCalculatedWidth();
-        }
-    }
-    InvalidateChildrensCalculatedHeight();
+bool Widget::IsReferenceBaseline() {
+    return YGNodeIsReferenceBaseline(yoga_node_);
 }
 
-bool Widget::GetWidgetAt(int x, int y,
+Widget* Widget::SetHasNewLayout(bool has_new_layout) {
+    YGNodeSetHasNewLayout(yoga_node_, has_new_layout);
+    return this;
+}
+
+bool Widget::HasNewLayout() {
+    return YGNodeGetHasNewLayout(yoga_node_);
+}
+
+Widget* Widget::SetDirection(YGDirection direction) {
+    YGNodeStyleSetDirection(yoga_node_, direction);
+    return this;
+}
+
+YGDirection Widget::GetDirection() {
+    return YGNodeStyleGetDirection(yoga_node_);
+}
+
+YGDirection Widget::GetCalculatedDirection() {
+    return YGNodeLayoutGetDirection(yoga_node_);
+}
+
+Widget* Widget::SetFlexDirection(YGFlexDirection flex_direction) {
+    YGNodeStyleSetFlexDirection(yoga_node_, flex_direction);
+    return this;
+}
+
+YGFlexDirection Widget::GetFlexDirection() {
+    return YGNodeStyleGetFlexDirection(yoga_node_);
+}
+
+Widget* Widget::SetJustifyContent(YGJustify justify_content) {
+    YGNodeStyleSetJustifyContent(yoga_node_, justify_content);
+    return this;
+}
+
+YGJustify Widget::GetJustifyContent() {
+    return YGNodeStyleGetJustifyContent(yoga_node_);
+}
+
+Widget* Widget::SetAlignContent(YGAlign align_content) {
+    YGNodeStyleSetAlignContent(yoga_node_, align_content);
+    return this;
+}
+
+YGAlign Widget::GetAlignContent() {
+    return YGNodeStyleGetAlignContent(yoga_node_);
+}
+
+Widget* Widget::SetAlignItems(YGAlign align_items) {
+    YGNodeStyleSetAlignItems(yoga_node_, align_items);
+    return this;
+}
+
+YGAlign Widget::GetAlignItems() {
+    return YGNodeStyleGetAlignItems(yoga_node_);
+}
+
+Widget* Widget::SetAlignSelf(YGAlign align_self) {
+    YGNodeStyleSetAlignSelf(yoga_node_, align_self);
+    return this;
+}
+
+YGAlign Widget::GetAlignSelf() {
+    return YGNodeStyleGetAlignSelf(yoga_node_);
+}
+
+Widget* Widget::SetPositionType(YGPositionType position_type) {
+    YGNodeStyleSetPositionType(yoga_node_, position_type);
+    return this;
+}
+
+YGPositionType Widget::GetPositionType() {
+    return YGNodeStyleGetPositionType(yoga_node_);
+}
+
+Widget* Widget::SetFlexWrap(YGWrap flex_wrap) {
+    YGNodeStyleSetFlexWrap(yoga_node_, flex_wrap);
+    return this;
+}
+
+YGWrap Widget::GetFlexWrap() {
+    return YGNodeStyleGetFlexWrap(yoga_node_);
+}
+
+Widget* Widget::SetOverflow(YGOverflow overflow) {
+    YGNodeStyleSetOverflow(yoga_node_, overflow);
+    return this;
+}
+
+YGOverflow Widget::GetOverflow() {
+    return YGNodeStyleGetOverflow(yoga_node_);
+}
+
+Widget* Widget::SetDisplay(YGDisplay display) {
+    YGNodeStyleSetDisplay(yoga_node_, display);
+    return this;
+}
+
+YGDisplay Widget::GetDisplay() {
+    return YGNodeStyleGetDisplay(yoga_node_);
+}
+
+Widget* Widget::SetFlex(float flex) {
+    YGNodeStyleSetFlex(yoga_node_, flex);
+    return this;
+}
+
+float Widget::GetFlex() {
+    return YGNodeStyleGetFlex(yoga_node_);
+}
+
+Widget* Widget::SetFlexGrow(float flex_grow) {
+    YGNodeStyleSetFlexGrow(yoga_node_, flex_grow);
+    return this;
+}
+
+float Widget::GetFlexGrow() {
+    return YGNodeStyleGetFlexGrow(yoga_node_);
+}
+
+Widget* Widget::SetFlexShrink(float flex_shrink) {
+    YGNodeStyleSetFlexShrink(yoga_node_, flex_shrink);
+    return this;
+}
+
+float Widget::GetFlexShrink() {
+    return YGNodeStyleGetFlexShrink(yoga_node_);
+}
+
+Widget* Widget::SetFlexBasis(float flex_basis) {
+    YGNodeStyleSetFlexBasis(yoga_node_, flex_basis);
+    return this;
+}
+
+Widget* Widget::SetFlexBasisPercent(float flex_basis) {
+    YGNodeStyleSetFlexBasisPercent(yoga_node_, flex_basis);
+    return this;
+}
+
+Widget* Widget::SetFlexBasisAuto() {
+    YGNodeStyleSetFlexBasisAuto(yoga_node_);
+    return this;
+}
+
+YGValue Widget::GetFlexBasis() {
+    return YGNodeStyleGetFlexBasis(yoga_node_);
+}
+
+Widget* Widget::SetPosition(YGEdge edge, float position) {
+    YGNodeStyleSetPosition(yoga_node_, edge, position);
+    return this;
+}
+
+Widget* Widget::SetPositionPercent(YGEdge edge, float position) {
+    YGNodeStyleSetPositionPercent(yoga_node_, edge, position);
+    return this;
+}
+
+YGValue Widget::GetPosition(YGEdge edge) {
+    return YGNodeStyleGetPosition(yoga_node_, edge);
+}
+
+Widget* Widget::SetMargin(YGEdge edge, float margin) {
+    YGNodeStyleSetMargin(yoga_node_, edge, margin);
+    return this;
+}
+
+Widget* Widget::SetMarginPercent(YGEdge edge, float margin) {
+    YGNodeStyleSetMarginPercent(yoga_node_, edge, margin);
+    return this;
+}
+
+Widget* Widget::SetMarginAuto(YGEdge edge) {
+    YGNodeStyleSetMarginAuto(yoga_node_, edge);
+    return this;
+}
+
+YGValue Widget::GetMargin(YGEdge edge) {
+    return YGNodeStyleGetMargin(yoga_node_, edge);
+}
+
+float Widget::GetComputedMargin(YGEdge edge) {
+    return YGNodeLayoutGetMargin(yoga_node_, edge);
+}
+
+Widget* Widget::SetPadding(YGEdge edge, float padding) {
+    YGNodeStyleSetPadding(yoga_node_, edge, padding);
+    return this;
+}
+
+Widget* Widget::SetPaddingPercentage(YGEdge edge, float padding) {
+    YGNodeStyleSetPaddingPercent(yoga_node_, edge, padding);
+    return this;
+}
+
+YGValue Widget::GetPadding(YGEdge edge) {
+    return YGNodeStyleGetPadding(yoga_node_, edge);
+}
+
+float Widget::GetComputedPadding(YGEdge edge) {
+    return YGNodeLayoutGetPadding(yoga_node_, edge);
+}
+
+Widget* Widget::SetBorder(YGEdge edge, float border) {
+    YGNodeStyleSetBorder(yoga_node_, edge, border);
+    return this;
+}
+
+float Widget::GetBorder(YGEdge edge) {
+    return YGNodeStyleGetBorder(yoga_node_, edge);
+}
+
+float Widget::GetComputedBorder(YGEdge edge) {
+    return YGNodeLayoutGetBorder(yoga_node_, edge);
+}
+
+Widget* Widget::SetWidth(float width) {
+    YGNodeStyleSetWidth(yoga_node_, width);
+    return this;
+}
+
+Widget* Widget::SetWidthPercent(float width) {
+    YGNodeStyleSetWidthPercent(yoga_node_, width);
+    return this;
+}
+
+Widget* Widget::SetWidthAuto() {
+    YGNodeStyleSetWidthAuto(yoga_node_);
+    return this;
+}
+
+YGValue Widget::GetWidth() {
+    return YGNodeStyleGetWidth(yoga_node_);
+}
+
+float Widget::GetCalculatedWidth() {
+    return YGNodeLayoutGetWidth(yoga_node_);
+}
+
+Widget* Widget::SetHeight(float height) {
+    YGNodeStyleSetHeight(yoga_node_, height);
+    return this;
+}
+
+Widget* Widget::SetHeightPercent(float height) {
+    YGNodeStyleSetHeightPercent(yoga_node_, height);
+    return this;
+}
+
+Widget* Widget::SetHeightAuto() {
+    YGNodeStyleSetHeightAuto(yoga_node_);
+    return this;
+}
+
+YGValue Widget::GetHeight() {
+    return YGNodeStyleGetHeight(yoga_node_);
+}
+
+float Widget::GetCalculatedHeight() {
+    return YGNodeLayoutGetHeight(yoga_node_);
+}
+
+Widget* Widget::SetMinWidth(float min_width) {
+    YGNodeStyleSetMinWidth(yoga_node_, min_width);
+    return this;
+}
+
+Widget* Widget::SetMinWidthPercent(float min_height) {
+    YGNodeStyleSetMinWidthPercent(yoga_node_, min_height);
+    return this;
+}
+
+YGValue Widget::GetMinWidth() {
+    return YGNodeStyleGetMinWidth(yoga_node_);
+}
+
+Widget* Widget::SetMinHeight(float min_height) {
+    YGNodeStyleSetMinHeight(yoga_node_, min_height);
+    return this;
+}
+
+Widget* Widget::SetMinHeightPercent(float min_height) {
+    YGNodeStyleSetMinHeightPercent(yoga_node_, min_height);
+    return this;
+}
+
+YGValue Widget::GetMinHeight() {
+    return YGNodeStyleGetMinHeight(yoga_node_);
+}
+
+Widget* Widget::SetMaxWidth(float max_width) {
+    YGNodeStyleSetMaxWidth(yoga_node_, max_width);
+    return this;
+}
+
+Widget* Widget::SetMaxWidthPercent(float max_width) {
+    YGNodeStyleSetMaxWidthPercent(yoga_node_, max_width);
+    return this;
+}
+
+YGValue Widget::GetMaxWidth() {
+    return YGNodeStyleGetMaxWidth(yoga_node_);
+}
+
+Widget* Widget::SetMaxHeight(float max_height) {
+    YGNodeStyleSetMaxHeight(yoga_node_, max_height);
+    return this;
+}
+
+Widget* Widget::SetMaxHeightPercent(float max_height) {
+    YGNodeStyleSetMaxHeightPercent(yoga_node_, max_height);
+    return this;
+}
+
+YGValue Widget::GetMaxHeight() {
+    return YGNodeStyleGetMaxHeight(yoga_node_);
+}
+
+Widget* Widget::SetAspectRatio(float aspect_ratio) {
+    YGNodeStyleSetAspectRatio(yoga_node_, aspect_ratio);
+    return this;
+}
+
+float Widget::GetAspectRatio() {
+    return YGNodeStyleGetAspectRatio(yoga_node_);
+}
+
+float Widget::GetLeft() {
+    return YGNodeLayoutGetLeft(yoga_node_);
+}
+
+float Widget::GetTop() {
+    return YGNodeLayoutGetTop(yoga_node_);
+}
+
+float Widget::GetRight() {
+    return YGNodeLayoutGetRight(yoga_node_);
+}
+
+float Widget::GetBottom() {
+    return YGNodeLayoutGetBottom(yoga_node_);
+}
+
+bool Widget::GetHadOverflow() {
+    return YGNodeLayoutGetHadOverflow(yoga_node_);
+}
+
+bool Widget::GetDidLegacyStretchFlagAffectLayout() {
+    return YGNodeLayoutGetDidLegacyStretchFlagAffectLayout(yoga_node_);
+}
+
+void Widget::Draw(DrawContext& draw_context) {
+    for (auto& child : children_)
+        child->Draw(draw_context);
+}
+
+bool Widget::GetWidgetAt(float x, float y,
     std::shared_ptr<Widget>& widget,
-    int& x_in_selected_widget,
-    int& y_in_selected_widget) {
-    if (x >= 0 && x < GetCalculatedWidth() &&
-        y >= 0 && y < GetCalculatedHeight()) {
-        // Within our bounds, but not selectable.
-        widget.reset();
-        return true;
+    float& x_in_selected_widget,
+    float& y_in_selected_widget) {
+
+    if (x >= GetLeft() && x < GetRight() &&
+        y >= GetTop() && y < GetBottom()) {
+        // Walk backwards (from top to bottom).
+        for (auto itr = children_.rbegin(); itr != children_.rend(); itr++) {
+            if ((*itr)->GetWidgetAt(x, y, widget,
+                x_in_selected_widget, y_in_selected_widget))
+                return true;
+        }
+        // None of our children.
+        return false;
     } else {
         // Outside our bounds.
         return false;
     }
 }
 
-// Components that have children or some other calculation should
-// override these.
-void Widget::OnNewHeight(int height) {}
-void Widget::OnNewWidth(int width) {}
-
-// Components that have children should override these.
-void Widget::InvalidateChildrensCalculatedWidth() {}
-void Widget::InvalidateChildrensCalculatedHeight() {}
-
-// Components should override these two functions to determine how
-// big they should be if their dimensions are kFitContent.
-int Widget::CalculateContentWidth() {
-	return 0;
-}
-
-int Widget::CalculateContentHeight() {
-	return 0;
-}
-
 void Widget::OnMouseEnter() { }
 void Widget::OnMouseLeave() {}
-void Widget::OnMouseMove(int x, int y) {}
-void Widget::OnMouseButtonDown(int x, int y,
+void Widget::OnMouseMove(float x, float y) {}
+void Widget::OnMouseButtonDown(float x, float y,
     ::permebuf::perception::devices::MouseButton button) {}
-void Widget::OnMouseButtonUp(int x, int y,
+void Widget::OnMouseButtonUp(float x, float y,
     ::permebuf::perception::devices::MouseButton button) {}
 
 void Widget::InvalidateRender() {
     if (auto parent = parent_.lock()) {
        parent->InvalidateRender();
     }
+}
+
+void Widget::LayoutDirtied(YGNode* node) {
+    Widget* widget = (Widget*) YGNodeGetContext(node);
+    widget->InvalidateRender();
 }
 
 }

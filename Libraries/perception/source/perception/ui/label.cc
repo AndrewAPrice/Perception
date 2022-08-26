@@ -23,8 +23,10 @@
 namespace perception {
 namespace ui {
 
-Label::Label() : label_(""), padding_(0),
-	text_alignment_(TextAlignment::TopLeft), realign_text_(true) {}
+Label::Label() : label_(""),
+	text_alignment_(TextAlignment::TopLeft), realign_text_(true) {
+	YGNodeSetMeasureFunc(yoga_node_, &Label::Measure);
+	}
 
 Label::~Label() {}
 
@@ -34,9 +36,7 @@ Label* Label::SetLabel(std::string_view label) {
 
 	label_ = label;
 
-    if (width_ == kFitContent)
-        InvalidateSize();
-
+	YGNodeMarkDirty(yoga_node_);
     InvalidateRender();
 	realign_text_ = true;
     return this;
@@ -44,19 +44,6 @@ Label* Label::SetLabel(std::string_view label) {
 
 std::string_view Label::GetLabel() {
 	return label_;
-}
-
-Label* Label::SetPadding(int padding) {
-	if (padding_ == padding)
-		return this;
-
-	padding_ = padding;
-	if (width_ == kFitContent || height_ == kFitContent)
-		InvalidateSize();
-
-	InvalidateRender();
-	realign_text_ = true;
-	return this;
 }
 
 Label* Label::SetTextAlignment(TextAlignment alignment) {
@@ -70,41 +57,53 @@ Label* Label::SetTextAlignment(TextAlignment alignment) {
 
 
 void Label::Draw(DrawContext& draw_context) {
-	VerifyCalculatedSize();
-
-	int width = GetCalculatedWidth();
-	int height = GetCalculatedHeight();
+	int width = (int)GetCalculatedWidth();
+	int height = (int)GetCalculatedHeight();
+	int x = (int)GetLeft();
+	int y = (int)GetTop();
 
 	if (realign_text_) {
 		CalculateTextAlignment(
-			label_, width - 2 - padding_ * 2, height - 2 - padding_ * 2,
+			label_, width - 2, height - 2,
 			text_alignment_, *GetUiFont(), text_x_, text_y_);
 		realign_text_ = false;
 	}
 
 	// Draw button text.
 	GetUiFont()->DrawString(
-		draw_context.x + padding_ + 1 + text_x_,
-		draw_context.y + padding_ + 1 + text_y_, label_,
+		x + 1 + text_x_,
+		y+ 1 + text_y_, label_,
 		kLabelTextColor,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 }
 
-int Label::CalculateContentWidth() {
-	return GetUiFont()->MeasureString(label_) + padding_ * 2;
-}
+YGSize Label::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
+	float height, YGMeasureMode height_mode) {
+	Label* label = (Label*) YGNodeGetContext(node);
+	YGSize size;
 
-int Label::CalculateContentHeight() {
-	return GetUiFont()->GetHeight() + padding_ * 2;
-}
+	if (width_mode == YGMeasureModeExactly) {
+		size.width = width;
+	} else {
+		size.width = (float)GetUiFont()->MeasureString(label->label_) +
+			label->GetComputedPadding(YGEdgeHorizontal);
+		if (width_mode == YGMeasureModeAtMost) {
+			size.width = std::min(width, size.width);
+		}
+	}
+	if (height_mode == YGMeasureModeExactly) {
+		size.height = height;
+	} else {
+		size.height = (float)GetUiFont()->GetHeight() +
+			label->GetComputedPadding(YGEdgeVertical);
+		if (height_mode == YGMeasureModeAtMost) {
+			size.height = std::min(height, size.height);
+		}
+	}
 
-void Label::OnNewWidth(int width) {
-	realign_text_ = true;
-}
-
-void Label::OnNewHeight(int height) {
-	realign_text_ = true;
+	label->realign_text_ = true;
+	return size;
 }
 
 }

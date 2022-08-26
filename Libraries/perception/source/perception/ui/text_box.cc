@@ -23,8 +23,10 @@
 namespace perception {
 namespace ui {
 
-TextBox::TextBox() : value_(""), padding_(8), is_editable_(false),
-	text_alignment_(TextAlignment::MiddleLeft), realign_text_(true) {}
+TextBox::TextBox() : value_(""), is_editable_(false),
+	text_alignment_(TextAlignment::MiddleLeft), realign_text_(true) {
+	YGNodeSetMeasureFunc(yoga_node_, &TextBox::Measure);
+}
 
 TextBox::~TextBox() {}
 
@@ -34,8 +36,7 @@ TextBox* TextBox::SetValue(std::string_view value) {
 
 	value_ = value;
 
-    if (width_ == kFitContent)
-        InvalidateSize();
+	YGNodeMarkDirty(yoga_node_);
 
     InvalidateRender();
 	realign_text_ = true;
@@ -44,19 +45,6 @@ TextBox* TextBox::SetValue(std::string_view value) {
 
 std::string_view TextBox::GetValue() {
 	return value_;
-}
-
-TextBox* TextBox::SetPadding(int padding) {
-	if (padding_ == padding)
-		return this;
-
-	padding_ = padding;
-	if (width_ == kFitContent || height_ == kFitContent)
-		InvalidateSize();
-
-	InvalidateRender();
-	realign_text_ = true;
-	return this;
 }
 
 TextBox* TextBox::SetTextAlignment(TextAlignment alignment) {
@@ -86,7 +74,6 @@ TextBox* TextBox::OnChange(std::function<void()> on_change_handler) {
 }
 
 void TextBox::Draw(DrawContext& draw_context) {
-	VerifyCalculatedSize();
 	uint32 text_color;
 	if (is_editable_) {
 		text_color = kTextBoxNonEditableTextColor;
@@ -94,74 +81,95 @@ void TextBox::Draw(DrawContext& draw_context) {
 		text_color = kTextBoxTextColor;
 	}
 
-	int width = GetCalculatedWidth();
-	int height = GetCalculatedHeight();
+	int width = (int)GetCalculatedWidth();
+	int height = (int)GetCalculatedHeight();
+	int x = (int)GetLeft();
+	int y = (int)GetTop();
 
 	// Left line.
-	DrawYLine(draw_context.x, draw_context.y,
+	DrawYLine(x, y,
 		height, kTextBoxTopLeftOutlineColor,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
 	// Top line.
-	DrawXLine(draw_context.x + 1, draw_context.y,
+	DrawXLine(x + 1, y,
 		width - 1, kTextBoxTopLeftOutlineColor,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
 	// Right line.
-	DrawYLine(draw_context.x + width - 1,
-		draw_context.y + 1,
+	DrawYLine(x + width - 1,
+		y+ 1,
 		height - 1, kTextBoxBottomRightOutlineColor,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
 	// Bottom line.
-	DrawXLine(draw_context.x + 1,
-		draw_context.y + height - 1,
+	DrawXLine(x + 1,
+		y + height - 1,
 		width - 2, kTextBoxBottomRightOutlineColor,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
 	// Draw background
-	FillRectangle(draw_context.x + 1,
-		draw_context.y + 1,
-		draw_context.x + width - 1,
-		draw_context.y + height - 1,
+	FillRectangle(x + 1,
+		y + 1,
+		x + width - 1,
+		y + height - 1,
 		kTextBoxBackgroundColor,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
+	int left_padding = (int)GetComputedPadding(YGEdgeLeft);
+	int top_padding = (int)GetComputedPadding(YGEdgeTop);
+	int right_padding = (int)GetComputedPadding(YGEdgeRight);
+	int bottom_padding = (int)GetComputedPadding(YGEdgeBottom);
+
 	if (realign_text_) {
 		CalculateTextAlignment(
-			value_, width - 2 - padding_ * 2, height - 2 - padding_ * 2,
+			value_, width - 2 - left_padding + right_padding,
+			height - 2 - top_padding + bottom_padding,
 			text_alignment_, *GetUiFont(), text_x_, text_y_);
 		realign_text_ = false;
 	}
 
 	// Draw button text.
 	GetUiFont()->DrawString(
-		draw_context.x + padding_ + 1 + text_x_,
-		draw_context.y + padding_ + 1 + text_y_, value_,
+		x + left_padding + 1 + text_x_,
+		y + top_padding + 1 + text_y_, value_,
 		text_color,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 }
 
-int TextBox::CalculateContentWidth() {
-	return GetUiFont()->MeasureString(value_) + padding_ * 2;
-}
+YGSize TextBox::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
+	float height, YGMeasureMode height_mode) {
 
-int TextBox::CalculateContentHeight() {
-	return GetUiFont()->GetHeight() + padding_ * 2;
-}
+	TextBox* text_box = (TextBox*) YGNodeGetContext(node);
+	YGSize size;
 
-void TextBox::OnNewWidth(int width) {
-	realign_text_ = true;
-}
+	if (width_mode == YGMeasureModeExactly) {
+		size.width = width;
+	} else {
+		size.width = (float)GetUiFont()->MeasureString(text_box->value_) +
+			text_box->GetComputedPadding(YGEdgeHorizontal);
+		if (width_mode == YGMeasureModeAtMost) {
+			size.width = std::min(width, size.width);
+		}
+	}
+	if (height_mode == YGMeasureModeExactly) {
+		size.height = height;
+	} else {
+		size.height = (float)GetUiFont()->GetHeight() +
+			text_box->GetComputedPadding(YGEdgeVertical);
+		if (height_mode == YGMeasureModeAtMost) {
+			size.height = std::min(height, size.height);
+		}
+	}
 
-void TextBox::OnNewHeight(int height) {
-	realign_text_ = true;
+	text_box->realign_text_ = true;
+	return size;
 }
 
 }

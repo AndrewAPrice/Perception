@@ -65,19 +65,6 @@ UiWindow::~UiWindow() {
 	// std::cout << title_ << " - destroyed" << std::endl;
 }
 
-UiWindow* UiWindow::SetRoot(std::shared_ptr<Widget> root) {
-	if (root_ == root)
-		return this;
-
-	if (root_)
-		root_->ClearParent();
-
-	root_ = root;
-	root_->SetParent(ToSharedPtr());
-	InvalidateRender();
-	return this;
-}
-
 UiWindow* UiWindow::SetBackgroundColor(uint32 background_color) {
 	if (background_color_ == background_color)
 		return this;
@@ -85,10 +72,6 @@ UiWindow* UiWindow::SetBackgroundColor(uint32 background_color) {
 	background_color_ = background_color;
 	InvalidateRender();
 	return this;
-}
-
-std::shared_ptr<Widget> UiWindow::GetRoot() {
-	return root_;
 }
 
 UiWindow* UiWindow::OnClose(std::function<void()> on_close_handler) {
@@ -117,9 +100,11 @@ void UiWindow::HandleOnMouseButton(
 void UiWindow::HandleOnMouseClick(
 	ProcessId, const MouseListener::OnMouseClickMessage& message) {
 	std::shared_ptr<Widget> widget;
-	int x_in_selected_widget, y_in_selected_widget;
+	float x_in_selected_widget, y_in_selected_widget;
+	float x = (float)message.GetX();
+	float y = (float)message.GetY();
 	
-	(bool)GetWidgetAt(message.GetX(), message.GetY(),
+	(bool)GetWidgetAt(x, y,
 	    widget, x_in_selected_widget, y_in_selected_widget);
 
 	SwitchToMouseOverWidget(widget);
@@ -127,10 +112,10 @@ void UiWindow::HandleOnMouseClick(
 	// Tell the widget the mouse has moved.
 	if (widget) {
 		if (message.GetWasPressedDown()) {
-			widget->OnMouseButtonDown(x_in_selected_widget, y_in_selected_widget,
+			widget->OnMouseButtonDown(x, y,
 				message.GetButton());
 		} else {
-			widget->OnMouseButtonUp(x_in_selected_widget, y_in_selected_widget,
+			widget->OnMouseButtonUp(x, y,
 				message.GetButton());
 		}
 	}
@@ -156,16 +141,18 @@ void UiWindow::HandleOnMouseLeave(
 void UiWindow::HandleOnMouseHover(
 	ProcessId, const MouseListener::OnMouseHoverMessage& message) {
 	std::shared_ptr<Widget> widget;
-	int x_in_selected_widget, y_in_selected_widget;
+	float x_in_selected_widget, y_in_selected_widget;
+	float x = (float)message.GetX();
+	float y = (float)message.GetY();
 	
-	(bool)GetWidgetAt(message.GetX(), message.GetY(),
+	(bool)GetWidgetAt(x, y,
 	    widget, x_in_selected_widget, y_in_selected_widget);
 
 	SwitchToMouseOverWidget(widget);
 
 	// Tell the widget the mouse has moved.
 	if (widget) {
-		widget->OnMouseMove(x_in_selected_widget, y_in_selected_widget);
+		widget->OnMouseMove(x, y);
 	}
 }
 
@@ -202,8 +189,8 @@ void UiWindow::HandleOnKeyboardReleased(ProcessId,
 void UiWindow::HandleSetSize(ProcessId,
 	const Window::SetSizeMessage& message) {
 	std::cout << "Window " << title_ << " resized to " << message.GetWidth() << "," << message.GetHeight() << std::endl;
-	SetWidth(message.GetWidth());
-	SetHeight(message.GetHeight());
+	SetWidth((float)message.GetWidth());
+	SetHeight((float)message.GetHeight());
 	rebuild_texture_ = true;
 	InvalidateRender();
 }
@@ -230,15 +217,16 @@ void UiWindow::Draw() {
 
 	if (rebuild_texture_) {
 		// The window size has changed.
-		VerifyCalculatedSize();
 
 		ReleaseTextures();
+		int width = (int)GetCalculatedWidth();
+		int height = (int)GetCalculatedHeight();
 
-		if (width_ > 0 && height_ > 0) {
+		if (width > 0 && height > 0) {
 			// Create the back buffer we draw into.
 			GraphicsDriver::CreateTextureRequest request;
-			request.SetWidth(width_);
-			request.SetHeight(height_);
+			request.SetWidth(width);
+			request.SetHeight(height);
 			auto status_or_response =
 				GraphicsDriver::Get().CallCreateTexture(request);
 			if (status_or_response) {
@@ -269,8 +257,6 @@ void UiWindow::Draw() {
 
 	// Set up our DrawContext to draw into back buffer.
 	DrawContext draw_context;
-	draw_context.x = 0;
-	draw_context.y = 0;
 	draw_context.buffer = static_cast<uint32*>(*texture_shared_memory_);
 	draw_context.buffer_width = width_;
 	draw_context.buffer_height = height_;
@@ -281,8 +267,7 @@ void UiWindow::Draw() {
 			draw_context.buffer_width, draw_context.buffer_height);
 	}
 
-    if (root_)
-    	root_->Draw(draw_context);
+	Widget::Draw(draw_context);
 
     // Copy the backbuffer to the front buffer.
     memcpy(*frontbuffer_shared_memory_, *texture_shared_memory_,
@@ -300,51 +285,6 @@ void UiWindow::Draw() {
 	invalidated_ = false;
 }
 
-
-void UiWindow::OnNewHeight(int height) {
-    SetHeight(height);
-    if (root_ && root_->GetHeight() == kFillParent) {
-        root_->SetCalculatedHeight(height);
-    }
-    InvalidateRender();
-}
-
-void UiWindow::OnNewWidth(int width) {
-    SetWidth(width);
-    if (root_ && root_->GetWidth() == kFillParent) {
-        root_->SetCalculatedWidth(width);
-    }
-    InvalidateRender();
-}
-
-void UiWindow::InvalidateChildrensCalculatedWidth() {
-    if (root_ && root_->GetWidth() == kFillParent) {
-        root_->InvalidateCalculatedWidth();
-    }
-}
-
-void UiWindow::InvalidateChildrensCalculatedHeight() {
-    if (root_ && root_->GetHeight() == kFillParent) {
-        root_->InvalidateCalculatedHeight();
-    }
-}
-
-int UiWindow::CalculateContentWidth() {
-    if (root_ && root_->GetWidth() != kFillParent) {
-        return root_->GetCalculatedWidth();
-    } else {
-        return 0;
-    }
-}
-
-int UiWindow::CalculateContentHeight() {
-    if (root_ && root_->GetHeight() != kFillParent) {
-        return root_->GetCalculatedHeight();
-    } else {
-        return 0;
-    }
-}
-
 void UiWindow::InvalidateRender() {
     if (invalidated_) {
         return;
@@ -356,21 +296,6 @@ void UiWindow::InvalidateRender() {
 
     invalidated_ = true;
 }
-
-bool UiWindow::GetWidgetAt(int x, int y,
-    std::shared_ptr<Widget>& widget,
-    int& x_in_selected_widget,
-    int& y_in_selected_widget) {
-	if (root_) {
-		return root_->GetWidgetAt(x, y, widget,
-			x_in_selected_widget, y_in_selected_widget);
-	} else {
-		return false;
-	}
-}
-
-void UiWindow::Draw(DrawContext& draw_context) {}
-
 
 void UiWindow::SwitchToMouseOverWidget(std::shared_ptr<Widget> widget) {
 	auto old_widget = widget_mouse_is_over_.lock();

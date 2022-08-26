@@ -54,13 +54,13 @@ void ShowLauncherWindow() {
 
 	launcher_window = std::make_shared<UiWindow>("Launcher",
 		true, launcher_width, launcher_height);
-	launcher_window->SetRoot(
-		std::make_shared<Label>()->
-		SetTextAlignment(TextAlignment::MiddleCenter)->
-		SetLabel("TODO: Implement")->
-		SetSize(kFillParent)->ToSharedPtr())->OnClose([]() {
+	launcher_window->OnClose([]() {
 			Defer([]() {
 				launcher_window.reset();
 			});
-		});
+		})->AddChild(
+			std::make_shared<Label>()->
+				SetTextAlignment(TextAlignment::MiddleCenter)->
+				SetLabel("TODO: Implement")->
+				ToSharedPtr());
 }

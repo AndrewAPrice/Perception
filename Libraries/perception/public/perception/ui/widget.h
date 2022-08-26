@@ -17,6 +17,8 @@
 #include <memory>
 
 #include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
+#include "yoga/Yoga.h"
+#include <list>
 
 namespace perception {
 namespace ui {
@@ -34,33 +36,127 @@ public:
         return shared_from_this();
     }
 
-	Widget* SetWidth(int width);
-	Widget* SetHeight(int height);
-    Widget* SetSize(int width_and_height);
-    Widget* SetSize(int width, int height);
-
-	int GetWidth();
-	int GetHeight();
-	int GetCalculatedWidth();
-	int GetCalculatedHeight();
-	void VerifyCalculatedSize();
-
-	std::weak_ptr<Widget> GetParent();
-
-    // The below functions are not intended for end users unless
-    // you are building widgets.
-    virtual void Draw(DrawContext& draw_context) = 0;
+    std::weak_ptr<Widget> GetParent();
     void SetParent(std::weak_ptr<Widget> parent);
     void ClearParent();
 
-    void SetCalculatedWidth(int width);
-    void SetCalculatedHeight(int height);
-    void RecalculateWidth();
-    void RecalculateHeight();
-    void InvalidateSize();
+    Widget* AddChildren(const std::vector<std::shared_ptr<Widget>>& children);
+    Widget* AddChild(std::shared_ptr<Widget> child);
+    Widget* RemoveChild(std::shared_ptr<Widget> child);
+    Widget* RemoveChildren();
+    const std::list<std::shared_ptr<Widget>>& GetChildren();
 
-    virtual void InvalidateCalculatedWidth();
-    virtual void InvalidateCalculatedHeight();
+    Widget* SetIsReferenceBaseline(int is_reference_baseline);
+    bool IsReferenceBaseline();
+
+    Widget* SetHasNewLayout(bool has_new_layout);
+    bool HasNewLayout();
+    
+    Widget* SetDirection(YGDirection direction);
+    YGDirection GetDirection();
+    YGDirection GetCalculatedDirection();
+
+    Widget* SetFlexDirection(YGFlexDirection flex_direction);
+    YGFlexDirection GetFlexDirection();
+
+    Widget* SetJustifyContent(YGJustify justify_content);
+    YGJustify GetJustifyContent();
+
+    Widget* SetAlignContent(YGAlign align_content);
+    YGAlign GetAlignContent();
+
+    Widget* SetAlignItems(YGAlign align_items);
+    YGAlign GetAlignItems();
+
+    Widget* SetAlignSelf(YGAlign align_self);
+    YGAlign GetAlignSelf();
+
+    Widget* SetPositionType(YGPositionType position_type);
+    YGPositionType GetPositionType();
+
+    Widget* SetFlexWrap(YGWrap flex_wrap);
+    YGWrap GetFlexWrap();
+
+    Widget* SetOverflow(YGOverflow overflow);
+    YGOverflow GetOverflow();
+
+    Widget* SetDisplay(YGDisplay display);
+    YGDisplay GetDisplay();
+
+    Widget* SetFlex(float flex);
+    float GetFlex();
+
+    Widget* SetFlexGrow(float flex_grow);
+    float GetFlexGrow();
+
+    Widget* SetFlexShrink(float flex_shrink);
+    float GetFlexShrink();
+
+    Widget* SetFlexBasis(float flex_basis);
+    Widget* SetFlexBasisPercent(float flex_basis);
+    Widget* SetFlexBasisAuto();
+    YGValue GetFlexBasis();
+
+    Widget* SetPosition(YGEdge edge, float position);
+    Widget* SetPositionPercent(YGEdge edge, float position);
+    YGValue GetPosition(YGEdge edge);
+
+    Widget* SetMargin(YGEdge edge, float margin);
+    Widget* SetMarginPercent(YGEdge edge, float margin);
+    Widget* SetMarginAuto(YGEdge edge);
+    YGValue GetMargin(YGEdge edge);
+    float GetComputedMargin(YGEdge edge);
+
+    Widget* SetPadding(YGEdge edge, float padding);
+    Widget* SetPaddingPercentage(YGEdge edge, float padding);
+    YGValue GetPadding(YGEdge edge);
+    float GetComputedPadding(YGEdge edge);
+
+    Widget* SetBorder(YGEdge edge, float border);
+    float GetBorder(YGEdge edge);
+    float GetComputedBorder(YGEdge edge);
+
+    Widget* SetWidth(float width);
+    Widget* SetWidthPercent(float width);
+    Widget* SetWidthAuto();
+    YGValue GetWidth();
+    float GetCalculatedWidth();
+
+    Widget* SetHeight(float height);
+    Widget* SetHeightPercent(float height);
+    Widget* SetHeightAuto();
+    YGValue GetHeight();
+    float GetCalculatedHeight();
+
+    Widget* SetMinWidth(float min_width);
+    Widget* SetMinWidthPercent(float min_height);
+    YGValue GetMinWidth();
+
+    Widget* SetMinHeight(float min_height);
+    Widget* SetMinHeightPercent(float min_height);
+    YGValue GetMinHeight();
+
+    Widget* SetMaxWidth(float max_width);
+    Widget* SetMaxWidthPercent(float max_width);
+    YGValue GetMaxWidth();
+
+    Widget* SetMaxHeight(float max_height);
+    Widget* SetMaxHeightPercent(float max_height);
+    YGValue GetMaxHeight();
+
+    Widget* SetAspectRatio(float aspect_ratio);
+    float GetAspectRatio();
+
+    float GetLeft();
+    float GetTop();
+    float GetRight();
+    float GetBottom();
+    bool GetHadOverflow();
+    bool GetDidLegacyStretchFlagAffectLayout();
+
+    // The below functions are not intended for end users unless
+    // you are building widgets.
+    virtual void Draw(DrawContext& draw_context);
 
     // Gets the widget at X/Y.
     // If x,y points to a selectable widget, sets widget, x_in_selected_widget,
@@ -69,44 +165,33 @@ public:
     // selectable, sets widget to nullptr, but returns true.
     // If the mouse is outside of the bounds of this widget, returns false, and
     // doesn't touch the mutable parameters.
-    virtual bool GetWidgetAt(int x, int y,
+    virtual bool GetWidgetAt(float x, float y,
         std::shared_ptr<Widget>& widget,
-        int& x_in_selected_widget,
-        int& y_in_selected_widget);
+        float& x_in_selected_widget,
+        float& y_in_selected_widget);
 
     virtual void OnMouseEnter();
     virtual void OnMouseLeave();
-    virtual void OnMouseMove(int x, int y);
-    virtual void OnMouseButtonDown(int x, int y,
+    virtual void OnMouseMove(float x, float y);
+    virtual void OnMouseButtonDown(float x, float y,
         ::permebuf::perception::devices::MouseButton button);
-    virtual void OnMouseButtonUp(int x, int y,
+    virtual void OnMouseButtonUp(float x, float y,
         ::permebuf::perception::devices::MouseButton button);
 
 protected:
-
-    // Components that have children or some other calculation should
-    // override these.
-    virtual void OnNewHeight(int height);
-    virtual void OnNewWidth(int width);
-
-    // Components that have children should override these.
-    virtual void InvalidateChildrensCalculatedWidth();
-    virtual void InvalidateChildrensCalculatedHeight();
-
-    // Components should override these two functions to determine how
-    // big they should be if their dimensions are FIT_CONTENT.
-    virtual int CalculateContentWidth();
-    virtual int CalculateContentHeight();
-
     virtual void InvalidateRender();
 
 	std::weak_ptr<Widget> parent_;
+    std::list<std::shared_ptr<Widget>> children_;
+
+    YGNode* yoga_node_;
     int width_;
     int height_;
-    bool calculated_width_invalidated_;
-    bool calculated_height_invalidated_;
-    int calculated_width_;
-    int calculated_height_;
+    bool layout_dirtied_;
+
+private:
+    static void LayoutDirtied(YGNode* node);
+
 };
 
 }

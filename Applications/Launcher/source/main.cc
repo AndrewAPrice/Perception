@@ -29,11 +29,11 @@ using ::perception::ui::UiWindow;
 
 int main() {
 	auto window = std::make_shared<UiWindow>("Welcome!", true, 300, 50);
-	window->SetRoot(
+	window->AddChild(
 		std::make_shared<Label>()->
 		SetTextAlignment(TextAlignment::MiddleCenter)->
 		SetLabel("Welcome to Perception. Press the ESCAPE key to open the launcher.")->
-		SetSize(kFillParent)->ToSharedPtr());
+		ToSharedPtr());
 
 	auto launcher = std::make_unique<Launcher>();
 	HandOverControl();

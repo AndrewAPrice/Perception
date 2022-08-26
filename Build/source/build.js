@@ -242,7 +242,7 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 
 	if (metadata.include) {
 		metadata.include.forEach((includeDir) => {
-			params += ' -isystem ' + packageDirectory + includeDir;
+			params += ' -isystem ' + escapePath(packageDirectory + includeDir);
 			if (includeDir == 'source') {
 				alreadyIncludedSource = true;
 			}
@@ -251,7 +251,7 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 
 	if (metadata.public_include) {
 		for (let i = 0; i < metadata.public_include.length; i++) {
-			params += ' -isystem '+ escapePath(packageDirectory) + metadata.public_include[i];
+			params += ' -isystem '+ escapePath(packageDirectory + metadata.public_include[i]);
 		}
 	} else {
 		params += ' -isystem '+ escapePath(packageDirectory) + 'public';

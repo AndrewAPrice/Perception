@@ -33,7 +33,6 @@ public:
 
 	TextBox* SetValue(std::string_view value);
 	std::string_view GetValue();
-	TextBox* SetPadding(int padding);
 	TextBox* SetTextAlignment(TextAlignment alignment);
 	TextBox* SetEditable(bool editable);
 	bool IsEditable();
@@ -42,14 +41,10 @@ public:
 private:
     virtual void Draw(DrawContext& draw_context) override;
 
-	virtual int CalculateContentWidth() override;
-    virtual int CalculateContentHeight() override;
-
-    virtual void OnNewWidth(int width) override;
-    virtual void OnNewHeight(int height) override;
+	static YGSize Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
+		float height, YGMeasureMode height_mode);
     
 	std::string value_;
-	int padding_;
 	bool is_editable_;
 	std::function<void()> on_change_handler_;
 	TextAlignment text_alignment_;

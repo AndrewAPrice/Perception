@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,33 +17,27 @@ const child_process = require('child_process');
 const path = require('path');
 const process = require('process');
 
-const llvm_git_repository = 'https://github.com/llvm/llvm-project.git';
+const git_repository = 'https://github.com/facebook/yoga.git';
 
 // Check that the third directory exists.
 if (!fs.existsSync('third_party')) {
-	console.log('Downloading libcxx/libcxxabi');
+	console.log('Downloading facebook/yoga');
 	// Grab it from github.
-	// const command = 'git clone ' + llvm_git_repository + ' third_party';
+	const command = 'git clone ' + git_repository + ' third_party';
 	try {
-		child_procefss.execSync('git clone --no-checkout --depth 1 ' + llvm_git_repository + ' third_party', {stdio: 'inherit'});
-		child_process.execSync('git config core.sparseCheckout true', {cwd: 'third_party', stdio: 'inherit'});
-		child_process.execSync('git config pull.rebase true', {cwd: 'third_party', stdio: 'inherit'});
-		fs.appendFileSync('third_party/.git/info/sparse-checkout', 'libcxx/\n', 'utf8');
-		fs.appendFileSync('third_party/.git/info/sparse-checkout', 'libcxxabi/\n', 'utf8');
-		fs.appendFileSync('third_party/.git/info/sparse-checkout', 'libunwind/\n', 'utf8');
-		child_process.execSync('git checkout', {cwd: 'third_party', stdio: 'inherit'});
+		child_process.execSync(command, {stdio: 'inherit'});
 	} catch (exp) {
-		console.log('Error downloading libcxx/libcxxabi: ' + exp);
+		console.log('Error downloading facebook/yoga: ' + exp);
 		process.exit(1);
 	}
 } else {
-	console.log('Attempting to update libcxx/libcxxabi');
+	console.log('Attempting to update facebook/yoga');
 	// Try to update it.
+	const command = 'git pull ' + git_repository;
 	try {
-		child_process.execSync('git checkout', {cwd: 'third_party', stdio: 'inherit'});
-		child_process.execSync('git pull', {cwd: 'third_party', stdio: 'inherit'});
+		child_process.execSync(command, {cwd: 'third_party', stdio: 'inherit'});
 	} catch (exp) {
-		console.log('Error updating libcxx/libcxxabi: ' + exp);
+		console.log('Error updating facebook/yoga: ' + exp);
 		process.exit(1);
 	}
 }
@@ -99,34 +93,17 @@ function copyFile(fromPath, toPath, fromFileStats) {
 	fs.copyFileSync(fromPath, toPath);
 }
 
-const filesToIgnore = {
-	'source/libc/stdio/nano-vfprintf.c': true,
-	'source/libc/stdio/nano-vfprintf_float.c': true,
-	'source/libc/stdio/nano-vfprintf_i.c': true,
-	'source/libc/stdio/nano-vfprintf_local.c': true,
-	'source/libc/stdio/nano-vfscanf.c': true,
-	'source/libc/stdio/nano-vfscanf_float.c': true,
-	'source/libc/stdio/nano-vfscanf_i.c': true,
-	'source/libc/stdio/nano-vfscanf_local.c': true,
-	'source/libc/stdio/nano-vfprintf_local.h': true,
-	'source/libc/stdio/nano-vfscanf_local.h': true,
-};
 
-function copyFilesInDirectory(from, to) {
+function copyFilesInDirectory(from, to, extension) {
 	const filesInDirectory = fs.readdirSync(from);
 	for (let i = 0; i < filesInDirectory.length; i++) {
 		const entryName = filesInDirectory[i];
 		const fromPath = from + '/' + entryName;
 		const toPath = to + '/' + entryName;
 
-		if (filesToIgnore[toPath]) {
-			continue;
-		}
-
 		const fileStats = fs.lstatSync(fromPath);
-		if (fileStats.isDirectory()) {
-			copyFilesInDirectory(fromPath, toPath);
-		} else {
+		if (!fileStats.isDirectory() &&
+			(extension == undefined || path.extname(entryName) == extension)) {
 			copyFile(fromPath, toPath, fileStats);
 		}
 	}
@@ -138,13 +115,10 @@ function replaceInFile(filename, needle, replaceWith) {
 	fs.writeFileSync(filename, fileContents);
 }
 
-
-copyFilesInDirectory('third_party/libcxx/include', 'public');
-copyFilesInDirectory('third_party/libcxx/src', 'source');
-copyFilesInDirectory('third_party/libcxxabi/include', 'public');
-copyFilesInDirectory('third_party/libcxxabi/src', 'source');
-copyFilesInDirectory('third_party/libunwind/include', 'public');
-copyFilesInDirectory('third_party/libunwind/src', 'source');
+copyFilesInDirectory('third_party/yoga', 'source', '.cpp');
+copyFilesInDirectory('third_party/yoga/event', 'source/event');
+copyFilesInDirectory('third_party/yoga', 'public/yoga', '.h');
+replaceInFile('third_party/yoga/CompactValue.h', '__cpp_lib_bit_cast', 'true');
 
 // Remove any third party files that don't exist in the latest build.
 Object.keys(third_party_files_from_last_run).forEach(function (filePath) {

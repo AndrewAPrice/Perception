@@ -43,9 +43,6 @@ public:
 			 bool dialog = false, int dialog_width = 0, int dialog_height = 0);
 	virtual ~UiWindow();
 
-	int GetWidth() { return width_; }
-	int GetHeight() { return height_; }
-
 	UiWindow* SetRoot(std::shared_ptr<Widget> root);
 	UiWindow* SetBackgroundColor(uint32 background_color);
 	std::shared_ptr<Widget> GetRoot();
@@ -89,26 +86,12 @@ protected:
 	void HandleLostFocus(ProcessId,
 		const ::permebuf::perception::Window::LostFocusMessage& message) override;
 
-	virtual void Draw(DrawContext& draw_context) override;
-    virtual void OnNewHeight(int height) override;
-    virtual void OnNewWidth(int width) override;
-    virtual void InvalidateChildrensCalculatedWidth() override;
-    virtual void InvalidateChildrensCalculatedHeight() override;
-    virtual int CalculateContentWidth() override;
-    virtual int CalculateContentHeight() override;
-
     virtual void InvalidateRender() override;
-
-    virtual bool GetWidgetAt(int x, int y,
-        std::shared_ptr<Widget>& widget,
-        int& x_in_selected_widget,
-        int& y_in_selected_widget) override;
 
 private:
 	bool invalidated_;
 
 	std::string title_;
-	std::shared_ptr<Widget> root_;
 	uint32 background_color_;
 	std::function<void()> on_close_handler_;
 

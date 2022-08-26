@@ -26,46 +26,9 @@ using ::permebuf::perception::devices::MouseButton;
 namespace perception {
 namespace ui {
 
-Button::Button() : label_(""), padding_(8), is_pushed_down_(false),
-	text_alignment_(TextAlignment::MiddleCenter), realign_text_(true) {}
+Button::Button() : is_pushed_down_(false) {}
 
 Button::~Button() {}
-
-Button* Button::SetLabel(std::string_view label) {
-    if (label_ == label)
-        return this;
-
-    label_ = label;
-
-    if (width_ == kFitContent)
-        InvalidateSize();
-
-    InvalidateRender();
-    realign_text_ = true;
-    return this;
-}
-
-Button* Button::SetPadding(int padding) {
-	if (padding_ == padding)
-		return this;
-
-	padding_ = padding;
-	if (width_ == kFitContent || height_ == kFitContent)
-		InvalidateSize();
-
-	InvalidateRender();
-    realign_text_ = true;
-	return this;
-}
-
-Button* Button::SetTextAlignment(TextAlignment alignment) {
-	if (text_alignment_ == alignment)
-		return this;
-
-	text_alignment_ = alignment;
-	realign_text_ = true;
-	return this;
-}
 
 Button* Button::OnClick(std::function<void()> on_click_handler) {
     on_click_handler_ = on_click_handler;
@@ -79,7 +42,7 @@ void Button::OnMouseLeave() {
 	}
 }
 
-void Button::OnMouseButtonDown(int x, int y,
+void Button::OnMouseButtonDown(float x, float y,
     MouseButton button) {
 	if (button != MouseButton::Left)
 		return;
@@ -91,7 +54,7 @@ void Button::OnMouseButtonDown(int x, int y,
 	InvalidateRender();
 }
 
-void Button::OnMouseButtonUp(int x, int y,
+void Button::OnMouseButtonUp(float x, float y,
     MouseButton button) {
 	if (button != MouseButton::Left)
 		return;
@@ -107,26 +70,25 @@ void Button::OnMouseButtonUp(int x, int y,
 }
 
 
-bool Button::GetWidgetAt(int x, int y,
+bool Button::GetWidgetAt(float x, float y,
     std::shared_ptr<Widget>& widget,
-    int& x_in_selected_widget,
-    int& y_in_selected_widget) {
-	if (x < 0 || y < 0 || x >= GetCalculatedWidth() ||
-		y >= GetCalculatedHeight()) {
+    float& x_in_selected_widget,
+    float& y_in_selected_widget) {
+	if (x < GetLeft() || y < GetTop() ||
+		x >= GetRight() ||
+		y >= GetBottom()) {
 		// Out of bounds.
 		return false;
 	}
 
 	widget = ToSharedPtr();
-	x_in_selected_widget = x;
-	y_in_selected_widget = y;
+	x_in_selected_widget = x - GetLeft();
+	y_in_selected_widget = y - GetTop();
 	return true;
 }
 
 
 void Button::Draw(DrawContext& draw_context) {
-	VerifyCalculatedSize();
-
 	uint32 top_left_color;
 	uint32 bottom_right_color;
 	uint32 background_color;
@@ -143,74 +105,48 @@ void Button::Draw(DrawContext& draw_context) {
 		text_offset = 0;
 	}
 
-	int width = GetCalculatedWidth();
-	int height = GetCalculatedHeight();
+	int x = (int)GetLeft();
+	int y = (int)GetTop();
+
+	int width = (int)GetCalculatedWidth();
+	int height = (int)GetCalculatedHeight();
 
 	// Left line.
-	DrawYLine(draw_context.x, draw_context.y,
+	DrawYLine(x, y,
 		height, top_left_color,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
 	// Top line.
-	DrawXLine(draw_context.x + 1, draw_context.y,
+	DrawXLine(x + 1, y,
 		width - 1, top_left_color,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
 	// Right line.
-	DrawYLine(draw_context.x + width - 1,
-		draw_context.y + 1,
+	DrawYLine(x + width - 1,
+		y + 1,
 		height - 1, bottom_right_color,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
 	// Bottom line.
-	DrawXLine(draw_context.x + 1,
-		draw_context.y + height - 1,
+	DrawXLine(x + 1,
+		y + height - 1,
 		width - 2, bottom_right_color,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
 	// Draw background
-	FillRectangle(draw_context.x + 1,
-		draw_context.y + 1,
-		draw_context.x + width - 1,
-		draw_context.y + height - 1,
+	FillRectangle(x + 1,
+		y + 1,
+		x + width - 1,
+		y + height - 1,
 		background_color,
 		draw_context.buffer, draw_context.buffer_width,
 		draw_context.buffer_height);
 
-	if (realign_text_) {
-		CalculateTextAlignment(
-			label_, width - 2 - padding_ * 2, height - 2 - padding_ * 2,
-			text_alignment_, *GetUiFont(), text_x_, text_y_);
-		realign_text_ = false;
-	}
-
-	// Draw button text.
-	GetUiFont()->DrawString(
-		draw_context.x + padding_ + 1 + text_offset + text_x_,
-		draw_context.y + padding_ + 1 + text_offset + text_y_, label_,
-		kButtonTextColor,
-		draw_context.buffer, draw_context.buffer_width,
-		draw_context.buffer_height);
-}
-
-int Button::CalculateContentWidth() {
-	return GetUiFont()->MeasureString(label_) + padding_ * 2;
-}
-
-int Button::CalculateContentHeight() {
-	return GetUiFont()->GetHeight() + padding_ * 2;
-}
-
-void Button::OnNewWidth(int width) {
-	realign_text_ = true;
-}
-
-void Button::OnNewHeight(int height) {
-	realign_text_ = true;
+	Widget::Draw(draw_context);
 }
 
 }

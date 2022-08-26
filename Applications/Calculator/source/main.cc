@@ -19,22 +19,20 @@
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/ui/button.h"
-#include "perception/ui/fixed_grid.h"
+#include "perception/ui/label.h"
 #include "perception/ui/text_box.h"
 #include "perception/ui/ui_window.h"
-#include "perception/ui/vertical_container.h"
 #include "perception/ui/text_alignment.h"
 
 using ::perception::HandOverControl;
 using ::perception::TerminateProcess;
 using ::perception::ui::kFillParent;
 using ::perception::ui::Button;
-using ::perception::ui::FixedGrid;
+using ::perception::ui::Label;
 using ::perception::ui::TextAlignment;
 using ::perception::ui::TextBox;
 using ::perception::ui::UiWindow;
-using ::perception::ui::VerticalContainer;
-
+using ::perception::ui::Widget;
 namespace {
 enum Operation {
 	NOTHING = 0,
@@ -145,55 +143,92 @@ int main() {
 	display = std::static_pointer_cast<TextBox>(
 		std::make_shared<TextBox>()->
 		SetTextAlignment(TextAlignment::MiddleRight)->
-		SetValue("")->SetWidth(kFillParent)->SetHeight(50)->ToSharedPtr());
+		SetValue("")->SetHeight(50)->SetFlexGrow(0.2)->ToSharedPtr());
 
-	window->SetRoot(
-		std::make_shared<VerticalContainer>()->
-			AddChild(display)->
-			AddChild(std::make_shared<FixedGrid>()->SetColumns(4)->SetRows(5)->
-				AddChildren({
-					std::make_shared<Button>()->SetLabel("C")->
-						OnClick(PressClear)->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("+-")->
-						OnClick(PressFlipSign)->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("/")->
-						OnClick(std::bind(PressOperator, DIVIDE))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("x")->
-						OnClick(std::bind(PressOperator, MULTIPLY))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("7")->
-						OnClick(std::bind(PressNumber, 7))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("8")->
-						OnClick(std::bind(PressNumber, 8))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("9")->
-						OnClick(std::bind(PressNumber, 9))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("-")->
-						OnClick(std::bind(PressOperator, SUBTRACT))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("4")->
-						OnClick(std::bind(PressNumber, 4))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("5")->
-						OnClick(std::bind(PressNumber, 5))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("6")->
-						OnClick(std::bind(PressNumber, 6))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("+")->
-						OnClick(std::bind(PressOperator, ADD))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("1")->
-						OnClick(std::bind(PressNumber, 1))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("2")->
-						OnClick(std::bind(PressNumber, 2))->ToSharedPtr(),
-					std::make_shared<Button>()->SetLabel("3")->
-						OnClick(std::bind(PressNumber, 3))->ToSharedPtr()})->
-				AddChild(
-					std::make_shared<Button>()->SetLabel("=")->
-						OnClick(PressEquals)->ToSharedPtr(),
-						/*x=*/3, /*y=*/3, /*columns=*/1, /*rows=*/2)->
-				AddChild(std::make_shared<Button>()->SetLabel("0")->
-						OnClick(std::bind(PressNumber, 0))->ToSharedPtr(),
-						/*x=*/0, /*y=*/4, /*columns=*/2, /*rows=*/1)->
-				AddChild(std::make_shared<Button>()->SetLabel(".")->
-						OnClick(PressDecimal)->ToSharedPtr())
-				->SetSize(kFillParent)->ToSharedPtr()
-			)->SetMargin(8)->SetSize(kFillParent)->ToSharedPtr())->
-		OnClose([]() { TerminateProcess(); });
+	window->
+		OnClose([]() { TerminateProcess(); })->
+		SetFlexDirection(YGFlexDirectionColumn)->
+		AddChild(display)->
+		AddChild(std::make_shared<Widget>()->
+			SetFlexGrow(0.8)->
+			SetFlexWrap(YGWrapWrap)->
+			AddChildren({
+				std::make_shared<Button>()->
+					OnClick(PressClear)->AddChild(
+						std::make_shared<Label>()->SetLabel("C")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(PressFlipSign)->AddChild(
+						std::make_shared<Label>()->SetLabel("+-")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressOperator, DIVIDE))->AddChild(
+						std::make_shared<Label>()->SetLabel("/")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressOperator, MULTIPLY))->AddChild(
+						std::make_shared<Label>()->SetLabel("x")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressNumber, 7))->AddChild(
+						std::make_shared<Label>()->SetLabel("7")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressNumber, 8))->AddChild(
+						std::make_shared<Label>()->SetLabel("8")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressNumber, 9))->AddChild(
+						std::make_shared<Label>()->SetLabel("9")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressOperator, SUBTRACT))->AddChild(
+						std::make_shared<Label>()->SetLabel("-")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressNumber, 4))->AddChild(
+						std::make_shared<Label>()->SetLabel("4")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressNumber, 5))->AddChild(
+						std::make_shared<Label>()->SetLabel("5")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressNumber, 6))->AddChild(
+						std::make_shared<Label>()->SetLabel("6")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressOperator, ADD))->AddChild(
+						std::make_shared<Label>()->SetLabel("+")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressNumber, 1))->AddChild(
+						std::make_shared<Label>()->SetLabel("1")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressNumber, 2))->AddChild(
+						std::make_shared<Label>()->SetLabel("2")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressNumber, 3))->AddChild(
+						std::make_shared<Label>()->SetLabel("3")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(PressEquals)->AddChild(
+						std::make_shared<Label>()->SetLabel("=")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(40)->
+					SetPosition(YGEdgeRight, 0)->SetPosition(YGEdgeRight, 0)->
+					SetPositionType(YGPositionTypeAbsolute)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(std::bind(PressNumber, 0))->AddChild(
+						std::make_shared<Label>()->SetLabel("0")->ToSharedPtr())->
+					SetWidthPercent(50)->SetHeightPercent(20)->ToSharedPtr(),
+				std::make_shared<Button>()->
+					OnClick(PressDecimal)->AddChild(
+						std::make_shared<Label>()->SetLabel(".")->ToSharedPtr())->
+					SetWidthPercent(25)->SetHeightPercent(20)->ToSharedPtr()})
+			->ToSharedPtr()
+		)->SetMargin(YGEdgeAll, 8);
 
 	HandOverControl();
 	return 0;

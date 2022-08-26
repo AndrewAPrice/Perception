@@ -1,4 +1,5 @@
 {"dependencies":[
+	"facebook yoga",
 	"perception",
 	"libcxx",
 	"nlohmann json",

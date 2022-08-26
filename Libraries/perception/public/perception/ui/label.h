@@ -33,23 +33,19 @@ public:
 
 	Label* SetLabel(std::string_view label);
 	std::string_view GetLabel();
-	Label* SetPadding(int padding);
 	Label* SetTextAlignment(TextAlignment alignment);
 
 private:
     virtual void Draw(DrawContext& draw_context) override;
 
-	virtual int CalculateContentWidth() override;
-    virtual int CalculateContentHeight() override;
-
-    virtual void OnNewWidth(int width) override;
-    virtual void OnNewHeight(int height) override;
+	static YGSize Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
+		float height, YGMeasureMode height_mode);
     
 	std::string label_;
-	int padding_;
 	TextAlignment text_alignment_;
 	bool realign_text_;
 	int text_x_, text_y_;
+
 };
 
 }

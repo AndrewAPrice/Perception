@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include "perception/ui/text_alignment.h"
 #include "perception/ui/widget.h"
 
 #include <functional>
@@ -31,40 +30,26 @@ public:
 	Button();
 	virtual ~Button();
 
-	Button* SetLabel(std::string_view label);
-	Button* SetPadding(int padding);
-	Button* SetTextAlignment(TextAlignment alignment);
 	Button* OnClick(std::function<void()> on_click_handler);
 
-    virtual bool GetWidgetAt(int x, int y,
+    virtual bool GetWidgetAt(float x, float y,
         std::shared_ptr<Widget>& widget,
-        int& x_in_selected_widget,
-        int& y_in_selected_widget) override;
+        float& x_in_selected_widget,
+        float& y_in_selected_widget) override;
 
     virtual void OnMouseLeave() override;
-    virtual void OnMouseButtonDown(int x, int y,
+    virtual void OnMouseButtonDown(float x, float y,
         ::permebuf::perception::devices::MouseButton button)
     	override;
-    virtual void OnMouseButtonUp(int x, int y,
+    virtual void OnMouseButtonUp(float x, float y,
         ::permebuf::perception::devices::MouseButton button)
     	override;
 
 private:
     virtual void Draw(DrawContext& draw_context) override;
 
-	virtual int CalculateContentWidth() override;
-    virtual int CalculateContentHeight() override;
-
-    virtual void OnNewWidth(int width) override;
-    virtual void OnNewHeight(int height) override;
-    
-	std::string label_;
-	int padding_;
 	std::function<void()> on_click_handler_;
 	bool is_pushed_down_;
-	TextAlignment text_alignment_;
-	bool realign_text_;
-	int text_x_, text_y_;
 };
 
 }

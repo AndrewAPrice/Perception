@@ -20,7 +20,6 @@ namespace perception {
 namespace ui {
 
 struct DrawContext {
-	int x, y;
 	uint32* buffer;
 	int buffer_width;
 	int buffer_height;
