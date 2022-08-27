@@ -1,8 +1,6 @@
 {
-    "public_dependencies": [
-        "facebook yoga"
-    ],
     "dependencies": [
+        "facebook yoga",
     	"libcxx",
     	"musl"
     ]

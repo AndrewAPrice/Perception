@@ -46,17 +46,15 @@ Widget* Widget::AddChildren(
     const std::vector<std::shared_ptr<Widget>>& children) {
     for (auto child : children) {
         AddChild(child);
-        YGNodeInsertChild(yoga_node_, child->yoga_node_,
-            children_.size());
     }
     return this;
 }
 
 Widget* Widget::AddChild(std::shared_ptr<Widget> child) {
-    children_.push_back(child);
     child->SetParent(ToSharedPtr());
     YGNodeInsertChild(yoga_node_, child->yoga_node_,
         children_.size());
+    children_.push_back(child);
     return this;
 }
 
