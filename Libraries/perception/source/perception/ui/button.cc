@@ -74,9 +74,15 @@ bool Button::GetWidgetAt(float x, float y,
     std::shared_ptr<Widget>& widget,
     float& x_in_selected_widget,
     float& y_in_selected_widget) {
-	if (x < GetLeft() || y < GetTop() ||
-		x >= GetRight() ||
-		y >= GetBottom()) {
+
+    float left = GetLeft();
+    float top = GetTop();
+    float right = left + GetCalculatedWidth();
+    float bottom = top + GetCalculatedHeight();
+
+	if (x < left || y < top ||
+		x >= right ||
+		y >= bottom) {
 		// Out of bounds.
 		return false;
 	}
@@ -106,7 +112,7 @@ void Button::Draw(DrawContext& draw_context) {
 	}
 
 	int x = (int)(GetLeft() + draw_context.offset_x);
-	int y = (int)(GetTop() + draw_context.offset_x);
+	int y = (int)(GetTop() + draw_context.offset_y);
 
 	int width = (int)GetCalculatedWidth();
 	int height = (int)GetCalculatedHeight();

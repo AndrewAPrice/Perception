@@ -447,6 +447,8 @@ void Widget::Draw(DrawContext& draw_context) {
     draw_context.offset_y += GetTop();
     for (auto& child : children_)
         child->Draw(draw_context);
+    draw_context.offset_x = old_offset_x;
+    draw_context.offset_y = old_offset_y;
 }
 
 bool Widget::GetWidgetAt(float x, float y,
@@ -454,8 +456,15 @@ bool Widget::GetWidgetAt(float x, float y,
     float& x_in_selected_widget,
     float& y_in_selected_widget) {
 
-    if (x >= GetLeft() && x < GetRight() &&
-        y >= GetTop() && y < GetBottom()) {
+    float left = GetLeft();
+    float top = GetTop();
+    float right = left + GetCalculatedWidth();
+    float bottom = top + GetCalculatedHeight();
+
+    if (x >= left && x < right &&
+        y >= top && y < bottom) {
+        x -= left;
+        y -= top;
         // Walk backwards (from top to bottom).
         for (auto itr = children_.rbegin(); itr != children_.rend(); itr++) {
             if ((*itr)->GetWidgetAt(x, y, widget,

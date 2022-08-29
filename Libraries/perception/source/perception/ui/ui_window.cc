@@ -119,10 +119,6 @@ void UiWindow::HandleOnMouseClick(
 				message.GetButton());
 		}
 	}
-
-	// std::cout << title_ << " - mouse clicked - button: " << (int)message.GetButton() <<
-	//	" down: " << message.GetWasPressedDown() << " x: " << message.GetX() <<
-	//	" y: " << message.GetY() << std::endl;
 }
 
 void UiWindow::HandleOnMouseEnter(

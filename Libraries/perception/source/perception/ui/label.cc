@@ -68,9 +68,6 @@ void Label::Draw(DrawContext& draw_context) {
 			text_alignment_, *GetUiFont(), text_x_, text_y_);
 		realign_text_ = false;
 	}
-	std::cout << "my size: "  << GetCalculatedWidth() << "x" << GetCalculatedHeight() <<
-	" at: " << x << "x" << y << " buffer: " 
-	<<  draw_context.buffer_width << "x" << draw_context.buffer_height << std::endl;
 
 	// Draw button text.
 	GetUiFont()->DrawString(
@@ -87,35 +84,23 @@ YGSize Label::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
 	YGSize size;
 
 	if (width_mode == YGMeasureModeExactly) {
-
-	std::cout << "Width mode is YGMeasureModeExactly " << size.width << std::endl;
 		size.width = width;
 	} else {
 		size.width = (float)GetUiFont()->MeasureString(label->label_) +
 			label->GetComputedPadding(YGEdgeLeft) +
 			label->GetComputedPadding(YGEdgeRight);
 		 if (width_mode == YGMeasureModeAtMost) {
-
-	std::cout << "Width mode is YGMeasureModeAtMost (" << width << "," << size.width << ")" << std::endl;
 			size.width = std::min(width, size.width);
-		 } else {
-
-	std::cout << "Width mode is Undefined (" << width << ")" << std::endl;
 		 }
 	}
 	if (height_mode == YGMeasureModeExactly) {
 		size.height = height;
-	std::cout << "Height mode is YGMeasureModeExactly " << size.height << std::endl;
 	} else {
 		size.height = (float)GetUiFont()->GetHeight() +
 			label->GetComputedPadding(YGEdgeTop) +
 			label->GetComputedPadding(YGEdgeBottom);
 		if (height_mode == YGMeasureModeAtMost) {
 			size.height = std::min(height, size.height);
-			std::cout << "Height mode is YGMeasureModeAtMost (" << height << "," << size.height << ")" << std::endl;
-		} else {
-
-			std::cout << "Height mode is undefined (" << height << ")"<<std::endl;
 		}
 	}
 
