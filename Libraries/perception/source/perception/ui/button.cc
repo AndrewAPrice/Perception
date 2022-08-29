@@ -105,8 +105,8 @@ void Button::Draw(DrawContext& draw_context) {
 		text_offset = 0;
 	}
 
-	int x = (int)GetLeft();
-	int y = (int)GetTop();
+	int x = (int)(GetLeft() + draw_context.offset_x);
+	int y = (int)(GetTop() + draw_context.offset_x);
 
 	int width = (int)GetCalculatedWidth();
 	int height = (int)GetCalculatedHeight();

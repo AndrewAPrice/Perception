@@ -102,6 +102,8 @@ private:
 	int frontbuffer_texture_id_;
 	SharedMemory texture_shared_memory_;
 	SharedMemory frontbuffer_shared_memory_;
+    int buffer_width_;
+    int buffer_height_;
 
 	void SwitchToMouseOverWidget(std::shared_ptr<Widget> widget);
 	void ReleaseTextures();

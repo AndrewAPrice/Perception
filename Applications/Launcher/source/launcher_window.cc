@@ -58,7 +58,10 @@ void ShowLauncherWindow() {
 			Defer([]() {
 				launcher_window.reset();
 			});
-		})->AddChild(
+		})->
+		SetJustifyContent(YGJustifyCenter)->
+		SetAlignContent(YGAlignCenter)->
+		AddChild(
 			std::make_shared<Label>()->
 				SetTextAlignment(TextAlignment::MiddleCenter)->
 				SetLabel("TODO: Implement")->

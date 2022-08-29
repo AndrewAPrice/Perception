@@ -14,11 +14,12 @@
 
 #include "perception/ui/widget.h"
 
+#include "perception/ui/draw_context.h"
+
 namespace perception {
 namespace ui {
 
 Widget::Widget() :
-	width_(kFillParent), height_(kFillParent),
 	layout_dirtied_(true), yoga_node_(YGNodeNew()) {
     YGNodeSetContext(yoga_node_, this);
     YGNodeSetDirtiedFunc(yoga_node_, &Widget::LayoutDirtied);
@@ -440,6 +441,10 @@ bool Widget::GetDidLegacyStretchFlagAffectLayout() {
 }
 
 void Widget::Draw(DrawContext& draw_context) {
+    float old_offset_x = draw_context.offset_x;
+    float old_offset_y = draw_context.offset_y;
+    draw_context.offset_x += GetLeft();
+    draw_context.offset_y += GetTop();
     for (auto& child : children_)
         child->Draw(draw_context);
 }

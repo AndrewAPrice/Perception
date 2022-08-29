@@ -81,15 +81,14 @@ void Font::DrawString(int x, int y, std::string_view string,
 		int out_y = y + font_char->y0;
 
 		int in_indx = in_y * STB_FONT_DejaVuSans_BITMAP_WIDTH + in_x;
-		int out_indx = out_y * buffer_width + out_x;
 
 		for(int y = in_y; y < end_in_y; y++) {
 			int next_in_indx = in_indx + STB_FONT_DejaVuSans_BITMAP_WIDTH;
-			int next_out_indx = out_indx + buffer_width;
 
 			for(int x = in_x; x < end_in_x; x++) {
 				if (x >= 0 && x < buffer_width &&
 					y >= 0 && y < buffer_height) {
+					int out_indx = out_y * buffer_width + out_x;
 					uint8 c = font_bitmap_[in_indx];
 					if(c) {
 						if (c == 255) {
@@ -107,11 +106,9 @@ void Font::DrawString(int x, int y, std::string_view string,
 					}
 				}
 				in_indx++;
-				out_indx++;
 			}
 
 			in_indx = next_in_indx;
-			out_indx = next_out_indx;
 		}
 
 		// Move to the next position.

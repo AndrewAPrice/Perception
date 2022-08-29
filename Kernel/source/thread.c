@@ -123,6 +123,7 @@ struct Thread *CreateThread(struct Process *process, size_t entry_point, size_t 
 	memset(thread->fpu_registers, 0, 512);
 
 	thread->address_to_clear_on_termination = 0;
+	thread->uses_fpu_registers = true;
 
 	return thread;
 }

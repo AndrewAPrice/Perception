@@ -83,8 +83,8 @@ void TextBox::Draw(DrawContext& draw_context) {
 
 	int width = (int)GetCalculatedWidth();
 	int height = (int)GetCalculatedHeight();
-	int x = (int)GetLeft();
-	int y = (int)GetTop();
+	int x = (int)(GetLeft() + draw_context.offset_x);
+	int y = (int)(GetTop() + draw_context.offset_y);
 
 	// Left line.
 	DrawYLine(x, y,
@@ -153,7 +153,8 @@ YGSize TextBox::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
 		size.width = width;
 	} else {
 		size.width = (float)GetUiFont()->MeasureString(text_box->value_) +
-			text_box->GetComputedPadding(YGEdgeHorizontal);
+			text_box->GetComputedPadding(YGEdgeTop) +
+			text_box->GetComputedPadding(YGEdgeBottom);
 		if (width_mode == YGMeasureModeAtMost) {
 			size.width = std::min(width, size.width);
 		}
@@ -162,7 +163,8 @@ YGSize TextBox::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
 		size.height = height;
 	} else {
 		size.height = (float)GetUiFont()->GetHeight() +
-			text_box->GetComputedPadding(YGEdgeVertical);
+			text_box->GetComputedPadding(YGEdgeLeft) +
+			text_box->GetComputedPadding(YGEdgeRight);
 		if (height_mode == YGMeasureModeAtMost) {
 			size.height = std::min(height, size.height);
 		}

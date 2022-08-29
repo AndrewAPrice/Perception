@@ -53,11 +53,11 @@ UiWindow::UiWindow(std::string_view title,
 	auto status_or_result = WindowManager::Get().CallCreateWindow(
 		std::move(create_window_request));
 	if (status_or_result) {
-		width_ = status_or_result->GetWidth();
-		height_ = status_or_result->GetHeight();
+		buffer_width_ = status_or_result->GetWidth();
+		buffer_height_ = status_or_result->GetHeight();
 	} else {
-		width_ = 0;
-		height_ = 0;
+		buffer_width_ = 0;
+		buffer_height_ = 0;
 	}
 }
 
@@ -189,8 +189,10 @@ void UiWindow::HandleOnKeyboardReleased(ProcessId,
 void UiWindow::HandleSetSize(ProcessId,
 	const Window::SetSizeMessage& message) {
 	std::cout << "Window " << title_ << " resized to " << message.GetWidth() << "," << message.GetHeight() << std::endl;
-	SetWidth((float)message.GetWidth());
-	SetHeight((float)message.GetHeight());
+	buffer_width_ = message.GetWidth();
+	buffer_height_ = message.GetHeight();
+	SetWidth((float)buffer_width_);
+	SetHeight((float)buffer_height_);
 	rebuild_texture_ = true;
 	InvalidateRender();
 }
@@ -219,14 +221,12 @@ void UiWindow::Draw() {
 		// The window size has changed.
 
 		ReleaseTextures();
-		int width = (int)GetCalculatedWidth();
-		int height = (int)GetCalculatedHeight();
 
-		if (width > 0 && height > 0) {
+		if (buffer_width_ > 0 && buffer_height_ > 0) {
 			// Create the back buffer we draw into.
 			GraphicsDriver::CreateTextureRequest request;
-			request.SetWidth(width);
-			request.SetHeight(height);
+			request.SetWidth(buffer_width_);
+			request.SetHeight(buffer_height_);
 			auto status_or_response =
 				GraphicsDriver::Get().CallCreateTexture(request);
 			if (status_or_response) {
@@ -251,35 +251,43 @@ void UiWindow::Draw() {
 		rebuild_texture_ = false;
 	}
 
-	if (width_ == 0 || height_ == 0 ||
+	if (buffer_width_ == 0 || buffer_height_ == 0 ||
 		!texture_shared_memory_.Join() || !frontbuffer_shared_memory_.Join())
 		return;
 
 	// Set up our DrawContext to draw into back buffer.
 	DrawContext draw_context;
 	draw_context.buffer = static_cast<uint32*>(*texture_shared_memory_);
-	draw_context.buffer_width = width_;
-	draw_context.buffer_height = height_;
+	draw_context.buffer_width = buffer_width_;
+	draw_context.buffer_height = buffer_height_;
+	draw_context.offset_x = 0.0f;
+	draw_context.offset_y = 0.0f;
 
 	if (background_color_) {
-		FillRectangle(0, 0, width_, height_,
+		FillRectangle(0, 0, buffer_width_, buffer_height_,
 			background_color_, draw_context.buffer,
 			draw_context.buffer_width, draw_context.buffer_height);
+	}
+
+	if (YGNodeIsDirty(yoga_node_)) {
+		YGNodeCalculateLayout(yoga_node_,
+			(float)buffer_width_, (float)buffer_height_,
+			YGDirectionLTR);
 	}
 
 	Widget::Draw(draw_context);
 
     // Copy the backbuffer to the front buffer.
     memcpy(*frontbuffer_shared_memory_, *texture_shared_memory_,
-    	width_ * height_ * 4);
+    	buffer_width_ * buffer_height_ * 4);
 
     // Tell the window manager the back buffer is ready to draw.
     WindowManager::InvalidateWindowMessage message;
     message.SetWindow(*this);
     message.SetLeft(0);
     message.SetTop(0);
-    message.SetRight(static_cast<uint16>(width_));
-    message.SetBottom(static_cast<uint16>(height_));
+    message.SetRight(static_cast<uint16>(buffer_width_));
+    message.SetBottom(static_cast<uint16>(buffer_height_));
     WindowManager::Get().SendInvalidateWindow(message);
 
 	invalidated_ = false;

@@ -23,6 +23,7 @@ struct DrawContext {
 	uint32* buffer;
 	int buffer_width;
 	int buffer_height;
+	float offset_x, offset_y;
 };
 
 }

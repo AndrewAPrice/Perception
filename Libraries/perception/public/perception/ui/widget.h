@@ -185,8 +185,6 @@ protected:
     std::list<std::shared_ptr<Widget>> children_;
 
     YGNode* yoga_node_;
-    int width_;
-    int height_;
     bool layout_dirtied_;
 
 private:
