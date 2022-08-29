@@ -191,7 +191,7 @@ int main() {
 						SetWidthPercent(50)->SetHeightPercent(20)->ToSharedPtr(),
 					CreateButton(".", PressDecimal)
 				})->ToSharedPtr()
-		)->SetMargin(YGEdgeAll, 8);
+		)->SetPadding(YGEdgeAll, 8);
 
 	HandOverControl();
 	return 0;

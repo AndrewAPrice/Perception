@@ -34,19 +34,19 @@ using ::perception::SleepForDuration;
 using ::perception::AfterTimeSinceKernelStarted;
 using ::perception::GetTimeSinceKernelStarted;
 
-void CreateWindow(std::string_view title, uint32 color,
+std::shared_ptr<UiWindow> CreateWindow(std::string_view title, uint32 color,
 	bool dialog = false, int width = 0, int height = 0) {
-	new UiWindow(title, dialog, width, height);
+	return std::make_shared<UiWindow>(title, dialog, width, height);
 }
 
 int main() {
-	CreateWindow("Raspberry", 0x0ed321ff);
-	CreateWindow("Blueberry", 0xc5c20dff);
-	CreateWindow("Blackberry", 0xa5214eff);
-	CreateWindow("Strawberry", 0x90bdee);
-	CreateWindow("Boysenberry", 0x25993fff);
-	CreateWindow("Popup Dialog", 0x65e979ff, true, 100, 200);
-	CreateWindow("Another Dialog", 0x7c169aff, true, 80, 80);
+	auto a = CreateWindow("Raspberry", 0x0ed321ff);
+	auto b = CreateWindow("Blueberry", 0xc5c20dff);
+	auto c = CreateWindow("Blackberry", 0xa5214eff);
+	auto d = CreateWindow("Strawberry", 0x90bdee);
+	auto e = CreateWindow("Boysenberry", 0x25993fff);
+	auto f = CreateWindow("Popup Dialog", 0x65e979ff, true, 100, 200);
+	auto g = CreateWindow("Another Dialog", 0x7c169aff, true, 80, 80);
 
 	std::cout << "Kernel time: " << GetTimeSinceKernelStarted().count() << std::endl;
 	std::cout << "Before" << std::endl;
