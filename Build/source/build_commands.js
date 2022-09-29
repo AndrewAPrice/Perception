@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+const path = require('path');
 const {getToolPath} = require('./tools');
 const {escapePath} = require('./escape_path');
 const {PackageType} = require('./package_type');
 const {rootDirectory} = require('./root_directory');
 
-function generateBuildCommand(language, buildSettings) {
+function generateBuildCommand(language, buildSettings, filePath) {
 	let cParams = ' -D' + buildSettings.os.toUpperCase().replace(/-/g, '_') + ' ' +
 					' -D' + buildSettings.build + '_BUILD_ '
 					 + '-fdata-sections -ffunction-sections ';
@@ -50,7 +51,8 @@ function generateBuildCommand(language, buildSettings) {
 		if (isLocalBuild)
 			return '';
 		else
-			return getToolPath('nasm') + ' -felf64 -dPERCEPTION';
+			return getToolPath('nasm') + ' -felf64 -dPERCEPTION -i ' +
+				escapePath(path.dirname(filePath));
 	} else if (language == 'AT&T ASM') {
 		return getToolPath('gcc') + ' -c';
 	} else {
@@ -82,7 +84,7 @@ function getBuildCommand(filePath, packageType, cParams, buildSettings) {
 		return '';
 
 	if (!buildCommands[language])
-		buildCommands[language] = generateBuildCommand(language, buildSettings);
+		buildCommands[language] = generateBuildCommand(language, buildSettings, filePath);
 
 	return addCParams ? buildCommands[language] + cParams : buildCommands[language];
 }

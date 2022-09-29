@@ -1,0 +1,8 @@
+{
+	"dependencies":[
+		"madler zlib",
+		"musl",
+		"unicode-org icu"
+	],
+	"third_party": true
+}

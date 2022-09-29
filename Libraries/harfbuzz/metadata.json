@@ -1,0 +1,12 @@
+{
+	"dependencies":[
+		"freetype",
+		"musl",
+		"unicode-org icu"
+	],
+	"define": [
+		"HAVE_FREETYPE",
+		"HAVE_ICU"
+	],
+	"third_party": true
+}

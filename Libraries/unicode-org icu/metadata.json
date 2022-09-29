@@ -1,0 +1,11 @@
+{
+	"dependencies":[
+		"musl",
+		"harfbuzz icu-le-hb"
+	],
+	"define": [
+		"U_I18N_IMPLEMENTATION",
+		"U_COMMON_IMPLEMENTATION"
+	],
+	"third_party": true
+}

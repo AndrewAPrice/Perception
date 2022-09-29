@@ -1,0 +1,16 @@
+{
+	"dependencies":[
+		"freetype",
+		"gnome libxml2",
+		"musl"
+	],
+	"define": [
+		"HAVE_CONFIG_H",
+		"CONFIGDIR=\"/CONFIGDIR/\"",
+		"FONTCONFIG_PATH=\"/FONTCONFIG_PATH/\"",
+		"FC_CACHEDIR=\"/FC_CACHEDIR/\"",
+		"FC_TEMPLATEDIR=\"/FC_TEMPLATEDIR/\"",
+		"__linux__"
+	],
+	"third_party": true
+}
