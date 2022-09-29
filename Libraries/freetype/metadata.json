@@ -1,0 +1,14 @@
+{
+	"dependencies":[
+		"musl"
+	],
+	"define": [
+		"_LIB",
+		"FT2_BUILD_LIBRARY",
+		"NDEBUG"
+	],
+	"ignore":[
+		"source/lzw/ftzopen.c"
+	],
+	"third_party": true
+}
