@@ -1,0 +1,7 @@
+{
+	"dependencies":[
+		"musl"
+	],
+	"third_party": true
+}
+
