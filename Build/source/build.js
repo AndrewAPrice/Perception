@@ -85,7 +85,7 @@ function constructIncludeAndDefineParams(packageDirectory, metadata) {
 	});
 
 	Object.keys(defines).forEach((define) => {
-		params += ' -D' + define;
+		params += ' -D' + define.replace(/"/g, '\\"');;
 	});
 
 	return params;
