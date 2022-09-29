@@ -2,6 +2,7 @@
 	"public_include": [
 		"include"
 	],
+	"include_priority": 1,
 	"include": [
 		"source",
 		"source/include",

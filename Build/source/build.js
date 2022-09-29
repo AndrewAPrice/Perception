@@ -15,135 +15,91 @@
 const fs = require('fs');
 const child_process = require('child_process');
 const process = require('process');
-const {BuildResult} = require('./build_result');
 const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
 const {getToolPath} = require('./tools');
 const {escapePath} = require('./escape_path');
-const {foreachSourceFile, foreachPermebufSourceFile} = require('./source_files');
+const {foreachSourceFile} = require('./source_files');
 const {forgetFileLastModifiedTimestamp, getFileLastModifiedTimestamp} = require('./file_timestamps');
 const {getBuildCommand, getLinkerCommand, buildPrefix} = require('./build_commands');
 const {getPackageDirectory} = require('./package_directory');
-const {compilePermebufToCpp} = require('./permebufs');
+const {transpilePermebufToCppForPackage} = require('./permebufs');
+const {getMetadata} = require('./metadata');
+const {makeSureThirdPartyIsLoaded} = require('./third_party');
+const {getDisplayFilename} = require('./generated_filename_map');
 
 // Libraries already built on this run, therefore we shouldn't have to build them again.
 const alreadyBuiltLibraries = {};
 
-// A map of the generated source file back to the original file, so if there's an error
-// building the generated file, it's better to show the original file that is broken.
-const generatedFilenameMap = {};
-
-// Returns the filename we should display, respecting generated files that should remap
-// back to the original file.
-function getDisplayFilename(filename) {
-	const remappedFileName = generatedFilenameMap[filename];
-	return remappedFileName ? remappedFileName : filename;
+function forEachIfDefined(array, onEach) {
+	if (array) array.forEach(onEach);
 }
 
-// Builds a package.
-async function build(packageType, packageName, buildSettings, librariesToLink, parentPublicIncludeDirs,
-	librariesToBuild, defines) {
-	if (librariesToLink == undefined) {
-		librariesToLink = {};
-	}
-	if (parentPublicIncludeDirs == undefined) {
-		parentPublicIncludeDirs = [];
+async function build(packageType, packageName, buildSettings) {
+	if (packageType == PackageType.LIBRARY) {
+		if (alreadyBuiltLibraries[packageName] == undefined) {
+			alreadyBuiltLibraries[packageName] = forceBuild(packageType, packageName, buildSettings);
+		}
+		return alreadyBuiltLibraries[packageName];
 	}
 
-	if (librariesToBuild == undefined) {
-		librariesToBuild = {};
+	return forceBuild(packageType, packageName, buildSettings);
+}
+
+function constructIncludeAndDefineParams(packageDirectory, metadata) {
+	let params = '';
+	let alreadyIncludedSource = false;
+	const sourceDir = packageDirectory + 'source';
+
+	function addInclude(includeDir) {
+		params += ' -isystem ' + escapePath(includeDir);
+		if (includeDir == sourceDir) {
+			alreadyIncludedSource = true;
+		}
 	}
-	if (defines == undefined) {
-		defines = {};
+
+	// Set up all the of our include directories.
+	forEachIfDefined(metadata.include, addInclude);
+	forEachIfDefined(metadata.public_include, addInclude);
+
+	if (!alreadyIncludedSource) {
+		params += ' -isystem '+ escapePath(packageDirectory) + 'source';
 	}
+
+	// Set up all of our defines.
+	const defines = {};
+	const definesToRemove = [];
+
+	function addDefine(define) {
+		if (define.startsWith('-')) {
+			definesToRemove.push(define.substr(1));
+		} else {
+			defines[define] = true;
+		}
+	}
+
+	forEachIfDefined(metadata.public_define, addDefine);
+	forEachIfDefined(metadata.define, addDefine);
+
+	definesToRemove.forEach((define) => {
+		delete defines[define];
+	});
+
+	Object.keys(defines).forEach((define) => {
+		params += ' -D' + define;
+	});
+
+	return params;
+}
+
+async function compileAndLink(packageType, packageName, buildSettings, metadata) {
+	const filesToIgnore = {};
+	forEachIfDefined(metadata.ignore, (fileToIgnore) => {
+		filesToIgnore[fileToIgnore] = true;
+	});
 
 	const packageDirectory = getPackageDirectory(packageType, packageName);
-	if (!fs.existsSync(packageDirectory + 'metadata.json')) {
-		fs.writeFileSync(packageDirectory + 'metadata.json', JSON.stringify({ dependencies: [] }));
-	}
-	const metadata = JSON.parse(fs.readFileSync(packageDirectory + 'metadata.json'));
 
-	if (buildSettings.os != 'Perception' && (metadata.skip_local || packageType == PackageType.KERNEL)) {
-		return BuildResult.COMPILED;
-	}
-
-	if (metadata.public_include) {
-		for (let i = 0; i < metadata.public_include.length; i++) {
-			parentPublicIncludeDirs.push(escapePath(packageDirectory) + metadata.public_include[i]);
-		}
-	} else {
-		parentPublicIncludeDirs.push(escapePath(packageDirectory) + 'public');
-	}
-
-	// Include generated header files.
-	let alreadyAddedGeneratedInclude = false;
-	if (fs.existsSync(packageDirectory + 'generated/include')) {
-		const generatedIncludeDir = escapePath(packageDirectory + 'generated/include');
-		parentPublicIncludeDirs.push(generatedIncludeDir);
-		alreadyAddedGeneratedInclude = true;
-	}
-
-	if (packageType == PackageType.LIBRARY) {
-		if (librariesToBuild[packageName] != undefined) {
-			// Library is already being built. Just add its public defines and library path and return.
-			// This supports recursive dependencies between libraries.
-			const libraryToBuild = librariesToBuild[packageName];
-
-			Object.keys(libraryToBuild.defines).forEach((define) => {
-				defines[define] = true;
-			});
-			Object.keys(libraryToBuild.librariesToLink).forEach((libraryToLink) => {
-				librariesToLink[libraryToLink] = true;
-			});
-			return BuildResult.COMPILED;
-		}
-		if (alreadyBuiltLibraries[packageName] != undefined) {
-			const alreadyBuiltLibrary = alreadyBuiltLibraries[packageName];
-
-			Object.keys(alreadyBuiltLibrary.defines).forEach((define) => {
-				defines[define] = true;
-			});
-
-			Object.keys(alreadyBuiltLibrary.librariesToLink).forEach((libraryToLink) => {
-				librariesToLink[libraryToLink] = true;
-			});
-
-			return alreadyBuiltLibrary.status;
-		}
-	}
-
-	if (metadata.public_define) {
-		metadata.public_define.forEach((define) => {
-			defines[define] = true;
-		});
-	}
-	librariesToBuild[packageName] = {
-		defines: defines,
-		librariesToLink: librariesToLink,
-	};
-
-	if (metadata.third_party) {
-		if (fs.existsSync(packageDirectory + 'prepare.js') && !fs.existsSync(packageDirectory + 'third_party_files.json')) {
-			console.log('Preparing ' + packageName);
-			try {
-				child_process.execSync('node prepare', {cwd: packageDirectory, stdio: 'inherit'});
-			} catch (exp) {
-				return BuildResult.ERROR;
-			}
-		}
-	}
-
-	let forceRelinkIfApplication = false;
-	let errors = false;
-
-	const publicIncludeDirs = [];
-
-	const filesToIgnore = {};
-	if (metadata.ignore) {
-		metadata.ignore.forEach((fileToIgnore) => {
-			filesToIgnore[packageDirectory + fileToIgnore] = true;
-		});
-	}
-
+	// Make sure the path exists where we're going to put our outputs.
 	if (!fs.existsSync(packageDirectory + 'build/' + buildPrefix(buildSettings)))
 		fs.mkdirSync(packageDirectory + 'build/' + buildPrefix(buildSettings), {recursive: true});
 
@@ -151,151 +107,10 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 	let dependenciesPerFile = fs.existsSync(depsFile) ? JSON.parse(fs.readFileSync(depsFile)) : {};
 
 	let anythingChanged = false;
-
-	if (packageType != PackageType.KERNEL) {
-		// Construct generated files.
-		await foreachPermebufSourceFile(packageDirectory,
-			async function (fullPath, localPath) {
-				if (filesToIgnore[fullPath]) {
-					return;
-				}
-
-				if (!localPath.endsWith('.permebuf')) {
-					// Not a permebuf file.
-					return;
-				}
-
-				let shouldCompileFile = false;
-
-				// We just need one of the generated files to tell if the source file is newer or not.
-				const outputFile = packageDirectory + 'generated/source/permebuf/' + getPackageTypeDirectoryName(packageType) +
-					'/' + packageName + '/' + localPath + '.cc';
-				generatedFilenameMap[outputFile] = fullPath;
-
-				if (!fs.existsSync(outputFile)) {
-					// Compile if the output file doesn't exist.
-					shouldCompileFile = true;
-				} else {
-					const outputFileTimestamp = fs.lstatSync(outputFile).mtimeMs;
-
-					const deps = dependenciesPerFile[fullPath];
-					if (deps == null) {
-						// Compile because we don't know the dependencies.
-						shouldCompileFile = true;
-					} else {
-						for (let i = 0; i < deps.length; i++) {
-							if (getFileLastModifiedTimestamp(deps[i]) >= outputFileTimestamp) {
-								// Compile because one of the dependencies is newer.
-								shouldCompileFile = true;
-								break;
-							}
-						}
-					}
-				}
-
-				if (shouldCompileFile) {
-					console.log('Compiling ' + fullPath + ' to C++');
-					deps = [];
-					if (!compilePermebufToCpp(localPath,
-						packageName,
-						packageType,
-						deps)) {
-						errors = true;
-					}
-					dependenciesPerFile[fullPath] = deps;
-					anythingChanged = true;
-				}
-			});
-
-		// If this package is compiled as a unit test, the dependencies can't be, because they aren't what are being tested.
-		let childBuildSettings = buildSettings;
-		if (buildSettings.test) {
-			childBuildSettings = Object.assign({}, buildSettings);
-			childBuildSettings.test = false;
-		}
-
-		// The kernel can't depend on anything other than itself.
-		for (let i = 0; i < metadata.dependencies.length; i++) {
-			const dependency = metadata.dependencies[i];
-			// console.log('Depends on ' + dependency);
-			const childDefines = {};
-			const success = await build(PackageType.LIBRARY, dependency, childBuildSettings, librariesToLink, publicIncludeDirs, librariesToBuild,
-				childDefines);
-			if (!success) {
-				console.log('Dependency ' + dependency + ' failed to build.');
-
-			    if (anythingChanged) {
-					fs.writeFileSync(depsFile, JSON.stringify(dependenciesPerFile));
-				}
-
-				return BuildResult.FAILED;
-			};
-			Object.keys(childDefines).forEach((define) => {
-				defines[define] = true;
-			});
-		}
-	}
-
-	let params = '';
-
-	let alreadyIncludedSource = false;
-
-	if (metadata.include) {
-		metadata.include.forEach((includeDir) => {
-			params += ' -isystem ' + escapePath(packageDirectory + includeDir);
-			if (includeDir == 'source') {
-				alreadyIncludedSource = true;
-			}
-		});
-	}
-
-	if (metadata.public_include) {
-		for (let i = 0; i < metadata.public_include.length; i++) {
-			params += ' -isystem '+ escapePath(packageDirectory + metadata.public_include[i]);
-		}
-	} else {
-		params += ' -isystem '+ escapePath(packageDirectory) + 'public';
-	}
-
-	// Include generated header files.
-	if (fs.existsSync(packageDirectory + 'generated/include')) {
-		const generatedIncludeDir = escapePath(packageDirectory + 'generated/include');
-		params += ' -isystem ' + generatedIncludeDir;
-		if (!alreadyAddedGeneratedInclude)
-			parentPublicIncludeDirs.push(generatedIncludeDir);
-	}
-
-	// Public dirs exported by each of our dependencies.
-	publicIncludeDirs.forEach((includeDir) => {
-		params += ' -isystem ' + includeDir; // Pre-escaped.
-		parentPublicIncludeDirs.push(includeDir);
-	});
-
-
-	if (!alreadyIncludedSource) {
-		params += ' -isystem '+ escapePath(packageDirectory) + 'source';
-	}
-
-	let localDefines = defines;
-	if (metadata.define) {
-		localDefines = Object.assign({}, defines);
-		metadata.define.forEach((define) => {
-			if (define.startsWith('-')) {
-				const symbol = define.substr(1);
-				if (localDefines[symbol]) {
-					delete localDefines[symbol];
-				}
-			} else {
-				localDefines[define] = true;
-			}
-		});
-	}
-
-	Object.keys(localDefines).forEach((define) => {
-		params += ' -D' + define;
-	});
+	let params = constructIncludeAndDefineParams(packageDirectory, metadata);
 
 	let objectFiles = [];
+	let errors = false;
 
     await foreachSourceFile(packageDirectory,
     	buildSettings,
@@ -324,11 +139,15 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 					// Compile because we don't know the dependencies.
 					shouldCompileFile = true;
 				} else {
-					for (let i = 0; i < deps.length; i++) {
-						if (getFileLastModifiedTimestamp(deps[i]) >= objectFileTimestamp) {
-							// Compile because one of the dependencies is newer.
-							shouldCompileFile = true;
-							break;
+					if (metadata.metadata_updated >= objectFileTimestamp) {
+						shouldCompileFile = true;
+					} else {
+						for (let i = 0; i < deps.length; i++) {
+							if (getFileLastModifiedTimestamp(deps[i]) >= objectFileTimestamp) {
+								// Compile because one of the dependencies is newer.
+								shouldCompileFile = true;
+								break;
+							}
 						}
 					}
 				}
@@ -376,42 +195,36 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 				}
 			}
 		});
+
     if (anythingChanged) {
 		fs.writeFileSync(depsFile, JSON.stringify(dependenciesPerFile));
 	}
 
 	if (errors) {
 		console.log('There were errors compiling.');
-		if (packageType == PackageType.LIBRARY) {
-			alreadyBuiltLibraries[packageName] = {
-				defines: {},
-				librariesToLink: {},
-				status: BuildResult.FAILED
-			};
-		}
-		return BuildResult.FAILED;
-	} else if (objectFiles.length == 0) {
-		// Nothing to link. This might be a header only library.
-		if (packageType == PackageType.LIBRARY) {
-			alreadyBuiltLibraries[packageName] = {
-				defines: defines,
-				librariesToLink: librariesToLink,
-				status: BuildResult.COMPILED
-			};
-			return BuildResult.COMPILED;
-		}
-		return BuildResult.FAILED;
+		return false;
+	}
+
+	return link(packageType, packageName, packageDirectory, objectFiles, anythingChanged, buildSettings,
+		metadata);
+}
+
+function libraryBinaryPath(packageName, buildSettings) {
+	const packageDirectory = getPackageDirectory(PackageType.LIBRARY, packageName);
+	return packageDirectory + 'build/' + buildPrefix(buildSettings) + '.lib';
+}
+
+async function link(packageType, packageName, packageDirectory, objectFiles, anythingChanged, buildSettings,
+	metadata) {
+	if (objectFiles.length == 0) {
+		// Nothing to link. This might be a header only library, but an error for non-libraries.
+		return packageType == PackageType.LIBRARY;
 	} else if (packageType == PackageType.LIBRARY) {
-		const binaryPath = packageDirectory + 'build/' + buildPrefix(buildSettings) + '.lib';
-		librariesToLink[binaryPath] = true;
+		// Link library.
+		const binaryPath = libraryBinaryPath(packageName, buildSettings);
 		if (!anythingChanged && fs.existsSync(binaryPath)) {
-			const status = forceRelinkIfApplication ? BuildResult.COMPILED : BuildResult.ALREADY_BUILT;
-			alreadyBuiltLibraries[packageName] = {
-				defines: defines,
-				librariesToLink: librariesToLink,
-				status: status
-			};
-			return status;
+			// Nothing changed and the file exists.
+			return true;
 		}
 		if (fs.existsSync(binaryPath)) {
 			fs.unlinkSync(binaryPath);
@@ -421,39 +234,35 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 		const command = getLinkerCommand(
 			PackageType.LIBRARY, escapePath(binaryPath),
 			objectFiles.join(' '), buildSettings);
-		//console.log(command);
 		try {
 			child_process.execSync(command);
-			compiled = true;
 		} catch (exp) {
-			alreadyBuiltLibraries[packageName] = {
-				defines: {},
-				librariesToLink: {},
-				status: BuildResult.FAILED
-			};
-			return BuildResult.FAILED;
+			return false;
 		}
 
-		alreadyBuiltLibraries[packageName] = {
-			defines: defines,
-			librariesToLink: librariesToLink,
-			status: BuildResult.COMPILED
-		};
-		return BuildResult.COMPILED;
+		return true;
 	} else if (packageType == PackageType.APPLICATION) {
+		// Link application.
 		const binaryPath = packageDirectory + 'build/' + buildPrefix(buildSettings) + '.app';
-		if (!anythingChanged && fs.existsSync(binaryPath)
-			&& !forceRelinkIfApplication) {
+		const librariesToLink = [];
+
+		forEachIfDefined(metadata.libraries, library => {
+			const libraryPath = libraryBinaryPath(library, buildSettings);
+			if (fs.existsSync(libraryPath)) {
+				// There can be header only libraries that didn't build anything.
+				librariesToLink.push(libraryPath);
+			}
+		});
+
+		if (!anythingChanged && fs.existsSync(binaryPath)) {
 			// We already exist. Check if any libraries are newer that us (even if they didn't recompile.)
 			const ourTimestamp = getFileLastModifiedTimestamp(binaryPath);
 
-			if (Object.keys(librariesToLink).find(libraryToLink => {
-					const libraryTimestamp = getFileLastModifiedTimestamp(libraryToLink);
-					if (libraryTimestamp > ourTimestamp) { // The library is newer than us, relink.
-						return true;
-					}
-				}) == undefined) {
-				return BuildResult.ALREADY_BUILT;
+			if (librariesToLink.find(
+				libraryToLink => (getFileLastModifiedTimestamp(libraryToLink) > ourTimestamp))
+				== undefined) {
+				// No libraries are newer than us, no need to relink.
+				return true;
 			}
 		}
 		if (fs.existsSync(binaryPath)) {
@@ -461,7 +270,7 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 		}
 		console.log("Building application " + packageName);
 		let linkerInput = objectFiles.join(' ') /* pre-escaped */;
-		Object.keys(librariesToLink).forEach((libraryToLink) => {
+		librariesToLink.forEach(libraryToLink => {
 			linkerInput += ' ' + escapePath(libraryToLink);
 		});
 
@@ -473,13 +282,14 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 			compiled = true;
 			forgetFileLastModifiedTimestamp(binaryPath);
 		} catch (exp) {
-			return BuildResult.FAILED;
+			return false;
 		}
 
-		return BuildResult.COMPILED;
+		return true;
 	} else if (packageType == PackageType.KERNEL) {
+		// Link kernel.
 		if (!anythingChanged && fs.existsSync(packageDirectory + 'kernel.app')) {
-			return BuildResult.ALREADY_BUILT;
+			return true;
 		}
 		if (fs.existsSync(packageDirectory + 'kernel.app')) {
 			fs.unlinkSync(packageDirectory + 'kernel.app');
@@ -492,14 +302,64 @@ async function build(packageType, packageName, buildSettings, librariesToLink, p
 			child_process.execSync(command);
 			compiled = true;
 		} catch (exp) {
-			return BuildResult.FAILED;
+			return false;
 		}
 
-		return BuildResult.COMPILED;
+		return true;
 	} else {
 		console.log('Unknown project type.');
-		return BuildResult.FAILED;
+		return false;
 	}
+}
+
+// Builds a package.
+async function forceBuild(packageType, packageName, buildSettings) {
+	const isLocal = buildSettings.os != 'Perception';
+	const metadata = getMetadata(packageName, packageType, isLocal);
+
+	if (isLocal && (metadata.skip_local || packageType == PackageType.KERNEL)) {
+		return true;
+	}
+
+	let error = false;
+
+	// If there are any third party libraries, make sure they're loaded.
+	forEachIfDefined(metadata.third_party_libraries, third_party_library => {
+		error |= !makeSureThirdPartyIsLoaded(third_party_library, PackageType.LIBRARY);
+	});
+
+	// If we are third party, make sure we're loaded.
+	if (metadata.third_party) {
+		error |= !makeSureThirdPartyIsLoaded(packageName, packageType);
+	}
+	if (error) return false;
+
+	// If anything we dependend on have Permebufs, transpile them.
+	forEachIfDefined(metadata.libraries_with_permebufs, library_with_permebufs => {
+		error |= !transpilePermebufToCppForPackage(library_with_permebufs, PackageType.LIBRARY, buildSettings);
+	});
+
+	// If we have Permebufs, transpile them.
+	if (metadata.has_permebufs) {
+		error |= !transpilePermebufToCppForPackage(packageName, packageType, buildSettings);
+	}
+	if (error) return false;
+
+	// We have dependencies, build them before us.
+	if (packageType == PackageType.APPLICATION && metadata.libraries) {
+		for (let i = 0; i < metadata.libraries.length; i++) {
+			const dependency = metadata.libraries[i];
+			const childDefines = {};
+			const success = await build(PackageType.LIBRARY, dependency, buildSettings);
+			if (!success) {
+				console.log('Dependency ' + dependency + ' failed to build.');
+				return false;
+			}
+		}
+	}
+
+	// All of the prework is done. The only thing left to do is to build this package.
+	return compileAndLink(packageType, packageName, buildSettings, metadata);
 };
 
 module.exports = {

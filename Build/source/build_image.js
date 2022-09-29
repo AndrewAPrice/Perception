@@ -21,7 +21,6 @@ const {getToolPath} = require('./tools');
 const {rootDirectory} = require('./root_directory');
 const {escapePath} = require('./escape_path');
 const {getFileLastModifiedTimestamp} = require('./file_timestamps');
-const {BuildResult} = require('./build_result');
 const {PackageType} = require('./package_type');
 
 const GRUB_MKRESCUE_COMMAND = getToolPath('grub-mkrescue') + ' -o ' + escapePath(rootDirectory) +
@@ -65,7 +64,7 @@ async function buildImage(buildSettings) {
 				success = await build(PackageType.LIBRARY, libraryName, buildSettings);
 				if (!success) {
 					console.log('Compile error. Stopping the world.');
-					return BuildResult.FAILED;
+					return false;
 				}
 			}
 		}
@@ -80,17 +79,17 @@ async function buildImage(buildSettings) {
 				success = await build(PackageType.APPLICATION, applicationName, buildSettings);
 				if (!success) {
 					console.log('Compile error. Stopping the world.');
-					return BuildResult.FAILED;
+					return false;
 				}
 			}
 		}
-		return BuildResult.COMPILED;
+		return true;
 	} else {
 		// Build everything into an image.
 		let success = await build(PackageType.KERNEL, '', buildSettings);
 		if (!success) {
 			console.log('Build error. Stopping the world.');
-			return BuildResult.FAILED;
+			return false;
 		}
 
 		const prefix = buildPrefix(buildSettings);
@@ -107,7 +106,7 @@ async function buildImage(buildSettings) {
 				success = await build(PackageType.APPLICATION, applicationName, buildSettings);
 				if (!success) {
 					console.log('Compile error. Stopping the world.');
-					return BuildResult.FAILED;
+					return false;
 				}
 
 				somethingChanged |= copyIfNewer(
@@ -129,11 +128,11 @@ async function buildImage(buildSettings) {
 			try {
 				child_process.execSync(command);
 			} catch (exp) {
-				return BuildResult.FAILED;
+				return false;
 			}
 		}
 
-		return BuildResult.COMPILED;
+		return true;
 	}
 }
 
