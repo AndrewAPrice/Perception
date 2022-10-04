@@ -81,5 +81,5 @@ Call all commands from inside the Build directory. Here are some useful ones:
 
 You can lean more about the build system and more commands in [Build/README.md](Build/README.md).
 
-## Developing
-I use Sublime Text with [EasyClangComplete](https://github.com/niosus/EasyClangComplete). Upon building, the build system generates `.clang_complete` files which should help with automcompletion.
+## Code Completion Support
+Upon building, the build system generates `.clang_complete` files can be used for code completion. I use Sublime Text with [EasyClangComplete](https://github.com/niosus/EasyClangComplete). 

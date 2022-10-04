@@ -31,8 +31,10 @@ function maybeGenerateClangCompleteFile(packageDirectory, metadata,
 		}
 	}
 
-	const fileContents = constructIncludeAndDefineParams(packageDirectory,
-		metadata, subDirectory, addLocalIncludes, true).join(EOL);
+	const fileContents = ['-D PERCEPTION', '-ffreestanding', '-nostdlib',
+		'-mno-red-zone '].join(EOL) + EOL +
+		constructIncludeAndDefineParams(packageDirectory,
+			metadata, subDirectory, addLocalIncludes, true).join(EOL);
 
 	fs.writeFileSync(clangCompletePath, fileContents);
 }
