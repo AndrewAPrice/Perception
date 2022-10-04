@@ -17,7 +17,6 @@ const child_process = require('child_process');
 const process = require('process');
 const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
 const {getToolPath} = require('./tools');
-const {escapePath} = require('./escape_path');
 const {foreachSourceFile} = require('./source_files');
 const {forgetFileLastModifiedTimestamp, getFileLastModifiedTimestamp} = require('./file_timestamps');
 const {getBuildCommand, getLinkerCommand, buildPrefix} = require('./build_commands');
@@ -26,13 +25,12 @@ const {transpilePermebufToCppForPackage} = require('./permebufs');
 const {getMetadata} = require('./metadata');
 const {makeSureThirdPartyIsLoaded} = require('./third_party');
 const {getDisplayFilename} = require('./generated_filename_map');
+const {constructIncludeAndDefineParams} = require('./build_parameters');
+const {escapePath, forEachIfDefined} = require('./utils');
+const {maybeGenerateClangCompleteFilesForProject} = require('./clang_complete');
 
 // Libraries already built on this run, therefore we shouldn't have to build them again.
 const alreadyBuiltLibraries = {};
-
-function forEachIfDefined(array, onEach) {
-	if (array) array.forEach(onEach);
-}
 
 async function build(packageType, packageName, buildSettings) {
 	if (packageType == PackageType.LIBRARY) {
@@ -45,59 +43,11 @@ async function build(packageType, packageName, buildSettings) {
 	return forceBuild(packageType, packageName, buildSettings);
 }
 
-function constructIncludeAndDefineParams(packageDirectory, metadata) {
-	let params = '';
-	let alreadyIncludedSource = false;
-	const sourceDir = packageDirectory + 'source';
-
-	function addInclude(includeDir) {
-		params += ' -isystem ' + escapePath(includeDir);
-		if (includeDir == sourceDir) {
-			alreadyIncludedSource = true;
-		}
-	}
-
-	// Set up all the of our include directories.
-	forEachIfDefined(metadata.include, addInclude);
-	forEachIfDefined(metadata.public_include, addInclude);
-
-	if (!alreadyIncludedSource) {
-		params += ' -isystem '+ escapePath(packageDirectory) + 'source';
-	}
-
-	// Set up all of our defines.
-	const defines = {};
-	const definesToRemove = [];
-
-	function addDefine(define) {
-		if (define.startsWith('-')) {
-			definesToRemove.push(define.substr(1));
-		} else {
-			defines[define] = true;
-		}
-	}
-
-	forEachIfDefined(metadata.public_define, addDefine);
-	forEachIfDefined(metadata.define, addDefine);
-
-	definesToRemove.forEach((define) => {
-		delete defines[define];
-	});
-
-	Object.keys(defines).forEach((define) => {
-		params += ' -D' + define.replace(/"/g, '\\"');;
-	});
-
-	return params;
-}
-
-async function compileAndLink(packageType, packageName, buildSettings, metadata) {
+async function compileAndLink(packageType, packageName, packageDirectory, buildSettings, metadata) {
 	const filesToIgnore = {};
 	forEachIfDefined(metadata.ignore, (fileToIgnore) => {
 		filesToIgnore[fileToIgnore] = true;
 	});
-
-	const packageDirectory = getPackageDirectory(packageType, packageName);
 
 	// Make sure the path exists where we're going to put our outputs.
 	if (!fs.existsSync(packageDirectory + 'build/' + buildPrefix(buildSettings)))
@@ -107,7 +57,8 @@ async function compileAndLink(packageType, packageName, buildSettings, metadata)
 	let dependenciesPerFile = fs.existsSync(depsFile) ? JSON.parse(fs.readFileSync(depsFile)) : {};
 
 	let anythingChanged = false;
-	let params = constructIncludeAndDefineParams(packageDirectory, metadata);
+	let params = ' ' + constructIncludeAndDefineParams(packageDirectory,
+		metadata, 'source', true, false).join(' ');
 
 	let objectFiles = [];
 	let errors = false;
@@ -358,11 +309,22 @@ async function forceBuild(packageType, packageName, buildSettings) {
 		}
 	}
 
-	// All of the prework is done. The only thing left to do is to build this package.
-	return compileAndLink(packageType, packageName, buildSettings, metadata);
+	// Update our .clang_complete files so that auto-complete works in editors.
+	const packageDirectory = getPackageDirectory(packageType, packageName);
+	maybeGenerateClangCompleteFilesForProject(packageDirectory, metadata);
+
+	// All of the prework is done. The only thing left to do is to build this
+	// package.
+	if (buildSettings.compile) {
+		return compileAndLink(packageType, packageName, packageDirectory,
+			buildSettings, metadata);
+	} else {
+		return true;
+	}
 };
 
 module.exports = {
 	build: build
 };
+
 

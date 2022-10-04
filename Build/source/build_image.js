@@ -19,7 +19,7 @@ const {build} = require('./build');
 const {buildPrefix} = require('./build_commands');
 const {getToolPath} = require('./tools');
 const {rootDirectory} = require('./root_directory');
-const {escapePath} = require('./escape_path');
+const {escapePath} = require('./utils');
 const {getFileLastModifiedTimestamp} = require('./file_timestamps');
 const {PackageType} = require('./package_type');
 
@@ -83,6 +83,7 @@ async function buildImage(buildSettings) {
 				}
 			}
 		}
+
 		return true;
 	} else {
 		// Build everything into an image.
@@ -121,6 +122,11 @@ async function buildImage(buildSettings) {
 					rootDirectory + 'Applications/' + applicationName + '/launcher.json',
 					rootDirectory + 'fs/Applications/' + applicationName + '/launcher.json');
 			}
+		}
+		
+		if (!buildSettings.compile) {
+			console.log('Nothing was compiled, so no image is built.');
+			return false;
 		}
 
 		if (somethingChanged || !fs.existsSync(rootDirectory + 'Perception.iso')) {

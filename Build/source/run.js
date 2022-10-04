@@ -17,7 +17,7 @@ const child_process = require('child_process');
 const {build} = require('./build');
 const {buildImage} = require('./build_image');
 const {buildPrefix} = require('./build_commands');
-const {escapePath} = require('./escape_path');
+const {escapePath} = require('./utils');
 const {PackageType} = require('./package_type');
 const {rootDirectory} = require('./root_directory');
 const {getToolPath} = require('./tools');
@@ -44,6 +44,9 @@ async function run(package, buildSettings) {
 			process.exit(-1);
 		}
 		build(PackageType.APPLICATION, package, buildSettings).then((res) => {
+			if (!buildSettings.compile) {
+				console.log('Nothing was compiled, so nothing to run.');
+			}
 			if (res) {
 				child_process.execSync(escapePath(rootDirectory + 'Applications/' + package + '/build/' +
 					buildPrefix(buildSettings) + '.app'), {stdio: 'inherit'});

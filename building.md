@@ -73,9 +73,13 @@ Then rerun the above `brew install` command to continue installing everything.
 ## Building
 Call all commands from inside the Build directory. Here are some useful ones:
 
-- `./build` - Builds everything. The kernel, all applications, and creates a Perception.iso in the root directory.
+- `./build all` - Builds everything. The kernel, all applications, and creates a Perception.iso in the root directory.
 - `./build run` - Builds everything and starts QEMU.
 - `./build run <application> --local` - Builds an application and runs it locally in the host OS.
 - `./build clean` - Cleans up built files.
+- `./build all --prepare` - Prepares applications and libraries (downloads third party files, generates auto-complete metadata, transpiles Permebuf files, etc.) without actually building anything.
 
 You can lean more about the build system and more commands in [Build/README.md](Build/README.md).
+
+## Developing
+I use Sublime Text with [EasyClangComplete](https://github.com/niosus/EasyClangComplete). Upon building, the build system generates `.clang_complete` files which should help with automcompletion.

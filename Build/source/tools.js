@@ -13,7 +13,7 @@
 // limitations under the License.
 
 const fs = require('fs');
-const {escapePath} = require('./escape_path');
+const {escapePath} = require('./utils');
 
 function PopulateToolsJson() {
 	let toolPaths = {};

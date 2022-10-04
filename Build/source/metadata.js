@@ -14,6 +14,7 @@
 
 const process = require('process');
 const fs = require('fs');
+const {forEachIfDefined} = require('./utils');
 const {getPackageDirectory} = require('./package_directory');
 const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
 
@@ -73,10 +74,6 @@ function getStandaloneLibraryMetadata(name) {
 	return standaloneLibraryMetadatas[name];
 }
 
-function forEachIfDefined(array, onEach) {
-	if (array) array.forEach(onEach);
-}
-
 function constructCombinedMetadata(metadata, name, packageType, isLocal) {
 
 	// Start with merging in this library's metadata.
@@ -85,6 +82,8 @@ function constructCombinedMetadata(metadata, name, packageType, isLocal) {
 	const combinedMetadata = {
 		public_include: [],
 		include: [],
+		my_public_include: [],
+		my_include: [],
 		public_define: [],
 		define: [],
 		libraries: [],
@@ -99,12 +98,14 @@ function constructCombinedMetadata(metadata, name, packageType, isLocal) {
 
 	forEachIfDefined(metadata.public_include, publicInclude => {
 			combinedMetadata.public_include.push(packageDirectory + publicInclude);
+			combinedMetadata.my_public_include.push(publicInclude);
 		});
 	forEachIfDefined(metadata.ignore, ignore => {
 			combinedMetadata.ignore.push(packageDirectory + ignore);
 		});
 	forEachIfDefined(metadata.include, include => {
 			combinedMetadata.include.push(packageDirectory + include);
+			combinedMetadata.my_include.push(include);
 		});
 	forEachIfDefined(metadata.define, define => {
 			combinedMetadata.define.push(define);
@@ -174,6 +175,7 @@ function constructCombinedMetadata(metadata, name, packageType, isLocal) {
 	});
 	// Add the unprioritized includes.
 	unprioritizedIncludesToAdd.forEach(include => combinedMetadata.public_include.push(include));
+
 	return combinedMetadata;
 }
 

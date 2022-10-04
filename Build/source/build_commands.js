@@ -14,7 +14,7 @@
 
 const path = require('path');
 const {getToolPath} = require('./tools');
-const {escapePath} = require('./escape_path');
+const {escapePath} = require('./utils');
 const {PackageType} = require('./package_type');
 const {rootDirectory} = require('./root_directory');
 

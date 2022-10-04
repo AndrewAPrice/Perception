@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 const path = require('path');
 
 // Escape spaces in a path so paths aren't split up when used as part of a command.
@@ -19,6 +20,11 @@ function escapePath(path) {
 	return path.replace(/ /g, '\\ ');
 }
 
+function forEachIfDefined(array, onEach) {
+	if (array) array.forEach(onEach);
+}
+
 module.exports = {
-	escapePath: escapePath
+	escapePath: escapePath,
+	forEachIfDefined: forEachIfDefined
 };

@@ -25,6 +25,7 @@ const {test} = require('./test');
 const buildSettings = {
 	os: 'Perception',
 	build: 'optimized',
+	compile: true,
 	test: false
 };
 
@@ -50,6 +51,9 @@ for (let argIndex = 2; argIndex < process.argv.length; argIndex++) {
 			buildSettings.os = os.type();
 			buildSettings.build = 'debug';
 			buildSettings.test = true;
+			break;
+		case '--prepare':
+			buildSettings.compile = false;
 			break;
 		default:
 			if (command == '')
