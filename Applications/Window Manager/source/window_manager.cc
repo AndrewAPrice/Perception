@@ -23,71 +23,62 @@ using ::perception::ShowLauncher;
 using WM = ::permebuf::perception::WindowManager;
 
 StatusOr<WM::CreateWindowResponse> WindowManager::HandleCreateWindow(
-	::perception::ProcessId sender,
-	Permebuf<WindowManager::WM::CreateWindowRequest> request) {
-	Window* window;
+    ::perception::ProcessId sender,
+    Permebuf<WindowManager::WM::CreateWindowRequest> request) {
+  Window* window;
 
-	if (request->GetIsDialog()) {
-		window = Window::CreateDialog(
-			*request->GetTitle(),
-			request->GetDesiredDialogWidth(),
-			request->GetDesiredDialogHeight(),
-			request->GetFillColor(),
-			request->GetWindow(),
-			request->GetKeyboardListener(),
-			request->GetMouseListener());
-	} else {
-		window = Window::CreateWindow(
-			*request->GetTitle(),
-			request->GetFillColor(),
-			request->GetWindow(),
-			request->GetKeyboardListener(),
-			request->GetMouseListener());
-	}
+  if (request->GetIsDialog()) {
+    window = Window::CreateDialog(
+        *request->GetTitle(), request->GetDesiredDialogWidth(),
+        request->GetDesiredDialogHeight(), request->GetFillColor(),
+        request->GetWindow(), request->GetKeyboardListener(),
+        request->GetMouseListener());
+  } else {
+    window = Window::CreateWindow(
+        *request->GetTitle(), request->GetFillColor(), request->GetWindow(),
+        request->GetKeyboardListener(), request->GetMouseListener());
+  }
 
-	WindowManager::WM::CreateWindowResponse response;
-	if (window != nullptr) {
-		// Respond with the window dimensions if we were able to create this
-		// window.
-		response.SetWidth(window->GetWidth());
-		response.SetHeight(window->GetHeight());
-	}
-	return response;
+  WindowManager::WM::CreateWindowResponse response;
+  if (window != nullptr) {
+    // Respond with the window dimensions if we were able to create this
+    // window.
+    response.SetWidth(window->GetWidth());
+    response.SetHeight(window->GetHeight());
+  }
+  return response;
 }
 
 void WindowManager::HandleCloseWindow(
-	::perception::ProcessId sender,
-	const WindowManager::WM::CloseWindowMessage& message) {
-	std::cout << "Implement WindowManager::HandleCloseWindow" << std::endl;
+    ::perception::ProcessId sender,
+    const WindowManager::WM::CloseWindowMessage& message) {
+  std::cout << "Implement WindowManager::HandleCloseWindow" << std::endl;
 }
 
 void WindowManager::HandleSetWindowTexture(
-	::perception::ProcessId sender,
-	const WindowManager::WM::SetWindowTextureMessage& message) {
-	Window* window = Window::GetWindow(message.GetWindow());
-	if (window != nullptr)
-		window->SetTextureId(message.GetTextureId());
+    ::perception::ProcessId sender,
+    const WindowManager::WM::SetWindowTextureMessage& message) {
+  Window* window = Window::GetWindow(message.GetWindow());
+  if (window != nullptr) window->SetTextureId(message.GetTextureId());
 }
 
 void WindowManager::HandleSetWindowTitle(
-	::perception::ProcessId sender,
-	Permebuf<WindowManager::WM::SetWindowTitleMessage> message) {
-	std::cout << "Implement WindowManager::HandleWindowTitle" << std::endl;
+    ::perception::ProcessId sender,
+    Permebuf<WindowManager::WM::SetWindowTitleMessage> message) {
+  std::cout << "Implement WindowManager::HandleWindowTitle" << std::endl;
 }
 
 void WindowManager::HandleSystemButtonPushed(
-	::perception::ProcessId sender,
-	const WindowManager::WM::SystemButtonPushedMessage& message) {
-	ShowLauncher();
+    ::perception::ProcessId sender,
+    const WindowManager::WM::SystemButtonPushedMessage& message) {
+  ShowLauncher();
 }
 
 void WindowManager::HandleInvalidateWindow(
-	::perception::ProcessId sender,
-	const WindowManager::WM::InvalidateWindowMessage& message) {
-	Window* window = Window::GetWindow(message.GetWindow());
-	if (window != nullptr)
-		window->InvalidateContents(message.GetLeft(),
-			message.GetTop(), message.GetRight(),
-			message.GetBottom());
-
+    ::perception::ProcessId sender,
+    const WindowManager::WM::InvalidateWindowMessage& message) {
+  Window* window = Window::GetWindow(message.GetWindow());
+  if (window != nullptr)
+    window->InvalidateContents(message.GetLeft(), message.GetTop(),
+                               message.GetRight(), message.GetBottom());
 }
