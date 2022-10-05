@@ -19,4 +19,5 @@
 #include "types.h"
 
 bool LoadPciDriver(uint8 base_class, uint8 sub_class, uint8 prog_if,
-	uint16 vendor_id, uint16 device_id, uint8 bus, uint8 slot, uint8 function);
+                   uint16 vendor_id, uint16 device_id, uint8 bus, uint8 slot,
+                   uint8 function);

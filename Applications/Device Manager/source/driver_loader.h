@@ -19,4 +19,3 @@
 void AddDriverToLoad(std::string_view driver_name);
 
 void LoadAllRemainingDrivers();
-

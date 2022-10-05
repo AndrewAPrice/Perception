@@ -18,22 +18,21 @@
 
 class IdeDevice;
 
-class IdeStorageDevice : public ::permebuf::perception::devices::StorageDevice::Server {
-public:
-	typedef ::permebuf::perception::devices::StorageDevice SD;
+class IdeStorageDevice
+    : public ::permebuf::perception::devices::StorageDevice::Server {
+ public:
+  typedef ::permebuf::perception::devices::StorageDevice SD;
 
-	IdeStorageDevice(IdeDevice* device);
-	virtual ~IdeStorageDevice() {}
+  IdeStorageDevice(IdeDevice* device);
+  virtual ~IdeStorageDevice() {}
 
-	StatusOr<Permebuf<SD::GetDeviceDetailsResponse>>
-		HandleGetDeviceDetails(::perception::ProcessId sender,
-		const SD::GetDeviceDetailsRequest& request) override;
+  StatusOr<Permebuf<SD::GetDeviceDetailsResponse>> HandleGetDeviceDetails(
+      ::perception::ProcessId sender,
+      const SD::GetDeviceDetailsRequest& request) override;
 
-	StatusOr<SD::ReadResponse> HandleRead(
-		::perception::ProcessId sender,
-		const SD::ReadRequest& request) override;
+  StatusOr<SD::ReadResponse> HandleRead(
+      ::perception::ProcessId sender, const SD::ReadRequest& request) override;
 
-private:
-	IdeDevice* device_;
-
+ private:
+  IdeDevice* device_;
 };

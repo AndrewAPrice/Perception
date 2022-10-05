@@ -21,52 +21,52 @@
 namespace file_systems {
 
 class Iso9660 : public FileSystem {
-public:
-	Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
-		std::unique_ptr<char[]> root_directory,
-		::permebuf::perception::devices::StorageDevice storage_device);
+ public:
+  Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
+          std::unique_ptr<char[]> root_directory,
+          ::permebuf::perception::devices::StorageDevice storage_device);
 
-	virtual ~Iso9660() {}
+  virtual ~Iso9660() {}
 
-	virtual std::string_view GetFileSystemType() override;
+  virtual std::string_view GetFileSystemType() override;
 
-	// Opens a file.
-	virtual StatusOr<std::unique_ptr<::permebuf::perception::File::Server>>
-		OpenFile(std::string_view path, size_t& size_in_bytes,
-			::perception::ProcessId sender) override;
+  // Opens a file.
+  virtual StatusOr<std::unique_ptr<::permebuf::perception::File::Server>>
+  OpenFile(std::string_view path, size_t& size_in_bytes,
+           ::perception::ProcessId sender) override;
 
-	// Counts the number of entries in a directory.
-	virtual size_t CountEntriesInDirectory(std::string_view path) override;
+  // Counts the number of entries in a directory.
+  virtual size_t CountEntriesInDirectory(std::string_view path) override;
 
-	// If count is 0, then we will iterate over all of the entries in
-	// a directory. Returns if we have no more files in this directory
-	// to iterate over, otherwise returns false if we aborted early
-	// because we have more entries than what is in 'count'.
-	virtual bool ForEachEntryInDirectory(std::string_view path,
-		size_t start_index, size_t count,
-		const std::function<void(std::string_view,
-			::permebuf::perception::DirectoryEntryType,
-			size_t)>& on_each_entry) override;
+  // If count is 0, then we will iterate over all of the entries in
+  // a directory. Returns if we have no more files in this directory
+  // to iterate over, otherwise returns false if we aborted early
+  // because we have more entries than what is in 'count'.
+  virtual bool ForEachEntryInDirectory(
+      std::string_view path, size_t start_index, size_t count,
+      const std::function<void(std::string_view,
+                               ::permebuf::perception::DirectoryEntryType,
+                               size_t)>& on_each_entry) override;
 
-private:
-	// Size of the volume, in logical blocks.
-	uint32 size_in_blocks_;
+ private:
+  // Size of the volume, in logical blocks.
+  uint32 size_in_blocks_;
 
-	// Logical block size, in bytes.
-	uint16 logical_block_size_;
+  // Logical block size, in bytes.
+  uint16 logical_block_size_;
 
-	// Root directory entry.
-	std::unique_ptr<char[]> root_directory_;
+  // Root directory entry.
+  std::unique_ptr<char[]> root_directory_;
 
-
-	void ForRawEachEntryInDirectory(std::string_view path,
-		const std::function<bool(std::string_view,
-			::permebuf::perception::DirectoryEntryType,
-			size_t, size_t)>& on_each_entry);
+  void ForRawEachEntryInDirectory(
+      std::string_view path,
+      const std::function<bool(std::string_view,
+                               ::permebuf::perception::DirectoryEntryType,
+                               size_t, size_t)>& on_each_entry);
 };
 
 // Returns a FileSystem instance if this device is in the Iso 9660 format.
 std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
-	::permebuf::perception::devices::StorageDevice storage_device);
+    ::permebuf::perception::devices::StorageDevice storage_device);
 
-}
+}  // namespace file_systems

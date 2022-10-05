@@ -20,19 +20,17 @@
 #include "file_systems/file_system.h"
 #include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 
-void MountFileSystem(
-	std::unique_ptr<file_systems::FileSystem> file_system);
+void MountFileSystem(std::unique_ptr<file_systems::FileSystem> file_system);
 
 StatusOr<::permebuf::perception::File::Server*> OpenFile(
-	std::string_view path,
-	size_t& size_in_bytes,
-	::perception::ProcessId sender);
+    std::string_view path, size_t& size_in_bytes,
+    ::perception::ProcessId sender);
 
 void CloseFile(::perception::ProcessId sender,
-	::permebuf::perception::File::Server* file);
+               ::permebuf::perception::File::Server* file);
 
-bool ForEachEntryInDirectory(std::string_view directory,
-	int offset, int count,
-	const std::function<void(std::string_view,
-		::permebuf::perception::DirectoryEntryType,
-		size_t)>& on_each_entry);
+bool ForEachEntryInDirectory(
+    std::string_view directory, int offset, int count,
+    const std::function<void(std::string_view,
+                             ::permebuf::perception::DirectoryEntryType,
+                             size_t)>& on_each_entry);

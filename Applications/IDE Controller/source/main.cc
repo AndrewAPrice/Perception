@@ -23,9 +23,9 @@
 using ::perception::HandOverControl;
 
 int main() {
-	InitializeInterrupts();
-	InitializeIdeControllers();
+  InitializeInterrupts();
+  InitializeIdeControllers();
 
-	HandOverControl();
-	return 0;
+  HandOverControl();
+  return 0;
 }

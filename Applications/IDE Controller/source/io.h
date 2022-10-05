@@ -18,6 +18,9 @@
 
 struct IdeChannelRegisters;
 
-void WriteByteToIdeController(IdeChannelRegisters *channel, uint8 reg, uint8 data);
+void WriteByteToIdeController(IdeChannelRegisters *channel, uint8 reg,
+                              uint8 data);
 uint8 ReadByteFromIdeController(IdeChannelRegisters *channel, uint8 reg);
-void ReadBytesFromIdeControllerIntoBuffer(IdeChannelRegisters *channel, uint8 reg, void *buffer, size_t quads);
+void ReadBytesFromIdeControllerIntoBuffer(IdeChannelRegisters *channel,
+                                          uint8 reg, void *buffer,
+                                          size_t quads);

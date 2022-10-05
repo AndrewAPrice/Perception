@@ -20,82 +20,79 @@
 class Window;
 
 class Frame {
-public:
-	static Frame* GetRootFrame();
-	
-	static Frame* GetFrameBeingDragged();
-	void DraggedTo(int screen_x, int screen_y);
-	void DroppedAt(int screen_x, int screen_y);
+ public:
+  static Frame* GetRootFrame();
 
-	// Gets the area and frame we can drop this window into. If the area doesn't
-	// match the frame, then turn the frame into a split frame.
-	static Frame* GetDropFrame(
-		const Window& window, int mouse_x, int mouse_y,
-		int& min_x, int& min_y, int& max_x, int& max_y);
-	static void DropInWindow(
-		Window& window, int mouse_x, int mouse_y);
+  static Frame* GetFrameBeingDragged();
+  void DraggedTo(int screen_x, int screen_y);
+  void DroppedAt(int screen_x, int screen_y);
 
-	void UpdateFrame(bool resized);
+  // Gets the area and frame we can drop this window into. If the area doesn't
+  // match the frame, then turn the frame into a split frame.
+  static Frame* GetDropFrame(const Window& window, int mouse_x, int mouse_y,
+                             int& min_x, int& min_y, int& max_x, int& max_y);
+  static void DropInWindow(Window& window, int mouse_x, int mouse_y);
 
-	void AddWindow(Window& window);
-	void RemoveWindow(Window& window);
+  void UpdateFrame(bool resized);
 
-	static void AddWindowToLastFocusedFrame(Window& window);
+  void AddWindow(Window& window);
+  void RemoveWindow(Window& window);
 
-	void MouseEvent(int screen_x, int screen_y,
-		::permebuf::perception::devices::MouseButton button,
-		bool is_button_down);
+  static void AddWindowToLastFocusedFrame(Window& window);
 
-	void Draw(int min_x, int min_y, int max_x, int max_y);
-	void Invalidate();
+  void MouseEvent(int screen_x, int screen_y,
+                  ::permebuf::perception::devices::MouseButton button,
+                  bool is_button_down);
 
-private:
-	friend Window;
+  void Draw(int min_x, int min_y, int max_x, int max_y);
+  void Invalidate();
 
-	bool IsValidSize(int width, int height);
+ private:
+  friend Window;
 
-	int LongestWindowTitleWidth();
+  bool IsValidSize(int width, int height);
 
-	// Position of the frame.
-	int x_;
-	int y_;
+  int LongestWindowTitleWidth();
 
-	// Size of the frame.
-	int width_;
-	int height_;
+  // Position of the frame.
+  int x_;
+  int y_;
 
-	// The parent frame.
-	Frame* parent_;
+  // Size of the frame.
+  int width_;
+  int height_;
 
-	// Is this a split frame or a dock frame?
-	bool is_split_frame_;
+  // The parent frame.
+  Frame* parent_;
 
-	union {
-		struct {
-			Frame* child_a_;
-			Frame* child_b_;
-			// Direction we're split.
-			bool is_split_vertically_;
-			// Split percentage.
-			float split_percent_;
-			// Position of the split in pixels.
-			int split_point_;
+  // Is this a split frame or a dock frame?
+  bool is_split_frame_;
 
-		} SplitFrame;
-		struct {
-			// The title height with all of the windows in them.
-			int title_height_;
+  union {
+    struct {
+      Frame* child_a_;
+      Frame* child_b_;
+      // Direction we're split.
+      bool is_split_vertically_;
+      // Split percentage.
+      float split_percent_;
+      // Position of the split in pixels.
+      int split_point_;
 
-			// Linked list of all windows in this frame.
-			Window* first_window_;
-			Window* last_window_;
+    } SplitFrame;
+    struct {
+      // The title height with all of the windows in them.
+      int title_height_;
 
-			// The currently focused window.
-			Window* focused_window_;
+      // Linked list of all windows in this frame.
+      Window* first_window_;
+      Window* last_window_;
 
+      // The currently focused window.
+      Window* focused_window_;
 
-		} DockFrame;
-	};
+    } DockFrame;
+  };
 };
 
 void InitializeFrames();

@@ -17,7 +17,6 @@
 #include "pci.h"
 #include "perception/framebuffer.h"
 #include "perception/scheduler.h"
-
 #include "types.h"
 
 using ::perception::GetMultibootFramebufferDetails;
@@ -26,35 +25,33 @@ using ::perception::HandOverControl;
 namespace {
 
 void LoadVideoDriver() {
-	size_t physical_address;
-	uint32 width, height, pitch;
-	uint8 bpp;
-	GetMultibootFramebufferDetails(physical_address,
-		width, height, pitch, bpp);
+  size_t physical_address;
+  uint32 width, height, pitch;
+  uint8 bpp;
+  GetMultibootFramebufferDetails(physical_address, width, height, pitch, bpp);
 
-	if (width == 0) {
-		// No multi-boot framebuffer was set up by the bootloader. We
-		// will fallback to the VGA driver.
-		AddDriverToLoad("VGA Driver");
-	} else {
-		AddDriverToLoad("Multiboot Framebuffer");
-	}
+  if (width == 0) {
+    // No multi-boot framebuffer was set up by the bootloader. We
+    // will fallback to the VGA driver.
+    AddDriverToLoad("VGA Driver");
+  } else {
+    AddDriverToLoad("Multiboot Framebuffer");
+  }
 }
 
-}
+}  // namespace
 
 int main() {
-	InitializePci();
+  InitializePci();
 
-	AddDriverToLoad("PS2 Keyboard and Mouse");
-	LoadVideoDriver();
-	
-	LoadAllRemainingDrivers();
+  AddDriverToLoad("PS2 Keyboard and Mouse");
+  LoadVideoDriver();
 
-	auto device_manager = std::make_unique<DeviceManager>();
+  LoadAllRemainingDrivers();
 
-	HandOverControl();
+  auto device_manager = std::make_unique<DeviceManager>();
 
-	return 0;
+  HandOverControl();
+
+  return 0;
 }
-

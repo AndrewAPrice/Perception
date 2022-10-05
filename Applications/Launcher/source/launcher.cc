@@ -14,24 +14,25 @@
 
 #include "launcher.h"
 
+#include <iostream>
+
 #include "applications.h"
 #include "launcher_window.h"
-
-#include <iostream>
 
 using LauncherService = ::permebuf::perception::Launcher;
 
 /*
-StatusOr<LauncherService::LaunchApplicationResponse> Launcher::HandleLaunchApplication(
-	::perception::ProcessId sender,
-	Permebuf<LauncherService::LaunchApplicationRequest> request) {
-	std::cout << "TODO: Implement launch application." << std::endl;
-	return ::perception::Status::UNIMPLEMENTED;
+StatusOr<LauncherService::LaunchApplicationResponse>
+Launcher::HandleLaunchApplication(
+        ::perception::ProcessId sender,
+        Permebuf<LauncherService::LaunchApplicationRequest> request) {
+        std::cout << "TODO: Implement launch application." << std::endl;
+        return ::perception::Status::UNIMPLEMENTED;
 }*/
 
 void Launcher::HandleShowLauncher(
-	::perception::ProcessId sender,
-	const ::LauncherService::ShowLauncherMessage& message) {
-	InitializeApplications();
-	ShowLauncherWindow();
+    ::perception::ProcessId sender,
+    const ::LauncherService::ShowLauncherMessage& message) {
+  InitializeApplications();
+  ShowLauncherWindow();
 }

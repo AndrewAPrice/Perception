@@ -16,13 +16,12 @@
 
 #include "permebuf/Libraries/perception/devices/device_manager.permebuf.h"
 
-class DeviceManager : public ::permebuf::perception::devices::DeviceManager::Server {
-public:
-	typedef ::permebuf::perception::devices::DeviceManager DM;
+class DeviceManager
+    : public ::permebuf::perception::devices::DeviceManager::Server {
+ public:
+  typedef ::permebuf::perception::devices::DeviceManager DM;
 
-	virtual StatusOr<Permebuf<DM::QueryPciDevicesResponse>>
-		HandleQueryPciDevices(
-		::perception::ProcessId sender,
-		const DM::QueryPciDevicesRequest& request) override;
-
+  virtual StatusOr<Permebuf<DM::QueryPciDevicesResponse>> HandleQueryPciDevices(
+      ::perception::ProcessId sender,
+      const DM::QueryPciDevicesRequest& request) override;
 };

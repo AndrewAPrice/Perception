@@ -17,17 +17,17 @@
 #include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 
 class StorageManager : public ::permebuf::perception::StorageManager::Server {
-public:
-	typedef ::permebuf::perception::StorageManager SM;
+ public:
+  typedef ::permebuf::perception::StorageManager SM;
 
-	StorageManager();
-	virtual ~StorageManager();
+  StorageManager();
+  virtual ~StorageManager();
 
-	virtual StatusOr<SM::OpenFileResponse> HandleOpenFile(
-		::perception::ProcessId sender,
-		Permebuf<SM::OpenFileRequest> request) override;
+  virtual StatusOr<SM::OpenFileResponse> HandleOpenFile(
+      ::perception::ProcessId sender,
+      Permebuf<SM::OpenFileRequest> request) override;
 
-	virtual StatusOr<Permebuf<SM::ReadDirectoryResponse>> HandleReadDirectory(
-		::perception::ProcessId sender,
-		Permebuf<SM::ReadDirectoryRequest> request) override;
+  virtual StatusOr<Permebuf<SM::ReadDirectoryResponse>> HandleReadDirectory(
+      ::perception::ProcessId sender,
+      Permebuf<SM::ReadDirectoryRequest> request) override;
 };

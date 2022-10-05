@@ -20,31 +20,31 @@
 #include "types.h"
 
 struct IdeChannelRegisters {
-	uint16 io_base; /* I/O base */
-	uint16 control_base; /* control base */
-	uint16 bus_master_id; /* bus master ide */
-	uint8 no_interrupt; /* no interrupt */
+  uint16 io_base;       /* I/O base */
+  uint16 control_base;  /* control base */
+  uint16 bus_master_id; /* bus master ide */
+  uint8 no_interrupt;   /* no interrupt */
 };
 
 struct IdeController;
 
 struct IdeDevice {
-	bool primary_channel;
-	bool master_drive;
-	uint16 type;
-	uint16 signature;
-	uint16 capabilities;
-	uint32 command_sets; /* supported command sets */
-	uint32 size; /* size in sectors */
-	uint64 size_in_bytes;
-	bool is_writable;
-	std::string name;
-	// unsigned char model[41]; /* model string */
-	IdeController* controller;
-	std::unique_ptr<IdeStorageDevice> storage_device;
+  bool primary_channel;
+  bool master_drive;
+  uint16 type;
+  uint16 signature;
+  uint16 capabilities;
+  uint32 command_sets; /* supported command sets */
+  uint32 size;         /* size in sectors */
+  uint64 size_in_bytes;
+  bool is_writable;
+  std::string name;
+  // unsigned char model[41]; /* model string */
+  IdeController* controller;
+  std::unique_ptr<IdeStorageDevice> storage_device;
 };
 
 struct IdeController {
-	struct IdeChannelRegisters channels[2];
-	std::vector<std::unique_ptr<IdeDevice>> devices;
+  struct IdeChannelRegisters channels[2];
+  std::vector<std::unique_ptr<IdeDevice>> devices;
 };

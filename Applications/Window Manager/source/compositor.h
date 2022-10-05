@@ -64,11 +64,11 @@ void DrawScreen();
 
 // Draws a solid color on the screen.
 void DrawSolidColor(int min_x, int min_y, int max_x, int max_y,
-	uint32 fill_color);
+                    uint32 fill_color);
 
 // Copies a part of a texture onto the screen.
 void CopyTexture(int min_x, int min_y, int max_x, int max_y, size_t texture_id,
-	int texture_x, int texture_y);
+                 int texture_x, int texture_y);
 
 void CopySectionOfScreenIntoWindowManagersTexture(int min_x, int min_y,
-	int max_x, int max_y);
+                                                  int max_x, int max_y);

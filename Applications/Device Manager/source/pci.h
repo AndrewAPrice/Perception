@@ -20,7 +20,8 @@
 
 void InitializePci();
 
-void ForEachPciDeviceThatMatchesQuery(int16 base_class, int16 sub_class,
-	int16 prog_if, int32 vendor, int32 device_id, int16 bus, int16 slot,
-	int16 function, const std::function<void(uint8, uint8, uint8, uint16,
-		uint16, uint8, uint8, uint8)>& on_each_device);
+void ForEachPciDeviceThatMatchesQuery(
+    int16 base_class, int16 sub_class, int16 prog_if, int32 vendor,
+    int32 device_id, int16 bus, int16 slot, int16 function,
+    const std::function<void(uint8, uint8, uint8, uint16, uint16, uint8, uint8,
+                             uint8)>& on_each_device);

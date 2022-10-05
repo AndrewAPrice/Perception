@@ -12,63 +12,62 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
+
 #include "compositor.h"
 #include "frame.h"
 #include "highlighter.h"
 #include "mouse.h"
+#include "perception/scheduler.h"
 #include "screen.h"
 #include "window.h"
 #include "window_manager.h"
 
-#include "perception/scheduler.h"
-#include <iostream>
-
 using ::perception::WaitForMessagesThenReturn;
 
-
 int main() {
-	InitializeScreen();
-	InitializeMouse();
-	InitializeCompositor();
-	InitializeHighlighter();
-	InitializeFrames();
-	InitializeWindows();
-	WindowManager window_manager;
+  InitializeScreen();
+  InitializeMouse();
+  InitializeCompositor();
+  InitializeHighlighter();
+  InitializeFrames();
+  InitializeWindows();
+  WindowManager window_manager;
 
-	// Draw the entire screen.
-	InvalidateScreen(0, 0, GetScreenWidth(), GetScreenHeight());
-	DrawScreen();
-/*
-	for (int i = 0; i < 10; i++) {
-	Window::CreateDialog(
-			"hello",
-			200,
-			200,
-			0xABCDEFFF);
-	
-	Window::CreateWindow(
-			"goodbye",
-			0xFFEEDDFF);
+  // Draw the entire screen.
+  InvalidateScreen(0, 0, GetScreenWidth(), GetScreenHeight());
+  DrawScreen();
+  /*
+          for (int i = 0; i < 10; i++) {
+          Window::CreateDialog(
+                          "hello",
+                          200,
+                          200,
+                          0xABCDEFFF);
+
+          Window::CreateWindow(
+                          "goodbye",
+                          0xFFEEDDFF);
 
 
-	Window::CreateDialog(
-			"parcel",
-			400,
-			100,
-			0xABCDEFFF);
-	
-	Window::CreateWindow(
-			"box",
-			0xFFEEDDFF);
-	}*/
+          Window::CreateDialog(
+                          "parcel",
+                          400,
+                          100,
+                          0xABCDEFFF);
 
-	while (true) {
-		// Sleep until we have messages, then process them.
-		WaitForMessagesThenReturn();
+          Window::CreateWindow(
+                          "box",
+                          0xFFEEDDFF);
+          }*/
 
-		// Redraw the screen once we are done processing all messages.
-		DrawScreen();		
-	}
+  while (true) {
+    // Sleep until we have messages, then process them.
+    WaitForMessagesThenReturn();
 
-	return 0;
+    // Redraw the screen once we are done processing all messages.
+    DrawScreen();
+  }
+
+  return 0;
 }

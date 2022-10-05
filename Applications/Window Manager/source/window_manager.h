@@ -21,31 +21,29 @@
 #include "permebuf/Libraries/perception/window_manager.permebuf.h"
 
 class WindowManager : ::permebuf::perception::WindowManager::Server {
-public:
-	typedef ::permebuf::perception::WindowManager WM;
+ public:
+  typedef ::permebuf::perception::WindowManager WM;
 
-	StatusOr<WM::CreateWindowResponse> HandleCreateWindow(
-		::perception::ProcessId sender,
-		Permebuf<WM::CreateWindowRequest> request) override;
+  StatusOr<WM::CreateWindowResponse> HandleCreateWindow(
+      ::perception::ProcessId sender,
+      Permebuf<WM::CreateWindowRequest> request) override;
 
-	void HandleCloseWindow(
-		::perception::ProcessId sender,
-		const WM::CloseWindowMessage& message) override;
+  void HandleCloseWindow(::perception::ProcessId sender,
+                         const WM::CloseWindowMessage& message) override;
 
-	void HandleSetWindowTexture(
-		::perception::ProcessId sender,
-		const WM::SetWindowTextureMessage& message) override;
+  void HandleSetWindowTexture(
+      ::perception::ProcessId sender,
+      const WM::SetWindowTextureMessage& message) override;
 
-	void HandleSetWindowTitle(
-		::perception::ProcessId sender,
-		Permebuf<WM::SetWindowTitleMessage> message) override;
+  void HandleSetWindowTitle(
+      ::perception::ProcessId sender,
+      Permebuf<WM::SetWindowTitleMessage> message) override;
 
-	void HandleSystemButtonPushed(
-		::perception::ProcessId sender,
-		const WM::SystemButtonPushedMessage& message) override;
+  void HandleSystemButtonPushed(
+      ::perception::ProcessId sender,
+      const WM::SystemButtonPushedMessage& message) override;
 
-	void HandleInvalidateWindow(
-		::perception::ProcessId sender,
-		const WM::InvalidateWindowMessage& message) override;
+  void HandleInvalidateWindow(
+      ::perception::ProcessId sender,
+      const WM::InvalidateWindowMessage& message) override;
 };
-

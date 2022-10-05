@@ -16,4 +16,5 @@
 
 #include "perception/shared_memory_pool.h"
 
-extern ::perception::SharedMemoryPool<::perception::kPageSize> kSharedMemoryPool;
+extern ::perception::SharedMemoryPool<::perception::kPageSize>
+    kSharedMemoryPool;

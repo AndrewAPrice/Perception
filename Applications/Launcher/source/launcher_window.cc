@@ -39,31 +39,26 @@ std::shared_ptr<UiWindow> launcher_window;
 }
 
 void ShowLauncherWindow() {
-	if (launcher_window) {
-		// Launcher window is already open.
-		return;
-	}
+  if (launcher_window) {
+    // Launcher window is already open.
+    return;
+  }
 
-	// Query the screen size.
-	auto screen_size = *GraphicsDriver::Get().CallGetScreenSize(
-		GraphicsDriver::GetScreenSizeRequest());
+  // Query the screen size.
+  auto screen_size = *GraphicsDriver::Get().CallGetScreenSize(
+      GraphicsDriver::GetScreenSizeRequest());
 
-	// Create the launcher that's 80% of the screen size.
-	int launcher_width = screen_size.GetWidth() * 8 / 10;
-	int launcher_height = screen_size.GetHeight() * 8 / 10;
+  // Create the launcher that's 80% of the screen size.
+  int launcher_width = screen_size.GetWidth() * 8 / 10;
+  int launcher_height = screen_size.GetHeight() * 8 / 10;
 
-	launcher_window = std::make_shared<UiWindow>("Launcher",
-		true, launcher_width, launcher_height);
-	launcher_window->OnClose([]() {
-			Defer([]() {
-				launcher_window.reset();
-			});
-		})->
-		SetJustifyContent(YGJustifyCenter)->
-		SetAlignContent(YGAlignCenter)->
-		AddChild(
-			std::make_shared<Label>()->
-				SetTextAlignment(TextAlignment::MiddleCenter)->
-				SetLabel("TODO: Implement")->
-				ToSharedPtr());
+  launcher_window = std::make_shared<UiWindow>("Launcher", true, launcher_width,
+                                               launcher_height);
+  launcher_window->OnClose([]() { Defer([]() { launcher_window.reset(); }); })
+      ->SetJustifyContent(YGJustifyCenter)
+      ->SetAlignContent(YGAlignCenter)
+      ->AddChild(std::make_shared<Label>()
+                     ->SetTextAlignment(TextAlignment::MiddleCenter)
+                     ->SetLabel("TODO: Implement")
+                     ->ToSharedPtr());
 }

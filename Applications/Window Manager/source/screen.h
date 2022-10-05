@@ -24,5 +24,7 @@ int GetScreenHeight();
 size_t GetWindowManagerTextureId();
 uint32* GetWindowManagerTextureData();
 void SleepUntilWeAreReadyToStartDrawing();
-void RunDrawCommands(Permebuf<
-	::permebuf::perception::devices::GraphicsDriver::RunCommandsMessage> commands);
+void RunDrawCommands(
+    Permebuf<
+        ::permebuf::perception::devices::GraphicsDriver::RunCommandsMessage>
+        commands);

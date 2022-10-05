@@ -18,16 +18,12 @@
 
 #include "types.h"
 
-enum class DirectoryEntryType {
-	UNKNOWN = 0,
-	FILE = 1,
-	DIRECTORY = 2
-};
+enum class DirectoryEntryType { UNKNOWN = 0, FILE = 1, DIRECTORY = 2 };
 
 struct DirectoryEntry {
-	std::string name;
+  std::string name;
 
-	DirectoryEntryType type;
+  DirectoryEntryType type;
 
-	size_t size;
+  size_t size;
 };

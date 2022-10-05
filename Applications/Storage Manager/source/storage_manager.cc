@@ -29,47 +29,46 @@ StorageManager::StorageManager() {}
 StorageManager::~StorageManager() {}
 
 StatusOr<SM::OpenFileResponse> StorageManager::HandleOpenFile(
-	::perception::ProcessId sender,
-	Permebuf<SM::OpenFileRequest> request) {
-	size_t size_in_bytes = 0;
-	auto status_or_file = OpenFile(*request->GetPath(), size_in_bytes, sender);
+    ::perception::ProcessId sender, Permebuf<SM::OpenFileRequest> request) {
+  size_t size_in_bytes = 0;
+  auto status_or_file = OpenFile(*request->GetPath(), size_in_bytes, sender);
 
-	if (!status_or_file.Ok()) {
-		return status_or_file.Status();
-	}
+  if (!status_or_file.Ok()) {
+    return status_or_file.Status();
+  }
 
-	ASSIGN_OR_RETURN(File::Server* file, status_or_file);
+  ASSIGN_OR_RETURN(File::Server * file, status_or_file);
 
-	SM::OpenFileResponse response;
-	response.SetFile(*file);
-	response.SetSizeInBytes(size_in_bytes);
-	return response;
+  SM::OpenFileResponse response;
+  response.SetFile(*file);
+  response.SetSizeInBytes(size_in_bytes);
+  return response;
 }
 
-StatusOr<Permebuf<SM::ReadDirectoryResponse>> StorageManager::HandleReadDirectory(
-	::perception::ProcessId sender,
-	Permebuf<SM::ReadDirectoryRequest> request) {
-	Permebuf<SM::ReadDirectoryResponse> response;
+StatusOr<Permebuf<SM::ReadDirectoryResponse>>
+StorageManager::HandleReadDirectory(
+    ::perception::ProcessId sender,
+    Permebuf<SM::ReadDirectoryRequest> request) {
+  Permebuf<SM::ReadDirectoryResponse> response;
 
-	PermebufListOf<DirectoryEntry> last_directory_entry;
+  PermebufListOf<DirectoryEntry> last_directory_entry;
 
-	bool no_more_entries = ForEachEntryInDirectory(*request->GetPath(),
-		request->GetFirstIndex(),
-		request->GetMaximumNumberOfEntries(),
-	[&](std::string_view name, DirectoryEntryType type, size_t size) {
-		auto directory_entry = response.AllocateMessage<DirectoryEntry>();
-		directory_entry.SetName(name);
-		directory_entry.SetType(type);
-		directory_entry.SetSizeInBytes(size);
+  bool no_more_entries = ForEachEntryInDirectory(
+      *request->GetPath(), request->GetFirstIndex(),
+      request->GetMaximumNumberOfEntries(),
+      [&](std::string_view name, DirectoryEntryType type, size_t size) {
+        auto directory_entry = response.AllocateMessage<DirectoryEntry>();
+        directory_entry.SetName(name);
+        directory_entry.SetType(type);
+        directory_entry.SetSizeInBytes(size);
 
-		if (last_directory_entry.IsValid()) {
-			last_directory_entry = last_directory_entry.InsertAfter();
-		}
-		else {
-			last_directory_entry = response->MutableEntries();
-		}
-		last_directory_entry.Set(directory_entry);
-	});
-	response->SetHasMoreEntries(!no_more_entries);
-	return response;
+        if (last_directory_entry.IsValid()) {
+          last_directory_entry = last_directory_entry.InsertAfter();
+        } else {
+          last_directory_entry = response->MutableEntries();
+        }
+        last_directory_entry.Set(directory_entry);
+      });
+  response->SetHasMoreEntries(!no_more_entries);
+  return response;
 }

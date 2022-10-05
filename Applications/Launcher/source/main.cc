@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include <iostream>
-#include <vector>
 #include <sstream>
+#include <vector>
 
 #include "launcher.h"
 #include "perception/scheduler.h"
@@ -28,16 +28,16 @@ using ::perception::ui::TextAlignment;
 using ::perception::ui::UiWindow;
 
 int main() {
-	auto window = std::make_shared<UiWindow>("Welcome!", true, 300, 50);
-	window->SetJustifyContent(YGJustifyCenter)->
-		SetAlignContent(YGAlignCenter)->
-		AddChild(
-			std::make_shared<Label>()->
-			SetTextAlignment(TextAlignment::MiddleCenter)->
-			SetLabel("Welcome to Perception. Press the ESCAPE key to open the launcher.")->
-		ToSharedPtr());
+  auto window = std::make_shared<UiWindow>("Welcome!", true, 300, 50);
+  window->SetJustifyContent(YGJustifyCenter)
+      ->SetAlignContent(YGAlignCenter)
+      ->AddChild(std::make_shared<Label>()
+                     ->SetTextAlignment(TextAlignment::MiddleCenter)
+                     ->SetLabel("Welcome to Perception. Press the ESCAPE key "
+                                "to open the launcher.")
+                     ->ToSharedPtr());
 
-	auto launcher = std::make_unique<Launcher>();
-	HandOverControl();
-	return 0;
+  auto launcher = std::make_unique<Launcher>();
+  HandOverControl();
+  return 0;
 }

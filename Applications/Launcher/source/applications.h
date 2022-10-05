@@ -19,11 +19,11 @@
 #include "nanosvg.h"
 
 struct Application {
-	std::string name;
+  std::string name;
 
-	std::string description;
+  std::string description;
 
-	NSVGimage* icon;
+  NSVGimage* icon;
 };
 
 void InitializeApplications();
