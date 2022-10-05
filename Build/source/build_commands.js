@@ -55,9 +55,9 @@ function generateBuildCommand(language, buildSettings, filePath) {
   } else if (language == 'Intel ASM') {
     if (isLocalBuild)
       return '';
-    else
-      return getToolPath('nasm') + ' -felf64 -dPERCEPTION -i ' +
-          escapePath(path.dirname(filePath));
+    else {
+      return getToolPath('nasm') + ' -felf64 -dPERCEPTION';
+    }
   } else if (language == 'AT&T ASM') {
     return getToolPath('gcc') + ' -c';
   } else {
@@ -81,6 +81,9 @@ function getBuildCommand(filePath, packageType, cParams, buildSettings) {
     addCParams = true;
   } else if (filePath.endsWith('.asm')) {
     language = 'Intel ASM';
+
+    addCParams = true;
+    cParams = ' -i ' + escapePath(path.dirname(filePath));
   } else if (filePath.endsWith('.s') || filePath.endsWith('.S')) {
     language = 'AT&T ASM';
   }
