@@ -30,5 +30,5 @@ constexpr uint32 kTextBoxBottomRightOutlineColor = kButtonBrightColor;
 constexpr uint32 kTextBoxTextColor = kLabelTextColor;
 constexpr uint32 kTextBoxNonEditableTextColor = 0x111111ff;
 
-}
-}
+}  // namespace ui
+}  // namespace perception

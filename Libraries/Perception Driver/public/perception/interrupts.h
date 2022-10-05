@@ -20,14 +20,14 @@
 
 namespace perception {
 
-// Functions for dealing with hardware interrupts. The program calling this must be a driver, otherwise
-// the caller will terminate!
+// Functions for dealing with hardware interrupts. The program calling this must
+// be a driver, otherwise the caller will terminate!
 
 // Registers a handler to call upon receiving an interrupt.
 MessageId RegisterInterruptHandler(uint8 interrupt,
-	std::function<void()> handler);
+                                   std::function<void()> handler);
 
 // Unregisters a handler to call to upon receiving an interrupt.
 void UnregisterInterruptHandler(uint8 interrupt, MessageId message_id);
 
-}
+}  // namespace perception

@@ -14,10 +14,10 @@
 
 #pragma once
 
-#include "types.h"
-
 #include <functional>
 #include <memory>
+
+#include "types.h"
 
 namespace perception {
 
@@ -27,68 +27,68 @@ namespace perception {
 // counter is decreased when SharedMemory leaves scope. The memory is released
 // when the reference counter reaches zero.
 class SharedMemory {
-public:
-	SharedMemory();
+ public:
+  SharedMemory();
 
-	// Allow moving the object with std::move.
-  	SharedMemory(SharedMemory&& other);
-  	SharedMemory& operator=(SharedMemory&& other);
+  // Allow moving the object with std::move.
+  SharedMemory(SharedMemory&& other);
+  SharedMemory& operator=(SharedMemory&& other);
 
-	// Each instance of SharedMemory is responsible for joining/releasing its
-	// reference to the shared memory block. Call std::move() if you want to
-	// move a shared memory object.
-	SharedMemory(const SharedMemory& other) = delete;
-  	SharedMemory& operator=(const SharedMemory&) = delete;
+  // Each instance of SharedMemory is responsible for joining/releasing its
+  // reference to the shared memory block. Call std::move() if you want to
+  // move a shared memory object.
+  SharedMemory(const SharedMemory& other) = delete;
+  SharedMemory& operator=(const SharedMemory&) = delete;
 
-	// Wraps around a shared memory block with the given ID.
-	SharedMemory(size_t id);
+  // Wraps around a shared memory block with the given ID.
+  SharedMemory(size_t id);
 
-	~SharedMemory();
+  ~SharedMemory();
 
-	// Creates a shared memory block of a specific size. The size is rounded up
-	// to the nearest page size.
-	static std::unique_ptr<SharedMemory> FromSize(size_t size_in_bytes);
+  // Creates a shared memory block of a specific size. The size is rounded up
+  // to the nearest page size.
+  static std::unique_ptr<SharedMemory> FromSize(size_t size_in_bytes);
 
-	// Creates another instance of the SharedMemory object that points to the
-	// same shared memory.
-	SharedMemory Clone() const;
+  // Creates another instance of the SharedMemory object that points to the
+  // same shared memory.
+  SharedMemory Clone() const;
 
-	// Attempts to join the shared memory. This is done automatically if you
-    // call any other operations, but you might want to do this manually if you
-    // just want to hold onto the shared memory.
-	bool Join();
+  // Attempts to join the shared memory. This is done automatically if you
+  // call any other operations, but you might want to do this manually if you
+  // just want to hold onto the shared memory.
+  bool Join();
 
-	// Returns the ID of the shared memory. Used to identify this shared memory
-	// block.
-	size_t GetId() const;
+  // Returns the ID of the shared memory. Used to identify this shared memory
+  // block.
+  size_t GetId() const;
 
-	// Returns the size of the shared memory, or 0 if the shared memory is
-	// invalid.
-	size_t GetSize();
+  // Returns the size of the shared memory, or 0 if the shared memory is
+  // invalid.
+  size_t GetSize();
 
-	// Returns a pointer to the shared memory, or nullptr if the shared memory is
-	// invalid.
-	void* operator*();
+  // Returns a pointer to the shared memory, or nullptr if the shared memory is
+  // invalid.
+  void* operator*();
 
-	// Returns a pointer to the shared memory, or nullptr if the shared memory is
-	// invalid.
-	void* operator->();
+  // Returns a pointer to the shared memory, or nullptr if the shared memory is
+  // invalid.
+  void* operator->();
 
-	// Calls the passed in function if the shared memory is valid, passing in a
-	// pointer to the data and the size of the shared memory.
-	void Apply(const std::function<void(void*, size_t)>& function);
+  // Calls the passed in function if the shared memory is valid, passing in a
+  // pointer to the data and the size of the shared memory.
+  void Apply(const std::function<void(void*, size_t)>& function);
 
-private:
-	// The unique ID representhing this shared memory buffer on the system.
-	size_t shared_memory_id_;
+ private:
+  // The unique ID representhing this shared memory buffer on the system.
+  size_t shared_memory_id_;
 
-	// Pointer to the raw memory area. This is nulptr if the shared memory is
-	// invalid.
-	void* ptr_;
+  // Pointer to the raw memory area. This is nulptr if the shared memory is
+  // invalid.
+  void* ptr_;
 
-	// Size of the shared memory area, in bytes. This is 0 if the shared memory
-	// is invalid.
-	size_t size_in_bytes_;
+  // Size of the shared memory area, in bytes. This is 0 if the shared memory
+  // is invalid.
+  size_t size_in_bytes_;
 };
 
-}
+}  // namespace perception

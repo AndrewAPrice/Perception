@@ -25,4 +25,4 @@ namespace perception {
 
 void ShowLauncher();
 
-}
+}  // namespace perception

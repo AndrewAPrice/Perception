@@ -37,6 +37,6 @@ typedef size_t MessageId;
 // Used to identify processes.
 typedef size_t ProcessId;
 
-}
+}  // namespace perception
 
 #define NULL 0

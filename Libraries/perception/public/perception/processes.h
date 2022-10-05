@@ -14,11 +14,11 @@
 
 #pragma once
 
-#include "types.h"
-
 #include <functional>
 #include <string>
 #include <string_view>
+
+#include "types.h"
 
 namespace perception {
 
@@ -38,15 +38,16 @@ void TerminateProcesss(ProcessId pid);
 bool GetFirstProcessWithName(std::string_view name, ProcessId& pid);
 
 // Retrieves the ID of each process with the provided name.
-void ForEachProcessWithName(std::string_view name,
-	const std::function<void(ProcessId)>& on_each_process);
+void ForEachProcessWithName(
+    std::string_view name,
+    const std::function<void(ProcessId)>& on_each_process);
 
 // Returns the name of the currently running process.
 std::string GetProcessName();
 
 // Returns the name of a process, or an empty string if the process doesn't
 // exist.
-std::string GetProcessName(ProcessId pid); 
+std::string GetProcessName(ProcessId pid);
 
 // Returns true if the process exists.
 bool DoesProcessExist(ProcessId pid);
@@ -55,11 +56,11 @@ bool DoesProcessExist(ProcessId pid);
 // terminating. The handler is automatically unregistered upon terminating
 // (it's safe to accidentally call StopNotifyingUponProcessTermination if the
 // handler has triggered.)
-MessageId NotifyUponProcessTermination(ProcessId pid,
-	const std::function<void()>& on_termination);
+MessageId NotifyUponProcessTermination(
+    ProcessId pid, const std::function<void()>& on_termination);
 
 // Registers that we don't want to be notified anymore about a process
 // terminating.
 void StopNotifyingUponProcessTermination(MessageId message_id);
 
-}
+}  // namespace perception

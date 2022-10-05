@@ -19,27 +19,27 @@
 namespace perception {
 
 void DrawSprite1bitAlpha(int x, int y, uint32 *sprite, int width, int height,
-	uint32 *buffer, int buffer_width, int buffer_height, int minx, int miny,
-	int maxx, int maxy);
-void DrawSpriteAlpha(int x, int y, uint32 *sprite, int width,
-	int height, uint32 *buffer, int buffer_width, int buffer_height,
-	int minx, int miny, int maxx, int maxy);
+                         uint32 *buffer, int buffer_width, int buffer_height,
+                         int minx, int miny, int maxx, int maxy);
+void DrawSpriteAlpha(int x, int y, uint32 *sprite, int width, int height,
+                     uint32 *buffer, int buffer_width, int buffer_height,
+                     int minx, int miny, int maxx, int maxy);
 void DrawSprite(int x, int y, uint32 *sprite, int width, int height,
-	uint32 *buffer, int buffer_width, int buffer_height, int minx,
-	int miny, int maxx, int maxy);
-void DrawXLine(int x, int y, int width, uint32 colour,
-	uint32 *buffer, int buffer_width, int buffer_height);
-void DrawXLineAlpha(int x, int y, int width, uint32 colour,
-	uint32 *buffer, int buffer_width, int buffer_height);
-void DrawYLine(int x, int y, int height, uint32 colour,
-	uint32 *buffer, int buffer_width, int buffer_height);
-void DrawYLineAlpha(int x, int y, int height, uint32 colour,
-	uint32 *buffer, int buffer_width, int buffer_height);
-void PlotPixel(int x, int y, uint32 colour,
-	uint32 *buffer, int buffer_width, int buffer_height);
-void FillRectangle(int minx, int miny, int maxx, int maxy,
-	uint32 colour, uint32 *buffer, int buffer_width, int buffer_height);
-void FillRectangleAlpha(int minx, int miny, int maxx, int maxy,
-	uint32 colour, uint32 *buffer, int buffer_width, int buffer_height);
-	
-}
+                uint32 *buffer, int buffer_width, int buffer_height, int minx,
+                int miny, int maxx, int maxy);
+void DrawXLine(int x, int y, int width, uint32 colour, uint32 *buffer,
+               int buffer_width, int buffer_height);
+void DrawXLineAlpha(int x, int y, int width, uint32 colour, uint32 *buffer,
+                    int buffer_width, int buffer_height);
+void DrawYLine(int x, int y, int height, uint32 colour, uint32 *buffer,
+               int buffer_width, int buffer_height);
+void DrawYLineAlpha(int x, int y, int height, uint32 colour, uint32 *buffer,
+                    int buffer_width, int buffer_height);
+void PlotPixel(int x, int y, uint32 colour, uint32 *buffer, int buffer_width,
+               int buffer_height);
+void FillRectangle(int minx, int miny, int maxx, int maxy, uint32 colour,
+                   uint32 *buffer, int buffer_width, int buffer_height);
+void FillRectangleAlpha(int minx, int miny, int maxx, int maxy, uint32 colour,
+                        uint32 *buffer, int buffer_width, int buffer_height);
+
+}  // namespace perception

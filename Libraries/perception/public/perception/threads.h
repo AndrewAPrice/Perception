@@ -21,10 +21,10 @@ namespace perception {
 // Used to identify threads.
 typedef size_t ThreadId;
 
-// Creates a thread. The provided (optional) parameter is passed through to the newly running thread.
-// It's unsafe for the entry_point function to simply return. It should call TerminateThread() when
-// no longer needed.
-ThreadId CreateThread(void (*entry_point)(void *), void* param);
+// Creates a thread. The provided (optional) parameter is passed through to the
+// newly running thread. It's unsafe for the entry_point function to simply
+// return. It should call TerminateThread() when no longer needed.
+ThreadId CreateThread(void (*entry_point)(void*), void* param);
 
 // Gets the ID of the currently executing thread.
 ThreadId GetThreadId();
@@ -35,15 +35,15 @@ void TerminateThread();
 // Terminate the thread associaed with the provided thread id.
 void TerminateThread(ThreadId tid);
 
-// Yield's control of the currently running thread. This does not put the thread to sleep, but rather
-// passes control to the next thread.
+// Yield's control of the currently running thread. This does not put the thread
+// to sleep, but rather passes control to the next thread.
 void Yield();
 
 // Sets the address for the thread's segment (FS).
 void SetThreadSegment(size_t segment_address);
 
-// Set an address (that must be 8-byte aligned) to be cleared on the termination of the currently
-// executing thread.
+// Set an address (that must be 8-byte aligned) to be cleared on the termination
+// of the currently executing thread.
 void SetAddressToClearOnThreadTermination(size_t address);
 
-}
+}  // namespace perception

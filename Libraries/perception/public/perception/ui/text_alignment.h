@@ -25,19 +25,20 @@ class Font;
 namespace ui {
 
 enum class TextAlignment {
-	TopLeft = 0,
-	TopCenter = 1,
-	TopRight = 2,
-	MiddleLeft = 3,
-	MiddleCenter = 4,
-	MiddleRight = 5,
-	BottomLeft = 6,
-	BottomCenter = 7,
-	BottomRight = 8
+  TopLeft = 0,
+  TopCenter = 1,
+  TopRight = 2,
+  MiddleLeft = 3,
+  MiddleCenter = 4,
+  MiddleRight = 5,
+  BottomLeft = 6,
+  BottomCenter = 7,
+  BottomRight = 8
 };
 
 void CalculateTextAlignment(std::string_view text, int width, int height,
-	TextAlignment alignment, Font& font, int& x, int& y);
+                            TextAlignment alignment, Font& font, int& x,
+                            int& y);
 
-}
-}
+}  // namespace ui
+}  // namespace perception

@@ -15,23 +15,19 @@
 #include "../../../third_party/liballoc.h"
 #include "perception/memory.h"
 
-extern "C" int liballoc_lock()
-{
-	return 0; // TODO
+extern "C" int liballoc_lock() {
+  return 0;  // TODO
 }
 
-extern "C" int liballoc_unlock()
-{
-	return 0; // TODO
+extern "C" int liballoc_unlock() {
+  return 0;  // TODO
 }
 
-extern "C" void* liballoc_alloc(size_t pages)
-{
-	return ::perception::AllocateMemoryPages(pages);
+extern "C" void* liballoc_alloc(size_t pages) {
+  return ::perception::AllocateMemoryPages(pages);
 }
 
-extern "C" int liballoc_free(void* ptr, size_t pages)
-{
-	::perception::ReleaseMemoryPages(ptr, pages);
-	return 0;
+extern "C" int liballoc_free(void* ptr, size_t pages) {
+  ::perception::ReleaseMemoryPages(ptr, pages);
+  return 0;
 }

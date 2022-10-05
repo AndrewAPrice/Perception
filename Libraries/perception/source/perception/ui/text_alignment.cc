@@ -20,43 +20,44 @@ namespace perception {
 namespace ui {
 
 void CalculateTextAlignment(std::string_view text, int width, int height,
-	TextAlignment alignment, Font& font, int& x, int& y) {
-	switch (alignment) {
-		case TextAlignment::TopLeft:
-		case TextAlignment::TopCenter:
-		case TextAlignment::TopRight:
-			y = 0;
-			break;
-		case TextAlignment::MiddleLeft:
-		case TextAlignment::MiddleCenter:
-		case TextAlignment::MiddleRight:
-			y = height / 2 - font.GetHeight() / 2;
-			break;
-		case TextAlignment::BottomLeft:
-		case TextAlignment::BottomCenter:
-		case TextAlignment::BottomRight:
-			y = height - font.GetHeight();
-			break;
-	}
+                            TextAlignment alignment, Font& font, int& x,
+                            int& y) {
+  switch (alignment) {
+    case TextAlignment::TopLeft:
+    case TextAlignment::TopCenter:
+    case TextAlignment::TopRight:
+      y = 0;
+      break;
+    case TextAlignment::MiddleLeft:
+    case TextAlignment::MiddleCenter:
+    case TextAlignment::MiddleRight:
+      y = height / 2 - font.GetHeight() / 2;
+      break;
+    case TextAlignment::BottomLeft:
+    case TextAlignment::BottomCenter:
+    case TextAlignment::BottomRight:
+      y = height - font.GetHeight();
+      break;
+  }
 
-	switch (alignment) {
-		case TextAlignment::TopLeft:
-		case TextAlignment::MiddleLeft:
-		case TextAlignment::BottomLeft:
-			x = 0;
-			break;
-		case TextAlignment::TopCenter:
-		case TextAlignment::MiddleCenter:
-		case TextAlignment::BottomCenter:
-			x = width / 2 - font.MeasureString(text) / 2;
-			break;
-		case TextAlignment::TopRight:
-		case TextAlignment::MiddleRight:
-		case TextAlignment::BottomRight:
-			x = width - font.MeasureString(text);
-			break;
-	}
+  switch (alignment) {
+    case TextAlignment::TopLeft:
+    case TextAlignment::MiddleLeft:
+    case TextAlignment::BottomLeft:
+      x = 0;
+      break;
+    case TextAlignment::TopCenter:
+    case TextAlignment::MiddleCenter:
+    case TextAlignment::BottomCenter:
+      x = width / 2 - font.MeasureString(text) / 2;
+      break;
+    case TextAlignment::TopRight:
+    case TextAlignment::MiddleRight:
+    case TextAlignment::BottomRight:
+      x = width - font.MeasureString(text);
+      break;
+  }
 }
 
-}
-}
+}  // namespace ui
+}  // namespace perception

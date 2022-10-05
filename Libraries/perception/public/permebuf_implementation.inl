@@ -21,6 +21,7 @@
 #include "perception/messages.h"
 #include "perception/memory.h"
 #include "perception/scheduler.h"
+#include "permebuf.h"
 
 #include <iostream>
 

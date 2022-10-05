@@ -14,12 +14,12 @@
 
 #pragma once
 
+#include <functional>
+#include <string>
+#include <string_view>
+
 #include "perception/ui/text_alignment.h"
 #include "perception/ui/widget.h"
-
-#include <functional>
-#include <string_view>
-#include <string>
 
 namespace perception {
 namespace ui {
@@ -27,26 +27,25 @@ namespace ui {
 struct DrawContext;
 
 class Label : public Widget {
-public:
-	Label();
-	virtual ~Label();
+ public:
+  Label();
+  virtual ~Label();
 
-	Label* SetLabel(std::string_view label);
-	std::string_view GetLabel();
-	Label* SetTextAlignment(TextAlignment alignment);
+  Label* SetLabel(std::string_view label);
+  std::string_view GetLabel();
+  Label* SetTextAlignment(TextAlignment alignment);
 
-private:
-    virtual void Draw(DrawContext& draw_context) override;
+ private:
+  virtual void Draw(DrawContext& draw_context) override;
 
-	static YGSize Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
-		float height, YGMeasureMode height_mode);
-    
-	std::string label_;
-	TextAlignment text_alignment_;
-	bool realign_text_;
-	int text_x_, text_y_;
+  static YGSize Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
+                        float height, YGMeasureMode height_mode);
 
+  std::string label_;
+  TextAlignment text_alignment_;
+  bool realign_text_;
+  int text_x_, text_y_;
 };
 
-}
-}
+}  // namespace ui
+}  // namespace perception

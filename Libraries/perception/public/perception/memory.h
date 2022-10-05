@@ -36,10 +36,11 @@ size_t GetTotalSystemMemory();
 
 size_t GetMemoryUsedByProcess();
 
-}
+}  // namespace perception
 
-// Functions handled by liballoc but redefined here to expose it in this library.
+// Functions handled by liballoc but redefined here to expose it in this
+// library.
 extern "C" void* malloc(size_t);
 extern "C" void* realloc(void*, size_t);
 extern "C" void* calloc(size_t, size_t);
-extern "C" void free(void *);
+extern "C" void free(void*);

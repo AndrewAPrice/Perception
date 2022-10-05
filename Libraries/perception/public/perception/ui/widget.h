@@ -14,11 +14,11 @@
 
 #pragma once
 
+#include <list>
 #include <memory>
 
 #include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
 #include "yoga/Yoga.h"
-#include <list>
 
 namespace perception {
 namespace ui {
@@ -29,168 +29,164 @@ constexpr int kFitContent = -2;
 class DrawContext;
 
 class Widget : public std::enable_shared_from_this<Widget> {
-public:
-	Widget();
-	~Widget();
-    std::shared_ptr<Widget> ToSharedPtr() {
-        return shared_from_this();
-    }
+ public:
+  Widget();
+  ~Widget();
+  std::shared_ptr<Widget> ToSharedPtr() { return shared_from_this(); }
 
-    std::weak_ptr<Widget> GetParent();
-    void SetParent(std::weak_ptr<Widget> parent);
-    void ClearParent();
+  std::weak_ptr<Widget> GetParent();
+  void SetParent(std::weak_ptr<Widget> parent);
+  void ClearParent();
 
-    Widget* AddChildren(const std::vector<std::shared_ptr<Widget>>& children);
-    Widget* AddChild(std::shared_ptr<Widget> child);
-    Widget* RemoveChild(std::shared_ptr<Widget> child);
-    Widget* RemoveChildren();
-    const std::list<std::shared_ptr<Widget>>& GetChildren();
+  Widget* AddChildren(const std::vector<std::shared_ptr<Widget>>& children);
+  Widget* AddChild(std::shared_ptr<Widget> child);
+  Widget* RemoveChild(std::shared_ptr<Widget> child);
+  Widget* RemoveChildren();
+  const std::list<std::shared_ptr<Widget>>& GetChildren();
 
-    Widget* SetIsReferenceBaseline(int is_reference_baseline);
-    bool IsReferenceBaseline();
+  Widget* SetIsReferenceBaseline(int is_reference_baseline);
+  bool IsReferenceBaseline();
 
-    Widget* SetHasNewLayout(bool has_new_layout);
-    bool HasNewLayout();
-    
-    Widget* SetDirection(YGDirection direction);
-    YGDirection GetDirection();
-    YGDirection GetCalculatedDirection();
+  Widget* SetHasNewLayout(bool has_new_layout);
+  bool HasNewLayout();
 
-    Widget* SetFlexDirection(YGFlexDirection flex_direction);
-    YGFlexDirection GetFlexDirection();
+  Widget* SetDirection(YGDirection direction);
+  YGDirection GetDirection();
+  YGDirection GetCalculatedDirection();
 
-    Widget* SetJustifyContent(YGJustify justify_content);
-    YGJustify GetJustifyContent();
+  Widget* SetFlexDirection(YGFlexDirection flex_direction);
+  YGFlexDirection GetFlexDirection();
 
-    Widget* SetAlignContent(YGAlign align_content);
-    YGAlign GetAlignContent();
+  Widget* SetJustifyContent(YGJustify justify_content);
+  YGJustify GetJustifyContent();
 
-    Widget* SetAlignItems(YGAlign align_items);
-    YGAlign GetAlignItems();
+  Widget* SetAlignContent(YGAlign align_content);
+  YGAlign GetAlignContent();
 
-    Widget* SetAlignSelf(YGAlign align_self);
-    YGAlign GetAlignSelf();
+  Widget* SetAlignItems(YGAlign align_items);
+  YGAlign GetAlignItems();
 
-    Widget* SetPositionType(YGPositionType position_type);
-    YGPositionType GetPositionType();
+  Widget* SetAlignSelf(YGAlign align_self);
+  YGAlign GetAlignSelf();
 
-    Widget* SetFlexWrap(YGWrap flex_wrap);
-    YGWrap GetFlexWrap();
+  Widget* SetPositionType(YGPositionType position_type);
+  YGPositionType GetPositionType();
 
-    Widget* SetOverflow(YGOverflow overflow);
-    YGOverflow GetOverflow();
+  Widget* SetFlexWrap(YGWrap flex_wrap);
+  YGWrap GetFlexWrap();
 
-    Widget* SetDisplay(YGDisplay display);
-    YGDisplay GetDisplay();
+  Widget* SetOverflow(YGOverflow overflow);
+  YGOverflow GetOverflow();
 
-    Widget* SetFlex(float flex);
-    float GetFlex();
+  Widget* SetDisplay(YGDisplay display);
+  YGDisplay GetDisplay();
 
-    Widget* SetFlexGrow(float flex_grow);
-    float GetFlexGrow();
+  Widget* SetFlex(float flex);
+  float GetFlex();
 
-    Widget* SetFlexShrink(float flex_shrink);
-    float GetFlexShrink();
+  Widget* SetFlexGrow(float flex_grow);
+  float GetFlexGrow();
 
-    Widget* SetFlexBasis(float flex_basis);
-    Widget* SetFlexBasisPercent(float flex_basis);
-    Widget* SetFlexBasisAuto();
-    YGValue GetFlexBasis();
+  Widget* SetFlexShrink(float flex_shrink);
+  float GetFlexShrink();
 
-    Widget* SetPosition(YGEdge edge, float position);
-    Widget* SetPositionPercent(YGEdge edge, float position);
-    YGValue GetPosition(YGEdge edge);
+  Widget* SetFlexBasis(float flex_basis);
+  Widget* SetFlexBasisPercent(float flex_basis);
+  Widget* SetFlexBasisAuto();
+  YGValue GetFlexBasis();
 
-    Widget* SetMargin(YGEdge edge, float margin);
-    Widget* SetMarginPercent(YGEdge edge, float margin);
-    Widget* SetMarginAuto(YGEdge edge);
-    YGValue GetMargin(YGEdge edge);
-    float GetComputedMargin(YGEdge edge);
+  Widget* SetPosition(YGEdge edge, float position);
+  Widget* SetPositionPercent(YGEdge edge, float position);
+  YGValue GetPosition(YGEdge edge);
 
-    Widget* SetPadding(YGEdge edge, float padding);
-    Widget* SetPaddingPercentage(YGEdge edge, float padding);
-    YGValue GetPadding(YGEdge edge);
-    float GetComputedPadding(YGEdge edge);
+  Widget* SetMargin(YGEdge edge, float margin);
+  Widget* SetMarginPercent(YGEdge edge, float margin);
+  Widget* SetMarginAuto(YGEdge edge);
+  YGValue GetMargin(YGEdge edge);
+  float GetComputedMargin(YGEdge edge);
 
-    Widget* SetBorder(YGEdge edge, float border);
-    float GetBorder(YGEdge edge);
-    float GetComputedBorder(YGEdge edge);
+  Widget* SetPadding(YGEdge edge, float padding);
+  Widget* SetPaddingPercentage(YGEdge edge, float padding);
+  YGValue GetPadding(YGEdge edge);
+  float GetComputedPadding(YGEdge edge);
 
-    Widget* SetWidth(float width);
-    Widget* SetWidthPercent(float width);
-    Widget* SetWidthAuto();
-    YGValue GetWidth();
-    float GetCalculatedWidth();
+  Widget* SetBorder(YGEdge edge, float border);
+  float GetBorder(YGEdge edge);
+  float GetComputedBorder(YGEdge edge);
 
-    Widget* SetHeight(float height);
-    Widget* SetHeightPercent(float height);
-    Widget* SetHeightAuto();
-    YGValue GetHeight();
-    float GetCalculatedHeight();
+  Widget* SetWidth(float width);
+  Widget* SetWidthPercent(float width);
+  Widget* SetWidthAuto();
+  YGValue GetWidth();
+  float GetCalculatedWidth();
 
-    Widget* SetMinWidth(float min_width);
-    Widget* SetMinWidthPercent(float min_height);
-    YGValue GetMinWidth();
+  Widget* SetHeight(float height);
+  Widget* SetHeightPercent(float height);
+  Widget* SetHeightAuto();
+  YGValue GetHeight();
+  float GetCalculatedHeight();
 
-    Widget* SetMinHeight(float min_height);
-    Widget* SetMinHeightPercent(float min_height);
-    YGValue GetMinHeight();
+  Widget* SetMinWidth(float min_width);
+  Widget* SetMinWidthPercent(float min_height);
+  YGValue GetMinWidth();
 
-    Widget* SetMaxWidth(float max_width);
-    Widget* SetMaxWidthPercent(float max_width);
-    YGValue GetMaxWidth();
+  Widget* SetMinHeight(float min_height);
+  Widget* SetMinHeightPercent(float min_height);
+  YGValue GetMinHeight();
 
-    Widget* SetMaxHeight(float max_height);
-    Widget* SetMaxHeightPercent(float max_height);
-    YGValue GetMaxHeight();
+  Widget* SetMaxWidth(float max_width);
+  Widget* SetMaxWidthPercent(float max_width);
+  YGValue GetMaxWidth();
 
-    Widget* SetAspectRatio(float aspect_ratio);
-    float GetAspectRatio();
+  Widget* SetMaxHeight(float max_height);
+  Widget* SetMaxHeightPercent(float max_height);
+  YGValue GetMaxHeight();
 
-    float GetLeft();
-    float GetTop();
-    float GetRight();
-    float GetBottom();
-    bool GetHadOverflow();
-    bool GetDidLegacyStretchFlagAffectLayout();
+  Widget* SetAspectRatio(float aspect_ratio);
+  float GetAspectRatio();
 
-    // The below functions are not intended for end users unless
-    // you are building widgets.
-    virtual void Draw(DrawContext& draw_context);
+  float GetLeft();
+  float GetTop();
+  float GetRight();
+  float GetBottom();
+  bool GetHadOverflow();
+  bool GetDidLegacyStretchFlagAffectLayout();
 
-    // Gets the widget at X/Y.
-    // If x,y points to a selectable widget, sets widget, x_in_selected_widget,
-    // y_in_selected_widget and returns true.
-    // If the mouse is within the bounds of this widget, but this widget isn't
-    // selectable, sets widget to nullptr, but returns true.
-    // If the mouse is outside of the bounds of this widget, returns false, and
-    // doesn't touch the mutable parameters.
-    virtual bool GetWidgetAt(float x, float y,
-        std::shared_ptr<Widget>& widget,
-        float& x_in_selected_widget,
-        float& y_in_selected_widget);
+  // The below functions are not intended for end users unless
+  // you are building widgets.
+  virtual void Draw(DrawContext& draw_context);
 
-    virtual void OnMouseEnter();
-    virtual void OnMouseLeave();
-    virtual void OnMouseMove(float x, float y);
-    virtual void OnMouseButtonDown(float x, float y,
-        ::permebuf::perception::devices::MouseButton button);
-    virtual void OnMouseButtonUp(float x, float y,
-        ::permebuf::perception::devices::MouseButton button);
+  // Gets the widget at X/Y.
+  // If x,y points to a selectable widget, sets widget, x_in_selected_widget,
+  // y_in_selected_widget and returns true.
+  // If the mouse is within the bounds of this widget, but this widget isn't
+  // selectable, sets widget to nullptr, but returns true.
+  // If the mouse is outside of the bounds of this widget, returns false, and
+  // doesn't touch the mutable parameters.
+  virtual bool GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
+                           float& x_in_selected_widget,
+                           float& y_in_selected_widget);
 
-protected:
-    virtual void InvalidateRender();
+  virtual void OnMouseEnter();
+  virtual void OnMouseLeave();
+  virtual void OnMouseMove(float x, float y);
+  virtual void OnMouseButtonDown(
+      float x, float y, ::permebuf::perception::devices::MouseButton button);
+  virtual void OnMouseButtonUp(
+      float x, float y, ::permebuf::perception::devices::MouseButton button);
 
-	std::weak_ptr<Widget> parent_;
-    std::list<std::shared_ptr<Widget>> children_;
+ protected:
+  virtual void InvalidateRender();
 
-    YGNode* yoga_node_;
-    bool layout_dirtied_;
+  std::weak_ptr<Widget> parent_;
+  std::list<std::shared_ptr<Widget>> children_;
 
-private:
-    static void LayoutDirtied(YGNode* node);
+  YGNode* yoga_node_;
+  bool layout_dirtied_;
 
+ private:
+  static void LayoutDirtied(YGNode* node);
 };
 
-}
-}
+}  // namespace ui
+}  // namespace perception
