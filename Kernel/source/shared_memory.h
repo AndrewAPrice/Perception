@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include "types.h"
+
 struct Process;
 
 // Represents a linked list of physical pages that makes up a shared
