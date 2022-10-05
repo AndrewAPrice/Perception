@@ -24,12 +24,13 @@ const {getBuildCommand, getLinkerCommand, buildPrefix} =
     require('./build_commands');
 const {getPackageDirectory} = require('./package_directory');
 const {transpilePermebufToCppForPackage} = require('./permebufs');
-const {getMetadata} = require('./metadata');
+const {getMetadata, getStandaloneLibraryMetadata} = require('./metadata');
 const {makeSureThirdPartyIsLoaded} = require('./third_party');
 const {getDisplayFilename} = require('./generated_filename_map');
 const {constructIncludeAndDefineParams} = require('./build_parameters');
 const {escapePath, forEachIfDefined} = require('./utils');
 const {maybeGenerateClangCompleteFilesForProject} = require('./clang_complete');
+const {applicationsWithAssets, librariesWithAssets} = require('./assets');
 
 // Libraries already built on this run, therefore we shouldn't have to build
 // them again.
@@ -224,7 +225,15 @@ async function link(
         // There can be header only libraries that didn't build anything.
         librariesToLink.push(libraryPath);
       }
+      const libraryMetadata = getStandaloneLibraryMetadata(library);
+      if (libraryMetadata.has_assets) {
+        librariesWithAssets[library] = true;
+      }
     });
+
+    if (metadata.has_assets) {
+      applicationsWithAssets[packageName] = true;
+    }
 
     if (!anythingChanged && fs.existsSync(binaryPath)) {
       // We already exist. Check if any libraries are newer that us (even if

@@ -41,7 +41,8 @@ function loadStandaloneMetadata(name, packageType) {
     process.exit(-1);
   }
   if (!metadata.public_include) {
-    if (packageType == PackageType.APPLICATION) {
+    if (packageType == PackageType.APPLICATION ||
+        !fs.existsSync(packageDirectory + 'public')) {
       metadata.public_include = [];
     } else {
       metadata.public_include = ['public'];
@@ -82,6 +83,7 @@ function constructCombinedMetadata(metadata, name, packageType, isLocal) {
   let packageDirectory = getPackageDirectory(packageType, name);
 
   const combinedMetadata = {
+    has_assets: metadata.has_assets ? true : false,
     public_include: [],
     include: [],
     my_public_include: [],

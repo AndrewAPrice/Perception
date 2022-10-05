@@ -22,6 +22,7 @@ const {rootDirectory} = require('./root_directory');
 const {escapePath} = require('./utils');
 const {getFileLastModifiedTimestamp} = require('./file_timestamps');
 const {PackageType} = require('./package_type');
+const {applicationsWithAssets, librariesWithAssets} = require('./assets');
 
 const GRUB_MKRESCUE_COMMAND = getToolPath('grub-mkrescue') + ' -o ' +
     escapePath(rootDirectory) + 'Perception.iso' +
@@ -47,6 +48,38 @@ function copyIfNewer(source, destination) {
   console.log('Copying ' + destination);
   fs.copyFileSync(source, destination);
   return true;
+}
+
+function copyDirectoryRecursively(sourceDir, destinationDir) {
+  if (!fs.existsSync(sourceDir)) return false;
+  if (!fs.existsSync(destinationDir)) {
+    fs.mkdirSync(destinationDir, {recursive: true});
+  }
+
+  // Copy each file in the source.
+  let files = fs.readdirSync(sourceDir);
+
+  for (let i = 0; i < files.length; i++) {
+    const sourcePath = sourceDir + files[i];
+    const destinationPath = destinationDir + files[i];
+    const fileStats = fs.lstatSync(sourcePath);
+    if (fileStats.isDirectory()) {
+      copyDirectoryRecursively(sourcePath + '/', destinationPath + '/');
+    } else if (fileStats.isFile()) {
+      if (fs.existsSync(destinationPath)) {
+        // Don't copy if the source is older or the same as as the destination.
+        if (fileStats.mtimeMs <=
+            getFileLastModifiedTimestamp(destinationPath)) {
+          continue;
+        }
+
+        fs.unlinkSync(destinationPath);
+      }
+
+      console.log('Copying ' + destinationPath);
+      fs.copyFileSync(sourcePath, destinationPath);
+    }
+  }
 }
 
 // Builds everything and turns it into an image.
@@ -132,6 +165,19 @@ async function buildImage(buildSettings) {
                 '/launcher.json');
       }
     }
+
+    // Copy assets.
+    Object.keys(applicationsWithAssets).forEach((application) => {
+      copyDirectoryRecursively(
+          rootDirectory + 'Applications/' + application + '/assets/',
+          rootDirectory + 'fs/Applications/' + application + '/assets/');
+    });
+    Object.keys(librariesWithAssets).forEach((library) => {
+      copyDirectoryRecursively(
+          rootDirectory + 'Libraries/' + library + '/assets/',
+          rootDirectory + 'fs/Libraries/' + library + '/assets/');
+    });
+
 
     if (!buildSettings.compile) {
       console.log('Nothing was compiled, so no image is built.');
