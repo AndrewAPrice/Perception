@@ -1,0 +1,19 @@
+{
+	"dependencies":[
+		"fontconfig",
+		"harfbuzz",
+		"libcxx",
+		"libexpat",
+		"libjpeg-turbo",
+		"musl",
+		"unicode-org icu"
+	],
+	"include": [
+		"public"	
+	],
+	"define": [
+		"SK_SHAPER_HARFBUZZ_AVAILABLE",
+     	"SK_UNICODE_AVAILABLE"
+	],
+	"third_party": true
+}
