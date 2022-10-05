@@ -23,7 +23,7 @@
 /* Architecture prefix to use for cache file names */
 /* #undef FC_ARCHITECTURE */
 /* System font directory */
-#define FC_DEFAULT_FONTS "/usr/share/fonts"
+#define FC_DEFAULT_FONTS "/Libraries/Fonts/assets/"
 /* Define to nothing if C supports flexible array members, and to 1 if it does
    not. That way, with a declaration like `struct s { int n; double
    d[FLEXIBLE_ARRAY_MEMBER]; };', the struct hack can be used with pre-C99
