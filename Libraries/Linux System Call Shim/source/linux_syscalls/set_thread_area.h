@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long set_thread_area(long thread_area);
 
 }
-}
+}  // namespace perception

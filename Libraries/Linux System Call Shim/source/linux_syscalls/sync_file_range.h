@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long sync_file_range();
 
 }
-}
+}  // namespace perception

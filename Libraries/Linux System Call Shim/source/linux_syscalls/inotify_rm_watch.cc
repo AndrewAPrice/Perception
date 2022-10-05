@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long inotify_rm_watch() {
-	perception::DebugPrinterSingleton << "System call inotify_rm_watch is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call inotify_rm_watch is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

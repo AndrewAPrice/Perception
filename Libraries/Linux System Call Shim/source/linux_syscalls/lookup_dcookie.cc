@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long lookup_dcookie() {
-	perception::DebugPrinterSingleton << "System call lookup_dcookie is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call lookup_dcookie is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

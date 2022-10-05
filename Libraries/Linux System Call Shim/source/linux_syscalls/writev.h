@@ -22,4 +22,4 @@ namespace linux_syscalls {
 long writev(long file_descriptor, struct iovec* buffers, long buffer_count);
 
 }
-}
+}  // namespace perception

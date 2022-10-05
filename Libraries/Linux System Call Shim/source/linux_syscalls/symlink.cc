@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long symlink() {
-	perception::DebugPrinterSingleton << "System call symlink is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call symlink is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

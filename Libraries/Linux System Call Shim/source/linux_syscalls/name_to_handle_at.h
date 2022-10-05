@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long name_to_handle_at();
 
 }
-}
+}  // namespace perception

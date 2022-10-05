@@ -20,9 +20,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long clone() {
-	perception::DebugPrinterSingleton << "System call clone is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton << "System call clone is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

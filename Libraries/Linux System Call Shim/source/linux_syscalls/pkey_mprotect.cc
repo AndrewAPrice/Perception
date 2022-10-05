@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long pkey_mprotect() {
-	perception::DebugPrinterSingleton << "System call pkey_mprotect is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call pkey_mprotect is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

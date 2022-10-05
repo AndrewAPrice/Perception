@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long ioctl(long file_descriptor, long request, long arg);
 
 }
-}
+}  // namespace perception

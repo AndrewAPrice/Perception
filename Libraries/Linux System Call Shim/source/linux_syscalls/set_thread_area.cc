@@ -20,9 +20,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long set_thread_area(long thread_area) {
-	perception::SetThreadSegment(static_cast<size_t>(thread_area));
-	return 0;
+  perception::SetThreadSegment(static_cast<size_t>(thread_area));
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

@@ -20,9 +20,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long linkat() {
-	perception::DebugPrinterSingleton << "System call linkat is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton << "System call linkat is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

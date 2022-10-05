@@ -20,9 +20,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long close(long fd) {
-	CloseFile(fd);
-	return 0;
+  CloseFile(fd);
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

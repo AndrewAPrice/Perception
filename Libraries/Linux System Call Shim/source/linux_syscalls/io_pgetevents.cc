@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long io_pgetevents() {
-	perception::DebugPrinterSingleton << "System call io_pgetevents is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call io_pgetevents is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

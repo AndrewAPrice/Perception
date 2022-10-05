@@ -20,9 +20,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long pipe() {
-	perception::DebugPrinterSingleton << "System call pipe is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton << "System call pipe is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long faccessat() {
-	perception::DebugPrinterSingleton << "System call faccessat is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call faccessat is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

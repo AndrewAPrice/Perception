@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long mlock2();
 
 }
-}
+}  // namespace perception

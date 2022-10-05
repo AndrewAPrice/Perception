@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long afs_syscall() {
-	perception::DebugPrinterSingleton << "System call afs_syscall is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call afs_syscall is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

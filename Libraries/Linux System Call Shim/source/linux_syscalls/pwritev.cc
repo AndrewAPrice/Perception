@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long pwritev() {
-	perception::DebugPrinterSingleton << "System call pwritev is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call pwritev is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

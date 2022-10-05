@@ -20,4 +20,4 @@ namespace linux_syscalls {
 off_t lseek(long fd, off_t offset, int whence);
 
 }
-}
+}  // namespace perception

@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long sendmsg() {
-	perception::DebugPrinterSingleton << "System call sendmsg is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call sendmsg is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long fdatasync() {
-	perception::DebugPrinterSingleton << "System call fdatasync is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call fdatasync is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

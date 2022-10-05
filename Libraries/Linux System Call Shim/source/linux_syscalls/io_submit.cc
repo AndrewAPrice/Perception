@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long io_submit() {
-	perception::DebugPrinterSingleton << "System call io_submit is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call io_submit is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

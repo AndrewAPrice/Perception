@@ -16,32 +16,28 @@
 
 #include <string>
 
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
-
 #include "perception/shared_memory_pool.h"
+#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 
 namespace perception {
 
 extern SharedMemoryPool<kPageSize> kSharedMemoryPool;
 
 struct FileDescriptor {
-	enum Type {
-		DIRECTORY = 0,
-		FILE = 1
-	};
-	Type type;
+  enum Type { DIRECTORY = 0, FILE = 1 };
+  Type type;
 
-	struct Directory {
-		std::string name;
-		int iterating_offset;
-		bool finished_iterating;
-	} directory;
+  struct Directory {
+    std::string name;
+    int iterating_offset;
+    bool finished_iterating;
+  } directory;
 
-	struct File {
-		::permebuf::perception::File file;
-		size_t size_in_bytes;
-		size_t offset_in_file;
-	} file;
+  struct File {
+    ::permebuf::perception::File file;
+    size_t size_in_bytes;
+    size_t offset_in_file;
+  } file;
 };
 
 long OpenDirectory(const char* path);
@@ -52,4 +48,4 @@ bool ReadAndIncrementFile(long id, void* buffer, long bytes);
 
 void CloseFile(long id);
 
-}
+}  // namespace perception

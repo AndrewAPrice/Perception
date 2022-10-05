@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long clone3();
 
 }
-}
+}  // namespace perception

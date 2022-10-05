@@ -24,9 +24,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long brk() {
-	// We don't support brk, instead use mmap.
-	return __syscall_ret(-ENOSYS);
+  // We don't support brk, instead use mmap.
+  return __syscall_ret(-ENOSYS);
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

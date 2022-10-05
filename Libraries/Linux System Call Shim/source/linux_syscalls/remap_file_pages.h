@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long remap_file_pages();
 
 }
-}
+}  // namespace perception

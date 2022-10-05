@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long epoll_wait() {
-	perception::DebugPrinterSingleton << "System call epoll_wait is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call epoll_wait is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

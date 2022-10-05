@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long fsetxattr() {
-	perception::DebugPrinterSingleton << "System call fsetxattr is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call fsetxattr is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

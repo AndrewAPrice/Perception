@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long inotify_add_watch();
 
 }
-}
+}  // namespace perception

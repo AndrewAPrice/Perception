@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long copy_file_range() {
-	perception::DebugPrinterSingleton << "System call copy_file_range is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call copy_file_range is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

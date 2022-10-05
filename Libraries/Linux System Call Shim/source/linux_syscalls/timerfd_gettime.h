@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long timerfd_gettime();
 
 }
-}
+}  // namespace perception

@@ -21,24 +21,26 @@
 namespace perception {
 namespace linux_syscalls {
 
-long mmap(long addr, long length, long prot, long flags,
-                  long fd, long offset) {
+long mmap(long addr, long length, long prot, long flags, long fd, long offset) {
+  if (addr != 0) {
+    perception::DebugPrinterSingleton
+        << "mmap wants to place at a specific addr (" << (size_t)addr
+        << ") but this isn't yet implemented.\n";
+    return 0;
+  }
 
-	if (addr != 0) {
-		perception::DebugPrinterSingleton << "mmap wants to place at a specific addr (" << (size_t)addr << ") but this isn't yet implemented.\n";
-		return 0;
-	}
+  if (flags != (MAP_ANON | MAP_PRIVATE)) {
+    perception::DebugPrinterSingleton
+        << "mmap passed flags " << (size_t)flags
+        << " but currently only MAP_ANON | MAP_FIXED is supported.\n";
+  }
 
-	if (flags != (MAP_ANON | MAP_PRIVATE)) {
-		perception::DebugPrinterSingleton << "mmap passed flags " << (size_t)flags << " but currently only MAP_ANON | MAP_FIXED is supported.\n";
-	}
+  // 'prot' sepecifies if the memory can be executed, read, written, etc. The
+  // kernel doesn't yet support this level of control, so we make all program
+  // memory x/r/w and can ignore this parameter.
 
-	// 'prot' sepecifies if the memory can be executed, read, written, etc. The kernel doesn't yet support this level
-	// of control, so we make all program memory x/r/w and can ignore this parameter.
-
-	return (long)AllocateMemoryPages((size_t)length / kPageSize);
+  return (long)AllocateMemoryPages((size_t)length / kPageSize);
 }
 
-}
-}
-
+}  // namespace linux_syscalls
+}  // namespace perception

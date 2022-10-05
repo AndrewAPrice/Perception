@@ -17,8 +17,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long getdents64(unsigned int fd, dirent *dirp,
-	unsigned int count);
+long getdents64(unsigned int fd, dirent *dirp, unsigned int count);
 
 }
-}
+}  // namespace perception

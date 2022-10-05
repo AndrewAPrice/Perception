@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long add_key() {
-	perception::DebugPrinterSingleton << "System call add_key is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call add_key is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

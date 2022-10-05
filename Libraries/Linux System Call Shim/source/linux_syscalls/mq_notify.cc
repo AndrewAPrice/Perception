@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long mq_notify() {
-	perception::DebugPrinterSingleton << "System call mq_notify is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call mq_notify is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long open_tree() {
-	perception::DebugPrinterSingleton << "System call open_tree is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call open_tree is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

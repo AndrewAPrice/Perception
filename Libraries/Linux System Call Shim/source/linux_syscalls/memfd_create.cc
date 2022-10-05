@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long memfd_create() {
-	perception::DebugPrinterSingleton << "System call memfd_create is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call memfd_create is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

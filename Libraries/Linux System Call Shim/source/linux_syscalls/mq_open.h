@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long mq_open();
 
 }
-}
+}  // namespace perception

@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long inotify_init() {
-	perception::DebugPrinterSingleton << "System call inotify_init is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call inotify_init is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

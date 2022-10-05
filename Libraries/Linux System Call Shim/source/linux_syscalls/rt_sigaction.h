@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long rt_sigaction();
 
 }
-}
+}  // namespace perception

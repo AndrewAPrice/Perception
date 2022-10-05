@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long rt_tgsigqueueinfo() {
-	perception::DebugPrinterSingleton << "System call rt_tgsigqueueinfo is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call rt_tgsigqueueinfo is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

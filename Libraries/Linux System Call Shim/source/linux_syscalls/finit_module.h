@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long finit_module();
 
 }
-}
+}  // namespace perception

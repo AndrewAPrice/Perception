@@ -22,29 +22,29 @@ namespace perception {
 namespace linux_syscalls {
 
 off_t lseek(long fd, off_t offset, int whence) {
-	auto file = GetFileDescriptor(fd);
-	if (!file || file->type != FileDescriptor::Type::FILE) {
-		// File not open or not a file.
-		return -1;
-	}
+  auto file = GetFileDescriptor(fd);
+  if (!file || file->type != FileDescriptor::Type::FILE) {
+    // File not open or not a file.
+    return -1;
+  }
 
-	switch (whence) {
-		case SEEK_SET:
-			file->file.offset_in_file = offset;
-			break;
-		case SEEK_CUR:
-			file->file.offset_in_file += offset;
-			break;
-		case SEEK_END:
-			file->file.offset_in_file = file->file.size_in_bytes + offset;
-			break;
-		default:
-			std::cout << "Unknown whence passed to lseek: " << whence << std::endl;
-			return -1;
-	}
+  switch (whence) {
+    case SEEK_SET:
+      file->file.offset_in_file = offset;
+      break;
+    case SEEK_CUR:
+      file->file.offset_in_file += offset;
+      break;
+    case SEEK_END:
+      file->file.offset_in_file = file->file.size_in_bytes + offset;
+      break;
+    default:
+      std::cout << "Unknown whence passed to lseek: " << whence << std::endl;
+      return -1;
+  }
 
-	return (off_t)file->file.offset_in_file;
+  return (off_t)file->file.offset_in_file;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

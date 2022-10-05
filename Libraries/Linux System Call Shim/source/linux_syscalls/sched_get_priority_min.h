@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long sched_get_priority_min();
 
 }
-}
+}  // namespace perception

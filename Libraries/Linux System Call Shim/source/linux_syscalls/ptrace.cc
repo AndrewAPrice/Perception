@@ -20,9 +20,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long ptrace() {
-	perception::DebugPrinterSingleton << "System call ptrace is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton << "System call ptrace is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long fdatasync();
 
 }
-}
+}  // namespace perception

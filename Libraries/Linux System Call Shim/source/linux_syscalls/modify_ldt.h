@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long modify_ldt();
 
 }
-}
+}  // namespace perception

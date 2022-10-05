@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long modify_ldt() {
-	perception::DebugPrinterSingleton << "System call modify_ldt is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call modify_ldt is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

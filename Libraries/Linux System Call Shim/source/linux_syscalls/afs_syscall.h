@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long afs_syscall();
 
 }
-}
+}  // namespace perception

@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long mq_unlink() {
-	perception::DebugPrinterSingleton << "System call mq_unlink is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call mq_unlink is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

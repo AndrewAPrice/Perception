@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long sched_rr_get_interval();
 
 }
-}
+}  // namespace perception

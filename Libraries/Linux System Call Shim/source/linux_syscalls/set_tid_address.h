@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long set_tid_address(long tid_address);
 
 }
-}
+}  // namespace perception

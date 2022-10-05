@@ -20,9 +20,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long mount() {
-	perception::DebugPrinterSingleton << "System call mount is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton << "System call mount is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

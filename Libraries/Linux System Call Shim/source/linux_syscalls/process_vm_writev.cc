@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long process_vm_writev() {
-	perception::DebugPrinterSingleton << "System call process_vm_writev is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call process_vm_writev is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

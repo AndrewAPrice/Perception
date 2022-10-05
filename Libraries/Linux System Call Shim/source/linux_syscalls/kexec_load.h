@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long kexec_load();
 
 }
-}
+}  // namespace perception

@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long perf_event_open();
 
 }
-}
+}  // namespace perception

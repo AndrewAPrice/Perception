@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long perf_event_open() {
-	perception::DebugPrinterSingleton << "System call perf_event_open is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call perf_event_open is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

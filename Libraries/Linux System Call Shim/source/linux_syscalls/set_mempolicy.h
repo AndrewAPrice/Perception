@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long set_mempolicy();
 
 }
-}
+}  // namespace perception

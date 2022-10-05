@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long open_by_handle_at();
 
 }
-}
+}  // namespace perception

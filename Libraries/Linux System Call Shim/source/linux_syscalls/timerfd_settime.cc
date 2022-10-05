@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long timerfd_settime() {
-	perception::DebugPrinterSingleton << "System call timerfd_settime is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call timerfd_settime is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

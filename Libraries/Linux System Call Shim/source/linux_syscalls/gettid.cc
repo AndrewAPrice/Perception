@@ -20,9 +20,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long gettid() {
-	return GetThreadId();
-}
+long gettid() { return GetThreadId(); }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

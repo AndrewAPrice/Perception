@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long set_mempolicy() {
-	perception::DebugPrinterSingleton << "System call set_mempolicy is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call set_mempolicy is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

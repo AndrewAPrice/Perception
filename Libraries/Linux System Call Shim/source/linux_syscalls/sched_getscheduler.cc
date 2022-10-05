@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long sched_getscheduler() {
-	perception::DebugPrinterSingleton << "System call sched_getscheduler is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call sched_getscheduler is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

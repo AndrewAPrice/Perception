@@ -23,16 +23,17 @@ namespace perception {
 namespace linux_syscalls {
 
 long ioctl(long file_descriptor, long request, long arg) {
-	switch (request) {
-			case TIOCGWINSZ:
-			case TIOCSWINSZ:
-				// Get/Set terminal window size.
-			break;
-			default:
-				DebugPrinterSingleton << "Unhandled ioctl request " << (size_t)request << ", arg: " << (size_t)arg << "\n";
-		}
-	return 0;
+  switch (request) {
+    case TIOCGWINSZ:
+    case TIOCSWINSZ:
+      // Get/Set terminal window size.
+      break;
+    default:
+      DebugPrinterSingleton << "Unhandled ioctl request " << (size_t)request
+                            << ", arg: " << (size_t)arg << "\n";
+  }
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

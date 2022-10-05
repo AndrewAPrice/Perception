@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -21,4 +21,4 @@ namespace linux_syscalls {
 long open(const char* pathname, int flags, mode_t mode);
 
 }
-}
+}  // namespace perception

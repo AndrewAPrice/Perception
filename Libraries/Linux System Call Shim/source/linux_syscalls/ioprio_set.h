@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long ioprio_set();
 
 }
-}
+}  // namespace perception

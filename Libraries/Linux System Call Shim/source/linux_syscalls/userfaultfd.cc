@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long userfaultfd() {
-	perception::DebugPrinterSingleton << "System call userfaultfd is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call userfaultfd is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

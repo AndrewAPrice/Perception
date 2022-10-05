@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long _sysctl() {
-	perception::DebugPrinterSingleton << "System call _sysctl is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call _sysctl is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

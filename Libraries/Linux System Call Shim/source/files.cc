@@ -27,66 +27,66 @@ std::map<long, std::shared_ptr<FileDescriptor>> open_files;
 long last_file_id = 0;
 
 long GetUniqueFileId() {
-	last_file_id++;
-	return last_file_id;
+  last_file_id++;
+  return last_file_id;
 }
 
-}
+}  // namespace
 
 SharedMemoryPool<kPageSize> kSharedMemoryPool;
 
 long OpenDirectory(const char* path) {
-	long id = GetUniqueFileId();
+  long id = GetUniqueFileId();
 
-	auto descriptor = std::make_shared<FileDescriptor>();
-	descriptor->type = FileDescriptor::DIRECTORY;
-	descriptor->directory.name = path;
-	descriptor->directory.iterating_offset = 0;
-	descriptor->directory.finished_iterating = false;
+  auto descriptor = std::make_shared<FileDescriptor>();
+  descriptor->type = FileDescriptor::DIRECTORY;
+  descriptor->directory.name = path;
+  descriptor->directory.iterating_offset = 0;
+  descriptor->directory.finished_iterating = false;
 
-	open_files[id] = descriptor;
+  open_files[id] = descriptor;
 
-	return id;
+  return id;
 }
 
 long OpenFile(const char* path) {
-	long id = GetUniqueFileId();
+  long id = GetUniqueFileId();
 
-	Permebuf<StorageManager::OpenFileRequest> request;
-	request->SetPath(path);
-	auto status_or_response = StorageManager::Get().CallOpenFile(std::move(request));
-	if (!status_or_response) {
-		return -1;
-	}
+  Permebuf<StorageManager::OpenFileRequest> request;
+  request->SetPath(path);
+  auto status_or_response =
+      StorageManager::Get().CallOpenFile(std::move(request));
+  if (!status_or_response) {
+    return -1;
+  }
 
-	auto descriptor = std::make_shared<FileDescriptor>();
-	descriptor->type = FileDescriptor::FILE;
-	descriptor->file.file = status_or_response->GetFile();
-	descriptor->file.size_in_bytes = status_or_response->GetSizeInBytes();
+  auto descriptor = std::make_shared<FileDescriptor>();
+  descriptor->type = FileDescriptor::FILE;
+  descriptor->file.file = status_or_response->GetFile();
+  descriptor->file.size_in_bytes = status_or_response->GetSizeInBytes();
 
-	open_files[id] = descriptor;
+  open_files[id] = descriptor;
 
-	return id;
+  return id;
 }
 
 std::shared_ptr<FileDescriptor> GetFileDescriptor(long id) {
-	auto itr = open_files.find(id);
-	if (itr == open_files.end())
-		return std::shared_ptr<FileDescriptor>();
-	else
-		return itr->second;
+  auto itr = open_files.find(id);
+  if (itr == open_files.end())
+    return std::shared_ptr<FileDescriptor>();
+  else
+    return itr->second;
 }
 
 void CloseFile(long id) {
-	auto itr = open_files.find(id);
-	if (itr == open_files.end())
-		return;
+  auto itr = open_files.find(id);
+  if (itr == open_files.end()) return;
 
-	if (itr->second->type == FileDescriptor::FILE) {
-		itr->second->file.file.SendCloseFile(File::CloseFileMessage());
-	}
+  if (itr->second->type == FileDescriptor::FILE) {
+    itr->second->file.file.SendCloseFile(File::CloseFileMessage());
+  }
 
-	open_files.erase(itr);
+  open_files.erase(itr);
 }
 
-}
+}  // namespace perception

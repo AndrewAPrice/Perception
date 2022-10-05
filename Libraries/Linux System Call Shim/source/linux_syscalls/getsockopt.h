@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long getsockopt();
 
 }
-}
+}  // namespace perception

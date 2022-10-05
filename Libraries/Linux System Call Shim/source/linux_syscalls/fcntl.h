@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long fcntl(long fd, long cmd, long arg);
 
 }
-}
+}  // namespace perception

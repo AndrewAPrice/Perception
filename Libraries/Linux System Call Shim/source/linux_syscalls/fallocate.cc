@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long fallocate() {
-	perception::DebugPrinterSingleton << "System call fallocate is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call fallocate is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

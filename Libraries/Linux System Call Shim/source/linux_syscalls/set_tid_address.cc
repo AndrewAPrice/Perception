@@ -21,9 +21,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long set_tid_address(long tid_address) {
-	SetAddressToClearOnThreadTermination(tid_address);
-	return GetThreadId();
+  SetAddressToClearOnThreadTermination(tid_address);
+  return GetThreadId();
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

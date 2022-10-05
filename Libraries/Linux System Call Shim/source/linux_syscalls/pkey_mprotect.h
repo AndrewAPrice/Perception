@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long pkey_mprotect();
 
 }
-}
+}  // namespace perception

@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long io_setup() {
-	perception::DebugPrinterSingleton << "System call io_setup is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call io_setup is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

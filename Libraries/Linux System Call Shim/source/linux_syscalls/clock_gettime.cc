@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long clock_gettime() {
-	perception::DebugPrinterSingleton << "System call clock_gettime is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call clock_gettime is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

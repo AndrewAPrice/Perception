@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long name_to_handle_at() {
-	perception::DebugPrinterSingleton << "System call name_to_handle_at is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call name_to_handle_at is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long fanotify_mark() {
-	perception::DebugPrinterSingleton << "System call fanotify_mark is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call fanotify_mark is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

@@ -20,9 +20,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long lstat() {
-	perception::DebugPrinterSingleton << "System call lstat is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton << "System call lstat is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

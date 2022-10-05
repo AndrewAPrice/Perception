@@ -27,7 +27,8 @@ extern long __syscall2(long n, long a1, long a2);
 extern long __syscall3(long n, long a1, long a2, long a3);
 extern long __syscall4(long n, long a1, long a2, long a3, long a4);
 extern long __syscall5(long n, long a1, long a2, long a3, long a4, long a5);
-extern long __syscall6(long n, long a1, long a2, long a3, long a4, long a5, long a6);
+extern long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
+                       long a6);
 
 #ifdef __cplusplus
 }

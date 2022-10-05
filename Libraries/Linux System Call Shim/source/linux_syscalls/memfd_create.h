@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long memfd_create();
 
 }
-}
+}  // namespace perception

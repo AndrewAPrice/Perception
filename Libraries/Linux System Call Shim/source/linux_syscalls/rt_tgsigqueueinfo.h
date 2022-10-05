@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long rt_tgsigqueueinfo();
 
 }
-}
+}  // namespace perception

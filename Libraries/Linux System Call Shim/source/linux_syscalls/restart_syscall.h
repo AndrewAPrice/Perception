@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long restart_syscall();
 
 }
-}
+}  // namespace perception

@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long ioprio_set() {
-	perception::DebugPrinterSingleton << "System call ioprio_set is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call ioprio_set is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

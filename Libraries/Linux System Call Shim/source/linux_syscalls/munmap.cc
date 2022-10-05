@@ -21,9 +21,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long munmap(long addr, long length) {
-	ReleaseMemoryPages((void*)addr, (size_t)length / kPageSize);
-	return 0;
+  ReleaseMemoryPages((void*)addr, (size_t)length / kPageSize);
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long sched_setparam() {
-	perception::DebugPrinterSingleton << "System call sched_setparam is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call sched_setparam is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

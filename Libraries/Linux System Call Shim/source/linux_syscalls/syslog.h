@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long syslog();
 
 }
-}
+}  // namespace perception

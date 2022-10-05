@@ -20,17 +20,17 @@ namespace perception {
 namespace linux_syscalls {
 
 long writev(long file_descriptor, struct iovec* buffers, long buffer_count) {
-	size_t bytes_written = 0;
-	for (size_t i = 0; i < buffer_count; i++) {
-		const auto& buffer = buffers[i];
+  size_t bytes_written = 0;
+  for (size_t i = 0; i < buffer_count; i++) {
+    const auto& buffer = buffers[i];
 
-		char* c = (char *)buffer.iov_base;
-		for (size_t j = 0; j < buffer.iov_len; j++, c++, bytes_written++) {
-			DebugPrinterSingleton << *c;
-		}
-	}
-	return bytes_written;
+    char* c = (char*)buffer.iov_base;
+    for (size_t j = 0; j < buffer.iov_len; j++, c++, bytes_written++) {
+      DebugPrinterSingleton << *c;
+    }
+  }
+  return bytes_written;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

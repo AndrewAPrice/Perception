@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long restart_syscall() {
-	perception::DebugPrinterSingleton << "System call restart_syscall is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call restart_syscall is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

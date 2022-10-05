@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long remap_file_pages() {
-	perception::DebugPrinterSingleton << "System call remap_file_pages is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call remap_file_pages is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

@@ -20,9 +20,10 @@ namespace perception {
 namespace linux_syscalls {
 
 long getsockname() {
-	perception::DebugPrinterSingleton << "System call getsockname is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton
+      << "System call getsockname is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

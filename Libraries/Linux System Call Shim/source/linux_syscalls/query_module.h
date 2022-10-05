@@ -18,4 +18,4 @@ namespace linux_syscalls {
 long query_module();
 
 }
-}
+}  // namespace perception

@@ -20,9 +20,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long exit_group() {
-	perception::TerminateProcess();
-	return 0;
+  perception::TerminateProcess();
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

@@ -20,9 +20,9 @@ namespace perception {
 namespace linux_syscalls {
 
 long shmctl() {
-	perception::DebugPrinterSingleton << "System call shmctl is unimplemented.\n";
-	return 0;
+  perception::DebugPrinterSingleton << "System call shmctl is unimplemented.\n";
+  return 0;
 }
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception

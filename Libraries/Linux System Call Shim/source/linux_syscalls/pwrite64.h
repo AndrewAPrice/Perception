@@ -19,5 +19,5 @@ namespace linux_syscalls {
 
 long pwrite64();
 
-}
-}
+}  // namespace linux_syscalls
+}  // namespace perception
