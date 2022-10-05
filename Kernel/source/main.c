@@ -1,15 +1,15 @@
+#include "../../third_party/multiboot2.h"
 #include "framebuffer.h"
 #include "interrupts.h"
 #include "io.h"
-#include "../../third_party/multiboot2.h"
 #include "multiboot_modules.h"
 #include "object_pools.h"
 #include "physical_allocator.h"
 #include "process.h"
 #include "scheduler.h"
+#include "service.h"
 #include "shared_memory.h"
 #include "syscall.h"
-#include "service.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "timer.h"
@@ -17,38 +17,39 @@
 #include "virtual_allocator.h"
 
 void kmain() {
-	// Make sure we were booted with a multiboot2 bootloader - we need this because we depend
-	// on GRUB for providing us with some initialization information.
-	if(MultibootInfo.magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
-		PrintString("Not booted with a multiboot2 bootloader!");
-		asm ("hlt");
-	}
+  // Make sure we were booted with a multiboot2 bootloader - we need this
+  // because we depend on GRUB for providing us with some initialization
+  // information.
+  if (MultibootInfo.magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
+    PrintString("Not booted with a multiboot2 bootloader!");
+    asm("hlt");
+  }
 
-	InitializePhysicalAllocator();
-	InitializeVirtualAllocator();
-	InitializeObjectPools();
+  InitializePhysicalAllocator();
+  InitializeVirtualAllocator();
+  InitializeObjectPools();
 
-	InitializeTss();
-	InitializeInterrupts();
-	InitializeSystemCalls();
+  InitializeTss();
+  InitializeInterrupts();
+  InitializeSystemCalls();
 
-	InitializeProcesses();
-	InitializeThreads();
-	InitializeServices();
-	InitializeSharedMemory();
+  InitializeProcesses();
+  InitializeThreads();
+  InitializeServices();
+  InitializeSharedMemory();
 
-	InitializeScheduler();
-	InitializeTimer();
+  InitializeScheduler();
+  InitializeTimer();
 
-	// Loads the multiboot modules, then frees the memory used by them.
-	LoadMultibootModules();
-	MaybeLoadFramebuffer();
-	DoneWithMultibootMemory();
+  // Loads the multiboot modules, then frees the memory used by them.
+  LoadMultibootModules();
+  MaybeLoadFramebuffer();
+  DoneWithMultibootMemory();
 
-	asm("sti");
-	for(;;) {
-		// This needs to be in a loop because the scheduler returns here when there are no awake threads
-		// scheduled.
-		asm("hlt");
-	}
+  asm("sti");
+  for (;;) {
+    // This needs to be in a loop because the scheduler returns here when there
+    // are no awake threads scheduled.
+    asm("hlt");
+  }
 }

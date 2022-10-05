@@ -12,21 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "types.h"
 #include "text_terminal.h"
+#include "types.h"
 
 // 32-bit:
 // #define STACK_CHK_GUARD 0xe2dee396
 // 64-bit:
 #define STACK_CHK_GUARD 0x595e9fbd94fda766
- 
+
 uint64 __stack_chk_guard = STACK_CHK_GUARD;
 
-__attribute__((noreturn))
-void __stack_chk_fail(void) {
-	asm("cli");
-	PrintString("Stack smashing detected.");
-	for(;;) {
-		asm("hlt");
-	}
+__attribute__((noreturn)) void __stack_chk_fail(void) {
+  asm("cli");
+  PrintString("Stack smashing detected.");
+  for (;;) {
+    asm("hlt");
+  }
 }

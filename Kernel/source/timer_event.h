@@ -20,22 +20,22 @@ struct Process;
 
 // An event that occurs at a timestamp.
 struct TimerEvent {
-	// The process to send this message to.
-	struct Process* process_to_send_message_to;
+  // The process to send this message to.
+  struct Process* process_to_send_message_to;
 
-	// The timestamp (in microseconds since the kernel started) to trigger
-	// this event.
-	size_t timestamp_to_trigger_at;
+  // The timestamp (in microseconds since the kernel started) to trigger
+  // this event.
+  size_t timestamp_to_trigger_at;
 
-	// The message ID of the timer to send.
-	size_t message_id_to_send;
+  // The message ID of the timer to send.
+  size_t message_id_to_send;
 
-	// Linked list, ordered by timerstamp_to_trigger, of all
-	// scheduled TimerEvents.
-	struct TimerEvent* previous_scheduled_timer_event;
-	struct TimerEvent* next_scheduled_timer_event;
+  // Linked list, ordered by timerstamp_to_trigger, of all
+  // scheduled TimerEvents.
+  struct TimerEvent* previous_scheduled_timer_event;
+  struct TimerEvent* next_scheduled_timer_event;
 
-	// Linked list in the process.
-	struct TimerEvent* previous_timer_event_in_process;
-	struct TimerEvent* next_timer_event_in_process;
+  // Linked list in the process.
+  struct TimerEvent* previous_timer_event_in_process;
+  struct TimerEvent* next_timer_event_in_process;
 };

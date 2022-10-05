@@ -14,29 +14,31 @@
 
 #include "multiboot_modules.h"
 
-#include "elf_loader.h"
 #include "../../third_party/multiboot2.h"
+#include "elf_loader.h"
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 
 void LoadMultibootModules() {
-	// We are now in higher half memory, so we have to add VIRTUAL_MEMORY_OFFSET.
-	struct multiboot_info* higher_half_multiboot_info =
-		(struct multiboot_info *)((size_t)&MultibootInfo + VIRTUAL_MEMORY_OFFSET);
+  // We are now in higher half memory, so we have to add VIRTUAL_MEMORY_OFFSET.
+  struct multiboot_info *higher_half_multiboot_info =
+      (struct multiboot_info *)((size_t)&MultibootInfo + VIRTUAL_MEMORY_OFFSET);
 
-	// Loop through the multiboot sections.
-	struct multiboot_tag *tag;
-	for(tag = (struct multiboot_tag *)(size_t)(higher_half_multiboot_info->addr + 8 + VIRTUAL_MEMORY_OFFSET);
-		tag->type != MULTIBOOT_TAG_TYPE_END;
-		tag = (struct multiboot_tag *)((size_t) tag + (size_t)((tag->size + 7) & ~7))) {
+  // Loop through the multiboot sections.
+  struct multiboot_tag *tag;
+  for (tag = (struct multiboot_tag *)(size_t)(higher_half_multiboot_info->addr +
+                                              8 + VIRTUAL_MEMORY_OFFSET);
+       tag->type != MULTIBOOT_TAG_TYPE_END;
+       tag = (struct multiboot_tag *)((size_t)tag +
+                                      (size_t)((tag->size + 7) & ~7))) {
+    // Found a multiboot module.
+    if (tag->type == MULTIBOOT_TAG_TYPE_MODULE) {
+      struct multiboot_tag_module *module_tag =
+          (struct multiboot_tag_module *)tag;
 
-		// Found a multiboot module.
-		if (tag->type == MULTIBOOT_TAG_TYPE_MODULE) {
-			struct multiboot_tag_module *module_tag = (struct multiboot_tag_module *)tag;
-
-			LoadElfProcess(module_tag->mod_start + VIRTUAL_MEMORY_OFFSET,
-				module_tag->mod_end + VIRTUAL_MEMORY_OFFSET,
-				module_tag->cmdline);
-		}
-	}
+      LoadElfProcess(module_tag->mod_start + VIRTUAL_MEMORY_OFFSET,
+                     module_tag->mod_end + VIRTUAL_MEMORY_OFFSET,
+                     module_tag->cmdline);
+    }
+  }
 }

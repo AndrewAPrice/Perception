@@ -21,10 +21,11 @@
 #include "virtual_allocator.h"
 
 // Pointers for the TSS entry in the GDT. WARNING: These refer to symbols in
-// lower memory, so we'll have to add VIRTUAL_MEMORY_OFFSET when deferencing them.
+// lower memory, so we'll have to add VIRTUAL_MEMORY_OFFSET when deferencing
+// them.
 extern uint64 TSSEntry;
 
-// Size of the TSS 
+// Size of the TSS
 #define TSS_SIZE 104
 // Index of RSP0 in the TSS (stack pointer for ring 0).
 #define RSP0_LOW 1
@@ -37,52 +38,52 @@ uint32* tss;
 
 // Initializes the task segment structure.
 void InitializeTss() {
-	// Allocate and clear the TSS.
-	tss = malloc(TSS_SIZE);
-	memset((char *)tss, 0, TSS_SIZE);
+  // Allocate and clear the TSS.
+  tss = malloc(TSS_SIZE);
+  memset((char*)tss, 0, TSS_SIZE);
 
-	// Set the TSS entry in the GDT.
-	uint64 tss_entry_low = 0;
-	unsigned char* tss_entry_bytes = (unsigned char*)&tss_entry_low;
+  // Set the TSS entry in the GDT.
+  uint64 tss_entry_low = 0;
+  unsigned char* tss_entry_bytes = (unsigned char*)&tss_entry_low;
 
-	size_t limit = TSS_SIZE;
-	size_t base = (size_t)tss;
+  size_t limit = TSS_SIZE;
+  size_t base = (size_t)tss;
 
-	tss_entry_bytes[0] = limit & 0xFF;
-	tss_entry_bytes[1] = (limit >> 8) & 0xFF;
-	tss_entry_bytes[6] = /*0x40 |*/ ((limit >> 16) & 0xF);
+  tss_entry_bytes[0] = limit & 0xFF;
+  tss_entry_bytes[1] = (limit >> 8) & 0xFF;
+  tss_entry_bytes[6] = /*0x40 |*/ ((limit >> 16) & 0xF);
 
-	tss_entry_bytes[2] = base & 0xFF;
-	tss_entry_bytes[3] = (base >> 8) & 0xFF;
-	tss_entry_bytes[4] = (base >> 16) & 0xFF;
-	tss_entry_bytes[7] = (base >> 24) & 0xFF;
+  tss_entry_bytes[2] = base & 0xFF;
+  tss_entry_bytes[3] = (base >> 8) & 0xFF;
+  tss_entry_bytes[4] = (base >> 16) & 0xFF;
+  tss_entry_bytes[7] = (base >> 24) & 0xFF;
 
-	tss_entry_bytes[5] = 0x89; // Present, TSS
+  tss_entry_bytes[5] = 0x89;  // Present, TSS
 
-	uint64 tss_entry_high = 0;
-	uint32* tss_entry_dwords = (uint32*)&tss_entry_high;
+  uint64 tss_entry_high = 0;
+  uint32* tss_entry_dwords = (uint32*)&tss_entry_high;
 
-	tss_entry_dwords[0] = (base >> 32) & 0xFFFFFFFF;
+  tss_entry_dwords[0] = (base >> 32) & 0xFFFFFFFF;
 
-	*(uint64*)(((size_t)&TSSEntry) + VIRTUAL_MEMORY_OFFSET) = tss_entry_low;
-	*(uint64*)(((size_t)&TSSEntry) + VIRTUAL_MEMORY_OFFSET + 8) = tss_entry_high;
+  *(uint64*)(((size_t)&TSSEntry) + VIRTUAL_MEMORY_OFFSET) = tss_entry_low;
+  *(uint64*)(((size_t)&TSSEntry) + VIRTUAL_MEMORY_OFFSET + 8) = tss_entry_high;
 
-	// Point the IOPB bitmap offset to the end of TSS structure, because it's unused.
-	((uint16*)tss)[51] = TSS_SIZE;
+  // Point the IOPB bitmap offset to the end of TSS structure, because it's
+  // unused.
+  ((uint16*)tss)[51] = TSS_SIZE;
 }
-
 
 // Sets the stack to use for interrupts.
 void SetInterruptStack(size_t interrupt_stack_start_virtual_addr) {
-	// Stacks grow downwards.
-	size_t top_of_stack = interrupt_stack_start_virtual_addr + PAGE_SIZE;
+  // Stacks grow downwards.
+  size_t top_of_stack = interrupt_stack_start_virtual_addr + PAGE_SIZE;
 
-	uint32 low = top_of_stack & 0xFFFFFFFF;
-	uint32 high = top_of_stack >> 32;
+  uint32 low = top_of_stack & 0xFFFFFFFF;
+  uint32 high = top_of_stack >> 32;
 
-	tss[RSP0_LOW] = low;
-	tss[RSP0_HIGH] = high;
+  tss[RSP0_LOW] = low;
+  tss[RSP0_HIGH] = high;
 
-	// Load the TSS.
-	__asm__ __volatile__("ltr %0":: "r"((uint16)TSS_GDT_OFFSET));
+  // Load the TSS.
+  __asm__ __volatile__("ltr %0" ::"r"((uint16)TSS_GDT_OFFSET));
 }

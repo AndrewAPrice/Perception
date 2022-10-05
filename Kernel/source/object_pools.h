@@ -9,7 +9,8 @@ struct SharedMemoryInProcess;
 struct SharedMemoryPage;
 struct TimerEvent;
 
-// Object pools, for fast grabbing and releasing objects that are created/destoyed a lot.
+// Object pools, for fast grabbing and releasing objects that are
+// created/destoyed a lot.
 
 // Allocate a message.
 struct Message* AllocateMessage();
@@ -22,7 +23,7 @@ struct ProcessToNotifyOnExit* AllocateProcessToNotifyOnExit();
 
 // Release a ProcessToNotifyOnExit.
 void ReleaseProcessToNotifyOnExit(
-	struct ProcessToNotifyOnExit* process_to_notify_on_exit);
+    struct ProcessToNotifyOnExit* process_to_notify_on_exit);
 
 // Allocate a Service.
 struct Service* AllocateService();
@@ -31,12 +32,13 @@ struct Service* AllocateService();
 void ReleaseService(struct Service* service);
 
 // Allocate a ProcessToNotifyWhenServiceAppears.
-struct ProcessToNotifyWhenServiceAppears* AllocateProcessToNotifyWhenServiceAppears();
+struct ProcessToNotifyWhenServiceAppears*
+AllocateProcessToNotifyWhenServiceAppears();
 
 // Release a ProcessToNotifyWhenServiceAppears.
 void ReleaseProcessToNotifyWhenServiceAppears(
-	struct ProcessToNotifyWhenServiceAppears* process_to_notify_when_service_appears);
-
+    struct ProcessToNotifyWhenServiceAppears*
+        process_to_notify_when_service_appears);
 
 // Allocate a SharedMemory.
 struct SharedMemory* AllocateSharedMemory();
@@ -48,7 +50,8 @@ void ReleaseSharedMemory(struct SharedMemory* shared_memory);
 struct SharedMemoryInProcess* AllocateSharedMemoryInProcess();
 
 // Release a SharedMemoryInProcess.
-void ReleaseSharedMemoryInProcess(struct SharedMemoryInProcess* shared_memory_in_process);
+void ReleaseSharedMemoryInProcess(
+    struct SharedMemoryInProcess* shared_memory_in_process);
 
 // Allocate a SharedMemoryPage.
 struct SharedMemoryPage* AllocateSharedMemoryPage();

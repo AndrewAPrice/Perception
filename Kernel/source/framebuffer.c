@@ -28,71 +28,71 @@ uint32 framebuffer_pitch;
 uint8 framebuffer_bits_per_pixel;
 
 // Initializes the framebuffer details.
-void SetFramebufferDetails(
-	size_t address,
-	uint32 width, uint32 height, uint32 pitch,
-	uint8 bpp) {
-	framebuffer_address = address;
-	framebuffer_width = width;
-	framebuffer_height = height;
-	framebuffer_pitch = pitch;
-	framebuffer_bits_per_pixel = bpp;
+void SetFramebufferDetails(size_t address, uint32 width, uint32 height,
+                           uint32 pitch, uint8 bpp) {
+  framebuffer_address = address;
+  framebuffer_width = width;
+  framebuffer_height = height;
+  framebuffer_pitch = pitch;
+  framebuffer_bits_per_pixel = bpp;
 
 #ifdef DEBUG
-	PrintString("Entered framebuffer during boot: ");
-	PrintNumber((size_t)framebuffer_width); PrintString("x");
-	PrintNumber((size_t)framebuffer_height); PrintString("x");
-	PrintNumber((size_t)framebuffer_bits_per_pixel); PrintString(" @ ");
-	PrintHex((size_t)framebuffer_address); PrintString("\n");
+  PrintString("Entered framebuffer during boot: ");
+  PrintNumber((size_t)framebuffer_width);
+  PrintString("x");
+  PrintNumber((size_t)framebuffer_height);
+  PrintString("x");
+  PrintNumber((size_t)framebuffer_bits_per_pixel);
+  PrintString(" @ ");
+  PrintHex((size_t)framebuffer_address);
+  PrintString("\n");
 #endif
 }
 
 // Maybe load the framebuffer from the multiboot header.
 void MaybeLoadFramebuffer() {
-	// Initialize to empty values, in case we don't find a framebuffer in the
-	// multiboot header.
-	framebuffer_address = 0;
-	framebuffer_width = 0;
-	framebuffer_height = 0;
-	framebuffer_pitch = 0;
-	framebuffer_bits_per_pixel = 0;
+  // Initialize to empty values, in case we don't find a framebuffer in the
+  // multiboot header.
+  framebuffer_address = 0;
+  framebuffer_width = 0;
+  framebuffer_height = 0;
+  framebuffer_pitch = 0;
+  framebuffer_bits_per_pixel = 0;
 
-	// We are now in higher half memory, so we have to add VIRTUAL_MEMORY_OFFSET.
-	struct multiboot_info* higher_half_multiboot_info =
-		(struct multiboot_info *)((size_t)&MultibootInfo + VIRTUAL_MEMORY_OFFSET);
+  // We are now in higher half memory, so we have to add VIRTUAL_MEMORY_OFFSET.
+  struct multiboot_info *higher_half_multiboot_info =
+      (struct multiboot_info *)((size_t)&MultibootInfo + VIRTUAL_MEMORY_OFFSET);
 
-	// Loop through the multiboot sections.
-	struct multiboot_tag *tag;
-	for(tag = (struct multiboot_tag *)(size_t)(higher_half_multiboot_info->addr + 8 + VIRTUAL_MEMORY_OFFSET);
-		tag->type != MULTIBOOT_TAG_TYPE_END;
-		tag = (struct multiboot_tag *)((size_t) tag + (size_t)((tag->size + 7) & ~7))) {
-
-		// Found a framebuffer.
-		if(tag->type == MULTIBOOT_TAG_TYPE_FRAMEBUFFER) {
-			struct multiboot_tag_framebuffer *tagfb =
-				(struct multiboot_tag_framebuffer *) tag;
-			if(tagfb->common.framebuffer_type ==
-					MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
-				SetFramebufferDetails(
-					tagfb->common.framebuffer_addr,
-					tagfb->common.framebuffer_width,
-					tagfb->common.framebuffer_height,
-					tagfb->common.framebuffer_pitch,
-					tagfb->common.framebuffer_bpp);
-			} else {
-				PrintString("Found a VESA framebuffer tag, but the framebuffer "
-					"is not of type MULTIBOOT_FRAMEBUFFER_TYPE_RGB.\n");
-			}
-		}
-	}
+  // Loop through the multiboot sections.
+  struct multiboot_tag *tag;
+  for (tag = (struct multiboot_tag *)(size_t)(higher_half_multiboot_info->addr +
+                                              8 + VIRTUAL_MEMORY_OFFSET);
+       tag->type != MULTIBOOT_TAG_TYPE_END;
+       tag = (struct multiboot_tag *)((size_t)tag +
+                                      (size_t)((tag->size + 7) & ~7))) {
+    // Found a framebuffer.
+    if (tag->type == MULTIBOOT_TAG_TYPE_FRAMEBUFFER) {
+      struct multiboot_tag_framebuffer *tagfb =
+          (struct multiboot_tag_framebuffer *)tag;
+      if (tagfb->common.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
+        SetFramebufferDetails(
+            tagfb->common.framebuffer_addr, tagfb->common.framebuffer_width,
+            tagfb->common.framebuffer_height, tagfb->common.framebuffer_pitch,
+            tagfb->common.framebuffer_bpp);
+      } else {
+        PrintString(
+            "Found a VESA framebuffer tag, but the framebuffer "
+            "is not of type MULTIBOOT_FRAMEBUFFER_TYPE_RGB.\n");
+      }
+    }
+  }
 }
 
 // Populates the registers with framebuffer details.
-void PopulateRegistersWithFramebufferDetails(
-	struct Registers* regs) {
-	regs->rax = framebuffer_address;
-	regs->rbx = (size_t)framebuffer_width;
-	regs->rdx = (size_t)framebuffer_height;
-	regs->rsi = (size_t)framebuffer_pitch;
-	regs->r8 = (size_t)framebuffer_bits_per_pixel;
+void PopulateRegistersWithFramebufferDetails(struct Registers *regs) {
+  regs->rax = framebuffer_address;
+  regs->rbx = (size_t)framebuffer_width;
+  regs->rdx = (size_t)framebuffer_height;
+  regs->rsi = (size_t)framebuffer_pitch;
+  regs->r8 = (size_t)framebuffer_bits_per_pixel;
 }
