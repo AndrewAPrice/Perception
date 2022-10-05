@@ -144,6 +144,7 @@ function readFromFile(filename, regexes) {
 	return results;
 }
 
+filesToIgnore['source/jerror.h'] = true;
 filesToIgnore['source/jpeglib.h'] = true;
 filesToIgnore['source/jmorecfg.h'] = true;
 filesToIgnore['source/turbojpeg-jni.c'] = true;
@@ -154,6 +155,7 @@ copyFilesInDirectory('third_party/simd/x86_64', 'source/simd/x86_64');
 copyFilesInDirectory('third_party/simd/nasm', 'source/simd/x86_64');
 copyFilesInDirectory('third_party/md5', 'source/md5');
 copyFile('third_party/jconfig.h.in', 'public/jconfig.h');
+copyFile('third_party/jerror.h', 'public/jerror.h');
 copyFile('third_party/jpeglib.h', 'public/jpeglib.h');
 copyFile('third_party/jmorecfg.h', 'public/jmorecfg.h');
 copyFile('third_party/jconfigint.h.in', 'source/jconfigint.h');
