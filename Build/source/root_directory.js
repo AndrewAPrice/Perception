@@ -16,5 +16,5 @@
 const rootDirectory = '../';
 
 module.exports = {
-	rootDirectory: rootDirectory
+  rootDirectory : rootDirectory
 };

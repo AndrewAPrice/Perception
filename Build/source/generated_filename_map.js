@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A map of the generated source file back to the original file, so if there's an error
-// building the generated file, it's better to show the original file that is broken.
+// A map of the generated source file back to the original file, so if there's
+// an error building the generated file, it's better to show the original file
+// that is broken.
 const generatedFilenameMap = {};
 
-// Returns the filename we should display, respecting generated files that should remap
-// back to the original file.
+// Returns the filename we should display, respecting generated files that
+// should remap back to the original file.
 function getDisplayFilename(filename) {
-	const remappedFileName = generatedFilenameMap[filename];
-	return remappedFileName ? remappedFileName : filename;
+  const remappedFileName = generatedFilenameMap[filename];
+  return remappedFileName ? remappedFileName : filename;
 }
 
 module.exports = {
-	generatedFilenameMap: generatedFilenameMap,
-	getDisplayFilename: getDisplayFilename
+  generatedFilenameMap : generatedFilenameMap,
+  getDisplayFilename : getDisplayFilename
 };

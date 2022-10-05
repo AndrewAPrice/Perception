@@ -16,56 +16,56 @@ const fs = require('fs');
 const {buildPrefix} = require('./build_commands');
 
 // Calls 'foreachFunc' for each file in the package directory.
-async function foreachSourceFile (packageDir, buildSettings, foreachFunc) {
-	if (fs.existsSync(packageDir + 'source/')) {
-		await foreachSourceFileInSourceDir(
-				packageDir + 'source/',
-				packageDir + 'build/' + buildPrefix(buildSettings) + '/',
-				true,
-				foreachFunc);
-	}
+async function foreachSourceFile(packageDir, buildSettings, foreachFunc) {
+  if (fs.existsSync(packageDir + 'source/')) {
+    await foreachSourceFileInSourceDir(
+        packageDir + 'source/',
+        packageDir + 'build/' + buildPrefix(buildSettings) + '/', true,
+        foreachFunc);
+  }
 
-	if (fs.existsSync(packageDir + 'generated/source/')) {
-		await foreachSourceFileInSourceDir(
-				packageDir + 'generated/source/',
-				packageDir + 'generated/build/' + buildPrefix(buildSettings) + '/',
-				true,
-				foreachFunc);
-	}
+  if (fs.existsSync(packageDir + 'generated/source/')) {
+    await foreachSourceFileInSourceDir(
+        packageDir + 'generated/source/',
+        packageDir + 'generated/build/' + buildPrefix(buildSettings) + '/',
+        true, foreachFunc);
+  }
 }
 
 // Calls 'foreachFunc' for each permebuf source file.
-async function foreachPermebufSourceFile (packageDir, foreachFunc) {
-	const permebufDir = packageDir + 'permebuf/'
-	if (!fs.existsSync(permebufDir)) {
-		// This package doesn't have any permebuf files.
-		return;
-	}
+async function foreachPermebufSourceFile(packageDir, foreachFunc) {
+  const permebufDir = packageDir + 'permebuf/'
+  if (!fs.existsSync(permebufDir)) {
+    // This package doesn't have any permebuf files.
+    return;
+  }
 
-	await foreachSourceFileInSourceDir(permebufDir, '', false, foreachFunc);
+  await foreachSourceFileInSourceDir(permebufDir, '', false, foreachFunc);
 }
 
 // Calls 'foreachFunc' for each file in the source directory.
-async function foreachSourceFileInSourceDir (dir, secondaryDir, makeSecondaryDir, foreachFunc) {
-	if (makeSecondaryDir && !fs.existsSync(secondaryDir)) {
-		fs.mkdirSync(secondaryDir, {recursive: true});
-	}
+async function foreachSourceFileInSourceDir(
+    dir, secondaryDir, makeSecondaryDir, foreachFunc) {
+  if (makeSecondaryDir && !fs.existsSync(secondaryDir)) {
+    fs.mkdirSync(secondaryDir, {recursive: true});
+  }
 
-	let files = fs.readdirSync(dir);
+  let files = fs.readdirSync(dir);
 
-	for (let i = 0; i < files.length; i++) {
-		const fullPath = dir + files[i];
-		const secondaryPath = secondaryDir + files[i];
-		const fileStats = fs.lstatSync(fullPath);
-		if (fileStats.isDirectory()) {
-			await foreachSourceFileInSourceDir(fullPath + '/', secondaryPath + '/', makeSecondaryDir, foreachFunc);
-		} else if (fileStats.isFile()) {
-			await foreachFunc(fullPath, secondaryPath);
-		}
-	}
+  for (let i = 0; i < files.length; i++) {
+    const fullPath = dir + files[i];
+    const secondaryPath = secondaryDir + files[i];
+    const fileStats = fs.lstatSync(fullPath);
+    if (fileStats.isDirectory()) {
+      await foreachSourceFileInSourceDir(
+          fullPath + '/', secondaryPath + '/', makeSecondaryDir, foreachFunc);
+    } else if (fileStats.isFile()) {
+      await foreachFunc(fullPath, secondaryPath);
+    }
+  }
 }
 
 module.exports = {
-	foreachSourceFile: foreachSourceFile,
-	foreachPermebufSourceFile: foreachPermebufSourceFile
+  foreachSourceFile : foreachSourceFile,
+  foreachPermebufSourceFile : foreachPermebufSourceFile
 };

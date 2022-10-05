@@ -21,146 +21,150 @@ const {buildPrefix} = require('./build_commands');
 const {getMetadata} = require('./metadata');
 const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
 const {generatedFilenameMap} = require('./generated_filename_map');
-const {forgetFileLastModifiedTimestamp, getFileLastModifiedTimestamp} = require('./file_timestamps');
+const {forgetFileLastModifiedTimestamp, getFileLastModifiedTimestamp} =
+    require('./file_timestamps');
 
 const transpiledLibrariesWithPermebufs = {};
 const transpiledApplicationsWithPermebufs = {};
 
 function forEachIfDefined(array, onEach) {
-	if (array) array.forEach(onEach);
+  if (array) array.forEach(onEach);
 }
 
-function compilePermebufToCpp(localPath,
-	packageName,
-	packageType,
-	dependencies) {
-	const symbolTable = {};
-	const symbolsToGenerate = [];
-	const cppIncludeFiles = {};
-	const cppIncludeLiteFiles = {};
-	const importedFilesMap = {}
+function compilePermebufToCpp(
+    localPath, packageName, packageType, dependencies) {
+  const symbolTable = {};
+  const symbolsToGenerate = [];
+  const cppIncludeFiles = {};
+  const cppIncludeLiteFiles = {};
+  const importedFilesMap = {}
 
-	if (!permebufParser.parseFile(localPath, packageName, packageType, importedFilesMap,
-		symbolTable, symbolsToGenerate, cppIncludeFiles, cppIncludeLiteFiles, true)) {
-		return false;
-	}
+  if (!permebufParser.parseFile(
+          localPath, packageName, packageType, importedFilesMap, symbolTable,
+          symbolsToGenerate, cppIncludeFiles, cppIncludeLiteFiles, true)) {
+    return false;
+  }
 
-	if (!permebufGenerator.generateCppSources(localPath, packageName, packageType,
-		symbolTable, symbolsToGenerate, cppIncludeFiles, cppIncludeLiteFiles)) {
-		return false;
-	}
+  if (!permebufGenerator.generateCppSources(
+          localPath, packageName, packageType, symbolTable, symbolsToGenerate,
+          cppIncludeFiles, cppIncludeLiteFiles)) {
+    return false;
+  }
 
-	// Convert the imported files map into an array.
-	Object.keys(importedFilesMap).forEach((importedFile) => {
-		dependencies.push(importedFile);
-	});
+  // Convert the imported files map into an array.
+  Object.keys(importedFilesMap).forEach((importedFile) => {
+    dependencies.push(importedFile);
+  });
 
-	return true;
+  return true;
 }
 
 async function transpilePermebufToCppForPackage(
-	packageName,
-	packageType,
-	buildSettings) {
-	if (packageType == PackageType.LIBRARY) {
-		if (transpiledLibrariesWithPermebufs[packageName] == undefined) {
-			transpiledLibrariesWithPermebufs[packageName] =
-				await forceTranspilePermebufToCppForPackage(packageType, packageName, buildSettings);
-		}
-		return transpiledLibrariesWithPermebufs[packageName];
-	} else if (packageType == PackageType.APPLICATION) {
-		if (transpiledApplicationsWithPermebufs[packageName] == undefined) {
-			transpiledApplicationsWithPermebufs[packageName] =
-				await forceTranspilePermebufToCppForPackage(packageType, packageName, buildSettings);
-		}
-		return transpiledApplicationsWithPermebufs[packageName];
-	}
-	return false;
+    packageName, packageType, buildSettings) {
+  if (packageType == PackageType.LIBRARY) {
+    if (transpiledLibrariesWithPermebufs[packageName] == undefined) {
+      transpiledLibrariesWithPermebufs[packageName] =
+          await forceTranspilePermebufToCppForPackage(
+              packageType, packageName, buildSettings);
+    }
+    return transpiledLibrariesWithPermebufs[packageName];
+  } else if (packageType == PackageType.APPLICATION) {
+    if (transpiledApplicationsWithPermebufs[packageName] == undefined) {
+      transpiledApplicationsWithPermebufs[packageName] =
+          await forceTranspilePermebufToCppForPackage(
+              packageType, packageName, buildSettings);
+    }
+    return transpiledApplicationsWithPermebufs[packageName];
+  }
+  return false;
 }
 
 async function forceTranspilePermebufToCppForPackage(
-	packageType,
-	packageName,
-	buildSettings) {
-	const packageDirectory = getPackageDirectory(packageType, packageName);
-	let anythingChanged = false;
+    packageType, packageName, buildSettings) {
+  const packageDirectory = getPackageDirectory(packageType, packageName);
+  let anythingChanged = false;
 
-	// Make sure the path exists where we're going to put our outputs.
-	if (!fs.existsSync(packageDirectory + 'build/' + buildPrefix(buildSettings)))
-		fs.mkdirSync(packageDirectory + 'build/' + buildPrefix(buildSettings), {recursive: true});
+  // Make sure the path exists where we're going to put our outputs.
+  if (!fs.existsSync(packageDirectory + 'build/' + buildPrefix(buildSettings)))
+    fs.mkdirSync(
+        packageDirectory + 'build/' + buildPrefix(buildSettings),
+        {recursive: true});
 
-	const depsFile = packageDirectory + 'build/' + buildPrefix(buildSettings) + '/permebuf_dependencies.json';
-	let dependenciesPerFile = fs.existsSync(depsFile) ? JSON.parse(fs.readFileSync(depsFile)) : {};
+  const depsFile = packageDirectory + 'build/' + buildPrefix(buildSettings) +
+      '/permebuf_dependencies.json';
+  let dependenciesPerFile =
+      fs.existsSync(depsFile) ? JSON.parse(fs.readFileSync(depsFile)) : {};
 
-	const isLocal = buildSettings.os != 'Perception';
-	const metadata = getMetadata(packageName, packageType, isLocal);
-	const filesToIgnore = {};
-	forEachIfDefined(metadata.ignore, (fileToIgnore) => {
-		filesToIgnore[fileToIgnore] = true;
-	});
+  const isLocal = buildSettings.os != 'Perception';
+  const metadata = getMetadata(packageName, packageType, isLocal);
+  const filesToIgnore = {};
+  forEachIfDefined(metadata.ignore, (fileToIgnore) => {
+    filesToIgnore[fileToIgnore] = true;
+  });
 
-	let errors = false;
-	// Construct generated files.
-	await foreachPermebufSourceFile(packageDirectory,
-		async function (fullPath, localPath) {
-			if (filesToIgnore[fullPath]) {
-				return;
-			}
+  let errors = false;
+  // Construct generated files.
+  await foreachPermebufSourceFile(
+      packageDirectory, async function(fullPath, localPath) {
+        if (filesToIgnore[fullPath]) {
+          return;
+        }
 
-			if (!localPath.endsWith('.permebuf')) {
-				// Not a permebuf file.
-				return;
-			}
+        if (!localPath.endsWith('.permebuf')) {
+          // Not a permebuf file.
+          return;
+        }
 
-			let shouldCompileFile = false;
+        let shouldCompileFile = false;
 
-			// We just need one of the generated files to tell if the source file is newer or not.
-			const outputFile = packageDirectory + 'generated/source/permebuf/' + getPackageTypeDirectoryName(packageType) +
-				'/' + packageName + '/' + localPath + '.cc';
+        // We just need one of the generated files to tell if the source file is
+        // newer or not.
+        const outputFile = packageDirectory + 'generated/source/permebuf/' +
+            getPackageTypeDirectoryName(packageType) + '/' + packageName + '/' +
+            localPath + '.cc';
 
-			if (!fs.existsSync(outputFile)) {
-				// Compile if the output file doesn't exist.
-				shouldCompileFile = true;
-			} else {
-				const outputFileTimestamp = fs.lstatSync(outputFile).mtimeMs;
+        if (!fs.existsSync(outputFile)) {
+          // Compile if the output file doesn't exist.
+          shouldCompileFile = true;
+        } else {
+          const outputFileTimestamp = fs.lstatSync(outputFile).mtimeMs;
 
-				const deps = dependenciesPerFile[fullPath];
-				if (deps == null) {
-					// Compile because we don't know the dependencies.
-					shouldCompileFile = true;
-				} else {
-					for (let i = 0; i < deps.length; i++) {
-						if (getFileLastModifiedTimestamp(deps[i]) >= outputFileTimestamp) {
-							// Compile because one of the dependencies is newer.
-							shouldCompileFile = true;
-							break;
-						}
-					}
-				}
-			}
+          const deps = dependenciesPerFile[fullPath];
+          if (deps == null) {
+            // Compile because we don't know the dependencies.
+            shouldCompileFile = true;
+          } else {
+            for (let i = 0; i < deps.length; i++) {
+              if (getFileLastModifiedTimestamp(deps[i]) >=
+                  outputFileTimestamp) {
+                // Compile because one of the dependencies is newer.
+                shouldCompileFile = true;
+                break;
+              }
+            }
+          }
+        }
 
-			if (shouldCompileFile) {
-				console.log('Transpiling ' + fullPath + ' to C++');
-				deps = [];
-				if (!compilePermebufToCpp(localPath,
-					packageName,
-					packageType,
-					deps)) {
-					errors = true;
-				}
-				anythingChanged = true;
-				dependenciesPerFile[fullPath] = deps;
-			}
-		});
+        if (shouldCompileFile) {
+          console.log('Transpiling ' + fullPath + ' to C++');
+          deps = [];
+          if (!compilePermebufToCpp(
+                  localPath, packageName, packageType, deps)) {
+            errors = true;
+          }
+          anythingChanged = true;
+          dependenciesPerFile[fullPath] = deps;
+        }
+      });
 
 
-    if (anythingChanged) {
-    	fs.writeFileSync(depsFile, JSON.stringify(dependenciesPerFile));
-	}
+  if (anythingChanged) {
+    fs.writeFileSync(depsFile, JSON.stringify(dependenciesPerFile));
+  }
 
-	return !errors;
+  return !errors;
 };
 
 module.exports = {
-	transpilePermebufToCppForPackage: transpilePermebufToCppForPackage
+  transpilePermebufToCppForPackage : transpilePermebufToCppForPackage
 };

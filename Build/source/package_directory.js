@@ -17,18 +17,18 @@ const {PackageType} = require('./package_type');
 
 // Gets the directory for a package type and package name.
 function getPackageDirectory(packageType, packageName) {
-	switch (packageType) {
-		case PackageType.APPLICATION:
-		return rootDirectory + 'Applications/' + packageName + '/';
-		case PackageType.LIBRARY:
-		return rootDirectory + 'Libraries/' + packageName + '/';
-		case PackageType.KERNEL:
-		return rootDirectory + 'Kernel/';
-		default:
-			return '';
-	}
+  switch (packageType) {
+    case PackageType.APPLICATION:
+      return rootDirectory + 'Applications/' + packageName + '/';
+    case PackageType.LIBRARY:
+      return rootDirectory + 'Libraries/' + packageName + '/';
+    case PackageType.KERNEL:
+      return rootDirectory + 'Kernel/';
+    default:
+      return '';
+  }
 }
 
 module.exports = {
-	getPackageDirectory: getPackageDirectory
+  getPackageDirectory : getPackageDirectory
 };

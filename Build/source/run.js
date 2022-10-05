@@ -22,43 +22,51 @@ const {PackageType} = require('./package_type');
 const {rootDirectory} = require('./root_directory');
 const {getToolPath} = require('./tools');
 
-const EMULATOR_COMMAND = getToolPath('qemu') + ' -boot d -cdrom ' + escapePath(rootDirectory) +
-	'Perception.iso -m 512 -serial stdio';
+const EMULATOR_COMMAND = getToolPath('qemu') + ' -boot d -cdrom ' +
+    escapePath(rootDirectory) + 'Perception.iso -m 512 -serial stdio';
 
 // For debugging the kernel, it's useful to add '-no-reboot -d int,cpu_reset'.
 
 // Builds everything and runs the emulator.
 async function run(package, buildSettings) {
-	if (buildSettings.os == 'Perception') {
-		if (package != '') {
-			console.log('\'build run\' builds everything into a disk image. If you\'re trying to run a particular application locally, please pass --local.');
-			process.exit(-1);
-		}
-		const success = await buildImage(buildSettings);
-		if (success) {
-			child_process.execSync(EMULATOR_COMMAND, {stdio: 'inherit'});
-		}
-	} else {
-		if (package == '') {
-			console.log('When passing --local to \'build run\', you need to add the name of the application you want to run.');
-			process.exit(-1);
-		}
-		build(PackageType.APPLICATION, package, buildSettings).then((res) => {
-			if (!buildSettings.compile) {
-				console.log('Nothing was compiled, so nothing to run.');
-			}
-			if (res) {
-				child_process.execSync(escapePath(rootDirectory + 'Applications/' + package + '/build/' +
-					buildPrefix(buildSettings) + '.app'), {stdio: 'inherit'});
-			} else {
-				console.log("failed!");
-			}
-		}, (err) =>{
-			console.log(err);
-		});
-	}
+  if (buildSettings.os == 'Perception') {
+    if (package != '') {
+      console.log(
+          '\'build run\' builds everything into a disk image. If you\'re trying to run a particular application locally, please pass --local.');
+      process.exit(-1);
+    }
+    const success = await buildImage(buildSettings);
+    if (success) {
+      child_process.execSync(EMULATOR_COMMAND, {stdio: 'inherit'});
+    }
+  } else {
+    if (package == '') {
+      console.log(
+          'When passing --local to \'build run\', you need to add the name of the application you want to run.');
+      process.exit(-1);
+    }
+    build(PackageType.APPLICATION, package, buildSettings)
+        .then(
+            (res) => {
+              if (!buildSettings.compile) {
+                console.log('Nothing was compiled, so nothing to run.');
+              }
+              if (res) {
+                child_process.execSync(
+                    escapePath(
+                        rootDirectory + 'Applications/' + package + '/build/' +
+                        buildPrefix(buildSettings) + '.app'),
+                    {stdio: 'inherit'});
+              } else {
+                console.log('failed!');
+              }
+            },
+            (err) => {
+              console.log(err);
+            });
+  }
 }
 
 module.exports = {
-	run: run
+  run : run
 };

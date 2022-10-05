@@ -15,16 +15,17 @@
 
 const path = require('path');
 
-// Escape spaces in a path so paths aren't split up when used as part of a command.
+// Escape spaces in a path so paths aren't split up when used as part of a
+// command.
 function escapePath(path) {
-	return path.replace(/ /g, '\\ ');
+  return path.replace(/ /g, '\\ ');
 }
 
 function forEachIfDefined(array, onEach) {
-	if (array) array.forEach(onEach);
+  if (array) array.forEach(onEach);
 }
 
 module.exports = {
-	escapePath: escapePath,
-	forEachIfDefined: forEachIfDefined
+  escapePath : escapePath,
+  forEachIfDefined : forEachIfDefined
 };

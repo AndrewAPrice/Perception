@@ -13,51 +13,52 @@
 // limitations under the License.
 
 const fs = require('fs');
-const { EOL } = require('os');
+const {EOL} = require('os');
 const {constructIncludeAndDefineParams} = require('./build_parameters');
 const {forEachIfDefined} = require('./utils');
 
 // Maybe generates/updates a .clang_complete file.
-function maybeGenerateClangCompleteFile(packageDirectory, metadata,
-	subDirectory, addLocalIncludes) {
-	const clangCompletePath = packageDirectory + subDirectory +
-		'/.clang_complete';
-	if (fs.existsSync(clangCompletePath)) {
-		const filestamp = fs.lstatSync(clangCompletePath).mtimeMs;
-		if (filestamp > metadata.metadata_updated) {
-			// The metadata hasn't been updated since this .clang_complete file
-			// generated, so there's no need to regenerate it.
-			return;
-		}
-	}
+function maybeGenerateClangCompleteFile(
+    packageDirectory, metadata, subDirectory, addLocalIncludes) {
+  const clangCompletePath =
+      packageDirectory + subDirectory + '/.clang_complete';
+  if (fs.existsSync(clangCompletePath)) {
+    const filestamp = fs.lstatSync(clangCompletePath).mtimeMs;
+    if (filestamp > metadata.metadata_updated) {
+      // The metadata hasn't been updated since this .clang_complete file
+      // generated, so there's no need to regenerate it.
+      return;
+    }
+  }
 
-	const fileContents = ['-D PERCEPTION', '-ffreestanding', '-nostdlib',
-		'-mno-red-zone '].join(EOL) + EOL +
-		constructIncludeAndDefineParams(packageDirectory,
-			metadata, subDirectory, addLocalIncludes, true).join(EOL);
+  const fileContents =
+      ['-D PERCEPTION', '-ffreestanding', '-nostdlib', '-mno-red-zone '].join(
+          EOL) +
+      EOL +
+      constructIncludeAndDefineParams(
+          packageDirectory, metadata, subDirectory, addLocalIncludes, true)
+          .join(EOL);
 
-	fs.writeFileSync(clangCompletePath, fileContents);
+  fs.writeFileSync(clangCompletePath, fileContents);
 }
 
 // Maybe generates/updates .clang_complete files for a project.
 function maybeGenerateClangCompleteFilesForProject(packageDirectory, metadata) {
-	if (fs.existsSync(packageDirectory + 'source')) {
-		maybeGenerateClangCompleteFile(packageDirectory, metadata,
-			'source', true);
-	}
+  if (fs.existsSync(packageDirectory + 'source')) {
+    maybeGenerateClangCompleteFile(packageDirectory, metadata, 'source', true);
+  }
 
-	forEachIfDefined(metadata.my_include, headerDirectory => {
-		maybeGenerateClangCompleteFile(packageDirectory, metadata,
-			headerDirectory, true);
-	});
+  forEachIfDefined(metadata.my_include, headerDirectory => {
+    maybeGenerateClangCompleteFile(
+        packageDirectory, metadata, headerDirectory, true);
+  });
 
-	forEachIfDefined(metadata.my_public_include, headerDirectory => {
-		maybeGenerateClangCompleteFile(packageDirectory, metadata,
-			headerDirectory, false);
-	});
+  forEachIfDefined(metadata.my_public_include, headerDirectory => {
+    maybeGenerateClangCompleteFile(
+        packageDirectory, metadata, headerDirectory, false);
+  });
 }
 
 module.exports = {
-	maybeGenerateClangCompleteFilesForProject:
-		maybeGenerateClangCompleteFilesForProject
+  maybeGenerateClangCompleteFilesForProject : maybeGenerateClangCompleteFilesForProject
 };

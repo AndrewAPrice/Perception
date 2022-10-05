@@ -15,9 +15,9 @@
 // Class types.
 
 module.exports = {
-	ENUM: 0,
-	MESSAGE: 1,
-	MINIMESSAGE: 2,
-	ONEOF: 3,
-	SERVICE: 4
+  ENUM : 0,
+  MESSAGE : 1,
+  MINIMESSAGE : 2,
+  ONEOF : 3,
+  SERVICE : 4
 };

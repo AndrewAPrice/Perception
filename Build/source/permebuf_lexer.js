@@ -15,187 +15,192 @@
 const fs = require('fs');
 
 function isBlankSpace(c) {
-	return c == ' ' || c == '\n' || c == '\r' || c == '\t';
+  return c == ' ' || c == '\n' || c == '\r' || c == '\t';
 }
 
 function isIdentifier(c) {
-	return c.length > 1 || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-		(c >= '0' && c <= '9');
+  return c.length > 1 || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+      (c >= '0' && c <= '9');
 }
 
 function isFirstCharNum(str) {
-	if (str.length == 0) {
-		return false;
-	}
+  if (str.length == 0) {
+    return false;
+  }
 
-	return str[0] >= '0' && str[0] <= '9';
+  return str[0] >= '0' && str[0] <= '9';
 }
 
 function isNumber(str) {
-	if (str.length == 0) {
-		return false;
-	}
+  if (str.length == 0) {
+    return false;
+  }
 
-	for (let i = 0; i < str.length; i++) {
-		if (str[i] < '0' || str[i] > '9') {
-			return false;
-		}
-	}
+  for (let i = 0; i < str.length; i++) {
+    if (str[i] < '0' || str[i] > '9') {
+      return false;
+    }
+  }
 
-	return true;
+  return true;
 }
 
-// Creates a lexer, which is the thing that takes the raw string and turns it into
-// tokens.
+// Creates a lexer, which is the thing that takes the raw string and turns it
+// into tokens.
 function createLexer(filename) {
-	if (!fs.existsSync(filename)) {
-		console.log('Permebuf file "' + filename + '" does not exist.');
-		return false;
-	}
-	const fileContents = fs.readFileSync(filename, 'UTF-8');
-	let index = 0;
+  if (!fs.existsSync(filename)) {
+    console.log('Permebuf file "' + filename + '" does not exist.');
+    return false;
+  }
+  const fileContents = fs.readFileSync(filename, 'UTF-8');
+  let index = 0;
 
-	let currentFilePosition = {row: 0, col: 0};
-	let filePositionOfNextToken = {row: 0, col: 0};
-	let filePositionOfToken = {row: 0, col: 0};
-	let nextToken = '';
-	let nextChar = '';
+  let currentFilePosition = {row: 0, col: 0};
+  let filePositionOfNextToken = {row: 0, col: 0};
+  let filePositionOfToken = {row: 0, col: 0};
+  let nextToken = '';
+  let nextChar = '';
 
-	function peekChar() {
-		return nextChar;
-	}
+  function peekChar() {
+    return nextChar;
+  }
 
-	function incrementFilePosition(c) {
-		if (c == '' || c == '\r') {
-			return;
-		}
+  function incrementFilePosition(c) {
+    if (c == '' || c == '\r') {
+      return;
+    }
 
-		if (c == '\n') {
-			currentFilePosition.row++;
-			currentFilePosition.col = 0;
-		} else {
-			currentFilePosition.col++;
-		}
-	}
+    if (c == '\n') {
+      currentFilePosition.row++;
+      currentFilePosition.col = 0;
+    } else {
+      currentFilePosition.col++;
+    }
+  }
 
-	function readChar() {
-		let lastChar = nextChar;
-		if (index >= fileContents.length) {
-			nextChar = '';
-		} else {
-			nextChar = fileContents[index];
-			index++;
-		}
+  function readChar() {
+    let lastChar = nextChar;
+    if (index >= fileContents.length) {
+      nextChar = '';
+    } else {
+      nextChar = fileContents[index];
+      index++;
+    }
 
-		incrementFilePosition(lastChar);
-		return lastChar;
-	}
+    incrementFilePosition(lastChar);
+    return lastChar;
+  }
 
-	// Read in the first char.
-	readChar();
+  // Read in the first char.
+  readChar();
 
-	function peekToken() {
-		return nextToken;
-	}
+  function peekToken() {
+    return nextToken;
+  }
 
-	function readToken() {
-		const lastToken = nextToken;
+  function readToken() {
+    const lastToken = nextToken;
 
-		// Read in the next token.
-		nextToken = '';
+    // Read in the next token.
+    nextToken = '';
 
-		// Skip over blank spaces and comments.
-		let c = readChar();
-		while (isBlankSpace(c) || c == '/') {
-			if (c == '/') {
-				// Could be a comment.
-				if (peekChar() == '/') {
-					// Line comment.
-					function isNewlineOrEOF(c) {
-						return c == '\n' || c == '\r' || c == '';
-					}
-					while (!isNewlineOrEOF(readChar())) {}
+    // Skip over blank spaces and comments.
+    let c = readChar();
+    while (isBlankSpace(c) || c == '/') {
+      if (c == '/') {
+        // Could be a comment.
+        if (peekChar() == '/') {
+          // Line comment.
+          function isNewlineOrEOF(c) {
+            return c == '\n' || c == '\r' || c == '';
+          }
+          while (!isNewlineOrEOF(readChar())) {
+          }
 
-				} else if (peekChar() == '*') {
-					// Block comment.
+        } else if (peekChar() == '*') {
+          // Block comment.
 
-					// Jump over *.
-					readChar(); 
+          // Jump over *.
+          readChar();
 
-					function isClosingOrEOF(c, next) {
-						return (c == '*' && next == '/') || c == '';
-					}
-					while (!isClosingOrEOF(readChar(), peekChar())) {}
+          function isClosingOrEOF(c, next) {
+            return (c == '*' && next == '/') || c == '';
+          }
+          while (!isClosingOrEOF(readChar(), peekChar())) {
+          }
 
-					// Jump over /.
-					readChar();
-				} else {
-					// Exit the while loop because we have a '/'.
-					break;
-				}
-			}
-			c = readChar();
-		}
+          // Jump over /.
+          readChar();
+        } else {
+          // Exit the while loop because we have a '/'.
+          break;
+        }
+      }
+      c = readChar();
+    }
 
-		filePositionOfToken = filePositionOfNextToken;
-		filePositionOfNextToken = {row: currentFilePosition.row, col: currentFilePosition.col - 1};
-		nextToken = c;
+    filePositionOfToken = filePositionOfNextToken;
+    filePositionOfNextToken = {
+      row: currentFilePosition.row,
+      col: currentFilePosition.col - 1
+    };
+    nextToken = c;
 
-		if (isIdentifier(nextToken)) {
-			// This is an identifier, so keep reading the rest of the identifier.
-			while (isIdentifier(peekChar())) {
-				nextToken += readChar();
-			}
-		}
+    if (isIdentifier(nextToken)) {
+      // This is an identifier, so keep reading the rest of the identifier.
+      while (isIdentifier(peekChar())) {
+        nextToken += readChar();
+      }
+    }
 
 
-		return lastToken;
-	}
+    return lastToken;
+  }
 
-	// Read in this first token.
-	readToken();
+  // Read in this first token.
+  readToken();
 
-	function filePosition() {
-		return filePositionOfToken;
-	}
+  function filePosition() {
+    return filePositionOfToken;
+  }
 
-	function expectToken(expectToken) {
-		const token = readToken();
-		if (token == expectToken) {
-			return true;
-		}
+  function expectToken(expectToken) {
+    const token = readToken();
+    if (token == expectToken) {
+      return true;
+    }
 
-		expectedTokens([expectToken], token);
-		return false;
-	}
+    expectedTokens([expectToken], token);
+    return false;
+  }
 
-	function expectedTokens(expectedTokens, token) {
-		const pos = filePosition();
+  function expectedTokens(expectedTokens, token) {
+    const pos = filePosition();
 
-		let message = 'In file ' + filename + ' line ' + pos.row + ', column ' + pos.col + ' expected ';
-		for (let i = 0; i < expectedTokens.length; i++) {
-			if (i > 0) {
-				message += ' or ';
-			}
-			message += expectedTokens[i];
-		}
-		console.log(message + ' but had ' + token + '.');
+    let message = 'In file ' + filename + ' line ' + pos.row + ', column ' +
+        pos.col + ' expected ';
+    for (let i = 0; i < expectedTokens.length; i++) {
+      if (i > 0) {
+        message += ' or ';
+      }
+      message += expectedTokens[i];
+    }
+    console.log(message + ' but had ' + token + '.');
+  }
 
-	}
-
-	return {
-		'peekToken': peekToken,
-		'readToken': readToken,
-		'filePosition': filePosition,
-		'expectToken': expectToken,
-		'expectedTokens': expectedTokens
-	};
+  return {
+    'peekToken': peekToken,
+    'readToken': readToken,
+    'filePosition': filePosition,
+    'expectToken': expectToken,
+    'expectedTokens': expectedTokens
+  };
 }
 
 module.exports = {
-	createLexer: createLexer,
-	isBlankSpace: isBlankSpace,
-	isIdentifier: isIdentifier,
-	isFirstCharNum: isFirstCharNum,
-	isNumber: isNumber
+  createLexer : createLexer,
+  isBlankSpace : isBlankSpace,
+  isIdentifier : isIdentifier,
+  isFirstCharNum : isFirstCharNum,
+  isNumber : isNumber
 };

@@ -17,54 +17,54 @@ const {rootDirectory} = require('./root_directory');
 
 // Tries to delete a file or directory, if it exists.
 function maybeDelete(path) {
-	if (!fs.existsSync(path)) {
-		return;
-	}
-	const fileStats = fs.lstatSync(path);
-	console.log('Removing ' + path);
-	if (fileStats.isDirectory()) {
-		fs.rmSync(path, { recursive: true });
-	} else {
-		fs.unlinkSync(path);
-	}
+  if (!fs.existsSync(path)) {
+    return;
+  }
+  const fileStats = fs.lstatSync(path);
+  console.log('Removing ' + path);
+  if (fileStats.isDirectory()) {
+    fs.rmSync(path, {recursive: true});
+  } else {
+    fs.unlinkSync(path);
+  }
 }
 
 // Removes all built files.
 function clean() {
-	// Clean up kernel.
-	maybeDelete(rootDirectory + 'Kernel/build');
-	maybeDelete(rootDirectory + 'Kernel/kernel.app');
-	maybeDelete(rootDirectory + 'fs/boot/kernel.app');
+  // Clean up kernel.
+  maybeDelete(rootDirectory + 'Kernel/build');
+  maybeDelete(rootDirectory + 'Kernel/kernel.app');
+  maybeDelete(rootDirectory + 'fs/boot/kernel.app');
 
-	// Clean up libraries.
-	let libraries = fs.readdirSync(rootDirectory + 'Libraries/');
-	for (let i = 0; i < libraries.length; i++) {
-		const libraryName = libraries[i];
-		const fullPath = rootDirectory + 'Libraries/' + libraryName;
-		const fileStats = fs.lstatSync(fullPath);
-		if (fileStats.isDirectory()) {
-			maybeDelete(fullPath + '/build');
-			maybeDelete(fullPath + '/generated');
-		}
-	}
+  // Clean up libraries.
+  let libraries = fs.readdirSync(rootDirectory + 'Libraries/');
+  for (let i = 0; i < libraries.length; i++) {
+    const libraryName = libraries[i];
+    const fullPath = rootDirectory + 'Libraries/' + libraryName;
+    const fileStats = fs.lstatSync(fullPath);
+    if (fileStats.isDirectory()) {
+      maybeDelete(fullPath + '/build');
+      maybeDelete(fullPath + '/generated');
+    }
+  }
 
-	// Clean up applications.
-	let applications = fs.readdirSync(rootDirectory + 'Applications/');
-	for (let i = 0; i < applications.length; i++) {
-		const applicationName = applications[i];
-		const fullPath = rootDirectory + 'Applications/' + applicationName;
-		const fileStats = fs.lstatSync(fullPath);
-		if (fileStats.isDirectory()) {
-			maybeDelete(fullPath + '/build');
-			maybeDelete(fullPath + '/generated');
-			maybeDelete(rootDirectory + 'fs/' + applicationName + '.app');
-		}
-	}
+  // Clean up applications.
+  let applications = fs.readdirSync(rootDirectory + 'Applications/');
+  for (let i = 0; i < applications.length; i++) {
+    const applicationName = applications[i];
+    const fullPath = rootDirectory + 'Applications/' + applicationName;
+    const fileStats = fs.lstatSync(fullPath);
+    if (fileStats.isDirectory()) {
+      maybeDelete(fullPath + '/build');
+      maybeDelete(fullPath + '/generated');
+      maybeDelete(rootDirectory + 'fs/' + applicationName + '.app');
+    }
+  }
 
-	// Clean up ISO image.
-	maybeDelete(rootDirectory + 'Perception.iso');
+  // Clean up ISO image.
+  maybeDelete(rootDirectory + 'Perception.iso');
 }
 
 module.exports = {
-	clean: clean
+  clean : clean
 };

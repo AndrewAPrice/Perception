@@ -16,9 +16,9 @@ const {PackageType} = require('./package_type');
 
 // Builds everything and runs the emulator.
 async function test(packageType, packageName) {
-	console.log('TODO: test');
+  console.log('TODO: test');
 }
 
 module.exports = {
-	test: test
+  test : test
 };

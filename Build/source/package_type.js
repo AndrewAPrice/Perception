@@ -14,26 +14,25 @@
 
 // Type of package we are building.
 const PackageType = {
-	APPLICATION: 0,
-	LIBRARY: 1,
-	KERNEL: 2
+  APPLICATION: 0,
+  LIBRARY: 1,
+  KERNEL: 2
 };
 
 function getPackageTypeDirectoryName(packageType) {
-	switch (packageType) {
-		case PackageType.APPLICATION:
-			return 'Applications';
-		case PackageType.LIBRARY:
-			return 'Libraries';
-		case PackageType.KERNEL:
-			return 'Kernel';
-		default:
-			return undefined;
-	}
-
+  switch (packageType) {
+    case PackageType.APPLICATION:
+      return 'Applications';
+    case PackageType.LIBRARY:
+      return 'Libraries';
+    case PackageType.KERNEL:
+      return 'Kernel';
+    default:
+      return undefined;
+  }
 };
 
 module.exports = {
-	PackageType: PackageType,
-	getPackageTypeDirectoryName: getPackageTypeDirectoryName
+  PackageType : PackageType,
+  getPackageTypeDirectoryName : getPackageTypeDirectoryName
 };

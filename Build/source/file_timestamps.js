@@ -20,21 +20,24 @@ let lastModifiedTimestampByFile = {};
 
 // Gets the timestamp of when a file was last modified.
 function getFileLastModifiedTimestamp(file) {
-	const cachedTimestamp = lastModifiedTimestampByFile[file];
-	if (cachedTimestamp != undefined) {
-		return cachedTimestamp;
-	}
+  const cachedTimestamp = lastModifiedTimestampByFile[file];
+  if (cachedTimestamp != undefined) {
+    return cachedTimestamp;
+  }
 
-	const timestamp = fs.existsSync(file) ? fs.lstatSync(file).mtimeMs : Number.MAX_VALUE;
-	lastModifiedTimestampByFile[file] = timestamp;
-	return timestamp;
+  const timestamp =
+      fs.existsSync(file) ? fs.lstatSync(file).mtimeMs : Number.MAX_VALUE;
+  lastModifiedTimestampByFile[file] = timestamp;
+  return timestamp;
 }
 
 function forgetFileLastModifiedTimestamp(file) {
-	lastModifiedTimestampByFile[file] = undefined;;
+  lastModifiedTimestampByFile[file] = undefined;
+  ;
 }
 
 module.exports = {
-	forgetFileLastModifiedTimestamp, forgetFileLastModifiedTimestamp,
-	getFileLastModifiedTimestamp: getFileLastModifiedTimestamp
+  forgetFileLastModifiedTimestamp,
+  forgetFileLastModifiedTimestamp,
+  getFileLastModifiedTimestamp : getFileLastModifiedTimestamp
 };

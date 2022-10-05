@@ -23,83 +23,92 @@ const {run, localRun} = require('./run');
 const {test} = require('./test');
 
 const buildSettings = {
-	os: 'Perception',
-	build: 'optimized',
-	compile: true,
-	test: false
+  os: 'Perception',
+  build: 'optimized',
+  compile: true,
+  test: false
 };
 
 // Parse the input.
 let command = '';
 let package = '';
 for (let argIndex = 2; argIndex < process.argv.length; argIndex++) {
-	const arg = process.argv[argIndex];
-	switch (arg) {
-		case '--local':
-			buildSettings.os = os.type();
-			break;
-		case '--dbg':
-			buildSettings.build = 'debug';
-			break;
-		case '--optimized':
-			buildSettings.build = 'optimized';
-			break;
-		case '--fast':
-			buildSettings.build = 'fast';
-			break;
-		case '--test':
-			buildSettings.os = os.type();
-			buildSettings.build = 'debug';
-			buildSettings.test = true;
-			break;
-		case '--prepare':
-			buildSettings.compile = false;
-			break;
-		default:
-			if (command == '')
-				command = arg;
-			else
-				package = arg;
-			break;
-	}
+  const arg = process.argv[argIndex];
+  switch (arg) {
+    case '--local':
+      buildSettings.os = os.type();
+      break;
+    case '--dbg':
+      buildSettings.build = 'debug';
+      break;
+    case '--optimized':
+      buildSettings.build = 'optimized';
+      break;
+    case '--fast':
+      buildSettings.build = 'fast';
+      break;
+    case '--test':
+      buildSettings.os = os.type();
+      buildSettings.build = 'debug';
+      buildSettings.test = true;
+      break;
+    case '--prepare':
+      buildSettings.compile = false;
+      break;
+    default:
+      if (command == '')
+        command = arg;
+      else
+        package = arg;
+      break;
+  }
 }
 
 // Parses the input.
 switch (command) {
-	case 'application':
-		build(PackageType.APPLICATION, package, buildSettings).then((res) => {
-			console.log(res ? "done!" : "failed!");
-		}, (err) =>{
-			console.log(err);
-		});
-		break;
-	case 'library':
-		build(PackageType.LIBRARY, package, buildSettings).then((res) => {
-			console.log(res ? "done!" : "failed!");
-		}, (err) =>{
-			console.log(err);
-		});
-		break;
-	case 'kernel':
-		build(PackageType.KERNEL, '', buildSettings).then((res) => {
-			console.log(res ? "done!" : "failed!");
-		}, (err) =>{
-			console.log(err);
-		});
-		break;
-	case 'run':
-		run(package, buildSettings);
-		break;
-	case 'clean':
-		clean();
-		break;
-	case 'all':
-		buildImage(buildSettings);
-		break;
-	case 'help':
-	case undefined:
-		break;
-	default:
-		console.log('Don\'t know what to compile. Argument was ' + process.argv[2]);
-		break;
+  case 'application':
+    build(PackageType.APPLICATION, package, buildSettings)
+        .then(
+            (res) => {
+              console.log(res ? 'done!' : 'failed!');
+            },
+            (err) => {
+              console.log(err);
+            });
+    break;
+  case 'library':
+    build(PackageType.LIBRARY, package, buildSettings)
+        .then(
+            (res) => {
+              console.log(res ? 'done!' : 'failed!');
+            },
+            (err) => {
+              console.log(err);
+            });
+    break;
+  case 'kernel':
+    build(PackageType.KERNEL, '', buildSettings)
+        .then(
+            (res) => {
+              console.log(res ? 'done!' : 'failed!');
+            },
+            (err) => {
+              console.log(err);
+            });
+    break;
+  case 'run':
+    run(package, buildSettings);
+    break;
+  case 'clean':
+    clean();
+    break;
+  case 'all':
+    buildImage(buildSettings);
+    break;
+  case 'help':
+  case undefined:
+    break;
+  default:
+    console.log('Don\'t know what to compile. Argument was ' + process.argv[2]);
+    break;
 }
