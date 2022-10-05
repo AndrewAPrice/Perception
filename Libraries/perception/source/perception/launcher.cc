@@ -22,20 +22,19 @@ namespace perception {
 
 /*
 std::optional<ProcessId> LaunchApplication(std::string_view name) {
-	Permebuf<Launcher::LaunchApplicationRequest> request;
-	request->SetName(name);
-	auto status_or_response = Launcher::Get().CallLaunchApplication(
-		std::move(request));
-	if (status_or_response) {
-		return static_cast<ProcessId>(status_or_response->GetProcessId());
-	} else {
-		return std::nullopt;
-	}
+        Permebuf<Launcher::LaunchApplicationRequest> request;
+        request->SetName(name);
+        auto status_or_response = Launcher::Get().CallLaunchApplication(
+                std::move(request));
+        if (status_or_response) {
+                return
+static_cast<ProcessId>(status_or_response->GetProcessId()); } else { return
+std::nullopt;
+        }
 }*/
 
 void ShowLauncher() {
-	Launcher::Get().SendShowLauncher(
-		Launcher::ShowLauncherMessage());
+  Launcher::Get().SendShowLauncher(Launcher::ShowLauncherMessage());
 }
 
-}
+}  // namespace perception

@@ -17,34 +17,34 @@
 namespace perception {
 
 // Gets the details of the framebuffer set up by the bootloader.
-void GetMultibootFramebufferDetails(
-	size_t& physical_address,
-	uint32& width, uint32& height, uint32& pitch,
-	uint8& bpp) {
+void GetMultibootFramebufferDetails(size_t& physical_address, uint32& width,
+                                    uint32& height, uint32& pitch, uint8& bpp) {
 #ifdef PERCEPTION
-	volatile register size_t syscall asm ("rdi") = 40;
-	volatile register size_t physical_address_r asm ("rax");
-	volatile register size_t width_r asm ("rbx");
-	volatile register size_t height_r asm ("rdx");
-	volatile register size_t pitch_r asm ("rsi");
-	volatile register size_t bpp_r asm ("r8");
+  volatile register size_t syscall asm("rdi") = 40;
+  volatile register size_t physical_address_r asm("rax");
+  volatile register size_t width_r asm("rbx");
+  volatile register size_t height_r asm("rdx");
+  volatile register size_t pitch_r asm("rsi");
+  volatile register size_t bpp_r asm("r8");
 
-	__asm__ __volatile__ ("syscall\n":
-		"=r"(physical_address_r), "=r"(width_r), "=r"(height_r),
-		"=r"(pitch_r), "=r"(bpp_r) : "r" (syscall): "rcx", "r11");
+  __asm__ __volatile__("syscall\n"
+                       : "=r"(physical_address_r), "=r"(width_r),
+                         "=r"(height_r), "=r"(pitch_r), "=r"(bpp_r)
+                       : "r"(syscall)
+                       : "rcx", "r11");
 
-	physical_address = physical_address_r;
-	width = (size_t)width_r;
-	height = (size_t)height_r;
-	pitch = (size_t)pitch_r;
-	bpp = (size_t)bpp_r;
+  physical_address = physical_address_r;
+  width = (size_t)width_r;
+  height = (size_t)height_r;
+  pitch = (size_t)pitch_r;
+  bpp = (size_t)bpp_r;
 #else
-	physical_address = 0;
-	width = 0;
-	height = 0;
-	pitch = 0;
-	bpp = 0;
+  physical_address = 0;
+  width = 0;
+  height = 0;
+  pitch = 0;
+  bpp = 0;
 #endif
 }
 
-}
+}  // namespace perception

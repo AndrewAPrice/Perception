@@ -19,9 +19,7 @@
 namespace perception {
 
 // Gets the details of the framebuffer set up by the bootloader.
-void GetMultibootFramebufferDetails(
-	size_t& physical_address,
-	uint32& width, uint32& height, uint32& pitch,
-	uint8& bpp);
+void GetMultibootFramebufferDetails(size_t& physical_address, uint32& width,
+                                    uint32& height, uint32& pitch, uint8& bpp);
 
-}
+}  // namespace perception

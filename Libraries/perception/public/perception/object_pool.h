@@ -18,28 +18,29 @@ namespace perception {
 
 template <class T>
 class ObjectPool {
-public:
-	ObjectPool() : next_free_(nullptr) {}
+ public:
+  ObjectPool() : next_free_(nullptr) {}
 
-	T* Allocate() {
-		if (next_free_ != nullptr) {
-			T* obj = next_free_;
-			next_free_ = *(T**)next_free_;
-			return obj;
-		} else {
-			return new T();
-		}
-	}
+  T* Allocate() {
+    if (next_free_ != nullptr) {
+      T* obj = next_free_;
+      next_free_ = *(T**)next_free_;
+      return obj;
+    } else {
+      return new T();
+    }
+  }
 
-	void Release(T* obj) {
-		if (obj == nullptr) {
-			return;
-		}
-		*(T**)obj = next_free_;
-		next_free_ = obj;
-	}
-private:
-	T* next_free_;
+  void Release(T* obj) {
+    if (obj == nullptr) {
+      return;
+    }
+    *(T**)obj = next_free_;
+    next_free_ = obj;
+  }
+
+ private:
+  T* next_free_;
 };
 
-}
+}  // namespace perception

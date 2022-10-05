@@ -37,23 +37,22 @@ void FinishAnyPendingWork();
 void WaitForMessagesThenReturn();
 
 class Scheduler {
-public:
-	// Gets the next fiber to run, which might sleep if there's nothing
-	// else to do.
-	static Fiber* GetNextFiberToRun();
+ public:
+  // Gets the next fiber to run, which might sleep if there's nothing
+  // else to do.
+  static Fiber* GetNextFiberToRun();
 
-	// Schedules a fiber to run.
-	static void ScheduleFiber(Fiber* fiber);
+  // Schedules a fiber to run.
+  static void ScheduleFiber(Fiber* fiber);
 
-private:
-
-	// Returns a fiber to handle the message, or nullptr if there's
-	// nothing to do.
-	static Fiber* GetFiberToHandleMessage(
-		ProcessId senders_pid, MessageId message_id,
-		size_t metadata, size_t param1, size_t param2, size_t param3,
-		size_t param4, size_t param5);
-
+ private:
+  // Returns a fiber to handle the message, or nullptr if there's
+  // nothing to do.
+  static Fiber* GetFiberToHandleMessage(ProcessId senders_pid,
+                                        MessageId message_id, size_t metadata,
+                                        size_t param1, size_t param2,
+                                        size_t param3, size_t param4,
+                                        size_t param5);
 };
 
-}
+}  // namespace perception

@@ -14,10 +14,10 @@
 
 #pragma once
 
-#include "types.h"
-
 #include <functional>
 #include <string_view>
+
+#include "types.h"
 
 namespace perception {
 
@@ -30,16 +30,18 @@ void UnregisterService(MessageId message_id);
 // Finds the first service with a given name. Returns if there is at least one
 // service.
 bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
-	MessageId& message);
+                                MessageId& message);
 
 // Calls the handler for each instance of the service.
-void ForEachInstanceOfService(std::string_view name,
-	const std::function<void(ProcessId, MessageId)>& on_each_service);
+void ForEachInstanceOfService(
+    std::string_view name,
+    const std::function<void(ProcessId, MessageId)>& on_each_service);
 
 // Calls the handler for each instance of the service that currently exists,
 // and every time a new instance is registered.
-MessageId NotifyOnEachNewServiceInstance(std::string_view name,
-	const std::function<void(ProcessId, MessageId)>& on_each_service);
+MessageId NotifyOnEachNewServiceInstance(
+    std::string_view name,
+    const std::function<void(ProcessId, MessageId)>& on_each_service);
 
 // Stops calling the handler passed to NotifyOnEachService each time a new
 // instance of the service is registered.
@@ -48,10 +50,11 @@ void StopNotifyingOnEachNewServiceInstance(MessageId message_id);
 // Calls the handler when the service disappears. The handler automatically
 // unregisters if it gets triggered (although it's safe to accidentally
 // call StopNotifyWhenServiceDisappears if it has triggered.)
-MessageId NotifyWhenServiceDisappears(ProcessId process_id,
-	MessageId message_id, const std::function<void()>& on_disappearance);
+MessageId NotifyWhenServiceDisappears(
+    ProcessId process_id, MessageId message_id,
+    const std::function<void()>& on_disappearance);
 
 // No longer calls the handler when the service disappears.
 void StopNotifyWhenServiceDisappears(MessageId message_id);
 
-}
+}  // namespace perception

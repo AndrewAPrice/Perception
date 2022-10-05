@@ -14,11 +14,11 @@
 
 #pragma once
 
-#include "perception/ui/widget.h"
-
 #include <functional>
-#include <string_view>
 #include <string>
+#include <string_view>
+
+#include "perception/ui/widget.h"
 
 namespace perception {
 namespace ui {
@@ -26,31 +26,30 @@ namespace ui {
 struct DrawContext;
 
 class Button : public Widget {
-public:
-	Button();
-	virtual ~Button();
+ public:
+  Button();
+  virtual ~Button();
 
-	Button* OnClick(std::function<void()> on_click_handler);
+  Button* OnClick(std::function<void()> on_click_handler);
 
-    virtual bool GetWidgetAt(float x, float y,
-        std::shared_ptr<Widget>& widget,
-        float& x_in_selected_widget,
-        float& y_in_selected_widget) override;
+  virtual bool GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
+                           float& x_in_selected_widget,
+                           float& y_in_selected_widget) override;
 
-    virtual void OnMouseLeave() override;
-    virtual void OnMouseButtonDown(float x, float y,
-        ::permebuf::perception::devices::MouseButton button)
-    	override;
-    virtual void OnMouseButtonUp(float x, float y,
-        ::permebuf::perception::devices::MouseButton button)
-    	override;
+  virtual void OnMouseLeave() override;
+  virtual void OnMouseButtonDown(
+      float x, float y,
+      ::permebuf::perception::devices::MouseButton button) override;
+  virtual void OnMouseButtonUp(
+      float x, float y,
+      ::permebuf::perception::devices::MouseButton button) override;
 
-private:
-    virtual void Draw(DrawContext& draw_context) override;
+ private:
+  virtual void Draw(DrawContext& draw_context) override;
 
-	std::function<void()> on_click_handler_;
-	bool is_pushed_down_;
+  std::function<void()> on_click_handler_;
+  bool is_pushed_down_;
 };
 
-}
-}
+}  // namespace ui
+}  // namespace perception

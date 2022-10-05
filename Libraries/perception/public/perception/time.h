@@ -31,11 +31,11 @@ void SleepUntilTimeSinceKernelStarted(std::chrono::microseconds time);
 
 // Calls the on_duration function after a duration has passed.
 void AfterDuration(std::chrono::microseconds time,
-	std::function<void()> on_duration);
+                   std::function<void()> on_duration);
 
 // Calls the at_time function after the duration since the kernel
 // started has passed.
 void AfterTimeSinceKernelStarted(std::chrono::microseconds time,
-	std::function<void()> at_time);
+                                 std::function<void()> at_time);
 
-}
+}  // namespace perception

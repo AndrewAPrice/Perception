@@ -42,4 +42,4 @@ uint32 Read32BitsFromPort(uint16 port);
 // Writes a 32-bit value to a port.
 void Write32BitsToPort(uint16 port, uint32 data);
 
-}
+}  // namespace perception

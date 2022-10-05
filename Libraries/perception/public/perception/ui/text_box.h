@@ -14,12 +14,12 @@
 
 #pragma once
 
+#include <functional>
+#include <string>
+#include <string_view>
+
 #include "perception/ui/text_alignment.h"
 #include "perception/ui/widget.h"
-
-#include <functional>
-#include <string_view>
-#include <string>
 
 namespace perception {
 namespace ui {
@@ -27,30 +27,30 @@ namespace ui {
 struct DrawContext;
 
 class TextBox : public Widget {
-public:
-	TextBox();
-	virtual ~TextBox();
+ public:
+  TextBox();
+  virtual ~TextBox();
 
-	TextBox* SetValue(std::string_view value);
-	std::string_view GetValue();
-	TextBox* SetTextAlignment(TextAlignment alignment);
-	TextBox* SetEditable(bool editable);
-	bool IsEditable();
-	TextBox* OnChange(std::function<void()> on_change_handler);
+  TextBox* SetValue(std::string_view value);
+  std::string_view GetValue();
+  TextBox* SetTextAlignment(TextAlignment alignment);
+  TextBox* SetEditable(bool editable);
+  bool IsEditable();
+  TextBox* OnChange(std::function<void()> on_change_handler);
 
-private:
-    virtual void Draw(DrawContext& draw_context) override;
+ private:
+  virtual void Draw(DrawContext& draw_context) override;
 
-	static YGSize Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
-		float height, YGMeasureMode height_mode);
-    
-	std::string value_;
-	bool is_editable_;
-	std::function<void()> on_change_handler_;
-	TextAlignment text_alignment_;
-	bool realign_text_;
-	int text_x_, text_y_;
+  static YGSize Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
+                        float height, YGMeasureMode height_mode);
+
+  std::string value_;
+  bool is_editable_;
+  std::function<void()> on_change_handler_;
+  TextAlignment text_alignment_;
+  bool realign_text_;
+  int text_x_, text_y_;
 };
 
-}
-}
+}  // namespace ui
+}  // namespace perception

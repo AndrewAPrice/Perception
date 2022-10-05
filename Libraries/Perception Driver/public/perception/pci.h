@@ -38,11 +38,10 @@ constexpr uint8 kPciHdrBar4 = 32;
 constexpr uint8 kPciHdrBar5 = 36;
 constexpr uint8 kPciHdrSecondaryBusNumber = 25;
 
-
 uint8 Read8BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset);
 
 uint16 Read16BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset);
 
 uint32 Read32BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset);
 
-}
+}  // namespace perception

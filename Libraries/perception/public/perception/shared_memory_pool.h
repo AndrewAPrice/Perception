@@ -23,41 +23,38 @@ namespace perception {
 
 // Shared memory that can be put in a pool to be recycled.
 struct PooledSharedMemory {
-	std::unique_ptr<::perception::SharedMemory> shared_memory;
+  std::unique_ptr<::perception::SharedMemory> shared_memory;
 };
 
-template<int shared_memory_size>
+template <int shared_memory_size>
 class SharedMemoryPool {
-public:
-	// Gets shared memory. Tries to recycle a previously released shared if
-	// possible.
-	std::unique_ptr<PooledSharedMemory> GetSharedMemory() {
-		if (shared_memory_pool_.empty()) {
-			// There's no shared memory we can recycle.
-			auto pooled_shared_memory =
-				std::make_unique<PooledSharedMemory>();
-			pooled_shared_memory->shared_memory =
-				SharedMemory::FromSize(shared_memory_size);
-			(void)pooled_shared_memory->shared_memory->Join();
-			return pooled_shared_memory;
-		} else {
-			// We can recycle previously released shared memory from the pool.
-			auto pooled_shared_memory =
-				std::move(shared_memory_pool_.top());
-			shared_memory_pool_.pop();
-			return pooled_shared_memory;
-		}
-	}
+ public:
+  // Gets shared memory. Tries to recycle a previously released shared if
+  // possible.
+  std::unique_ptr<PooledSharedMemory> GetSharedMemory() {
+    if (shared_memory_pool_.empty()) {
+      // There's no shared memory we can recycle.
+      auto pooled_shared_memory = std::make_unique<PooledSharedMemory>();
+      pooled_shared_memory->shared_memory =
+          SharedMemory::FromSize(shared_memory_size);
+      (void)pooled_shared_memory->shared_memory->Join();
+      return pooled_shared_memory;
+    } else {
+      // We can recycle previously released shared memory from the pool.
+      auto pooled_shared_memory = std::move(shared_memory_pool_.top());
+      shared_memory_pool_.pop();
+      return pooled_shared_memory;
+    }
+  }
 
-	// Returns the shared memory to the pool.
-	void ReleaseSharedMemory(
-		std::unique_ptr<PooledSharedMemory> shared_memory) {
-		shared_memory_pool_.push(std::move(shared_memory));
-	}
+  // Returns the shared memory to the pool.
+  void ReleaseSharedMemory(std::unique_ptr<PooledSharedMemory> shared_memory) {
+    shared_memory_pool_.push(std::move(shared_memory));
+  }
 
-private:
-	// Shared memory that is allocated but not used.
-	std::stack<std::unique_ptr<PooledSharedMemory>> shared_memory_pool_;
+ private:
+  // Shared memory that is allocated but not used.
+  std::stack<std::unique_ptr<PooledSharedMemory>> shared_memory_pool_;
 };
 
-}
+}  // namespace perception

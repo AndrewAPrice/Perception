@@ -22,31 +22,27 @@ struct stb_fontchar;
 
 namespace perception {
 
-enum class FontFace {
-	DejaVuSans = 0
-};
+enum class FontFace { DejaVuSans = 0 };
 
 class Font {
-public:
-	Font(uint8* font_bitmap, stb_fontchar* font_chars);
-	~Font();
+ public:
+  Font(uint8* font_bitmap, stb_fontchar* font_chars);
+  ~Font();
 
-	int GetHeight();
+  int GetHeight();
 
-	int MeasureString(std::string_view string);
+  int MeasureString(std::string_view string);
 
-	void DrawString(int x, int y, std::string_view string,
-		uint32 color, uint32* buffer, int buffer_width,
-		int buffer_height);
+  void DrawString(int x, int y, std::string_view string, uint32 color,
+                  uint32* buffer, int buffer_width, int buffer_height);
 
-	static Font* LoadFont(FontFace font_face);
+  static Font* LoadFont(FontFace font_face);
 
-private:
-
-	uint8* font_bitmap_;
-	stb_fontchar* font_chars_;
+ private:
+  uint8* font_bitmap_;
+  stb_fontchar* font_chars_;
 };
 
 Font* GetUiFont();
 
-}
+}  // namespace perception

@@ -19,12 +19,12 @@
 namespace perception {
 
 class DebugPrinter {
-public:
-	DebugPrinter& operator<< (char c);
-	DebugPrinter& operator<< (size_t number);
-	DebugPrinter& operator<< (int64 number);
-	DebugPrinter& operator<< (const char* str);
-	DebugPrinter& operator<< (bool b);
+ public:
+  DebugPrinter& operator<<(char c);
+  DebugPrinter& operator<<(size_t number);
+  DebugPrinter& operator<<(int64 number);
+  DebugPrinter& operator<<(const char* str);
+  DebugPrinter& operator<<(bool b);
 };
 
 extern DebugPrinter DebugPrinterSingleton;
@@ -32,4 +32,4 @@ extern DebugPrinter DebugPrinterSingleton;
 // Dump the running thread's registers and stack trace on COM1.
 void DumpRegistersAndStackTrace();
 
-}
+}  // namespace perception

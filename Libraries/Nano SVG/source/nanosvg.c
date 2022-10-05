@@ -14,7 +14,8 @@
 
 #define NANOSVG_IMPLEMENTATION
 
+#include "nanosvg.h"
+
 #include <stdio.h>
 
-#include "nanosvg.h"
 #include "nanosvgrast.h"
