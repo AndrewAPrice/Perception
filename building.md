@@ -82,4 +82,4 @@ Call all commands from inside the Build directory. Here are some useful ones:
 You can lean more about the build system and more commands in [Build/README.md](Build/README.md).
 
 ## Code Completion Support
-Upon building, the build system generates `.clang_complete` files can be used for code completion. I use Sublime Text with [EasyClangComplete](https://github.com/niosus/EasyClangComplete). 
+Upon building, the build system generates `.clang_complete` files can be used for code completion. I use [Sublime Text](https://www.sublimetext.com/) with [EasyClangComplete](https://github.com/niosus/EasyClangComplete) which works out of the box. It's also helpful to tell your code completer that we're using C17 and C++20, and not to use default includes. If you're using Sublime with EasyClangComplete, you can open the project `build/perception.sublime-project`.

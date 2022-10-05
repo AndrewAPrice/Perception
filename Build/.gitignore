@@ -8,3 +8,6 @@ tools.json
 # Temporary files we sometimes output during building.
 map.txt
 temp.d
+
+# Temporary file used by Sublime Text.
+perception.sublime-workspace
