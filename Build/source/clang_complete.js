@@ -40,6 +40,11 @@ function maybeGenerateClangCompleteFile(
           .join(EOL);
 
   fs.writeFileSync(clangCompletePath, fileContents);
+
+  const gitIgnorePath = packageDirectory + subDirectory + '/.gitignore';
+  if (!fs.existsSync(gitIgnorePath)) {
+    fs.writeFileSync(gitIgnorePath, '.clang_complete');
+  }
 }
 
 // Maybe generates/updates .clang_complete files for a project.

@@ -88,11 +88,11 @@ async function runCommand(
     await exec(command);
   } catch (exp) {
     if (!silent) {
-      console.log(deferredCommand.title);
-      console.log(exp);
+      errors.push({
+        command: deferredCommand.title,
+        error: exp.stderr});
       process.stdout.write(' ');
     }
-    errors.has_errors = true;
   }
 
   if (updatePerFileDeps) {
@@ -137,7 +137,7 @@ async function runCommandsForStage(stage, silent) {
   }
   if (!silent) process.stdout.write(' ');
 
-  const errors = {has_errors: false};
+  const errors = [];
   const tasks = [];
   const totalCommands = commands.length;
   for (let i = 0; i < buildSettings.parallelTasks; i++) {
@@ -149,7 +149,18 @@ async function runCommandsForStage(stage, silent) {
 
   if (!silent) console.log(' ');
 
-  return !errors.has_errors;
+  if (errors.length > 0) {
+    if (!silent) {
+      errors.forEach(error => {
+        console.log('');
+        console.log(error.command);
+        console.log(error.error);
+      });
+    }
+    return false;
+  }
+
+  return true;
 }
 
 async function runDeferredCommandsInternal(silent) {
