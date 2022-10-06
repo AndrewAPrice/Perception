@@ -1,12 +1,3 @@
-# Object files used during building.
-build/
-
-# The built library.
-library.lib
-
-# Build dependencies.
-dependencies.json
-
 # Code that exists in another git repository.
 third_party/
 

@@ -13,7 +13,9 @@
 // limitations under the License.
 
 const fs = require('fs');
+const {forgetAlreadyBuiltLibraries} = require('./build');
 const {rootDirectory} = require('./root_directory');
+const {forgetAllLastModifiedTimestamps} = require('./file_timestamps');
 
 // Tries to delete a file or directory, if it exists.
 function maybeDelete(path) {
@@ -21,7 +23,6 @@ function maybeDelete(path) {
     return;
   }
   const fileStats = fs.lstatSync(path);
-  console.log('Removing ' + path);
   if (fileStats.isDirectory()) {
     fs.rmSync(path, {recursive: true});
   } else {
@@ -31,34 +32,12 @@ function maybeDelete(path) {
 
 // Removes all built files.
 function clean() {
-  // Clean up kernel.
-  maybeDelete(rootDirectory + 'Kernel/build');
-  maybeDelete(rootDirectory + 'Kernel/kernel.app');
-  maybeDelete(rootDirectory + 'fs/boot/kernel.app');
+  forgetAlreadyBuiltLibraries();
+  forgetAllLastModifiedTimestamps();
 
-  // Clean up libraries.
-  let libraries = fs.readdirSync(rootDirectory + 'Libraries/');
-  for (let i = 0; i < libraries.length; i++) {
-    const libraryName = libraries[i];
-    const fullPath = rootDirectory + 'Libraries/' + libraryName;
-    const fileStats = fs.lstatSync(fullPath);
-    if (fileStats.isDirectory()) {
-      maybeDelete(fullPath + '/build');
-      maybeDelete(fullPath + '/generated');
-    }
-  }
-
-  // Clean up applications.
-  let applications = fs.readdirSync(rootDirectory + 'Applications/');
-  for (let i = 0; i < applications.length; i++) {
-    const applicationName = applications[i];
-    const fullPath = rootDirectory + 'Applications/' + applicationName;
-    const fileStats = fs.lstatSync(fullPath);
-    if (fileStats.isDirectory()) {
-      maybeDelete(fullPath + '/build');
-      maybeDelete(fullPath + '/generated');
-      maybeDelete(rootDirectory + 'fs/' + applicationName + '.app');
-    }
+  const buildDirectory = rootDirectory + 'Build/temp';
+  if (fs.existsSync(buildDirectory)) {
+    fs.rmSync(buildDirectory, {recursive: true});
   }
 
   // Clean up ISO image.

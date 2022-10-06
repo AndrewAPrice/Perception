@@ -15,12 +15,8 @@
 const fs = require('fs');
 const {escapePath} = require('./utils');
 
-function PopulateToolsJson() {
-  let toolPaths = {};
-  if (fs.existsSync('tools.json')) {
-    toolPaths = JSON.parse(fs.readFileSync('tools.json'));
-  }
-
+function PopulateConfigJson() {
+  const toolsPaths = {};
   ['ar', 'gas', 'nasm', 'gcc', 'grub-mkrescue', 'ld', 'qemu'].forEach(
       (tool) => {
         if (!toolPaths[tool]) {
@@ -28,22 +24,24 @@ function PopulateToolsJson() {
         }
       });
 
-  fs.writeFileSync('tools.json', JSON.stringify(toolPaths));
+  fs.writeFileSync(
+      'config.json', JSON.stringify({'tools': toolPaths, 'parallel_tasks': 1}));
 };
 
 // Loads the config file that contains the tools to use on this system.
-if (!fs.existsSync('tools.json')) {
-  console.log('Please fill in tools.json and read ../building.md.');
-  PopulateToolsJson();
+if (!fs.existsSync('config.json')) {
+  console.log('Please fill in config.json and read ../building.md.');
+  PopulateConfigJson();
   process.exit(1);
 }
-const toolPaths = JSON.parse(fs.readFileSync('tools.json'));
+const config = JSON.parse(fs.readFileSync('config.json'));
+const toolPaths = config.tools;
 
 function getToolPath(tool) {
   const toolPath = toolPaths[tool];
   if (!toolPath) {
     console.log(
-        'tools.json doesn\'t contain an entry for "' + tool +
+        'config.json doesn\'t contain an entry for "' + tool +
         '\'. Please read ../building.md.');
     PopulateToolsJson();
     process.exit(1);
@@ -51,6 +49,18 @@ function getToolPath(tool) {
   return escapePath(toolPath);
 }
 
+function getParallelTasks() {
+  return config.parallel_tasks;
+}
+
+function setAndFlushParallelTasks(numTasks) {
+  config.parallel_tasks = numTasks;
+  fs.writeFileSync(
+      'config.json', JSON.stringify(config));
+}
+
 module.exports = {
-  getToolPath : getToolPath
+  getToolPath : getToolPath,
+  getParallelTasks: getParallelTasks,
+  setAndFlushParallelTasks: setAndFlushParallelTasks
 };

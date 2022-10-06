@@ -13,16 +13,16 @@
 // limitations under the License.
 
 const fs = require('fs');
-const child_process = require('child_process');
 const process = require('process');
 const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
-const {getToolPath} = require('./tools');
+const {getToolPath} = require('./config');
 const {foreachSourceFile} = require('./source_files');
 const {forgetFileLastModifiedTimestamp, getFileLastModifiedTimestamp} =
     require('./file_timestamps');
-const {getBuildCommand, getLinkerCommand, buildPrefix} =
+const {getBuildCommand, getLinkerCommand, buildPrefix, buildSettings} =
     require('./build_commands');
-const {getPackageDirectory} = require('./package_directory');
+const {getPackageDirectory, getPackageBuildDirectory} =
+    require('./package_directory');
 const {transpilePermebufToCppForPackage} = require('./permebufs');
 const {getMetadata, getStandaloneLibraryMetadata} = require('./metadata');
 const {makeSureThirdPartyIsLoaded} = require('./third_party');
@@ -31,40 +31,41 @@ const {constructIncludeAndDefineParams} = require('./build_parameters');
 const {escapePath, forEachIfDefined} = require('./utils');
 const {maybeGenerateClangCompleteFilesForProject} = require('./clang_complete');
 const {applicationsWithAssets, librariesWithAssets} = require('./assets');
+const {STAGE, deferCommand} = require('./deferred_commands');
+const {getDependenciesOfFile} = require('./dependencies_per_file');
 
 // Libraries already built on this run, therefore we shouldn't have to build
 // them again.
-const alreadyBuiltLibraries = {};
+let alreadyBuiltLibraries = {};
+let librariesWithObjectFiles = {};
 
-async function build(packageType, packageName, buildSettings) {
+function forgetAlreadyBuiltLibraries() {
+  alreadyBuiltLibraries = {};
+  librariesWithObjectFiles = {};
+}
+
+async function build(packageType, packageName) {
   if (packageType == PackageType.LIBRARY) {
     if (alreadyBuiltLibraries[packageName] == undefined) {
-      alreadyBuiltLibraries[packageName] =
-          forceBuild(packageType, packageName, buildSettings);
+      alreadyBuiltLibraries[packageName] = forceBuild(packageType, packageName);
     }
     return alreadyBuiltLibraries[packageName];
   }
 
-  return forceBuild(packageType, packageName, buildSettings);
+  return forceBuild(packageType, packageName);
 }
 
 async function compileAndLink(
-    packageType, packageName, packageDirectory, buildSettings, metadata) {
+    packageType, packageName, packageDirectory, metadata) {
   const filesToIgnore = {};
   forEachIfDefined(metadata.ignore, (fileToIgnore) => {
     filesToIgnore[fileToIgnore] = true;
   });
 
   // Make sure the path exists where we're going to put our outputs.
-  if (!fs.existsSync(packageDirectory + 'build/' + buildPrefix(buildSettings)))
-    fs.mkdirSync(
-        packageDirectory + 'build/' + buildPrefix(buildSettings),
-        {recursive: true});
-
-  const depsFile = packageDirectory + 'build/' + buildPrefix(buildSettings) +
-      '/dependencies.json';
-  let dependenciesPerFile =
-      fs.existsSync(depsFile) ? JSON.parse(fs.readFileSync(depsFile)) : {};
+  const buildDirectory = getPackageBuildDirectory(packageType, packageName);
+  if (!fs.existsSync(buildDirectory))
+    fs.mkdirSync(buildDirectory, {recursive: true});
 
   let anythingChanged = false;
   let params = ' ' +
@@ -76,12 +77,11 @@ async function compileAndLink(
   let errors = false;
 
   await foreachSourceFile(
-      packageDirectory, buildSettings, async function(file, buildPath) {
+      packageDirectory, buildDirectory, async function(file, buildPath) {
         if (filesToIgnore[file]) {
           return;
         }
-        const buildCommand =
-            getBuildCommand(file, packageType, params, buildSettings);
+        const buildCommand = getBuildCommand(file, packageType, params);
         if (buildCommand == '') {
           // Skip this file.
           return;
@@ -98,7 +98,7 @@ async function compileAndLink(
         } else {
           const objectFileTimestamp = fs.lstatSync(objectFile).mtimeMs;
 
-          const deps = dependenciesPerFile[file];
+          const deps = getDependenciesOfFile(file);
           if (deps == null) {
             // Compile because we don't know the dependencies.
             shouldCompileFile = true;
@@ -120,110 +120,62 @@ async function compileAndLink(
 
         if (shouldCompileFile) {
           anythingChanged = true;
-          console.log('Compiling ' + getDisplayFilename(file));
           const command = buildCommand + ' -o ' + escapePath(objectFile) + ' ' +
               escapePath(file);
 
-          // console.log(" with command: " + command);
-          var compiled = false;
-          try {
-            child_process.execSync(command);
-            compiled = true;
-          } catch (exp) {
-            errors = true;
-          }
-
-          if (!compiled) {
-            return;
-          }
-
-          // Update "dependencies".
-          if (file.endsWith('.asm') || file.endsWith('.s')) {
-            // Assembly files don't include anything other than themselves.
-            dependenciesPerFile[file] = [file];
-          } else {
-            let depsStr = fs.readFileSync('temp.d').toString('utf8');
-            let separator = depsStr.indexOf(':');
-            if (separator == -1) {
-              throw 'Error parsing dependencies: ' + deps;
-            }
-            let newDeps = [];
-            depsStr.substring(separator + 1).split('\\\n').forEach(s1 => {
-              // Pipe is an invalid path character, so we'll temporarily replace
-              // '\ ' (a space in the path) into '|' before splitting the files
-              // that are seperated by spaces.
-              s1.replace(/\\ /g, '|').split(' ').forEach(s2 => {
-                s2 = s2.replace(/\|/g, ' ').trim();
-                if (s2.length > 1) {
-                  newDeps.push(s2);
-                }
-              });
-            });
-            dependenciesPerFile[file] = newDeps;
-          }
+          deferCommand(
+              STAGE.COMPILE, command, 'Compiling ' + getDisplayFilename(file),
+              file);
         }
       });
 
-  if (anythingChanged) {
-    fs.writeFileSync(depsFile, JSON.stringify(dependenciesPerFile));
-  }
-
-  if (errors) {
-    console.log('There were errors compiling.');
-    return false;
-  }
-
   return link(
       packageType, packageName, packageDirectory, objectFiles, anythingChanged,
-      buildSettings, metadata);
+      metadata);
 }
 
-function libraryBinaryPath(packageName, buildSettings) {
+function libraryBinaryPath(packageName) {
   const packageDirectory =
-      getPackageDirectory(PackageType.LIBRARY, packageName);
-  return packageDirectory + 'build/' + buildPrefix(buildSettings) + '.lib';
+      getPackageBuildDirectory(PackageType.LIBRARY, packageName);
+  return packageDirectory + packageName + '.lib';
 }
 
 async function link(
     packageType, packageName, packageDirectory, objectFiles, anythingChanged,
-    buildSettings, metadata) {
+    metadata) {
   if (objectFiles.length == 0) {
     // Nothing to link. This might be a header only library, but an error for
     // non-libraries.
     return packageType == PackageType.LIBRARY;
   } else if (packageType == PackageType.LIBRARY) {
     // Link library.
-    const binaryPath = libraryBinaryPath(packageName, buildSettings);
+    const binaryPath = libraryBinaryPath(packageName);
     if (!anythingChanged && fs.existsSync(binaryPath)) {
       // Nothing changed and the file exists.
+      librariesWithObjectFiles[packageName] = true;
       return true;
     }
     if (fs.existsSync(binaryPath)) {
       fs.unlinkSync(binaryPath);
     }
 
-    console.log('Building library ' + packageName);
     const command = getLinkerCommand(
-        PackageType.LIBRARY, escapePath(binaryPath), objectFiles.join(' '),
-        buildSettings);
-    try {
-      child_process.execSync(command);
-    } catch (exp) {
-      return false;
-    }
+        PackageType.LIBRARY, escapePath(binaryPath), objectFiles.join(' '));
+    deferCommand(
+        STAGE.LINK_LIBRARY, command, 'Building library ' + packageName);
+    librariesWithObjectFiles[packageName] = true;
 
     return true;
   } else if (packageType == PackageType.APPLICATION) {
     // Link application.
-    const binaryPath =
-        packageDirectory + 'build/' + buildPrefix(buildSettings) + '.app';
+    const binaryPath = getPackageBuildDirectory(packageType, packageName) +
+        packageName + '.app';
     const librariesToLink = [];
 
     forEachIfDefined(metadata.libraries, library => {
-      const libraryPath = libraryBinaryPath(library, buildSettings);
-      if (fs.existsSync(libraryPath)) {
+      if (librariesWithObjectFiles[library]) {
         // There can be header only libraries that didn't build anything.
-        librariesToLink.push(libraryPath);
+        librariesToLink.push(libraryBinaryPath(library));
       }
       const libraryMetadata = getStandaloneLibraryMetadata(library);
       if (libraryMetadata.has_assets) {
@@ -251,43 +203,36 @@ async function link(
     if (fs.existsSync(binaryPath)) {
       fs.unlinkSync(binaryPath);
     }
-    console.log('Building application ' + packageName);
     let linkerInput = objectFiles.join(' ') /* pre-escaped */;
     librariesToLink.forEach(libraryToLink => {
       linkerInput += ' ' + escapePath(libraryToLink);
     });
 
+
     let command = getLinkerCommand(
-        PackageType.APPLICATION, escapePath(binaryPath), linkerInput,
-        buildSettings);
-    try {
-      child_process.execSync(command);
-      compiled = true;
-      forgetFileLastModifiedTimestamp(binaryPath);
-    } catch (exp) {
-      return false;
-    }
+        PackageType.APPLICATION, escapePath(binaryPath), linkerInput);
+    deferCommand(
+        STAGE.LINK_APPLICATION, command, 'Linking application ' + packageName);
+    forgetFileLastModifiedTimestamp(binaryPath);
+
+    compiled = true;
 
     return true;
   } else if (packageType == PackageType.KERNEL) {
     // Link kernel.
-    if (!anythingChanged && fs.existsSync(packageDirectory + 'kernel.app')) {
+    const binaryPath =
+        getPackageBuildDirectory(packageType, packageName) + 'kernel.app';
+    if (!anythingChanged && fs.existsSync(binaryPath)) {
       return true;
     }
-    if (fs.existsSync(packageDirectory + 'kernel.app')) {
-      fs.unlinkSync(packageDirectory + 'kernel.app');
+    if (fs.existsSync(binaryPath)) {
+      fs.unlinkSync(binaryPath);
     }
 
     let command = getLinkerCommand(
-        PackageType.KERNEL, escapePath(packageDirectory) + 'kernel.app',
-        objectFiles.join(' ') /* pre-escaped */, buildSettings);
-    try {
-      child_process.execSync(command);
-      compiled = true;
-    } catch (exp) {
-      return false;
-    }
-
+        PackageType.KERNEL, escapePath(binaryPath),
+        objectFiles.join(' ') /* pre-escaped */);
+    deferCommand(STAGE.LINK_APPLICATION, command, 'Linking kernel');
     return true;
   } else {
     console.log('Unknown project type.');
@@ -296,7 +241,7 @@ async function link(
 }
 
 // Builds a package.
-async function forceBuild(packageType, packageName, buildSettings) {
+async function forceBuild(packageType, packageName) {
   const isLocal = buildSettings.os != 'Perception';
   const metadata = getMetadata(packageName, packageType, isLocal);
 
@@ -322,13 +267,12 @@ async function forceBuild(packageType, packageName, buildSettings) {
   forEachIfDefined(
       metadata.libraries_with_permebufs, library_with_permebufs => {
         error |= !transpilePermebufToCppForPackage(
-            library_with_permebufs, PackageType.LIBRARY, buildSettings);
+            library_with_permebufs, PackageType.LIBRARY);
       });
 
   // If we have Permebufs, transpile them.
   if (metadata.has_permebufs) {
-    error |= !transpilePermebufToCppForPackage(
-        packageName, packageType, buildSettings);
+    error |= !transpilePermebufToCppForPackage(packageName, packageType);
   }
   if (error) return false;
 
@@ -337,8 +281,7 @@ async function forceBuild(packageType, packageName, buildSettings) {
     for (let i = 0; i < metadata.libraries.length; i++) {
       const dependency = metadata.libraries[i];
       const childDefines = {};
-      const success =
-          await build(PackageType.LIBRARY, dependency, buildSettings);
+      const success = await build(PackageType.LIBRARY, dependency);
       if (!success) {
         console.log('Dependency ' + dependency + ' failed to build.');
         return false;
@@ -353,13 +296,13 @@ async function forceBuild(packageType, packageName, buildSettings) {
   // All of the prework is done. The only thing left to do is to build this
   // package.
   if (buildSettings.compile) {
-    return compileAndLink(
-        packageType, packageName, packageDirectory, buildSettings, metadata);
+    return compileAndLink(packageType, packageName, packageDirectory, metadata);
   } else {
     return true;
   }
 };
 
 module.exports = {
-  build : build
+  build : build,
+  forgetAlreadyBuiltLibraries : forgetAlreadyBuiltLibraries
 };

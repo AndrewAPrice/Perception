@@ -14,20 +14,15 @@
 
 const process = require('process');
 const os = require('os');
+const {benchmark} = require('./benchmark');
 const {build} = require('./build');
-const {setLocalBuild} = require('./build_commands');
+const {buildSettings} = require('./build_commands');
+const {runDeferredCommands} = require('./deferred_commands');
 const {buildImage} = require('./build_image');
 const {clean} = require('./clean');
 const {PackageType} = require('./package_type');
 const {run, localRun} = require('./run');
 const {test} = require('./test');
-
-const buildSettings = {
-  os: 'Perception',
-  build: 'optimized',
-  compile: true,
-  test: false
-};
 
 // Parse the input.
 let command = '';
@@ -67,44 +62,25 @@ for (let argIndex = 2; argIndex < process.argv.length; argIndex++) {
 // Parses the input.
 switch (command) {
   case 'application':
-    build(PackageType.APPLICATION, package, buildSettings)
-        .then(
-            (res) => {
-              console.log(res ? 'done!' : 'failed!');
-            },
-            (err) => {
-              console.log(err);
-            });
+    build(PackageType.APPLICATION, package).then(() => runDeferredCommands());
     break;
   case 'library':
-    build(PackageType.LIBRARY, package, buildSettings)
-        .then(
-            (res) => {
-              console.log(res ? 'done!' : 'failed!');
-            },
-            (err) => {
-              console.log(err);
-            });
+    build(PackageType.LIBRARY, package).then(() => runDeferredCommands());
     break;
   case 'kernel':
-    build(PackageType.KERNEL, '', buildSettings)
-        .then(
-            (res) => {
-              console.log(res ? 'done!' : 'failed!');
-            },
-            (err) => {
-              console.log(err);
-            });
+    build(PackageType.KERNEL, '').then(() => runDeferredCommands());
     break;
   case 'run':
-    run(package, buildSettings);
+    run(package);
     break;
   case 'clean':
     clean();
     break;
   case 'all':
-    buildImage(buildSettings);
+    buildImage();
     break;
+  case 'benchmark':
+    benchmark();
   case 'help':
   case undefined:
     break;

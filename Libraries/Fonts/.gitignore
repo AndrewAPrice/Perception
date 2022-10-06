@@ -1,9 +1,6 @@
 # All third party files.
 assets/
 
-# Object files used during building.
-build/
-
 # All third party files.
 third_party/
 

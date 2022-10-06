@@ -16,13 +16,15 @@ const fs = require('fs');
 const path = require('path');
 const child_process = require('child_process');
 const {build} = require('./build');
-const {buildPrefix} = require('./build_commands');
-const {getToolPath} = require('./tools');
+const {buildPrefix, buildSettings} = require('./build_commands');
+const {getToolPath} = require('./config');
 const {rootDirectory} = require('./root_directory');
 const {escapePath} = require('./utils');
+const {getPackageBuildDirectory} = require('./package_directory');
 const {getFileLastModifiedTimestamp} = require('./file_timestamps');
 const {PackageType} = require('./package_type');
 const {applicationsWithAssets, librariesWithAssets} = require('./assets');
+const {runDeferredCommands} = require('./deferred_commands');
 
 const GRUB_MKRESCUE_COMMAND = getToolPath('grub-mkrescue') + ' -o ' +
     escapePath(rootDirectory) + 'Perception.iso' +
@@ -83,7 +85,7 @@ function copyDirectoryRecursively(sourceDir, destinationDir) {
 }
 
 // Builds everything and turns it into an image.
-async function buildImage(buildSettings) {
+async function buildImage() {
   let somethingChanged = false;
   const isLocalBuild = buildSettings.os != 'Perception';
 
@@ -95,9 +97,8 @@ async function buildImage(buildSettings) {
       const fullPath = rootDirectory + 'Libraries/' + libraryName;
       const fileStats = fs.lstatSync(fullPath);
       if (fileStats.isDirectory()) {
-        success = await build(PackageType.LIBRARY, libraryName, buildSettings);
+        success = await build(PackageType.LIBRARY, libraryName);
         if (!success) {
-          console.log('Compile error. Stopping the world.');
           return false;
         }
       }
@@ -110,60 +111,64 @@ async function buildImage(buildSettings) {
       const fullPath = rootDirectory + 'Applications/' + applicationName;
       const fileStats = fs.lstatSync(fullPath);
       if (fileStats.isDirectory()) {
-        success = await build(
-            PackageType.APPLICATION, applicationName, buildSettings);
+        success = await build(PackageType.APPLICATION, applicationName);
         if (!success) {
-          console.log('Compile error. Stopping the world.');
           return false;
         }
       }
     }
 
-    return true;
+    return await runDeferredCommands();
   } else {
     // Build everything into an image.
-    let success = await build(PackageType.KERNEL, '', buildSettings);
-    if (!success) {
-      console.log('Build error. Stopping the world.');
+    if (!(await build(PackageType.KERNEL, ''))) {
       return false;
     }
 
-    const prefix = buildPrefix(buildSettings);
+    // Build all applications.
+    let applicationsFileEntries =
+        fs.readdirSync(rootDirectory + 'Applications/');
+    const applications = [];
+    for (let i = 0; i < applicationsFileEntries.length; i++) {
+      const applicationName = applicationsFileEntries[i];
 
-    somethingChanged |= copyIfNewer(
-        rootDirectory + 'Kernel/kernel.app',
-        rootDirectory + 'fs/boot/kernel.app');
-
-    // Compile and copy all applications
-    let applications = fs.readdirSync(rootDirectory + 'Applications/');
-    for (let i = 0; i < applications.length; i++) {
-      const applicationName = applications[i];
-      const fullPath = rootDirectory + 'Applications/' + applicationName;
-      const fileStats = fs.lstatSync(fullPath);
+      const fileStats =
+          fs.lstatSync(rootDirectory + 'Applications/' + applicationName);
       if (fileStats.isDirectory()) {
-        success = await build(
-            PackageType.APPLICATION, applicationName, buildSettings);
-        if (!success) {
-          console.log('Compile error. Stopping the world.');
+        if (!(await build(PackageType.APPLICATION, applicationName))) {
           return false;
         }
-
-        somethingChanged |= copyIfNewer(
-            rootDirectory + 'Applications/' + applicationName + '/build/' +
-                prefix + '.app',
-            rootDirectory + 'fs/Applications/' + applicationName + '/' +
-                applicationName + '.app');
-
-        somethingChanged |= copyIfNewer(
-            rootDirectory + 'Applications/' + applicationName + '/icon.svg',
-            rootDirectory + 'fs/Applications/' + applicationName + '/icon.svg');
-
-        somethingChanged |= copyIfNewer(
-            rootDirectory + 'Applications/' + applicationName +
-                '/launcher.json',
-            rootDirectory + 'fs/Applications/' + applicationName +
-                '/launcher.json');
+        applications.push(applicationName);
       }
+    }
+
+    if (!(await runDeferredCommands())) {
+      return false;
+    }
+
+    somethingChanged |= copyIfNewer(
+        getPackageBuildDirectory(PackageType.KERNEL, '') + 'kernel.app',
+        rootDirectory + 'fs/boot/kernel.app');
+
+    // Copy all applications
+    for (let i = 0; i < applications.length; i++) {
+      const applicationName = applications[i];
+      const buildDirectory =
+          getPackageBuildDirectory(PackageType.APPLICATION, applicationName);
+      const fullPath = buildDirectory + applicationName + '.app';
+      somethingChanged |= copyIfNewer(
+          fullPath,
+          rootDirectory + 'fs/Applications/' + applicationName + '/' +
+              applicationName + '.app');
+
+      somethingChanged |= copyIfNewer(
+          rootDirectory + 'Applications/' + applicationName + '/icon.svg',
+          rootDirectory + 'fs/Applications/' + applicationName + '/icon.svg');
+
+      somethingChanged |= copyIfNewer(
+          rootDirectory + 'Applications/' + applicationName + '/launcher.json',
+          rootDirectory + 'fs/Applications/' + applicationName +
+              '/launcher.json');
     }
 
     // Copy assets.
