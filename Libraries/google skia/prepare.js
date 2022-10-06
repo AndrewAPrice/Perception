@@ -216,6 +216,7 @@ copyFilesInDirectory('third_party/include/utils', 'public/include/utils');
 copyFilesInDirectory('third_party/src/codec', 'source/src/codec');
 copyFilesInDirectory('third_party/src/core', 'source/src/core');
 copyFilesInDirectory('third_party/src/effects', 'source/src/effects');
+copyFilesInDirectory('third_party/src/effects/imagefilters', 'source/src/effects/imagefilters');
 copyFilesInDirectory('third_party/src/fonts', 'source/src/fonts');
 copyFilesInDirectory('third_party/src/gpu', 'source/src/gpu');
 copyFilesInDirectory('third_party/src/gpu/ganesh', 'source/src/gpu/ganesh');

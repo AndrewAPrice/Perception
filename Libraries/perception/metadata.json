@@ -1,6 +1,5 @@
 {
     "dependencies": [
-        "facebook yoga",
     	"libcxx",
     	"musl"
     ]

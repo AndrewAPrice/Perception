@@ -82,7 +82,7 @@ function copyFile(fromPath, toPath, fromFileStats) {
 	createDirectoryIfItDoesntExist(path.dirname(toPath));
 
 	if (fs.existsSync(toPath)) {
-		if (fromFileStats) {
+		if (!fromFileStats) {
 			fromFileStats = fs.lstatSync(fromPath);
 		}
 		const fromUpdateTime = fromFileStats.mtimeMs;
@@ -136,6 +136,7 @@ filesToIgnore['source/cid/type1cid.c'] = true;
 filesToIgnore['source/gxvalid/gxvalid.c'] = true;
 filesToIgnore['source/otvalid/otvalid.c'] = true;
 filesToIgnore['source/pcf/pcf.c'] = true;
+filesToIgnore['source/pfr/pfr.c'] = true;
 filesToIgnore['source/psaux/psaux.c'] = true;
 filesToIgnore['source/pshinter/pshinter.c'] = true;
 filesToIgnore['source/psnames/psnames.c'] = true;
@@ -163,10 +164,11 @@ copyFilesInDirectory('third_party/src/cid', 'source/cid');
 copyFilesInDirectory('third_party/src/dlg', 'source/dlg');
 copyFilesInDirectory('third_party/src/gxvalid', 'source/gxvalid');
 copyFile('third_party/src/gzip/ftgzip.c', 'source/gzip/ftgzip.c');
-copyFile('third_party/src/gzip/ftzconf.c', 'source/gzip/ftzconf.c');
+copyFile('third_party/src/gzip/ftzconf.h', 'source/gzip/ftzconf.h');
 copyFilesInDirectory('third_party/src/lzw', 'source/lzw');
 copyFilesInDirectory('third_party/src/otvalid', 'source/otvalid');
 copyFilesInDirectory('third_party/src/pcf', 'source/pcf');
+copyFilesInDirectory('third_party/src/pfr', 'source/pfr');
 copyFilesInDirectory('third_party/src/psaux', 'source/psaux');
 copyFilesInDirectory('third_party/src/bzip2', 'source/bzip2');
 copyFilesInDirectory('third_party/src/pshinter', 'source/pshinter');
@@ -182,7 +184,7 @@ copyFilesInDirectory('third_party/src/truetype', 'source/truetype');
 copyFilesInDirectory('third_party/src/type1', 'source/type1');
 copyFilesInDirectory('third_party/src/type42', 'source/type42');
 copyFilesInDirectory('third_party/src/winfonts', 'source/winfonts');
-replaceInFile('source/truetype/ttsobjs.h',
+replaceInFile('source/truetype/ttobjs.h',
 	'#include <freetype/internal/ftobjs.h>',
 	'#include <freetype/internal/ftobjs.h>\n#include <freetype/internal/ftmmtypes.h>');
 replaceInFile('public/freetype/internal/services/svmm.h',

@@ -4,6 +4,7 @@
 	"libcxx",
 	"nlohmann json",
 	"musl",
+	"Perception UI",
 	"Nano SVG",
 	"richgel999 fpng"
 ]}
