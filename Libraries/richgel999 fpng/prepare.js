@@ -80,6 +80,8 @@ function copyFile(fromPath, toPath, fromFileStats) {
 	createDirectoryIfItDoesntExist(path.dirname(toPath));
 
 	if (fs.existsSync(toPath)) {
+		if (!fromFileStats)
+			fromFileStats = fs.lstatSync(fromPath);
 		const fromUpdateTime = fromFileStats.mtimeMs;
 		const toUpdateTime = fs.lstatSync(toPath).mtimeMs;
 
