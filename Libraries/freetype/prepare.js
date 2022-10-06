@@ -82,6 +82,9 @@ function copyFile(fromPath, toPath, fromFileStats) {
 	createDirectoryIfItDoesntExist(path.dirname(toPath));
 
 	if (fs.existsSync(toPath)) {
+		if (fromFileStats) {
+			fromFileStats = fs.lstatSync(fromPath);
+		}
 		const fromUpdateTime = fromFileStats.mtimeMs;
 		const toUpdateTime = fs.lstatSync(toPath).mtimeMs;
 
@@ -124,6 +127,27 @@ function replaceInFile(filename, needle, replaceWith) {
 	fs.writeFileSync(filename, fileContents);
 }
 
+filesToIgnore['source/autofit/autofit.c'] = true;
+filesToIgnore['source/base/ftbase.c'] = true;
+filesToIgnore['source/bdf/bdf.c'] = true;
+filesToIgnore['source/cache/ftcache.c'] = true;
+filesToIgnore['source/cff/cff.c'] = true;
+filesToIgnore['source/cid/type1cid.c'] = true;
+filesToIgnore['source/gxvalid/gxvalid.c'] = true;
+filesToIgnore['source/otvalid/otvalid.c'] = true;
+filesToIgnore['source/pcf/pcf.c'] = true;
+filesToIgnore['source/psaux/psaux.c'] = true;
+filesToIgnore['source/pshinter/pshinter.c'] = true;
+filesToIgnore['source/psnames/psnames.c'] = true;
+filesToIgnore['source/raster/raster.c'] = true;
+filesToIgnore['source/sdf/sdf.c'] = true;
+filesToIgnore['source/sfnt/sfnt.c'] = true;
+filesToIgnore['source/smooth/smooth.c'] = true;
+filesToIgnore['source/svg/svg.c'] = true;
+filesToIgnore['source/truetype/truetype.c'] = true;
+filesToIgnore['source/type1/type1.c'] = true;
+filesToIgnore['source/type42/type42.c'] = true;
+
 copyFilesInDirectory('third_party/include', 'public', '.h');
 copyFilesInDirectory('third_party/include/freetype', 'public/freetype', '.h');
 copyFilesInDirectory('third_party/include/freetype/config', 'public/freetype/config', '.h');
@@ -138,7 +162,8 @@ copyFilesInDirectory('third_party/src/cff', 'source/cff');
 copyFilesInDirectory('third_party/src/cid', 'source/cid');
 copyFilesInDirectory('third_party/src/dlg', 'source/dlg');
 copyFilesInDirectory('third_party/src/gxvalid', 'source/gxvalid');
-copyFilesInDirectory('third_party/src/gzip', 'source/gzip');
+copyFile('third_party/src/gzip/ftgzip.c', 'source/gzip/ftgzip.c');
+copyFile('third_party/src/gzip/ftzconf.c', 'source/gzip/ftzconf.c');
 copyFilesInDirectory('third_party/src/lzw', 'source/lzw');
 copyFilesInDirectory('third_party/src/otvalid', 'source/otvalid');
 copyFilesInDirectory('third_party/src/pcf', 'source/pcf');
