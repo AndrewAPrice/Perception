@@ -38,10 +38,12 @@ const {getDependenciesOfFile} = require('./dependencies_per_file');
 // them again.
 let alreadyBuiltLibraries = {};
 let librariesWithObjectFiles = {};
+let librariesGoingToBeBuilt = {};
 
 function forgetAlreadyBuiltLibraries() {
   alreadyBuiltLibraries = {};
   librariesWithObjectFiles = {};
+  librariesGoingToBeBuilt = {};
 }
 
 async function build(packageType, packageName) {
@@ -149,10 +151,10 @@ async function link(
     return packageType == PackageType.LIBRARY;
   } else if (packageType == PackageType.LIBRARY) {
     // Link library.
+    librariesWithObjectFiles[packageName] = true;
     const binaryPath = libraryBinaryPath(packageName);
     if (!anythingChanged && fs.existsSync(binaryPath)) {
       // Nothing changed and the file exists.
-      librariesWithObjectFiles[packageName] = true;
       return true;
     }
     if (fs.existsSync(binaryPath)) {
@@ -163,7 +165,7 @@ async function link(
         PackageType.LIBRARY, escapePath(binaryPath), objectFiles.join(' '));
     deferCommand(
         STAGE.LINK_LIBRARY, command, 'Building library ' + packageName);
-    librariesWithObjectFiles[packageName] = true;
+    librariesGoingToBeBuilt[packageName] = true;
 
     return true;
   } else if (packageType == PackageType.APPLICATION) {
@@ -192,10 +194,14 @@ async function link(
       // they didn't recompile.)
       const ourTimestamp = getFileLastModifiedTimestamp(binaryPath);
 
-      if (librariesToLink.find(
-              libraryToLink =>
-                  (getFileLastModifiedTimestamp(libraryToLink) >
-                   ourTimestamp)) == undefined) {
+      for (let i = 0; i < librariesToLink.length; i++) {
+        const libraryToLink = librariesToLink[i];
+        if (librariesGoingToBeBuilt[libraryToLink] ||
+            getFileLastModifiedTimestamp(libraryToLink) > ourTimestamp) {
+          anythingChanged = true;
+        }
+      }
+      if (!anythingChanged) {
         // No libraries are newer than us, no need to relink.
         return true;
       }
