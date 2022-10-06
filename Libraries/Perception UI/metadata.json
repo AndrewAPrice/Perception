@@ -1,0 +1,9 @@
+{
+    "dependencies": [
+        "facebook yoga",
+        "google skia",
+    	"libcxx",
+    	"musl",
+        "perception"
+    ]
+}
