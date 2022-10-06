@@ -13,11 +13,12 @@
 // limitations under the License.
 
 const fs = require('fs');
-const {getPackageDirectory} = require('./package_directory');
+const {getPackageDirectory, getPackageBuildDirectory} =
+    require('./package_directory');
 const permebufParser = require('./permebuf_parser');
 const {foreachPermebufSourceFile} = require('./source_files');
 const permebufGenerator = require('./permebuf_generator');
-const {buildPrefix} = require('./build_commands');
+const {buildPrefix, buildSettings} = require('./build_commands');
 const {getMetadata} = require('./metadata');
 const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
 const {generatedFilenameMap} = require('./generated_filename_map');
@@ -59,39 +60,34 @@ function compilePermebufToCpp(
   return true;
 }
 
-async function transpilePermebufToCppForPackage(
-    packageName, packageType, buildSettings) {
+async function transpilePermebufToCppForPackage(packageName, packageType) {
   if (packageType == PackageType.LIBRARY) {
     if (transpiledLibrariesWithPermebufs[packageName] == undefined) {
       transpiledLibrariesWithPermebufs[packageName] =
-          await forceTranspilePermebufToCppForPackage(
-              packageType, packageName, buildSettings);
+          await forceTranspilePermebufToCppForPackage(packageType, packageName);
     }
     return transpiledLibrariesWithPermebufs[packageName];
   } else if (packageType == PackageType.APPLICATION) {
     if (transpiledApplicationsWithPermebufs[packageName] == undefined) {
       transpiledApplicationsWithPermebufs[packageName] =
-          await forceTranspilePermebufToCppForPackage(
-              packageType, packageName, buildSettings);
+          await forceTranspilePermebufToCppForPackage(packageType, packageName);
     }
     return transpiledApplicationsWithPermebufs[packageName];
   }
   return false;
 }
 
-async function forceTranspilePermebufToCppForPackage(
-    packageType, packageName, buildSettings) {
+async function forceTranspilePermebufToCppForPackage(packageType, packageName) {
   const packageDirectory = getPackageDirectory(packageType, packageName);
+  const packageBuildDirectory =
+      getPackageBuildDirectory(packageType, packageName);
   let anythingChanged = false;
 
   // Make sure the path exists where we're going to put our outputs.
-  if (!fs.existsSync(packageDirectory + 'build/' + buildPrefix(buildSettings)))
-    fs.mkdirSync(
-        packageDirectory + 'build/' + buildPrefix(buildSettings),
-        {recursive: true});
+  if (!fs.existsSync(packageBuildDirectory))
+    fs.mkdirSync(packageBuildDirectory, {recursive: true});
 
-  const depsFile = packageDirectory + 'build/' + buildPrefix(buildSettings) +
-      '/permebuf_dependencies.json';
+  const depsFile = packageBuildDirectory + 'permebuf_dependencies.json';
   let dependenciesPerFile =
       fs.existsSync(depsFile) ? JSON.parse(fs.readFileSync(depsFile)) : {};
 
@@ -146,7 +142,6 @@ async function forceTranspilePermebufToCppForPackage(
         }
 
         if (shouldCompileFile) {
-          console.log('Transpiling ' + fullPath + ' to C++');
           deps = [];
           if (!compilePermebufToCpp(
                   localPath, packageName, packageType, deps)) {

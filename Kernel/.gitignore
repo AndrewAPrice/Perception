@@ -1,8 +1,0 @@
-# Object files used during building.
-build/
-
-# The built kernel.
-kernel.app
-
-# Build dependencies.
-dependencies.json

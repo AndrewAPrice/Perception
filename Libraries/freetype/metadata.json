@@ -3,12 +3,10 @@
     "madler zlib",
     "musl"
   ],
-  "local_define": [
-    "FT_CONFIG_OPTION_SYSTEM_ZLIB"
-  ],
   "define": [
     "_LIB",
     "FT2_BUILD_LIBRARY",
+    "FT_CONFIG_OPTION_SYSTEM_ZLIB",
     "NDEBUG"
   ],
   "ignore": [

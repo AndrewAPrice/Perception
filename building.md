@@ -57,18 +57,23 @@ Change the `url`, `version`, `sha256` to:
 Then rerun the above `brew install` command to continue installing everything.
 
 ## Preparation
-- Create a file Build/tools.json with the paths to the above tools.
+- Create a file Build/config.json with the paths to the above tools.
 ```json
 {
-	"ar": "x86_64-elf-gcc-ar",
-	"gas": "x86_64-elf-gcc-as",
-	"nasm": "nasm",
-	"gcc": "x86_64-elf-gcc",
-	"grub-mkrescue": "grub-mkrescue",
-	"ld": "x86_64-elf-ld",
-	"qemu": "qemu-system-x86_64"
+	"tools": {
+		"ar": "x86_64-elf-gcc-ar",
+		"gas": "x86_64-elf-gcc-as",
+		"nasm": "nasm",
+		"gcc": "x86_64-elf-gcc",
+		"grub-mkrescue": "grub-mkrescue",
+		"ld": "x86_64-elf-ld",
+		"qemu": "qemu-system-x86_64"
+	},
+	"parallel_tasks": 1
 }
 ```
+
+If you're unsure of what to set `parallel_tasks` to, try running `./build benchmark` and it'll find the optimal value for the fastest builds on your system.
 
 ## Building
 Call all commands from inside the Build directory. Here are some useful ones:

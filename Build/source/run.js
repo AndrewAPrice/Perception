@@ -16,11 +16,12 @@ const process = require('process');
 const child_process = require('child_process');
 const {build} = require('./build');
 const {buildImage} = require('./build_image');
-const {buildPrefix} = require('./build_commands');
+const {buildPrefix, buildSettings} = require('./build_commands');
 const {escapePath} = require('./utils');
 const {PackageType} = require('./package_type');
 const {rootDirectory} = require('./root_directory');
-const {getToolPath} = require('./tools');
+const {getToolPath} = require('./config');
+const {runDeferredCommands} = require('./deferred_commands');
 
 const EMULATOR_COMMAND = getToolPath('qemu') + ' -boot d -cdrom ' +
     escapePath(rootDirectory) + 'Perception.iso -m 512 -serial stdio';
@@ -28,15 +29,14 @@ const EMULATOR_COMMAND = getToolPath('qemu') + ' -boot d -cdrom ' +
 // For debugging the kernel, it's useful to add '-no-reboot -d int,cpu_reset'.
 
 // Builds everything and runs the emulator.
-async function run(package, buildSettings) {
+async function run(package) {
   if (buildSettings.os == 'Perception') {
     if (package != '') {
       console.log(
           '\'build run\' builds everything into a disk image. If you\'re trying to run a particular application locally, please pass --local.');
       process.exit(-1);
     }
-    const success = await buildImage(buildSettings);
-    if (success) {
+    if (await buildImage()) {
       child_process.execSync(EMULATOR_COMMAND, {stdio: 'inherit'});
     }
   } else {
@@ -45,25 +45,19 @@ async function run(package, buildSettings) {
           'When passing --local to \'build run\', you need to add the name of the application you want to run.');
       process.exit(-1);
     }
-    build(PackageType.APPLICATION, package, buildSettings)
-        .then(
-            (res) => {
-              if (!buildSettings.compile) {
-                console.log('Nothing was compiled, so nothing to run.');
-              }
-              if (res) {
-                child_process.execSync(
-                    escapePath(
-                        rootDirectory + 'Applications/' + package + '/build/' +
-                        buildPrefix(buildSettings) + '.app'),
-                    {stdio: 'inherit'});
-              } else {
-                console.log('failed!');
-              }
-            },
-            (err) => {
-              console.log(err);
-            });
+    if (!(await build(PackageType.APPLICATION, package))) {
+      return;
+    }
+
+    if (!(await runDeferredCommands())) {
+      return;
+    }
+
+    child_process.execSync(
+        escapePath(
+            rootDirectory + 'Applications/' + package + '/build/' +
+            buildPrefix() + '.app'),
+        {stdio: 'inherit'});
   }
 }
 

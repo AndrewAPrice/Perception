@@ -12,13 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+const os = require('os');
 const path = require('path');
-const {getToolPath} = require('./tools');
+const {getToolPath, getParallelTasks} = require('./config');
 const {escapePath} = require('./utils');
 const {PackageType} = require('./package_type');
 const {rootDirectory} = require('./root_directory');
 
-function generateBuildCommand(language, buildSettings, filePath) {
+const buildSettings = {
+  os: 'Perception',
+  build: 'optimized',
+  compile: true,
+  test: false,
+  parallelTasks: getParallelTasks()
+};
+
+function generateBuildCommand(language, filePath) {
   let cParams = ' -D' + buildSettings.os.toUpperCase().replace(/-/g, '_') +
       ' ' +
       ' -D' + buildSettings.build + '_BUILD_ ' +
@@ -33,24 +42,25 @@ function generateBuildCommand(language, buildSettings, filePath) {
   if (language == 'C++') {
     let command = '';
     if (isLocalBuild)
-      return getToolPath('local-gcc') + ' -c -std=c++20 -MD -MF temp.d' +
+      return getToolPath('local-gcc') + ' -c -std=c++20 -MD -MF ${deps}' +
           cParams;
     else
       return getToolPath('gcc') +
           ' -fverbose-asm -m64 -ffreestanding -nostdlib ' +
-          '-nostdinc++ -mno-red-zone -c -std=c++20 -MD -MF temp.d' + cParams;
+          '-nostdinc++ -mno-red-zone -c -std=c++20 -MD -MF ${deps}' + cParams;
   } else if (language == 'C') {
     if (isLocalBuild)
-      return getToolPath('local-gcc') + ' -c -std=c17 -MD -MF temp.d' + cParams;
+      return getToolPath('local-gcc') + ' -c -std=c17 -MD -MF ${deps}' +
+          cParams;
     else
       return getToolPath('gcc') +
           ' -D PERCEPTION -std=c17 -m64 -ffreestanding -nostdlib ' +
-          '-mno-red-zone -c -MD -MF temp.d' + cParams;
+          '-mno-red-zone -c -MD -MF ${deps}' + cParams;
   } else if (language == 'Kernel C') {
     return getToolPath('gcc') + ' -m64 -mcmodel=kernel ' +
         '-ffreestanding -fno-builtin -nostdlib -nostdinc -mno-red-zone  -c ' +
         '-msoft-float -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mno-avx ' +
-        '-mno-avx2 -MD -MF temp.d  -O3 -isystem ' + escapePath(rootDirectory) +
+        '-mno-avx2 -MD -MF ${deps}  -O3 -isystem ' + escapePath(rootDirectory) +
         'Kernel/source ' + cParams;
   } else if (language == 'Intel ASM') {
     if (isLocalBuild)
@@ -91,14 +101,13 @@ function getBuildCommand(filePath, packageType, cParams, buildSettings) {
   if (language == '') return '';
 
   if (!buildCommands[language])
-    buildCommands[language] =
-        generateBuildCommand(language, buildSettings, filePath);
+    buildCommands[language] = generateBuildCommand(language, filePath);
 
   return addCParams ? buildCommands[language] + cParams :
                       buildCommands[language];
 }
 
-function getLinkerCommand(packageType, outputFile, inputFiles, buildSettings) {
+function getLinkerCommand(packageType, outputFile, inputFiles) {
   switch (packageType) {
     case PackageType.KERNEL: {
       let extras = '';
@@ -133,7 +142,7 @@ function getLinkerCommand(packageType, outputFile, inputFiles, buildSettings) {
         // '--start-group'; let endGroup = buildSettings.os == 'Darwin' ?
         // '--no-whole-archive' : '--end-group'; return getToolPath('local-gcc')
         // + extras + ' -o ' + outputFile + ' -Wl,' + startGroup + ' ' +
-        //	inputFiles + ' -Wl,' + endGroup;
+        //  inputFiles + ' -Wl,' + endGroup;
         return getToolPath('local-gcc') + extras + ' -o ' + outputFile + ' ' +
             inputFiles;
       }
@@ -148,7 +157,7 @@ function getLinkerCommand(packageType, outputFile, inputFiles, buildSettings) {
   }
 }
 
-function buildPrefix(buildSettings) {
+function buildPrefix() {
   if (buildSettings.test)
     return 'test';
   else
@@ -158,5 +167,6 @@ function buildPrefix(buildSettings) {
 module.exports = {
   getBuildCommand : getBuildCommand,
   getLinkerCommand : getLinkerCommand,
-  buildPrefix : buildPrefix
+  buildPrefix : buildPrefix,
+  buildSettings : buildSettings
 };

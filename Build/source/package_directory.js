@@ -14,21 +14,32 @@
 
 const {rootDirectory} = require('./root_directory');
 const {PackageType} = require('./package_type');
+const {buildPrefix} = require('./build_commands');
 
-// Gets the directory for a package type and package name.
-function getPackageDirectory(packageType, packageName) {
+function getPackageDirectorySuffix(packageType, packageName) {
   switch (packageType) {
     case PackageType.APPLICATION:
-      return rootDirectory + 'Applications/' + packageName + '/';
+      return 'Applications/' + packageName + '/';
     case PackageType.LIBRARY:
-      return rootDirectory + 'Libraries/' + packageName + '/';
+      return 'Libraries/' + packageName + '/';
     case PackageType.KERNEL:
-      return rootDirectory + 'Kernel/';
+      return 'Kernel/';
     default:
       return '';
   }
 }
 
+// Gets the directory for a package type and package name.
+function getPackageDirectory(packageType, packageName) {
+  return rootDirectory + getPackageDirectorySuffix(packageType, packageName);
+}
+
+function getPackageBuildDirectory(packageType, packageName) {
+  return rootDirectory + 'Build/temp/' + buildPrefix() + '/' +
+      getPackageDirectorySuffix(packageType, packageName);
+}
+
 module.exports = {
-  getPackageDirectory : getPackageDirectory
+  getPackageDirectory : getPackageDirectory,
+  getPackageBuildDirectory : getPackageBuildDirectory
 };
