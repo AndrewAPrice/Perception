@@ -516,8 +516,8 @@ void Window::InvalidateDialogAndTitle() {
 void Window::InvalidateContents(int min_x, int min_y, int max_x, int max_y) {
   max_x = std::min(max_x, width_);
   max_y = std::min(max_y, height_);
-  int x = x_ + 2;
-  int y = y_ + WINDOW_TITLE_HEIGHT + 2;
+  int x = is_dialog_ ? x_ + 2 : x_;
+  int y = is_dialog_ ? y_ + WINDOW_TITLE_HEIGHT + 2 : y_;
   InvalidateScreen(x + min_x, y + min_y, x + max_x, y + max_y);
 }
 

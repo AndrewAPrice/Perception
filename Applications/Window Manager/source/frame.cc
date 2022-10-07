@@ -785,10 +785,11 @@ void Frame::Draw(int min_x, int min_y, int max_x, int max_y) {
     // This is a dock frame that contains windows.
     if (min_y < y_ + DockFrame.title_height_) {
       // The title area is within our redraw region.
-      /*	// Draw the background behind the title.
-              FillRectangle(x_, y_, x_ + width_, y_ + DockFrame.title_height_,
-                      kBackgroundColor, GetWindowManagerTextureData(),
-                      GetScreenWidth(), GetScreenHeight());*/
+      // Draw the background behind the title.
+      DrawSolidColor(std::max(x_, min_x), std::max(y_, min_y),
+                     std::min(x_ + width_, max_x),
+                     std::min(y_ + DockFrame.title_height_, max_y),
+                     kBackgroundColor);
 
       int y = y_;
       int x = x_ + 1;
