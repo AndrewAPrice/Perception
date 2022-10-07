@@ -145,9 +145,8 @@ copyFilesInDirectory(
     'third_party/repo/icu4c/source/layoutex/', 'source/common');
 copyFilesInDirectory(
     'third_party/repo/icu4c/source/layoutex/layout', 'public/layout', '.h');
-copyFile('third_party/icudt72l_dat.S', 'source/icudt72l_dat.S');
-replaceInFile(
-    'source/icudt72l_dat.S', [['_icudt72_dat', 'icudt72_dat'], ['.const', '']]);
+copyFilesInDirectory('third_party/repo/icu4c/source/stubdata/', 'source/stubdata');
+copyFile('third_party/icudt72l.dat', 'assets/icudt72l.dat');
 
 // Remove any third party files that don't exist in the latest build.
 Object.keys(third_party_files_from_last_run).forEach(function(filePath) {

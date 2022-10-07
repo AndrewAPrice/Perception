@@ -5,7 +5,9 @@
 	],
 	"define": [
 		"U_I18N_IMPLEMENTATION",
-		"U_COMMON_IMPLEMENTATION"
+		"U_COMMON_IMPLEMENTATION",
+		"ICU_DATA_DIR=\"\\\"/Libraries/unicode-org icu/assets/\\\"\""
 	],
+	"has_assets": true,
 	"third_party": true
 }
