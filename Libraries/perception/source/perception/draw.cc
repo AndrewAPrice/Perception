@@ -80,15 +80,15 @@ void DrawSpriteAlpha(int x, int y, uint32 *sprite, int width, int height,
     int next_in_indx = in_indx + width;
     for (_x = start_x; _x < end_x; _x++) {
       uint8 *colour_components = (uint8 *)(&sprite[in_indx]);
-      int alpha = colour_components[0] + 1;
-      int inv_alpha = 256 - colour_components[0];
+      int alpha = colour_components[3] + 1;
+      int inv_alpha = 256 - colour_components[3];
       uint8 *sc_buf = (uint8 *)(&buffer[out_indx]);
+      sc_buf[0] =
+          (uint8)((alpha * colour_components[0] + inv_alpha * sc_buf[0]) >> 8);
       sc_buf[1] =
           (uint8)((alpha * colour_components[1] + inv_alpha * sc_buf[1]) >> 8);
       sc_buf[2] =
           (uint8)((alpha * colour_components[2] + inv_alpha * sc_buf[2]) >> 8);
-      sc_buf[3] =
-          (uint8)((alpha * colour_components[3] + inv_alpha * sc_buf[3]) >> 8);
 
       out_indx++;
       in_indx++;
@@ -156,18 +156,18 @@ void DrawXLineAlpha(int x, int y, int width, uint32 colour, uint32 *buffer,
   x = std::max(0, x);
 
   uint8 *colour_components = (uint8 *)&colour;
-  int alpha = colour_components[0] + 1;
-  int inv_alpha = 256 - colour_components[0];
+  int alpha = colour_components[3] + 1;
+  int inv_alpha = 256 - colour_components[3];
 
   int indx = buffer_width * y + x;
   for (; x < end_x; x++, indx++) {
     uint8 *sc_buf = (uint8 *)(&buffer[indx]);
+    sc_buf[0] =
+        (uint8)((alpha * colour_components[0] + inv_alpha * sc_buf[0]) >> 8);
     sc_buf[1] =
         (uint8)((alpha * colour_components[1] + inv_alpha * sc_buf[1]) >> 8);
     sc_buf[2] =
         (uint8)((alpha * colour_components[2] + inv_alpha * sc_buf[2]) >> 8);
-    sc_buf[3] =
-        (uint8)((alpha * colour_components[3] + inv_alpha * sc_buf[3]) >> 8);
   }
 }
 
@@ -190,18 +190,18 @@ void DrawYLineAlpha(int x, int y, int height, uint32 colour, uint32 *buffer,
   y = std::max(0, y);
 
   uint8 *colour_components = (uint8 *)&colour;
-  int alpha = colour_components[0] + 1;
-  int inv_alpha = 256 - colour_components[0];
+  int alpha = colour_components[3] + 1;
+  int inv_alpha = 256 - colour_components[3];
 
   int indx = buffer_width * y + x;
   for (; y < end_y; y++, indx += buffer_width) {
     uint8 *sc_buf = (uint8 *)(&buffer[indx]);
+    sc_buf[0] =
+        (uint8)((alpha * colour_components[0] + inv_alpha * sc_buf[0]) >> 8);
     sc_buf[1] =
         (uint8)((alpha * colour_components[1] + inv_alpha * sc_buf[1]) >> 8);
     sc_buf[2] =
         (uint8)((alpha * colour_components[2] + inv_alpha * sc_buf[2]) >> 8);
-    sc_buf[3] =
-        (uint8)((alpha * colour_components[3] + inv_alpha * sc_buf[3]) >> 8);
   }
 }
 
@@ -241,8 +241,8 @@ void FillRectangleAlpha(int minx, int miny, int maxx, int maxy, uint32 colour,
   maxx = std::min(maxx, buffer_width);
   maxy = std::min(maxy, buffer_height);
 
-  int alpha = colour_components[0] + 1;
-  int inv_alpha = 256 - colour_components[0];
+  int alpha = colour_components[3] + 1;
+  int inv_alpha = 256 - colour_components[3];
 
   int indx = buffer_width * miny + minx;
   int _x, _y;
@@ -251,12 +251,12 @@ void FillRectangleAlpha(int minx, int miny, int maxx, int maxy, uint32 colour,
     int next_indx = indx + buffer_width;
     for (_x = minx; _x < maxx; _x++) {
       uint8 *sc_buf = (uint8 *)(&buffer[indx]);
+      sc_buf[0] =
+          (uint8)((alpha * colour_components[0] + inv_alpha * sc_buf[0]) >> 8);
       sc_buf[1] =
           (uint8)((alpha * colour_components[1] + inv_alpha * sc_buf[1]) >> 8);
       sc_buf[2] =
           (uint8)((alpha * colour_components[2] + inv_alpha * sc_buf[2]) >> 8);
-      sc_buf[3] =
-          (uint8)((alpha * colour_components[3] + inv_alpha * sc_buf[3]) >> 8);
 
       indx++;
     }
