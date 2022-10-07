@@ -89,7 +89,8 @@ async function runCommand(
   } catch (exp) {
     if (!silent) {
       errors.push({
-        command: deferredCommand.title,
+        command: deferredCommand.command,
+        // command: deferredCommand.title,
         error: exp.stderr});
       process.stdout.write(' ');
     }
