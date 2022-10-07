@@ -14,14 +14,18 @@
 
 #include "perception/ui/text_alignment.h"
 
-#include "perception/font.h"
+#include "include/core/SkFont.h"
+#include "include/core/SkRect.h"
 
 namespace perception {
 namespace ui {
 
 void CalculateTextAlignment(std::string_view text, int width, int height,
-                            TextAlignment alignment, Font& font, int& x,
+                            TextAlignment alignment, SkFont& font, int& x,
                             int& y) {
+  SkRect bounds;
+  (void)font.measureText(&text[0], text.length(), SkTextEncoding::kUTF8, &bounds);
+
   switch (alignment) {
     case TextAlignment::TopLeft:
     case TextAlignment::TopCenter:
@@ -31,12 +35,12 @@ void CalculateTextAlignment(std::string_view text, int width, int height,
     case TextAlignment::MiddleLeft:
     case TextAlignment::MiddleCenter:
     case TextAlignment::MiddleRight:
-      y = height / 2 - font.GetHeight() / 2;
+      y = height / 2 - bounds.height() / 2;
       break;
     case TextAlignment::BottomLeft:
     case TextAlignment::BottomCenter:
     case TextAlignment::BottomRight:
-      y = height - font.GetHeight();
+      y = height - bounds.height();
       break;
   }
 
@@ -49,12 +53,12 @@ void CalculateTextAlignment(std::string_view text, int width, int height,
     case TextAlignment::TopCenter:
     case TextAlignment::MiddleCenter:
     case TextAlignment::BottomCenter:
-      x = width / 2 - font.MeasureString(text) / 2;
+      x = width / 2 - bounds.width() / 2;
       break;
     case TextAlignment::TopRight:
     case TextAlignment::MiddleRight:
     case TextAlignment::BottomRight:
-      x = width - font.MeasureString(text);
+      x = width - bounds.width();
       break;
   }
 }

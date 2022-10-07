@@ -14,10 +14,15 @@
 
 #include "perception/ui/text_box.h"
 
+#include "include/core/SkCanvas.h"
+#include "include/core/SkFont.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkString.h"
 #include "perception/draw.h"
-#include "perception/font.h"
 #include "perception/ui/button.h"
 #include "perception/ui/draw_context.h"
+#include "perception/ui/font.h"
 #include "perception/ui/theme.h"
 
 namespace perception {
@@ -112,17 +117,18 @@ void TextBox::Draw(DrawContext& draw_context) {
   int bottom_padding = (int)GetComputedPadding(YGEdgeBottom);
 
   if (realign_text_) {
-    CalculateTextAlignment(value_, width - 2 - left_padding + right_padding,
-                           height - 2 - top_padding + bottom_padding,
-                           text_alignment_, *GetUiFont(), text_x_, text_y_);
+    CalculateTextAlignment(value_, width - 2, height - 2, text_alignment_,
+                           *GetUiFont(), text_x_, text_y_);
     realign_text_ = false;
   }
 
   // Draw button text.
-  GetUiFont()->DrawString(x + left_padding + 1 + text_x_,
-                          y + top_padding + 1 + text_y_, value_, text_color,
-                          draw_context.buffer, draw_context.buffer_width,
-                          draw_context.buffer_height);
+  SkPaint paint;
+  paint.setColor(kTextBoxTextColor);
+
+  draw_context.skia_canvas->drawString(
+      SkString(value_), (float)(x + left_padding + 1 + text_x_),
+      (float)(y + top_padding + 1 + text_y_, text_y_), *GetUiFont(), paint);
 }
 
 YGSize TextBox::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
@@ -130,12 +136,22 @@ YGSize TextBox::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
   TextBox* text_box = (TextBox*)YGNodeGetContext(node);
   YGSize size;
 
+  bool measuredString = false;
+  SkRect stringBounds;
+  static SkFont font(nullptr, 64);
+#define maybeMeasureString()                                                \
+  if (!measuredString) {                                                    \
+    (void)font.measureText(&text_box->value_[0], text_box->value_.length(), \
+                           SkTextEncoding::kUTF8, &stringBounds);           \
+    measuredString = true;                                                  \
+  }
+
   if (width_mode == YGMeasureModeExactly) {
     size.width = width;
   } else {
-    size.width = (float)GetUiFont()->MeasureString(text_box->value_) +
-                 text_box->GetComputedPadding(YGEdgeTop) +
-                 text_box->GetComputedPadding(YGEdgeBottom);
+    maybeMeasureString() size.width =
+        stringBounds.width() + text_box->GetComputedPadding(YGEdgeTop) +
+        text_box->GetComputedPadding(YGEdgeBottom);
     if (width_mode == YGMeasureModeAtMost) {
       size.width = std::min(width, size.width);
     }
@@ -143,9 +159,9 @@ YGSize TextBox::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
   if (height_mode == YGMeasureModeExactly) {
     size.height = height;
   } else {
-    size.height = (float)GetUiFont()->GetHeight() +
-                  text_box->GetComputedPadding(YGEdgeLeft) +
-                  text_box->GetComputedPadding(YGEdgeRight);
+    maybeMeasureString() size.height =
+        stringBounds.height() + text_box->GetComputedPadding(YGEdgeLeft) +
+        text_box->GetComputedPadding(YGEdgeRight);
     if (height_mode == YGMeasureModeAtMost) {
       size.height = std::min(height, size.height);
     }
