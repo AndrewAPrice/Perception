@@ -6,11 +6,13 @@
 	],
 	"define": [
 		"HAVE_CONFIG_H",
-		"CONFIGDIR=\"/CONFIGDIR/\"",
-		"FONTCONFIG_PATH=\"/FONTCONFIG_PATH/\"",
-		"FC_CACHEDIR=\"/FC_CACHEDIR/\"",
-		"FC_TEMPLATEDIR=\"/FC_TEMPLATEDIR/\"",
+		"ENABLE_LIBXML2",
+		"CONFIGDIR=\"\\\"/Libraries/fontconfig/assets/config/\\\"\"",
+		"FONTCONFIG_PATH=\"\\\"/Libraries/fontconfig/assets/\\\"\"",
+		"FC_CACHEDIR=\"\\\"/Temporary/Libraries/fontconfig/cache/\\\"\"",
+		"FC_TEMPLATEDIR=\"\\\"/Libraries/fontconfig/assets/templates/\\\"\"",
 		"__linux__"
 	],
+	"has_assets": true,
 	"third_party": true
 }

@@ -129,6 +129,7 @@ copyFilesInDirectory('third_party/fontconfig', 'public/fontconfig', '.h');
 copyFilesInDirectory('third_party/src', 'source/src');
 copyFile('third_party/config-fixups.h', 'source/config-fixups.h');
 copyFile('third_party/src/fcstdint.h.in', 'source/src/fcstdint.h');
+copyFilesInDirectory('third_party/conf.d', 'assets/templates', '.conf');
 
 
 
