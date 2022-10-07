@@ -490,12 +490,14 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
                       render_state.destination_texture->height,
                       /*destination_pitch=*/
                       render_state.destination_texture->width * 4,
-                      /*destination_bpp=*/32, left_source, top_source,
+                      /*destination_bpp=*/0, left_source, top_source,
                       left_destination, top_destination, width_to_copy,
                       height_to_copy, alpha_blend);
     }
   }
 
+  // destination_bpp is only used when copying to the framebuffer. Copying to
+  // a texture should set it to 0.
   inline void BitBltToTexture(
       uint8* source, uint32 source_width, uint32 source_height,
       uint8* destination, uint32 destination_width, uint32 destination_height,
@@ -539,6 +541,7 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
       case 24:
         bytes_per_pixel = 3;
         break;
+      case 0:
       case 32:
         bytes_per_pixel = 4;
         break;
@@ -558,29 +561,37 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
 
       for (uint32 i = width_to_copy; i > 0; i--, x++) {
         switch (destination_bpp) {
-          case 32:
-            if (!alpha_blend || source[0] == 0xFF) {
+          case 0:
+            // 32 bits but to another texture.
+            if (!alpha_blend || source[3] == 0xFF) {
               *(uint32*)destination = *(uint32*)source;
-            } else if (source[0] > 0) {
-              int alpha = source[0];
-              int inv_alpha = 255 - source[0];
+            } else if (source[3] > 0) {
+              int alpha = source[3];
+              int inv_alpha = 255 - source[3];
 
+              destination[0] = (uint8)((alpha * (int)source[0] +
+                                        inv_alpha * (int)destination[0]) >>
+                                       8);
               destination[1] = (uint8)((alpha * (int)source[1] +
                                         inv_alpha * (int)destination[1]) >>
                                        8);
               destination[2] = (uint8)((alpha * (int)source[2] +
                                         inv_alpha * (int)destination[2]) >>
                                        8);
-              destination[3] = (uint8)((alpha * (int)source[3] +
-                                        inv_alpha * (int)destination[3]) >>
-                                       8);
             }
             destination += 4;
             break;
+          case 32:
+            destination[0] = source[3];
+            destination[1] = source[0];
+            destination[2] = source[1];
+            destination[3] = source[2];
+            destination += 4;
+            break;
           case 24:
-            destination[0] = source[1];
-            destination[1] = source[2];
-            destination[2] = source[3];
+            destination[0] = source[0];
+            destination[1] = source[1];
+            destination[2] = source[2];
             destination += 3;
             break;
           case 16: {
@@ -595,11 +606,11 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
             // We divide the dither value to be in the range of
             // the color into the next increment.
             uint16 red =
-                std::min(((uint16)source[1] + dither_val / 8) >> (8 - 5), 31);
+                std::min(((uint16)source[0] + dither_val / 8) >> (8 - 5), 31);
             uint16 green =
-                std::min(((uint16)source[2] + dither_val / 4) >> (8 - 6), 63);
+                std::min(((uint16)source[1] + dither_val / 4) >> (8 - 6), 63);
             uint16 blue =
-                std::min(((uint16)source[3] + dither_val / 8) >> (8 - 5), 31);
+                std::min(((uint16)source[2] + dither_val / 8) >> (8 - 5), 31);
             *(uint16*)destination = (blue << 11) | (green << 5) | red;
             destination += 2;
             break;
@@ -611,11 +622,11 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
                                             kDitheringTableWidth];
             // Trim colors down to 5:5:5-bits.
             uint16 red =
-                std::min(((uint16)source[1] + dither_val / 8) >> (8 - 5), 31);
+                std::min(((uint16)source[0] + dither_val / 8) >> (8 - 5), 31);
             uint16 green =
-                std::min(((uint16)source[2] + dither_val / 8) >> (8 - 5), 31);
+                std::min(((uint16)source[1] + dither_val / 8) >> (8 - 5), 31);
             uint16 blue =
-                std::min(((uint16)source[3] + dither_val / 8) >> (8 - 5), 31);
+                std::min(((uint16)source[2] + dither_val / 8) >> (8 - 5), 31);
 
             *(uint16*)destination = (blue << 10) | (green << 5) | red;
             destination += 2;
@@ -640,7 +651,7 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
               << command.GetColor() << std::dec << std::endl;
 #endif
     uint8* color_channels = (uint8*)&color;
-    if (color_channels[0] == 0) {
+    if (color_channels[3] == 0) {
       // Completely transparent, nothing to draw.
       return;
     }
@@ -690,7 +701,7 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
                     render_state.destination_texture->height,
                     /*destination_pitch=*/
                     render_state.destination_texture->width * 4,
-                    /*destination_bpp=*/32, color,
+                    /*destination_bpp=*/0, color,
                     /*alpha_blend=*/true);
     }
   }
@@ -707,7 +718,7 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
     right = std::min(right, destination_width);
     bottom = std::min(bottom, destination_height);
 
-    if (color_channels[0] == 0xFF || !alpha_blend) {
+    if (color_channels[3] == 0xFF || !alpha_blend) {
       // Completely solid color.
       int bytes_per_pixel;
       switch (destination_bpp) {
@@ -718,6 +729,7 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
         case 24:
           bytes_per_pixel = 3;
           break;
+        case 0:
         case 32:
           bytes_per_pixel = 4;
           break;
@@ -731,14 +743,21 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
 
         for (int x = left; x < right; x++) {
           switch (destination_bpp) {
-            case 32:
+            case 0:
               *(uint32*)destination = color;
               destination += 4;
               break;
+            case 32:
+              destination[0] = color_channels[3];
+              destination[1] = color_channels[0];
+              destination[2] = color_channels[1];
+              destination[3] = color_channels[2];
+              destination += 4;
+              break;
             case 24:
-              destination[0] = color_channels[1];
-              destination[1] = color_channels[2];
-              destination[2] = color_channels[3];
+              destination[0] = color_channels[0];
+              destination[1] = color_channels[1];
+              destination[2] = color_channels[2];
               destination += 3;
               break;
             case 16: {
@@ -753,11 +772,11 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
               // We divide the dither value to be in the range of
               // the color into the next increment.
               uint16 red = std::min(
-                  ((uint16)color_channels[1] + dither_val / 8) >> (8 - 5), 31);
+                  ((uint16)color_channels[0] + dither_val / 8) >> (8 - 5), 31);
               uint16 green = std::min(
-                  ((uint16)color_channels[2] + dither_val / 4) >> (8 - 6), 63);
+                  ((uint16)color_channels[1] + dither_val / 4) >> (8 - 6), 63);
               uint16 blue = std::min(
-                  ((uint16)color_channels[3] + dither_val / 8) >> (8 - 5), 31);
+                  ((uint16)color_channels[2] + dither_val / 8) >> (8 - 5), 31);
               *(uint16*)destination = (blue << 11) | (green << 5) | red;
               destination += 2;
               break;
@@ -769,11 +788,11 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
                                               kDitheringTableWidth];
               // Trim colors down to 5:5:5-bits.
               uint16 red = std::min(
-                  ((uint16)color_channels[1] + dither_val / 8) >> (8 - 5), 31);
+                  ((uint16)color_channels[0] + dither_val / 8) >> (8 - 5), 31);
               uint16 green = std::min(
-                  ((uint16)color_channels[2] + dither_val / 8) >> (8 - 5), 31);
+                  ((uint16)color_channels[1] + dither_val / 8) >> (8 - 5), 31);
               uint16 blue = std::min(
-                  ((uint16)color_channels[3] + dither_val / 8) >> (8 - 5), 31);
+                  ((uint16)color_channels[2] + dither_val / 8) >> (8 - 5), 31);
 
               *(uint16*)destination = (blue << 10) | (green << 5) | red;
               destination += 2;
@@ -787,14 +806,18 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
       }
     } else {
       // Alpha blend.
-      int alpha = color_channels[0];
-      int inv_alpha = 255 - color_channels[0];
+      int alpha = color_channels[3];
+      int inv_alpha = 255 - color_channels[3];
 
       int indx = (destination_width * top + left) * 4;
       int _x, _y;
       for (_y = top; _y < bottom; _y++) {
         int next_indx = indx + destination_width * 4;
         for (_x = left; _x < right; _x++) {
+          destination[indx] =
+              (uint8)((alpha * (int)color_channels[0] +
+                       inv_alpha * (int)destination[indx]) >>
+                      8);
           destination[indx + 1] =
               (uint8)((alpha * (int)color_channels[1] +
                        inv_alpha * (int)destination[indx + 1]) >>
@@ -802,10 +825,6 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
           destination[indx + 2] =
               (uint8)((alpha * (int)color_channels[2] +
                        inv_alpha * (int)destination[indx + 2]) >>
-                      8);
-          destination[indx + 3] =
-              (uint8)((alpha * (int)color_channels[3] +
-                       inv_alpha * (int)destination[indx + 3]) >>
                       8);
           indx += 4;
         }
