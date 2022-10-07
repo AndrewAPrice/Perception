@@ -19,8 +19,15 @@
 #include <string>
 #include <vector>
 
+#include "perception/fibers.h"
+#include "perception/processes.h"
+
 using ::file_systems::FileSystem;
+using ::perception::Fiber;
+using ::perception::GetCurrentlyExecutingFiber;
+using ::perception::GetProcessName;
 using ::perception::ProcessId;
+using ::perception::Sleep;
 using ::perception::Status;
 using ::permebuf::perception::DirectoryEntryType;
 using ::permebuf::perception::File;
@@ -33,6 +40,12 @@ std::map<std::string, std::unique_ptr<FileSystem>, std::less<>>
 
 std::map<ProcessId, std::vector<std::unique_ptr<File::Server>>>
     open_files_by_process_id;
+
+// We save the first mounted file system, and shortcut /Applications,
+// /Libraries into it.
+std::string first_mounted_file_system = "";
+
+std::vector<Fiber*> fibers_waiting_for_first_file_system;
 
 int next_optical_drive_index = 1;
 int next_unknown_device_index = 1;
@@ -60,11 +73,21 @@ void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
             << file_system->GetDeviceName() << " as /" << mount_name << "/"
             << std::endl;
   mounted_file_systems[mount_name] = std::move(file_system);
+  if (first_mounted_file_system.empty()) {
+    first_mounted_file_system = mount_name;
+
+    // Wake up the fibers waiting for the first file system.
+    for (const auto fiber : fibers_waiting_for_first_file_system)
+      fiber->WakeUp();
+    fibers_waiting_for_first_file_system.clear();
+  }
 }
 
 StatusOr<::permebuf::perception::File::Server*> OpenFile(std::string_view path,
                                                          size_t& size_in_bytes,
                                                          ProcessId sender) {
+  // std::cout << GetProcessName(sender) << " is trying to read: " << path
+  //           << std::endl;
   if (path.empty() || path[0] != '/') return Status::FILE_NOT_FOUND;
 
   // Jump over the initial '/'.
@@ -76,12 +99,29 @@ StatusOr<::permebuf::perception::File::Server*> OpenFile(std::string_view path,
   if (split_point == std::string_view::npos) return Status::FILE_NOT_FOUND;
 
   std::string_view mount_point = path.substr(0, split_point);
-  path = path.substr(split_point + 1);
+  if (mount_point == "Libraries" || mount_point == "Applications") {
+    if (first_mounted_file_system.empty()) {
+      // Sleep until we have mounted a file system.
+      fibers_waiting_for_first_file_system.push_back(
+          GetCurrentlyExecutingFiber());
+      Sleep();
+
+      if (first_mounted_file_system.empty()) {
+        std::cout << "We were rewoken with no first mounted file system."
+                  << std::endl;
+        return Status::FILE_NOT_FOUND;
+      }
+    }
+    mount_point = first_mounted_file_system;
+  } else {
+    path = path.substr(split_point + 1);
+  }
 
   // Does the mount point exist?
   auto mount_point_itr = mounted_file_systems.find(mount_point);
-  if (mount_point_itr == mounted_file_systems.end())
+  if (mount_point_itr == mounted_file_systems.end()) {
     return Status::FILE_NOT_FOUND;  // No mount point.
+  }
 
   // Scan the directory within the file system.
   ASSIGN_OR_RETURN(auto file, mount_point_itr->second->OpenFile(
