@@ -16,12 +16,13 @@
 
 #include <iostream>
 
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkPaint.h"
 #include "perception/draw.h"
 #include "perception/font.h"
 #include "perception/ui/draw_context.h"
 #include "perception/ui/theme.h"
-#include "include/core/SkCanvas.h"
-#include "include/core/SkColor.h"
 
 using ::permebuf::perception::devices::MouseButton;
 
@@ -84,7 +85,6 @@ bool Button::GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
 }
 
 void Button::Draw(DrawContext& draw_context) {
-  // draw_context.skia_canvas->save();
   uint32 top_left_color;
   uint32 bottom_right_color;
   uint32 background_color;
@@ -107,30 +107,30 @@ void Button::Draw(DrawContext& draw_context) {
   int width = (int)GetCalculatedWidth();
   int height = (int)GetCalculatedHeight();
 
+  draw_context.skia_canvas->save();
+
   // Left line.
-  DrawYLine(x, y, height, top_left_color, draw_context.buffer,
-            draw_context.buffer_width, draw_context.buffer_height);
+  SkPaint p;
+  p.setColor(top_left_color);
+  p.setStyle(SkPaint::kStroke_Style);
+  p.setStrokeWidth(1);
+  draw_context.skia_canvas->drawLine(x, y, x, y + height, p);
 
   // Top line.
-  DrawXLine(x + 1, y, width - 1, top_left_color, draw_context.buffer,
-            draw_context.buffer_width, draw_context.buffer_height);
+  draw_context.skia_canvas->drawLine(x + 1, y, x + width - 1, y, p);
 
   // Right line.
-  DrawYLine(x + width - 1, y + 1, height - 1, bottom_right_color,
-            draw_context.buffer, draw_context.buffer_width,
-            draw_context.buffer_height);
+  p.setColor(bottom_right_color);
+  draw_context.skia_canvas->drawLine(x + width - 1, y + 1, x + width - 1, y + height - 1, p);
 
   // Bottom line.
-  DrawXLine(x + 1, y + height - 1, width - 2, bottom_right_color,
-            draw_context.buffer, draw_context.buffer_width,
-            draw_context.buffer_height);
+  draw_context.skia_canvas->drawLine(x + 1, y + height - 1, x + width - 2, y + height - 1, p);
 
   // Draw background.
-  draw_context.skia_canvas->clipIRect(SkIRect::MakeLTRB(
-    x + 1, y + 1, x + width - 1, y + height - 1
-    ));
-  draw_context.skia_canvas->drawColor(background_color);
+  draw_context.skia_canvas->clipIRect(
+      SkIRect::MakeLTRB(x + 1, y + 1, x + width - 1, y + height - 1));
 
+  draw_context.skia_canvas->drawColor(background_color);
   draw_context.skia_canvas->restore();
 
   Widget::Draw(draw_context);

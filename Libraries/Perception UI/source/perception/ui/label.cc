@@ -14,10 +14,14 @@
 
 #include "perception/ui/label.h"
 
+#include "include/core/SkCanvas.h"
+#include "include/core/SkFont.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkString.h"
 #include "perception/draw.h"
-#include "perception/font.h"
 #include "perception/ui/button.h"
 #include "perception/ui/draw_context.h"
+#include "perception/ui/font.h"
 #include "perception/ui/theme.h"
 
 namespace perception {
@@ -64,10 +68,12 @@ void Label::Draw(DrawContext& draw_context) {
   }
 
   // Draw button text.
-  GetUiFont()->DrawString(x + 1 + text_x_, y + 1 + text_y_, label_,
-                          kLabelTextColor, draw_context.buffer,
-                          draw_context.buffer_width,
-                          draw_context.buffer_height);
+
+  SkPaint paint;
+  paint.setColor(kLabelTextColor);
+
+  draw_context.skia_canvas->drawString(SkString(label_), x + 1 + text_x_,
+                                       y + 1 + text_y_, *GetUiFont(), paint);
 }
 
 YGSize Label::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
@@ -75,12 +81,21 @@ YGSize Label::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
   Label* label = (Label*)YGNodeGetContext(node);
   YGSize size;
 
+  bool measuredString = false;
+  SkRect stringBounds;
+#define maybeMeasureString()                                                  \
+  if (!measuredString) {                                                      \
+    (void)GetUiFont()->measureText(&label->label_[0], label->label_.length(), \
+                                   SkTextEncoding::kUTF8, &stringBounds);     \
+    measuredString = true;                                                    \
+  }
+
   if (width_mode == YGMeasureModeExactly) {
     size.width = width;
   } else {
-    size.width = (float)GetUiFont()->MeasureString(label->label_) +
-                 label->GetComputedPadding(YGEdgeLeft) +
-                 label->GetComputedPadding(YGEdgeRight);
+    maybeMeasureString() size.width = stringBounds.width() +
+                                      label->GetComputedPadding(YGEdgeLeft) +
+                                      label->GetComputedPadding(YGEdgeRight);
     if (width_mode == YGMeasureModeAtMost) {
       size.width = std::min(width, size.width);
     }
@@ -88,13 +103,15 @@ YGSize Label::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
   if (height_mode == YGMeasureModeExactly) {
     size.height = height;
   } else {
-    size.height = (float)GetUiFont()->GetHeight() +
-                  label->GetComputedPadding(YGEdgeTop) +
-                  label->GetComputedPadding(YGEdgeBottom);
+    maybeMeasureString() size.height = stringBounds.height() +
+                                       label->GetComputedPadding(YGEdgeTop) +
+                                       label->GetComputedPadding(YGEdgeBottom);
     if (height_mode == YGMeasureModeAtMost) {
       size.height = std::min(height, size.height);
     }
   }
+
+#undef maybeMeasureString
 
   label->realign_text_ = true;
   return size;

@@ -220,7 +220,7 @@ void UiWindow::Draw() {
     // The window size has changed.
 
     ReleaseTextures();
-    skia_surface_ = sk_sp<SkSurface>();
+    skia_surface_.reset();
 
     if (buffer_width_ > 0 && buffer_height_ > 0) {
       // Create the back buffer we draw into.
@@ -256,11 +256,11 @@ void UiWindow::Draw() {
 
   if (!skia_surface_) {
     auto image_info = SkImageInfo::Make(
-        buffer_width_, buffer_height_, SkColorType::kRGBA_8888_SkColorType,
+        buffer_width_, buffer_height_, SkColorType::kBGRA_8888_SkColorType,
         SkAlphaType::kOpaque_SkAlphaType, SkColorSpace::MakeSRGB());
 
     skia_surface_ = SkSurface::MakeRasterDirect(
-        image_info, *texture_shared_memory_, buffer_width_);
+        image_info, *texture_shared_memory_, buffer_width_ * 4);
   }
 
   // Set up our DrawContext to draw into back buffer.

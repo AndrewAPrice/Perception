@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,33 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "perception/ui/font.h"
 
-#include <string_view>
+#include <memory>
 
-#include "types.h"
-
-class SkFont;
+#include "include/core/SkFont.h"
 
 namespace perception {
-
 namespace ui {
+namespace {
 
-enum class TextAlignment {
-  TopLeft = 0,
-  TopCenter = 1,
-  TopRight = 2,
-  MiddleLeft = 3,
-  MiddleCenter = 4,
-  MiddleRight = 5,
-  BottomLeft = 6,
-  BottomCenter = 7,
-  BottomRight = 8
-};
+std::unique_ptr<SkFont> ui_font;
 
-void CalculateTextAlignment(std::string_view text, int width, int height,
-                            TextAlignment alignment, SkFont& font, int& x,
-                            int& y);
+}
+
+SkFont* GetUiFont() {
+  if (!ui_font) {
+    ui_font = std::make_unique<SkFont>(nullptr, 16);
+  }
+  return ui_font.get();
+}
 
 }  // namespace ui
 }  // namespace perception
