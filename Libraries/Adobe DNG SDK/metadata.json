@@ -1,0 +1,11 @@
+{
+	"dependencies":[
+		"madler zlib",
+		"musl",
+		"libjpeg-turbo"
+	],
+	"define": [
+		"qLinux"
+	],
+	"third_party": true
+}
