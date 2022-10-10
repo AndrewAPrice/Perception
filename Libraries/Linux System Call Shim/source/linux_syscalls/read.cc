@@ -14,14 +14,17 @@
 
 #include "linux_syscalls/read.h"
 
-#include "perception/debug.h"
+#include <sys/uio.h>
+#include "linux_syscalls/readv.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long read() {
-  perception::DebugPrinterSingleton << "System call read is unimplemented.\n";
-  return 0;
+long read(int fd, void *buf, size_t count) {
+  iovec iov;
+  iov.iov_base = buf;
+  iov.iov_len = count;
+  return readv(fd, &iov, 1);
 }
 
 }  // namespace linux_syscalls

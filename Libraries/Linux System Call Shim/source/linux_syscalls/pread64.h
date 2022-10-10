@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 namespace perception {
 namespace linux_syscalls {
 
 #undef pread64
 
-long pread64();
+long pread64(int fd, void *buf, long count, off_t offset);
 
 }  // namespace linux_syscalls
 }  // namespace perception

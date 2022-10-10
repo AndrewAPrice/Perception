@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stddef.h>
+
 namespace perception {
 namespace linux_syscalls {
 
-long read();
+long read(int fd, void *buf, size_t count);
 
 }
 }  // namespace perception
