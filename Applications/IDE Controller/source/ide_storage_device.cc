@@ -148,7 +148,7 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
         destination_buffer[indx + buffer_offset] = (b > 8) & 0xFF;
       } else if (indx + 1 == device_offset_start) {
         // Copy just the first byte.
-        destination_buffer[indx + 1 + buffer_offset_start] = b & 0xFF;
+        destination_buffer[indx + 1 + buffer_offset] = b & 0xFF;
       } else if (indx >= device_offset_start &&
                  indx < device_offset_start + bytes_to_copy) {
         // Copy both bytes.
