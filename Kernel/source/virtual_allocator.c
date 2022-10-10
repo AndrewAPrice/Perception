@@ -694,10 +694,10 @@ size_t AllocateVirtualMemoryInAddressSpace(size_t pml4, size_t pages) {
 }
 
 size_t ReleaseVirtualMemoryInAddressSpace(size_t pml4, size_t addr,
-                                          size_t pages) {
+                                          size_t pages, bool free) {
   size_t i = 0;
   for (; i < pages; i++, addr += PAGE_SIZE) {
-    UnmapVirtualPage(pml4, addr, true);
+    UnmapVirtualPage(pml4, addr, free);
   }
 }
 
@@ -1047,7 +1047,7 @@ void UnmapSharedMemoryFromProcess(
   // Unmap the virtual pages.
   ReleaseVirtualMemoryInAddressSpace(
       process->pml4, shared_memory_in_process->virtual_address,
-      shared_memory_in_process->shared_memory->size_in_pages);
+      shared_memory_in_process->shared_memory->size_in_pages, false);
 
   // Remove from linked list in the process.
   if (process->shared_memory == shared_memory_in_process) {

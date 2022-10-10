@@ -46,7 +46,7 @@ extern bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr,
 extern size_t AllocateVirtualMemoryInAddressSpace(size_t pml4, size_t pages);
 
 extern size_t ReleaseVirtualMemoryInAddressSpace(size_t pml4, size_t addr,
-                                                 size_t pages);
+                                                 size_t pages, bool free);
 
 extern size_t MapPhysicalMemoryInAddressSpace(size_t pml4, size_t addr,
                                               size_t pages);

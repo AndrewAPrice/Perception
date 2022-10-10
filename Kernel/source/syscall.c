@@ -40,7 +40,7 @@ void InitializeSystemCalls() {
   wrmsr(LSTAR, (size_t)syscall_entry);
   // Disable interrupts duing syscalls.
   wrmsr(IA32_FMASK, INTERRUPT_MASK);
-  //	SetInterruptHandler(0x80, (size_t)syscall_isr, 0x08, 0x8E);
+  //  SetInterruptHandler(0x80, (size_t)syscall_isr, 0x08, 0x8E);
 }
 
 // Syscalls.
@@ -185,9 +185,9 @@ void SyscallHandler(int syscall_number) {
               currently_executing_thread_regs->rax);
       break;
     case RELEASE_MEMORY_PAGES:
-      ReleaseVirtualMemoryInAddressSpace(running_thread->process->pml4,
-                                         currently_executing_thread_regs->rax,
-                                         currently_executing_thread_regs->rbx);
+      ReleaseVirtualMemoryInAddressSpace(
+          running_thread->process->pml4, currently_executing_thread_regs->rax,
+          currently_executing_thread_regs->rbx, true);
       break;
     case MAP_PHYSICAL_MEMORY:
       // Only drivers can map physical memory.

@@ -188,8 +188,8 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
 
     if (destination_virtual_address == OUT_OF_MEMORY) {
       // Out of memory - release message and all source pages.
-      ReleaseVirtualMemoryInAddressSpace(sender_process->pml4,
-                                         source_virtual_address, size_in_pages);
+      ReleaseVirtualMemoryInAddressSpace(
+          sender_process->pml4, source_virtual_address, size_in_pages, true);
       registers->rax = MS_OUT_OF_MEMORY;
       ReleaseMessage(message);
       return;
@@ -215,9 +215,10 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
         // No memory was mapped to this area. Release message and all
         // source and destination pages.
         ReleaseVirtualMemoryInAddressSpace(
-            sender_process->pml4, source_virtual_address, size_in_pages);
-        ReleaseVirtualMemoryInAddressSpace(
-            receiver_process->pml4, destination_virtual_address, size_in_pages);
+            sender_process->pml4, source_virtual_address, size_in_pages, true);
+        ReleaseVirtualMemoryInAddressSpace(receiver_process->pml4,
+                                           destination_virtual_address,
+                                           size_in_pages, true);
         registers->rax = MS_OUT_OF_MEMORY;
         ReleaseMessage(message);
         return;
