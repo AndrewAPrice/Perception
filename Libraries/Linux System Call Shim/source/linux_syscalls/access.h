@@ -15,7 +15,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long access();
+long access(const char *pathname, int mode);
 
 }
 }  // namespace perception

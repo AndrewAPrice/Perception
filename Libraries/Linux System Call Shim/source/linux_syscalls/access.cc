@@ -14,14 +14,36 @@
 
 #include "linux_syscalls/access.h"
 
-#include "perception/debug.h"
+#include <unistd.h>
+
+#include <iostream>
+
+#include "Permebuf.h"
+#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
+
+using ::permebuf::perception::StorageManager;
 
 namespace perception {
 namespace linux_syscalls {
 
-long access() {
-  perception::DebugPrinterSingleton << "System call access is unimplemented.\n";
-  return 0;
+long access(const char *pathname, int mode) {
+  Permebuf<StorageManager::CheckPermissionsRequest> request;
+  request->SetPath(std::string(pathname));
+  auto status_or_response =
+      StorageManager::Get().CallCheckPermissions(std::move(request));
+  if (status_or_response) {
+    const auto& response = *status_or_response;
+    if (((mode & F_OK) && !response.GetFileExists()) ||
+    ((mode & R_OK) && !response.GetCanRead()) ||
+    ((mode & W_OK) && !response.GetCanWrite()) ||
+    ((mode & X_OK) && !response.GetCanExecute())) {
+      return -1;
+    }
+    return 0;
+  } else {
+    errno = EINVAL;
+    return -1;
+  }
 }
 
 }  // namespace linux_syscalls
