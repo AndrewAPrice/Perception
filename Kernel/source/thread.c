@@ -155,7 +155,9 @@ void DestroyThread(struct Thread* thread, bool process_being_destroyed) {
   }
 
   // Free the thread's stack.
-  UnmapVirtualPage(thread->process->pml4, thread->stack, true);
+  for (int i = 0; i < STACK_PAGES; i++, thread->stack += PAGE_SIZE) {
+    UnmapVirtualPage(thread->process->pml4, thread->stack, true);
+  }
 
   struct Process* process = thread->process;
 
