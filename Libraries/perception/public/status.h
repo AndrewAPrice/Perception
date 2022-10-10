@@ -61,11 +61,32 @@ class StatusOr {
   T value_;
 };
 
-#define ASSIGN_OR_RETURN(var, expr)                                          \
-  auto _status_or_var_##__LINE__ = (expr);                                   \
-  if (!_status_or_var_##__LINE__) return _status_or_var_##__LINE__.Status(); \
-  var = std::move(*std::move(_status_or_var_##__LINE__));
+namespace perception {
 
-#define RETURN_ON_ERROR(expr)         \
-  auto __status__##__LINE__ = (expr); \
-  if (!__status__##__LINE__) return __status__##__LINE__.Status();
+// Converts a Status -> Status. This seems silly, but is used for the macros
+// below.
+Status ToStatus(Status status);
+
+// Converts a StatusOr -> Status.
+template <class T>
+Status ToStatus(const StatusOr<T>& status_or) {
+  return status_or.Status();
+}
+
+}  // namespace perception
+
+#define VAR_NAME_WITH_LINE2(id, name) id##name
+#define VAR_NAME_WITH_LINE(id, name) VAR_NAME_WITH_LINE2(id, name)
+
+#define RETURN_ON_ERROR(expr)                                               \
+  auto VAR_NAME_WITH_LINE(__status__, __LINE__) =                           \
+      ::perception::ToStatus(expr);                                         \
+  if (VAR_NAME_WITH_LINE(__status__, __LINE__) != ::perception::Status::OK) \
+    return VAR_NAME_WITH_LINE(__status__, __LINE__);
+
+#define ASSIGN_OR_RETURN(var, expr)                                 \
+  auto VAR_NAME_WITH_LINE(__status_or_var__, __LINE__) = (expr);    \
+  RETURN_ON_ERROR(VAR_NAME_WITH_LINE(__status_or_var__, __LINE__)); \
+  var = std::move(*std::move(VAR_NAME_WITH_LINE(__status_or_var__, __LINE__)));
+
+// #undef VAR_NAME_WITH_LINE
