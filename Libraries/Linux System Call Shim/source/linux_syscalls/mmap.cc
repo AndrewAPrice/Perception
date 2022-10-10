@@ -39,7 +39,7 @@ long mmap(long addr, long length, long prot, long flags, long fd, long offset) {
   // kernel doesn't yet support this level of control, so we make all program
   // memory x/r/w and can ignore this parameter.
 
-  return (long)AllocateMemoryPages((size_t)length / kPageSize);
+  return (long)AllocateMemoryPages((size_t)(length + kPageSize - 1) / kPageSize);
 }
 
 }  // namespace linux_syscalls
