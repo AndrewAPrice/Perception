@@ -127,7 +127,7 @@ async function compileAndLink(
 
           deferCommand(
               STAGE.COMPILE, command, 'Compiling ' + getDisplayFilename(file),
-              file);
+              file, metadata.output_warnings);
         }
       });
 
@@ -164,7 +164,8 @@ async function link(
     const command = getLinkerCommand(
         PackageType.LIBRARY, escapePath(binaryPath), objectFiles.join(' '));
     deferCommand(
-        STAGE.LINK_LIBRARY, command, 'Building library ' + packageName);
+        STAGE.LINK_LIBRARY, command, 'Building library ' + packageName,
+        metadata.output_warnings);
     librariesGoingToBeBuilt[packageName] = true;
 
     return true;
@@ -218,7 +219,8 @@ async function link(
     let command = getLinkerCommand(
         PackageType.APPLICATION, escapePath(binaryPath), linkerInput);
     deferCommand(
-        STAGE.LINK_APPLICATION, command, 'Linking application ' + packageName);
+        STAGE.LINK_APPLICATION, command, 'Linking application ' + packageName,
+        metadata.output_warnings);
     forgetFileLastModifiedTimestamp(binaryPath);
 
     compiled = true;
@@ -238,7 +240,9 @@ async function link(
     let command = getLinkerCommand(
         PackageType.KERNEL, escapePath(binaryPath),
         objectFiles.join(' ') /* pre-escaped */);
-    deferCommand(STAGE.LINK_APPLICATION, command, 'Linking kernel');
+    deferCommand(
+        STAGE.LINK_APPLICATION, command, 'Linking kernel',
+        metadata.output_warnings);
     return true;
   } else {
     console.log('Unknown project type.');

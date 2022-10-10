@@ -33,13 +33,13 @@ const ERASE_LINE = '\033[2K\r';
 
 const deferredCommands = {};
 
-function deferCommand(stage, command, title, sourceFile) {
+function deferCommand(stage, command, title, sourceFile, outputWarnings) {
   if (deferredCommands[stage] == undefined) {
     deferredCommands[stage] = [];
   }
 
   deferredCommands[stage].push(
-      {command: command, title: title, sourceFile: sourceFile});
+      {command: command, title: title, sourceFile: sourceFile, outputWarnings});
 }
 
 async function processAndUpdatePerFileDeps(sourceFile, dependenciesFile) {
@@ -85,13 +85,22 @@ async function runCommand(
   }
 
   try {
-    await exec(command);
+    const {stdout, stderr} = await exec(command);
+    if (deferredCommand.outputWarnings && !silent && stdout.length > 0) {
+      process.stdout.write(ERASE_LINE);
+      console.log(deferredCommand.command);
+      console.log(stdout);
+      console.log('');
+    }
   } catch (exp) {
     if (!silent) {
-      errors.push({
-        command: deferredCommand.command,
-        // command: deferredCommand.title,
-        error: exp.stderr});
+      let output = exp.stdout;
+      if (exp.stderr.length > 0) {
+        if (output.length > 0) output += '\n';
+        output += exp.stderr;
+      }
+
+      errors.push({command: deferredCommand.command, error: output});
       process.stdout.write(' ');
     }
   }

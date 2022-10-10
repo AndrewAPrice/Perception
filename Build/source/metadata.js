@@ -97,7 +97,10 @@ function constructCombinedMetadata(metadata, name, packageType, isLocal) {
     has_permebufs: metadata.has_permebufs ? true : false,
     third_party: metadata.third_party ? true : false,
     skip_local: metadata.skip_local ? true : false,
-    metadata_updated: metadata.metadata_updated
+    metadata_updated: metadata.metadata_updated,
+    output_warnings: metadata.output_warnings != undefined ?
+        metdata.ouput_warnings :
+        !metadata.third_party
   };
 
   forEachIfDefined(metadata.public_include, publicInclude => {
