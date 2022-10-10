@@ -14,14 +14,29 @@
 
 #include "linux_syscalls/fstatfs.h"
 
-#include "perception/debug.h"
+#include <sys/vfs.h>
+
+#include <iostream>
+
+#include "files.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long fstatfs() {
-  perception::DebugPrinterSingleton
-      << "System call fstatfs is unimplemented.\n";
+long fstatfs(int fd, struct statfs* buf) {
+  auto descriptor = GetFileDescriptor(fd);
+  if (!descriptor || descriptor->type != FileDescriptor::FILE) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  if (descriptor->type != FileDescriptor::DIRECTORY) {
+    errno = ENOTDIR;
+    return -1;
+  }
+  std::cout << "System call fstatfs is unimplemented. Called for "
+            << descriptor->directory.name << std::endl;
+
   return 0;
 }
 

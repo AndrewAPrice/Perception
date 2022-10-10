@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+struct statfs;
+
 namespace perception {
 namespace linux_syscalls {
 
-long fstatfs();
+long fstatfs(int fd, struct statfs* buf);
 
 }
 }  // namespace perception
