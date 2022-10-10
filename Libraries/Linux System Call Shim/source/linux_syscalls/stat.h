@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+struct stat;
+
 namespace perception {
 namespace linux_syscalls {
 
-long stat();
+long stat(const char* pathname, struct stat* statbuf);
 
 }
 }  // namespace perception

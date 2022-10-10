@@ -14,6 +14,9 @@
 
 #include "syscall_arch.h"
 
+#include <sys/stat.h>
+#include <sys/vfs.h>
+
 #include "bits/syscall.h"
 #include "linux_syscalls/_sysctl.h"
 #include "linux_syscalls/accept.h"
@@ -398,7 +401,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_accept4:
       return ::perception::linux_syscalls::accept4();
     case SYS_access:
-      return ::perception::linux_syscalls::access();
+      return ::perception::linux_syscalls::access(
+          reinterpret_cast<const char *>(a1), a2);
     case SYS_acct:
       return ::perception::linux_syscalls::acct();
     case SYS_add_key:
@@ -536,7 +540,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_fstat:
       return ::perception::linux_syscalls::fstat();
     case SYS_fstatfs:
-      return ::perception::linux_syscalls::fstatfs();
+      return ::perception::linux_syscalls::fstatfs(a1, (struct statfs *)a2);
     case SYS_fsync:
       return ::perception::linux_syscalls::fsync();
     case SYS_ftruncate:
@@ -795,7 +799,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_prctl:
       return ::perception::linux_syscalls::prctl();
     case SYS_pread64:
-      return ::perception::linux_syscalls::pread64();
+      return ::perception::linux_syscalls::pread64(a1, (void *)a2, a3, a4);
     case SYS_preadv:
       return ::perception::linux_syscalls::preadv();
     case SYS_preadv2:
@@ -823,7 +827,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_quotactl:
       return ::perception::linux_syscalls::quotactl();
     case SYS_read:
-      return ::perception::linux_syscalls::read();
+      return (long)::perception::linux_syscalls::read(a1, (void *)a2, a3);
     case SYS_readahead:
       return ::perception::linux_syscalls::readahead();
     case SYS_readlink:
@@ -991,9 +995,11 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_splice:
       return ::perception::linux_syscalls::splice();
     case SYS_stat:
-      return ::perception::linux_syscalls::stat();
+      return ::perception::linux_syscalls::stat((const char *)a1,
+                                                (struct stat *)a2);
     case SYS_statfs:
-      return ::perception::linux_syscalls::statfs();
+      return ::perception::linux_syscalls::statfs((const char *)a1,
+                                                  (struct statfs *)a2);
     case SYS_statx:
       return ::perception::linux_syscalls::statx();
     case SYS_swapoff:

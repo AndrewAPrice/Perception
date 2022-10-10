@@ -14,13 +14,16 @@
 
 #include "linux_syscalls/stat.h"
 
-#include "perception/debug.h"
+#include <sys/stat.h>
+
+#include <iostream>
 
 namespace perception {
 namespace linux_syscalls {
 
-long stat() {
-  perception::DebugPrinterSingleton << "System call stat is unimplemented.\n";
+long stat(const char* pathname, struct stat* statbuf) {
+  std::cout << "System call stat unimplemented. Called for path: " << pathname
+            << std::endl;
   return 0;
 }
 
