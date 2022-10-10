@@ -98,4 +98,23 @@ service StorageManager {
 	}
 	ReadDirectory : ReadDirectoryRequest -> ReadDirectoryResponse = 1;
 
+	// Checks the permissions on a file.
+	message CheckPermissionsRequest {
+		// The path to check.
+		Path : string = 1;
+	}
+	minimessage CheckPermissionsResponse {
+		// Does the file exist?
+		FileExists : bool = 1;
+
+		// Can we read this file?
+		CanRead : bool = 2;
+
+		// Can we write to this file?
+		CanWrite : bool = 3;
+
+		// Can we execute this file?
+		CanExecute : bool = 4;
+	}
+	CheckPermissions : CheckPermissionsRequest -> CheckPermissionsResponse = 2;
 }
