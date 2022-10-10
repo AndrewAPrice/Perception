@@ -16,8 +16,10 @@
 
 #include <iostream>
 
+#include "perception/processes.h"
 #include "virtual_file_system.h"
 
+using ::perception::GetProcessName;
 using ::perception::ProcessId;
 using ::permebuf::perception::DirectoryEntry;
 using ::permebuf::perception::DirectoryEntryType;
@@ -30,6 +32,8 @@ StorageManager::~StorageManager() {}
 
 StatusOr<SM::OpenFileResponse> StorageManager::HandleOpenFile(
     ::perception::ProcessId sender, Permebuf<SM::OpenFileRequest> request) {
+  std::cout << GetProcessName(sender) << " wants to open "
+            << *request->GetPath() << std::endl;
   size_t size_in_bytes = 0;
   auto status_or_file = OpenFile(*request->GetPath(), size_in_bytes, sender);
 
@@ -70,5 +74,24 @@ StorageManager::HandleReadDirectory(
         last_directory_entry.Set(directory_entry);
       });
   response->SetHasMoreEntries(!no_more_entries);
+  return response;
+}
+
+StatusOr<SM::CheckPermissionsResponse> StorageManager::HandleCheckPermissions(
+    ::perception::ProcessId sender,
+    Permebuf<SM::CheckPermissionsRequest> request) {
+  std::cout << GetProcessName(sender) << " wants to check "
+            << *request->GetPath() << std::endl;
+  SM::CheckPermissionsResponse response;
+  bool file_exists, can_read, can_write, can_execute;
+
+  RETURN_ON_ERROR(CheckFilePermissions(*request->GetPath(), file_exists,
+                                       can_read, can_write, can_execute));
+
+  response.SetFileExists(file_exists);
+  response.SetCanRead(can_read);
+  response.SetCanWrite(can_write);
+  response.SetCanExecute(can_execute);
+
   return response;
 }

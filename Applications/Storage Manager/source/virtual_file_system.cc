@@ -25,7 +25,6 @@
 using ::file_systems::FileSystem;
 using ::perception::Fiber;
 using ::perception::GetCurrentlyExecutingFiber;
-using ::perception::GetProcessName;
 using ::perception::ProcessId;
 using ::perception::Sleep;
 using ::perception::Status;
@@ -65,6 +64,45 @@ std::string GetMountNameForFileSystem(FileSystem& file_system) {
   }
 }
 
+Status ExtractMountPointAndPath(std::string_view path,
+                                std::string_view& mount_point,
+                                std::string_view& path_on_mount_point) {
+  if (path.empty() || path[0] != '/') return Status::FILE_NOT_FOUND;
+
+  // Jump over the initial '/'.
+  path = path.substr(1);
+
+  // Find the split point (/) between the mount path and everything else.
+  int split_point = path.find_first_of('/');
+
+  if (split_point == std::string_view::npos) {
+    mount_point = path;
+    path_on_mount_point = "";
+  } else {
+    mount_point = path.substr(0, split_point);
+    path_on_mount_point = path.substr(split_point + 1);
+  }
+
+  if (mount_point == "Libraries" || mount_point == "Applications") {
+    if (first_mounted_file_system.empty()) {
+      // Sleep until we have mounted a file system.
+      fibers_waiting_for_first_file_system.push_back(
+          GetCurrentlyExecutingFiber());
+      Sleep();
+
+      if (first_mounted_file_system.empty()) {
+        std::cout << "We were rewoken with no first mounted file system."
+                  << std::endl;
+        return Status::FILE_NOT_FOUND;
+      }
+    }
+    mount_point = first_mounted_file_system;
+    path_on_mount_point = path;
+  }
+
+  return Status::OK;
+}
+
 }  // namespace
 
 void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
@@ -86,36 +124,9 @@ void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
 StatusOr<::permebuf::perception::File::Server*> OpenFile(std::string_view path,
                                                          size_t& size_in_bytes,
                                                          ProcessId sender) {
-  // std::cout << GetProcessName(sender) << " is trying to read: " << path
-  //           << std::endl;
-  if (path.empty() || path[0] != '/') return Status::FILE_NOT_FOUND;
-
-  // Jump over the initial '/'.
-  path = path.substr(1);
-
-  // Find the split point (/) between the mount path and everything else.
-  int split_point = path.find_first_of('/');
-
-  if (split_point == std::string_view::npos) return Status::FILE_NOT_FOUND;
-
-  std::string_view mount_point = path.substr(0, split_point);
-  if (mount_point == "Libraries" || mount_point == "Applications") {
-    if (first_mounted_file_system.empty()) {
-      // Sleep until we have mounted a file system.
-      fibers_waiting_for_first_file_system.push_back(
-          GetCurrentlyExecutingFiber());
-      Sleep();
-
-      if (first_mounted_file_system.empty()) {
-        std::cout << "We were rewoken with no first mounted file system."
-                  << std::endl;
-        return Status::FILE_NOT_FOUND;
-      }
-    }
-    mount_point = first_mounted_file_system;
-  } else {
-    path = path.substr(split_point + 1);
-  }
+  std::string_view mount_point, path_on_mount_point;
+  RETURN_ON_ERROR(
+      ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
 
   // Does the mount point exist?
   auto mount_point_itr = mounted_file_systems.find(mount_point);
@@ -125,7 +136,7 @@ StatusOr<::permebuf::perception::File::Server*> OpenFile(std::string_view path,
 
   // Scan the directory within the file system.
   ASSIGN_OR_RETURN(auto file, mount_point_itr->second->OpenFile(
-                                  path, size_in_bytes, sender));
+                                  path_on_mount_point, size_in_bytes, sender));
   File::Server* file_ptr = file.get();
 
   auto itr = open_files_by_process_id.find(sender);
@@ -139,6 +150,40 @@ StatusOr<::permebuf::perception::File::Server*> OpenFile(std::string_view path,
   }
 
   return file_ptr;
+}
+
+::perception::Status CheckFilePermissions(std::string_view path,
+                                          bool& file_exists, bool& can_read,
+                                          bool& can_write, bool& can_execute) {
+  std::string_view mount_point, path_on_mount_point;
+  RETURN_ON_ERROR(
+      ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
+
+  if (mount_point.empty()) {
+    // Querying '/'.
+    file_exists = true;
+    can_read = true;
+    can_write = false;
+    can_execute = true;
+  }
+
+  // Does the mount point exist?
+  auto mount_point_itr = mounted_file_systems.find(mount_point);
+  if (mount_point_itr == mounted_file_systems.end()) {
+    // Mount point not found.
+    file_exists = false;
+    can_read = false;
+    can_write = false;
+    can_execute = false;
+
+    return Status::OK;
+  }
+
+  // Scan the directory within the file system.
+  mount_point_itr->second->CheckFilePermissions(
+      path_on_mount_point, file_exists, can_read, can_write, can_execute);
+
+  return Status::OK;
 }
 
 void CloseFile(::perception::ProcessId sender,
@@ -187,26 +232,8 @@ bool ForEachEntryInDirectory(
     return true;  // Nothing more to iterate.
   } else {
     // Split the path into the mount path and everything else.
-
-    // Jump over initial '/'.
-    directory = directory.substr(1);
-
-    // Trim off the last '/'.
-    if (directory[directory.size() - 1] == '/')
-      directory = directory.substr(0, directory.size() - 1);
-
-    // Find the split point (/) between the mount path and everything else.
-    int split_point = directory.find_first_of('/');
-
-    std::string_view mount_point;
-    if (split_point == std::string_view::npos) {
-      // Root directory in the mount point.
-      mount_point = directory;
-      directory = "";
-    } else {
-      mount_point = directory.substr(0, split_point);
-      directory = directory.substr(split_point + 1);
-    }
+    std::string_view mount_point, path_on_mount_point;
+    ExtractMountPointAndPath(directory, mount_point, path_on_mount_point);
 
     // Does the mount point exist?
     auto mount_point_itr = mounted_file_systems.find(mount_point);
@@ -215,6 +242,6 @@ bool ForEachEntryInDirectory(
 
     // Scan the directory within the file system.
     return mount_point_itr->second->ForEachEntryInDirectory(
-        directory, offset, count, on_each_entry);
+        path_on_mount_point, offset, count, on_each_entry);
   }
 }

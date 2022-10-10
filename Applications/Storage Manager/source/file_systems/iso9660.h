@@ -48,6 +48,10 @@ class Iso9660 : public FileSystem {
                                ::permebuf::perception::DirectoryEntryType,
                                size_t)>& on_each_entry) override;
 
+  virtual void CheckFilePermissions(std::string_view path, bool& file_exists,
+                                    bool& can_read, bool& can_write,
+                                    bool& can_execute) override;
+
  private:
   // Size of the volume, in logical blocks.
   uint32 size_in_blocks_;

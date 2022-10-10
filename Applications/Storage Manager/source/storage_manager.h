@@ -30,4 +30,8 @@ class StorageManager : public ::permebuf::perception::StorageManager::Server {
   virtual StatusOr<Permebuf<SM::ReadDirectoryResponse>> HandleReadDirectory(
       ::perception::ProcessId sender,
       Permebuf<SM::ReadDirectoryRequest> request) override;
+
+  virtual StatusOr<SM::CheckPermissionsResponse> HandleCheckPermissions(
+      ::perception::ProcessId sender,
+      Permebuf<SM::CheckPermissionsRequest> request) override;
 };

@@ -80,6 +80,23 @@ class Iso9660File : public File::Server {
   bool open_;
 };
 
+void SplitPath(std::string_view path, std::string_view &directory,
+               std::string_view &file_name) {
+  // Trim off last backslash.
+  if (path[path.length() - 1] == '/') path = path.substr(0, path.length() - 1);
+
+  // Find the split point (/) between the mount path and everything else.
+  int split_point = path.find_last_of('/');
+
+  if (split_point == std::string_view::npos) {
+    directory = "";
+    file_name = path;
+  } else {
+    directory = path.substr(0, split_point);
+    file_name = path.substr(split_point + 1);
+  }
+}
+
 }  // namespace
 
 Iso9660::Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
@@ -95,16 +112,7 @@ StatusOr<std::unique_ptr<File::Server>> Iso9660::OpenFile(std::string_view path,
                                                           size_t &size_in_bytes,
                                                           ProcessId sender) {
   std::string_view directory, file_name;
-  // Find the split point (/) between the mount path and everything else.
-  int split_point = path.find_last_of('/');
-
-  if (split_point == std::string_view::npos) {
-    directory = "";
-    file_name = path;
-  } else {
-    directory = path.substr(0, split_point);
-    file_name = path.substr(split_point + 1);
-  }
+  SplitPath(path, directory, file_name);
 
   std::unique_ptr<File::Server> file;
   ForRawEachEntryInDirectory(
@@ -157,6 +165,37 @@ bool Iso9660::ForEachEntryInDirectory(
     return false;
   });
   return !more_entries_than_we_can_count;
+}
+
+void Iso9660::CheckFilePermissions(std::string_view path, bool &file_exists,
+                                   bool &can_read, bool &can_write,
+                                   bool &can_execute) {
+  // Iso9660 is a read-only file system.
+  can_write = false;
+
+  if (path.empty()) {
+    // Querying the root directory of this file system.
+    file_exists = true;
+    can_read = true;
+    can_execute = true;
+  }
+
+  std::string_view directory, file_name;
+  SplitPath(path, directory, file_name);
+
+  file_exists = false;
+  ForRawEachEntryInDirectory(directory,
+                             [&](std::string_view name, DirectoryEntryType type,
+                                 size_t start_lba, size_t size) {
+                               if (name == file_name) {
+                                 file_exists = true;
+                                 return true;
+                               }
+                               return false;
+                             });
+
+  can_read = file_exists;
+  can_execute = file_exists;
 }
 
 void Iso9660::ForRawEachEntryInDirectory(

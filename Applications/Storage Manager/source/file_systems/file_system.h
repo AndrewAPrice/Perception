@@ -57,6 +57,10 @@ class FileSystem {
 
   bool IsWritable() { return is_writable_; }
 
+  virtual void CheckFilePermissions(std::string_view path, bool& file_exists,
+                                    bool& can_read, bool& can_write,
+                                    bool& can_execute) = 0;
+
  protected:
   // Storage device.
   ::permebuf::perception::devices::StorageDevice storage_device_;

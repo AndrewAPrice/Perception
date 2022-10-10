@@ -26,6 +26,10 @@ StatusOr<::permebuf::perception::File::Server*> OpenFile(
     std::string_view path, size_t& size_in_bytes,
     ::perception::ProcessId sender);
 
+::perception::Status CheckFilePermissions(std::string_view path,
+                                          bool& file_exists, bool& can_read,
+                                          bool& can_write, bool& can_execute);
+
 void CloseFile(::perception::ProcessId sender,
                ::permebuf::perception::File::Server* file);
 
