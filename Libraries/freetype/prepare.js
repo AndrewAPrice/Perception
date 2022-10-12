@@ -148,6 +148,7 @@ filesToIgnore['source/svg/svg.c'] = true;
 filesToIgnore['source/truetype/truetype.c'] = true;
 filesToIgnore['source/type1/type1.c'] = true;
 filesToIgnore['source/type42/type42.c'] = true;
+filesToIgnore['source/base/ftsystem.c'] = true;
 
 copyFilesInDirectory('third_party/include', 'public', '.h');
 copyFilesInDirectory('third_party/include/freetype', 'public/freetype', '.h');
@@ -190,6 +191,7 @@ replaceInFile('source/truetype/ttobjs.h',
 replaceInFile('public/freetype/internal/services/svmm.h',
 	'#include <freetype/internal/ftserv.h>',	
 	'#include <freetype/ftmm.h>\n#include <freetype/internal/ftserv.h>');
+copyFile('third_party/builds/unix/ftsystem.c', 'source/base/ftsystem.c');
 
 
 // Remove any third party files that don't exist in the latest build.
