@@ -278,7 +278,6 @@ exception_common_stub:
     pop qword [rbp + 13 * 8] ; rdi
     pop qword [rbp + 14 * 8] ; rbp
     pop rdi ; interrupt number
-    add rsp, 8
     pop qword [rbp + 15 * 8] ; rip
     pop qword [rbp + 16 * 8] ; cs
     pop qword [rbp + 17 * 8] ; eflags
@@ -305,14 +304,12 @@ exception_common_stub:
     push r15
 
     ; Move back to the interrupt's stack.
-    mov rsp, interrupt_stack_top
+    mov rsp, [interrupt_stack_top]
 
     ; Move to kernel land data segment
     mov ax, 0x10
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
 
     ; rdi is already populated with the interrupt number, and we can pass
     ; in additional arguments to the handler.
