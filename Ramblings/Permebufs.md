@@ -1,14 +1,14 @@
-Permebuf (Perception Memory Buffers) is the interface description language I built for Perception.
+[Permebuf](https://github.com/AndrewAPrice/Perception/blob/master/Build/Permebuf.md) (Perception Memory Buffers) is the [interface description language](https://en.wikipedia.org/wiki/Interface_description_language) I built for Perception. [Here are some examples](https://github.com/AndrewAPrice/Perception/tree/master/Libraries/perception/permebuf) to get a feel for the language.
 
-An operating system built around a microkernal involves making many calls between
+An operating system built around a microkernel involves making many calls between
 applications. There is code that lives in processes that we want other processes to
 be able to discover and call. It's important that we can define a common interface that multiple processes can use. For example,
 all disk drivers should have a function to read data from it, and another function to get the size of the disk, regardless
 If the process is actually operates on an IDE hard disk, USB drive, or Blu-ray disc.
 
-I was inspired by interface description languages such as Flatbuffers and Protocol Buffers. They allow the programmer to define messages in their IDL and generate nice classes in the language of choice for accessing and manipulating those messges. By defining our response and request types of
+I was inspired by interface description languages such as [Flatbuffers](https://google.github.io/flatbuffers/) and [Protocol Buffers](https://developers.google.com/protocol-buffers). They allow the programmer to define messages in their IDL and generate nice classes in the language of choice for accessing and manipulating those messges. By defining our response and request types of
 our remote procedure calls in an IDL, we can make sure that regardless of the language of the caller and callee, we have share a common, well-defined
-data type, and it's documented in the IDL what the possible fields are. I'm also inspired by gRPC and Cap'n Proto for how they define services (a collection of
+data type, and it's documented in the IDL what the possible fields are. I'm also inspired by [gRPC](https://grpc.io/) and [Cap'n Proto](https://capnproto.org/) for how they define services (a collection of
 RPCs) in their IDL.
 
 With Permebufs I wanted to make them as lightweight as possible, because a microkernel environment sends a lot of messages around. For example, every mouse movement, every draw
