@@ -19,6 +19,7 @@
 #include "physical_allocator.h"
 #include "process.h"
 #include "registers.h"
+#include "shared_memory.h"
 #include "scheduler.h"
 #include "text_terminal.h"
 #include "thread.h"
@@ -26,6 +27,9 @@
 
 // The maximum number of levels to print up the call stack for a stack trace.
 #define STACK_TRACE_DEPTH 20
+
+// Exception number for page faults.
+#define PAGE_FAULT 14
 
 // The first 32 interrupts are used for processor exceptions.
 extern void isr0();
@@ -191,6 +195,12 @@ void PrintRegistersAndStackTrace() {
 
 // The exception handler.
 void ExceptionHandler(int interrupt_no, size_t cr2) {
+  if (interrupt_no == PAGE_FAULT && running_thread != NULL ) {
+    if (MaybeHandleSharedMessagePageFault(cr2)) {
+      JumpIntoThread();  // Doesn't return.
+    }
+  }
+
   // Output the exception that occured.
   if (interrupt_no < 32) {
     PrintString("\nException occured: ");
@@ -227,6 +237,7 @@ void ExceptionHandler(int interrupt_no, size_t cr2) {
   } else {
     PrintString(" outside of a thread.");
     PrintRegisters(currently_executing_thread_regs);
+    asm("cli");
     asm("hlt");
   }
 
