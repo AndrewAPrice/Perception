@@ -18,12 +18,37 @@
 
 #include <iostream>
 
+#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
+
+using ::permebuf::perception::StorageManager;
+
 namespace perception {
 namespace linux_syscalls {
 
 long stat(const char* pathname, struct stat* statbuf) {
-  std::cout << "System call stat unimplemented. Called for path: " << pathname
-            << std::endl;
+  Permebuf<StorageManager::GetFileStatisticsRequest> request;
+  request->SetPath(pathname);
+
+  auto status_or_response =
+      StorageManager::Get().CallGetFileStatistics(std::move(request));
+  if (!status_or_response) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  if (!status_or_response->GetExists()) {
+    errno = ENOENT;
+    return -1;
+  }
+
+  memset(statbuf, 0, sizeof(struct stat));
+  if (status_or_response->GetIsDirectory())
+    statbuf->st_mode = S_IFDIR;
+  else if (status_or_response->GetIsFile())
+    statbuf->st_mode = S_IFREG;
+
+  statbuf->st_size = status_or_response->GetSizeInBytes();
+
   return 0;
 }
 
