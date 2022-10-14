@@ -27,6 +27,10 @@ class StorageManager : public ::permebuf::perception::StorageManager::Server {
       ::perception::ProcessId sender,
       Permebuf<SM::OpenFileRequest> request) override;
 
+  virtual StatusOr<SM::OpenMemoryMappedFileResponse> HandleOpenMemoryMappedFile(
+      ::perception::ProcessId sender,
+      Permebuf<SM::OpenMemoryMappedFileRequest> request) override;
+
   virtual StatusOr<Permebuf<SM::ReadDirectoryResponse>> HandleReadDirectory(
       ::perception::ProcessId sender,
       Permebuf<SM::ReadDirectoryRequest> request) override;
@@ -34,4 +38,8 @@ class StorageManager : public ::permebuf::perception::StorageManager::Server {
   virtual StatusOr<SM::CheckPermissionsResponse> HandleCheckPermissions(
       ::perception::ProcessId sender,
       Permebuf<SM::CheckPermissionsRequest> request) override;
+
+  virtual StatusOr<SM::GetFileStatisticsResponse> HandleGetFileStatistics(
+      ::perception::ProcessId sender,
+      Permebuf<SM::GetFileStatisticsRequest> request) override;
 };

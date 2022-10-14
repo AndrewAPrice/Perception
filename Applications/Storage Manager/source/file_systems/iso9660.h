@@ -31,9 +31,9 @@ class Iso9660 : public FileSystem {
   virtual std::string_view GetFileSystemType() override;
 
   // Opens a file.
-  virtual StatusOr<std::unique_ptr<::permebuf::perception::File::Server>>
-  OpenFile(std::string_view path, size_t& size_in_bytes,
-           ::perception::ProcessId sender) override;
+  virtual StatusOr<std::unique_ptr<File>> OpenFile(
+      std::string_view path, size_t& size_in_bytes,
+      ::perception::ProcessId sender) override;
 
   // Counts the number of entries in a directory.
   virtual size_t CountEntriesInDirectory(std::string_view path) override;
@@ -51,6 +51,10 @@ class Iso9660 : public FileSystem {
   virtual void CheckFilePermissions(std::string_view path, bool& file_exists,
                                     bool& can_read, bool& can_write,
                                     bool& can_execute) override;
+
+  virtual StatusOr<
+      ::permebuf::perception::StorageManager::GetFileStatisticsResponse>
+  GetFileStatistics(std::string_view path) override;
 
  private:
   // Size of the volume, in logical blocks.

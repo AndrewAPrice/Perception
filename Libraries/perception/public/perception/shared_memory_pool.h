@@ -35,8 +35,8 @@ class SharedMemoryPool {
     if (shared_memory_pool_.empty()) {
       // There's no shared memory we can recycle.
       auto pooled_shared_memory = std::make_unique<PooledSharedMemory>();
-      pooled_shared_memory->shared_memory =
-          SharedMemory::FromSize(shared_memory_size);
+      pooled_shared_memory->shared_memory = SharedMemory::FromSize(
+          shared_memory_size, SharedMemory::kJoinersCanWrite);
       (void)pooled_shared_memory->shared_memory->Join();
       return pooled_shared_memory;
     } else {

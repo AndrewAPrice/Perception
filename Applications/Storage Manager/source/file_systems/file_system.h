@@ -18,6 +18,7 @@
 #include <memory>
 #include <string_view>
 
+#include "file.h"
 #include "permebuf/Libraries/perception/devices/storage_device.permebuf.h"
 #include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 
@@ -30,9 +31,9 @@ class FileSystem {
   virtual ~FileSystem() {}
 
   // Opens a file.
-  virtual StatusOr<std::unique_ptr<::permebuf::perception::File::Server>>
-  OpenFile(std::string_view path, size_t& size_in_bytes,
-           ::perception::ProcessId sender) = 0;
+  virtual StatusOr<std::unique_ptr<File>> OpenFile(
+      std::string_view path, size_t& size_in_bytes,
+      ::perception::ProcessId sender) = 0;
 
   // Counts the number of entries in a directory.
   virtual size_t CountEntriesInDirectory(std::string_view path) = 0;
@@ -60,6 +61,10 @@ class FileSystem {
   virtual void CheckFilePermissions(std::string_view path, bool& file_exists,
                                     bool& can_read, bool& can_write,
                                     bool& can_execute) = 0;
+
+  virtual StatusOr<
+      ::permebuf::perception::StorageManager::GetFileStatisticsResponse>
+  GetFileStatistics(std::string_view path) = 0;
 
  protected:
   // Storage device.

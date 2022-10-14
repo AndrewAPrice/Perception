@@ -232,7 +232,7 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
       MapPhysicalPageToVirtualPage(
           receiver_process->pml4,
           destination_virtual_address + page * PAGE_SIZE, page_physical_address,
-          /*own=*/true);
+          /*own=*/true, true, false);
     }
 
     // Point our message to the new virtual address.
@@ -259,7 +259,6 @@ struct Message* GetNextQueuedMessage(struct Process* receiver) {
   // Grab the message at the front of the list.
   struct Message* message = receiver->next_message;
   receiver->next_message = message->next_message;
-  ;
 
   if (receiver->next_message == NULL) {
     // We removed the last item from the list.

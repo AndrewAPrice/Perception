@@ -134,8 +134,8 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
     texture.owner = sender;
     texture.width = request.GetWidth();
     texture.height = request.GetHeight();
-    texture.shared_memory =
-        SharedMemory::FromSize(texture.width * texture.height * 4);
+    texture.shared_memory = SharedMemory::FromSize(
+        texture.width * texture.height * 4, SharedMemory::kJoinersCanWrite);
 
     // Record what textures this process owns.
     auto process_information_itr = process_information_.find(sender);
@@ -814,10 +814,9 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
       for (_y = top; _y < bottom; _y++) {
         int next_indx = indx + destination_width * 4;
         for (_x = left; _x < right; _x++) {
-          destination[indx] =
-              (uint8)((alpha * (int)color_channels[0] +
-                       inv_alpha * (int)destination[indx]) >>
-                      8);
+          destination[indx] = (uint8)((alpha * (int)color_channels[0] +
+                                       inv_alpha * (int)destination[indx]) >>
+                                      8);
           destination[indx + 1] =
               (uint8)((alpha * (int)color_channels[1] +
                        inv_alpha * (int)destination[indx + 1]) >>
@@ -864,7 +863,7 @@ int main() {
   }
 
   // std::cout << "The bootloader has set up a " << width << "x" <<
-  //	height << " (" << (int)bpp << "-bit) framebuffer." << std::endl;
+  //  height << " (" << (int)bpp << "-bit) framebuffer." << std::endl;
 
   if (bpp != 15 && bpp != 16 && bpp != 24 && bpp != 32) {
     std::cout << "The framebuffer is not 15, 16, 24, or 32 bits per pixel."

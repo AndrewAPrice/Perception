@@ -31,6 +31,14 @@ long GetUniqueFileId() {
   return last_file_id;
 }
 
+struct MemoryMappedFile {
+  ::permebuf::perception::MemoryMappedFile file;
+  std::unique_ptr<::perception::SharedMemory> buffer;
+  size_t first_page, last_page;
+};
+std::map<size_t, std::shared_ptr<MemoryMappedFile>>
+    memory_mapped_files_by_first_page;
+
 }  // namespace
 
 SharedMemoryPool<kPageSize> kSharedMemoryPool;
@@ -63,7 +71,9 @@ long OpenFile(const char* path) {
   auto descriptor = std::make_shared<FileDescriptor>();
   descriptor->type = FileDescriptor::FILE;
   descriptor->file.file = status_or_response->GetFile();
+  descriptor->file.path = path;
   descriptor->file.size_in_bytes = status_or_response->GetSizeInBytes();
+  descriptor->file.offset_in_file = 0;
 
   open_files[id] = descriptor;
 
@@ -87,6 +97,33 @@ void CloseFile(long id) {
   }
 
   open_files.erase(itr);
+}
+
+void* AddMemoryMappedFile(::permebuf::perception::MemoryMappedFile file,
+                          std::unique_ptr<::perception::SharedMemory> buffer) {
+  void* address = **buffer;
+  size_t size = buffer->GetSize();
+
+  auto mmfile = std::make_shared<MemoryMappedFile>();
+  mmfile->file = file;
+  mmfile->buffer = std::move(buffer);
+  mmfile->first_page = (size_t)address;
+  mmfile->last_page = ((size_t)address + size) & ~(kPageSize - 1);
+  memory_mapped_files_by_first_page.insert(
+      std::make_pair((size_t)address, mmfile));
+
+  return address;
+}
+
+bool MaybeCloseMemoryMappedFile(size_t start_address) {
+  auto itr = memory_mapped_files_by_first_page.find(start_address);
+  if (itr == memory_mapped_files_by_first_page.end())
+    return false;  // Not a memory mapped file.
+
+  itr->second->file.SendCloseFile(
+      ::permebuf::perception::MemoryMappedFile::CloseFileMessage());
+  memory_mapped_files_by_first_page.erase(itr);
+  return true;
 }
 
 }  // namespace perception

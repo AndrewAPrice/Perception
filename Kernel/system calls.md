@@ -203,9 +203,16 @@ Returns the total amount of memory that the computer has.
 ## Create shared memory
 Creates a shared memory block, and joins it into the process.
 
+Lazily allocated shared memory doesn't have any memory assigned to it until accessed. If the creator tries to access unassigned memory (or another process and the creator no longer exists), the page will be created. If another process tries to access unassigned memory, the thread will pause execution until the memory is created.
+
 ### Input
 * `rdi` - 42
 * `rax` - The size of the shared memory, in pages.
+* `rbx` - Parameters bitfield:
+  - Bit 0: Is this lazily allocated memory?
+  - Bit 1: Can anyone other than the creating process write to the shared memory?
+* `rdx` - The ID of the message to send to the creator when another process is trying to access a page that hasn't been allocated, if this is lazily allocated.
+
 
 ### Output
 * `rax` - The ID of the shared memory block, or 0 if it could not be created.
@@ -221,6 +228,7 @@ Joins a shared memory block.
 ### Output
 * `rax` - The size of the shared memory, in pages, or 0 if it could not be mapped.
 * `rbx` - The address of the shared memory block.
+* `rdx` - The flags the shared memory was created with.
 
 ## Leave shared memory.
 Leaves a shared memory block. If there are no more references to the shared memory block then the memory is released from the system.
@@ -228,6 +236,28 @@ Leaves a shared memory block. If there are no more references to the shared memo
 ### Input
 * `rdi` - 44
 * `rax` - The ID of the shared memory block.
+
+## Move page into shared memory.
+Moves a page into a shared memory block. Only the creator of the shared memory can call this. The page is unmapped from its old address and moved to its new virtual address inside of the shared memory, and mapped into every process. Any thread that is waiting for on a lazily loaded memory page will be rewoken. If the page is already allocated in the shared memory block, then it is overriden. Even if this fails (we're not the creator, of the offset is beyond the end of the buffer), the page is unallocated from the old address.
+
+The intention of this is to allow the creator to fully populate lazily loaded pages before waking up other threads trying to read from it.
+
+### Input
+* `rdi` - 45
+* `rax` - The ID of the shared memory block.
+* `rbx` - The offset of the page, in bytes, in the shared memory block to allocate.
+* `rdx` - The virtual address of the page to move into the shared memory.
+
+## Is shared memory page allocated?
+Returns if a shared memory page is allocated. We can use this to tell if a page needs to be lazily loaded.
+
+### Input
+* `rdi` - 46
+* `rax` - The ID of the shared memory block.
+* `rbx` - The offset of the page, in bytes, in the shared memory block.
+
+### Output
+* `rax` - 1 if the shared memory block page is exists, 0 otherwise.
 
 # Process Management
 

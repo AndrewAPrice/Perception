@@ -416,7 +416,8 @@ size_t FindFreePageRange(size_t pml4, size_t pages) {
 
 // Maps a physical page to a virtual page. Returns if it was successful.
 bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr,
-                                  size_t physicaladdr, bool own) {
+                                  size_t physicaladdr, bool own, bool can_write,
+                                  bool throw_exception_on_access) {
   // Find the index into each PML table.
   // 6666 5555 5555 5544 4444 4444 4333 3333 3332 2222 2222 2111 1111 111
   // 4321 0987 6543 2109 8765 4321 0987 6543 2109 8765 4321 0978 6543 2109 8765
@@ -558,11 +559,23 @@ bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr,
   }
 
   // Write us in PML1.
-  size_t entry = physicaladdr | 0x3 |
-                 // Set the user bit.
-                 (user_page ? (1 << 2) : 0) |
-                 // Set the ownership bit (a custom bit.)
-                 (own ? (1 << 9) : 0);
+  size_t entry;
+  if (throw_exception_on_access) {
+    // A dud page table entry with all but the ownership and present bit set.
+    // We use a zeroed out entry to mean there's no page here, but this is
+    // actually reserved, such as for lazily allocated shared buffer.
+    entry = ~(1 | (1 << 9));
+  } else {
+    entry = physicaladdr |
+            // Set the present bit.
+            1 |
+            // Set the write bit.
+            (can_write ? (1 << 1) : 0) |
+            // Set the user bit.
+            (user_page ? (1 << 2) : 0) |
+            // Set the ownership bit (a custom bit.)
+            (own ? (1 << 9) : 0);
+  }
   ptr[pml1_entry] = entry;
 
   if (created_pml3 && !user_page) {
@@ -629,7 +642,8 @@ size_t GetPhysicalAddress(size_t pml4, size_t virtualaddr,
 
   // Look in PML1.
   ptr = (size_t *)TemporarilyMapPhysicalMemory(pml1, 3);
-  if (ptr[pml1_entry] == 0) {
+  if ((ptr[pml1_entry] & 1) == 0) {
+    // Page isn't present.
     return OUT_OF_MEMORY;
   } else if (ignore_unowned_pages && (ptr[pml1_entry] & (1 << 9)) == 0) {
     // We don't own this page, and we want to ignore unowned pages.
@@ -653,7 +667,8 @@ size_t GetOrCreateVirtualPage(size_t pml4, size_t virtualaddr) {
     return OUT_OF_MEMORY;
   }
 
-  if (MapPhysicalPageToVirtualPage(pml4, virtualaddr, physical_address, true)) {
+  if (MapPhysicalPageToVirtualPage(pml4, virtualaddr, physical_address, true,
+                                   true, false)) {
     return physical_address;
   } else {
     FreePhysicalPage(physical_address);
@@ -683,7 +698,7 @@ size_t AllocateVirtualMemoryInAddressSpace(size_t pml4, size_t pages) {
     }
 
     // Map the physical page.
-    MapPhysicalPageToVirtualPage(pml4, addr, phys, true);
+    MapPhysicalPageToVirtualPage(pml4, addr, phys, true, true, false);
 
     if (current_pml4 == pml4) {
       FlushVirtualPage(addr);
@@ -714,7 +729,8 @@ size_t MapPhysicalMemoryInAddressSpace(size_t pml4, size_t addr, size_t pages) {
     PrintHex(virtual_address);
     PrintString("\n");
 #endif
-    MapPhysicalPageToVirtualPage(pml4, virtual_address, addr, false);
+    MapPhysicalPageToVirtualPage(pml4, virtual_address, addr, false, true,
+                                 false);
   }
   return start_virtual_address;
 }
@@ -1008,26 +1024,36 @@ struct SharedMemoryInProcess *MapSharedMemoryIntoProcess(
   shared_memory->processes_referencing_this_block++;
 
   shared_memory_in_process->shared_memory = shared_memory;
+  shared_memory_in_process->process = process;
   shared_memory_in_process->virtual_address = virtual_address;
   shared_memory_in_process->references = 1;
 
-  // The next shared memory block in the process.
-  struct SharedMemoryInProcess *next_in_process;
-
-  // Add it to our linked list.
+  // Add the shared memory to our process's linked list.
   shared_memory_in_process->next_in_process = process->shared_memory;
   process->shared_memory = shared_memory_in_process;
 
+  // Add the process to the shared memory.
+  shared_memory_in_process->previous_in_shared_memory = NULL;
+  shared_memory_in_process->next_in_shared_memory =
+      shared_memory->first_process;
+  shared_memory->first_process = shared_memory_in_process;
+
+  bool can_write = CanProcessWriteToSharedMemory(process, shared_memory);
+
   // Map the physical pages into memory.
-  struct SharedMemoryPage *shared_memory_page = shared_memory->first_page;
-  while (shared_memory_page != NULL) {
+  for (size_t page = 0; page < shared_memory->size_in_pages; page++) {
     // Map the physical page to the virtual address.
-    MapPhysicalPageToVirtualPage(process->pml4, virtual_address,
-                                 shared_memory_page->physical_address, false);
+    if (shared_memory->physical_pages[page] == OUT_OF_PHYSICAL_PAGES) {
+      MapPhysicalPageToVirtualPage(process->pml4, virtual_address, 0, false,
+                                   false, true);
+    } else {
+      MapPhysicalPageToVirtualPage(process->pml4, virtual_address,
+                                   shared_memory->physical_pages[page], false,
+                                   can_write, false);
+    }
 
     // Iterate to the next page.
     virtual_address += PAGE_SIZE;
-    shared_memory_page = shared_memory_page->next;
   }
 
   return shared_memory_in_process;
@@ -1043,6 +1069,8 @@ void UnmapSharedMemoryFromProcess(
   PrintNumber(process->pid);
   PrintString(" is leaving shared memory.\n");
 #endif
+  // TODO: Wake any threads waiting for this page. (They'll page fault, but what
+  // else can we do?)
 
   // Unmap the virtual pages.
   ReleaseVirtualMemoryInAddressSpace(
@@ -1072,13 +1100,33 @@ void UnmapSharedMemoryFromProcess(
     previous->next_in_process = shared_memory_in_process->next_in_process;
   }
 
+  // Remove from the linked list in the shared memory.
+  struct SharedMemory *shared_memory = shared_memory_in_process->shared_memory;
+
+  if (shared_memory_in_process->previous_in_shared_memory == NULL) {
+    shared_memory->first_process =
+        shared_memory_in_process->next_in_shared_memory;
+  } else {
+    shared_memory_in_process->previous_in_shared_memory->next_in_shared_memory =
+        shared_memory_in_process->next_in_shared_memory;
+  }
+  if (shared_memory_in_process->next_in_shared_memory != NULL) {
+    shared_memory_in_process->next_in_shared_memory->previous_in_shared_memory =
+        shared_memory_in_process->previous_in_shared_memory;
+  }
+
   // Decrement the references to this shared memory block.
-  shared_memory_in_process->shared_memory->processes_referencing_this_block--;
-  if (shared_memory_in_process->shared_memory
-          ->processes_referencing_this_block == 0) {
+  shared_memory->processes_referencing_this_block--;
+  if (shared_memory->processes_referencing_this_block == 0) {
     // There are no more refernces to this shared memory block, so we can
     // release the memory.
-    ReleaseSharedMemoryBlock(shared_memory_in_process->shared_memory);
+    ReleaseSharedMemoryBlock(shared_memory);
+  } else if (process->pid == shared_memory->creator_pid &&
+             (shared_memory->flags & SM_LAZILY_ALLOCATED) != 0) {
+    // We are unmapping lazily allocated shared memory from the creator.
+    // We'll create the pages of any threads that are sleeping because they're
+    // waiting for pages to be created.
+    // TODO
   }
 
   ReleaseSharedMemoryInProcess(shared_memory_in_process);

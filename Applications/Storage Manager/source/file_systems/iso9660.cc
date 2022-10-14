@@ -25,7 +25,8 @@ using ::perception::Defer;
 using ::perception::ProcessId;
 using ::perception::Status;
 using ::permebuf::perception::DirectoryEntryType;
-using ::permebuf::perception::File;
+using PFile = ::permebuf::perception::File;
+using ::permebuf::perception::StorageManager;
 using ::permebuf::perception::devices::StorageDevice;
 
 namespace file_systems {
@@ -34,26 +35,28 @@ namespace {
 constexpr int kIso9660SectorSize = 2048;
 std::string kIso9660Name = "ISO 9660";
 
-class Iso9660File : public File::Server {
+class Iso9660File : public File {
  public:
   Iso9660File(StorageDevice storage_device, size_t offset_on_device,
               size_t length_of_file, ProcessId allowed_process)
       : storage_device_(storage_device),
         offset_on_device_(offset_on_device),
         length_of_file_(length_of_file),
-        allowed_process_(allowed_process),
-        open_(true){};
+        allowed_process_(allowed_process){};
 
   virtual void HandleCloseFile(ProcessId sender,
-                               const File::CloseFileMessage &) override {
+                               const PFile::CloseFileMessage &) override {
     if (sender != allowed_process_) return;
 
     Defer([sender, this]() { CloseFile(sender, this); });
   }
 
-  virtual StatusOr<File::ReadFileResponse> HandleReadFile(
-      ProcessId sender, const File::ReadFileRequest &request) override {
+  virtual StatusOr<PFile::ReadFileResponse> HandleReadFile(
+      ProcessId sender, const PFile::ReadFileRequest &request) override {
     if (sender != allowed_process_) return ::perception::Status::NOT_ALLOWED;
+
+    std::cout << "(fs) reading " << request.GetBytesToCopy() << " from "
+              << request.GetOffsetInFile() << std::endl;
 
     if (request.GetOffsetInFile() + request.GetBytesToCopy() >
         length_of_file_) {
@@ -69,7 +72,7 @@ class Iso9660File : public File::Server {
 
     RETURN_ON_ERROR(storage_device_.CallRead(read_request));
 
-    return File::ReadFileResponse();
+    return PFile::ReadFileResponse();
   }
 
  private:
@@ -77,7 +80,6 @@ class Iso9660File : public File::Server {
   size_t offset_on_device_;
   size_t length_of_file_;
   ProcessId allowed_process_;
-  bool open_;
 };
 
 void SplitPath(std::string_view path, std::string_view &directory,
@@ -108,13 +110,13 @@ Iso9660::Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
       FileSystem(storage_device) {}
 
 // Opens a file.
-StatusOr<std::unique_ptr<File::Server>> Iso9660::OpenFile(std::string_view path,
-                                                          size_t &size_in_bytes,
-                                                          ProcessId sender) {
+StatusOr<std::unique_ptr<File>> Iso9660::OpenFile(std::string_view path,
+                                                  size_t &size_in_bytes,
+                                                  ProcessId sender) {
   std::string_view directory, file_name;
   SplitPath(path, directory, file_name);
 
-  std::unique_ptr<File::Server> file;
+  std::unique_ptr<File> file;
   ForRawEachEntryInDirectory(
       directory, [&](std::string_view name, DirectoryEntryType type,
                      size_t start_lba, size_t size) {
@@ -178,12 +180,14 @@ void Iso9660::CheckFilePermissions(std::string_view path, bool &file_exists,
     file_exists = true;
     can_read = true;
     can_execute = true;
+    return;
   }
 
   std::string_view directory, file_name;
   SplitPath(path, directory, file_name);
 
   file_exists = false;
+  std::cout << "!!!!" <<std::flush;
   ForRawEachEntryInDirectory(directory,
                              [&](std::string_view name, DirectoryEntryType type,
                                  size_t start_lba, size_t size) {
@@ -193,6 +197,8 @@ void Iso9660::CheckFilePermissions(std::string_view path, bool &file_exists,
                                }
                                return false;
                              });
+
+  std::cout << "@@@@" <<std::flush;
 
   can_read = file_exists;
   can_execute = file_exists;
@@ -438,6 +444,31 @@ std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
   return std::unique_ptr<Iso9660>(
       new Iso9660(size_in_blocks, logical_block_size, std::move(root_directory),
                   storage_device));
+}
+
+StatusOr<StorageManager::GetFileStatisticsResponse> Iso9660::GetFileStatistics(
+    std::string_view path) {
+  StorageManager::GetFileStatisticsResponse response;
+
+  if (path.empty()) return response;
+
+  std::string_view directory, file_name;
+  SplitPath(path, directory, file_name);
+
+  ForRawEachEntryInDirectory(
+      directory, [&](std::string_view name, DirectoryEntryType type,
+                     size_t start_lba, size_t size) {
+        if (name == file_name) {
+          response.SetExists(true);
+          response.SetIsFile(type == DirectoryEntryType::File);
+          response.SetIsDirectory(type == DirectoryEntryType::Directory);
+          response.SetSizeInBytes(size);
+          return true;
+        }
+        return false;
+      });
+
+  return response;
 }
 
 }  // namespace file_systems

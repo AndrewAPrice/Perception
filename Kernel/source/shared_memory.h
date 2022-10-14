@@ -17,16 +17,30 @@
 #include "types.h"
 
 struct Process;
+struct Thread;
+struct SharedMemory;
 
-// Represents a linked list of physical pages that makes up a shared
-// memory block.
-struct SharedMemoryPage {
-  // The physical address of this page.
-  size_t physical_address;
+// Shared memory bitwise flags:
+// Is this shared memory lazily allocated?
+#define SM_LAZILY_ALLOCATED (1 << 0)
 
-  // Pointer to the next SharedMemoryPage block, otherwise 0 if there
-  // are no more pages.
-  struct SharedMemoryPage* next;
+// Can joiners (not the creator of the shared memory) write to it?
+#define SM_JOINERS_CAN_WRITE (1 << 1)
+
+// Represents a thread that is waiting for a shared memory page.
+struct ThreadWaitingForSharedMemoryPage {
+  // The thread that is waiting.
+  struct Thread* thread;
+
+  // The shared memory the page the thread is waiting for is a part of.
+  struct SharedMemory* shared_memory;
+
+  // The index of the page the thread is waiting for.
+  size_t page;
+
+  // Linked list structure of threads waiting in the shared memory.
+  struct ThreadWaitingForSharedMemoryPage* previous;
+  struct ThreadWaitingForSharedMemoryPage* next;
 };
 
 // Represents a block of shared memory.
@@ -37,15 +51,34 @@ struct SharedMemory {
   // The size of this shared memory block, in pages.
   size_t size_in_pages;
 
-  // Linked list of physical pages.
-  struct SharedMemoryPage* first_page;
+  // The flags the shared memory was created with.
+  size_t flags;
+
+  // Array of physical pages.
+  // A value of OUT_OF_PHYSICAL_PAGES means this particular page
+  // doesn't have any memory allocated to it.
+  size_t* physical_pages;
 
   // Number of processes that are referencing this block.
   size_t processes_referencing_this_block;
 
+  // The process that created this shared memory.
+  size_t creator_pid;
+
+  // Message ID to send to the creator if another process accesses a lazily
+  // loaded memory page that hasn't been loaded yet.
+  size_t message_id_for_lazily_loaded_pages;
+
   // Linked list of shared memory.
   struct SharedMemory* previous;
   struct SharedMemory* next;
+
+  // Linked list of threads waiting for pages to become available in this shared
+  // memory.
+  struct ThreadWaitingForSharedMemoryPage* first_waiting_thread;
+
+  // Linked list of processes that have joined this shared memory.
+  struct SharedMemoryInProcess* first_process;
 };
 
 // Represents a block of shared memory mapped into a proces.
@@ -53,11 +86,18 @@ struct SharedMemoryInProcess {
   // The shared memory block we're talking about.
   struct SharedMemory* shared_memory;
 
+  // The process we're in.
+  struct Process* process;
+
   // The virtual address of this shared memory block.
   size_t virtual_address;
 
   // The next shared memory block in the process.
   struct SharedMemoryInProcess* next_in_process;
+
+  // Linked list in SharedMemory.
+  struct SharedMemoryInProcess* previous_in_shared_memory;
+  struct SharedMemoryInProcess* next_in_shared_memory;
 
   // The number of references to this shared memory block in this process.
   size_t references;
@@ -68,7 +108,8 @@ extern void InitializeSharedMemory();
 
 // Creates a shared memory block and map it into a procses.
 extern struct SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
-    struct Process* process, size_t pages);
+    struct Process* process, size_t pages, size_t flags,
+    size_t message_id_for_lazily_loaded_pages);
 
 // Releases a shared memory block. Please make sure that there are no
 // processes referencing the shared memory block before calling this.
@@ -82,3 +123,22 @@ extern struct SharedMemoryInProcess* JoinSharedMemory(struct Process* process,
 // Leaves a shared memory block, but doesn't unmap it if there are still other
 // referenes to the shared memory block in the process.
 extern void LeaveSharedMemory(struct Process* process, size_t shared_memory_id);
+
+// Moves a page into a shared memory block. Only the creator of the shared
+// memory block can acall this.
+extern void MovePageIntoSharedMemory(struct Process* process,
+                                     size_t shared_memory_id,
+                                     size_t offset_in_buffer,
+                                     size_t page_address);
+
+// Tries to handle a page fault if it's related to a lazily loaded shared
+// message. Returns if we were able to handle the exception.
+extern bool MaybeHandleSharedMessagePageFault(size_t address);
+
+// Does the address exist in the shared memory block and is it allocated?
+extern bool IsAddressAllocatedInSharedMemory(size_t shared_memory_id,
+                                             size_t offset_in_shared_memory);
+
+// Can this process write to this shared memory?
+extern bool CanProcessWriteToSharedMemory(struct Process* process,
+                                          struct SharedMemory* shared_memory);

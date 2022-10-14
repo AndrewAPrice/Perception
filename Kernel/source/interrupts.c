@@ -119,7 +119,8 @@ void AllocateInterruptStack() {
     __asm__ __volatile__("hlt");
   }
 
-  MapPhysicalPageToVirtualPage(kernel_pml4, virtual_addr, physical_addr, true);
+  MapPhysicalPageToVirtualPage(kernel_pml4, virtual_addr, physical_addr, true,
+                               true, false);
 
 #ifdef DEBUG
   PrintString("Interrupt stack is at ");
@@ -213,6 +214,7 @@ void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
       } else {
         previous->next_message_for_process = next;
       }
+      free(current);
     } else {
       previous = current;
     }
@@ -238,7 +240,7 @@ void UnregisterAllMessagesToForOnInterruptForProcess(struct Process* process) {
     while (current != NULL) {
       struct MessageToFireOnInterrupt* next =
           current->next_message_for_interrupt;
-      if (current = message) {
+      if (current == message) {
         // We found the message!
         if (previous == NULL) {
           messages_to_fire_on_interrupt[interrupt_number] = next;
@@ -260,21 +262,21 @@ void CommonHardwareInterruptHandler(int interrupt_number) {
   if (interrupt_number == 0) {
     // The only hardware interrupt the microkernel knows about - the timer.
     TimerHandler();
-  }
+  } else {
+    // Send messages to any processes listening for this interrupt.
+    struct MessageToFireOnInterrupt* message =
+        messages_to_fire_on_interrupt[interrupt_number];
+    while (message != NULL) {
+      SendKernelMessageToProcess(message->process, message->message_id, 0, 0, 0,
+                                 0, 0);
+      message = message->next_message_for_interrupt;
+    }
 
-  // Send messages to any processes listening for this interrupt.
-  struct MessageToFireOnInterrupt* message =
-      messages_to_fire_on_interrupt[interrupt_number];
-  while (message != NULL) {
-    SendKernelMessageToProcess(message->process, message->message_id, 0, 0, 0,
-                               0, 0);
-    message = message->next_message_for_interrupt;
-  }
-
-  // If the IDTt entry that was invoked was greater than 40 (IRQ 8-15) we need
-  // to send an EOI to the slave controller.
-  if (interrupt_number >= 8) {
-    outportb(0xA0, 0x20);
+    // If the IDT entry that was invoked was greater than 40 (IRQ 8-15) we need
+    // to send an EOI to the slave controller.
+    if (interrupt_number >= 8) {
+      outportb(0xA0, 0x20);
+    }
   }
 
   // Send an EOI to the master interrupt controllerr.

@@ -13,7 +13,7 @@
 #define FSBASE_MSR 0xC0000100
 
 // The number of stack pages.
-#define STACK_PAGES 4
+#define STACK_PAGES 8
 
 size_t next_thread_id;
 
@@ -66,7 +66,7 @@ struct Thread* CreateThread(struct Process* process, size_t entry_point,
     // 3) Maps the process's virtual address to the physical page.
     MapPhysicalPageToVirtualPage(thread->process->pml4,
                                  thread->stack + stack_page * PAGE_SIZE,
-                                 stack_physical_addr, true);
+                                 stack_physical_addr, true, true, false);
   }
 
   // Sets up the registers that our process will start with.

@@ -28,6 +28,12 @@ namespace perception {
 // when the reference counter reaches zero.
 class SharedMemory {
  public:
+  // Flags:
+  // The shared memory buffer is lazily allocated.
+  static constexpr size_t kLazilyAllocated = 1;
+  // Joiners can write to the shared memory buffer.
+  static constexpr size_t kJoinersCanWrite = 1 << 1;
+
   SharedMemory();
 
   // Allow moving the object with std::move.
@@ -46,8 +52,10 @@ class SharedMemory {
   ~SharedMemory();
 
   // Creates a shared memory block of a specific size. The size is rounded up
-  // to the nearest page size.
-  static std::unique_ptr<SharedMemory> FromSize(size_t size_in_bytes);
+  // to the nearest page size. Flags is a bitfield. if kLazilyAllocated is set,
+  // on_page_request must be set.
+  static std::unique_ptr<SharedMemory> FromSize(size_t size_in_bytes,
+    size_t flags, std::function<void(size_t)> on_page_request = nullptr);
 
   // Creates another instance of the SharedMemory object that points to the
   // same shared memory.
@@ -57,6 +65,29 @@ class SharedMemory {
   // call any other operations, but you might want to do this manually if you
   // just want to hold onto the shared memory.
   bool Join();
+
+  // Can joiners (not the creator) write to this shared memory buffer?
+  bool CanJoinersWrite();
+
+  // Can this procses write to this shared memory buffer?
+  bool CanWrite();
+
+  // Is this shared memory lazily allocated?
+  bool IsLazilyAllocated();
+
+  // Is this particular page allocated?
+  // The can be used by creators of lazily allocated pages to tell if a page
+  // needs populating.
+  bool IsPageAllocated(size_t offset_in_bytes);
+
+  // Assign page to the shared memory, if we're the creator of the memory buffer.
+  // The page is unmapped from its old address and moved into the shared memory.
+  // Even if this fails (we're not the creator, of the offset is beyond the end
+  // of the buffer), the page is unallocated from the old address.
+  //
+  // The entire memory page containing the address is moved into the buffer,
+  // so it's preferred that you pass PAGE_SIZE aligned addresses.
+  void AssignPage(void* page, size_t offset_in_bytes);
 
   // Returns the ID of the shared memory. Used to identify this shared memory
   // block.
@@ -89,6 +120,16 @@ class SharedMemory {
   // Size of the shared memory area, in bytes. This is 0 if the shared memory
   // is invalid.
   size_t size_in_bytes_;
+
+  // Flags that the shared memory buffer was created with.
+  size_t flags_;
+
+  // Are we the creator of a lazily allocated buffer?
+  bool is_creator_of_lazily_allocated_buffer_;
+
+  // The ID of messages coming for page requests. This is only set if we're the creator
+  // of a lazily allocated memory buffer.
+  size_t on_page_request_message_id_;
 };
 
 }  // namespace perception

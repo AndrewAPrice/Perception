@@ -59,6 +59,13 @@ service File {
 	ReadFile : ReadFileRequest -> ReadFileResponse = 1;
 }
 
+// A memory mapped file.
+service MemoryMappedFile {
+	// Closes the file.
+	minimessage CloseFileMessage {}
+	CloseFile : CloseFileMessage = 0;
+}
+
 // A device that stores data, such as a hard disk.
 service StorageManager {
 	// Opens a file.
@@ -74,6 +81,22 @@ service StorageManager {
 		SizeInBytes : uint64 = 2;
 	}
 	OpenFile : OpenFileRequest -> OpenFileResponse = 0;
+
+	// Opens a memory mapped file. A memory mapped file returns a shared buffer containing
+	// the entire contents of the file. However, the contents is lazily read in page chunks
+	// when the process accesses the memory.
+	message OpenMemoryMappedFileRequest {
+		// The path to open.
+		Path : string = 1;
+	}
+	minimessage OpenMemoryMappedFileResponse {
+		// The file handle.
+		File : MemoryMappedFile = 1;
+
+		// The shared memory containing the file's contents.
+		FileContents : SharedMemory = 2;
+	}
+	OpenMemoryMappedFile : OpenMemoryMappedFileRequest -> OpenMemoryMappedFileResponse = 1;
 
 	// Reads the entries in a directory.
 	message ReadDirectoryRequest {
@@ -96,7 +119,7 @@ service StorageManager {
 		// what was requested in MaximumNumberOfEntries.
 		HasMoreEntries : bool = 2;
 	}
-	ReadDirectory : ReadDirectoryRequest -> ReadDirectoryResponse = 1;
+	ReadDirectory : ReadDirectoryRequest -> ReadDirectoryResponse = 2;
 
 	// Checks the permissions on a file.
 	message CheckPermissionsRequest {
@@ -116,5 +139,25 @@ service StorageManager {
 		// Can we execute this file?
 		CanExecute : bool = 4;
 	}
-	CheckPermissions : CheckPermissionsRequest -> CheckPermissionsResponse = 2;
+	CheckPermissions : CheckPermissionsRequest -> CheckPermissionsResponse = 3;
+
+	// Get statistics about the file.
+	message GetFileStatisticsRequest {
+		// The path to check.
+		Path : string = 1;
+	}
+	minimessage GetFileStatisticsResponse {
+		// Does this file exist?
+		Exists : bool = 1;
+
+		// Is this a regular file?
+		IsFile : bool = 2;
+
+		// Is this a directory?
+		IsDirectory : bool = 3;
+
+		// The size of this file in bytes, if it's a file.
+		SizeInBytes : uint64 = 4;
+	}
+	GetFileStatistics : GetFileStatisticsRequest -> GetFileStatisticsResponse = 4;
 }

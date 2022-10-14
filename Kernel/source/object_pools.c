@@ -54,8 +54,8 @@ OBJECT_POOL(ProcessToNotifyWhenServiceAppears,
 OBJECT_POOL(Service, service)
 OBJECT_POOL(SharedMemory, shared_memory)
 OBJECT_POOL(SharedMemoryInProcess, shared_memory_in_process)
-OBJECT_POOL(SharedMemoryPage, shared_memory_page)
 OBJECT_POOL(TimerEvent, timer_event)
+OBJECT_POOL(ThreadWaitingForSharedMemoryPage, thread_waiting_for_shared_memory_page)
 
 // Initialize the object pools.
 void InitializeObjectPools() {
@@ -65,8 +65,8 @@ void InitializeObjectPools() {
   service_pool = NULL;
   shared_memory_pool = NULL;
   shared_memory_in_process_pool = NULL;
-  shared_memory_page_pool = NULL;
   timer_event_pool = NULL;
+  thread_waiting_for_shared_memory_page_pool = NULL;
 }
 
 // Clean up object pools to gain some memory back.
@@ -77,6 +77,6 @@ void CleanUpObjectPools() {
   FreeObjectsInPool(&service_pool);
   FreeObjectsInPool(&shared_memory_pool);
   FreeObjectsInPool(&shared_memory_in_process_pool);
-  FreeObjectsInPool(&shared_memory_page_pool);
   FreeObjectsInPool(&timer_event_pool);
+  FreeObjectsInPool(&thread_waiting_for_shared_memory_page_pool);
 }

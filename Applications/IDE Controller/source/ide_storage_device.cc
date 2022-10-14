@@ -49,7 +49,9 @@ IdeStorageDevice::HandleGetDeviceDetails(
 StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
     ::perception::ProcessId sender, const StorageDevice::ReadRequest& request) {
   SharedMemory destination_shared_memory = request.GetBuffer();
-  if (!destination_shared_memory.Join()) {
+  if (!destination_shared_memory.Join() ||
+      destination_shared_memory.IsLazilyAllocated() ||
+      !destination_shared_memory.CanWrite()) {
     return ::perception::Status::INVALID_ARGUMENT;
   }
 

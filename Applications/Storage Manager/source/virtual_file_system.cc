@@ -16,9 +16,11 @@
 
 #include <iostream>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "memory_mapped_file.h"
 #include "perception/fibers.h"
 #include "perception/processes.h"
 
@@ -29,7 +31,7 @@ using ::perception::ProcessId;
 using ::perception::Sleep;
 using ::perception::Status;
 using ::permebuf::perception::DirectoryEntryType;
-using ::permebuf::perception::File;
+using ::permebuf::perception::StorageManager;
 using ::permebuf::perception::devices::StorageType;
 
 namespace {
@@ -37,8 +39,11 @@ namespace {
 std::map<std::string, std::unique_ptr<FileSystem>, std::less<>>
     mounted_file_systems;
 
-std::map<ProcessId, std::vector<std::unique_ptr<File::Server>>>
+std::map<ProcessId, std::vector<std::unique_ptr<File>>>
     open_files_by_process_id;
+
+std::map<ProcessId, std::vector<std::unique_ptr<MemoryMappedFile>>>
+    open_memory_mapped_files_by_process_id;
 
 // We save the first mounted file system, and shortcut /Applications,
 // /Libraries into it.
@@ -67,7 +72,9 @@ std::string GetMountNameForFileSystem(FileSystem& file_system) {
 Status ExtractMountPointAndPath(std::string_view path,
                                 std::string_view& mount_point,
                                 std::string_view& path_on_mount_point) {
-  if (path.empty() || path[0] != '/') return Status::FILE_NOT_FOUND;
+  if (path.empty() || path[0] != '/') {
+    return Status::FILE_NOT_FOUND;
+  }
 
   // Jump over the initial '/'.
   path = path.substr(1);
@@ -103,6 +110,23 @@ Status ExtractMountPointAndPath(std::string_view path,
   return Status::OK;
 }
 
+StatusOr<std::unique_ptr<File>> OpenFileInternal(std::string_view path,
+                                                 size_t& size_in_bytes,
+                                                 ProcessId sender) {
+  std::string_view mount_point, path_on_mount_point;
+  RETURN_ON_ERROR(
+      ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
+
+  // Does the mount point exist?
+  auto mount_point_itr = mounted_file_systems.find(mount_point);
+  if (mount_point_itr == mounted_file_systems.end()) {
+    return Status::FILE_NOT_FOUND;  // No mount point.
+  }
+
+  return mount_point_itr->second->OpenFile(path_on_mount_point, size_in_bytes,
+                                           sender);
+}
+
 }  // namespace
 
 void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
@@ -121,28 +145,16 @@ void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
   }
 }
 
-StatusOr<::permebuf::perception::File::Server*> OpenFile(std::string_view path,
-                                                         size_t& size_in_bytes,
-                                                         ProcessId sender) {
-  std::string_view mount_point, path_on_mount_point;
-  RETURN_ON_ERROR(
-      ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
-
-  // Does the mount point exist?
-  auto mount_point_itr = mounted_file_systems.find(mount_point);
-  if (mount_point_itr == mounted_file_systems.end()) {
-    return Status::FILE_NOT_FOUND;  // No mount point.
-  }
-
+StatusOr<File*> OpenFile(std::string_view path, size_t& size_in_bytes,
+                         ProcessId sender) {
   // Scan the directory within the file system.
-  ASSIGN_OR_RETURN(auto file, mount_point_itr->second->OpenFile(
-                                  path_on_mount_point, size_in_bytes, sender));
-  File::Server* file_ptr = file.get();
+  ASSIGN_OR_RETURN(auto file, OpenFileInternal(path, size_in_bytes, sender));
+  File* file_ptr = file.get();
 
   auto itr = open_files_by_process_id.find(sender);
   if (itr == open_files_by_process_id.end()) {
     // First file open by this process.
-    std::vector<std::unique_ptr<File::Server>> files;
+    std::vector<std::unique_ptr<File>> files;
     files.push_back(std::move(file));
     open_files_by_process_id[sender] = std::move(files);
   } else {
@@ -150,6 +162,28 @@ StatusOr<::permebuf::perception::File::Server*> OpenFile(std::string_view path,
   }
 
   return file_ptr;
+}
+
+StatusOr<MemoryMappedFile*> OpenMemoryMappedFile(
+    std::string_view path, ::perception::ProcessId sender) {
+  size_t size_in_bytes;
+  ASSIGN_OR_RETURN(auto file, OpenFileInternal(path, size_in_bytes, sender));
+
+  auto mmfile = std::make_unique<MemoryMappedFile>(std::move(file),
+                                                   size_in_bytes, sender);
+  MemoryMappedFile* mmfile_ptr = mmfile.get();
+
+  auto itr = open_memory_mapped_files_by_process_id.find(sender);
+  if (itr == open_memory_mapped_files_by_process_id.end()) {
+    // First memory mapped file open by this process.
+    std::vector<std::unique_ptr<MemoryMappedFile>> mmfiles;
+    mmfiles.push_back(std::move(mmfile));
+    open_memory_mapped_files_by_process_id[sender] = std::move(mmfiles);
+  } else {
+    itr->second.push_back(std::move(mmfile));
+  }
+
+  return mmfile_ptr;
 }
 
 ::perception::Status CheckFilePermissions(std::string_view path,
@@ -165,6 +199,7 @@ StatusOr<::permebuf::perception::File::Server*> OpenFile(std::string_view path,
     can_read = true;
     can_write = false;
     can_execute = true;
+    return Status::OK;
   }
 
   // Does the mount point exist?
@@ -186,8 +221,7 @@ StatusOr<::permebuf::perception::File::Server*> OpenFile(std::string_view path,
   return Status::OK;
 }
 
-void CloseFile(::perception::ProcessId sender,
-               ::permebuf::perception::File::Server* file) {
+void CloseFile(::perception::ProcessId sender, File* file) {
   auto itr = open_files_by_process_id.find(sender);
   if (itr == open_files_by_process_id.end()) {
     std::cout << "CloseFile() called but something went wrong as " << sender
@@ -203,9 +237,25 @@ void CloseFile(::perception::ProcessId sender,
       return;
     }
   }
+}
 
-  std::cout << "CloseFile() called but something went wrong as " << sender
-            << " doesn't own this file or it is already closed." << std::endl;
+void CloseMemoryMappedFile(::perception::ProcessId sender,
+                           MemoryMappedFile* mmfile) {
+  auto itr = open_memory_mapped_files_by_process_id.find(sender);
+  if (itr == open_memory_mapped_files_by_process_id.end()) {
+    std::cout << "CloseMemoryMappedFile() called but something went wrong as "
+              << sender << " doesn't own any memory mapped files." << std::endl;
+    return;
+  }
+
+  // Iterate through the memory mapped files owned by the sender.
+  for (auto itr_2 = itr->second.begin(); itr_2 != itr->second.end(); itr_2++) {
+    if (itr_2->get() == mmfile) {
+      // We found our file.
+      itr->second.erase(itr_2);
+      return;
+    }
+  }
 }
 
 bool ForEachEntryInDirectory(
@@ -244,4 +294,30 @@ bool ForEachEntryInDirectory(
     return mount_point_itr->second->ForEachEntryInDirectory(
         path_on_mount_point, offset, count, on_each_entry);
   }
+}
+
+StatusOr<StorageManager::GetFileStatisticsResponse> GetFileStatistics(
+    std::string_view path) {
+  if (path.empty() || path[0] != '/') {
+    return StorageManager::GetFileStatisticsResponse();
+  }
+
+  if (path == "/") {
+    StorageManager::GetFileStatisticsResponse response;
+    response.SetExists(true);
+    response.SetIsDirectory(true);
+    return response;
+  }
+
+  std::string_view mount_point, path_on_mount_point;
+  RETURN_ON_ERROR(
+      ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
+
+  // Does the mount point exist?
+  auto mount_point_itr = mounted_file_systems.find(mount_point);
+  if (mount_point_itr == mounted_file_systems.end()) {
+    return StorageManager::GetFileStatisticsResponse();  // No mount point.
+  }
+
+  return mount_point_itr->second->GetFileStatistics(path_on_mount_point);
 }

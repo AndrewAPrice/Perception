@@ -16,6 +16,7 @@
 
 #include <iostream>
 
+#include "memory_mapped_file.h"
 #include "perception/processes.h"
 #include "virtual_file_system.h"
 
@@ -23,7 +24,6 @@ using ::perception::GetProcessName;
 using ::perception::ProcessId;
 using ::permebuf::perception::DirectoryEntry;
 using ::permebuf::perception::DirectoryEntryType;
-using ::permebuf::perception::File;
 using SM = ::permebuf::perception::StorageManager;
 
 StorageManager::StorageManager() {}
@@ -32,20 +32,25 @@ StorageManager::~StorageManager() {}
 
 StatusOr<SM::OpenFileResponse> StorageManager::HandleOpenFile(
     ::perception::ProcessId sender, Permebuf<SM::OpenFileRequest> request) {
-  std::cout << GetProcessName(sender) << " wants to open "
-            << *request->GetPath() << std::endl;
   size_t size_in_bytes = 0;
-  auto status_or_file = OpenFile(*request->GetPath(), size_in_bytes, sender);
-
-  if (!status_or_file.Ok()) {
-    return status_or_file.Status();
-  }
-
-  ASSIGN_OR_RETURN(File::Server * file, status_or_file);
+  ASSIGN_OR_RETURN(auto* file,
+                   OpenFile(*request->GetPath(), size_in_bytes, sender));
 
   SM::OpenFileResponse response;
-  response.SetFile(*file);
+  response.SetFile(*(::permebuf::perception::File::Server*)file);
   response.SetSizeInBytes(size_in_bytes);
+  return response;
+}
+
+StatusOr<SM::OpenMemoryMappedFileResponse>
+StorageManager::HandleOpenMemoryMappedFile(
+    ::perception::ProcessId sender,
+    Permebuf<SM::OpenMemoryMappedFileRequest> request) {
+  ASSIGN_OR_RETURN(MemoryMappedFile * mmfile,
+                   OpenMemoryMappedFile(*request->GetPath(), sender));
+  SM::OpenMemoryMappedFileResponse response;
+  response.SetFile(*(::permebuf::perception::MemoryMappedFile::Server*)mmfile);
+  response.SetFileContents(mmfile->GetBuffer());
   return response;
 }
 
@@ -80,8 +85,6 @@ StorageManager::HandleReadDirectory(
 StatusOr<SM::CheckPermissionsResponse> StorageManager::HandleCheckPermissions(
     ::perception::ProcessId sender,
     Permebuf<SM::CheckPermissionsRequest> request) {
-  std::cout << GetProcessName(sender) << " wants to check "
-            << *request->GetPath() << std::endl;
   SM::CheckPermissionsResponse response;
   bool file_exists, can_read, can_write, can_execute;
 
@@ -94,4 +97,10 @@ StatusOr<SM::CheckPermissionsResponse> StorageManager::HandleCheckPermissions(
   response.SetCanExecute(can_execute);
 
   return response;
+}
+
+StatusOr<SM::GetFileStatisticsResponse> StorageManager::HandleGetFileStatistics(
+    ::perception::ProcessId sender,
+    Permebuf<SM::GetFileStatisticsRequest> request) {
+  return GetFileStatistics(*request->GetPath());
 }

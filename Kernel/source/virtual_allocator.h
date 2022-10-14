@@ -41,7 +41,9 @@ extern size_t FindFreePageRange(size_t pml4, size_t pages);
 
 // Maps a physical page to a virtual page. Returns if it was successful.
 extern bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr,
-                                         size_t physicaladdr, bool own);
+                                         size_t physicaladdr, bool own,
+                                         bool can_write,
+                                         bool throw_exception_on_access);
 
 extern size_t AllocateVirtualMemoryInAddressSpace(size_t pml4, size_t pages);
 

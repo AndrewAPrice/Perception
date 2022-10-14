@@ -15,6 +15,7 @@
 #include "interrupts.h"
 
 #include <vector>
+#include <iostream>
 
 #include "ata.h"
 #include "perception/fibers.h"

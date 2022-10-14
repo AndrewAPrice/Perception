@@ -44,7 +44,7 @@ void InitializeSystemCalls() {
 }
 
 // Syscalls.
-// Next id is 45.
+// Next id is 47.
 #define PRINT_DEBUG_CHARACTER 0
 #define PRINT_REGISTERS_AND_STACK 26
 // Threading
@@ -69,6 +69,8 @@ void InitializeSystemCalls() {
 #define CREATE_SHARED_MEMORY 42
 #define JOIN_SHARED_MEMORY 43
 #define LEAVE_SHARED_MEMORY 44
+#define MOVE_PAGE_INTO_SHARED_MEMORY 45
+#define IS_SHARED_MEMORY_PAGE_ALLOCATED 46
 // Processes
 #define GET_THIS_PROCESS_ID 39
 #define TERMINATE_THIS_PROCESS 6
@@ -212,7 +214,9 @@ void SyscallHandler(int syscall_number) {
     case CREATE_SHARED_MEMORY: {
       struct SharedMemoryInProcess *shared_memory =
           CreateAndMapSharedMemoryBlockIntoProcess(
-              running_thread->process, currently_executing_thread_regs->rax);
+              running_thread->process, currently_executing_thread_regs->rax,
+              currently_executing_thread_regs->rbx,
+              currently_executing_thread_regs->rdx);
       if (shared_memory == NULL) {
         // Could not create the shared memory block.
         currently_executing_thread_regs->rax = 0;
@@ -232,17 +236,30 @@ void SyscallHandler(int syscall_number) {
         // Could not join the shared memory block.
         currently_executing_thread_regs->rax = 0;
         currently_executing_thread_regs->rbx = 0;
+        currently_executing_thread_regs->rdx = 0;
       } else {
         // Joined the shared memory block.
         currently_executing_thread_regs->rax =
             shared_memory->shared_memory->size_in_pages;
         currently_executing_thread_regs->rbx = shared_memory->virtual_address;
+        currently_executing_thread_regs->rdx = shared_memory->shared_memory->flags;
       }
       break;
     }
     case LEAVE_SHARED_MEMORY:
       LeaveSharedMemory(running_thread->process,
                         currently_executing_thread_regs->rax);
+      break;
+    case MOVE_PAGE_INTO_SHARED_MEMORY:
+      MovePageIntoSharedMemory(running_thread->process,
+        currently_executing_thread_regs->rax,
+        currently_executing_thread_regs->rbx,
+        currently_executing_thread_regs->rdx);
+      break;
+    case IS_SHARED_MEMORY_PAGE_ALLOCATED:
+      currently_executing_thread_regs->rax =
+        IsAddressAllocatedInSharedMemory(currently_executing_thread_regs->rax,
+          currently_executing_thread_regs->rbx) ? 1 : 0;
       break;
     case GET_THIS_PROCESS_ID:
       currently_executing_thread_regs->rax = running_thread->process->pid;
@@ -344,6 +361,7 @@ void SyscallHandler(int syscall_number) {
         // doesn't exist. It's possible that is just died, so whatever
         // the case, the safest thing to do here is to imemdiately send
         // an event.
+        PrintString("NOTIFY_WHEN_PROCESS_DISAPPEARS");
         SendKernelMessageToProcess(running_thread->process, event_id,
                                    target_pid, 0, 0, 0, 0);
       } else {

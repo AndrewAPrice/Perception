@@ -16,12 +16,15 @@
 
 #include "perception/debug.h"
 #include "perception/memory.h"
+#include "files.h"
 
 namespace perception {
 namespace linux_syscalls {
 
 long munmap(long addr, long length) {
-  ReleaseMemoryPages((void*)addr, (size_t)length / kPageSize);
+  if (!MaybeCloseMemoryMappedFile((size_t)addr))
+    // Not a memory mapped file, just normal memory to release.
+    ReleaseMemoryPages((void*)addr, (size_t)length / kPageSize);
   return 0;
 }
 

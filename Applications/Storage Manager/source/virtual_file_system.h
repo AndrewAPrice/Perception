@@ -20,21 +20,31 @@
 #include "file_systems/file_system.h"
 #include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 
+class File;
+class MemoryMappedFile;
+
 void MountFileSystem(std::unique_ptr<file_systems::FileSystem> file_system);
 
-StatusOr<::permebuf::perception::File::Server*> OpenFile(
-    std::string_view path, size_t& size_in_bytes,
-    ::perception::ProcessId sender);
+StatusOr<File*> OpenFile(std::string_view path, size_t& size_in_bytes,
+                         ::perception::ProcessId sender);
+
+StatusOr<MemoryMappedFile*> OpenMemoryMappedFile(
+    std::string_view path, ::perception::ProcessId sender);
 
 ::perception::Status CheckFilePermissions(std::string_view path,
                                           bool& file_exists, bool& can_read,
                                           bool& can_write, bool& can_execute);
 
-void CloseFile(::perception::ProcessId sender,
-               ::permebuf::perception::File::Server* file);
+void CloseFile(::perception::ProcessId sender, File* file);
+
+void CloseMemoryMappedFile(::perception::ProcessId sender,
+                           MemoryMappedFile* file);
 
 bool ForEachEntryInDirectory(
     std::string_view directory, int offset, int count,
     const std::function<void(std::string_view,
                              ::permebuf::perception::DirectoryEntryType,
                              size_t)>& on_each_entry);
+
+StatusOr<::permebuf::perception::StorageManager::GetFileStatisticsResponse>
+GetFileStatistics(std::string_view path);

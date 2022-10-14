@@ -3,6 +3,7 @@
 
 struct Process;
 struct Registers;
+struct ThreadSleepingForSharedMemoryPage;
 
 // Represents a thread. A sequence of execution (that's part of a user process)
 // that may run in parallel with other threads.
@@ -54,6 +55,9 @@ struct Thread {
   // The linked queue of threads in the process that are waiting for messages.
   struct Thread *next_thread_sleeping_for_messages;
   bool thread_is_waiting_for_message : 1;
+
+  // Set if this thread is waiting for shared memory.
+  struct ThreadWaitingForSharedMemoryPage* thread_is_waiting_for_shared_memory;
 
   // If not 0, the virtual address in the process's space to clear on
   // termination of the thread. Must be 8-byte aligned.
