@@ -22,8 +22,9 @@ For most programs, `metadata.json` should be super simple and just list the libr
 }
 ```
 
-Then the build system can just scan through every source code file in `Source` subdirectory and attempt to build it.
-Maybe some applications and libraries have an `Assets` folder of files that should be distributed with it.
+Then the build system can just scan through every source code file in `source` subdirectory and attempt to build it.
+Maybe some applications and libraries have an `assets` folder of files that should be distributed with it.
+If you depend on a library, you can include anything in its `public` directory.
 Compilers can output the dependencies of files (all of the header files you included), which a build system can use to track if anything has been recently touched to tell if we need to recompile a particular source code file.
 
 Why would most programs need anything more complicated? Some are more complicated (third party libraries I'm porting to Perception), and so the `metadata.json` has the ability to say to ignore building these files, or define these symbols. This has been sufficient to be able to build musl, libcxx, Skia, freetype, and other libraries.
