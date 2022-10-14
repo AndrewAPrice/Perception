@@ -2,6 +2,8 @@
 
 Operating systems are complicated, C++ build systems and library management are messy, and cross compiling to another OS is fun, so we have a custom build system.
 
+[Background story about the build system.](https://github.com/AndrewAPrice/Perception/blob/master/Ramblings/Build%20system.md)
+
 The build system's source lives in source/ and is written in Javascript for Node.js.
 
 ## Features
