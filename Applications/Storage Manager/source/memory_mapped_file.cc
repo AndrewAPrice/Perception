@@ -53,9 +53,6 @@ void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
   if (buffer_->IsPageAllocated(offset_of_page))
     return;  // This page is already allocated, so nothing to do.
 
-  std::cout << "(fs) reading memory mapped chunk from file at offset "
-            << offset_of_page << std::endl;
-
   // Read the page in from the file.
   auto temp_buffer = kSharedMemoryPool.GetSharedMemory();
   ReadFileRequest request;
@@ -81,8 +78,6 @@ void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
              kPageSize - bytes_to_copy);
     }
   } else {
-    std::cout << "Reading " << bytes_to_copy << " from " << offset_of_page
-              << " failed." << std::endl;
     memset(new_page, 0, kPageSize);
   }
 

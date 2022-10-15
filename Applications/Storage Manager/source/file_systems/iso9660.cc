@@ -55,9 +55,6 @@ class Iso9660File : public File {
       ProcessId sender, const PFile::ReadFileRequest &request) override {
     if (sender != allowed_process_) return ::perception::Status::NOT_ALLOWED;
 
-    std::cout << "(fs) reading " << request.GetBytesToCopy() << " from "
-              << request.GetOffsetInFile() << std::endl;
-
     if (request.GetOffsetInFile() + request.GetBytesToCopy() >
         length_of_file_) {
       return ::perception::Status::OVERFLOW;
@@ -187,7 +184,6 @@ void Iso9660::CheckFilePermissions(std::string_view path, bool &file_exists,
   SplitPath(path, directory, file_name);
 
   file_exists = false;
-  std::cout << "!!!!" <<std::flush;
   ForRawEachEntryInDirectory(directory,
                              [&](std::string_view name, DirectoryEntryType type,
                                  size_t start_lba, size_t size) {
@@ -197,9 +193,6 @@ void Iso9660::CheckFilePermissions(std::string_view path, bool &file_exists,
                                }
                                return false;
                              });
-
-  std::cout << "@@@@" <<std::flush;
-
   can_read = file_exists;
   can_execute = file_exists;
 }
