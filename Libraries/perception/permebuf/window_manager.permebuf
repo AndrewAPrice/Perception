@@ -105,4 +105,15 @@ service WindowManager {
 		Bottom : uint16 = 5; // Exclusive.
 	}
 	InvalidateWindow : InvalidateWindowMessage = 6;
+
+	// Gets the maximum window size that can be created.
+	minimessage GetMaximumWindowSizeRequest {}
+	minimessage GetMaximumWindowSizeResponse {
+		// The maximum width of the window, in pixels.
+		Width : uint16 = 1;
+
+		// The maximum height of the window, in pixels.
+		Height : uint16 = 2;
+	}
+	GetMaximumWindowSize : GetMaximumWindowSizeRequest -> GetMaximumWindowSizeResponse = 7;
 }

@@ -46,4 +46,8 @@ class WindowManager : ::permebuf::perception::WindowManager::Server {
   void HandleInvalidateWindow(
       ::perception::ProcessId sender,
       const WM::InvalidateWindowMessage& message) override;
+
+  StatusOr<WM::GetMaximumWindowSizeResponse> HandleGetMaximumWindowSize(
+      ::perception::ProcessId sender,
+      const WM::GetMaximumWindowSizeRequest& message) override;
 };

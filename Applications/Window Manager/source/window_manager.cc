@@ -16,7 +16,9 @@
 
 #include <iostream>
 
+#include "compositor.h"
 #include "perception/launcher.h"
+#include "screen.h"
 #include "window.h"
 
 using ::perception::ShowLauncher;
@@ -39,7 +41,7 @@ StatusOr<WM::CreateWindowResponse> WindowManager::HandleCreateWindow(
         request->GetKeyboardListener(), request->GetMouseListener());
   }
 
-  WindowManager::WM::CreateWindowResponse response;
+  WM::CreateWindowResponse response;
   if (window != nullptr) {
     // Respond with the window dimensions if we were able to create this
     // window.
@@ -49,36 +51,45 @@ StatusOr<WM::CreateWindowResponse> WindowManager::HandleCreateWindow(
   return response;
 }
 
-void WindowManager::HandleCloseWindow(
-    ::perception::ProcessId sender,
-    const WindowManager::WM::CloseWindowMessage& message) {
+void WindowManager::HandleCloseWindow(::perception::ProcessId sender,
+                                      const WM::CloseWindowMessage& message) {
   std::cout << "Implement WindowManager::HandleCloseWindow" << std::endl;
 }
 
 void WindowManager::HandleSetWindowTexture(
     ::perception::ProcessId sender,
-    const WindowManager::WM::SetWindowTextureMessage& message) {
+    const WM::SetWindowTextureMessage& message) {
   Window* window = Window::GetWindow(message.GetWindow());
   if (window != nullptr) window->SetTextureId(message.GetTextureId());
 }
 
 void WindowManager::HandleSetWindowTitle(
     ::perception::ProcessId sender,
-    Permebuf<WindowManager::WM::SetWindowTitleMessage> message) {
+    Permebuf<WM::SetWindowTitleMessage> message) {
   std::cout << "Implement WindowManager::HandleWindowTitle" << std::endl;
 }
 
 void WindowManager::HandleSystemButtonPushed(
     ::perception::ProcessId sender,
-    const WindowManager::WM::SystemButtonPushedMessage& message) {
+    const WM::SystemButtonPushedMessage& message) {
   ShowLauncher();
 }
 
 void WindowManager::HandleInvalidateWindow(
     ::perception::ProcessId sender,
-    const WindowManager::WM::InvalidateWindowMessage& message) {
+    const WM::InvalidateWindowMessage& message) {
   Window* window = Window::GetWindow(message.GetWindow());
   if (window != nullptr)
     window->InvalidateContents(message.GetLeft(), message.GetTop(),
                                message.GetRight(), message.GetBottom());
+}
+
+StatusOr<WM::GetMaximumWindowSizeResponse>
+WindowManager::HandleGetMaximumWindowSize(
+    ::perception::ProcessId sender,
+    const WM::GetMaximumWindowSizeRequest& message) {
+  WM::GetMaximumWindowSizeResponse response;
+  response.SetWidth(GetScreenWidth());
+  response.SetHeight(GetScreenHeight() - WINDOW_TITLE_HEIGHT - 3);
+  return response;
 }
