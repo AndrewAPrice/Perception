@@ -37,6 +37,11 @@ extern size_t bssEnd;
 // The number of entries in a page table. Each entry is 8 bytes long.
 #define PAGE_TABLE_ENTRIES (PAGE_TABLE_SIZE / PAGE_TABLE_ENTRY_SIZE)
 
+// A dud page table entry with all but the ownership and present bit set.
+// We use a zeroed out entry to mean there's no page here, but this is
+// actually reserved, such as for lazily allocated shared buffer.
+#define DUD_PAGE_ENTRY (~(1 | (1 << 9)))
+
 // Maps a physical address to a virtual address in the kernel - at boot time
 // while paging is initializing. assign_page_table - true if we're assigning a
 // page table (for our temp memory) rather than a page.
@@ -552,7 +557,7 @@ bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr,
 
   // Check if this address has already been mapped in PML1.
   ptr = (size_t *)TemporarilyMapPhysicalMemory(pml1, 3);
-  if (ptr[pml1_entry] != 0) {
+  if (ptr[pml1_entry] != 0 && ptr[pml1_entry] != DUD_PAGE_ENTRY) {
     // We don't worry about cleaning up PML2/3 because for it to be mapped
     // PML2/3 must already exist.
     return false;
@@ -561,10 +566,7 @@ bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr,
   // Write us in PML1.
   size_t entry;
   if (throw_exception_on_access) {
-    // A dud page table entry with all but the ownership and present bit set.
-    // We use a zeroed out entry to mean there's no page here, but this is
-    // actually reserved, such as for lazily allocated shared buffer.
-    entry = ~(1 | (1 << 9));
+    entry = DUD_PAGE_ENTRY;
   } else {
     entry = physicaladdr |
             // Set the present bit.
