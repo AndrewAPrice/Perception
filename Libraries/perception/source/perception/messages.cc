@@ -179,7 +179,7 @@ void RegisterRawMessageHandler(
 void UnregisterMessageHandler(MessageId message_id) {
   auto handlers_by_message_id_itr = handlers_by_message_id.find(message_id);
   if (handlers_by_message_id_itr != handlers_by_message_id.end())
-    handlers_by_message_id.erase(message_id);
+    handlers_by_message_id.erase(handlers_by_message_id_itr);
 }
 
 // Sleeps the current fiber until we receive a message. Waiting for a message
