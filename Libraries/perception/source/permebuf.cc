@@ -86,7 +86,8 @@ size_t PermebufBytes::Size() const {
 
 size_t PermebufBytes::Address() const { return address_; }
 
-PermebufArray::PermebufArray(PermebufBase* buffer, size_t offset) {
+PermebufArray::PermebufArray(PermebufBase* buffer, size_t offset)
+    : offset_(offset) {
   if (offset == 0) {
     length_ = 0;
     first_item_address_ = 0;
@@ -100,6 +101,8 @@ PermebufArray::PermebufArray(PermebufBase* buffer, size_t offset) {
 bool PermebufArray::IsValid() const { return length_ != 0; }
 
 int PermebufArray::Length() const { return length_; }
+
+size_t PermebufArray::Address() const { return offset_; }
 
 PermebufArrayOfBooleans::PermebufArrayOfBooleans(PermebufBase* buffer,
                                                  size_t offset)

@@ -73,11 +73,13 @@ class PermebufArray {
   PermebufArray(PermebufBase* buffer, size_t offset);
   bool IsValid() const;
   int Length() const;
+  size_t Address() const;
 
  protected:
   PermebufBase* buffer_;
   size_t length_;
   size_t first_item_address_;
+  size_t offset_;
 };
 
 class PermebufArrayOfBooleans : public PermebufArray {
@@ -85,11 +87,6 @@ class PermebufArrayOfBooleans : public PermebufArray {
   PermebufArrayOfBooleans(PermebufBase* buffer, size_t offset);
   bool Get(int index) const;
   void Set(int index, bool value);
-
- private:
-  PermebufBase* buffer_;
-  size_t length_;
-  size_t first_item_address_;
 };
 
 template <class T>
@@ -98,11 +95,6 @@ class PermebufArrayOfEnums : public PermebufArray {
   PermebufArrayOfEnums(PermebufBase* buffer, size_t offset);
   T Get(int index) const;
   void Set(int index, T value);
-
- private:
-  PermebufBase* buffer_;
-  size_t length_;
-  size_t first_item_address_;
 };
 
 template <class T>
@@ -113,11 +105,6 @@ class PermebufArrayOf : public PermebufArray {
   bool Has(int index) const;
   void Set(int index, T value);
   void Clear(int index);
-
- private:
-  PermebufBase* buffer_;
-  size_t length_;
-  size_t first_item_address_;
 };
 
 template <class T>
@@ -128,11 +115,6 @@ class PermebufArrayOfOneOfs : public PermebufArray {
   bool Has(int index) const;
   void Set(int index, T value);
   void Clear(int index);
-
- private:
-  PermebufBase* buffer_;
-  size_t length_;
-  size_t first_item_address_;
 };
 
 class PermebufArrayOfStrings : public PermebufArray {
@@ -143,11 +125,6 @@ class PermebufArrayOfStrings : public PermebufArray {
   void Set(int index, PermebufString value);
   void Set(int index, std::string_view value);
   void Clear(int index);
-
- private:
-  PermebufBase* buffer_;
-  size_t length_;
-  size_t first_item_address_;
 };
 
 class PermebufArrayOfBytes : public PermebufArray {
@@ -158,11 +135,6 @@ class PermebufArrayOfBytes : public PermebufArray {
   void Set(int index, PermebufBytes value);
   void Set(int index, void* value, size_t length);
   void Clear(int index);
-
- private:
-  PermebufBase* buffer_;
-  size_t length_;
-  size_t first_item_address_;
 };
 
 template <class T>
@@ -171,11 +143,6 @@ class PermebufArrayOfNumbers : public PermebufArray {
   PermebufArrayOfNumbers(PermebufBase* buffer, size_t offset);
   T Get(int index) const;
   void Set(int index, T value);
-
- private:
-  PermebufBase* buffer_;
-  size_t length_;
-  size_t first_item_address_;
 };
 
 template <class T>
