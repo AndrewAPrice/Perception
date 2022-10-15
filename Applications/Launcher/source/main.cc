@@ -28,7 +28,7 @@ using ::perception::ui::TextAlignment;
 using ::perception::ui::UiWindow;
 
 int main() {
-  auto window = std::make_shared<UiWindow>("Welcome!", true, 300, 50);
+  auto window = std::make_shared<UiWindow>("Welcome!", true);
   window->SetJustifyContent(YGJustifyCenter)
       ->SetAlignContent(YGAlignCenter)
       ->AddChild(std::make_shared<Label>()
@@ -36,6 +36,7 @@ int main() {
                      ->SetLabel("Welcome to Perception. Press the ESCAPE key "
                                 "to open the launcher.")
                      ->ToSharedPtr());
+  window->Create();
 
   auto launcher = std::make_unique<Launcher>();
   HandOverControl();

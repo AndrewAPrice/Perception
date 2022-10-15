@@ -35,9 +35,8 @@ using ::perception::SleepForDuration;
 using ::perception::SleepUntilTimeSinceKernelStarted;
 
 std::shared_ptr<UiWindow> CreateWindow(std::string_view title, uint32 color,
-                                       bool dialog = false, int width = 0,
-                                       int height = 0) {
-  return std::make_shared<UiWindow>(title, dialog, width, height);
+                                       bool dialog = false) {
+  return std::make_shared<UiWindow>(title, dialog);
 }
 
 int main() {
@@ -46,8 +45,8 @@ int main() {
   auto c = CreateWindow("Blackberry", 0xa5214eff);
   auto d = CreateWindow("Strawberry", 0x90bdee);
   auto e = CreateWindow("Boysenberry", 0x25993fff);
-  auto f = CreateWindow("Popup Dialog", 0x65e979ff, true, 100, 200);
-  auto g = CreateWindow("Another Dialog", 0x7c169aff, true, 80, 80);
+  auto f = CreateWindow("Popup Dialog", 0x65e979ff, true);
+  auto g = CreateWindow("Another Dialog", 0x7c169aff, true);
 
   std::cout << "Kernel time: " << GetTimeSinceKernelStarted().count()
             << std::endl;

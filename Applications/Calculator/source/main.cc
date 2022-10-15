@@ -188,6 +188,7 @@ int main() {
                           CreateButton(".", PressDecimal)})
                      ->ToSharedPtr())
       ->SetPadding(YGEdgeAll, 8);
+  window->Create();
 
   HandOverControl();
   return 0;

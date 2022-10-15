@@ -52,13 +52,15 @@ void ShowLauncherWindow() {
   int launcher_width = screen_size.GetWidth() * 8 / 10;
   int launcher_height = screen_size.GetHeight() * 8 / 10;
 
-  launcher_window = std::make_shared<UiWindow>("Launcher", true, launcher_width,
-                                               launcher_height);
+  launcher_window = std::make_shared<UiWindow>("Launcher", true);
   launcher_window->OnClose([]() { Defer([]() { launcher_window.reset(); }); })
+      ->SetWidth(launcher_width)
+      ->SetHeight(launcher_height)
       ->SetJustifyContent(YGJustifyCenter)
       ->SetAlignContent(YGAlignCenter)
       ->AddChild(std::make_shared<Label>()
                      ->SetTextAlignment(TextAlignment::MiddleCenter)
                      ->SetLabel("TODO: Implement")
                      ->ToSharedPtr());
+  launcher_window->Create();
 }

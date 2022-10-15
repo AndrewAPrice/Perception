@@ -43,8 +43,7 @@ class UiWindow
       protected ::permebuf::perception::Window::Server,
       public Widget {
  public:
-  UiWindow(std::string_view title, bool dialog = false, int dialog_width = 0,
-           int dialog_height = 0);
+  UiWindow(std::string_view title, bool dialog = false);
   virtual ~UiWindow();
 
   UiWindow* SetRoot(std::shared_ptr<Widget> root);
@@ -53,6 +52,7 @@ class UiWindow
   UiWindow* OnClose(std::function<void()> on_close_handler);
 
   void Draw();
+  UiWindow* Create();
 
  protected:
   void HandleOnMouseMove(
@@ -119,6 +119,8 @@ class UiWindow
 
  private:
   bool invalidated_;
+  bool created_;
+  bool is_dialog_;
 
   std::string title_;
   uint32 background_color_;
@@ -136,6 +138,7 @@ class UiWindow
 
   sk_sp<SkSurface> skia_surface_;
 
+  void MaybeUpdateLayout();
   void SwitchToMouseOverWidget(std::shared_ptr<Widget> widget);
   void ReleaseTextures();
 };

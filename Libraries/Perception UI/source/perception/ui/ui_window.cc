@@ -35,39 +35,23 @@ using ::permebuf::perception::devices::MouseListener;
 namespace perception {
 namespace ui {
 
-UiWindow::UiWindow(std::string_view title, bool dialog, int dialog_width,
-                   int dialog_height)
+UiWindow::UiWindow(std::string_view title, bool dialog)
     : title_(title),
+      created_(false),
+      is_dialog_(dialog),
       background_color_(kBackgroundWindowColor),
       texture_id_(0),
       frontbuffer_texture_id_(0),
       rebuild_texture_(true) {
   SkGraphics::Init();  // See if this isn't needed.
-
-  Permebuf<WindowManager::CreateWindowRequest> create_window_request;
-  // std::cout << title_ << "'s message id is: " <<
-  //((Window::Server*)this)->GetProcessId() << ":" <<
-  //((Window::Server*)this)->GetMessageId() << std::endl;
-  create_window_request->SetWindow(*this);
-  create_window_request->SetTitle(title);
-  create_window_request->SetFillColor(0xFFFFFFFF);
-  create_window_request->SetKeyboardListener(*this);
-  create_window_request->SetMouseListener(*this);
-  if (dialog) {
-    create_window_request->SetIsDialog(true);
-    create_window_request->SetDesiredDialogWidth(dialog_width);
-    create_window_request->SetDesiredDialogHeight(dialog_height);
+  auto maximum_window_size = WindowManager::Get().CallGetMaximumWindowSize(
+    WindowManager::GetMaximumWindowSizeRequest());
+  if (maximum_window_size.Ok()) {
+    buffer_width_ = maximum_window_size->GetWidth();
+    buffer_height_ = maximum_window_size->GetHeight();
   }
-
-  auto status_or_result =
-      WindowManager::Get().CallCreateWindow(std::move(create_window_request));
-  if (status_or_result) {
-    buffer_width_ = status_or_result->GetWidth();
-    buffer_height_ = status_or_result->GetHeight();
-  } else {
-    buffer_width_ = 0;
-    buffer_height_ = 0;
-  }
+  SetWidthAuto();
+  SetHeightAuto();
 }
 
 UiWindow::~UiWindow() {
@@ -214,7 +198,10 @@ void UiWindow::HandleLostFocus(ProcessId,
 }
 
 void UiWindow::Draw() {
-  if (!invalidated_) return;
+  if (!invalidated_ || !created_) {
+    invalidated_ = false;
+    return;
+  }
 
   if (rebuild_texture_) {
     // The window size has changed.
@@ -278,10 +265,7 @@ void UiWindow::Draw() {
                   draw_context.buffer_height);
   }
 
-  if (YGNodeIsDirty(yoga_node_)) {
-    YGNodeCalculateLayout(yoga_node_, (float)buffer_width_,
-                          (float)buffer_height_, YGDirectionLTR);
-  }
+  MaybeUpdateLayout();
 
   Widget::Draw(draw_context);
 
@@ -301,6 +285,8 @@ void UiWindow::Draw() {
   invalidated_ = false;
 }
 
+void Create() {}
+
 void UiWindow::InvalidateRender() {
   if (invalidated_) {
     return;
@@ -309,6 +295,13 @@ void UiWindow::InvalidateRender() {
   Defer([this]() { Draw(); });
 
   invalidated_ = true;
+}
+
+void UiWindow::MaybeUpdateLayout() {
+  if (YGNodeIsDirty(yoga_node_)) {
+    YGNodeCalculateLayout(yoga_node_, (float)buffer_width_,
+                          (float)buffer_height_, YGDirectionLTR);
+  }
 }
 
 void UiWindow::SwitchToMouseOverWidget(std::shared_ptr<Widget> widget) {
@@ -346,6 +339,48 @@ void UiWindow::ReleaseTextures() {
     frontbuffer_texture_id_ = 0;
     frontbuffer_shared_memory_ = SharedMemory();
   }
+}
+
+UiWindow* UiWindow::Create() {
+  if (created_) return this;
+
+  std::cout << "Create!" << std::endl;
+  MaybeUpdateLayout();
+  std::cout << "Creating" << std::endl;
+  int calculated_width = GetCalculatedWidth();
+  int calculated_height = GetCalculatedHeight();
+
+  std::cout << "calculated_width: " << calculated_width << std::endl;
+  std::cout << "calculated_height: " << calculated_height << std::endl;
+
+  Permebuf<WindowManager::CreateWindowRequest> create_window_request;
+  // std::cout << title_ << "'s message id is: " <<
+  //((Window::Server*)this)->GetProcessId() << ":" <<
+  //((Window::Server*)this)->GetMessageId() << std::endl;
+  create_window_request->SetWindow(*this);
+  create_window_request->SetTitle(title_);
+  create_window_request->SetFillColor(0xFFFFFFFF);
+  create_window_request->SetKeyboardListener(*this);
+  create_window_request->SetMouseListener(*this);
+  if (is_dialog_) {
+    create_window_request->SetIsDialog(true);
+    create_window_request->SetDesiredDialogWidth(calculated_width);
+    create_window_request->SetDesiredDialogHeight(calculated_height);
+  }
+
+  auto status_or_result =
+      WindowManager::Get().CallCreateWindow(std::move(create_window_request));
+  if (status_or_result) {
+    buffer_width_ = status_or_result->GetWidth();
+    buffer_height_ = status_or_result->GetHeight();
+  } else {
+    buffer_width_ = 0;
+    buffer_height_ = 0;
+  }
+
+  InvalidateRender();
+  created_ = true;
+  return this;
 }
 
 }  // namespace ui
