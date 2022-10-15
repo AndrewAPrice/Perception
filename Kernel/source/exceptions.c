@@ -19,14 +19,14 @@
 #include "physical_allocator.h"
 #include "process.h"
 #include "registers.h"
-#include "shared_memory.h"
 #include "scheduler.h"
+#include "shared_memory.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "virtual_allocator.h"
 
 // The maximum number of levels to print up the call stack for a stack trace.
-#define STACK_TRACE_DEPTH 20
+#define STACK_TRACE_DEPTH 100
 
 // Exception number for page faults.
 #define PAGE_FAULT 14
@@ -194,25 +194,24 @@ void PrintRegistersAndStackTrace() {
 }
 
 // The exception handler.
-void ExceptionHandler(int interrupt_no, size_t cr2) {
-  if (interrupt_no == PAGE_FAULT && running_thread != NULL ) {
-    if (MaybeHandleSharedMessagePageFault(cr2)) {
+void ExceptionHandler(int exception_no, size_t cr2, size_t error_code) {
+  if (exception_no == PAGE_FAULT && running_thread != NULL) {
+    if (MaybeHandleSharedMessagePageFault(cr2))
       JumpIntoThread();  // Doesn't return.
-    }
   }
 
   // Output the exception that occured.
-  if (interrupt_no < 32) {
+  if (exception_no < 32) {
     PrintString("\nException occured: ");
-    PrintString(exception_messages[interrupt_no]);
+    PrintString(exception_messages[exception_no]);
     PrintString(" (");
-    PrintNumber(interrupt_no);
+    PrintNumber(exception_no);
     PrintChar(')');
   } else {
     // This should never trigger, because we haven't registered ourselves
     // for interrupts >= 32.
     PrintString("\nUnknown exception: ");
-    PrintNumber(interrupt_no);
+    PrintNumber(exception_no);
   }
 
   // The below code doesn't take into account if kernel code caused an
@@ -225,12 +224,15 @@ void ExceptionHandler(int interrupt_no, size_t cr2) {
     PrintString(process->name);
     PrintString(") in TID ");
     PrintNumber(running_thread->id);
-    if (interrupt_no == 14) {
+    if (exception_no == PAGE_FAULT) {
       PrintString(" for trying to access ");
       PrintHex(cr2);
     }
+    PrintString(" with error code: ");
+    PrintHex(error_code);
     PrintChar('\n');
     PrintRegistersAndStackTrace();
+
     // Terminate the process.
     DestroyProcess(process);
     JumpIntoThread();  // Doesn't return.

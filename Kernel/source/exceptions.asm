@@ -272,12 +272,15 @@ exception_common_stub:
     ; Copy what's at the top of the thread's stack.
     push rbp
     push rdi ; Using to keep the interrupt number.
+    push rdx ; Using to keep the error code.
 
     ; Move these values out of the interrupt handler
     mov rbp, [currently_executing_thread_regs]
+    pop qword [rbp + 9 * 8] ; rdx
     pop qword [rbp + 13 * 8] ; rdi
     pop qword [rbp + 14 * 8] ; rbp
-    pop rdi ; interrupt number
+    pop rdi ; exception number
+    pop rdx ; error code
     pop qword [rbp + 15 * 8] ; rip
     pop qword [rbp + 16 * 8] ; cs
     pop qword [rbp + 17 * 8] ; eflags
@@ -292,7 +295,7 @@ exception_common_stub:
     push rax
     push rbx
     push rcx
-    push rdx
+    sub rsp, 8 ; rdx already pushed.
     push rsi
     push r8
     push r9
