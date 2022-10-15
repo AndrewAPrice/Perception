@@ -30,6 +30,9 @@ size_t last_assigned_shared_memory_id;
 // Linked list of all shared memory blocks.
 struct SharedMemory* first_shared_memory;
 
+void MapSharedMemoryPageInEachProcess(struct SharedMemory* shared_memory,
+                                      size_t page);
+
 // Initializes the internal structures for shared memory.
 void InitializeSharedMemory() {
   last_assigned_shared_memory_id = 0;
@@ -226,9 +229,8 @@ void MovePageIntoSharedMemory(struct Process* process, size_t shared_memory_id,
   size_t physical_address =
       GetPhysicalAddress(process->pml4, page_address, true);
   if (physical_address == OUT_OF_MEMORY)
-    return false;  // This page doesn't exist or we don't own it. We can't move
-                   // it.
-
+    return;  // This page doesn't exist or we don't own it. We can't move
+             // it.
   ReleaseVirtualMemoryInAddressSpace(process->pml4, page_address, 1, false);
 
   // If we fail at any point we need to return the physical address.
@@ -247,7 +249,7 @@ void MovePageIntoSharedMemory(struct Process* process, size_t shared_memory_id,
   }
 
   // Work out where we are moving this page in the shared memory.
-  size_t page = page_address / PAGE_SIZE;
+  size_t page = offset_in_buffer / PAGE_SIZE;
   if (page >= shared_memory->size_in_pages) {
     // Beyond the end of the shared memory.
     FreePhysicalPage(physical_address);
@@ -361,8 +363,27 @@ void MapPhysicalPageInSharedMemory(struct SharedMemory* shared_memory,
   if (old_page == physical_address)
     return;  // Page is already mapped. Nothing to do.
 
-  if (old_page != OUT_OF_PHYSICAL_PAGES)
+  if (old_page != OUT_OF_PHYSICAL_PAGES) {
     FreePhysicalPage(old_page);  // Unallocate the existing physical page.
+
+    // Unmap it in each process so we don't get an error trying to overwrite an
+    // existing page table entry.
+    size_t offset_of_page_in_bytes = page * PAGE_SIZE;
+    for (struct SharedMemoryInProcess* shared_memory_in_process =
+             shared_memory->first_process;
+         shared_memory_in_process != NULL;
+         shared_memory_in_process =
+             shared_memory_in_process->next_in_shared_memory) {
+      struct Process* process = shared_memory_in_process->process;
+      size_t virtual_address =
+          shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
+      ReleaseVirtualMemoryInAddressSpace(
+          process->pml4, virtual_address, 1,
+          // Although this process doesn't own the memory, if by some bug they
+          // do, free it.
+          true);
+    }
+  }
 
   shared_memory->physical_pages[page] = physical_address;
 
@@ -382,7 +403,8 @@ bool HandleSharedMessagePageFault(struct Process* process,
     // Either the creator no longer exists, or we are the creator. We'll create
     // the page.
     size_t physical_address = GetPhysicalPage();
-    if (physical_address == OUT_OF_PHYSICAL_PAGES) return false;  // Out of memory.
+    if (physical_address == OUT_OF_PHYSICAL_PAGES)
+      return false;  // Out of memory.
 
     MapPhysicalPageInSharedMemory(shared_memory, page, physical_address);
 
@@ -401,7 +423,7 @@ bool MaybeHandleSharedMessagePageFault(size_t address) {
   }
 
   // Round address down to the page it's in.
-  address &= (PAGE_SIZE - 1);
+  address &= ~(PAGE_SIZE - 1);
 
   struct Process* process = running_thread->process;
 
