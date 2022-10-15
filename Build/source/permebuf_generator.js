@@ -72,10 +72,10 @@ function convertArrayOrListToCppTypeSuffix(typeInformation) {
   let typePrefix = '';
   switch (typeInformation.type) {
     case FieldType.ARRAY:
-      typename = 'ArrayOf';
+      typePrefix = 'ArrayOf';
       break;
     case FieldType.LIST:
-      typeName = 'ListOf';
+      typePrefix = 'ListOf';
       break;
     default:
       return false;
@@ -83,28 +83,30 @@ function convertArrayOrListToCppTypeSuffix(typeInformation) {
 
   switch (typeInformation.subtype.type) {
     case FieldType.BOOLEAN:
-      return typeName + 'Booleans';
+      return typePrefix + 'Booleans';
     case FieldType.ARRAY:
-      return typeName + '<::Permebuf' +
+      return typePrefix + '<::Permebuf' +
           convertArrayOrListToCppTypeSuffix(typeInformation.subtype) + '>';
     case FieldType.LIST:
-      return typeName + '<::Permebuf' +
+      return typePrefix + '<::Permebuf' +
           convertArrayOrListToCppTypeSuffix(typeInformation.subtype) + '>';
     case FieldType.ENUM:
-      return typeName + 'Enums<' + typeInformation.subtype.cppClassName + '>';
+      return typePrefix + 'Enums<' + typeInformation.subtype.cppClassName + '>';
     case FieldType.MESSAGE:
-      return typeName + '<' + typeInformation.subtype.cppClassName + '>';
+      return typePrefix + '<' + typeInformation.subtype.cppClassName + '>';
     case FieldType.ONEOF:
-      return typeName + 'OneOfs<' + typeInformation.subtype.cppClassName + '>';
-    case FieldType.STRING:
-      return typeName + 'Strings';
-    case FieldType.BYTES:
-      return typeName + 'Bytes';
-    case FieldType.NUMBER:
-      return typeName + 'Numbers<' + typeInformation.subtype.cppClassName + '>';
-    case FieldType.SHARED_MEMORY:
-      return typeName + 'SharedMemory<' + typeInformation.subtype.cppClassName +
+      return typePrefix + 'OneOfs<' + typeInformation.subtype.cppClassName +
           '>';
+    case FieldType.STRING:
+      return typePrefix + 'Strings';
+    case FieldType.BYTES:
+      return typePrefix + 'Bytes';
+    case FieldType.NUMBER:
+      return typePrefix + 'Numbers<' + typeInformation.subtype.cppClassName +
+          '>';
+    case FieldType.SHARED_MEMORY:
+      return typePrefix + 'SharedMemory<' +
+          typeInformation.subtype.cppClassName + '>';
     default:
       return false;
   }
@@ -439,16 +441,15 @@ function generateCppSources(
   function generateMessage(thisMessage) {
     headerCpp += `
 class ${thisMessage.cppClassName} {
-	public:
-		${thisMessage.cppClassName}() {}
-		${
-        thisMessage.cppClassName}(::PermebufBase* buffer, size_t offset);
-		${thisMessage.cppClassName}(const ${
+  public:
+    ${thisMessage.cppClassName}() {}
+    ${thisMessage.cppClassName}(::PermebufBase* buffer, size_t offset);
+    ${thisMessage.cppClassName}(const ${
         thisMessage.cppClassName}& other) = default;
-		size_t Address() const {
-			return offset_ - PermebufBase::GetBytesNeededForVariableLengthNumber(size_);
-		}
-		static size_t GetSizeInBytes(::PermebufBase* buffer);
+    size_t Address() const {
+      return offset_ - PermebufBase::GetBytesNeededForVariableLengthNumber(size_);
+    }
+    static size_t GetSizeInBytes(::PermebufBase* buffer);
 `;
 
     let sizeInPointers = 0;
@@ -591,9 +592,12 @@ class ${thisMessage.cppClassName} {
             const fullCppType = '::Permebuf' + cppType;
             headerCpp += '\t\tconst ' + fullCppType + ' Get' + field.name +
                 '() const;\n' +
-                '\t\tvoid Set' + field.name + '(' + fullCppType + ' value);\n' +
-                '\t\t' + fullCppType + ' Mutable' + field.name + '();\n' +
-                '\t\tbool Has' + field.name + '() const;\n' +
+                '\t\tvoid Set' + field.name + '(' + fullCppType + ' value);\n';
+            if (typeInformation.type == FieldType.LIST) {
+              headerCpp +=
+                  '\t\t' + fullCppType + ' Mutable' + field.name + '();\n';
+            }
+            headerCpp += '\t\tbool Has' + field.name + '() const;\n' +
                 '\t\tvoid Clear' + field.name + '();\n';
 
             sourceCpp += '\nconst ' + fullCppType + ' ' +
@@ -623,28 +627,31 @@ class ${thisMessage.cppClassName} {
                 '\t\treturn;\n' +
                 '\t}\n' +
                 '\tbuffer_->WritePointer(offset_ + address_offset, value.Address());\n' +
-                '}\n' +
-                '\n' + fullCppType + ' ' + thisMessage.cppClassName +
-                '::Mutable' + field.name + '() {\n' +
-                '\tsize_t address_offset = ';
-            if (sizeInPointers > 0) {
-              sourceCpp += '(' + sizeInPointers +
-                  ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
+                '}\n';
+            if (typeInformation.type == FieldType.LIST) {
+              sourceCpp += '\n' + fullCppType + ' ' + thisMessage.cppClassName +
+                  '::Mutable' + field.name + '() {\n' +
+                  '\tsize_t address_offset = ';
+              if (sizeInPointers > 0) {
+                sourceCpp += '(' + sizeInPointers +
+                    ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
+              }
+              sourceCpp += sizeInBytes + ';\n' +
+                  '\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
+                  '\t\treturn ' + fullCppType + '(buffer_, 0);\n' +
+                  '\t}\n' +
+                  '\tsize_t message_address = buffer_->ReadPointer(offset_ + address_offset);\n' +
+                  '\tif (message_address > 0) {\n' +
+                  '\t\treturn ' + fullCppType +
+                  '(buffer_, message_address);\n' +
+                  '\t}\n' +
+                  '\tauto object = buffer_->Allocate' + cppType + '();\n' +
+                  '\tbuffer_->WritePointer(offset_ + address_offset, object.Address());\n' +
+                  '\treturn object;\n' +
+                  '}\n';
             }
-            sourceCpp += sizeInBytes + ';\n' +
-                '\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
-                '\t\treturn ' + fullCppType + '(buffer_, 0);\n' +
-                '\t}\n' +
-                '\tsize_t message_address = buffer_->ReadPointer(offset_ + address_offset);\n' +
-                '\tif (message_address > 0) {\n' +
-                '\t\treturn ' + fullCppType + '(buffer_, message_address);\n' +
-                '\t}\n' +
-                '\tauto object = buffer_->Allocate' + cppType + '();\n' +
-                '\tbuffer_->WritePointer(offset_ + address_offset, object.Address());\n' +
-                '\treturn object;\n' +
-                '}\n' +
-                '\nbool ' + thisMessage.cppClassName + '::Has' + field.name +
-                '() const {\n' +
+            sourceCpp += '\nbool ' + thisMessage.cppClassName + '::Has' +
+                field.name + '() const {\n' +
                 '\tsize_t address_offset = ';
             if (sizeInPointers > 0) {
               sourceCpp += '(' + sizeInPointers +
@@ -1245,55 +1252,55 @@ class ${thisMessage.cppClassName} {
             break;
           case FieldType.SHARED_MEMORY:
             headerCpp += `
-		bool Has${field.name}() const;
-		::perception::SharedMemory Get${field.name}() const;
-		void Set${field.name}(const ::perception::SharedMemory& value);
-		void Clear${field.name}();
+    bool Has${field.name}() const;
+    ::perception::SharedMemory Get${field.name}() const;
+    void Set${field.name}(const ::perception::SharedMemory& value);
+    void Clear${field.name}();
 `;
             sourceCpp += `
 bool ${thisMessage.cppClassName}::Has${field.name}() const {
-	size_t address_offset = `;
+  size_t address_offset = `;
             if (sizeInPointers > 0) {
               sourceCpp += `('${
                   sizeInPointers} << static_cast<size_t>(buffer_->GetAddressSize())) + `;
             }
             sourceCpp += `${sizeInBytes};
-	if (address_offset + ${typeInformation.sizeInBytes} > size_) {
-		return false;
-	}
-	return buffer_->Read8Bytes(offset_ + address_offset) != 0;
+  if (address_offset + ${typeInformation.sizeInBytes} > size_) {
+    return false;
+  }
+  return buffer_->Read8Bytes(offset_ + address_offset) != 0;
 }
 
 ::perception::SharedMemory ${thisMessage.cppClassName}::Get${
                 field.name}() const {
-	size_t address_offset = `;
+  size_t address_offset = `;
             if (sizeInPointers > 0) {
               sourceCpp += `('${
                   sizeInPointers} << static_cast<size_t>(buffer_->GetAddressSize())) + `;
             }
             sourceCpp += `${sizeInBytes};
-	if (address_offset + ${typeInformation.sizeInBytes} > size_) {
-		return ::perception::SharedMemory(0);
-	}
-	return ::perception::SharedMemory(buffer_->Read8Bytes(offset_ + address_offset));
+  if (address_offset + ${typeInformation.sizeInBytes} > size_) {
+    return ::perception::SharedMemory(0);
+  }
+  return ::perception::SharedMemory(buffer_->Read8Bytes(offset_ + address_offset));
 }
 
 void ${thisMessage.cppClassName}::Set${
                 field.name}(const ::perception::SharedMemory& value) {
-	size_t address_offset = `;
+  size_t address_offset = `;
             if (sizeInPointers > 0) {
               sourceCpp += `('${
                   sizeInPointers} << static_cast<size_t>(buffer_->GetAddressSize())) + `;
             }
             sourceCpp += `${sizeInBytes};
-	if (address_offset + ${typeInformation.sizeInBytes} > size_) {
-		return;
-	}
-	buffer_->Write8Bytes(offset_ + address_offset, value.GetId());
+  if (address_offset + ${typeInformation.sizeInBytes} > size_) {
+    return;
+  }
+  buffer_->Write8Bytes(offset_ + address_offset, value.GetId());
 }
 
 void ${thisMessage.cppClassName}::Clear${field.name}() {
-	Set${field.name}(::perception::SharedMemory(0));
+  Set${field.name}(::perception::SharedMemory(0));
 }
 `;
             break;
@@ -1316,36 +1323,36 @@ void ${thisMessage.cppClassName}::Clear${field.name}() {
     }
 
     headerCpp += `
-		private:
-			::PermebufBase* buffer_;
-			size_t offset_;
-			size_t size_;
-	};`;
+    private:
+      ::PermebufBase* buffer_;
+      size_t offset_;
+      size_t size_;
+  };`;
 
     sourceCpp += `
 ${thisMessage.cppClassName}::${thisMessage.cppClassName}(
-	PermebufBase* buffer, size_t offset) : buffer_(buffer) {
-	if (offset == 0) {
-		offset_ = 0;
-		buffer_ = 0;
-	} else {
-		size_t bytes;
-		size_ = buffer_->ReadVariableLengthNumber(offset, bytes);
-		offset_ = offset + bytes;
-	}
+  PermebufBase* buffer, size_t offset) : buffer_(buffer) {
+  if (offset == 0) {
+    offset_ = 0;
+    buffer_ = 0;
+  } else {
+    size_t bytes;
+    size_ = buffer_->ReadVariableLengthNumber(offset, bytes);
+    offset_ = offset + bytes;
+  }
 }
 
 size_t ${thisMessage.cppClassName}::GetSizeInBytes(::PermebufBase* buffer) {`;
     if (sizeInPointers > 0) {
       sourceCpp += `
-	return (${
+  return (${
           sizeInPointers} << static_cast<size_t>(buffer->GetAddressSize())) + ${
           sizeInBytes};
 }
 `;
     } else {
       sourceCpp += `
-	return ${sizeInBytes};
+  return ${sizeInBytes};
 }
 `;
     }
@@ -1356,9 +1363,9 @@ size_t ${thisMessage.cppClassName}::GetSizeInBytes(::PermebufBase* buffer) {`;
   function generateMiniMessage(thisMessage) {
     headerCpp += `
 class ${thisMessage.cppClassName} : public PermebufMiniMessage {
-	public:
-		${thisMessage.cppClassName}() {}
-		${thisMessage.cppClassName}(const ${
+  public:
+    ${thisMessage.cppClassName}() {}
+    ${thisMessage.cppClassName}(const ${
         thisMessage.cppClassName}& other) = default;
 `;
 
@@ -1608,28 +1615,28 @@ class ${thisMessage.cppClassName} : public PermebufMiniMessage {
             break;
           case FieldType.SHARED_MEMORY:
             headerCpp += `
-		bool Has${field.name}() const;
-		::perception::SharedMemory Get${field.name}() const;
-		void Set${field.name}(const ::perception::SharedMemory& value);
-		void Clear${field.name}();
+    bool Has${field.name}() const;
+    ::perception::SharedMemory Get${field.name}() const;
+    void Set${field.name}(const ::perception::SharedMemory& value);
+    void Clear${field.name}();
 `;
             sourceCpp += `
 bool ${thisMessage.cppClassName}::Has${field.name}() const {
-	return *(size_t*)(&bytes[${sizeInBytes}]) != 0;
+  return *(size_t*)(&bytes[${sizeInBytes}]) != 0;
 }
 
 ::perception::SharedMemory ${thisMessage.cppClassName}::Get${
                 field.name}() const {
-	return ::perception::SharedMemory(*(size_t*)(&bytes[${sizeInBytes}]));
+  return ::perception::SharedMemory(*(size_t*)(&bytes[${sizeInBytes}]));
 }
 
 void ${thisMessage.cppClassName}::Set${
                 field.name}(const ::perception::SharedMemory& value) {
-	*(size_t*)(&bytes[${sizeInBytes}]) = value.GetId();
+  *(size_t*)(&bytes[${sizeInBytes}]) = value.GetId();
 }
 
 void ${thisMessage.cppClassName}::Clear${field.name}() {
-	Set${field.name}(::perception::SharedMemory(0));
+  Set${field.name}(::perception::SharedMemory(0));
 }
 `;
             break;
@@ -1668,19 +1675,17 @@ void ${thisMessage.cppClassName}::Clear${field.name}() {
   function generateOneOf(thisOneOf) {
     let enumHeaderCpp = `
 enum class ${thisOneOf.cppClassName}_Options : unsigned short {
-	Unknown = 0`;
+  Unknown = 0`;
 
     headerCpp += `
 class ${thisOneOf.cppClassName} {
-	public:
-		typedef ${thisOneOf.cppClassName}_Options Options;
-		${thisOneOf.cppClassName}() {}
-		${
-        thisOneOf.cppClassName}(::PermebufBase* buffer, size_t offset);
-		${thisOneOf.cppClassName}(const ${
-        thisOneOf.cppClassName}& other) = default;
-		static size_t GetSizeInBytes(::PermebufBase* Buffer);
-		size_t Address() const { return offset_; }
+  public:
+    typedef ${thisOneOf.cppClassName}_Options Options;
+    ${thisOneOf.cppClassName}() {}
+    ${thisOneOf.cppClassName}(::PermebufBase* buffer, size_t offset);
+    ${thisOneOf.cppClassName}(const ${thisOneOf.cppClassName}& other) = default;
+    static size_t GetSizeInBytes(::PermebufBase* Buffer);
+    size_t Address() const { return offset_; }
 `;
 
     // Make sure there are no duplicate field names or numbers.
@@ -1722,7 +1727,7 @@ class ${thisOneOf.cppClassName} {
       }
 
       enumHeaderCpp += `,
-	${field.name} = ${field.number}`;
+  ${field.name} = ${field.number}`;
 
 
       switch (typeInformation.type) {
@@ -1738,112 +1743,108 @@ class ${thisOneOf.cppClassName} {
           }
           const fullCppType = '::Permebuf' + cppType;
           headerCpp += `
-	const ${fullCppType} Get${field.name}() const;
-	void Set${field.name}(${fullCppType} value);
-	${fullCppType} Mutable${field.name}();
-	bool Has${field.name}() const;`;
+  const ${fullCppType} Get${field.name}() const;
+  void Set${field.name}(${fullCppType} value);
+  ${fullCppType} Mutable${field.name}();
+  bool Has${field.name}() const;`;
 
           sourceCpp += `
 const ${fullCppType} ${thisOneOf.cppClassName}::Get${field.name}() const {
-	if (GetOption() != ${thisOneOf.cppClassName}::Options::${field.name})
-		return ${fullCppType}(buffer_, 0);
-	return ${fullCppType}(buffer_, ReadOffset());
+  if (GetOption() != ${thisOneOf.cppClassName}::Options::${field.name})
+    return ${fullCppType}(buffer_, 0);
+  return ${fullCppType}(buffer_, ReadOffset());
 }
 
 void ${thisOneOf.cppClassName}::Set${field.name}(${fullCppType} value) {
-	SetOption(${thisOneOf.cppClassName}::Options::${
-              field.name}, value.Address());
+  SetOption(${thisOneOf.cppClassName}::Options::${field.name}, value.Address());
 }
 
 ${fullCppType} ${thisOneOf.cppClassName}::Mutable${field.name}() {
-	if (buffer_ == 0 || offset_ == 0)
-		return ${fullCppType}(buffer_, 0);
+  if (buffer_ == 0 || offset_ == 0)
+    return ${fullCppType}(buffer_, 0);
 
-	if (GetOption() == ${thisOneOf.cppClassName}::Options::${field.name})
-		return ${fullCppType}(buffer_, ReadOffset());
+  if (GetOption() == ${thisOneOf.cppClassName}::Options::${field.name})
+    return ${fullCppType}(buffer_, ReadOffset());
 
-	auto object = buffer_->Allocate${cppType}();
-	SetOption(${thisOneOf.cppClassName}::Options::${
+  auto object = buffer_->Allocate${cppType}();
+  SetOption(${thisOneOf.cppClassName}::Options::${
               field.name}, object.Address());
-	return object;
+  return object;
 }
 
 bool ${thisOneOf.cppClassName}::Has${field.name}() const {
-	return GetOption() == ${thisOneOf.cppClassName}::Options::${field.name};
+  return GetOption() == ${thisOneOf.cppClassName}::Options::${field.name};
 }
 `;
         case FieldType.MESSAGE:
           headerCpp += `
-		const ${typeInformation.cppClassName} Get${field.name}() const;
-		void Set${field.name}(${typeInformation.cppClassName} value);
-		${typeInformation.cppClassName} Mutable${field.name}();
-		bool Has${field.name}() const;
+    const ${typeInformation.cppClassName} Get${field.name}() const;
+    void Set${field.name}(${typeInformation.cppClassName} value);
+    ${typeInformation.cppClassName} Mutable${field.name}();
+    bool Has${field.name}() const;
 `;
 
           sourceCpp += `
 const ${typeInformation.cppClassName} ${thisOneOf.cppClassName}::Get${
               field.name}() const {
-	if (GetOption() != ${thisOneOf.cppClassName}::Options::${field.name})
-		return ${typeInformation.cppClassName}(buffer_, 0);
-	return ${typeInformation.cppClassName}(buffer_, ReadOffset());
+  if (GetOption() != ${thisOneOf.cppClassName}::Options::${field.name})
+    return ${typeInformation.cppClassName}(buffer_, 0);
+  return ${typeInformation.cppClassName}(buffer_, ReadOffset());
 }
 
 void ${thisOneOf.cppClassName}::Set${field.name}(${
               typeInformation.cppClassName} value) {
-	SetOption(${thisOneOf.cppClassName}::Options::${
-              field.name}, value.Address());
+  SetOption(${thisOneOf.cppClassName}::Options::${field.name}, value.Address());
 }
 
 ${typeInformation.cppClassName} ${thisOneOf.cppClassName}::Mutable${
               field.name}() {
-	if (buffer_ == 0 || offset_ == 0)
-		return ${typeInformation.cppClassName}(buffer_, 0);
+  if (buffer_ == 0 || offset_ == 0)
+    return ${typeInformation.cppClassName}(buffer_, 0);
 
-	if (GetOption() == ${thisOneOf.cppClassName}::Options::${field.name})
-		return ${typeInformation.cppClassName}(buffer_, ReadOffset());
+  if (GetOption() == ${thisOneOf.cppClassName}::Options::${field.name})
+    return ${typeInformation.cppClassName}(buffer_, ReadOffset());
 
-	auto object = buffer_->AllocateMessage<${
-              typeInformation.cppClassName}>();
-	SetOption(${thisOneOf.cppClassName}::Options::${
+  auto object = buffer_->AllocateMessage<${typeInformation.cppClassName}>();
+  SetOption(${thisOneOf.cppClassName}::Options::${
               field.name}, object.Address());
-	return object;
+  return object;
 }
 
 bool ${thisOneOf.cppClassName}::Has${field.name}() const {
-	return GetOption() == ${thisOneOf.cppClassName}::Options::${field.name};
+  return GetOption() == ${thisOneOf.cppClassName}::Options::${field.name};
 }
 `;
           break;
         case FieldType.STRING:
           headerCpp += `
-		::PermebufString Get${field.name}() const;
-		void Set${field.name}(::PermebufString& value);
-		void Set${field.name}(std::string_view value);
-		bool Has${field.name}() const;
-		void Clear${field.name}();
+    ::PermebufString Get${field.name}() const;
+    void Set${field.name}(::PermebufString& value);
+    void Set${field.name}(std::string_view value);
+    bool Has${field.name}() const;
+    void Clear${field.name}();
 `;
 
           sourceCpp += `
 PermebufString ${thisOneOf.cppClassName}::Get${field.name}() const {
-	if (GetOption() != ${thisOneOf.cppClassName}::Options::${field.name})
-		return PermebufString(buffer_, 0);
-	return PermebufString(buffer_, GetOffset());
+  if (GetOption() != ${thisOneOf.cppClassName}::Options::${field.name})
+    return PermebufString(buffer_, 0);
+  return PermebufString(buffer_, GetOffset());
 }
 
 void ${thisOneOf.cppClassName}::Set${field.name}(PermebufString value) {
-	SetOption(${thisOneOf.cppClassName}::Options::${
-              field.name}, value.Address());
+  SetOption(${thisOneOf.cppClassName}::Options::${field.name}, value.Address());
 }
 
 void ${thisOneOf.cppClassName}::Set${field.name}(std::string_view value) {
-	if (buffer_ == 0 || offset_ == 0)
-		return;
-	SetOption(${thisOneOf.cppClassName}::Options::${field.name},
-		buffer_->AllocateString(value).Address());
+  if (buffer_ == 0 || offset_ == 0)
+    return;
+  SetOption(${thisOneOf.cppClassName}::Options::${field.name},
+    buffer_->AllocateString(value).Address());
 }
 
 bool ${thisOneOf.cppClassName}::Has${field.name}() const {
-	return GetOption() == ${thisOneOf.cppClassName}::Options::${field.name};
+  return GetOption() == ${thisOneOf.cppClassName}::Options::${field.name};
 }
 `;
         case FieldType.BYTES:
@@ -1856,34 +1857,33 @@ bool ${thisOneOf.cppClassName}::Has${field.name}() const {
           }
 
           headerCpp += `
-		::PermebufBytes Get${field.name}() const;
-		void Set${field.name}(::PermebufBytes& value);
-		void Set${field.name}(const void* ptr, size_t size);
-		bool Has${field.name}() const;
-		void Clear${field.name}();
+    ::PermebufBytes Get${field.name}() const;
+    void Set${field.name}(::PermebufBytes& value);
+    void Set${field.name}(const void* ptr, size_t size);
+    bool Has${field.name}() const;
+    void Clear${field.name}();
 `;
 
           sourceCpp += `
 PermebufBytes ${thisOneOf.cppClassName}::Get${field.name}() const {
-	if (GetOption() != ${thisOneOf.cppClassName}::Options::${field.name})
-		return PermebufBytes(buffer_, 0);
-	return PermebufBytes(buffer_, GetOffset());
+  if (GetOption() != ${thisOneOf.cppClassName}::Options::${field.name})
+    return PermebufBytes(buffer_, 0);
+  return PermebufBytes(buffer_, GetOffset());
 }
 
 void ${thisOneOf.cppClassName}::Set${field.name}(PermebufBytes value) {
-	SetOption(${thisOneOf.cppClassName}::Options::${
-              field.name}, value.Address());
+  SetOption(${thisOneOf.cppClassName}::Options::${field.name}, value.Address());
 }
 
 void ${thisOneOf.cppClassName}::Set${field.name}(const void* ptr, size_t size) {
-	if (buffer_ == 0 || offset_ == 0)
-		return;
-	SetOption(${thisOneOf.cppClassName}::Options::${field.name},
-		buffer_->AllocateBytes(ptr, size).Address());
+  if (buffer_ == 0 || offset_ == 0)
+    return;
+  SetOption(${thisOneOf.cppClassName}::Options::${field.name},
+    buffer_->AllocateBytes(ptr, size).Address());
 }
 
 bool ${thisOneOf.cppClassName}::Has${field.name}() const {
-	return GetOption() == ${thisOneOf.cppClassName}::Options::${field.name};
+  return GetOption() == ${thisOneOf.cppClassName}::Options::${field.name};
 }
 `;
           break;
@@ -1910,15 +1910,15 @@ bool ${thisOneOf.cppClassName}::Has${field.name}() const {
     }
 
     headerCpp += `
-		bool IsValid() const;
-		Options GetOption() const;
-		void Clear();
+    bool IsValid() const;
+    Options GetOption() const;
+    void Clear();
 
-	private:
-		void SetOption(Options, size_t offset);
-		size_t ReadOffset() const;
-		::PermebufBase* buffer_;
-		size_t offset_;
+  private:
+    void SetOption(Options, size_t offset);
+    size_t ReadOffset() const;
+    ::PermebufBase* buffer_;
+    size_t offset_;
 };
 
 ${enumHeaderCpp}
@@ -1928,43 +1928,43 @@ ${enumHeaderCpp}
 
 ${thisOneOf.cppClassName}::${
         thisOneOf.cppClassName}(::PermebufBase* buffer, size_t offset) :
-	buffer_(buffer), offset_(offset) {}
+  buffer_(buffer), offset_(offset) {}
 
 size_t ${thisOneOf.cppClassName}::GetSizeInBytes(::PermebufBase* buffer) {
-	return 2 + buffer->GetAddressSizeInBytes();
+  return 2 + buffer->GetAddressSizeInBytes();
 }
 
 bool ${thisOneOf.cppClassName}::IsValid() const {
-	return ReadOffset() != 0;
+  return ReadOffset() != 0;
 }
 
 ${thisOneOf.cppClassName}::Options ${
         thisOneOf.cppClassName}::GetOption() const {
-	if (buffer_ == 0 || offset_ == 0)
-		return ${thisOneOf.cppClassName}::Options::Unknown;
+  if (buffer_ == 0 || offset_ == 0)
+    return ${thisOneOf.cppClassName}::Options::Unknown;
 
-	return static_cast<${thisOneOf.cppClassName}::Options>(
-		buffer_->Read2Bytes(offset_));
+  return static_cast<${thisOneOf.cppClassName}::Options>(
+    buffer_->Read2Bytes(offset_));
 }
 
 void ${thisOneOf.cppClassName}::Clear() {
-	SetOption(${thisOneOf.cppClassName}::Options::Unknown, 0);
+  SetOption(${thisOneOf.cppClassName}::Options::Unknown, 0);
 }
 
 void ${thisOneOf.cppClassName}::SetOption(
-	${thisOneOf.cppClassName}::Options option,
-	size_t offset) {
-	if (buffer_ == 0 || offset_ == 0)
-		return;
-	buffer_->Write2Bytes(offset_, static_cast<uint16>(option));
-	buffer_->WritePointer(offset_ + 2, offset);
+  ${thisOneOf.cppClassName}::Options option,
+  size_t offset) {
+  if (buffer_ == 0 || offset_ == 0)
+    return;
+  buffer_->Write2Bytes(offset_, static_cast<uint16>(option));
+  buffer_->WritePointer(offset_ + 2, offset);
 }
 
 size_t ${thisOneOf.cppClassName}::ReadOffset() const {
-	if (buffer_ == 0 || offset_ == 0)
-		return 0;
+  if (buffer_ == 0 || offset_ == 0)
+    return 0;
 
-	return buffer_->ReadPointer(offset_ + 2);
+  return buffer_->ReadPointer(offset_ + 2);
 }
 
 `;
@@ -1974,147 +1974,140 @@ size_t ${thisOneOf.cppClassName}::ReadOffset() const {
   function generateService(thisService) {
     headerCpp += `
 class ${thisService.cppClassName} : public PermebufService {
-	public:
-		${thisService.cppClassName}();
-		${
+  public:
+    ${thisService.cppClassName}();
+    ${
         thisService
             .cppClassName}(::perception::ProcessId process_id, ::perception::MessageId message_id);
-		${thisService.cppClassName}(const ${
-        thisService.cppClassName}& other);
-		${thisService.cppClassName}(const ${
+    ${thisService.cppClassName}(const ${thisService.cppClassName}& other);
+    ${thisService.cppClassName}(const ${
         thisService.cppClassName}_Server& other);
 
-		static ${thisService.cppClassName} Get();
-		static std::optional<${
-        thisService.cppClassName}> FindFirstInstance();
+    static ${thisService.cppClassName} Get();
+    static std::optional<${thisService.cppClassName}> FindFirstInstance();
 
-		static void ForEachInstance(const std::function<void(${
+    static void ForEachInstance(const std::function<void(${
         thisService.cppClassName})>& on_each_instance);
 
-		static ::perception::MessageId NotifyOnEachNewInstance(const std::function<void(${
+    static ::perception::MessageId NotifyOnEachNewInstance(const std::function<void(${
         thisService.cppClassName})>& on_each_instance);
-		static void StopNotifyingOnEachNewInstance(::perception::MessageId message_id);
+    static void StopNotifyingOnEachNewInstance(::perception::MessageId message_id);
 
-		::perception::MessageId NotifyOnDisappearance(const std::function<void()>& on_disappearance);
-		void StopNotifyingOnDisappearance(::perception::MessageId message_id);
+    ::perception::MessageId NotifyOnDisappearance(const std::function<void()>& on_disappearance);
+    void StopNotifyingOnDisappearance(::perception::MessageId message_id);
 `;
 
     sourceCpp += `
 ${thisService.cppClassName}::${thisService.cppClassName}() :
-	::PermebufService(0, 0) {}
+  ::PermebufService(0, 0) {}
 
 ${thisService.cppClassName}::${thisService.cppClassName}(
-	::perception::ProcessId process_id, ::perception::MessageId message_id) :
-	::PermebufService(process_id, message_id) {}
+  ::perception::ProcessId process_id, ::perception::MessageId message_id) :
+  ::PermebufService(process_id, message_id) {}
 
 ${thisService.cppClassName}::${thisService.cppClassName}(
-	const ${thisService.cppClassName}& other) :
-	::PermebufService(other.GetProcessId(), other.GetMessageId()) {}
+  const ${thisService.cppClassName}& other) :
+  ::PermebufService(other.GetProcessId(), other.GetMessageId()) {}
 
 std::optional<${thisService.cppClassName}> ${
         thisService.cppClassName}::FindFirstInstance() {
-	::perception::ProcessId process_id;
-	::perception::MessageId message_id;
-	if (::perception::FindFirstInstanceOfService(${
+  ::perception::ProcessId process_id;
+  ::perception::MessageId message_id;
+  if (::perception::FindFirstInstanceOfService(${
         thisService.cppClassName}_Server::Name(),
-		process_id, message_id)) {
-		return std::optional<${thisService.cppClassName}>{
-			${thisService.cppClassName}(process_id, message_id)};
-	} else {
-		return std::nullopt;
-	}
+    process_id, message_id)) {
+    return std::optional<${thisService.cppClassName}>{
+      ${thisService.cppClassName}(process_id, message_id)};
+  } else {
+    return std::nullopt;
+  }
 }
 
 ${thisService.cppClassName} ${thisService.cppClassName}::singleton_;
 
 ${thisService.cppClassName} ${thisService.cppClassName}::Get() {
-	// TODO: Mutex.
-	if (singleton_.IsValid())
-		return singleton_;
+  // TODO: Mutex.
+  if (singleton_.IsValid())
+    return singleton_;
 
-	auto main_fiber = ::perception::GetCurrentlyExecutingFiber();
-	NotifyOnEachNewInstance([main_fiber] (${
-        thisService.cppClassName} instance) {
-		singleton_ = instance;
-		main_fiber->WakeUp();
-	});
-	::perception::Sleep();
-	return singleton_;
+  auto main_fiber = ::perception::GetCurrentlyExecutingFiber();
+  NotifyOnEachNewInstance([main_fiber] (${thisService.cppClassName} instance) {
+    singleton_ = instance;
+    main_fiber->WakeUp();
+  });
+  ::perception::Sleep();
+  return singleton_;
 }
 
 void ${thisService.cppClassName}::ForEachInstance(
-	const std::function<void(${
-        thisService.cppClassName})>& on_each_instance) {
-		::perception::ForEachInstanceOfService(${
+  const std::function<void(${thisService.cppClassName})>& on_each_instance) {
+    ::perception::ForEachInstanceOfService(${
         thisService.cppClassName}_Server::Name(),
-	[on_each_instance](::perception::ProcessId process_id,
-		::perception::MessageId message_id) {
-			on_each_instance(${
-        thisService.cppClassName}(process_id, message_id));
-		});
+  [on_each_instance](::perception::ProcessId process_id,
+    ::perception::MessageId message_id) {
+      on_each_instance(${thisService.cppClassName}(process_id, message_id));
+    });
 }
 
 ::perception::MessageId ${thisService.cppClassName}::NotifyOnEachNewInstance(
-	const std::function<void(${
-        thisService.cppClassName})>& on_each_instance) {
-	return ::perception::NotifyOnEachNewServiceInstance(
-		${thisService.cppClassName}_Server::Name(),
-		[on_each_instance] (::perception::ProcessId process_id,
-			::perception::MessageId message_id) {
-		on_each_instance(${
-        thisService.cppClassName}(process_id, message_id));
-		});
+  const std::function<void(${thisService.cppClassName})>& on_each_instance) {
+  return ::perception::NotifyOnEachNewServiceInstance(
+    ${thisService.cppClassName}_Server::Name(),
+    [on_each_instance] (::perception::ProcessId process_id,
+      ::perception::MessageId message_id) {
+    on_each_instance(${thisService.cppClassName}(process_id, message_id));
+    });
 }
 
 void ${thisService.cppClassName}::StopNotifyingOnEachNewInstance(
-	::perception::MessageId message_id) {
-	::perception::StopNotifyingOnEachNewServiceInstance(message_id);
+  ::perception::MessageId message_id) {
+  ::perception::StopNotifyingOnEachNewServiceInstance(message_id);
 }
 
 ::perception::MessageId ${thisService.cppClassName}::NotifyOnDisappearance(
-	const std::function<void()>& on_disappearance) {
-	return ::perception::NotifyWhenServiceDisappears(
-		process_id_, message_id_, on_disappearance);
+  const std::function<void()>& on_disappearance) {
+  return ::perception::NotifyWhenServiceDisappears(
+    process_id_, message_id_, on_disappearance);
 }
 
 void ${thisService.cppClassName}::StopNotifyingOnDisappearance(
-	::perception::MessageId message_id) {
-	::perception::StopNotifyWhenServiceDisappears(message_id);
+  ::perception::MessageId message_id) {
+  ::perception::StopNotifyWhenServiceDisappears(message_id);
 }
 `;
 
     let serverHeaderCpp = `
 class ${thisService.cppClassName}_Server : public ::PermebufServer {
-	public:
-		${thisService.cppClassName}_Server();
-		virtual ~${thisService.cppClassName}_Server();
+  public:
+    ${thisService.cppClassName}_Server();
+    virtual ~${thisService.cppClassName}_Server();
 
-		static std::string_view Name();
+    static std::string_view Name();
 
-	protected:
-		virtual bool DelegateMessage(::perception::ProcessId sender,
-		size_t metadata, size_t param_1, size_t param_2,
-		size_t param_3, size_t param_4, size_t param_5);
+  protected:
+    virtual bool DelegateMessage(::perception::ProcessId sender,
+    size_t metadata, size_t param_1, size_t param_2,
+    size_t param_3, size_t param_4, size_t param_5);
 
 `;
     let serverSourceCpp = `
 ${thisService.cppClassName}_Server::${thisService.cppClassName}_Server() :
-	::PermebufServer(Name()) {}
+  ::PermebufServer(Name()) {}
 
 ${thisService.cppClassName}_Server::~${thisService.cppClassName}_Server() {}
 
 std::string_view ${thisService.cppClassName}_Server::Name() {
-	return "${thisService.fullName}";
+  return "${thisService.fullName}";
 }
 
 `;
 
     let serverDelegator = `
 bool ${thisService.cppClassName}_Server::DelegateMessage(
-	::perception::ProcessId sender,
-	size_t metadata, size_t param_1, size_t param_2,
-	size_t param_3, size_t param_4, size_t param_5) {
-	switch (GetFunctionNumberFromMetadata(metadata)) {`;
+  ::perception::ProcessId sender,
+  size_t metadata, size_t param_1, size_t param_2,
+  size_t param_3, size_t param_4, size_t param_5) {
+  switch (GetFunctionNumberFromMetadata(metadata)) {`;
 
     // Size of this message, in bytes.
     let sizeInBytes = 0;
@@ -2169,141 +2162,132 @@ bool ${thisService.cppClassName}_Server::DelegateMessage(
       }
 
       serverDelegator += `
-		case ${field.number}:
-			`;
+    case ${field.number}:
+      `;
 
       switch (requestType.type) {
         case FieldType.MINIMESSAGE:
           if (responseType == null) {
-            headerCpp += `		::perception::Status Send${
-                field.name}(const ${requestType.cppClassName}& request) const;
+            headerCpp += `    ::perception::Status Send${field.name}(const ${
+                requestType.cppClassName}& request) const;
 `;
             sourceCpp += `
 ::perception::Status ${thisService.cppClassName}::Send${field.name}(
-	const ${requestType.cppClassName}& request) const {
-		return SendMiniMessage<${requestType.cppClassName}>(${
+  const ${requestType.cppClassName}& request) const {
+    return SendMiniMessage<${requestType.cppClassName}>(${
                 field.number}, request);
 }
 `;
             serverDelegator +=
                 `return ProcessMiniMessage<${requestType.cppClassName}>(
-				sender, metadata, param_1, param_2, param_3, param_4, param_5,
-				[this](::perception::ProcessId sender,
-					const ${
-                    requestType.cppClassName}& request) {
-						Handle${
-                    field.name}(sender, request);
-					});
+        sender, metadata, param_1, param_2, param_3, param_4, param_5,
+        [this](::perception::ProcessId sender,
+          const ${requestType.cppClassName}& request) {
+            Handle${field.name}(sender, request);
+          });
 `;
             serverHeaderCpp += `
-		virtual void Handle${field.name}(::perception::ProcessId sender,
-			const ${requestType.cppClassName}& request);
+    virtual void Handle${field.name}(::perception::ProcessId sender,
+      const ${requestType.cppClassName}& request);
 `;
             serverSourceCpp += `
 void ${thisService.cppClassName}_Server::Handle${
                 field.name}(::perception::ProcessId sender,
-			const ${requestType.cppClassName}& request) {}
+      const ${requestType.cppClassName}& request) {}
 `;
           } else if (responseType.type == FieldType.MINIMESSAGE) {
-            headerCpp += `		StatusOr<${
-                responseType.cppClassName}> Call${field.name}(
-			const ${requestType.cppClassName}& request) const;
-		void Call${field.name}(const ${
-                requestType.cppClassName}& request,
-			const std::function<void(StatusOr<${
-                responseType.cppClassName}>)>& on_response) const;
+            headerCpp +=
+                `    StatusOr<${responseType.cppClassName}> Call${field.name}(
+      const ${requestType.cppClassName}& request) const;
+    void Call${field.name}(const ${requestType.cppClassName}& request,
+      const std::function<void(StatusOr<${
+                    responseType.cppClassName}>)>& on_response) const;
 `;
             sourceCpp += `
 StatusOr<${responseType.cppClassName}> ${thisService.cppClassName}::Call${
                 field.name}(
-	const ${requestType.cppClassName}& request) const {
-		return SendMiniMessageAndWaitForMiniMessage<
-			${requestType.cppClassName},${responseType.cppClassName}
-			>(${field.number}, request);
+  const ${requestType.cppClassName}& request) const {
+    return SendMiniMessageAndWaitForMiniMessage<
+      ${requestType.cppClassName},${responseType.cppClassName}
+      >(${field.number}, request);
 }
 void ${thisService.cppClassName}::Call${field.name}(
-	const ${requestType.cppClassName}& request,
-	const std::function<void(StatusOr<${
+  const ${requestType.cppClassName}& request,
+  const std::function<void(StatusOr<${
                 responseType.cppClassName}>)>& on_response) const {
-		return SendMiniMessageAndNotifyOnMiniMessage<
-			${requestType.cppClassName},${responseType.cppClassName}
-			>(${field.number}, request, on_response);
+    return SendMiniMessageAndNotifyOnMiniMessage<
+      ${requestType.cppClassName},${responseType.cppClassName}
+      >(${field.number}, request, on_response);
 }
 `;
             serverDelegator += `return ProcessMiniMessageForMiniMessage<${
                 requestType.cppClassName}, ${responseType.cppClassName}>(
-				sender, metadata, param_1, param_2, param_3, param_4, param_5,
-				[this](::perception::ProcessId sender,
-					const ${
-                requestType.cppClassName}& request) {
-						return Handle${
-                field.name}(sender, request);
-					});
+        sender, metadata, param_1, param_2, param_3, param_4, param_5,
+        [this](::perception::ProcessId sender,
+          const ${requestType.cppClassName}& request) {
+            return Handle${field.name}(sender, request);
+          });
 `;
 
             serverHeaderCpp += `
-		virtual StatusOr<${responseType.cppClassName}> Handle${
-                field.name}(
-			::perception::ProcessId sender,
-			const ${requestType.cppClassName}& request);
+    virtual StatusOr<${responseType.cppClassName}> Handle${field.name}(
+      ::perception::ProcessId sender,
+      const ${requestType.cppClassName}& request);
 `;
             serverSourceCpp += `
-		StatusOr<${responseType.cppClassName}> ${
+    StatusOr<${responseType.cppClassName}> ${
                 thisService.cppClassName}_Server::Handle${
                 field.name}(::perception::ProcessId sender,
-			const ${requestType.cppClassName}& request) {
-				return ::perception::Status::UNIMPLEMENTED;
-			}
+      const ${requestType.cppClassName}& request) {
+        return ::perception::Status::UNIMPLEMENTED;
+      }
 `;
           } else if (responseType.type == FieldType.MESSAGE) {
-            headerCpp += `		StatusOr<Permebuf<${
+            headerCpp += `    StatusOr<Permebuf<${
                 responseType.cppClassName}>> Call${field.name}(
-			const ${requestType.cppClassName}& request) const;
-		void Call${field.name}(const ${
-                requestType.cppClassName}& request,
-			const std::function<void(StatusOr<Permebuf<${
+      const ${requestType.cppClassName}& request) const;
+    void Call${field.name}(const ${requestType.cppClassName}& request,
+      const std::function<void(StatusOr<Permebuf<${
                 responseType.cppClassName}>>)>& on_response) const;
 `;
             sourceCpp += `
 StatusOr<Permebuf<${responseType.cppClassName}>> ${
                 thisService.cppClassName}::Call${field.name}(
-	const ${requestType.cppClassName}& request) const {
-		return SendMiniMessageAndWaitForMessage<
-			${requestType.cppClassName},${responseType.cppClassName}
-			>(${field.number}, request);
+  const ${requestType.cppClassName}& request) const {
+    return SendMiniMessageAndWaitForMessage<
+      ${requestType.cppClassName},${responseType.cppClassName}
+      >(${field.number}, request);
 }
 void ${thisService.cppClassName}::Call${field.name}(
-	const ${requestType.cppClassName}& request,
-	const std::function<void(StatusOr<Permebuf<${
+  const ${requestType.cppClassName}& request,
+  const std::function<void(StatusOr<Permebuf<${
                 responseType.cppClassName}>>)>& on_response) const {
-		return SendMiniMessageAndNotifyOnMessage<
-			${requestType.cppClassName},${responseType.cppClassName}
-			>(${field.number}, request, on_response);
+    return SendMiniMessageAndNotifyOnMessage<
+      ${requestType.cppClassName},${responseType.cppClassName}
+      >(${field.number}, request, on_response);
 }
 `;
             serverDelegator += `return ProcessMiniMessageForMessage<${
                 requestType.cppClassName}, ${responseType.cppClassName}>(
-				sender, metadata, param_1, param_2, param_3, param_4, param_5,
-				[this](::perception::ProcessId sender,
-					const ${
-                requestType.cppClassName}& request) {
-						return Handle${
-                field.name}(sender, request);
-					});
+        sender, metadata, param_1, param_2, param_3, param_4, param_5,
+        [this](::perception::ProcessId sender,
+          const ${requestType.cppClassName}& request) {
+            return Handle${field.name}(sender, request);
+          });
 `;
             serverHeaderCpp += `
-		virtual StatusOr<Permebuf<${
-                responseType.cppClassName}>> Handle${field.name}(
-			::perception::ProcessId sender,
-			const ${requestType.cppClassName}& request);
+    virtual StatusOr<Permebuf<${responseType.cppClassName}>> Handle${
+                field.name}(
+      ::perception::ProcessId sender,
+      const ${requestType.cppClassName}& request);
 `;
             serverSourceCpp += `
-		StatusOr<Permebuf<${responseType.cppClassName}>> ${
+    StatusOr<Permebuf<${responseType.cppClassName}>> ${
                 thisService.cppClassName}_Server::Handle${
                 field.name}(::perception::ProcessId sender,
-			const ${requestType.cppClassName}& request) {
-				return ::perception::Status::UNIMPLEMENTED;
-			}
+      const ${requestType.cppClassName}& request) {
+        return ::perception::Status::UNIMPLEMENTED;
+      }
 `;
           } else {
             console.log(
@@ -2316,136 +2300,126 @@ void ${thisService.cppClassName}::Call${field.name}(
           break;
         case FieldType.MESSAGE:
           if (responseType == null) {
-            headerCpp += `		::perception::Status Send${
-                field.name}(Permebuf<${
+            headerCpp += `    ::perception::Status Send${field.name}(Permebuf<${
                 requestType.cppClassName}> request) const;
 `;
             sourceCpp += `
 ::perception::Status ${thisService.cppClassName}::Send${field.name}(
-	Permebuf<${requestType.cppClassName}> request) const {
-		return SendMessage<${requestType.cppClassName}>(${
+  Permebuf<${requestType.cppClassName}> request) const {
+    return SendMessage<${requestType.cppClassName}>(${
                 field.number}, std::move(request));
 }
 `;
             serverDelegator +=
                 `return ProcessMessage<${requestType.cppClassName}>(
-				sender, metadata, param_1, param_2, param_3, param_4, param_5,
-				[this](::perception::ProcessId sender,
-					Permebuf<${
-                    requestType.cppClassName}> request) {
-						Handle${
-                    field.name}(sender, std::move(request));
-					});
+        sender, metadata, param_1, param_2, param_3, param_4, param_5,
+        [this](::perception::ProcessId sender,
+          Permebuf<${requestType.cppClassName}> request) {
+            Handle${field.name}(sender, std::move(request));
+          });
 `;
 
             serverHeaderCpp += `
-		virtual void Handle${field.name}(::perception::ProcessId sender,
-			Permebuf<${requestType.cppClassName}> request);
+    virtual void Handle${field.name}(::perception::ProcessId sender,
+      Permebuf<${requestType.cppClassName}> request);
 `;
             serverSourceCpp += `
-		void ${thisService.cppClassName}_Server::Handle${
+    void ${thisService.cppClassName}_Server::Handle${
                 field.name}(::perception::ProcessId sender,
-			Permebuf<${requestType.cppClassName}> request) {}
+      Permebuf<${requestType.cppClassName}> request) {}
 `;
           } else if (responseType.type == FieldType.MINIMESSAGE) {
-            headerCpp += `		StatusOr<${
-                responseType.cppClassName}> Call${field.name}(
-			Permebuf<${requestType.cppClassName}> request) const;
-		void Call${field.name}(Permebuf<${
-                requestType.cppClassName}> request,
-			const std::function<void(StatusOr<${
-                responseType.cppClassName}>)>& on_response) const;
+            headerCpp +=
+                `    StatusOr<${responseType.cppClassName}> Call${field.name}(
+      Permebuf<${requestType.cppClassName}> request) const;
+    void Call${field.name}(Permebuf<${requestType.cppClassName}> request,
+      const std::function<void(StatusOr<${
+                    responseType.cppClassName}>)>& on_response) const;
 `;
             sourceCpp += `
 StatusOr<${responseType.cppClassName}> ${thisService.cppClassName}::Call${
                 field.name}(
-	Permebuf<${requestType.cppClassName}> request) const {
-		return SendMessageAndWaitForMiniMessage<
-			${requestType.cppClassName},${responseType.cppClassName}
-			>(${field.number}, std::move(request));
+  Permebuf<${requestType.cppClassName}> request) const {
+    return SendMessageAndWaitForMiniMessage<
+      ${requestType.cppClassName},${responseType.cppClassName}
+      >(${field.number}, std::move(request));
 }
 void ${thisService.cppClassName}::Call${field.name}(
-	Permebuf<${requestType.cppClassName}> request,
-	const std::function<void(StatusOr<${
+  Permebuf<${requestType.cppClassName}> request,
+  const std::function<void(StatusOr<${
                 responseType.cppClassName}>)>& on_response) const {
-		return SendMessageAndNotifyOnMiniMessage<
-			${requestType.cppClassName},${responseType.cppClassName}
-			>(${field.number}, std::move(request), on_response);
+    return SendMessageAndNotifyOnMiniMessage<
+      ${requestType.cppClassName},${responseType.cppClassName}
+      >(${field.number}, std::move(request), on_response);
 }
 `;
             serverDelegator += `return ProcessMessageForMiniMessage<${
                 requestType.cppClassName}, ${responseType.cppClassName}>(
-				sender, metadata, param_1, param_2, param_3, param_4, param_5,
-				[this](::perception::ProcessId sender,
-					Permebuf<${
-                requestType.cppClassName}> request) {
-						return Handle${
-                field.name}(sender, std::move(request));
-					});
+        sender, metadata, param_1, param_2, param_3, param_4, param_5,
+        [this](::perception::ProcessId sender,
+          Permebuf<${requestType.cppClassName}> request) {
+            return Handle${field.name}(sender, std::move(request));
+          });
 `;
             serverHeaderCpp += `
-		virtual StatusOr<${responseType.cppClassName}> Handle${
-                field.name}(
-			::perception::ProcessId sender,
-			Permebuf<${requestType.cppClassName}> request);
+    virtual StatusOr<${responseType.cppClassName}> Handle${field.name}(
+      ::perception::ProcessId sender,
+      Permebuf<${requestType.cppClassName}> request);
 `;
             serverSourceCpp += `
-		StatusOr<${responseType.cppClassName}>  ${
+    StatusOr<${responseType.cppClassName}>  ${
                 thisService.cppClassName}_Server::Handle${
                 field.name}(::perception::ProcessId sender,
-			Permebuf<${requestType.cppClassName}> request) {
-				return ::perception::Status::UNIMPLEMENTED;
-			}
+      Permebuf<${requestType.cppClassName}> request) {
+        return ::perception::Status::UNIMPLEMENTED;
+      }
 `;
           } else if (responseType.type == FieldType.MESSAGE) {
-            headerCpp += `		StatusOr<Permebuf<${
+            headerCpp += `    StatusOr<Permebuf<${
                 responseType.cppClassName}>> Call${field.name}(
-			Permebuf<${requestType.cppClassName}> request) const;
-		void Call${field.name}(Permebuf<${
-                requestType.cppClassName}> request,
-			const std::function<void(StatusOr<Permebuf<${
+      Permebuf<${requestType.cppClassName}> request) const;
+    void Call${field.name}(Permebuf<${requestType.cppClassName}> request,
+      const std::function<void(StatusOr<Permebuf<${
                 responseType.cppClassName}>>)>& on_response) const;
 `;
             sourceCpp += `
 StatusOr<Permebuf<${responseType.cppClassName}>> ${
                 thisService.cppClassName}::Call${field.name}(
-	Permebuf<${requestType.cppClassName}> request) const {
-		return SendMessageAndWaitForMessage<
-			${requestType.cppClassName},${responseType.cppClassName}
-			>(${field.number}, std::move(request));
+  Permebuf<${requestType.cppClassName}> request) const {
+    return SendMessageAndWaitForMessage<
+      ${requestType.cppClassName},${responseType.cppClassName}
+      >(${field.number}, std::move(request));
 }
 void ${thisService.cppClassName}::Call${field.name}(
-	Permebuf<${requestType.cppClassName}> request,
-	const std::function<void(StatusOr<Permebuf<${
+  Permebuf<${requestType.cppClassName}> request,
+  const std::function<void(StatusOr<Permebuf<${
                 responseType.cppClassName}>>)>& on_response) const {
-		return SendMessageAndNotifyOnMessage<
-			${requestType.cppClassName},${responseType.cppClassName}
-			>(${field.number}, std::move(request), on_response);
+    return SendMessageAndNotifyOnMessage<
+      ${requestType.cppClassName},${responseType.cppClassName}
+      >(${field.number}, std::move(request), on_response);
 }
 `;
             serverDelegator += `return ProcessMessageForMessage<${
                 requestType.cppClassName}, ${responseType.cppClassName}>(
-				sender, metadata, param_1, param_2, param_3, param_4, param_5,
-				[this](::perception::ProcessId sender,
-					Permebuf<${
-                requestType.cppClassName}> request) {
-						return Handle${
-                field.name}(sender, std::move(request));
-					});
+        sender, metadata, param_1, param_2, param_3, param_4, param_5,
+        [this](::perception::ProcessId sender,
+          Permebuf<${requestType.cppClassName}> request) {
+            return Handle${field.name}(sender, std::move(request));
+          });
 `;
             serverHeaderCpp += `
-		virtual StatusOr<Permebuf<${
-                responseType.cppClassName}>> Handle${field.name}(
-			::perception::ProcessId sender,
-			Permebuf<${requestType.cppClassName}> request);
+    virtual StatusOr<Permebuf<${responseType.cppClassName}>> Handle${
+                field.name}(
+      ::perception::ProcessId sender,
+      Permebuf<${requestType.cppClassName}> request);
 `;
             serverSourceCpp += `
-		StatusOr<Permebuf<${responseType.cppClassName}>> ${
+    StatusOr<Permebuf<${responseType.cppClassName}>> ${
                 thisService.cppClassName}_Server::Handle${
                 field.name}(::perception::ProcessId sender,
-			Permebuf<${requestType.cppClassName}> request) {
-				return ::perception::Status::UNIMPLEMENTED;
-			}
+      Permebuf<${requestType.cppClassName}> request) {
+        return ::perception::Status::UNIMPLEMENTED;
+      }
 `;
           } else {
             console.log(
@@ -2470,16 +2444,14 @@ void ${thisService.cppClassName}::Call${field.name}(
       headerCpp += '\n';
       for (let i = 0; i < thisService.children.length; i++) {
         const child = thisService.children[i];
-        headerCpp +=
-            `		typedef ${child.cppClassName} ${child.name};
+        headerCpp += `    typedef ${child.cppClassName} ${child.name};
 `;
       }
     }
 
-    headerCpp +=
-        `		typedef ${thisService.cppClassName}_Server Server;
+    headerCpp += `   typedef ${thisService.cppClassName}_Server Server;
 private:
-		static ${thisService.cppClassName} singleton_;
+    static ${thisService.cppClassName} singleton_;
 };
 `;
 
@@ -2488,9 +2460,9 @@ private:
 `;
 
     serverDelegator += `
-		default:
-			return false;
-	}
+    default:
+      return false;
+  }
 }
 `;
 
