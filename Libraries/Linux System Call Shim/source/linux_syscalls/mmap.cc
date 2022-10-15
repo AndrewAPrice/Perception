@@ -59,8 +59,10 @@ long mmap(long addr, long length, long prot, long flags, long fd, long offset) {
 
   if ((flags & MAP_ANON) != 0) {
     // Allocate 0-initialized memory.
-    return (long)AllocateMemoryPages((size_t)(length + kPageSize - 1) /
-                                     kPageSize);
+    size_t pages = (size_t)(length + kPageSize - 1) / kPageSize;
+    void *addr = AllocateMemoryPages(pages);
+    memset(addr, 0, pages * kPageSize);
+    return (long)addr;
   } else {
     // Allocate a memory mapped file.
     auto file_descriptor = GetFileDescriptor(fd);
