@@ -23,7 +23,7 @@
 namespace perception {
 namespace {
 
-constexpr int kNumberOfStackPages = 4;
+constexpr int kNumberOfStackPages = 8;
 
 // The currently executing fiber.
 /*thread_local*/ Fiber* currently_executing_fiber = nullptr;
@@ -60,9 +60,10 @@ void Sleep() { Scheduler::GetNextFiberToRun()->SwitchTo(); }
 Fiber::Fiber(bool custom_stack) : is_scheduled_to_run_(false) {
   if (custom_stack) {
     bottom_of_stack_ = (size_t*)AllocateMemoryPages(kNumberOfStackPages);
-    // std::cout << "Created fiber with stack: " << std::hex <<
-    // (size_t)bottom_of_stack_
-    //	<< std::dec << std::endl;
+    // std::cout << "Created fiber with stack: " << std::hex
+    //          << (size_t)bottom_of_stack_ << "->"
+    //          << ((size_t)bottom_of_stack_ + kNumberOfStackPages * kPageSize)
+    //          << std::dec << std::endl;
   } else {
     bottom_of_stack_ = nullptr;
   }
