@@ -538,7 +538,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_fspick:
       return ::perception::linux_syscalls::fspick();
     case SYS_fstat:
-      return ::perception::linux_syscalls::fstat();
+      return ::perception::linux_syscalls::fstat(a1, (struct stat *)a2);
     case SYS_fstatfs:
       return ::perception::linux_syscalls::fstatfs(a1, (struct statfs *)a2);
     case SYS_fsync:

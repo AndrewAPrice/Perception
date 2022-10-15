@@ -16,8 +16,6 @@
 
 #include <sys/stat.h>
 
-#include <iostream>
-
 #include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 
 using ::permebuf::perception::StorageManager;
@@ -44,10 +42,10 @@ long stat(const char* pathname, struct stat* statbuf) {
   memset(statbuf, 0, sizeof(struct stat));
   if (status_or_response->GetIsDirectory())
     statbuf->st_mode = S_IFDIR;
-  else if (status_or_response->GetIsFile())
+  else if (status_or_response->GetIsFile()) {
     statbuf->st_mode = S_IFREG;
-
-  statbuf->st_size = status_or_response->GetSizeInBytes();
+    statbuf->st_size = status_or_response->GetSizeInBytes();
+  }
 
   return 0;
 }
