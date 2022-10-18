@@ -18,32 +18,32 @@ namespace perception;
 message FontStyle {
 	// How thick the font is.
 	enum Weight {
-		THIN = 1,
-		EXTRALIGHT = 40,
-		LIGHT = 50,
-		SEMILIGHT = 55,
-		BOOK = 75,
-		REGULAR = 80,
-		MEDIUM = 100,
-		SEMIBOLD = 180,
-		BOLD = 200,
-		EXTRABOLD = 205,
-		BLACK = 210,
-		EXTRABLACK = 215
+		THIN = 1;
+		EXTRALIGHT = 40;
+		LIGHT = 50;
+		SEMILIGHT = 55;
+		BOOK = 75;
+		REGULAR = 80;
+		MEDIUM = 100;
+		SEMIBOLD = 180;
+		BOLD = 200;
+		EXTRABOLD = 205;
+		BLACK = 210;
+		EXTRABLACK = 215;
 	}
 	Weight : Weight = 1;
 
 	// How wide the font is.
 	enum Width {
-		ULTRACONDENSED = 50,
-		EXTRACONDENSED = 63,
-		CONDENSED = 75,
-		SEMICONDENSED = 87,
-		NORMAL = 100,
-		SEMIEXPANDED = 113,
-		EXPANDED = 125,
-		EXTRAEXPANDED = 150,
-		ULTRAEXPANDED = 200
+		ULTRACONDENSED = 50;
+		EXTRACONDENSED = 63;
+		CONDENSED = 75;
+		SEMICONDENSED = 87;
+		NORMAL = 100;
+		SEMIEXPANDED = 113;
+		EXPANDED = 125;
+		EXTRAEXPANDED = 150;
+		ULTRAEXPANDED = 200;
 
 	}
 	Width : Width = 2;
@@ -78,6 +78,9 @@ service FontManager {
 		// The style of this font.
 		// This may be different to the requested style if it's not available in that style.
 		Style : FontStyle = 3;
+
+		// Index of the face.
+		FaceIndex : int32 = 4;
 	}
 	MatchFont : MatchFontRequest -> MatchFontResponse = 1;
 
