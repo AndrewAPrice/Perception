@@ -1,3 +1,5 @@
 *
 !.gitignore
-!SkFontMgr_perception_factory.cpp
+!SkFontConfigInterface_direct.cpp
+!SkFontConfigInterface_direct.h
+!SkFontConfigInterface_direct_factory.cpp
