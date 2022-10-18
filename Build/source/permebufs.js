@@ -56,6 +56,7 @@ function compilePermebufToCpp(
   Object.keys(importedFilesMap).forEach((importedFile) => {
     dependencies.push(importedFile);
   });
+  dependencies.push(localPath);
 
   return true;
 }
