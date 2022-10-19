@@ -31,9 +31,21 @@ extern uint32 kTextBoxTextColor;
 
 extern uint32 kTextBoxNonEditableTextColor;
 
+extern uint32 kScrollBarFabBackgroundColor;
+extern uint32 kScrollBarFabBackgroundHoverColor;
+extern uint32 kScrollBarFabOutlineColor;
+extern uint32 kScrollBarTrackBackgroundColor;
+extern uint32 kScrollBarTrackBackgroundHoverColor;
+extern uint32 kScrollBarTrackOutlineColor;
+
+extern uint32 kScrollContainerOutlineColor;
+
 extern float kMarginAroundWidgets;
 extern float kButtonCornerRadius;
 extern float kTextBoxCornerRadius;
+extern float kScrollBarThickness;
+extern float kScrollBarBorderRadius;
+extern float kScrollContainerBorderRadius;
 
 }  // namespace ui
 }  // namespace perception

@@ -40,9 +40,21 @@ uint32 kTextBoxTextColor = kLabelTextColor;
 
 uint32 kTextBoxNonEditableTextColor = SkColorSetARGB(0xff, 0x11, 0x11, 0x11);
 
+uint32 kScrollBarFabBackgroundColor = HSVColor(0.0f, 0.0f, 0.9f);
+uint32 kScrollBarFabBackgroundHoverColor = HSVColor(0.0f, 0.0f, 0.825f);
+uint32 kScrollBarFabOutlineColor = HSVColor(0.0f, 0.0f, 0.8f);
+uint32 kScrollBarTrackBackgroundColor = HSVColor(0.0f, 0.0f, 1.0f);
+uint32 kScrollBarTrackBackgroundHoverColor = HSVColor(0.0f, 0.0f, 0.975f);
+uint32 kScrollBarTrackOutlineColor = HSVColor(0.0f, 0.0f, 0.8f);
+
+uint32 kScrollContainerOutlineColor = kScrollBarTrackOutlineColor;
+
 float kMarginAroundWidgets = 4.0f;
 float kButtonCornerRadius = 8.0f;
 float kTextBoxCornerRadius = kButtonCornerRadius;
+float kScrollBarThickness = 16.0f;
+float kScrollBarBorderRadius = kScrollBarThickness / 2.0f;
+float kScrollContainerBorderRadius = kScrollBarBorderRadius;
 
 }  // namespace ui
 }  // namespace perception
