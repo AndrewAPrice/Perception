@@ -204,13 +204,13 @@ int main() {
                                      ->AddChildren(
                                          {CreateButton(
                                               "0", std::bind(PressNumber, 0))
-                                              ->SetWidth(64)
+                                              ->SetWidth(72)
                                               ->ToSharedPtr(),
                                           CreateButton(".", PressDecimal)})
                                      ->ToSharedPtr()})
                             ->ToSharedPtr(),
                         CreateButton("=", std::bind(PressEquals))
-                            ->SetHeight(64)
+                            ->SetHeight(72)
                             ->ToSharedPtr()})
                    ->ToSharedPtr()})
           ->ToSharedPtr();
