@@ -15,6 +15,7 @@
 #pragma once
 
 #include <functional>
+#include <string>
 #include <string_view>
 
 #include "types.h"
@@ -36,6 +37,13 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
 void ForEachInstanceOfService(
     std::string_view name,
     const std::function<void(ProcessId, MessageId)>& on_each_service);
+
+// Calls the handler for each registered service.
+void ForEachService(
+    const std::function<void(ProcessId, MessageId)>& on_each_service);
+
+// Returns the name of a service.
+std::string GetServiceName(ProcessId pid, MessageId message_id);
 
 // Calls the handler for each instance of the service that currently exists,
 // and every time a new instance is registered.

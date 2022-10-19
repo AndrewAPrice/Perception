@@ -233,7 +233,7 @@ struct Process *FindNextProcessWithName(const char *name,
   struct Process *potential_process = start_from;
   // Loop over every process.
   while (potential_process != NULL) {
-    if (DoProcessNamesMatch(name, potential_process->name))
+    if (name[0] == 0 || DoProcessNamesMatch(name, potential_process->name))
       // We found a process with this name!
       return potential_process;
     // Try the next process.

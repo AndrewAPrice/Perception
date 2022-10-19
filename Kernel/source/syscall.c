@@ -44,7 +44,7 @@ void InitializeSystemCalls() {
 }
 
 // Syscalls.
-// Next id is 47.
+// Next id is 48.
 #define PRINT_DEBUG_CHARACTER 0
 #define PRINT_REGISTERS_AND_STACK 26
 // Threading
@@ -75,14 +75,15 @@ void InitializeSystemCalls() {
 #define GET_THIS_PROCESS_ID 39
 #define TERMINATE_THIS_PROCESS 6
 #define TERMINATE_PROCESS 7
-#define GET_PROCESS_BY_NAME 22
+#define GET_PROCESSES 22
 #define GET_NAME_OF_PROCESS 29
 #define NOTIFY_WHEN_PROCESS_DISAPPEARS 30
 #define STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS 31
 // Services
 #define REGISTER_SERVICE 32
 #define UNREGISTER_SERVICE 33
-#define GET_SERVICE_BY_NAME 34
+#define GET_SERVICES 34
+#define GET_NAME_OF_SERVICE 47
 #define NOTIFY_WHEN_SERVICE_APPEARS 35
 #define STOP_NOTIFYING_WHEN_SERVICE_APPEARS 36
 #define NOTIFY_WHEN_SERVICE_DISAPPEARS 37
@@ -281,7 +282,7 @@ void SyscallHandler(int syscall_number) {
       }
       break;
     }
-    case GET_PROCESS_BY_NAME: {
+    case GET_PROCESSES: {
       // Extract the name from the input registers.
       size_t process_name[PROCESS_NAME_WORDS];
       process_name[0] = currently_executing_thread_regs->rax;
@@ -404,7 +405,7 @@ void SyscallHandler(int syscall_number) {
       UnregisterServiceByMessageId(running_thread->process,
                                    currently_executing_thread_regs->rax);
       break;
-    case GET_SERVICE_BY_NAME: {
+    case GET_SERVICES: {
       // Extract the name from the input registers.
       size_t service_name[SERVICE_NAME_WORDS];
       service_name[0] = currently_executing_thread_regs->rbx;
@@ -452,6 +453,27 @@ void SyscallHandler(int syscall_number) {
       currently_executing_thread_regs->r13 = sids[4];
       currently_executing_thread_regs->r14 = pids[5];
       currently_executing_thread_regs->r15 = sids[5];
+      break;
+    }
+    case GET_NAME_OF_SERVICE: {
+      size_t pid = currently_executing_thread_regs->rax;
+      size_t sid = currently_executing_thread_regs->rbx;
+      struct Service* service = FindServiceByProcessAndMid(pid, sid);
+      if (service == NULL) {
+        currently_executing_thread_regs->rdi = 0;
+      } else {
+        currently_executing_thread_regs->rdi = 1;
+        currently_executing_thread_regs->rax = ((size_t *)service->name)[0];
+        currently_executing_thread_regs->rbx = ((size_t *)service->name)[1];
+        currently_executing_thread_regs->rdx = ((size_t *)service->name)[2];
+        currently_executing_thread_regs->rsi = ((size_t *)service->name)[3];
+        currently_executing_thread_regs->r8 = ((size_t *)service->name)[4];
+        currently_executing_thread_regs->r9 = ((size_t *)service->name)[5];
+        currently_executing_thread_regs->r10 = ((size_t *)service->name)[6];
+        currently_executing_thread_regs->r12 = ((size_t *)service->name)[7];
+        currently_executing_thread_regs->r13 = ((size_t *)service->name)[8];
+        currently_executing_thread_regs->r14 = ((size_t *)service->name)[9];
+      }
       break;
     }
     case NOTIFY_WHEN_SERVICE_APPEARS: {

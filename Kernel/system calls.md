@@ -291,7 +291,9 @@ TODO: Build a permission system.
 ### Output
 Nothing.
 
-## Get process by name
+## Get processes
+
+If the name is empty, then we loop over every running running process. If the name is not empty, then we only loop over processes with this name.
 
 ### Input
 * `rdi` - 22
@@ -392,7 +394,9 @@ Unregisters a service
 ### Output
 Nothing.
 
-## Get service by name
+## Get services
+
+If the service name is empty, returns all services. If the service name is not empty, returns all registered services that match that name.
 
 ### Input
 * `rdi` - 34
@@ -423,6 +427,26 @@ Nothing.
 * `r13` - Service ID 5.
 * `r14` - Process ID 6.
 * `r15` - Service ID 6.
+
+## Get name of service
+
+### Input
+* `rdi` - 47
+* `rax` - Process ID.
+* `rbx` - Service ID.
+
+### Output
+* `rdi` - Was the service found?
+* `rax` - Char 0-7.
+* `rbc` - Char 8-15.
+* `rdx` - Char 16-23.
+* `rsi` - Char 24-31.
+* `r8` - Char 32-39.
+* `r9` - Char 40-47.
+* `r10` - Char 48-55.
+* `r12` - Char 56-63.
+* `r13` - Char 64-71.
+* `r14` - Char 72-79.
 
 ## Notify when service appears
 Also sends an event for all existing notifications with this name.

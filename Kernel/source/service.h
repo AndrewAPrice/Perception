@@ -31,7 +31,7 @@ struct Service {
   size_t message_id;
 
   // The name of the service.
-  char service_name[SERVICE_NAME_LENGTH];
+  char name[SERVICE_NAME_LENGTH];
 
   // Linked list of registered services in this process.
   struct Service* previous_service_in_process;
@@ -71,6 +71,10 @@ void UnregisterServiceByMessageId(struct Process* process, size_t message_id);
 
 // Unregisters a service, and notifies anybody listening.
 void UnregisterService(struct Service* service);
+
+// Returns a service running in a process with the matching message id, or
+// NULL if it does not exist.
+struct Service* FindServiceByProcessAndMid(size_t pid, size_t message_id);
 
 // Returns the next service, starting at the provided process ID and message
 // ID.

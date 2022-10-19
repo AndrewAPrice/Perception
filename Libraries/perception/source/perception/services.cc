@@ -58,11 +58,11 @@ void RegisterService(perception::MessageId message_id, std::string_view name) {
 
 #ifdef debug_BUILD_
   __asm__ __volatile__(R"(
-		mov %%rbp, _perception_services__temp_rbp
-		mov _perception_services__syscall_rbp, %%rbp
-		syscall
-		mov _perception_services__temp_rbp, %%rbp
-	)" ::"r"(syscall),
+    mov %%rbp, _perception_services__temp_rbp
+    mov _perception_services__syscall_rbp, %%rbp
+    syscall
+    mov _perception_services__temp_rbp, %%rbp
+  )" ::"r"(syscall),
                        "r"(name_1), "r"(name_2), "r"(name_3), "r"(name_4),
                        "r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8),
                        "r"(name_9), "r"(name_10)
@@ -126,12 +126,12 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
 
 #ifdef debug_BUILD_
   __asm__ __volatile__(R"(
-		mov %%rbp, _perception_services__temp_rbp
-		mov _perception_services__syscall_rbp, %%rbp
-		syscall
-		mov %%rbp, _perception_services__syscall_rbp
-		mov _perception_services__temp_rbp, %%rbp
-	)"
+    mov %%rbp, _perception_services__temp_rbp
+    mov _perception_services__syscall_rbp, %%rbp
+    syscall
+    mov %%rbp, _perception_services__syscall_rbp
+    mov _perception_services__temp_rbp, %%rbp
+  )"
                        : "=r"(number_of_services), "=r"(message_id_1)
                        : "r"(syscall), "r"(min_message_id), "r"(name_1),
                          "r"(name_2), "r"(name_3), "r"(name_4), "r"(name_5),
@@ -215,12 +215,12 @@ void ForEachInstanceOfService(
 #ifdef debug_BUILD_
     __asm__ __volatile__(
         R"(
-			mov %%rbp, _perception_services__temp_rbp
-			mov _perception_services__syscall_rbp, %%rbp
-			syscall
-			mov %%rbp, _perception_services__syscall_rbp
-			mov _perception_services__temp_rbp, %%rbp
-		)"
+      mov %%rbp, _perception_services__temp_rbp
+      mov _perception_services__syscall_rbp, %%rbp
+      syscall
+      mov %%rbp, _perception_services__syscall_rbp
+      mov _perception_services__temp_rbp, %%rbp
+    )"
         : "=r"(number_of_services_r), "=r"(message_id_1_r), "=r"(pid_2_r),
           "=r"(message_id_2_r), "=r"(pid_3_r), "=r"(message_id_3_r),
           "=r"(pid_4_r), "=r"(message_id_4_r), "=r"(pid_5_r),
@@ -276,6 +276,56 @@ void ForEachInstanceOfService(
 #endif
 }
 
+void ForEachService(
+    const std::function<void(ProcessId, MessageId)>& on_each_service) {
+  return ForEachInstanceOfService("", on_each_service);
+}
+
+std::string GetServiceName(ProcessId pid, MessageId message_id) {
+  // Add an extra byte for the null terminator.
+  char service_name[kMaxServiceNameLength + 1];
+  service_name[kMaxServiceNameLength] = '\0';
+
+  volatile register size_t syscall asm("rdi") = 47;
+  volatile register size_t pid_r asm("rax") = pid;
+  volatile register size_t message_id_r asm("rbx") = message_id;
+
+  volatile register size_t was_service_found asm("rdi");
+  volatile register size_t name_1 asm("rax");
+  volatile register size_t name_2 asm("rbx");
+  volatile register size_t name_3 asm("rdx");
+  volatile register size_t name_4 asm("rsi");
+  volatile register size_t name_5 asm("r8");
+  volatile register size_t name_6 asm("r9");
+  volatile register size_t name_7 asm("r10");
+  volatile register size_t name_8 asm("r12");
+  volatile register size_t name_9 asm("r13");
+  volatile register size_t name_10 asm("r14");
+
+  __asm__ __volatile__("syscall\n"
+                       : "=r"(was_service_found), "=r"(name_1), "=r"(name_2),
+                         "=r"(name_3), "=r"(name_4), "=r"(name_5), "=r"(name_6),
+                         "=r"(name_7), "=r"(name_8), "=r"(name_9), "=r"(name_10)
+                       : "r"(syscall), "r"(pid_r), "r"(message_id_r)
+                       : "rcx", "r11");
+
+  if (!was_service_found) return "";
+
+  // Copy the string out of the registers into a char array.
+  ((size_t*)service_name)[0] = name_1;
+  ((size_t*)service_name)[1] = name_2;
+  ((size_t*)service_name)[2] = name_3;
+  ((size_t*)service_name)[3] = name_4;
+  ((size_t*)service_name)[4] = name_5;
+  ((size_t*)service_name)[5] = name_6;
+  ((size_t*)service_name)[6] = name_7;
+  ((size_t*)service_name)[7] = name_8;
+  ((size_t*)service_name)[8] = name_9;
+  ((size_t*)service_name)[9] = name_10;
+
+  return std::string(service_name);
+}
+
 // Calls the handler for each instance of the service that currently exists,
 // and every time a new instance is registered.
 MessageId NotifyOnEachNewServiceInstance(
@@ -317,11 +367,11 @@ MessageId NotifyOnEachNewServiceInstance(
 
 #ifdef debug_BUILD_
   __asm__ __volatile__(R"(
-		mov %%rbp, _perception_services__temp_rbp
-		mov _perception_services__syscall_rbp, %%rbp
-		syscall
-		mov _perception_services__temp_rbp, %%rbp
-	)" ::"r"(syscall),
+    mov %%rbp, _perception_services__temp_rbp
+    mov _perception_services__syscall_rbp, %%rbp
+    syscall
+    mov _perception_services__temp_rbp, %%rbp
+  )" ::"r"(syscall),
                        "r"(name_1), "r"(name_2), "r"(name_3), "r"(name_4),
                        "r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8),
                        "r"(name_9), "r"(name_10)

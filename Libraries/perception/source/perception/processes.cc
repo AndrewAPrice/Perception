@@ -261,6 +261,13 @@ void ForEachProcessWithName(
   }
 }
 
+
+// Loops through every running process.
+void ForEachProcess(
+    const std::function<void(ProcessId)>& on_each_process) {
+  ForEachProcessWithName("", on_each_process);
+}
+
 // Returns the name of the currently running process.
 std::string GetProcessName() { return GetProcessName(GetProcessId()); }
 
