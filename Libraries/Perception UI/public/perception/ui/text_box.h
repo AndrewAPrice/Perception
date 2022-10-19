@@ -18,6 +18,7 @@
 #include <string>
 #include <string_view>
 
+#include "perception/ui/label.h"
 #include "perception/ui/text_alignment.h"
 #include "perception/ui/widget.h"
 
@@ -28,26 +29,24 @@ struct DrawContext;
 
 class TextBox : public Widget {
  public:
-  TextBox();
+  static std::shared_ptr<TextBox> Create();
   virtual ~TextBox();
 
   TextBox* SetValue(std::string_view value);
   std::string_view GetValue();
   TextBox* SetTextAlignment(TextAlignment alignment);
   TextBox* SetEditable(bool editable);
+  std::shared_ptr<Label> GetLabel();
   bool IsEditable();
   TextBox* OnChange(std::function<void()> on_change_handler);
 
  private:
+  TextBox();
   virtual void Draw(DrawContext& draw_context) override;
 
-  static YGSize Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
-                        float height, YGMeasureMode height_mode);
-
-  std::string value_;
+  std::shared_ptr<Label> label_;
   bool is_editable_;
   std::function<void()> on_change_handler_;
-  TextAlignment text_alignment_;
   bool realign_text_;
   int text_x_, text_y_;
 };

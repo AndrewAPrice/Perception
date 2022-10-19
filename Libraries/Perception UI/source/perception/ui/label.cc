@@ -28,8 +28,11 @@ namespace perception {
 namespace ui {
 
 Label::Label()
-    : label_(""), text_alignment_(TextAlignment::TopLeft), realign_text_(true) {
+    : color_(kLabelTextColor),
+      text_alignment_(TextAlignment::TopLeft),
+      realign_text_(true) {
   YGNodeSetMeasureFunc(yoga_node_, &Label::Measure);
+  SetMargin(YGEdgeAll, kMarginAroundWidgets);
 }
 
 Label::~Label() {}
@@ -52,28 +55,43 @@ Label* Label::SetTextAlignment(TextAlignment alignment) {
 
   text_alignment_ = alignment;
   realign_text_ = true;
+  InvalidateRender();
+  return this;
+}
+
+Label* Label::SetColor(uint32_t color) {
+  if (color_ == color) return this;
+
+  color_ = color;
+  InvalidateRender();
   return this;
 }
 
 void Label::Draw(DrawContext& draw_context) {
-  int width = (int)GetCalculatedWidth();
-  int height = (int)GetCalculatedHeight();
-  int x = (int)(GetLeft() + draw_context.offset_x);
-  int y = (int)(GetTop() + draw_context.offset_y);
+  float left_padding = GetComputedPadding(YGEdgeLeft);
+  float top_padding = GetComputedPadding(YGEdgeTop);
+
+  int width = (int)GetCalculatedWidth() - left_padding -
+              GetComputedPadding(YGEdgeRight);
+  int height = (int)GetCalculatedHeight() - top_padding -
+               GetComputedPadding(YGEdgeBottom);
+  int x = (int)(GetLeft() + draw_context.offset_x + left_padding);
+  int y = (int)(GetTop() + draw_context.offset_y + top_padding);
 
   if (realign_text_) {
-    CalculateTextAlignment(label_, width - 2, height - 2, text_alignment_,
-                           *GetUiFont(), text_x_, text_y_);
+    CalculateTextAlignment(label_, width, height, text_alignment_, *GetUiFont(),
+                           text_x_, text_y_);
     realign_text_ = false;
   }
 
   // Draw button text.
 
   SkPaint paint;
-  paint.setColor(kLabelTextColor);
+  paint.setAntiAlias(true);
+  paint.setColor(color_);
 
-  draw_context.skia_canvas->drawString(SkString(label_), x + 1 + text_x_,
-                                       y + 1 + text_y_, *GetUiFont(), paint);
+  draw_context.skia_canvas->drawString(SkString(label_), x + text_x_,
+                                       y + text_y_, *GetUiFont(), paint);
 }
 
 YGSize Label::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,

@@ -29,7 +29,22 @@ using ::permebuf::perception::devices::MouseButton;
 namespace perception {
 namespace ui {
 
-Button::Button() : is_pushed_down_(false) {}
+std::shared_ptr<Button> Button::Create() {
+  std::shared_ptr<Button> button(new Button());
+
+  auto label = std::make_shared<Label>();
+  label->SetTextAlignment(TextAlignment::MiddleCenter)
+      ->SetColor(kButtonTextColor)
+      ->SetFlexGrow(1.0);
+  button->label_ = label;
+  button->AddChild(label);
+
+  return button;
+}
+
+std::shared_ptr<Button> Button::CreateCustom() {
+  return std::shared_ptr<Button>(new Button());
+}
 
 Button::~Button() {}
 
@@ -38,11 +53,30 @@ Button* Button::OnClick(std::function<void()> on_click_handler) {
   return this;
 }
 
-void Button::OnMouseLeave() {
-  if (is_pushed_down_) {
-    is_pushed_down_ = false;
+Button* Button::SetLabel(std::string_view label) {
+  if (label_) label_->SetLabel(label);
+
+  return this;
+}
+
+std::string_view Button::GetLabel() {
+  if (label_) return label_->GetLabel();
+  return "";
+}
+
+void Button::OnMouseEnter() {
+  if (!is_mouse_hovering_) {
+    is_mouse_hovering_ = true;
     InvalidateRender();
   }
+}
+
+void Button::OnMouseLeave() {
+  bool invalidate = is_mouse_hovering_ || is_pushed_down_;
+  is_mouse_hovering_ = false;
+  is_pushed_down_ = false;
+
+  if (invalidate) InvalidateRender();
 }
 
 void Button::OnMouseButtonDown(float x, float y, MouseButton button) {
@@ -84,55 +118,54 @@ bool Button::GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
   return true;
 }
 
+Button::Button() : is_pushed_down_(false), is_mouse_hovering_(false) {
+  SetMinWidth(32.0f);
+  SetMinHeight(32.0f);
+  SetMargin(YGEdgeAll, kMarginAroundWidgets);
+}
+
 void Button::Draw(DrawContext& draw_context) {
-  uint32 top_left_color;
-  uint32 bottom_right_color;
+  uint32 outline_color = kButtonOutlineColor;
   uint32 background_color;
   int text_offset;
+
   if (is_pushed_down_) {
-    top_left_color = kButtonDarkColor;
-    bottom_right_color = kButtonBrightColor;
-    background_color = kButtonPushedBackgroundColor;
-    text_offset = 1;
+    background_color = kButtonBackgroundPushedColor;
+  } else if (is_mouse_hovering_) {
+    background_color = kButtonBackgroundHoverColor;
   } else {
-    top_left_color = kButtonBrightColor;
-    bottom_right_color = kButtonDarkColor;
     background_color = kButtonBackgroundColor;
-    text_offset = 0;
   }
 
-  int x = (int)(GetLeft() + draw_context.offset_x);
-  int y = (int)(GetTop() + draw_context.offset_y);
+  float x = GetLeft() + draw_context.offset_x;
+  float y = GetTop() + draw_context.offset_y;
 
-  int width = (int)GetCalculatedWidth();
-  int height = (int)GetCalculatedHeight();
+  float width = GetCalculatedWidth();
+  float height = GetCalculatedHeight();
 
   draw_context.skia_canvas->save();
 
-  // Left line.
   SkPaint p;
-  p.setColor(top_left_color);
+  p.setAntiAlias(true);
+
+  // Draw the background.
+  p.setColor(background_color);
+  p.setStyle(SkPaint::kFill_Style);
+  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
+                                          kButtonCornerRadius,
+                                          kButtonCornerRadius, p);
+
+  // Draw the outline.
+  p.setColor(outline_color);
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(1);
-  draw_context.skia_canvas->drawLine(x, y, x, y + height, p);
+  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
+                                          kButtonCornerRadius,
+                                          kButtonCornerRadius, p);
 
-  // Top line.
-  draw_context.skia_canvas->drawLine(x + 1, y, x + width - 1, y, p);
-
-  // Right line.
-  p.setColor(bottom_right_color);
-  draw_context.skia_canvas->drawLine(x + width - 1, y + 1, x + width - 1, y + height - 1, p);
-
-  // Bottom line.
-  draw_context.skia_canvas->drawLine(x + 1, y + height - 1, x + width - 2, y + height - 1, p);
-
-  // Draw background.
-  draw_context.skia_canvas->clipIRect(
-      SkIRect::MakeLTRB(x + 1, y + 1, x + width - 1, y + height - 1));
-
-  draw_context.skia_canvas->drawColor(background_color);
   draw_context.skia_canvas->restore();
 
+  // Draw the contents of the button.
   Widget::Draw(draw_context);
 }
 

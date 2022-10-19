@@ -35,7 +35,9 @@ int main() {
                      ->SetTextAlignment(TextAlignment::MiddleCenter)
                      ->SetLabel("Welcome to Perception. Press the ESCAPE key "
                                 "to open the launcher.")
-                     ->ToSharedPtr());
+                     ->ToSharedPtr())
+      ->SetWidth(640)
+      ->SetHeight(480);
   window->Create();
 
   auto launcher = std::make_unique<Launcher>();

@@ -15,6 +15,7 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -34,6 +35,7 @@ class Label : public Widget {
   Label* SetLabel(std::string_view label);
   std::string_view GetLabel();
   Label* SetTextAlignment(TextAlignment alignment);
+  Label* SetColor(uint32_t color);
 
  private:
   virtual void Draw(DrawContext& draw_context) override;
@@ -41,10 +43,12 @@ class Label : public Widget {
   static YGSize Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
                         float height, YGMeasureMode height_mode);
 
+  uint32_t color_;
   std::string label_;
   TextAlignment text_alignment_;
   bool realign_text_;
   int text_x_, text_y_;
+
 };
 
 }  // namespace ui

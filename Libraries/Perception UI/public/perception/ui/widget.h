@@ -119,12 +119,14 @@ class Widget : public std::enable_shared_from_this<Widget> {
   Widget* SetWidthAuto();
   YGValue GetWidth();
   float GetCalculatedWidth();
+  float GetCalculatedWidthWithMargin();
 
   Widget* SetHeight(float height);
   Widget* SetHeightPercent(float height);
   Widget* SetHeightAuto();
   YGValue GetHeight();
   float GetCalculatedHeight();
+  float GetCalculatedHeightWithMargin();
 
   Widget* SetMinWidth(float min_width);
   Widget* SetMinWidthPercent(float min_height);
@@ -151,6 +153,10 @@ class Widget : public std::enable_shared_from_this<Widget> {
   float GetBottom();
   bool GetHadOverflow();
   bool GetDidLegacyStretchFlagAffectLayout();
+
+  Widget* SetId(size_t id);
+  size_t GetId() const;
+  static std::weak_ptr<Widget> GetWidgetWithId(size_t id);
 
   // The below functions are not intended for end users unless
   // you are building widgets.
@@ -180,6 +186,7 @@ class Widget : public std::enable_shared_from_this<Widget> {
 
   std::weak_ptr<Widget> parent_;
   std::list<std::shared_ptr<Widget>> children_;
+  size_t id_;
 
   YGNode* yoga_node_;
   bool layout_dirtied_;

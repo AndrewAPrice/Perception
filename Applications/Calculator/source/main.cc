@@ -33,7 +33,11 @@ using ::perception::ui::TextAlignment;
 using ::perception::ui::TextBox;
 using ::perception::ui::UiWindow;
 using ::perception::ui::Widget;
+
 namespace {
+
+constexpr size_t kTopLevelWidgetId = 1;
+
 enum Operation { NOTHING = 0, ADD = 1, SUBTRACT = 2, DIVIDE = 3, MULTIPLY = 4 };
 Operation operation = NOTHING;
 double last_number = 0.0;
@@ -127,16 +131,9 @@ void PressClear() {
 
 std::shared_ptr<Widget> CreateButton(std::string_view label,
                                      std::function<void()> on_click_handler) {
-  return std::make_shared<Button>()
+  return Button::Create()
+      ->SetLabel(label)
       ->OnClick(on_click_handler)
-      ->AddChild(std::make_shared<Label>()
-                     ->SetLabel(label)
-                     ->SetTextAlignment(TextAlignment::MiddleCenter)
-                     ->ToSharedPtr())
-      ->SetJustifyContent(YGJustifyCenter)
-      ->SetAlignContent(YGAlignCenter)
-      ->SetWidthPercent(25)
-      ->SetHeightPercent(20)
       ->ToSharedPtr();
 }
 
@@ -145,49 +142,84 @@ std::shared_ptr<Widget> CreateButton(std::string_view label,
 int main() {
   auto window = std::make_shared<UiWindow>("Calculator");
   display = std::static_pointer_cast<TextBox>(
-      std::make_shared<TextBox>()
-          ->SetTextAlignment(TextAlignment::MiddleRight)
-          ->SetValue("")
-          ->SetHeight(50)
-          ->SetFlexGrow(0.2)
+      TextBox::Create()
+          ->SetTextAlignment(TextAlignment::BottomRight)
+          ->SetAlignSelf(YGAlignStretch)
+          ->SetFlexGrow(1.0)
           ->ToSharedPtr());
 
+  window->OnResize([](float width, float height) {
+    bool is_landscape = width > height;
+    if (auto top_level_widget = Widget::GetWidgetWithId(kTopLevelWidgetId).lock()) {
+      top_level_widget->SetFlexDirection(
+          is_landscape ? YGFlexDirectionRowReverse : YGFlexDirectionColumn);
+    }
+  });
+
+  auto button_panel =
+      std::make_shared<Widget>()
+          ->AddChildren(
+              {std::make_shared<Widget>()
+                   ->SetFlexDirection(YGFlexDirectionRow)
+                   ->AddChildren(
+                       {CreateButton("C", PressClear),
+                        CreateButton("+-", PressFlipSign),
+                        CreateButton("/", std::bind(PressOperator, DIVIDE)),
+                        CreateButton("x", std::bind(PressOperator, MULTIPLY))})
+                   ->ToSharedPtr(),
+               std::make_shared<Widget>()
+                   ->SetFlexDirection(YGFlexDirectionRow)
+                   ->AddChildren(
+                       {CreateButton("7", std::bind(PressNumber, 7)),
+                        CreateButton("8", std::bind(PressNumber, 8)),
+                        CreateButton("9", std::bind(PressNumber, 9)),
+                        CreateButton("-", std::bind(PressOperator, SUBTRACT))})
+                   ->ToSharedPtr(),
+               std::make_shared<Widget>()
+                   ->SetFlexDirection(YGFlexDirectionRow)
+                   ->AddChildren(
+                       {CreateButton("4", std::bind(PressNumber, 4)),
+                        CreateButton("5", std::bind(PressNumber, 5)),
+                        CreateButton("6", std::bind(PressNumber, 6)),
+                        CreateButton("+", std::bind(PressOperator, ADD))})
+                   ->ToSharedPtr(),
+               std::make_shared<Widget>()
+                   ->SetFlexDirection(YGFlexDirectionRow)
+                   ->AddChildren(
+                       {std::make_shared<Widget>()
+                            ->SetFlexDirection(YGFlexDirectionColumn)
+                            ->AddChildren(
+                                {std::make_shared<Widget>()
+                                     ->SetFlexDirection(YGFlexDirectionRow)
+                                     ->AddChildren(
+                                         {CreateButton(
+                                              "1", std::bind(PressNumber, 1)),
+                                          CreateButton(
+                                              "2", std::bind(PressNumber, 2)),
+                                          CreateButton(
+                                              "3", std::bind(PressNumber, 3))})
+                                     ->ToSharedPtr(),
+                                 std::make_shared<Widget>()
+                                     ->SetFlexDirection(YGFlexDirectionRow)
+                                     ->AddChildren(
+                                         {CreateButton(
+                                              "0", std::bind(PressNumber, 0))
+                                              ->SetWidth(64)
+                                              ->ToSharedPtr(),
+                                          CreateButton(".", PressDecimal)})
+                                     ->ToSharedPtr()})
+                            ->ToSharedPtr(),
+                        CreateButton("=", std::bind(PressEquals))
+                            ->SetHeight(64)
+                            ->ToSharedPtr()})
+                   ->ToSharedPtr()})
+          ->ToSharedPtr();
+
   window->OnClose([]() { TerminateProcess(); })
+      ->SetId(kTopLevelWidgetId)
+      ->SetAlignItems(YGAlignCenter)
       ->SetFlexDirection(YGFlexDirectionColumn)
-      ->AddChild(display)
-      ->AddChild(std::make_shared<Widget>()
-                     ->SetFlexGrow(0.8)
-                     ->SetFlexWrap(YGWrapWrap)
-                     ->SetFlexDirection(YGFlexDirectionRow)
-                     ->AddChildren(
-                         {CreateButton("C", PressClear),
-                          CreateButton("+-", PressFlipSign),
-                          CreateButton("/", std::bind(PressOperator, DIVIDE)),
-                          CreateButton("x", std::bind(PressOperator, MULTIPLY)),
-                          CreateButton("7", std::bind(PressNumber, 7)),
-                          CreateButton("8", std::bind(PressNumber, 8)),
-                          CreateButton("9", std::bind(PressNumber, 9)),
-                          CreateButton("-", std::bind(PressOperator, SUBTRACT)),
-                          CreateButton("4", std::bind(PressNumber, 4)),
-                          CreateButton("5", std::bind(PressNumber, 5)),
-                          CreateButton("6", std::bind(PressNumber, 6)),
-                          CreateButton("+", std::bind(PressOperator, ADD)),
-                          CreateButton("1", std::bind(PressNumber, 1)),
-                          CreateButton("2", std::bind(PressNumber, 2)),
-                          CreateButton("3", std::bind(PressNumber, 3)),
-                          CreateButton("=", std::bind(PressEquals))
-                              ->SetHeightPercent(40)
-                              ->SetPosition(YGEdgeRight, 0)
-                              ->SetPosition(YGEdgeBottom, 0)
-                              ->SetPositionType(YGPositionTypeAbsolute)
-                              ->ToSharedPtr(),
-                          CreateButton("0", std::bind(PressNumber, 0))
-                              ->SetWidthPercent(50)
-                              ->SetHeightPercent(20)
-                              ->ToSharedPtr(),
-                          CreateButton(".", PressDecimal)})
-                     ->ToSharedPtr())
-      ->SetPadding(YGEdgeAll, 8);
+      ->AddChildren({display, button_panel});
   window->Create();
 
   HandOverControl();

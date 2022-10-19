@@ -52,6 +52,7 @@ UiWindow::UiWindow(std::string_view title, bool dialog)
   }
   SetWidthAuto();
   SetHeightAuto();
+  SetPadding(YGEdgeAll, kMarginAroundWidgets);
 }
 
 UiWindow::~UiWindow() {
@@ -68,6 +69,11 @@ UiWindow* UiWindow::SetBackgroundColor(uint32 background_color) {
 
 UiWindow* UiWindow::OnClose(std::function<void()> on_close_handler) {
   on_close_handler_ = on_close_handler;
+  return this;
+}
+
+UiWindow* UiWindow::OnResize(std::function<void(float, float)> on_resize_handler) {
+  on_resize_handler_ = on_resize_handler;
   return this;
 }
 
@@ -180,6 +186,8 @@ void UiWindow::HandleSetSize(ProcessId, const Window::SetSizeMessage& message) {
   SetWidth((float)buffer_width_);
   SetHeight((float)buffer_height_);
   rebuild_texture_ = true;
+  if(on_resize_handler_)
+    on_resize_handler_((float)buffer_width_, (float)buffer_height_);
   InvalidateRender();
 }
 
@@ -344,14 +352,9 @@ void UiWindow::ReleaseTextures() {
 UiWindow* UiWindow::Create() {
   if (created_) return this;
 
-  std::cout << "Create!" << std::endl;
   MaybeUpdateLayout();
-  std::cout << "Creating" << std::endl;
   int calculated_width = GetCalculatedWidth();
   int calculated_height = GetCalculatedHeight();
-
-  std::cout << "calculated_width: " << calculated_width << std::endl;
-  std::cout << "calculated_height: " << calculated_height << std::endl;
 
   Permebuf<WindowManager::CreateWindowRequest> create_window_request;
   // std::cout << title_ << "'s message id is: " <<
@@ -377,6 +380,9 @@ UiWindow* UiWindow::Create() {
     buffer_width_ = 0;
     buffer_height_ = 0;
   }
+
+  if(on_resize_handler_)
+    on_resize_handler_((float)buffer_width_, (float)buffer_height_);
 
   InvalidateRender();
   created_ = true;

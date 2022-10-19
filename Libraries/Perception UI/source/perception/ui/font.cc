@@ -17,6 +17,8 @@
 #include <memory>
 
 #include "include/core/SkFont.h"
+#include "include/core/SkFontStyle.h"
+#include "include/core/SkTypeface.h"
 
 namespace perception {
 namespace ui {
@@ -28,7 +30,12 @@ std::unique_ptr<SkFont> ui_font;
 
 SkFont* GetUiFont() {
   if (!ui_font) {
-    ui_font = std::make_unique<SkFont>(nullptr, 16);
+    ui_font = std::make_unique<SkFont>(
+        SkTypeface::MakeFromName(
+            "DejaVuSans",
+            SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
+                        SkFontStyle::kUpright_Slant)),
+        10);
   }
   return ui_font.get();
 }

@@ -36,7 +36,10 @@ using ::perception::SleepUntilTimeSinceKernelStarted;
 
 std::shared_ptr<UiWindow> CreateWindow(std::string_view title, uint32 color,
                                        bool dialog = false) {
-  return std::make_shared<UiWindow>(title, dialog);
+  auto window = std::make_shared<UiWindow>(title, dialog);
+  window->SetBackgroundColor(color);
+  window->Create();
+  return window;
 }
 
 int main() {

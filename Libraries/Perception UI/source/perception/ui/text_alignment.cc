@@ -15,6 +15,7 @@
 #include "perception/ui/text_alignment.h"
 
 #include "include/core/SkFont.h"
+#include "include/core/SkFontMetrics.h"
 #include "include/core/SkRect.h"
 
 namespace perception {
@@ -24,7 +25,11 @@ void CalculateTextAlignment(std::string_view text, int width, int height,
                             TextAlignment alignment, SkFont& font, int& x,
                             int& y) {
   SkRect bounds;
-  (void)font.measureText(&text[0], text.length(), SkTextEncoding::kUTF8, &bounds);
+  (void)font.measureText(&text[0], text.length(), SkTextEncoding::kUTF8,
+                         &bounds);
+
+  SkFontMetrics font_metrics;
+  float line_height = font.getMetrics(&font_metrics);
 
   switch (alignment) {
     case TextAlignment::TopLeft:
@@ -35,14 +40,16 @@ void CalculateTextAlignment(std::string_view text, int width, int height,
     case TextAlignment::MiddleLeft:
     case TextAlignment::MiddleCenter:
     case TextAlignment::MiddleRight:
-      y = height / 2 - bounds.height() / 2;
+      y = height / 2 - (font_metrics.fDescent - font_metrics.fAscent) / 2;
       break;
     case TextAlignment::BottomLeft:
     case TextAlignment::BottomCenter:
     case TextAlignment::BottomRight:
-      y = height - bounds.height();
+      y = height - line_height;
       break;
   }
+  // Skia draws text from the baseline.
+  y -= font_metrics.fAscent;
 
   switch (alignment) {
     case TextAlignment::TopLeft:

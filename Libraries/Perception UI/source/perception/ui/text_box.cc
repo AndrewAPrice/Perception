@@ -28,35 +28,27 @@
 namespace perception {
 namespace ui {
 
-TextBox::TextBox()
-    : value_(""),
-      is_editable_(false),
-      text_alignment_(TextAlignment::MiddleLeft),
-      realign_text_(true) {
-  YGNodeSetMeasureFunc(yoga_node_, &TextBox::Measure);
+std::shared_ptr<TextBox> TextBox::Create() {
+  std::shared_ptr<TextBox> text_box(new TextBox());
+  auto label = std::make_shared<Label>();
+  text_box->label_ = label;
+  label->SetColor(kTextBoxTextColor)->SetFlexGrow(1.0);
+  text_box->AddChild(label);
+  return text_box;
 }
 
 TextBox::~TextBox() {}
 
 TextBox* TextBox::SetValue(std::string_view value) {
-  if (value_ == value) return this;
-
-  value_ = value;
-
-  YGNodeMarkDirty(yoga_node_);
-
-  InvalidateRender();
-  realign_text_ = true;
+  label_->SetLabel(value);
+  if (on_change_handler_) on_change_handler_();
   return this;
 }
 
-std::string_view TextBox::GetValue() { return value_; }
+std::string_view TextBox::GetValue() { return label_->GetLabel(); }
 
 TextBox* TextBox::SetTextAlignment(TextAlignment alignment) {
-  if (text_alignment_ == alignment) return this;
-
-  text_alignment_ = alignment;
-  realign_text_ = true;
+  label_->SetTextAlignment(alignment);
   return this;
 }
 
@@ -64,6 +56,13 @@ TextBox* TextBox::SetEditable(bool editable) {
   if (is_editable_ == editable) return this;
 
   is_editable_ = editable;
+
+  if (is_editable_) {
+    label_->SetColor(kTextBoxNonEditableTextColor);
+  } else {
+    label_->SetColor(kTextBoxTextColor);
+  }
+
   return this;
 }
 
@@ -74,101 +73,42 @@ TextBox* TextBox::OnChange(std::function<void()> on_change_handler) {
   return this;
 }
 
-void TextBox::Draw(DrawContext& draw_context) {
-  uint32 text_color;
-  if (is_editable_) {
-    text_color = kTextBoxNonEditableTextColor;
-  } else {
-    text_color = kTextBoxTextColor;
-  }
-
-  int width = (int)GetCalculatedWidth();
-  int height = (int)GetCalculatedHeight();
-  int x = (int)(GetLeft() + draw_context.offset_x);
-  int y = (int)(GetTop() + draw_context.offset_y);
-
-  // Left line.
-  DrawYLine(x, y, height, kTextBoxTopLeftOutlineColor, draw_context.buffer,
-            draw_context.buffer_width, draw_context.buffer_height);
-
-  // Top line.
-  DrawXLine(x + 1, y, width - 1, kTextBoxTopLeftOutlineColor,
-            draw_context.buffer, draw_context.buffer_width,
-            draw_context.buffer_height);
-
-  // Right line.
-  DrawYLine(x + width - 1, y + 1, height - 1, kTextBoxBottomRightOutlineColor,
-            draw_context.buffer, draw_context.buffer_width,
-            draw_context.buffer_height);
-
-  // Bottom line.
-  DrawXLine(x + 1, y + height - 1, width - 2, kTextBoxBottomRightOutlineColor,
-            draw_context.buffer, draw_context.buffer_width,
-            draw_context.buffer_height);
-
-  // Draw background
-  FillRectangle(x + 1, y + 1, x + width - 1, y + height - 1,
-                kTextBoxBackgroundColor, draw_context.buffer,
-                draw_context.buffer_width, draw_context.buffer_height);
-
-  int left_padding = (int)GetComputedPadding(YGEdgeLeft);
-  int top_padding = (int)GetComputedPadding(YGEdgeTop);
-  int right_padding = (int)GetComputedPadding(YGEdgeRight);
-  int bottom_padding = (int)GetComputedPadding(YGEdgeBottom);
-
-  if (realign_text_) {
-    CalculateTextAlignment(value_, width - 2, height - 2, text_alignment_,
-                           *GetUiFont(), text_x_, text_y_);
-    realign_text_ = false;
-  }
-
-  // Draw button text.
-  SkPaint paint;
-  paint.setColor(kTextBoxTextColor);
-
-  draw_context.skia_canvas->drawString(
-      SkString(value_), (float)(x + left_padding + 1 + text_x_),
-      (float)(y + top_padding + 1 + text_y_, text_y_), *GetUiFont(), paint);
+TextBox::TextBox() : is_editable_(false), Widget() {
+  SetMinWidth(32.0f);
+  SetMargin(YGEdgeAll, kMarginAroundWidgets);
 }
 
-YGSize TextBox::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
-                        float height, YGMeasureMode height_mode) {
-  TextBox* text_box = (TextBox*)YGNodeGetContext(node);
-  YGSize size;
+void TextBox::Draw(DrawContext& draw_context) {
+  float x = GetLeft() + draw_context.offset_x;
+  float y = GetTop() + draw_context.offset_y;
 
-  bool measuredString = false;
-  SkRect stringBounds;
-  static SkFont font(nullptr, 64);
-#define maybeMeasureString()                                                \
-  if (!measuredString) {                                                    \
-    (void)font.measureText(&text_box->value_[0], text_box->value_.length(), \
-                           SkTextEncoding::kUTF8, &stringBounds);           \
-    measuredString = true;                                                  \
-  }
+  float width = GetCalculatedWidth();
+  float height = GetCalculatedHeight();
 
-  if (width_mode == YGMeasureModeExactly) {
-    size.width = width;
-  } else {
-    maybeMeasureString() size.width =
-        stringBounds.width() + text_box->GetComputedPadding(YGEdgeTop) +
-        text_box->GetComputedPadding(YGEdgeBottom);
-    if (width_mode == YGMeasureModeAtMost) {
-      size.width = std::min(width, size.width);
-    }
-  }
-  if (height_mode == YGMeasureModeExactly) {
-    size.height = height;
-  } else {
-    maybeMeasureString() size.height =
-        stringBounds.height() + text_box->GetComputedPadding(YGEdgeLeft) +
-        text_box->GetComputedPadding(YGEdgeRight);
-    if (height_mode == YGMeasureModeAtMost) {
-      size.height = std::min(height, size.height);
-    }
-  }
+  draw_context.skia_canvas->save();
 
-  text_box->realign_text_ = true;
-  return size;
+  SkPaint p;
+  p.setAntiAlias(true);
+
+  // Draw the background.
+  p.setColor(kTextBoxBackgroundColor);
+  p.setStyle(SkPaint::kFill_Style);
+  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
+                                          kTextBoxCornerRadius,
+                                          kTextBoxCornerRadius, p);
+
+  // Draw the outline.
+  p.setColor(kTextBoxOutlineColor);
+  p.setStyle(SkPaint::kStroke_Style);
+  p.setStrokeWidth(1);
+  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
+                                          kTextBoxCornerRadius,
+                                          kTextBoxCornerRadius, p);
+
+  draw_context.skia_canvas->restore();
+
+  // Draw the contents of the text box.
+  Widget::Draw(draw_context);
 }
 
 }  // namespace ui

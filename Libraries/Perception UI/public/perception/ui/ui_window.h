@@ -50,6 +50,7 @@ class UiWindow
   UiWindow* SetBackgroundColor(uint32 background_color);
   std::shared_ptr<Widget> GetRoot();
   UiWindow* OnClose(std::function<void()> on_close_handler);
+  UiWindow* OnResize(std::function<void(float, float)> on_resize_handler);
 
   void Draw();
   UiWindow* Create();
@@ -125,6 +126,7 @@ class UiWindow
   std::string title_;
   uint32 background_color_;
   std::function<void()> on_close_handler_;
+  std::function<void(float, float)> on_resize_handler_;
 
   std::weak_ptr<Widget> widget_mouse_is_over_;
 

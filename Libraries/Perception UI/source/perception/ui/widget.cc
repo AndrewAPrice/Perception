@@ -14,10 +14,17 @@
 
 #include "perception/ui/widget.h"
 
+#include <map>
+
 #include "perception/ui/draw_context.h"
 
 namespace perception {
 namespace ui {
+namespace {
+
+std::map<size_t, std::weak_ptr<Widget>> widgets_by_id_;
+
+}
 
 Widget::Widget() : layout_dirtied_(true), yoga_node_(YGNodeNew()) {
   YGNodeSetContext(yoga_node_, this);
@@ -27,6 +34,8 @@ Widget::Widget() : layout_dirtied_(true), yoga_node_(YGNodeNew()) {
 Widget::~Widget() {
   // This does some extra work than merely deleting the node.
   YGNodeFree(yoga_node_);
+
+  if (id_ != 0) widgets_by_id_.erase(id_);
 }
 
 std::weak_ptr<Widget> Widget::GetParent() { return parent_; }
@@ -295,6 +304,11 @@ YGValue Widget::GetWidth() { return YGNodeStyleGetWidth(yoga_node_); }
 
 float Widget::GetCalculatedWidth() { return YGNodeLayoutGetWidth(yoga_node_); }
 
+float Widget::GetCalculatedWidthWithMargin() {
+  return GetCalculatedWidth() + GetComputedPadding(YGEdgeLeft) +
+         GetComputedPadding(YGEdgeRight);
+}
+
 Widget* Widget::SetHeight(float height) {
   YGNodeStyleSetHeight(yoga_node_, height);
   return this;
@@ -314,6 +328,11 @@ YGValue Widget::GetHeight() { return YGNodeStyleGetHeight(yoga_node_); }
 
 float Widget::GetCalculatedHeight() {
   return YGNodeLayoutGetHeight(yoga_node_);
+}
+
+float Widget::GetCalculatedHeightWithMargin() {
+  return GetCalculatedHeight() + GetComputedPadding(YGEdgeTop) +
+         GetComputedPadding(YGEdgeBottom);
 }
 
 Widget* Widget::SetMinWidth(float min_width) {
@@ -383,6 +402,20 @@ bool Widget::GetHadOverflow() { return YGNodeLayoutGetHadOverflow(yoga_node_); }
 
 bool Widget::GetDidLegacyStretchFlagAffectLayout() {
   return YGNodeLayoutGetDidLegacyStretchFlagAffectLayout(yoga_node_);
+}
+
+Widget* Widget::SetId(size_t id) {
+  if (id_ != 0) widgets_by_id_.erase(id_);
+
+  id_ = id;
+  if (id_ != 0) widgets_by_id_.insert(std::make_pair(id, ToSharedPtr()));
+  return this;
+}
+
+size_t Widget::GetId() const { return id_; }
+
+std::weak_ptr<Widget> Widget::GetWidgetWithId(size_t id) {
+  return widgets_by_id_[id];
 }
 
 void Widget::Draw(DrawContext& draw_context) {
