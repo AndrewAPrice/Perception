@@ -56,7 +56,6 @@ function compilePermebufToCpp(
   Object.keys(importedFilesMap).forEach((importedFile) => {
     dependencies.push(importedFile);
   });
-  dependencies.push(localPath);
 
   return true;
 }
@@ -143,7 +142,7 @@ async function forceTranspilePermebufToCppForPackage(packageType, packageName) {
         }
 
         if (shouldCompileFile) {
-          deps = [];
+          deps = [fullPath];
           if (!compilePermebufToCpp(
                   localPath, packageName, packageType, deps)) {
             errors = true;
