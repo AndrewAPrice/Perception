@@ -744,8 +744,9 @@ void Frame::MouseEvent(int screen_x, int screen_y,
       }
     } else {
       // Clicked the body of the window.
-      (void)DockFrame.focused_window_->MouseEvent(screen_x, screen_y, button,
-                                                  is_button_down);
+      (void)DockFrame.focused_window_->MouseEvent(
+          screen_x - x_, screen_y - y_ - DockFrame.title_height_, button,
+          is_button_down);
     }
   }
 }

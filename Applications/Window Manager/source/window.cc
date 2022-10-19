@@ -395,13 +395,15 @@ void Window::DroppedAt(int screen_x, int screen_y) {
 
 bool Window::MouseEvent(int screen_x, int screen_y, MouseButton button,
                         bool is_button_down) {
-  if (x_ >= screen_x || y_ >= screen_y ||
-      x_ + width_ + DIALOG_BORDER_WIDTH < screen_x ||
-      y_ + height_ + DIALOG_BORDER_HEIGHT < screen_y) {
-    return false;
+  if (is_dialog_) {
+    if (x_ >= screen_x || y_ >= screen_y ||
+        x_ + width_ + DIALOG_BORDER_WIDTH < screen_x ||
+        y_ + height_ + DIALOG_BORDER_HEIGHT < screen_y) {
+      return false;
+    }
   }
 
-  if (screen_y < y_ + WINDOW_TITLE_HEIGHT + 2) {
+  if (is_dialog_ && screen_y < y_ + WINDOW_TITLE_HEIGHT + 2) {
     // In the title area.
     if (screen_x >= x_ + title_width_ + 2) {
       // But outside of our title tab.
@@ -426,8 +428,12 @@ bool Window::MouseEvent(int screen_x, int screen_y, MouseButton button,
     }
   } else {
     // Test if we're clicking in the window's contents.
-    int local_x = screen_x - x_ - 1;
-    int local_y = screen_y - y_ - WINDOW_TITLE_HEIGHT - 2;
+    int local_x = screen_x;
+    int local_y = screen_y;
+    if (is_dialog_) {
+      local_x -= x_ + 1;
+      local_y -= y_ + WINDOW_TITLE_HEIGHT + 2;
+    }
     if (local_x >= 0 && local_y >= 0 && local_x < width_ && local_y < height_) {
       // We're over the contents.
       if (hovered_window != this) {
