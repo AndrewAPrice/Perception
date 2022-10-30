@@ -67,16 +67,14 @@ std::string_view Button::GetLabel() {
 void Button::OnMouseEnter() {
   if (!is_mouse_hovering_) {
     is_mouse_hovering_ = true;
-    InvalidateRender();
+    SetBackgroundColor(kButtonBackgroundHoverColor);
   }
 }
 
 void Button::OnMouseLeave() {
-  bool invalidate = is_mouse_hovering_ || is_pushed_down_;
   is_mouse_hovering_ = false;
   is_pushed_down_ = false;
-
-  if (invalidate) InvalidateRender();
+  SetBackgroundColor(kButtonBackgroundColor);
 }
 
 void Button::OnMouseButtonDown(float x, float y, MouseButton button) {
@@ -85,7 +83,7 @@ void Button::OnMouseButtonDown(float x, float y, MouseButton button) {
   if (is_pushed_down_) return;
 
   is_pushed_down_ = true;
-  InvalidateRender();
+  SetBackgroundColor(kButtonBackgroundPushedColor);
 }
 
 void Button::OnMouseButtonUp(float x, float y, MouseButton button) {
@@ -94,7 +92,7 @@ void Button::OnMouseButtonUp(float x, float y, MouseButton button) {
   if (!is_pushed_down_) return;
 
   is_pushed_down_ = false;
-  InvalidateRender();
+  SetBackgroundColor(is_mouse_hovering_ ? kButtonBackgroundHoverColor : kButtonBackgroundColor);
 
   if (on_click_handler_) on_click_handler_();
 }
@@ -122,51 +120,10 @@ Button::Button() : is_pushed_down_(false), is_mouse_hovering_(false) {
   SetMinWidth(32.0f);
   SetMinHeight(32.0f);
   SetMargin(YGEdgeAll, kMarginAroundWidgets);
-}
-
-void Button::Draw(DrawContext& draw_context) {
-  uint32 outline_color = kButtonOutlineColor;
-  uint32 background_color;
-  int text_offset;
-
-  if (is_pushed_down_) {
-    background_color = kButtonBackgroundPushedColor;
-  } else if (is_mouse_hovering_) {
-    background_color = kButtonBackgroundHoverColor;
-  } else {
-    background_color = kButtonBackgroundColor;
-  }
-
-  float x = GetLeft() + draw_context.offset_x;
-  float y = GetTop() + draw_context.offset_y;
-
-  float width = GetCalculatedWidth();
-  float height = GetCalculatedHeight();
-
-  draw_context.skia_canvas->save();
-
-  SkPaint p;
-  p.setAntiAlias(true);
-
-  // Draw the background.
-  p.setColor(background_color);
-  p.setStyle(SkPaint::kFill_Style);
-  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
-                                          kButtonCornerRadius,
-                                          kButtonCornerRadius, p);
-
-  // Draw the outline.
-  p.setColor(outline_color);
-  p.setStyle(SkPaint::kStroke_Style);
-  p.setStrokeWidth(1);
-  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
-                                          kButtonCornerRadius,
-                                          kButtonCornerRadius, p);
-
-  draw_context.skia_canvas->restore();
-
-  // Draw the contents of the button.
-  Widget::Draw(draw_context);
+  SetBackgroundColor(kButtonBackgroundColor);
+  SetBorderWidth(1.0f);
+  SetBorderColor(kButtonOutlineColor);
+  SetBorderRadius(kButtonCornerRadius);
 }
 
 }  // namespace ui

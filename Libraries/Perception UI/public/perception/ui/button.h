@@ -19,6 +19,7 @@
 #include <string>
 #include <string_view>
 
+#include "perception/ui/container.h"
 #include "perception/ui/label.h"
 #include "perception/ui/widget.h"
 
@@ -27,7 +28,7 @@ namespace ui {
 
 struct DrawContext;
 
-class Button : public Widget {
+class Button : public Container {
  public:
   // Creates a standard button with a text label.
   static std::shared_ptr<Button> Create();
@@ -58,9 +59,8 @@ class Button : public Widget {
       float x, float y,
       ::permebuf::perception::devices::MouseButton button) override;
 
- private:
+ protected:
   Button();
-  virtual void Draw(DrawContext& draw_context) override;
 
   std::shared_ptr<Label> label_;
 
