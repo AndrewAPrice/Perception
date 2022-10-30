@@ -45,7 +45,7 @@ UiWindow::UiWindow(std::string_view title, bool dialog)
       rebuild_texture_(true) {
   SkGraphics::Init();  // See if this isn't needed.
   auto maximum_window_size = WindowManager::Get().CallGetMaximumWindowSize(
-    WindowManager::GetMaximumWindowSizeRequest());
+      WindowManager::GetMaximumWindowSizeRequest());
   if (maximum_window_size.Ok()) {
     buffer_width_ = maximum_window_size->GetWidth();
     buffer_height_ = maximum_window_size->GetHeight();
@@ -72,7 +72,8 @@ UiWindow* UiWindow::OnClose(std::function<void()> on_close_handler) {
   return this;
 }
 
-UiWindow* UiWindow::OnResize(std::function<void(float, float)> on_resize_handler) {
+UiWindow* UiWindow::OnResize(
+    std::function<void(float, float)> on_resize_handler) {
   on_resize_handler_ = on_resize_handler;
   return this;
 }
@@ -179,14 +180,12 @@ void UiWindow::HandleOnKeyboardReleased(
 }
 
 void UiWindow::HandleSetSize(ProcessId, const Window::SetSizeMessage& message) {
-  std::cout << "Window " << title_ << " resized to " << message.GetWidth()
-            << "," << message.GetHeight() << std::endl;
   buffer_width_ = message.GetWidth();
   buffer_height_ = message.GetHeight();
   SetWidth((float)buffer_width_);
   SetHeight((float)buffer_height_);
   rebuild_texture_ = true;
-  if(on_resize_handler_)
+  if (on_resize_handler_)
     on_resize_handler_((float)buffer_width_, (float)buffer_height_);
   InvalidateRender();
 }
@@ -206,6 +205,7 @@ void UiWindow::HandleLostFocus(ProcessId,
 }
 
 void UiWindow::Draw() {
+  std::scoped_lock(draw_mutex_);
   if (!invalidated_ || !created_) {
     invalidated_ = false;
     return;
@@ -295,6 +295,14 @@ void UiWindow::Draw() {
 
 void Create() {}
 
+bool UiWindow::GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
+                           float& x_in_selected_widget,
+                           float& y_in_selected_widget) {
+  MaybeUpdateLayout();
+  return Widget::GetWidgetAt(x, y, widget, x_in_selected_widget,
+                             y_in_selected_widget);
+}
+
 void UiWindow::InvalidateRender() {
   if (invalidated_) {
     return;
@@ -350,11 +358,8 @@ void UiWindow::ReleaseTextures() {
 }
 
 UiWindow* UiWindow::Create() {
+  std::scoped_lock(draw_mutex_);
   if (created_) return this;
-
-  MaybeUpdateLayout();
-  int calculated_width = GetCalculatedWidth();
-  int calculated_height = GetCalculatedHeight();
 
   Permebuf<WindowManager::CreateWindowRequest> create_window_request;
   // std::cout << title_ << "'s message id is: " <<
@@ -366,6 +371,18 @@ UiWindow* UiWindow::Create() {
   create_window_request->SetKeyboardListener(*this);
   create_window_request->SetMouseListener(*this);
   if (is_dialog_) {
+    // Measure how big our dialog is.
+
+    // If a dimension is 'auto', it fills to take the entire size passed in, but
+    // if we pass in YGUndefined, it'll fill to wrap the content.
+
+    YGNodeCalculateLayout(
+        yoga_node_, GetWidth().unit == YGUnitAuto ? YGUndefined : buffer_width_,
+        GetHeight().unit == YGUnitAuto ? YGUndefined : buffer_height_,
+        YGDirectionLTR);
+    int calculated_width = GetCalculatedWidthWithMargin();
+    int calculated_height = GetCalculatedHeightWithMargin();
+
     create_window_request->SetIsDialog(true);
     create_window_request->SetDesiredDialogWidth(calculated_width);
     create_window_request->SetDesiredDialogHeight(calculated_height);
@@ -381,8 +398,14 @@ UiWindow* UiWindow::Create() {
     buffer_height_ = 0;
   }
 
-  if(on_resize_handler_)
+  if (on_resize_handler_)
     on_resize_handler_((float)buffer_width_, (float)buffer_height_);
+
+  if (!is_dialog_ || buffer_width_ != GetCalculatedWidthWithMargin() ||
+      buffer_height_ != GetCalculatedHeightWithMargin()) {
+    YGNodeCalculateLayout(yoga_node_, (float)buffer_width_,
+                          (float)buffer_height_, YGDirectionLTR);
+  }
 
   InvalidateRender();
   created_ = true;

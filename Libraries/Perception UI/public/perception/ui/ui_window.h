@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string_view>
+#include <mutex>
 
 #include "perception/ui/widget.h"
 #include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
@@ -55,6 +56,9 @@ class UiWindow
   void Draw();
   UiWindow* Create();
 
+  bool GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
+                           float& x_in_selected_widget,
+                           float& y_in_selected_widget) override;
  protected:
   void HandleOnMouseMove(
       ProcessId,
@@ -139,6 +143,8 @@ class UiWindow
   int buffer_height_;
 
   sk_sp<SkSurface> skia_surface_;
+
+  std::mutex draw_mutex_;
 
   void MaybeUpdateLayout();
   void SwitchToMouseOverWidget(std::shared_ptr<Widget> widget);
