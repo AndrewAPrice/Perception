@@ -25,6 +25,7 @@ inline uint32 HSVColor(float h, float s, float v) {
 }
 
 uint32 kBackgroundWindowColor = HSVColor(0.0f, 0.0f, 0.95f);
+float kMarginAroundWidgets = 4.0f;
 
 uint32 kLabelTextColor = SkColorSetARGB(0xff, 0x0, 0x0, 0x0);
 
@@ -33,10 +34,12 @@ uint32 kButtonBackgroundHoverColor = HSVColor(0.0f, 0.0f, 0.925f);
 uint32 kButtonBackgroundPushedColor = HSVColor(0.0f, 0.0f, 0.9f);
 uint32 kButtonOutlineColor = HSVColor(0.0f, 0.0f, 0.80f);
 uint32 kButtonTextColor = kLabelTextColor;
+float kButtonCornerRadius = 8.0f;
 
 uint32 kTextBoxBackgroundColor = kButtonBackgroundColor;
 uint32 kTextBoxOutlineColor = kButtonOutlineColor;
 uint32 kTextBoxTextColor = kLabelTextColor;
+float kTextBoxCornerRadius = kButtonCornerRadius;
 
 uint32 kTextBoxNonEditableTextColor = SkColorSetARGB(0xff, 0x11, 0x11, 0x11);
 
@@ -46,15 +49,18 @@ uint32 kScrollBarFabOutlineColor = HSVColor(0.0f, 0.0f, 0.8f);
 uint32 kScrollBarTrackBackgroundColor = HSVColor(0.0f, 0.0f, 1.0f);
 uint32 kScrollBarTrackBackgroundHoverColor = HSVColor(0.0f, 0.0f, 0.975f);
 uint32 kScrollBarTrackOutlineColor = HSVColor(0.0f, 0.0f, 0.8f);
-
-uint32 kScrollContainerOutlineColor = kScrollBarTrackOutlineColor;
-
-float kMarginAroundWidgets = 4.0f;
-float kButtonCornerRadius = 8.0f;
-float kTextBoxCornerRadius = kButtonCornerRadius;
 float kScrollBarThickness = 16.0f;
 float kScrollBarBorderRadius = kScrollBarThickness / 2.0f;
 float kScrollContainerBorderRadius = kScrollBarBorderRadius;
+
+uint32 kScrollContainerOutlineColor = kScrollBarTrackOutlineColor;
+
+
+uint32 kContainerBackgroundColor = HSVColor(0.0f, 0.0f, 0.97f);
+uint32 kContainerBorderColor = kButtonOutlineColor;
+float kContainerBorderWidth = 1.0f;
+float kContainerBorderRadius = kButtonCornerRadius;
+float kContainerPadding = kMarginAroundWidgets;
 
 }  // namespace ui
 }  // namespace perception

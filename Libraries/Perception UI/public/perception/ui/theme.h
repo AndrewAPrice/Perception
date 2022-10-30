@@ -18,16 +18,21 @@ namespace perception {
 namespace ui {
 
 extern uint32 kBackgroundWindowColor;
+extern float kMarginAroundWidgets;
+
 extern uint32 kLabelTextColor;
+
 extern uint32 kButtonBackgroundColor;
 extern uint32 kButtonBackgroundHoverColor;
 extern uint32 kButtonBackgroundPushedColor;
 extern uint32 kButtonOutlineColor;
 extern uint32 kButtonTextColor;
+extern float kButtonCornerRadius;
 
 extern uint32 kTextBoxBackgroundColor;
 extern uint32 kTextBoxOutlineColor;
 extern uint32 kTextBoxTextColor;
+extern float kTextBoxCornerRadius;
 
 extern uint32 kTextBoxNonEditableTextColor;
 
@@ -37,15 +42,17 @@ extern uint32 kScrollBarFabOutlineColor;
 extern uint32 kScrollBarTrackBackgroundColor;
 extern uint32 kScrollBarTrackBackgroundHoverColor;
 extern uint32 kScrollBarTrackOutlineColor;
-
-extern uint32 kScrollContainerOutlineColor;
-
-extern float kMarginAroundWidgets;
-extern float kButtonCornerRadius;
-extern float kTextBoxCornerRadius;
 extern float kScrollBarThickness;
 extern float kScrollBarBorderRadius;
 extern float kScrollContainerBorderRadius;
+
+extern uint32 kScrollContainerOutlineColor;
+
+extern uint32 kContainerBackgroundColor;
+extern uint32 kContainerBorderColor;
+extern float kContainerBorderWidth;
+extern float kContainerBorderRadius;
+extern float kContainerPadding;
 
 }  // namespace ui
 }  // namespace perception
