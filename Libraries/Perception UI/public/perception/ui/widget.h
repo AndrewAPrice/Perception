@@ -181,6 +181,8 @@ class Widget : public std::enable_shared_from_this<Widget> {
   virtual void OnMouseButtonUp(
       float x, float y, ::permebuf::perception::devices::MouseButton button);
 
+  YGNode *GetYogaNode();
+
  protected:
   virtual void InvalidateRender();
 

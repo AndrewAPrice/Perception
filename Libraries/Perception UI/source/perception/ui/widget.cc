@@ -467,6 +467,10 @@ void Widget::InvalidateRender() {
   }
 }
 
+YGNode *Widget::GetYogaNode() {
+  return yoga_node_;
+}
+
 void Widget::LayoutDirtied(YGNode* node) {
   Widget* widget = (Widget*)YGNodeGetContext(node);
   widget->InvalidateRender();
