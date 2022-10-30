@@ -111,9 +111,7 @@ YGSize Label::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
   if (width_mode == YGMeasureModeExactly) {
     size.width = width;
   } else {
-    maybeMeasureString() size.width = stringBounds.width() +
-                                      label->GetComputedPadding(YGEdgeLeft) +
-                                      label->GetComputedPadding(YGEdgeRight);
+    maybeMeasureString() size.width = stringBounds.width();
     if (width_mode == YGMeasureModeAtMost) {
       size.width = std::min(width, size.width);
     }
@@ -121,9 +119,7 @@ YGSize Label::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
   if (height_mode == YGMeasureModeExactly) {
     size.height = height;
   } else {
-    maybeMeasureString() size.height = stringBounds.height() +
-                                       label->GetComputedPadding(YGEdgeTop) +
-                                       label->GetComputedPadding(YGEdgeBottom);
+    maybeMeasureString() size.height = stringBounds.height();
     if (height_mode == YGMeasureModeAtMost) {
       size.height = std::min(height, size.height);
     }
