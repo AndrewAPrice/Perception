@@ -60,6 +60,9 @@ class SharedMemory {
   // Creates another instance of the SharedMemory object that points to the
   // same shared memory.
   SharedMemory Clone() const;
+  
+  // Is this pointing to the same shared memory block?
+  bool operator==(const SharedMemory& other) const;
 
   // Attempts to join the shared memory. This is done automatically if you
   // call any other operations, but you might want to do this manually if you

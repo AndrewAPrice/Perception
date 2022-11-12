@@ -248,6 +248,10 @@ SharedMemory SharedMemory::Clone() const {
   return SharedMemory(shared_memory_id_);
 }
 
+bool SharedMemory::operator==(const SharedMemory& other) const {
+  return shared_memory_id_ == other.shared_memory_id_;
+}
+
 // Attempts to join the shared memory. This is done automatically if you
 // call any other operations, but you might want to do this manually if you
 // just want to hold onto the shared memory.
