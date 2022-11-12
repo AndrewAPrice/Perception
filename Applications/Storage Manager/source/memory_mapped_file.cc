@@ -19,39 +19,42 @@
 #include "virtual_file_system.h"
 
 using ::perception::AllocateMemoryPages;
-using ::perception::kPageSize;
 using ::perception::Defer;
-using ::perception::SharedMemory;
+using ::perception::kPageSize;
 using ::perception::ProcessId;
+using ::perception::SharedMemory;
 using ReadFileRequest = ::permebuf::perception::File::ReadFileRequest;
 using MMF = ::permebuf::perception::MemoryMappedFile;
 
-MemoryMappedFile::MemoryMappedFile(std::unique_ptr<File> file, size_t length_of_file,
+MemoryMappedFile::MemoryMappedFile(std::unique_ptr<File> file,
+                                   size_t length_of_file,
                                    ProcessId allowed_process)
     : file_(std::move(file)),
       allowed_process_(allowed_process),
       length_of_file_(length_of_file) {
   if (length_of_file > 0) {
     buffer_ = SharedMemory::FromSize(
-        length_of_file, SharedMemory::kLazilyAllocated, [this](size_t offset_of_page) {
-          ReadInPageChunk(offset_of_page);
-        });
+        length_of_file, SharedMemory::kLazilyAllocated,
+        [this](size_t offset_of_page) { ReadInPageChunk(offset_of_page); });
     buffer_->Join();
   }
 }
 
 void MemoryMappedFile::HandleCloseFile(ProcessId sender,
                                        const MMF::CloseFileMessage&) {
-    if (sender != allowed_process_) return;
+  if (sender != allowed_process_) return;
 
-    Defer([sender, this]() {
-      CloseMemoryMappedFile(sender, this);
-    });
+  std::scoped_lock lock(mutex_);
+
+  Defer([sender, this]() { CloseMemoryMappedFile(sender, this); });
 }
 
 void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
-  if (buffer_->IsPageAllocated(offset_of_page))
+  std::scoped_lock lock(mutex_);
+
+  if (buffer_->IsPageAllocated(offset_of_page)) {
     return;  // This page is already allocated, so nothing to do.
+  }
 
   // Read the page in from the file.
   auto temp_buffer = kSharedMemoryPool.GetSharedMemory();

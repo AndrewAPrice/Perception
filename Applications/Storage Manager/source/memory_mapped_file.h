@@ -33,6 +33,7 @@ class MemoryMappedFile : public ::permebuf::perception::MemoryMappedFile::Server
   ::perception::ProcessId allowed_process_;
   size_t length_of_file_;
   std::unique_ptr<::perception::SharedMemory> buffer_;
+  std::mutex mutex_;
 
   // Reads in a page-sized chunk of the file into the buffer.
   void ReadInPageChunk(size_t start_of_page);
