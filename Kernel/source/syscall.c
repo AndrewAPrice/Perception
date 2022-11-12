@@ -44,7 +44,7 @@ void InitializeSystemCalls() {
 }
 
 // Syscalls.
-// Next id is 48.
+// Next id is 49.
 #define PRINT_DEBUG_CHARACTER 0
 #define PRINT_REGISTERS_AND_STACK 26
 // Threading
@@ -71,6 +71,7 @@ void InitializeSystemCalls() {
 #define LEAVE_SHARED_MEMORY 44
 #define MOVE_PAGE_INTO_SHARED_MEMORY 45
 #define IS_SHARED_MEMORY_PAGE_ALLOCATED 46
+#define SET_MEMORY_ACCESS_RIGHTS 48
 // Processes
 #define GET_THIS_PROCESS_ID 39
 #define TERMINATE_THIS_PROCESS 6
@@ -243,7 +244,8 @@ void SyscallHandler(int syscall_number) {
         currently_executing_thread_regs->rax =
             shared_memory->shared_memory->size_in_pages;
         currently_executing_thread_regs->rbx = shared_memory->virtual_address;
-        currently_executing_thread_regs->rdx = shared_memory->shared_memory->flags;
+        currently_executing_thread_regs->rdx =
+            shared_memory->shared_memory->flags;
       }
       break;
     }
@@ -253,15 +255,40 @@ void SyscallHandler(int syscall_number) {
       break;
     case MOVE_PAGE_INTO_SHARED_MEMORY:
       MovePageIntoSharedMemory(running_thread->process,
-        currently_executing_thread_regs->rax,
-        currently_executing_thread_regs->rbx,
-        currently_executing_thread_regs->rdx);
+                               currently_executing_thread_regs->rax,
+                               currently_executing_thread_regs->rbx,
+                               currently_executing_thread_regs->rdx);
       break;
     case IS_SHARED_MEMORY_PAGE_ALLOCATED:
       currently_executing_thread_regs->rax =
-        IsAddressAllocatedInSharedMemory(currently_executing_thread_regs->rax,
-          currently_executing_thread_regs->rbx) ? 1 : 0;
+          IsAddressAllocatedInSharedMemory(currently_executing_thread_regs->rax,
+                                           currently_executing_thread_regs->rbx)
+              ? 1
+              : 0;
       break;
+    case SET_MEMORY_ACCESS_RIGHTS: {
+      size_t address = currently_executing_thread_regs->rax;
+      size_t num_pages = currently_executing_thread_regs->rbx;
+      size_t max_address = address + num_pages * PAGE_SIZE;
+      size_t rights = currently_executing_thread_regs->rdx;
+
+#ifdef DEBUG
+      PrintString(running_thread->process->name);
+      PrintString(" protecting ");
+      PrintNumber(num_pages);
+      PrintString(" page(s) from ");
+      PrintHex(address);
+      PrintString(" to ");
+      PrintHex(max_address);
+      PrintString(" with rights ");
+      PrintNumber(rights);
+      PrintChar('\n');
+#endif
+
+      for (; address < max_address; address += PAGE_SIZE)
+        SetMemoryAccessRights(running_thread->process->pml4, address, rights);
+      break;
+    }
     case GET_THIS_PROCESS_ID:
       currently_executing_thread_regs->rax = running_thread->process->pid;
       break;
@@ -458,7 +485,7 @@ void SyscallHandler(int syscall_number) {
     case GET_NAME_OF_SERVICE: {
       size_t pid = currently_executing_thread_regs->rax;
       size_t sid = currently_executing_thread_regs->rbx;
-      struct Service* service = FindServiceByProcessAndMid(pid, sid);
+      struct Service *service = FindServiceByProcessAndMid(pid, sid);
       if (service == NULL) {
         currently_executing_thread_regs->rdi = 0;
       } else {

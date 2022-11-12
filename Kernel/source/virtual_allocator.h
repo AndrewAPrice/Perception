@@ -92,3 +92,10 @@ extern struct SharedMemoryInProcess* MapSharedMemoryIntoProcess(
 extern void UnmapSharedMemoryFromProcess(
     struct Process* process,
     struct SharedMemoryInProcess* shared_memory_in_process);
+
+// Sets the access rights of a memory page, if the process owns the page. The
+// rights are a bitfield:
+//  Bit 0: The memory can be written to.
+//  Bit 1: The memory can be executed.
+extern void SetMemoryAccessRights(
+    size_t pml4, size_t address, size_t rights);

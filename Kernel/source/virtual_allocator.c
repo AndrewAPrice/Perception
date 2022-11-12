@@ -42,6 +42,12 @@ extern size_t bssEnd;
 // actually reserved, such as for lazily allocated shared buffer.
 #define DUD_PAGE_ENTRY (~(1 | (1 << 9)))
 
+// The page sent to SetMemoryAccessRights can be written to.
+#define WRITE_ACCESS 1
+
+// The page sent to SetMemoryAccessRights can be executed.
+#define EXECUTE_ACCESS 2
+
 // Maps a physical address to a virtual address in the kernel - at boot time
 // while paging is initializing. assign_page_table - true if we're assigning a
 // page table (for our temp memory) rather than a page.
@@ -1132,4 +1138,74 @@ void UnmapSharedMemoryFromProcess(
   }
 
   ReleaseSharedMemoryInProcess(shared_memory_in_process);
+}
+
+void SetMemoryAccessRights(
+    size_t pml4, size_t address, size_t rights) {
+  size_t pml4_entry = (address >> 39) & 511;
+  size_t pml3_entry = (address >> 30) & 511;
+  size_t pml2_entry = (address >> 21) & 511;
+  size_t pml1_entry = (address >> 12) & 511;
+
+  if (pml4 == kernel_pml4) {
+    // Kernel virtual addreses must in the last pml4 entry
+    if (pml4_entry < PAGE_TABLE_ENTRIES - 1) {
+      return;
+    }
+  } else {
+    // User space virtual addresses must below kernel memory.
+    if (pml4_entry == PAGE_TABLE_ENTRIES - 1) {
+      return;
+    }
+  }
+
+  // Look in PML4.
+  size_t *ptr = (size_t *)TemporarilyMapPhysicalMemory(pml4, 0);
+  if (ptr[pml4_entry] == 0) {
+    // Entry blank.
+    return;
+  }
+
+  // Look in PML3.
+  size_t pml3 = ptr[pml4_entry] & ~(PAGE_SIZE - 1);
+  ptr = (size_t *)TemporarilyMapPhysicalMemory(pml3, 1);
+  if (ptr[pml3_entry] == 0) {
+    // Entry blank.
+    return;
+  }
+
+  // Look in PML2.
+  size_t pml2 = ptr[pml3_entry] & ~(PAGE_SIZE - 1);
+  ptr = (size_t *)TemporarilyMapPhysicalMemory(pml2, 2);
+
+  if (ptr[pml2_entry] == 0) {
+    // Entry blank.
+    return;
+  }
+
+  size_t pml1 = ptr[pml2_entry] & ~(PAGE_SIZE - 1);
+
+  // Look in PML1.
+  ptr = (size_t *)TemporarilyMapPhysicalMemory(pml1, 3);
+  if ((ptr[pml1_entry] & 1) == 0) {
+    // Page isn't present.
+    return;
+  } else if ((ptr[pml1_entry] & (1 << 9)) == 0) {
+    // We don't own this page.
+    return;
+  } else {
+    size_t execute_disabled_bit = 1L << 63L;
+    size_t write_bit = 1L << 1L;
+
+    size_t entry = ptr[pml1_entry];
+    // Remove the bits we might set.
+    entry &= ~(execute_disabled_bit | write_bit);
+
+    // Set any bits we want.
+    if (rights & WRITE_ACCESS) entry |= write_bit;
+    if ((rights & EXECUTE_ACCESS) == 0) entry |= execute_disabled_bit;
+
+    ptr[pml1_entry] = entry;
+    FlushVirtualPage(address);
+  }
 }

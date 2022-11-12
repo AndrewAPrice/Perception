@@ -79,10 +79,10 @@ SetupPagingAndLongMode:
 	or eax, (1 << 5) | (1 << 9) | (1 << 10)
 	mov cr4, eax
 
-	; Enable Load Mode (8) and System Call Extensions (0) in the MSR.
+	; Enable Load Mode (8), System Call Extensions (0), and No-Execute Enable (11) in the MSR.
 	mov ecx, 0xC0000080
 	rdmsr
-	or eax, (1 << 8) | (1)
+	or eax, (1 << 11) | (1 << 8) | (1)
 	wrmsr
 
 	; Enable paging (31) and MP (1) for FPU.

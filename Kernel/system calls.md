@@ -259,6 +259,17 @@ Returns if a shared memory page is allocated. We can use this to tell if a page 
 ### Output
 * `rax` - 1 if the shared memory block page is exists, 0 otherwise.
 
+## Set memory access rights
+Sets the access rights for a page of memory. This only applies to memory that the process owns.
+
+### Input
+* `rdi` - 48
+* `rax` - The address of the memory page.
+* `rbx` - The number of pages to set.
+* `rdx` - A bitwise fields of the access rights the process has to this memory. This is a bitfield:
+  - Bit 0: The memory can be written to.
+  - Bit 1: The memory can be executed.
+
 # Process Management
 
 ## Get this process's ID
