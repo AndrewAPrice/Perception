@@ -33,7 +33,7 @@ class Frame {
                              int& min_x, int& min_y, int& max_x, int& max_y);
   static void DropInWindow(Window& window, int mouse_x, int mouse_y);
 
-  void UpdateFrame(bool resized);
+  void UpdateFrame(bool resized, Window* window_to_update = nullptr);
 
   void AddWindow(Window& window);
   void RemoveWindow(Window& window);

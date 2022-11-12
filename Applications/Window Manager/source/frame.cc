@@ -432,7 +432,7 @@ void Frame::DropInWindow(Window& window, int mouse_x, int mouse_y) {
   }
 }
 
-void Frame::UpdateFrame(bool resized) {
+void Frame::UpdateFrame(bool resized, Window* window_to_update) {
   if (is_split_frame_) {
     Frame* replace_me =
         nullptr; /* child to replace me with if the other child closed */
@@ -570,9 +570,14 @@ void Frame::UpdateFrame(bool resized) {
       }
 
       DockFrame.title_height_ = new_title_height;
+    } else if (window_to_update) {
+      window_to_update->x_ = x_;
+      window_to_update->y_ = y_ + new_title_height;
+      window_to_update->width_ = width_;
+      window_to_update->height_ = new_client_height;
+      window_to_update->Resized();
     }
   }
-
   InvalidateScreen(x_, y_, width_, height_);
 }
 
@@ -603,7 +608,7 @@ void Frame::AddWindow(Window& window) {
   window.frame_ = this;
 
   // Updates the frame's title height.
-  UpdateFrame(false);
+  UpdateFrame(false, &window);
 
   window.x_ = x_;
   window.y_ = y_ + DockFrame.title_height_;
