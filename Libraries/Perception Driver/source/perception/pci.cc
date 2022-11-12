@@ -31,28 +31,11 @@ uint8 Read8BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset) {
 
 uint16 Read16BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func,
                                uint8 offset) {
-  uint32 lbus = (uint32)bus;
-  uint32 lslot = (uint32)slot;
-  uint32 lfunc = (uint32)func;
+  uint32 raw_value = Read32BitsFromPciConfig(bus, slot, func, offset & 0xFC);
+  if ((offset & 2) == 2)
+    raw_value >>= 16;
 
-  /* bits:
-          31 - enabled bit
-          30-24 - reserved
-          23-16 - bus number
-          15-11 - device number
-          10-8 - function number
-          7-2 - register number
-          1-0 - 00 */
-
-  uint32 address = (uint32)((lbus << 16) | (lslot << 11) | (lfunc << 8) |
-                            (offset & 0xFC) | ((uint32)0x80000000));
-
-  /* write out the address */
-  Write32BitsToPort(0xCF8, address);
-
-  /* read in the data */
-  return (uint16)((Read32BitsFromPort(0xCFC) >> (((uint16)offset & 2) * 8)) &
-                  0xFFFF);
+  return (uint16)(raw_value & 0xFFFF);
 }
 
 uint32 Read32BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func,
@@ -63,6 +46,14 @@ uint32 Read32BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func,
 
   uint32 address = (uint32)((lbus << 16) | (lslot << 11) | (lfunc << 8) |
                             offset | ((uint32)0x80000000));
+  /* bits:
+          31 - enabled bit
+          30-24 - reserved
+          23-16 - bus number
+          15-11 - device number
+          10-8 - function number
+          7-2 - register number
+          1-0 - 00 */
 
   /* write out the address */
   Write32BitsToPort(0xCF8, address);
