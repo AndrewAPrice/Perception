@@ -144,7 +144,7 @@ class UiWindow
 
   sk_sp<SkSurface> skia_surface_;
 
-  std::mutex draw_mutex_;
+  std::mutex window_mutex_;
 
   void MaybeUpdateLayout();
   void SwitchToMouseOverWidget(std::shared_ptr<Widget> widget);

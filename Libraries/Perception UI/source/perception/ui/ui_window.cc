@@ -60,6 +60,7 @@ UiWindow::~UiWindow() {
 }
 
 UiWindow* UiWindow::SetBackgroundColor(uint32 background_color) {
+  std::scoped_lock lock(window_mutex_);
   if (background_color_ == background_color) return this;
 
   background_color_ = background_color;
@@ -68,36 +69,42 @@ UiWindow* UiWindow::SetBackgroundColor(uint32 background_color) {
 }
 
 UiWindow* UiWindow::OnClose(std::function<void()> on_close_handler) {
+  std::scoped_lock lock(window_mutex_);
   on_close_handler_ = on_close_handler;
   return this;
 }
 
 UiWindow* UiWindow::OnResize(
     std::function<void(float, float)> on_resize_handler) {
+  std::scoped_lock lock(window_mutex_);
   on_resize_handler_ = on_resize_handler;
   return this;
 }
 
 void UiWindow::HandleOnMouseMove(
     ProcessId, const MouseListener::OnMouseMoveMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   //  std::cout << title_ << " - x:" << message.GetDeltaX() <<
   //    " y:" << message.GetDeltaY() << std::endl;
 }
 
 void UiWindow::HandleOnMouseScroll(
     ProcessId, const MouseListener::OnMouseScrollMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   // std::cout << title_ << " mouse scrolled" << message.GetDelta() <<
   // std::endl;
 }
 
 void UiWindow::HandleOnMouseButton(
     ProcessId, const MouseListener::OnMouseButtonMessage& message) {
+  std::scoped_lock(window_mutex_);
   // std::cout << title_ << " - button: " << (int)message.GetButton() <<
   //  " down: " << message.GetIsPressedDown() << std::endl;
 }
 
 void UiWindow::HandleOnMouseClick(
     ProcessId, const MouseListener::OnMouseClickMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   std::shared_ptr<Widget> widget;
   float x_in_selected_widget, y_in_selected_widget;
   float x = (float)message.GetX();
@@ -110,20 +117,24 @@ void UiWindow::HandleOnMouseClick(
   // Tell the widget the mouse has moved.
   if (widget) {
     if (message.GetWasPressedDown()) {
-      widget->OnMouseButtonDown(x, y, message.GetButton());
+      widget->OnMouseButtonDown(x_in_selected_widget, y_in_selected_widget,
+                                message.GetButton());
     } else {
-      widget->OnMouseButtonUp(x, y, message.GetButton());
+      widget->OnMouseButtonUp(x_in_selected_widget, y_in_selected_widget,
+                              message.GetButton());
     }
   }
 }
 
 void UiWindow::HandleOnMouseEnter(
     ProcessId, const MouseListener::OnMouseEnterMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   // std::cout << title_ << " - mouse entered." << std::endl;
 }
 
 void UiWindow::HandleOnMouseLeave(
     ProcessId, const MouseListener::OnMouseLeaveMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   if (auto widget = widget_mouse_is_over_.lock()) {
     widget->OnMouseLeave();
   }
@@ -132,6 +143,7 @@ void UiWindow::HandleOnMouseLeave(
 
 void UiWindow::HandleOnMouseHover(
     ProcessId, const MouseListener::OnMouseHoverMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   std::shared_ptr<Widget> widget;
   float x_in_selected_widget, y_in_selected_widget;
   float x = (float)message.GetX();
@@ -143,43 +155,50 @@ void UiWindow::HandleOnMouseHover(
 
   // Tell the widget the mouse has moved.
   if (widget) {
-    widget->OnMouseMove(x, y);
+    widget->OnMouseMove(x_in_selected_widget, y_in_selected_widget);
   }
 }
 
 void UiWindow::HandleOnMouseTakenCaptive(
     ProcessId, const MouseListener::OnMouseTakenCaptiveMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   // std::cout << title_ << " - mouse taken captive." << std::endl;
 }
 
 void UiWindow::HandleOnMouseReleased(
     ProcessId, const MouseListener::OnMouseReleasedMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   // std::cout << title_ << " - mouse has been released." << std::endl;
 }
 
 void UiWindow::HandleOnKeyDown(
     ProcessId, const KeyboardListener::OnKeyDownMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   // std::cout << title_ << " - key " << (int)message.GetKey() << " was
   // pressed." << std::endl;
 }
 
 void UiWindow::HandleOnKeyUp(ProcessId,
                              const KeyboardListener::OnKeyUpMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   // std::cout << title_ << " - key " << (int)message.GetKey() << " was
   // released." << std::endl;
 }
 
 void UiWindow::HandleOnKeyboardTakenCaptive(
     ProcessId, const KeyboardListener::OnKeyboardTakenCaptiveMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   // std::cout << title_ << " - keyboard taken captive." << std::endl;
 }
 
 void UiWindow::HandleOnKeyboardReleased(
     ProcessId, const KeyboardListener::OnKeyboardReleasedMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   // std::cout << title_ << " - keyboard has been released." << std::endl;
 }
 
 void UiWindow::HandleSetSize(ProcessId, const Window::SetSizeMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   buffer_width_ = message.GetWidth();
   buffer_height_ = message.GetHeight();
   SetWidth((float)buffer_width_);
@@ -191,21 +210,24 @@ void UiWindow::HandleSetSize(ProcessId, const Window::SetSizeMessage& message) {
 }
 
 void UiWindow::HandleClosed(ProcessId, const Window::ClosedMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   if (on_close_handler_) on_close_handler_();
 }
 
 void UiWindow::HandleGainedFocus(ProcessId,
                                  const Window::GainedFocusMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   // std::cout << title_ << " gained focus" << std::endl;
 }
 
 void UiWindow::HandleLostFocus(ProcessId,
                                const Window::LostFocusMessage& message) {
+  std::scoped_lock lock(window_mutex_);
   // std::cout << title_ << " lost focus" << std::endl;
 }
 
 void UiWindow::Draw() {
-  std::scoped_lock(draw_mutex_);
+  std::scoped_lock lock(window_mutex_);
   if (!invalidated_ || !created_) {
     invalidated_ = false;
     return;
@@ -308,7 +330,7 @@ void UiWindow::InvalidateRender() {
     return;
   }
 
-  Defer([this]() { Draw(); });
+  DeferAfterEvents([this]() { Draw(); });
 
   invalidated_ = true;
 }
@@ -358,7 +380,7 @@ void UiWindow::ReleaseTextures() {
 }
 
 UiWindow* UiWindow::Create() {
-  std::scoped_lock(draw_mutex_);
+  std::scoped_lock lock(window_mutex_);
   if (created_) return this;
 
   Permebuf<WindowManager::CreateWindowRequest> create_window_request;
