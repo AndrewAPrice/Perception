@@ -105,8 +105,7 @@ function convertArrayOrListToCppTypeSuffix(typeInformation) {
       return typePrefix + 'Numbers<' + typeInformation.subtype.cppClassName +
           '>';
     case FieldType.SHARED_MEMORY:
-      return typePrefix + 'SharedMemory<' +
-          typeInformation.subtype.cppClassName + '>';
+      return typePrefix + 'SharedMemories';
     default:
       return false;
   }
@@ -822,12 +821,12 @@ class ${thisMessage.cppClassName} {
                   ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
             }
             sourceCpp += sizeInBytes + ';\n' +
-                '\tif (address_offset + 2 + buffer_->GetAddressSizeInBytes() > size_) {\n' +
+                '\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
                 '\t\treturn ' + typeInformation.cppClassName +
                 '(buffer_, 0);\n' +
                 '\t}\n' +
                 '\treturn ' + typeInformation.cppClassName +
-                '(buffer, buffer_->ReadPointer(offset_ + address_offset));\n' +
+                '(buffer_, buffer_->ReadPointer(offset_ + address_offset));\n' +
                 '}\n' +
                 '\n' + typeInformation.cppClassName + ' ' +
                 thisMessage.cppClassName + '::Mutable' + field.name + '() {\n' +
@@ -837,12 +836,19 @@ class ${thisMessage.cppClassName} {
                   ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
             }
             sourceCpp += sizeInBytes + ';\n' +
-                '\tif (address_offset + 2 + buffer_->GetAddressSizeInBytes() > size_) {\n' +
+                '\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
                 '\t\treturn ' + typeInformation.cppClassName +
                 '(buffer_, 0);\n' +
                 '\t}\n' +
-                '\treturn ' + typeInformation.cppClassName +
-                '(buffer, buffer_->ReadPointer(offset_ + address_offset));\n' +
+                '\tsize_t oneof_address = buffer_->ReadPointer(offset_ + address_offset);\n' +
+                '\tif (oneof_address > 0) {\n' +
+                '\t\treturn ' + typeInformation.cppClassName +
+                '(buffer_, oneof_address);\n' +
+                '\t}\n' +
+                '\tauto oneof = buffer_->AllocateOneOf<' +
+                typeInformation.cppClassName + '>();\n' +
+                '\tbuffer_->WritePointer(offset_ + address_offset, oneof.Address());\n' +
+                '\treturn oneof;\n' +
                 '}\n' +
                 '\nbool ' + thisMessage.cppClassName + '::Has' + field.name +
                 '() const {\n' +
@@ -852,12 +858,12 @@ class ${thisMessage.cppClassName} {
                   ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
             }
             sourceCpp += sizeInBytes + ';\n' +
-                '\tif (address_offset + 2 + buffer_->GetAddressSizeInBytes() > size_) {\n' +
+                '\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
                 '\t\treturn false;\n' +
                 '\t}\n' +
-                '\treturn buffer_->Read2Bytes(offset_ + address_offset) != 0;\n' +
+                '\treturn buffer_->ReadPointer(offset_ + address_offset) != 0;\n' +
                 '}\n' +
-                '\void ' + thisMessage.cppClassName + '::Clear' + field.name +
+                '\nvoid ' + thisMessage.cppClassName + '::Clear' + field.name +
                 '() {\n' +
                 '\tsize_t address_offset = ';
             if (sizeInPointers > 0) {
@@ -865,10 +871,10 @@ class ${thisMessage.cppClassName} {
                   ' << static_cast<size_t>(buffer_->GetAddressSize())) + ';
             }
             sourceCpp += sizeInBytes + ';\n' +
-                '\tif (address_offset + 2 + buffer_->GetAddressSizeInBytes() > size_) {\n' +
+                '\tif (address_offset + buffer_->GetAddressSizeInBytes() > size_) {\n' +
                 '\t\treturn;\n' +
                 '\t}\n' +
-                '\tbuffer_->Write2Bytes(offset_ + address_offset, 0);\n' +
+                '\tbuffer_->WritePointer(offset_ + address_offset, 0);\n' +
                 '}\n';
             break;
           case FieldType.STRING:
@@ -1819,7 +1825,7 @@ bool ${thisOneOf.cppClassName}::Has${field.name}() const {
         case FieldType.STRING:
           headerCpp += `
     ::PermebufString Get${field.name}() const;
-    void Set${field.name}(::PermebufString& value);
+    void Set${field.name}(const ::PermebufString& value);
     void Set${field.name}(std::string_view value);
     bool Has${field.name}() const;
     void Clear${field.name}();
@@ -1829,10 +1835,11 @@ bool ${thisOneOf.cppClassName}::Has${field.name}() const {
 PermebufString ${thisOneOf.cppClassName}::Get${field.name}() const {
   if (GetOption() != ${thisOneOf.cppClassName}::Options::${field.name})
     return PermebufString(buffer_, 0);
-  return PermebufString(buffer_, GetOffset());
+  return PermebufString(buffer_, ReadOffset());
 }
 
-void ${thisOneOf.cppClassName}::Set${field.name}(PermebufString value) {
+void ${thisOneOf.cppClassName}::Set${
+              field.name}(const ::PermebufString& value) {
   SetOption(${thisOneOf.cppClassName}::Options::${field.name}, value.Address());
 }
 
@@ -1847,6 +1854,7 @@ bool ${thisOneOf.cppClassName}::Has${field.name}() const {
   return GetOption() == ${thisOneOf.cppClassName}::Options::${field.name};
 }
 `;
+          break;
         case FieldType.BYTES:
           if (typeInformation.sizeInPointers == 0) {
             console.log(
@@ -1868,7 +1876,7 @@ bool ${thisOneOf.cppClassName}::Has${field.name}() const {
 PermebufBytes ${thisOneOf.cppClassName}::Get${field.name}() const {
   if (GetOption() != ${thisOneOf.cppClassName}::Options::${field.name})
     return PermebufBytes(buffer_, 0);
-  return PermebufBytes(buffer_, GetOffset());
+  return PermebufBytes(buffer_, ReadOffset());
 }
 
 void ${thisOneOf.cppClassName}::Set${field.name}(PermebufBytes value) {
@@ -1891,7 +1899,7 @@ bool ${thisOneOf.cppClassName}::Has${field.name}() const {
           console.log(
               'Field ' + field.name + ' with field number of ' + field.number +
               ' in oneof ' + thisOneOf.fullName +
-              ' is not of type list, array, string, bytes, or message.');
+              ' is not of type list, array, string, bytes, message.');
           return false;
       }
     }
