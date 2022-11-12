@@ -722,7 +722,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_move_pages:
       return ::perception::linux_syscalls::move_pages();
     case SYS_mprotect:
-      return ::perception::linux_syscalls::mprotect();
+      return ::perception::linux_syscalls::mprotect((void *)a1, (size_t)a2, a3);
     case SYS_mq_getsetattr:
       return ::perception::linux_syscalls::mq_getsetattr();
     case SYS_mq_notify:

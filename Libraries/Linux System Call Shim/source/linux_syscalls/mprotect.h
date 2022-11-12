@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "types.h"
+
 namespace perception {
 namespace linux_syscalls {
 
-long mprotect();
+long mprotect(void* addr, size_t len, int prot);
 
 }
 }  // namespace perception

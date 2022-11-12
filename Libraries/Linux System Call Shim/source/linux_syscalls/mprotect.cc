@@ -14,14 +14,27 @@
 
 #include "linux_syscalls/mprotect.h"
 
-#include "perception/debug.h"
+#include <sys/mman.h>
+
+#include <iostream>
+
+#include "perception/memory.h"
+
+using ::perception::SetMemoryAccessRights;
 
 namespace perception {
 namespace linux_syscalls {
 
-long mprotect() {
-  perception::DebugPrinterSingleton
-      << "System call mprotect is unimplemented.\n";
+long mprotect(void* addr, size_t len, int prot) {
+  size_t pages = (len + kPageSize - 1) / kPageSize;
+  if ((prot & PROT_READ) == 0) {
+    std::cout << "Ignoring mprotect called without PROT_READ" << std::endl;
+    return 0;
+  }
+
+  bool can_write = prot & PROT_WRITE;
+  bool can_execute = prot & PROT_EXEC;
+  SetMemoryAccessRights(addr, pages, can_write, can_execute);
   return 0;
 }
 
