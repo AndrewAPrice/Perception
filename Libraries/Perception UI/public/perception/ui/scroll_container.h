@@ -21,8 +21,9 @@
 
 #include "perception/ui/container.h"
 #include "perception/ui/label.h"
-#include "perception/ui/widget.h"
+#include "perception/ui/parentless_widget.h"
 #include "perception/ui/scroll_bar.h"
+#include "perception/ui/widget.h"
 
 namespace perception {
 namespace ui {
@@ -32,8 +33,9 @@ struct DrawContext;
 class ScrollContainer : public Container {
  public:
   // Creates a standard button with a text label.
-  static std::shared_ptr<ScrollContainer> Create(std::shared_ptr<Widget> content_,
-    bool show_vertical_scroll_bar, bool show_horizontal_scroll_bar);
+  static std::shared_ptr<ScrollContainer> Create(
+      std::shared_ptr<ParentlessWidget> content_, bool show_vertical_scroll_bar,
+      bool show_horizontal_scroll_bar);
 
   virtual ~ScrollContainer();
 
@@ -53,7 +55,9 @@ class ScrollContainer : public Container {
   std::shared_ptr<Widget> GetInnerContainer();
 
  private:
-  ScrollContainer(bool show_vertical_scroll_bar, bool show_horizontal_scroll_bar);
+  ScrollContainer(std::shared_ptr<ParentlessWidget> content_,
+                  bool show_vertical_scroll_bar,
+                  bool show_horizontal_scroll_bar);
   virtual void Draw(DrawContext& draw_context) override;
   virtual void DrawContents(DrawContext& draw_context) override;
   void RebuildLayout();
@@ -61,8 +65,10 @@ class ScrollContainer : public Container {
   void InvalidateScrollBars();
   void MaybeUpdateScrollBars();
   void ScrollToInternal(float x, float y);
+  void MaybeUpdateContentSize();
+  void CheckIfContentsChangedSize();
 
-  std::shared_ptr<Widget> content_;
+  std::shared_ptr<ParentlessWidget> content_;
   std::shared_ptr<Widget> inner_container_;
   std::shared_ptr<ScrollBar> vertical_scroll_bar_;
   std::shared_ptr<ScrollBar> horizontal_scroll_bar_;
@@ -72,8 +78,10 @@ class ScrollContainer : public Container {
   bool show_vertical_scroll_bar_;
   bool show_horizontal_scroll_bar_;
   bool scroll_bars_invalidated_;
-  double last_child_calculated_width_;
-  double last_child_calculated_height_;
+  double last_calculated_width_;
+  double last_calculated_height_;
+  double last_content_width_;
+  double last_content_height_;
 };
 
 }  // namespace ui

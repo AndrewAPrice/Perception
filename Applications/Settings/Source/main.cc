@@ -21,6 +21,7 @@
 #include "perception/services.h"
 #include "perception/ui/button.h"
 #include "perception/ui/container.h"
+#include "perception/ui/parentless_widget.h"
 #include "perception/ui/scroll_bar.h"
 #include "perception/ui/scroll_container.h"
 #include "perception/ui/text_alignment.h"
@@ -37,6 +38,7 @@ using ::perception::TerminateProcesss;
 using ::perception::ui::Button;
 using ::perception::ui::Container;
 using ::perception::ui::Label;
+using ::perception::ui::ParentlessWidget;
 using ::perception::ui::ScrollBar;
 using ::perception::ui::ScrollContainer;
 using ::perception::ui::TextAlignment;
@@ -105,7 +107,6 @@ void RebuildRunningApplications(
   std::vector<ProcessId> pids;
   ForEachProcess([&](ProcessId process_id) {
     pids.push_back(process_id);
-    pids.push_back(process_id);
   });
 
   std::map<ProcessId, std::vector<std::string>> services_by_pids;
@@ -133,7 +134,7 @@ void RebuildRunningApplications(
 }
 
 int main() {
-  auto running_applications_container = std::make_shared<Widget>()->SetWidthPercent(100)->ToSharedPtr();
+  auto running_applications_container = std::make_shared<Widget>();
   RebuildRunningApplications(running_applications_container);
 
   auto window = std::make_shared<UiWindow>("Settings");
@@ -144,15 +145,13 @@ int main() {
              RebuildRunningApplications(running_applications_container);
            })
            ->ToSharedPtr(),
-       ScrollContainer::Create(running_applications_container,
-                               /*show_vertical_scroll_bar=*/true,
-                               /*show_horizontal_scroll_bar=*/false)
+       ScrollContainer::Create(
+           ParentlessWidget::Create(running_applications_container),
+           /*show_vertical_scroll_bar=*/true,
+           /*show_horizontal_scroll_bar=*/false)
            ->SetFlexGrow(1.0)
            ->SetWidthPercent(100)
            ->ToSharedPtr()});
-  /* window->AddChild(ScrollBar::Create()
-                          ->SetPosition(0.0f, 100.0f, 20.0f, 30.0f)
-                          ->ToSharedPtr()); */
   window->Create();
   HandOverControl();
 

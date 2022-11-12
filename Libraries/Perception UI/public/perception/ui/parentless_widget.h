@@ -29,21 +29,35 @@ struct DrawContext;
 
 class ParentlessWidget : public Widget {
  public:
-  static std::shared_ptr<ParentlessWidget> Create();
+  static std::shared_ptr<ParentlessWidget> Create(
+      std::shared_ptr<Widget> contents);
   virtual ~ParentlessWidget();
 
   void SetParentSize(float width, float height);
-  void OnInvalidateParent(const std::function<void()>& invalidate_parent);
+  void MaybeRecalculateLayout();
+  void InvalidateParentRenderHandler(
+      const std::function<void()>& invalidate_parent_render_handler);
+  void InvalidateParentLayoutHandler(
+      const std::function<void()>& invalidate_parent_layout_handler);
   virtual void InvalidateRender() override;
+  virtual void Draw(DrawContext& draw_context) override;
+  
+  virtual bool GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
+                           float& x_in_selected_widget,
+                           float& y_in_selected_widget) override;
+
+  std::shared_ptr<Widget> GetContents();
 
  private:
   ParentlessWidget();
-  virtual void Draw(DrawContext& draw_context) override;
-  void MaybeRecalculateLayout();
+
+  static void LayoutDirtied(YGNode* node);
 
   bool invalidated_;
   float width_, height_;
-  std::function<void()> invalidate_parent_;
+  std::function<void()> invalidate_parent_render_handler_;
+  std::function<void()> invalidate_parent_layout_handler_;
+  std::shared_ptr<Widget> contents_;
 };
 
 }  // namespace ui
