@@ -24,6 +24,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           return "Non-VGA-Compatible Device";
         case 0x01:
           return "VGA-Compatible Device";
+        case 0x05:
+          return "Image Co-Processor";
       }
     case 0x01:
       switch (sub_class) {
@@ -104,6 +106,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
             case 0x02:
               return "NVM Express (Non-Volatile Memory Controller)";
           }
+        case 0x80:
+          return "Mass Storage Controller";
       }
     case 0x02:
       switch (sub_class) {
@@ -127,6 +131,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           return "Infiniband Controller";
         case 0x08:
           return "Fabric Controller";
+        case 0x80:
+          return "Network Controller";
       }
     case 0x03:
       switch (sub_class) {
@@ -145,6 +151,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           return "XGA Controller";
         case 0x02:
           return "3D Controller (Not VGA-Compatible)";
+        case 0x80:
+          return "Display Controller";
       }
     case 0x04:
       switch (sub_class) {
@@ -158,6 +166,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           return "Computer Telephony Device";
         case 0x03:
           return "Audio Device";
+        case 0x80:
+          return "Multimedia Controller";
       }
     case 0x05:
       switch (sub_class) {
@@ -167,6 +177,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           return "RAM Controller";
         case 0x01:
           return "Flash Controller";
+        case 0x80:
+          return "Memory Controller";
       }
     case 0x06:
       switch (sub_class) {
@@ -217,6 +229,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           }
         case 0x0A:
           return "InfiniBrand-to-PCI Host Bridge";
+        case 0x80:
+          return "Bridge";
       }
     case 0x07:
       switch (sub_class) {
@@ -277,6 +291,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           return "IEE 488.1/2 Controller";
         case 0x05:
           return "Smart Card";
+        case 0x80:
+          return "Communication Controller";
       }
     case 0x08:
       switch (sub_class) {
@@ -337,6 +353,10 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           return "SD Host controller";
         case 0x06:
           return "IOMMU";
+        case 0x80:
+          return "System Peripheral";
+        case 0x99:
+          return "Timing Card";
       }
     case 0x09:
       switch (sub_class) {
@@ -359,6 +379,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
             case 0x10:
               return "Extended Gameport Controller";
           }
+        case 0x80:
+          return "Input Device Controller";
       }
     case 0x0A:
       switch (sub_class) {
@@ -366,6 +388,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           return "Unknown Docking Station";
         case 0x00:
           return "Generic Docking Station";
+        case 0x80:
+          return "Docking Station";
       }
     case 0x0B:
       switch (sub_class) {
@@ -441,6 +465,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           return "SERCOS Interface Standard";
         case 0x09:
           return "CANbus";
+        case 0x80:
+          return "Serial Bus Controller";
       }
     case 0x0D:
       switch (sub_class) {
@@ -460,6 +486,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           return "Ethernet Controller (802.11a)";
         case 0x21:
           return "Ethernet Controller (802.11b)";
+        case 0x80:
+          return "Wireless Controller";
       }
     case 0x0E:
       switch (sub_class) {
@@ -489,6 +517,8 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           return "Network and Computing Encryption/Decryption";
         case 0x10:
           return "Entertainment Encryption/Decryption";
+        case 0x80:
+          return "Encryption/Decryption Controller";
       }
     case 0x11:
       switch (sub_class) {
@@ -502,9 +532,18 @@ std::string GetPciDeviceName(uint8 base_class, uint8 sub_class, uint8 prog_if) {
           return "Communication Synchronizer";
         case 0x20:
           return "Signal Processing Management";
+        case 0x80:
+          return "Signal Processing Controller";
       }
     case 0x12:
-      return "Processing Accelerator";
+      switch (sub_class) {
+        default:
+          return "Unknown Processing Accelerator";
+        case 0x00:
+          return "Processing Accelerator";
+        case 0x01:
+          return "SNIA Smart Data Accelerator Interface Controller";
+      }
     case 0x13:
       return "Non-Essential Instrumentation";
     case 0x40:
