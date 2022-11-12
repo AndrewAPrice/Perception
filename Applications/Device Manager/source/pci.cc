@@ -57,46 +57,37 @@ void ParsePciBusSlotFunction(
     uint8 bus, uint8 slot, uint8 function,
     const std::function<void(uint8, uint8, uint8, uint16, uint16, uint8, uint8,
                              uint8)>& on_each_pci_device) {
+  uint16 vendor_id =
+      Read16BitsFromPciConfig(bus, slot, function, kPciHdrVendorId);
+  if (vendor_id == 0xFFFF) return;
+
   uint8 base_class =
       Read8BitsFromPciConfig(bus, slot, function, kPciHdrClassCode);
   uint8 sub_class =
       Read8BitsFromPciConfig(bus, slot, function, kPciHdrSubclass);
   uint8 prog_if = Read8BitsFromPciConfig(bus, slot, function, kPciHdrProgIf);
-  uint16 vendor_id =
-      Read16BitsFromPciConfig(bus, slot, function, kPciHdrVendorId);
   uint16 device_id =
       Read16BitsFromPciConfig(bus, slot, function, kPciHdrDeviceId);
+  uint8 header_type =
+      Read8BitsFromPciConfig(bus, slot, function, kPciHdrHeaderType);
 
-  if (base_class == 0x06 && sub_class == 0x04) {
+  if ((header_type & 0x7f) == 1) {
     // PCI-to-PCI Bridge
     uint8 secondary_bus =
         Read8BitsFromPciConfig(bus, slot, function, kPciHdrSecondaryBusNumber);
-    ForEachPciDeviceInBus(secondary_bus, on_each_pci_device);
+    if (secondary_bus) {
+      ForEachPciDeviceInBus(secondary_bus, on_each_pci_device);
+    }
   } else {
     on_each_pci_device(base_class, sub_class, prog_if, vendor_id, device_id,
                        bus, slot, function);
   }
-}
 
-void ForEachPciDeviceInBusAndSlot(
-    uint8 bus, uint8 slot,
-    const std::function<void(uint8, uint8, uint8, uint16, uint16, uint8, uint8,
-                             uint8)>& on_each_pci_device) {
-  /* check if there is a device here - on function 0 */
-  uint16 vendor_id = Read16BitsFromPciConfig(bus, slot, 0, kPciHdrVendorId);
-  if (vendor_id == 0xFFFF) return;
-
-  /* check what functions it performs */
-  ParsePciBusSlotFunction(bus, slot, 0, on_each_pci_device);
-  uint16 header_type = Read8BitsFromPciConfig(bus, slot, 0, kPciHdrHeaderType);
-
-  if ((header_type & 0x80) != 0) { /* multi-function device */
-    uint8 function;
-    for (function = 1; function < 8; function++) {
-      if (Read16BitsFromPciConfig(bus, slot, function, kPciHdrVendorId) !=
-          0xFFFF)
-        ParsePciBusSlotFunction(bus, slot, function, on_each_pci_device);
-    }
+  if (function == 0 && (header_type & 0x80)) {
+    // This is a multi-function device. We've already read function 0, so
+    // parse the other functions.
+    for (uint8 function = 1; function < 8; function++)
+      ParsePciBusSlotFunction(bus, slot, function, on_each_pci_device);
   }
 }
 
@@ -105,7 +96,7 @@ void ForEachPciDeviceInBus(
     const std::function<void(uint8, uint8, uint8, uint16, uint16, uint8, uint8,
                              uint8)>& on_each_pci_device) {
   for (uint8 device = 0; device < 32; device++)
-    ForEachPciDeviceInBusAndSlot(bus, device, on_each_pci_device);
+    ParsePciBusSlotFunction(bus, device, /*function=*/0, on_each_pci_device);
 }
 
 void ForEachPciDevice(
@@ -137,7 +128,8 @@ void InitializePci() {
     if (!LoadPciDriver(base_class, sub_class, prog_if, vendor_id, device_id,
                        bus, slot, function)) {
       std::cout << "Encountered unknown PCI device at " << (int)base_class
-                << ":" << (int)sub_class << ":" << (int)prog_if << ": "
+                << ":" << (int)sub_class << ":" << (int)prog_if << " @ "
+                << (int)bus << ":" << (int)slot << ":" << (int)function << " - "
                 << GetPciDeviceName(base_class, sub_class, prog_if)
                 << std::endl;
     }
