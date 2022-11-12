@@ -27,6 +27,11 @@ namespace {
 /*thread_local*/ Fiber* first_scheduled_fiber = nullptr;
 /*thread_local*/ Fiber* last_scheduled_fiber = nullptr;
 
+// Queue of fibers that are scheduled to run after all other fibers and events
+// have been processed.
+/*thread_local*/ Fiber* first_late_scheduled_fiber = nullptr;
+/*thread_local*/ Fiber* last_late_scheduled_fiber = nullptr;
+
 // The fiber to return to when we're out of work instead of sleeping. This is
 // the caller of HandleEverything.
 /*thread_local*/ Fiber* fiber_to_return_to_when_were_out_of_work = nullptr;
@@ -115,6 +120,10 @@ void Defer(const std::function<void()>& function) {
   Scheduler::ScheduleFiber(Fiber::Create(function));
 }
 
+void DeferAfterEvents(const std::function<void()>& function) {
+  Scheduler::ScheduleFiberAfterEvents(Fiber::Create(function));
+}
+
 // Hand over control to the scheduler. This function never returns.
 void HandOverControl() {
   if (fiber_to_return_to_when_were_out_of_work != nullptr ||
@@ -195,7 +204,8 @@ Fiber* Scheduler::GetNextFiberToRun() {
   MessageId message_id;
   size_t metadata, param1, param2, param3, param4, param5;
 
-  if (fiber_to_return_to_when_were_out_of_work == nullptr) {
+  if (fiber_to_return_to_when_were_out_of_work == nullptr &&
+      first_late_scheduled_fiber == nullptr) {
     if (fiber_to_return_to_after_sleeping_when_were_out_of_work != nullptr) {
       // We want to sleep first, then return immediately when we run out
       // of work.
@@ -234,6 +244,23 @@ Fiber* Scheduler::GetNextFiberToRun() {
       if (fiber != nullptr) return fiber;
     }
 
+    // There are no messages and there are no other fibers. We can run any late
+    // fibers now.
+    if (first_late_scheduled_fiber != nullptr) {
+      Fiber* fiber = first_late_scheduled_fiber;
+      first_late_scheduled_fiber =
+          first_late_scheduled_fiber->next_scheduled_fiber_;
+
+      // There are no more fibers scheduled, make sure both the first
+      // and last pointers are nullptr.
+      if (first_late_scheduled_fiber == nullptr)
+        last_late_scheduled_fiber = nullptr;
+
+      // We're removing this fiber from the schedule.
+      fiber->is_scheduled_to_run_ = false;
+      return fiber;
+    }
+
     // There are no messages and there are no fibers. We can return
     // to the caller of HandleEverything().
     return fiber_to_return_to_when_were_out_of_work;
@@ -256,6 +283,23 @@ void Scheduler::ScheduleFiber(Fiber* fiber) {
     last_scheduled_fiber = fiber;
   }
 }
+
+void Scheduler::ScheduleFiberAfterEvents(Fiber* fiber) {
+  if (fiber->is_scheduled_to_run_)
+    // This fiber is already scheduled to run.
+    return;
+  fiber->is_scheduled_to_run_ = true;
+  fiber->next_scheduled_fiber_ = nullptr;
+
+  if (last_late_scheduled_fiber == nullptr) {
+    first_late_scheduled_fiber = fiber;
+    last_late_scheduled_fiber = fiber;
+  } else {
+    last_late_scheduled_fiber->next_scheduled_fiber_ = fiber;
+    last_late_scheduled_fiber = fiber;
+  }
+}
+
 // Returns a fiber to handle the message, or nullptr if there's
 // nothing to do.
 Fiber* Scheduler::GetFiberToHandleMessage(ProcessId senders_pid,

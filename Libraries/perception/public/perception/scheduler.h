@@ -25,6 +25,10 @@ class Fiber;
 // Defers running a function.
 void Defer(const std::function<void()>& function);
 
+// Defers running a function until after all other deferred functions and
+// incoming events have been handled.
+void DeferAfterEvents(const std::function<void()>& function);
+
 // Hand over control to the scheduler. This function never returns.
 void HandOverControl();
 
@@ -44,6 +48,11 @@ class Scheduler {
 
   // Schedules a fiber to run.
   static void ScheduleFiber(Fiber* fiber);
+
+
+  // Schedules a fiber to run after all otehr fibers and incoming events
+  // have been handled.
+  static void ScheduleFiberAfterEvents(Fiber* fiber);
 
  private:
   // Returns a fiber to handle the message, or nullptr if there's
