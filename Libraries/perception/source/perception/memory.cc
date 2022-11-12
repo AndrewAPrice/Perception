@@ -142,6 +142,26 @@ size_t GetMemoryUsedByProcess() {
 #endif
 }
 
+void SetMemoryAccessRights(void* address, size_t pages, bool can_write,
+                           bool can_execute) {
+#if PERCEPTION
+  size_t rights = 0;
+  if (can_write) rights |= 1;
+  if (can_execute) rights |= 2;
+
+  volatile register size_t syscall_num asm("rdi") = 48;
+  volatile register size_t physical_address_r asm("rax") = (size_t)address;
+  volatile register size_t pages_r asm("rbx") = pages;
+  volatile register size_t rights_r asm("rdx") = rights;
+
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "r"(syscall_num), "r"(physical_address_r),
+                         "r"(pages_r), "r"(rights_r)
+                       : "rcx", "r11");
+#endif
+}
+
 }  // namespace perception
 
 #ifdef PERCEPTION

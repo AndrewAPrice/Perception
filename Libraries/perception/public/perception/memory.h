@@ -36,6 +36,8 @@ size_t GetTotalSystemMemory();
 
 size_t GetMemoryUsedByProcess();
 
+void SetMemoryAccessRights(void* address, size_t pages, bool can_write, bool can_execute);
+
 }  // namespace perception
 
 // Functions handled by liballoc but redefined here to expose it in this
