@@ -14,6 +14,8 @@
 
 #include "pci_drivers.h"
 
+#include <iostream>
+
 #include "driver_loader.h"
 
 bool LoadPciDriver(uint8 base_class, uint8 sub_class, uint8 prog_if,
@@ -28,6 +30,18 @@ bool LoadPciDriver(uint8 base_class, uint8 sub_class, uint8 prog_if,
         default:
           return false;
       }
+    case 0x06:  // Bridge devices.
+      switch (sub_class) {
+        case 0x01:  // ISA Bridge
+          // Perception is a long mode OS and ISA hardware is ancient, so we
+          // don't anticipate needing to support it.
+          std::cout << "There's an ISA bridge but ISA hardware isn't supported."
+                    << std::endl;
+          return true;
+        default:
+          return false;
+      }
+      break;
     default:
       return false;
   }
