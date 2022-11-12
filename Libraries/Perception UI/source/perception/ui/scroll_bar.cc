@@ -52,6 +52,7 @@ ScrollBar* ScrollBar::OnScroll(std::function<void(float)> on_scroll_handler) {
 ScrollBar* ScrollBar::SetPosition(float minimum, float maximum, float value,
                                   float size) {
   if (minimum > maximum) std::swap(minimum, maximum);
+  size = std::min(size, maximum - minimum);
 
   if (maximum == minimum) {
     // Should never happen but create a scrollbar that doesn't cause a divide by
@@ -62,7 +63,7 @@ ScrollBar* ScrollBar::SetPosition(float minimum, float maximum, float value,
     size = 1.0f;
   }
 
-  value = std::min(std::max(value, minimum), maximum - size);
+  value = std::max(std::min(value, maximum - size), minimum);
 
   if (minimum_ == minimum && maximum_ == maximum && value_ == value &&
       size_ == size)
@@ -96,8 +97,8 @@ bool ScrollBar::GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
   }
 
   widget = ToSharedPtr();
-  x_in_selected_widget = x - GetLeft();
-  y_in_selected_widget = y - GetTop();
+  x_in_selected_widget = x - left;
+  y_in_selected_widget = y - top;
   return true;
 }
 
@@ -107,8 +108,8 @@ void ScrollBar::OnMouseMove(float x, float y) {
   bool is_mouse_hovering_over_track = false;
   bool is_mouse_hovering_over_fab = false;
 
-  float track_x = GetLeft();
-  float track_y = GetTop();
+  float track_x = 0;
+  float track_y = 0;
   float track_width = GetCalculatedWidth();
   float track_height = GetCalculatedHeight();
 
@@ -212,8 +213,8 @@ void ScrollBar::OnMouseButtonDown(float x, float y, MouseButton button) {
     is_dragging_ = true;
 
     // Find where on the fab the user started dragging.
-    float fab_x = GetLeft();
-    float fab_y = GetTop();
+    float fab_x = 0;
+    float fab_y = 0;
     float width = GetCalculatedWidth();
     float height = GetCalculatedHeight();
     OffsetTrackToFabCoordinates(fab_x, fab_y, width, height);
