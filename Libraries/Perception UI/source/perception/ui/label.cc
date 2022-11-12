@@ -32,6 +32,7 @@ Label::Label()
       text_alignment_(TextAlignment::TopLeft),
       realign_text_(true) {
   YGNodeSetMeasureFunc(yoga_node_, &Label::Measure);
+  YGNodeSetDirtiedFunc(yoga_node_, &Label::LayoutDirtied);
   SetMargin(YGEdgeAll, kMarginAroundWidgets);
 }
 
@@ -129,6 +130,11 @@ YGSize Label::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
 
   label->realign_text_ = true;
   return size;
+}
+
+void Label::LayoutDirtied(YGNode* node) {
+  Label* label = (Label*)YGNodeGetContext(node);
+  label->realign_text_ = true;
 }
 
 }  // namespace ui

@@ -43,6 +43,8 @@ class Label : public Widget {
   static YGSize Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
                         float height, YGMeasureMode height_mode);
 
+  static void LayoutDirtied(YGNode* node);
+
   uint32_t color_;
   std::string label_;
   TextAlignment text_alignment_;
