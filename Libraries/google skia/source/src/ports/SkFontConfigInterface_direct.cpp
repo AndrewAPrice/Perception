@@ -27,37 +27,37 @@
 #include "src/core/SkAutoMalloc.h"
 #include "src/core/SkBuffer.h"
 
+using ::perception::SharedMemory;
+using ::permebuf::perception::FontData;
 using ::permebuf::perception::FontManager;
 using FontStyle = ::permebuf::perception::FontStyle;
 using SkFS = SkFontStyle;
 
 namespace {
-auto kFontWeightToSkiaWeight = std::map<FontStyle::Weight, int>({
-    {FontStyle::Weight::THIN, SkFS::kThin_Weight},
-    {FontStyle::Weight::EXTRALIGHT, SkFS::kExtraLight_Weight},
-    {FontStyle::Weight::LIGHT, SkFS::kLight_Weight},
-    {FontStyle::Weight::SEMILIGHT, 350},
-    {FontStyle::Weight::BOOK, 380},
-    {FontStyle::Weight::REGULAR, SkFS::kNormal_Weight},
-    {FontStyle::Weight::MEDIUM, SkFS::kMedium_Weight},
-    {FontStyle::Weight::SEMIBOLD, SkFS::kSemiBold_Weight},
-    {FontStyle::Weight::BOLD, SkFS::kBold_Weight},
-    {FontStyle::Weight::EXTRABOLD, SkFS::kExtraBold_Weight},
-    {FontStyle::Weight::BLACK, SkFS::kBlack_Weight},
-    {FontStyle::Weight::EXTRABLACK, SkFS::kExtraBlack_Weight}
-});
+auto kFontWeightToSkiaWeight = std::map<FontStyle::Weight, int>(
+    {{FontStyle::Weight::THIN, SkFS::kThin_Weight},
+     {FontStyle::Weight::EXTRALIGHT, SkFS::kExtraLight_Weight},
+     {FontStyle::Weight::LIGHT, SkFS::kLight_Weight},
+     {FontStyle::Weight::SEMILIGHT, 350},
+     {FontStyle::Weight::BOOK, 380},
+     {FontStyle::Weight::REGULAR, SkFS::kNormal_Weight},
+     {FontStyle::Weight::MEDIUM, SkFS::kMedium_Weight},
+     {FontStyle::Weight::SEMIBOLD, SkFS::kSemiBold_Weight},
+     {FontStyle::Weight::BOLD, SkFS::kBold_Weight},
+     {FontStyle::Weight::EXTRABOLD, SkFS::kExtraBold_Weight},
+     {FontStyle::Weight::BLACK, SkFS::kBlack_Weight},
+     {FontStyle::Weight::EXTRABLACK, SkFS::kExtraBlack_Weight}});
 
-auto kFontWidthToSkiaWidth = std::map<FontStyle::Width, SkFS::Width>({
-    {FontStyle::Width::ULTRACONDENSED, SkFS::kUltraCondensed_Width},
-    {FontStyle::Width::EXTRACONDENSED, SkFS::kExtraCondensed_Width},
-    {FontStyle::Width::CONDENSED, SkFS::kCondensed_Width},
-    {FontStyle::Width::SEMICONDENSED, SkFS::kSemiCondensed_Width},
-    {FontStyle::Width::NORMAL, SkFS::kNormal_Width},
-    {FontStyle::Width::SEMIEXPANDED, SkFS::kSemiExpanded_Width},
-    {FontStyle::Width::EXPANDED, SkFS::kExpanded_Width},
-    {FontStyle::Width::EXTRAEXPANDED, SkFS::kExtraExpanded_Width},
-    {FontStyle::Width::ULTRAEXPANDED, SkFS::kUltraExpanded_Width}
-});
+auto kFontWidthToSkiaWidth = std::map<FontStyle::Width, SkFS::Width>(
+    {{FontStyle::Width::ULTRACONDENSED, SkFS::kUltraCondensed_Width},
+     {FontStyle::Width::EXTRACONDENSED, SkFS::kExtraCondensed_Width},
+     {FontStyle::Width::CONDENSED, SkFS::kCondensed_Width},
+     {FontStyle::Width::SEMICONDENSED, SkFS::kSemiCondensed_Width},
+     {FontStyle::Width::NORMAL, SkFS::kNormal_Width},
+     {FontStyle::Width::SEMIEXPANDED, SkFS::kSemiExpanded_Width},
+     {FontStyle::Width::EXPANDED, SkFS::kExpanded_Width},
+     {FontStyle::Width::EXTRAEXPANDED, SkFS::kExtraExpanded_Width},
+     {FontStyle::Width::ULTRAEXPANDED, SkFS::kUltraExpanded_Width}});
 
 auto kFontSlantToSkiaSlant = std::map<FontStyle::Slant, SkFS::Slant>(
     {{FontStyle::Slant::UPRIGHT, SkFS::kUpright_Slant},
@@ -106,12 +106,13 @@ V GetOrDefault(const std::map<K, V>& m, const K key, const V default_value) {
 SkFontStyle SkFontStyleFromFontStyle(FontStyle font_style) {
   typedef SkFontStyle SkFS;
 
-  int weight = (int)GetOrDefault(kFontWeightToSkiaWeight, font_style.GetWeight(),
-                            (int)SkFS::kNormal_Weight);
+  int weight =
+      (int)GetOrDefault(kFontWeightToSkiaWeight, font_style.GetWeight(),
+                        (int)SkFS::kNormal_Weight);
   int width = (int)GetOrDefault(kFontWidthToSkiaWidth, font_style.GetWidth(),
-                           SkFS::kNormal_Width);
+                                SkFS::kNormal_Width);
   SkFS::Slant slant = GetOrDefault(kFontSlantToSkiaSlant, font_style.GetSlant(),
-                           SkFS::kUpright_Slant);
+                                   SkFS::kUpright_Slant);
 
   return SkFontStyle(weight, width, slant);
 }
@@ -191,7 +192,22 @@ bool SkFontConfigInterfaceDirect::matchFamilyName(const char familyName[],
 
   if (outIdentity) {
     outIdentity->fTTCIndex = ((*status_or_response)->GetFaceIndex());
-    outIdentity->fString = SkString(*(*status_or_response)->GetPath());
+    auto font_data = (*status_or_response)->GetData();
+    switch (font_data.GetOption()) {
+      case FontData::Options::Path:
+        outIdentity->fIsBuffer = false;
+        outIdentity->fString = SkString(*font_data.GetPath());
+        break;
+      case FontData::Options::Buffer:
+        outIdentity->fIsBuffer = true;
+        outIdentity->fBuffer = std::make_shared<SharedMemory>(
+            font_data.GetBuffer().GetBuffer().Clone());
+        break;
+      default:
+        std::cout << "FontManager can't handle the FontData type "
+                  << (int)font_data.GetOption() << std::endl;
+        return false;
+    }
   }
   if (outFamilyName) {
     *outFamilyName = SkString(*(*status_or_response)->GetFamilyName());
@@ -204,5 +220,11 @@ bool SkFontConfigInterfaceDirect::matchFamilyName(const char familyName[],
 
 SkStreamAsset* SkFontConfigInterfaceDirect::openStream(
     const FontIdentity& identity) {
-  return SkStream::MakeFromFile(identity.fString.c_str()).release();
+  if (identity.fIsBuffer) {
+    std::cout << "Font is a buffer of size " << identity.fBuffer->GetSize() << std::endl;
+    return new SkMemoryStream(**identity.fBuffer, identity.fBuffer->GetSize());
+
+  } else {
+    return SkStream::MakeFromFile(identity.fString.c_str()).release();
+  }
 }

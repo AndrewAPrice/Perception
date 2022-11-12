@@ -57,6 +57,20 @@ message FontStyle {
 	Slant : Slant = 3;
 }
 
+// Represents a the font's data.
+oneof FontData {
+	// The path to the font.
+	// The program is expected to call open this file themselves to access to font data.
+	Path : string = 1;
+	
+	// A read only buffer containing the font's data that may be shared with other programs
+	// also using this font.
+	message FontDataBuffer {
+		Buffer : SharedMemory = 1;
+	}
+	Buffer : FontDataBuffer = 2;
+}
+
 // Represents the font manager.
 service FontManager {
 	// Finds a font that best matches what is requested.
@@ -72,8 +86,8 @@ service FontManager {
 		// This may be different to the requested family name if it's not available.
 		FamilyName : string = 1;
 
-		// Path of the font file.
-		Path : string = 2;
+		// The font's data.
+		Data : FontData = 2;
 
 		// The style of this font.
 		// This may be different to the requested style if it's not available in that style.
