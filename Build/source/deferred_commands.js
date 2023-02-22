@@ -16,6 +16,7 @@
 const util = require('node:util');
 const exec = util.promisify(require('node:child_process').exec);
 const readFile = util.promisify(require('node:fs').readFile);
+const exists = util.promisify(require('node:fs').exists);
 const {buildSettings} = require('./build_commands');
 const {setDependenciesOfFile, flushDependenciesForFile} =
     require('./dependencies_per_file');
@@ -43,7 +44,7 @@ function deferCommand(stage, command, title, sourceFile, outputWarnings) {
 }
 
 async function processAndUpdatePerFileDeps(sourceFile, dependenciesFile) {
-  if (dependenciesFile) {
+  if (dependenciesFile && await exists(dependenciesFile)) {
     let depsStr = (await readFile(dependenciesFile)).toString('utf8');
     let separator = depsStr.indexOf(':');
     if (separator == -1) {

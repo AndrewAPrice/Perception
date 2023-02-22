@@ -152,7 +152,6 @@ class Widget : public std::enable_shared_from_this<Widget> {
   float GetRight();
   float GetBottom();
   bool GetHadOverflow();
-  bool GetDidLegacyStretchFlagAffectLayout();
 
   Widget* SetId(size_t id);
   size_t GetId() const;

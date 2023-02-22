@@ -10,6 +10,7 @@
 		"source/jdmrg565.c",
 		"source/jdmrgext.c",
 		"source/jstdhuff.c",
+		"source/turbojpeg-mp.c",
 		"source/simd/x86_64/jccolext-avx2.asm",
 		"source/simd/x86_64/jccolext-sse2.asm",
 		"source/simd/x86_64/jcgryext-avx2.asm",

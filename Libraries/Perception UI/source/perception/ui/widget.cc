@@ -400,10 +400,6 @@ float Widget::GetBottom() { return YGNodeLayoutGetBottom(yoga_node_); }
 
 bool Widget::GetHadOverflow() { return YGNodeLayoutGetHadOverflow(yoga_node_); }
 
-bool Widget::GetDidLegacyStretchFlagAffectLayout() {
-  return YGNodeLayoutGetDidLegacyStretchFlagAffectLayout(yoga_node_);
-}
-
 Widget* Widget::SetId(size_t id) {
   if (id_ != 0) widgets_by_id_.erase(id_);
 

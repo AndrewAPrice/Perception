@@ -12,8 +12,10 @@
 		"public"	
 	],
 	"define": [
+		"SK_CODEC_DECODES_JPEG_GAINMAPS",
 		"SK_SHAPER_HARFBUZZ_AVAILABLE",
-     	"SK_UNICODE_AVAILABLE"
+     	"SK_UNICODE_AVAILABLE",
+		"SK_UNICODE_ICU_IMPLEMENTATION"
 	],
 	"third_party": true
 }

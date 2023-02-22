@@ -14,10 +14,11 @@
 
 const fs = require('fs');
 const child_process = require('child_process');
-const {getPackageDirectory} = require('./package_directory');
-const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
-const {getStandaloneApplicationMetadata, getStandaloneLibraryMetadata} =
-    require('./metadata');
+const { getPackageDirectory } = require('./package_directory');
+const { PackageType, getPackageTypeDirectoryName } = require('./package_type');
+const { getStandaloneApplicationMetadata, getStandaloneLibraryMetadata } =
+  require('./metadata');
+const { getFileLastModifiedTimestamp } = require('./file_timestamps');
 
 const loadedThirdPartyApplications = {};
 const loadedThirdPartyLibraries = {};
@@ -26,18 +27,20 @@ function loadThirdParty(packageName, packageType, metadata) {
   if (!metadata.third_party) {
     // Not a third party package. This should never trigger.
     console.log(
-        'Warning: ' + packageName +
-        ' is not a third party package. Not sure why third_party.js#loadThirdParty is being called.');
+      'Warning: ' + packageName +
+      ' is not a third party package. Not sure why third_party.js#loadThirdParty is being called.');
     return true;
   }
 
   const packageDirectory = getPackageDirectory(packageType, packageName);
-  if (fs.existsSync(packageDirectory + 'prepare.js') &&
-      !fs.existsSync(packageDirectory + 'third_party_files.json')) {
+  const prepareFilePath = packageDirectory + 'prepare.js';
+  const thirdPartyFilesPath = packageDirectory + 'third_party_files.json';
+  if (fs.existsSync(prepareFilePath) && (!fs.existsSync(thirdPartyFilesPath) ||
+    getFileLastModifiedTimestamp(prepareFilePath) > getFileLastModifiedTimestamp(thirdPartyFilesPath))) {
     console.log('Preparing ' + packageName);
     try {
       child_process.execSync(
-          'node prepare', {cwd: packageDirectory, stdio: 'inherit'});
+        'node prepare', { cwd: packageDirectory, stdio: 'inherit' });
     } catch (exp) {
       console.log(exp);
       return false;
@@ -50,14 +53,14 @@ function makeSureThirdPartyIsLoaded(packageName, packageType) {
   if (packageType == PackageType.LIBRARY) {
     if (loadedThirdPartyLibraries[packageName] == undefined) {
       loadedThirdPartyLibraries[packageName] = loadThirdParty(
-          packageName, packageType, getStandaloneLibraryMetadata(packageName));
+        packageName, packageType, getStandaloneLibraryMetadata(packageName));
     }
     return loadedThirdPartyLibraries[packageName];
   } else if (packageType == PackageType.APPLICATION) {
     if (loadedThirdPartyApplications[packageName] == undefined) {
       loadedThirdPartyApplications[packageName] = loadThirdParty(
-          packageName, packageType,
-          getStandaloneApplicationMetadata(packageName));
+        packageName, packageType,
+        getStandaloneApplicationMetadata(packageName));
     }
     return loadedThirdPartyApplications[packageName];
   }
@@ -65,5 +68,5 @@ function makeSureThirdPartyIsLoaded(packageName, packageType) {
 }
 
 module.exports = {
-  makeSureThirdPartyIsLoaded : makeSureThirdPartyIsLoaded
+  makeSureThirdPartyIsLoaded: makeSureThirdPartyIsLoaded
 };

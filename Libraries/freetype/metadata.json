@@ -7,6 +7,7 @@
     "_LIB",
     "FT2_BUILD_LIBRARY",
     "FT_CONFIG_OPTION_SYSTEM_ZLIB",
+    "HAVE_FCNTL_H",
     "HAVE_UNISTD_H",
     "NDEBUG"
   ],

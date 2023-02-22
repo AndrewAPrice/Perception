@@ -25,7 +25,7 @@ if (!fs.existsSync('third_party')) {
 	// Grab it from github.
 	const command = 'git clone ' + git_repository + ' third_party';
 	try {
-		child_process.execSync(command, {stdio: 'inherit'});
+		child_process.execSync(command, { stdio: 'inherit' });
 	} catch (exp) {
 		console.log('Error downloading google/skia: ' + exp);
 		process.exit(1);
@@ -35,7 +35,7 @@ if (!fs.existsSync('third_party')) {
 	// Try to update it.
 	const command = 'git pull ' + git_repository;
 	try {
-		child_process.execSync(command, {cwd: 'third_party', stdio: 'inherit'});
+		child_process.execSync(command, { cwd: 'third_party', stdio: 'inherit' });
 	} catch (exp) {
 		console.log('Error updating google/skia: ' + exp);
 		process.exit(1);
@@ -213,15 +213,18 @@ copyFilesInDirectory('third_party/include/gpu/mock', 'public/include/gpu/mock');
 copyFilesInDirectory('third_party/include/pathops', 'public/include/pathops');
 copyFilesInDirectory('third_party/include/ports', 'public/include/ports');
 copyFilesInDirectory('third_party/include/private', 'public/include/private');
+copyFilesInDirectory('third_party/include/private/base', 'public/include/private/base');
 copyFilesInDirectory('third_party/include/private/gpu/ganesh', 'public/include/private/gpu/ganesh');
 copyFilesInDirectory('third_party/include/private/chromium', 'public/include/private/chromium');
 copyFilesInDirectory('third_party/include/sksl', 'public/include/sksl');
 copyFilesInDirectory('third_party/include/svg', 'public/include/svg');
 copyFilesInDirectory('third_party/include/utils', 'public/include/utils');
+copyFilesInDirectory('third_party/src/base', 'source/src/base');
 copyFilesInDirectory('third_party/src/codec', 'source/src/codec');
 copyFilesInDirectory('third_party/src/core', 'source/src/core');
 copyFilesInDirectory('third_party/src/effects', 'source/src/effects');
 copyFilesInDirectory('third_party/src/effects/imagefilters', 'source/src/effects/imagefilters');
+copyFilesInDirectory('third_party/src/encode', 'source/src/encode');
 copyFilesInDirectory('third_party/src/fonts', 'source/src/fonts');
 copyFilesInDirectory('third_party/src/gpu', 'source/src/gpu');
 copyFilesInDirectory('third_party/src/gpu/ganesh', 'source/src/gpu/ganesh');
@@ -236,7 +239,6 @@ copyFilesInDirectory('third_party/src/gpu/ganesh/tessellate', 'source/src/gpu/ga
 copyFilesInDirectory('third_party/src/gpu/ganesh/text', 'source/src/gpu/ganesh/text');
 copyFilesInDirectory('third_party/src/gpu/tessellate', 'source/src/gpu/tessellate');
 copyFilesInDirectory('third_party/src/image', 'source/src/image');
-copyFilesInDirectory('third_party/src/images', 'source/src/images');
 copyFilesInDirectory('third_party/src/lazy', 'source/src/lazy');
 copyFilesInDirectory('third_party/src/opts', 'source/src/opts');
 copyFilesInDirectory('third_party/src/pathops', 'source/src/pathops');
@@ -304,9 +306,15 @@ replaceInFile('public/modules/skcms/skcms_internal.h',
 	'#include "skcms',
 	'#include "modules/skcms/skcms');
 replaceInFile('public/include/core/SkTypes.h',
-		'#if !defined(SK_BUILD_FOR_ANDROID) && !defined(SK_BUILD_FOR_IOS) && !defined(SK_BUILD_FOR_WIN) && \\',
-		'#if 0 && !defined(SK_BUILD_FOR_ANDROID) && !defined(SK_BUILD_FOR_IOS) && !defined(SK_BUILD_FOR_WIN) && \\');
+	'#if !defined(SK_BUILD_FOR_ANDROID) && !defined(SK_BUILD_FOR_IOS) && !defined(SK_BUILD_FOR_WIN) && \\',
+	'#if 0 && !defined(SK_BUILD_FOR_ANDROID) && !defined(SK_BUILD_FOR_IOS) && !defined(SK_BUILD_FOR_WIN) && \\');
 
+replaceInFile('public/include/private/base/SkFeatures.h',
+	'defined(__GLIBC__) || defined(__GNU__) || defined(__unix__)',
+	'defined(__GLIBC__) || defined(__GNU__) || defined(__unix__) || defined(PERCEPTION)',);
+replaceInFile('source/src/codec/SkJpegSourceMgr.h',
+	'class SkJpegSegmentScanner;',
+	'#include "src/codec/SkJpegSegmentScan.h"',);
 
 // Remove any third party files that don't exist in the latest build.
 Object.keys(third_party_files_from_last_run).forEach(function (filePath) {

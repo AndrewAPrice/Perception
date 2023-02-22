@@ -32,7 +32,7 @@ If you have [Homebrew](https://brew.sh/), you can install everything you need wi
 
 ```
 brew tap nativeos/i386-elf-toolchain
-brew install node git nasm qemu x86_64-elf-binutils x86_64-elf-gcc i386-elf-grub xorriso`
+brew install node git nasm qemu x86_64-elf-binutils x86_64-elf-gcc i386-elf-grub xorriso
 ```
 
 If you're building on an M1 and get:

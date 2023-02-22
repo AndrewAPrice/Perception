@@ -121,6 +121,27 @@ function copyFilesInDirectory(from, to, extension) {
 	}
 }
 
+function copyFilesInDirectoryIncludingSubdirectories(from, to) {
+	const filesInDirectory = fs.readdirSync(from);
+	for (let i = 0; i < filesInDirectory.length; i++) {
+		const entryName = filesInDirectory[i];
+		const fromPath = from + '/' + entryName;
+		const toPath = to + '/' + entryName;
+
+		if (filesToIgnore[toPath]) {
+			continue;
+		}
+
+		const fileStats = fs.lstatSync(fromPath);
+		if (fileStats.isDirectory()) {
+			copyFilesInDirectoryIncludingSubdirectories(fromPath, toPath);
+		} else {
+			copyFile(fromPath, toPath, fileStats);
+		}
+	}
+
+}
+
 function replaceInFile(filename, needles) {
 	let fileContents = fs.readFileSync(filename, 'utf8');
 	needles.forEach(needle => {
@@ -141,6 +162,7 @@ filesToIgnore['source/test-gsub-would-substitute.cc'] = true;
 filesToIgnore['source/test-iter.cc'] = true;
 filesToIgnore['source/test-machinery.cc'] = true;
 filesToIgnore['source/test-map.cc'] = true;
+filesToIgnore['source/test-multimap.cc'] = true;
 filesToIgnore['source/test-number.cc'] = true;
 filesToIgnore['source/test-ot-glyphname.cc'] = true;
 filesToIgnore['source/test-ot-meta.cc'] = true;
@@ -159,11 +181,7 @@ copyFilesInDirectory('third_party/src', 'public', '.h');
 copyFilesInDirectory('third_party/src', 'public', '.hh');
 copyFilesInDirectory('third_party/src', 'source', '.c');
 copyFilesInDirectory('third_party/src', 'source', '.cc');
-copyFilesInDirectory('third_party/src/OT/glyf', 'public/OT/glyf');
-copyFilesInDirectory('third_party/src/OT/Layout', 'public/OT/Layout');
-copyFilesInDirectory('third_party/src/OT/Layout/Common', 'public/OT/Layout/Common');
-copyFilesInDirectory('third_party/src/OT/Layout/GPOS', 'public/OT/Layout/GPOS');
-copyFilesInDirectory('third_party/src/OT/Layout/GSUB', 'public/OT/Layout/GSUB');
+copyFilesInDirectoryIncludingSubdirectories('third_party/src/OT', 'public/OT');
 copyFilesInDirectory('third_party/src/graph', 'public/graph');
 /*
 replaceInFile('source/graph/graph.hh', [
