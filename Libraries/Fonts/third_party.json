@@ -1,0 +1,17 @@
+{
+    "repositories" : [
+        {
+            "url": "https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip",
+            "type": "zip",
+            "placeholder": "zip"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${zip}/dejavu-fonts-ttf-2.37/ttf",
+            "destination": "assets",
+            "extensions": [".ttf"]
+        }
+    ]
+}

@@ -1,0 +1,213 @@
+{
+    "repositories" : [
+        {
+            "url": "https://github.com/freetype/freetype.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/include",
+            "destination": "public",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/freetype",
+            "destination": "public/freetype",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/freetype/config",
+            "destination": "public/freetype/config",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/freetype/internal",
+            "destination": "public/freetype/internal",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/freetype/internal/services",
+            "destination": "public/freetype/internal/services",
+            "extensions": [".h"],
+            "replace": [{
+                "file": "public/freetype/internal/services/svmm.h",
+                "replacements": [["#include <freetype/internal/ftserv.h>","#include <freetype/ftmm.h>\n#include <freetype/internal/ftserv.h>"]]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/autofit",
+            "destination": "source/autofit",
+            "ignore": ["source/autofit/autofit.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/base",
+            "destination": "source/base",
+            "ignore": [
+                "source/base/ftbase.c",
+                "source/base/ftsystemc"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/bdf",
+            "destination": "source/bdf",
+            "ignore": ["source/bdf/bdf.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/cache",
+            "destination": "source/cache",
+            "ignore": ["source/cache/ftcache.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/cff",
+            "destination": "source/cff",
+            "ignore": ["source/cff/cff.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/cid",
+            "destination": "source/cid",
+            "ignore": ["source/cid/type1cid.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/dlg",
+            "destination": "source/dlg"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gxvalid",
+            "destination": "source/gxvalid",
+            "ignore": ["source/gxvalid/gxvalid.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gzip/ftgzip.c",
+            "destination": "source/gzip/ftgzip.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gzip/ftzconf.h",
+            "destination": "source/gzip/ftzconf.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/lzw",
+            "destination": "source/lzw"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/otvalid",
+            "destination": "source/otvalid",
+            "ignore": ["source/otvalid/otvalid.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/pcf",
+            "destination": "source/pcf",
+            "ignore": ["source/pcf/pcf.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/pfr",
+            "destination": "source/pfr",
+            "ignore": ["source/pfr/pfr.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/psaux",
+            "destination": "source/psaux",
+            "ignore": ["source/psaux/psaux.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/bzip2",
+            "destination": "source/bzip2"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/pshinter",
+            "destination": "source/pshinter",
+            "ignore": ["source/pshinter/pshinter.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/psnames",
+            "destination": "source/psnames",
+            "ignore": ["source/psnames/psnames.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/raster",
+            "destination": "source/raster",
+            "ignore": ["source/raster/raster.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sdf",
+            "destination": "source/sdf",
+            "ignore": ["source/sdf/sdf.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sfnt",
+            "destination": "source/sfnt",
+            "ignore": ["source/sfnt/sfnt.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/smooth",
+            "destination": "source/smooth",
+            "ignore": ["source/smooth/smooth.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/svg",
+            "destination": "source/svg",
+            "ignore": ["source/svg/svg.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/truetype",
+            "destination": "source/truetype",
+            "ignore": ["source/truetype/truetype.c"],
+            "replace": [{
+                "file": "source/truetype/ttobjs.h",
+                "replacements": [["#include <freetype/internal/ftobjs.h>","#include <freetype/internal/ftobjs.h>\n#include <freetype/internal/ftmmtypes.h>"]]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/type1",
+            "destination": "source/type1",
+            "ignore": ["source/type1/type1.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/type42",
+            "destination": "source/type42",
+            "ignore": ["source/type42/type42.c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/winfonts",
+            "destination": "source/winfonts"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/builds/unix/ftsystem.c",
+            "destination": "source/base/ftsystem.c"
+        }
+    ]
+}

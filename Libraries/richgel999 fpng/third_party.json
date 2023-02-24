@@ -1,0 +1,25 @@
+{
+    "repositories" : [
+        {
+            "url": "https://github.com/richgel999/fpng.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations" : [
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source",
+            "exclude": [
+                "source/fpng.h",
+                "source/fpng_test.cpp"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/fpng.h",
+            "destination": "public/fpng.h"
+        }
+    ]
+}

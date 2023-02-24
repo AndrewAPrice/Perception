@@ -1,0 +1,22 @@
+{
+    "repositories" : [
+        {
+            "url": "https://github.com/harfbuzz/icu-le-hb.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations" : [
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "public/layout",
+            "extensions": [".h"]
+        }
+    ]
+}

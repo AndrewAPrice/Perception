@@ -1,0 +1,59 @@
+{
+    "repositories" : [
+        {
+            "url": "https://github.com/llvm/llvm-project.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations" : [
+        {
+            "operation": "copy",
+            "source": "${git}/libcxx/include",
+            "destination": "public",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libcxx/src",
+            "destination": "source",
+            "recursive": true,
+            "ignore": [
+                "source/libc/stdio/nano-vfprintf.c",
+                "source/libc/stdio/nano-vfprintf_float.c",
+                "source/libc/stdio/nano-vfprintf_i.c",
+                "source/libc/stdio/nano-vfprintf_local.c",
+                "source/libc/stdio/nano-vfscanf.c",
+                "source/libc/stdio/nano-vfscanf_float.c",
+                "source/libc/stdio/nano-vfscanf_i.c",
+                "source/libc/stdio/nano-vfscanf_local.c",
+                "source/libc/stdio/nano-vfprintf_local.h",
+                "source/libc/stdio/nano-vfscanf_local.h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libcxxabi/include",
+            "destination": "public",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libcxxabi/src",
+            "destination": "source",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libunwind/include",
+            "destination": "public",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libunwind/src",
+            "destination": "source",
+            "recursive": true
+        }
+    ]
+}

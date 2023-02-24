@@ -1,0 +1,33 @@
+{
+    "repositories" : [
+        {
+            "url": "https://github.com/facebook/yoga.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/yoga",
+            "destination": "source",
+            "extensions": [".cpp"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/event",
+            "destination": "event"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga",
+            "destination": "public/yoga",
+            "extensions": [".h"],
+            "replace": [{
+                "operation": "replaceInFile",
+                "file": "public/yoga/CompactValue.h",
+                "replacements": [["__cpp_lib_bit_cast", "true"]]
+            }]
+        }
+    ]
+}

@@ -1,0 +1,16 @@
+{
+    "repositories" : [
+        {
+            "url": "https://github.com/memononen/nanosvg.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations" : [
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "public"
+        }
+    ]
+}

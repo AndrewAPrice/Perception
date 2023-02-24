@@ -1,0 +1,30 @@
+{
+    "repositories" : [
+        {
+            "url": "https://github.com/madler/zlib.git'",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations" : [
+        {
+            "operation": "copy",
+            "source": "${git}",
+            "destination": "source",
+            "exclude": [
+                "source/zlib.h",
+                "source/zconf.h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/zlib.h",
+            "destination": "public/zlib.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/zconf.h",
+            "destination": "public/zconf.h"
+        }
+    ]
+}

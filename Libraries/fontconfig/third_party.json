@@ -1,0 +1,106 @@
+{
+    "repositories" : [
+        {
+            "url": "https://gitlab.freedesktop.org/fontconfig/fontconfig.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/fontconfig",
+            "destination": "source/fontconfig",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source/src"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/config-fixups.h",
+            "destination": "source/config-fixups.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/fcstdint.h.in",
+            "destination": "source/src/fcstdint.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/conf.d",
+            "destination": "public/templates",
+            "extensions": [".conf"]
+        },
+        {
+            "operation": "execute",
+            "command": "${git}/src/makealias ${git}/src ${@}/source/src/fcalias.h ${@}/source/src/fcaliastail.h ${git}/fontconfig/fontconfig.h ${git}/src/fcdeprecate.h ${git}/fontconfig/fcprivate.h",
+            "inputs": ["${git}/src/makealias", "${git}/fontconfig/fontconfig.h", "${git}/src/fcdeprecate.h", "${git}/fontconfig/fcprivate.h"],
+            "outputs": ["source/src/fcalias.h", "source/src/fcaliastail.h"]
+        },
+        {
+            "operation": "execute",
+            "command": "${git}/src/makealias ${git}/src ${@}/source/src/fcftalias.h ${@}/source/src/fcftaliastail.h ${git}/fontconfig/fcfreetype.h",
+            "inputs": ["${git}/src/makealias", "${git}/fontconfig/fcfreetype.h"],
+            "outputs": ["source/src/fcftalias.h", "source/src/fcftaliastail.h"]
+        },
+        {
+            "operation": "createDirectory",
+            "path": "source/fc-lang"
+        },
+        {
+            "operation": "readFilesInDirectory",
+            "path": "${git}/fc-lang",
+            "placeholder": "$fc-lang",
+            "extensions": [".orth"]
+        },
+        {
+            "operation": "execute",
+            "command": "python3 ${git}/fc-lang/fc-lang.py $fc-lang --template ${git}/fc-lang/fclang.tmpl.h --output ${@}/source/fc-lang/fclang.h --directory ${git}/fc-lang",
+            "inputs": ["${git}/fc-lang/fc-lang.py", "${git}/fc-lang/fclang.tmpl.h"],
+            "outputs": ["source/fc-lang/fclang.h"]
+        },
+        {
+            "operation": "createDirectory",
+            "path": "source/fc-case"
+        },
+        {
+            "operation": "execute",
+            "command": "python3 ${git}/fc-case/fc-case.py ${git}/fc-case/CaseFolding.txt --template ${git}/fc-case/fccase.tmpl.h --output ${@}/source/fc-case/fccase.h --directory ${git}/fc-lang",
+            "inputs": ["${git}/fc-case/fc-case.py", "${git}/fc-case/CaseFolding.txt", "${git}/fc-case/fccase.tmpl.h"],
+            "outputs": ["source/fc-case/fccase.h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/cutout.py",
+            "destination": "generated/cutout.py",
+            "replace": [{
+                "file": "generated/cutout.py",
+                "replacements": [["    buildroot = args[0].buildroot\n    with open(os.path.join(buildroot, 'meson-info', 'intro-buildoptions.json')) as json_file:\n        bopts = json.load(json_file)\n        for opt in bopts:\n            if opt['name'] == 'c_args' and opt['section'] == 'compiler' and opt['machine'] == 'host':\n                host_cargs = opt['value']\n                break", ""]]
+            }]
+        },
+        {
+            "operation": "execute",
+            "command": "python3 ${@}/generated/cutout.py ${git}/src/fcobjshash.gperf.h ${@}/generated/fcobjshash.gperf ${git} gcc -I ${git} -I ${git}/src -E -P",
+            "inputs": ["${@}/generated/cutout.py", "${git}/src/fcobjshash.gperf.h", "${git}/fc-case/fccase.tmpl.h"],
+            "outputs": ["generated/fcobjshash.gperf"]
+        },
+        {
+            "operation": "execute",
+            "command": "gperf --pic -m 100 ${@}/generated/fcobjshash.gperf --output-file ${@}/generated/fcobjshash.h",
+            "inputs": ["${@}/generated/fcobjshash.gperf"],
+            "outputs": ["generated/fcobjshash.h"]
+        },
+        {
+            "operation": "copy",
+            "source": "generated/fcobjshash.h",
+            "destination": "source/src/fcobjshash.h",
+            "replace": [{
+                "file": "source/src/fcobjshash.h",
+                "replacements": [["register unsigned int len", "register size_t len"]]
+            }]
+        }
+    ]
+}

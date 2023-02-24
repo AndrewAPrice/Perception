@@ -1,0 +1,136 @@
+{
+    "repositories" : [
+        {
+            "url": "https://github.com/libjpeg-turbo/libjpeg-turbo.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations" : [
+        {
+            "operation": "readFromFile",
+            "file": "${git}/configure.ac",
+            "values": {"_,major,minor,revision": "set\\(VERSION (\\d+).(\\d+).(\\d+)\\)"}
+        },
+        {
+            "operation": "evaluate",
+            "values": {
+                "$version_string": "${major}+'.'+${minor}+'.'+${revision}",
+                "$version_number": "${major} * 100000 + ${minor} * 100 + ${revision}"
+            }
+        },
+        {
+            "operation": "copy",
+            "source": "${git}",
+            "destination": "source",
+            "extensions": [".asm", ".c", ".cpp", ".h", ".hh", ".inc"],
+            "exclude": [
+                "source/jerror.h",
+                "source/jpeglib.h",
+                "source/jmorecfg.h",
+                "source/turbojpeg-jni.c"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/simd",
+            "destination": "source/simd",
+            "extensions": [".asm", ".c", ".cpp", ".h", ".hh", ".inc"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/simd/x86_64",
+            "destination": "source/simd/x86_64",
+            "extensions": [".asm", ".c", ".cpp", ".h", ".hh", ".inc"],
+            "exclude": ["source/simd/x86_64/jsimdcfg.inc.h"],
+            "replace": [{
+                "file": "source/simd/x86_64/jsimd.c",
+                "replacements": [["#include \"../../jpeglib.h\"", "#include \"jpeglib.h\""]]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/simd/nasm",
+            "destination": "source/simd/x86_64",
+            "extensions": [".asm", ".c", ".cpp", ".h", ".hh", ".inc"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/md5",
+            "destination": "source/md5",
+            "extensions": [".asm", ".c", ".cpp", ".h", ".hh", ".inc"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/jconfig.h.in",
+            "destination": "public/jconfig.h",
+            "replace": [{
+                "file": "public/jconfig.h",
+                "replacements": [
+                    ["@VERSION@", "\"${version_string}\""],
+	                ["@LIBJPEG_TURBO_VERSION_NUMBER@", "${version_number}"],
+	                ["@JPEG_LIB_VERSION@", "80"],
+	                ["#cmakedefine RIGHT_SHIFT_IS_UNSIGNED 1", ""],
+	                ["#cmakedefine", "#define"],
+	                ["@BITS_IN_JSAMPLE@", "8"]
+                ]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/jerror.h",
+            "destination": "public/jerror.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/jpeglib.h",
+            "destination": "public/jpeglib.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/jmorecfg.h",
+            "destination": "public/jmorecfg.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/jconfigint.h.in",
+            "destination": "source/jconfigint.h",
+            "replace": [{
+                "file": "source/jconfigint.h",
+                "replacements": [
+                    ["@BUILD@", "0"],
+                    ["@INLINE@", "__inline__ __attribute__((always_inline))"],
+                    ["@THREAD_LOCAL@", "__thread"],
+                    ["@CMAKE_PROJECT_NAME@", "turbo-jpeg"],
+                    ["@VERSION@", "${version_string}"],
+                    ["@SIZE_T@", "8"],
+                    ["#cmakedefine", "#define"]
+                ]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/jversion.h.in",
+            "destination": "source/jversion.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/simd/nasm/jsimdcfg.inc.h",
+            "destination": "source/simd/jsidmcfg.inc.h",
+            "replace": [{
+                "file": "jsimdcfg",
+                "replacements": [
+                    ["#include \"../jpeglib.h\"", "#include \"jpeglib.h\""],
+                    ["#include \"../jconfig.h\"", "#include \"jconfig.h\""],
+                    ["#include \"../jmorecfg.h\"", "#include \"jmorecfg.h\""]
+                ]
+            }]
+        },
+        {
+            "operation": "execute",
+            "command": "gcc -I ${@}/public -I ${@}/source -E -P ${@}/source/simd/jsimdcfg.inc.h | grep -E '^[\\;%]|^\\ %' | sed 's%_cpp_protection_%%' | sed 's@% define@%define@g' > ${@}/source/simd/x86_64/jsimdcfg.inc",
+            "inputs": ["source/simd/jsimdcfg.inc.h"],
+            "outputs": ["generated/fcobjshash.gperf"]
+        }
+    ]
+}

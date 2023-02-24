@@ -1,0 +1,85 @@
+{
+    "repositories" : [
+        {
+            "url": "https://gitlab.gnome.org/GNOME/libxml2.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "readFromFile",
+            "file": "${git}/configure.ac",
+            "values": {
+                "_,major": "m4_define\\(\\[MAJOR_VERSION\\], (\\d+)\\)",
+                "_,minor": "m4_define\\(\\[MINOR_VERSION\\], (\\d+)\\)",
+                "_,micro": "m4_define\\(\\[MICRO_VERSION\\], (\\d+)\\)"
+            }
+        },
+        {
+            "operation": "evaluate",
+            "values": {
+                "$version_string": "${major}+'.'+${minor}+'.'+${micro}",
+                "$version_number": "${major} * 10000 + ${minor} * 100 + ${micro}"
+            }
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/libxml",
+            "destination": "public/libxml",
+            "extensions": [".h"],
+            "replace": [{
+                "file":"public/libxml/xmlversion.h",
+                "replacements": [
+                    ["@VERSION@", "${version_string}"],
+                    ["@LIBXML_VERSION_NUMBER@", "{$version_number}"],
+                    ["@LIBXML_VERSION_EXTRA@", ""],
+                    ["@WITH_TRIO@", "1"],
+                    ["@WITH_THREADS@", "1"],
+                    ["@WITH_THREAD_ALLOC@", "1"],
+                    ["@WITH_TREE@", "1"],
+                    ["@WITH_OUTPUT@", "1"],
+                    ["@WITH_PUSH@", "1"],
+                    ["@WITH_READER@", "1"],
+                    ["@WITH_PATTERN@", "1"],
+                    ["@WITH_WRITER@", "1"],
+                    ["@WITH_SAX1@", "1"],
+                    ["@WITH_FTP@", "1"],
+                    ["@WITH_HTTP@", "1"],
+                    ["@WITH_VALID@", "1"],
+                    ["@WITH_HTML@", "1"],
+                    ["@WITH_LEGACY@", "1"],
+                    ["@WITH_C14N@", "1"],
+                    ["@WITH_CATALOG@", "1"],
+                    ["@WITH_XPATH@", "1"],
+                    ["@WITH_XPTR@", "1"],
+                    ["@WITH_XPTR_LOCS@", "1"],
+                    ["@WITH_XINCLUDE@", "1"],
+                    ["@WITH_ICONV@", "1"],
+                    ["@WITH_ICU@", "1"],
+                    ["@WITH_ISO8859X@", "1"],
+                    ["@WITH_DEBUG@", "0"],
+                    ["@WITH_MEM_DEBUG@", "0"],
+                    ["@WITH_REGEXPS@", "1"],
+                    ["@WITH_SCHEMAS@", "1"],
+                    ["@WITH_SCHEMATRON@", "1"],
+                    ["@WITH_MODULES@", "0"],
+                    ["@MODULE_EXTENSION@", ""],
+                    ["@WITH_ZLIB@", "1"],
+                    ["@WITH_LZMA@", "0"]
+                ]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/private",
+            "destination": "source/freetype",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/",
+            "destination": "source"
+        }
+    ]
+}

@@ -1,0 +1,23 @@
+{
+    "repositories" : [
+        {
+            "url": "https://github.com/libexpat/libexpat.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations" : [
+        {
+            "operation": "copy",
+            "source": "${git}/expat/lib",
+            "destination": "source",
+            "extensions": [".c"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/expat/lib",
+            "destination": "public",
+            "extensions": [".h"]
+        }
+    ]
+}

@@ -1,0 +1,306 @@
+{
+    "repositories" : [
+        {
+            "url": "git://git.musl-libc.org/musl",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations" : [
+        {
+            "operation": "copy",
+            "source": "${git}/include",
+            "destination": "include",
+            "exclude": ["include/syscall_arch.h"],
+            "replace": [{
+                "file": "include/unistd.h",
+                "replacements": [["long syscall(long, ...);'", "#ifndef syscall\nlong syscall(long, ...);\n#endif"]]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/arch/generic",
+            "destination": "include",
+            "exclude": ["include/syscall_arch.h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/arch/x86_64",
+            "destination": "include",
+            "exclude": ["include/syscall_arch.h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/aio",
+            "destination": "source/aio"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/complex",
+            "destination": "source/complex"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/conf",
+            "destination": "source/conf"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/crypt",
+            "destination": "source/ctype"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/dirent",
+            "destination": "source/dirent"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/complex",
+            "destination": "source/complex"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/env",
+            "destination": "source/env",
+            "replace": [{
+                "file": "source/env/__libc_start_main.c",
+                "replacements": [["// weak_alias(libc_start_init, __libc_start_init);", "weak_alias(libc_start_init, __libc_start_init);"]]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/errno",
+            "destination": "source/errno"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/exit",
+            "destination": "source/exit"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/fctnl",
+            "destination": "source/fctnl"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/fenv",
+            "destination": "source/fenv"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/include",
+            "destination": "source/include"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/internal",
+            "destination": "source/internal"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/ipc",
+            "destination": "source/ipc"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/ldso",
+            "destination": "source/ldso"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/ldso/x86_64",
+            "destination": "source/ldso/x86_64"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/legacy",
+            "destination": "source/legacy"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/linux",
+            "destination": "source/linux"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/locale",
+            "destination": "source/locale"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/malloc",
+            "destination": "source/malloc"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/math",
+            "destination": "source/math",
+            "rename": {
+                "source/math/fma.c": "source/math/fma.c.inl",
+                "source/math/fmaf.c": "source/math/fmaf.c.inl"
+            }
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/math/x86_64",
+            "destination": "source/math",
+            "replace": [
+                {
+                    "file": "source/math/fma.c",
+                    "replacements": [["#include \"../fma.c\"", "#include \"fma.c.inl\""]]
+                },
+                { 
+                    "file": "source/math/fmaf.c",
+                    "replacements": [["#include \"../fmaf.c\"", "#include \"fmaf.c.inl\""]]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/misc",
+            "destination": "source/misc"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/mman",
+            "destination": "source/mman"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/mq",
+            "destination": "source/mq"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/multibyte",
+            "destination": "source/multibyte"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/network",
+            "destination": "source/network"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/passwd",
+            "destination": "source/passwd"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/prng",
+            "destination": "source/prng"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/process",
+            "destination": "source/process"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/process/x86_64",
+            "destination": "source/process"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/regex",
+            "destination": "source/regex"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sched",
+            "destination": "source/sched"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/search",
+            "destination": "source/search"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/setjmp/x86_64",
+            "destination": "source/setjmp/x86_64"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/select",
+            "destination": "source/select"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/signal",
+            "destination": "source/signal"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/stat",
+            "destination": "source/stat"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/stdio",
+            "destination": "source/stdio"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/stdlib",
+            "destination": "source/stdlib"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/string",
+            "destination": "source/string"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/string/x86_64",
+            "destination": "source/string"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/temp",
+            "destination": "source/temp"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/termios",
+            "destination": "source/termios"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/thread",
+            "destination": "source/thread"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/time",
+            "destination": "source/time",
+            "replace": [{
+                "file": "source/time/__tz.c",
+                "replacements": [["index", "tindex"]]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/unistd",
+            "destination": "source/unistd"
+        },
+        {
+            "operation": "execute",
+            "command": "sed -f ${git}/tools/mkalltypes.sed ${@}/include/bits/alltypes.h.in ${@}/include/alltypes.h.in > ${@}/include/bits/alltypes.h",
+            "inputs": [
+                "${git}/tools/mkalltypes.sed",
+                "include/bits/alltypes.h.in",
+                "include/alltypes.h.in"
+            ],
+            "outputs": ["/include/bits/alltypes.h"]
+        },
+        {
+            "operation": "execute",
+            "command": "sed -e s/__NR_/SYS_/p ${@}/include/bits/syscall.h.in > ${@}/include/bits/syscall.h",
+            "inputs": ["include/bits/syscall.h.in"],
+            "outputs": ["include/bits/syscall.h"]
+        }
+    ]
+}

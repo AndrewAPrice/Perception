@@ -1,0 +1,580 @@
+{
+    "repositories" : [
+        {
+            "url": "https://github.com/google/skia.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations" : [
+        {
+            "operation": "copy",
+            "source": "${git}/include/android",
+            "destination": "public/include/android"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/codec",
+            "destination": "public/include/codec"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/config",
+            "destination": "public/include/config"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/core",
+            "destination": "public/include/core",
+            "replace": [{
+                "file": "public/include/core/SkTypes.h",
+                "replacements": [["#if !defined(SK_BUILD_FOR_ANDROID) && !defined(SK_BUILD_FOR_IOS) && !defined(SK_BUILD_FOR_WIN) && \\", "#if 0 && !defined(SK_BUILD_FOR_ANDROID) && !defined(SK_BUILD_FOR_IOS) && !defined(SK_BUILD_FOR_WIN) && \\"]]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/docs",
+            "destination": "public/include/docs"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/effects",
+            "destination": "public/include/effects"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/encode",
+            "destination": "public/include/encode"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/gpu",
+            "destination": "public/include/gpu"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/gpu/gl",
+            "destination": "public/include/gpu/gl"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/gpu/mock",
+            "destination": "public/include/gpu/mock"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/pathops",
+            "destination": "public/include/pathops"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/ports",
+            "destination": "public/include/ports"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/private",
+            "destination": "public/include/private"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/private/base",
+            "destination": "public/include/private/base",
+            "replace": [{
+                "file": "public/include/private/base/SkFeatures.h",
+                "replacements": [["defined(__GLIBC__) || defined(__GNU__) || defined(__unix__)","defined(__GLIBC__) || defined(__GNU__) || defined(__unix__) || defined(PERCEPTION)"]]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/private/gpu/ganesh",
+            "destination": "public/include/private/gpu/ganesh"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/private/chromium",
+            "destination": "public/include/private/chromium"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/sksl",
+            "destination": "public/include/sksl"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/svg",
+            "destination": "public/include/svg"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/utils",
+            "destination": "public/include/utils"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/base",
+            "destination": "source/src/base"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/codec",
+            "destination": "source/src/codec",
+            "ignore": [
+                "source/src/codec/SkIcoCodec.cpp",
+                "source/src/codec/SkIcoCodec.h",
+                "source/src/codec/SkPngCodec.cpp",
+                "source/src/codec/SkPngCodec.h",
+                "source/src/codec/SkRawCodec.cpp",
+                "source/src/codec/SkRawCodec.h",
+                "source/src/codec/SkWuffsCodec.cpp",
+                "source/src/codec/SkWuffsCodec.h",
+                "source/src/codec/SkWebpCodec.cpp",
+                "source/src/codec/SkWebpCodec.h",
+                "source/src/codec/SkAvifCodec.cpp",
+                "source/src/codec/SkAvifCodec.h",
+                "source/src/codec/SkJpegxlCodec.cpp",
+                "source/src/codec/SkJpegxlCodec.h"
+            ],
+            "replace": [{
+                "file": "source/src/codec/SkJpegSourceMgr.h",
+                "replacements": [["class SkJpegSegmentScanner", "#include \"src/codec/SkJpegSegmentScan.h\""]]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/core",
+            "destination": "source/src/core"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/effects",
+            "destination": "source/src/effects"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/effects/imagefilters",
+            "destination": "source/src/effects/imagefilters"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/encode",
+            "destination": "source/src/encode"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/fonts",
+            "destination": "source/src/fonts"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gpu",
+            "destination": "source/src/gpu"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gpu/ganesh",
+            "destination": "source/src/gpu/ganesh"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gpu/ganesh/effects",
+            "destination": "source/src/gpu/ganesh/effects"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gpu/ganesh/geometry",
+            "destination": "source/src/gpu/ganesh/geometry"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gpu/ganesh/gradients",
+            "destination": "source/src/gpu/ganesh/gradients"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gpu/ganesh/glsl",
+            "destination": "source/src/gpu/ganesh/glsl"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gpu/ganesh/mock",
+            "destination": "source/src/gpu/ganesh/mock"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gpu/ganesh/mtl",
+            "destination": "source/src/gpu/ganesh/mtl"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gpu/ganesh/ops",
+            "destination": "source/src/gpu/ganesh/ops"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gpu/ganesh/tesselatte",
+            "destination": "source/src/gpu/ganesh/tessellate"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gpu/ganesh/text",
+            "destination": "source/src/gpu/ganesh/text"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gpu/tesselatte",
+            "destination": "source/src/gpu/tesselate"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/image",
+            "destination": "source/src/image"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/lazy",
+            "destination": "source/src/lazy"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/opts",
+            "destination": "source/src/opts"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/pathops",
+            "destination": "source/src/pathops"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/pdf",
+            "destination": "source/src/pdf"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/ports",
+            "destination": "source/src/ports",
+            "ignore": [
+                "source/src/ports/SkDebug_android.cpp",
+                "source/src/ports/SkDebug_win.cpp",
+                "source/src/ports/SkFontHost_win.cpp",
+                "source/src/ports/SkFontMgr_android.cpp",
+                "source/src/ports/SkFontMgr_android_factory.cpp",
+                "source/src/ports/SkFontMgr_android_parser.cpp",
+                "source/src/ports/SkFontMgr_android_parser.h",
+                "source/src/ports/SkFontMgr_custom_directory_factory.cpp",
+                "source/src/ports/SkFontMgr_custom_embedded.cpp",
+                "source/src/ports/SkFontMgr_custom_embedded_factory.cpp",
+                "source/src/ports/SkFontMgr_custom_empty.cpp",
+                "source/src/ports/SkFontMgr_custom_empty_factory.cpp",
+                "source/src/ports/SkFontMgr_fuchsia.cpp",
+                "source/src/ports/SkFontMgr_fuchsia.cpp",
+                "source/src/ports/SkFontMgr_mac_ct.cpp",
+                "source/src/ports/SkFontMgr_mac_ct_factory.cpp",
+                "source/src/ports/SkFontMgr_win_dw.cpp",
+                "source/src/ports/SkFontMgr_win_dw_factory.cpp",
+                "source/src/ports/SkFontConfigInterface_direct.cpp",
+                "source/src/ports/SkFontConfigInterface_direct.h",
+                "source/src/ports/SkFontConfigInterface_direct_factory.cpp",
+                "source/src/ports/skFontMgr_fontconfig.cpp",
+                "source/src/ports/skFontMgr_fontconfig_factory.cpp",
+                "source/src/ports/SkImageEncoder_CG.cpp",
+                "source/src/ports/SkImageEncoder_NDK.cpp",
+                "source/src/ports/SkImageEncoder_WIC.cpp",
+                "source/src/ports/SkImageGeneratorCG.cpp",
+                "source/src/ports/SkImageGeneratorNDK.cpp",
+                "source/src/ports/SkImageGeneratorWIC.cpp",
+                "source/src/ports/SkMemory_mozalloc.cpp",
+                "source/src/ports/SkNDKConversions.cpp",
+                "source/src/ports/SkNDKConversions.h",
+                "source/src/ports/SkOSFile_ios.h",
+                "source/src/ports/SkOSFile_win.cpp",
+                "source/src/ports/SkOSLibrary.h",
+                "source/src/ports/SkOSLibrary_posix.cpp",
+                "source/src/ports/SkOSLibrary_win.cpp",
+                "source/src/ports/SkRemotableFontMgr_win_dw.cpp",
+                "source/src/ports/SkScalerContext_mac_ct.cpp",
+                "source/src/ports/SkScalerContext_mac_ct.h",
+                "source/src/ports/SkScalerContext_win_dw.cpp",
+                "source/src/ports/SkScalerContext_win_dw.h",
+                "source/src/ports/SkTypeface_mac_ct.cpp",
+                "source/src/ports/SkTypeface_mac_ct.h",
+                "source/src/ports/SkTypeface_win_dw.cpp",
+                "source/src/ports/SkTypeface_win_dw.h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sfnt",
+            "destination": "source/src/sfnt"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/shaders",
+            "destination": "source/src/shaders"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/shaders/gradients",
+            "destination": "source/src/shaders/gradients"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sksl",
+            "destination": "source/src/sksl"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sksl/analysis",
+            "destination": "source/src/sksl/analysis"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sksl/codegen",
+            "destination": "source/src/sksl/codegen"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sksl/dsl",
+            "destination": "source/src/sksl/dsl"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sksl/dsl/priv",
+            "destination": "source/src/sksl/dsl/priv"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sksl/generated",
+            "destination": "source/src/sksl/generated"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sksl/ir",
+            "destination": "source/src/sksl/ir"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sksl/lex",
+            "destination": "source/src/sksl/lex"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sksl/tracing",
+            "destination": "source/src/sksl/tracing"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sksl/transform",
+            "destination": "source/src/sksl/transform"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/svg",
+            "destination": "source/src/svg"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/text",
+            "destination": "source/src/text"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/text/gpu",
+            "destination": "source/src/text/gpu"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/utils",
+            "destination": "source/src/utils"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/xml",
+            "destination": "source/src/xml"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/xps",
+            "destination": "source/src/xps"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/xps",
+            "destination": "source/src/xps"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/audioplayer",
+            "destination": "source/modules/audiplayer",
+            "extensions": [".cpp"], 
+            "ignore": [
+                "source/modules/audioplayer/SkAudioPlayer_oboe.cpp",
+                "source/modules/audioplayer/SkAudioPlayer_sfml.cpp"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/audioplayer",
+            "destination": "public/modules/audiplayer",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/particles/src",
+            "destination": "source/modules/particles/src",
+            "extensions": [".cpp"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/particles/include",
+            "destination": "public/modules/particles/include",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skcms",
+            "destination": "source/modules/skcms",
+            "extensions": [".cc"],
+            "replace": [{
+                "file": "source/modules/skcms/skcms.cc",
+                "replacements": [
+                    ["#include \"skcms", "'#include \"modules/skcms/skcms"],
+                    ["#include \"src/Transform_inl.h\"", "#include \"modules/skcms/src/Transform_inl.h\""]
+                ]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skcms",
+            "destination": "public/modules/skcms",
+            "extensions": [".h"],
+            "replace": [{
+                "file": "public/modules/skcms/skcms_internal.h",
+                "replacements": [["#include \"skcms", "'#include \"modules/skcms/skcms"]]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skcms/src",
+            "destination": "public/modules/skcms/src",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skottie/include",
+            "destination": "public/modules/skottie/include",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skottie/src",
+            "destination": "public/modules/skottie/src"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skottie/src/animator",
+            "destination": "public/modules/skottie/src/animator"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skottie/src/effects",
+            "destination": "public/modules/skottie/src/effects"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skottie/src/layers",
+            "destination": "public/modules/skottie/src/layers"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skottie/src/layers/shapelayer",
+            "destination": "public/modules/skottie/src/layers/shapelayer"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skottie/src/text",
+            "destination": "public/modules/skottie/src/text"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skottie/src/utils",
+            "destination": "source/modules/skottie/src/utils",
+            "extensions": [".cpp"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skottie/src/utils",
+            "destination": "public/modules/skottie/src/utils",
+            "extension": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skparagraph/include",
+            "destination": "public/modules/skparagraph/include",
+            "extension": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skparagraph",
+            "destination": "source/modules/skparagraph"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skresources/include",
+            "destination": "public/modules/skresources/include",
+            "extension": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skresources/src",
+            "destination": "source/modules/skresources/src",
+            "extension": [".cpp"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/sksg/include",
+            "destination": "public/modules/sksg/include",
+            "extension": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/sksg/src",
+            "destination": "source/modules/sksg/src"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skshaper/include",
+            "destination": "public/modules/skshaper/include",
+            "extension": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skshaper/src",
+            "destination": "source/modules/skshaper/src",
+            "ignore": ["source/modules/skshaper/src/SkShaper_coretext.cpp"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skunicode/include",
+            "destination": "public/modules/skunicode/include",
+            "extension": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skunicode/src",
+            "destination": "source/modules/skunicode/src"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/svg/include",
+            "destination": "public/modules/svg/include",
+            "extension": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/svg/src",
+            "destination": "source/modules/svg/src"
+        }
+    ]
+}
