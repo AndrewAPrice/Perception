@@ -37,7 +37,12 @@ function maybeDelete(path) {
 
 function maybeDeleteAndRemoveParentIfEmpty(filePath) {
   maybeDelete(filePath);
-  removeDirectoryIfEmpty(path.dirName(filePath));
+  try {
+    removeDirectoryIfEmpty(path.dirname(filePath));
+  } catch {
+    // Silently ignore errors such as the directory doesn't exist because it was
+    // already cleaned up but still mentioned in third_party_files.json.
+  }
 }
 
 function deepCleanPackage(packageDir) {
@@ -46,9 +51,9 @@ function deepCleanPackage(packageDir) {
     try {
       const thirdPartyFiles = JSON.parse(fs.readFileSync(thirdPartyFilesPath));
       Object.keys(thirdPartyFiles).forEach(maybeDeleteAndRemoveParentIfEmpty);
-      //maybeDelete(thirdPartyFilesPath);
-    } catch {
-      console.log('Error deleting third party files in ' + packageDir);
+      maybeDelete(thirdPartyFilesPath);
+    } catch (exp) {
+      console.log('Error deleting third party files in ' + packageDir + ' because: ' + exp);
     }
   }
 

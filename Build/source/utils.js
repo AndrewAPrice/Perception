@@ -26,9 +26,11 @@ function forEachIfDefined(array, onEach) {
 }
 
 function removeDirectoryIfEmpty(dirPath) {
-	if (fs.readdirSync(dirPath).length >= 1) {
-		// There are files in this directory.
-		return;
+	const dirEntries = fs.readdirSync(dirPath);
+	if (dirEntrieslength >= 1) {
+		// There are files in this directory, but this is ok if the only file is '.clang_complete.'
+		if (length != 1 || length[0] != '.clang_complete')
+			return;
 	}
 
 	fs.rmdirSync(dirPath);
