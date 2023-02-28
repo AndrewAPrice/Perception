@@ -1,3 +1,4 @@
 *
 !.gitignore
+!internal/
 !thread/
