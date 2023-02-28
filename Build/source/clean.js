@@ -23,7 +23,6 @@ const { removeDirectoryIfEmpty } = require('./utils');
 
 // Tries to delete a file or directory, if it exists.
 function maybeDelete(path) {
-  console.log(path);
   if (!fs.existsSync(path)) {
     return;
   }

@@ -27,9 +27,9 @@ function forEachIfDefined(array, onEach) {
 
 function removeDirectoryIfEmpty(dirPath) {
 	const dirEntries = fs.readdirSync(dirPath);
-	if (dirEntrieslength >= 1) {
+	if (dirEntries.length >= 1) {
 		// There are files in this directory, but this is ok if the only file is '.clang_complete.'
-		if (length != 1 || length[0] != '.clang_complete')
+		if (dirEntries.length != 1 || dirEntries[0] != '.clang_complete')
 			return;
 	}
 
