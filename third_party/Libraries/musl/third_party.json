@@ -359,7 +359,8 @@
         {
             "operation": "copy",
             "source": "${git}/src/thread",
-            "destination": "source/thread"
+            "destination": "source/thread",
+            "exclude": ["source/thread/__set_thread_area.c"]
         },
         {
             "operation": "copy",
