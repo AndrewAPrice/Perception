@@ -85,6 +85,7 @@
             "operation": "copy",
             "source": "${git}/",
             "destination": "source",
+            "extensions": [".c", ".h"],
             "exclude": [
                 "source/testapi.c",
                 "source/testchar.c",
