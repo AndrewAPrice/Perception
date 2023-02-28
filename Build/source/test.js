@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const {PackageType} = require('./package_type');
-
 // Builds everything and runs the emulator.
 async function test(packageType, packageName) {
   console.log('TODO: test');

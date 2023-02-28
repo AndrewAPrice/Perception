@@ -13,7 +13,6 @@
 // limitations under the License.
 
 const fs = require('fs');
-const {buildPrefix} = require('./build_commands');
 
 // Calls 'foreachFunc' for each file in the package directory.
 async function foreachSourceFile(packageDir, buildPath, foreachFunc) {

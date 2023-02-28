@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const child_process = require('child_process');
 const { getPackageDirectory } = require('./package_directory');
-const { PackageType, getPackageTypeDirectoryName } = require('./package_type');
+const { PackageType } = require('./package_type');
 const { getStandaloneApplicationMetadata, getStandaloneLibraryMetadata } =
   require('./metadata');
 const { getFileLastModifiedTimestamp } = require('./file_timestamps');

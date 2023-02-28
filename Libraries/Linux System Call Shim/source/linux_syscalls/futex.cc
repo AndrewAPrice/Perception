@@ -18,7 +18,7 @@
 #include <map>
 #include <vector>
 
-#include "../../../musl/source/internal/futex.h"
+#include "../../../../third_party/Libraries/musl/source/internal/futex.h"
 #include "perception/fibers.h"
 
 namespace perception {

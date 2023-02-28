@@ -14,13 +14,13 @@
 
 const fs = require('fs');
 const {buildPrefix} = require('./build_commands');
-const {rootDirectory} = require('./root_directory');
+const { getTempDirectory } = require('./config');
 
 let dependenciesPerFile = undefined;
 let anythingChanged = false;
 
 function getDependenciesFilePath() {
-  return rootDirectory + 'Build/temp/' + buildPrefix() + '/dependencies.json';
+  return getTempDirectory() + '/' + buildPrefix() + '/dependencies.json';
 }
 
 function loadDependenciesFile() {

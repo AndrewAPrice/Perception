@@ -12,34 +12,108 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const {rootDirectory} = require('./root_directory');
-const {PackageType} = require('./package_type');
-const {buildPrefix} = require('./build_commands');
+const { getKernelDirectory, getApplicationDirectories, getLibraryDirectories, getTempDirectory } = require('./config');
+const { PackageType } = require('./package_type');
+const { buildPrefix } = require('./build_commands');
 
-function getPackageDirectorySuffix(packageType, packageName) {
+const fs = require('fs');
+
+let cachedApplicationDirectories = null;
+let  cachedLibraryDirectories = null;
+let allApplications = null;
+let allLibraries = null;
+
+function scanForApplications() {
+  cachedApplicationDirectories = {};
+  getApplicationDirectories().forEach(applicationDirectory => {
+    let applicationsFileEntries = fs.readdirSync(applicationDirectory);
+    for (let i = 0; i < applicationsFileEntries.length; i++) {
+      const applicationName = applicationsFileEntries[i];
+      const applicationPath = applicationDirectory + '/' + applicationName;
+      const fileStats = fs.lstatSync(applicationPath);
+      if (fileStats.isDirectory()) {
+        cachedApplicationDirectories[applicationName] = applicationPath + '/';
+      }
+    }
+  });
+
+  allApplications = Object.keys(cachedApplicationDirectories);
+}
+
+function scanForLibraries() {
+  cachedLibraryDirectories = {};
+  getLibraryDirectories().forEach(libraryDirectory => {
+    let libraryFileEntries = fs.readdirSync(libraryDirectory);
+    for (let i = 0; i < libraryFileEntries.length; i++) {
+      const libraryName = libraryFileEntries[i];
+      const libraryPath = libraryDirectory + '/' + libraryName;
+      const fileStats = fs.lstatSync(libraryPath);
+      if (fileStats.isDirectory()) {
+        cachedLibraryDirectories[libraryName] = libraryPath + '/';
+      }
+    }
+  });
+
+  allLibraries = Object.keys(cachedLibraryDirectories);
+}
+
+// Gets the directory for a package type and package name.
+function getPackageDirectory(packageType, packageName) {
+  switch (packageType) {
+    case PackageType.APPLICATION: {
+      if (!allApplications) scanForApplications();
+      if (cachedApplicationDirectories[packageName])
+        return cachedApplicationDirectories[packageName];
+        
+      console.log('Cannot find application ' + packageName);
+      return '';
+    }
+    case PackageType.LIBRARY: {
+      if (!allLibraries) scanForLibraries();
+      if (cachedLibraryDirectories[packageName])
+        return cachedLibraryDirectories[packageName];
+
+      console.log('Cannot find library ' + packageName);
+      return '';
+    }
+    case PackageType.KERNEL:
+      return getKernelDirectory() + '/';
+    default:
+      return '';
+  }
+}
+
+function getBuildPackageDirectorySuffix(packageType, packageName) {
   switch (packageType) {
     case PackageType.APPLICATION:
       return 'Applications/' + packageName + '/';
     case PackageType.LIBRARY:
       return 'Libraries/' + packageName + '/';
     case PackageType.KERNEL:
-      return 'Kernel/';
+      return 'Kernel' + '/';
     default:
       return '';
   }
 }
 
-// Gets the directory for a package type and package name.
-function getPackageDirectory(packageType, packageName) {
-  return rootDirectory + getPackageDirectorySuffix(packageType, packageName);
+function getPackageBuildDirectory(packageType, packageName) {
+  return getTempDirectory() + '/' + buildPrefix() + '/' +
+    getBuildPackageDirectorySuffix(packageType, packageName);
 }
 
-function getPackageBuildDirectory(packageType, packageName) {
-  return rootDirectory + 'Build/temp/' + buildPrefix() + '/' +
-      getPackageDirectorySuffix(packageType, packageName);
+function getAllApplications() {
+  if (!allApplications) scanForApplications();
+  return allApplications;
+}
+
+function getAllLibraries() {
+  if (!allLibraries) scanForLibraries();
+  return allLibraries;
 }
 
 module.exports = {
-  getPackageDirectory : getPackageDirectory,
-  getPackageBuildDirectory : getPackageBuildDirectory
+  getPackageDirectory: getPackageDirectory,
+  getPackageBuildDirectory: getPackageBuildDirectory,
+  getAllApplications: getAllApplications,
+  getAllLibraries: getAllLibraries
 };

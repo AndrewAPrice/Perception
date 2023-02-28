@@ -13,7 +13,6 @@
 // limitations under the License.
 
 const fs = require('fs');
-const process = require('process');
 const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
 const {getToolPath} = require('./config');
 const {foreachSourceFile} = require('./source_files');

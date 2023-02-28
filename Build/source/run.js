@@ -16,15 +16,14 @@ const process = require('process');
 const child_process = require('child_process');
 const {build} = require('./build');
 const {buildImage} = require('./build_image');
-const {buildPrefix, buildSettings} = require('./build_commands');
+const {buildSettings} = require('./build_commands');
 const {escapePath} = require('./utils');
 const {PackageType} = require('./package_type');
-const {rootDirectory} = require('./root_directory');
-const {getToolPath} = require('./config');
+const {getToolPath, getOutputPath} = require('./config');
 const {runDeferredCommands} = require('./deferred_commands');
 
 const EMULATOR_COMMAND = getToolPath('qemu') + ' -boot d -cdrom ' +
-    escapePath(rootDirectory) + 'Perception.iso -m 512 -serial stdio';
+    escapePath(getOutputPath()) + ' -m 512 -serial stdio';
 
 // For debugging the kernel, it's useful to add '-no-reboot -d int,cpu_reset'.
 
@@ -53,11 +52,12 @@ async function run(package) {
       return;
     }
 
-    child_process.execSync(
+    // TODO:
+    /* child_process.execSync(
         escapePath(
             rootDirectory + 'Applications/' + package + '/build/' +
             buildPrefix() + '.app'),
-        {stdio: 'inherit'});
+        {stdio: 'inherit'});*/
   }
 }
 

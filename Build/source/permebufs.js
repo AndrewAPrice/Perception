@@ -18,10 +18,9 @@ const {getPackageDirectory, getPackageBuildDirectory} =
 const permebufParser = require('./permebuf_parser');
 const {foreachPermebufSourceFile} = require('./source_files');
 const permebufGenerator = require('./permebuf_generator');
-const {buildPrefix, buildSettings} = require('./build_commands');
+const {buildSettings} = require('./build_commands');
 const {getMetadata} = require('./metadata');
 const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
-const {generatedFilenameMap} = require('./generated_filename_map');
 const {forgetFileLastModifiedTimestamp, getFileLastModifiedTimestamp} =
     require('./file_timestamps');
 

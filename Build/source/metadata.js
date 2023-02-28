@@ -16,7 +16,7 @@ const process = require('process');
 const fs = require('fs');
 const {forEachIfDefined} = require('./utils');
 const {getPackageDirectory} = require('./package_directory');
-const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
+const {PackageType} = require('./package_type');
 
 const standaloneApplicationMetadatas = {};
 const combinedApplicationMetadatas = {};

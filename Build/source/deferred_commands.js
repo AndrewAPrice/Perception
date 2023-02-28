@@ -20,9 +20,8 @@ const exists = util.promisify(require('node:fs').exists);
 const {buildSettings} = require('./build_commands');
 const {setDependenciesOfFile, flushDependenciesForFile} =
     require('./dependencies_per_file');
-const {rootDirectory} = require('./root_directory');
 const {escapePath} = require('./utils');
-const {stdout} = require('node:process');
+const { getTempDirectory } = require('./config');
 
 const STAGE = {
   COMPILE: 0,
@@ -114,7 +113,7 @@ async function runCommand(
 
 async function runCommandsUntilDone(
     commands, actionBeingPerformed, id, errors, totalSize, silent) {
-  const outputDepsFile = rootDirectory + 'Build/temp/deps' + id + '.d';
+  const outputDepsFile = getTempDirectory() + '/deps' + id + '.d';
   const escapedOutputDepsFile = escapePath(outputDepsFile);
 
   while (commands.length > 0) {

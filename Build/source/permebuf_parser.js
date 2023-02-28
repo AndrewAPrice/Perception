@@ -13,16 +13,16 @@
 // limitations under the License.
 
 const {PackageType, getPackageTypeDirectoryName} = require('./package_type');
+const {getPackageDirectory} = require('./package_directory');
 const permebufLexer = require('./permebuf_lexer');
 const ClassType = require('./permebuf_class_types');
-const {rootDirectory} = require('./root_directory');
 
 function parseFile(
     localPath, packageName, packageType, importedFiles, symbolTable,
     symbolsToGenerate, cppIncludeFiles, cppIncludeLiteFiles,
     fileBeingCompiled) {
-  const filename = rootDirectory + getPackageTypeDirectoryName(packageType) +
-      '/' + packageName + '/permebuf/' + localPath;
+  const filename = getPackageDirectory(packageType, packageName) +
+      'permebuf/' + localPath;
 
   importedFiles[filename] = true;
 
@@ -126,8 +126,8 @@ function parseFile(
         return false;
     }
 
-    const path = rootDirectory + getPackageTypeDirectoryName(subPackageType) +
-        '/' + subPackageName + '/permebuf/' + importedLocalPath;
+    const path = getPackageDirectory(subPackageType, subPackageName) +
+      'permebuf/' + importedLocalPath;
 
     if (importedFiles[path]) {
       // File has already been imported. Recursive imports are allowed.

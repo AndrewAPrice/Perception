@@ -12,20 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const fs = require('fs');
-const path = require('path');
 const {performance} = require('node:perf_hooks');
-const child_process = require('child_process');
 const {build} = require('./build');
 const {clean} = require('./clean');
 const {buildSettings} = require('./build_commands');
-const {setAndFlushParallelTasks} = require('./config');
-const {rootDirectory} = require('./root_directory');
-const {escapePath} = require('./utils');
-const {getPackageBuildDirectory} = require('./package_directory');
-const {getFileLastModifiedTimestamp} = require('./file_timestamps');
+const {setAndFlushParallelTasks, getApplicationDirectories} = require('./config');
+const {getAllApplications} = require('./package_directory');
 const {PackageType} = require('./package_type');
-const {applicationsWithAssets, librariesWithAssets} = require('./assets');
 const {runDeferredCommands} = require('./deferred_commands');
 
 function quitWithMessage() {
@@ -49,16 +42,10 @@ async function benchmarkWithNumTasks(parallelTasks) {
     quitWithMessage();
   }
 
-  let applicationsFileEntries = fs.readdirSync(rootDirectory + 'Applications/');
-  for (let i = 0; i < applicationsFileEntries.length; i++) {
-    const applicationName = applicationsFileEntries[i];
-
-    const fileStats =
-        fs.lstatSync(rootDirectory + 'Applications/' + applicationName);
-    if (fileStats.isDirectory()) {
-      if (!(await build(PackageType.APPLICATION, applicationName))) {
-        quitWithMessage();
-      }
+  const allApplications = getAllApplications();
+  for (let i = 0; i < applicationsToBuild.length; i++) {
+    if (!(await build(PackageType.APPLICATION, applicationsToBuild[i]))) {
+      quitWithMessage();
     }
   }
 

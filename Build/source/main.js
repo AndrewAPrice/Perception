@@ -21,7 +21,7 @@ const {runDeferredCommands} = require('./deferred_commands');
 const {buildImage} = require('./build_image');
 const {clean} = require('./clean');
 const {PackageType} = require('./package_type');
-const {run, localRun} = require('./run');
+const {run} = require('./run');
 const {test} = require('./test');
 
 // Parse the input.

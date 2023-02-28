@@ -57,7 +57,7 @@ Change the `url`, `version`, `sha256` to:
 Then rerun the above `brew install` command to continue installing everything.
 
 ## Preparation
-- Create a file Build/config.json with the paths to the above tools.
+- Create a file Build/local-config.json with the paths to the above tools.
 ```json
 {
 	"tools": {

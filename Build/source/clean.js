@@ -13,9 +13,9 @@
 // limitations under the License.
 
 const fs = require('fs');
-const {forgetAlreadyBuiltLibraries} = require('./build');
-const {rootDirectory} = require('./root_directory');
-const {forgetAllLastModifiedTimestamps} = require('./file_timestamps');
+const { forgetAlreadyBuiltLibraries } = require('./build');
+const { getTempDirectory, getOutputPath, getFileSystemDirectory } = require('./config');
+const { forgetAllLastModifiedTimestamps } = require('./file_timestamps');
 
 // Tries to delete a file or directory, if it exists.
 function maybeDelete(path) {
@@ -24,7 +24,7 @@ function maybeDelete(path) {
   }
   const fileStats = fs.lstatSync(path);
   if (fileStats.isDirectory()) {
-    fs.rmSync(path, {recursive: true});
+    fs.rmSync(path, { recursive: true });
   } else {
     fs.unlinkSync(path);
   }
@@ -35,15 +35,21 @@ function clean() {
   forgetAlreadyBuiltLibraries();
   forgetAllLastModifiedTimestamps();
 
-  const buildDirectory = rootDirectory + 'Build/temp';
-  if (fs.existsSync(buildDirectory)) {
-    fs.rmSync(buildDirectory, {recursive: true});
-  }
+  if (fs.existsSync(getTempDirectory()))
+    fs.rmSync(getTempDirectory(), { recursive: true });
+
+  // Clean up FS image.
+  if (fs.existsSync(getFileSystemDirectory() + '/Applications'))
+    fs.rmSync(getFileSystemDirectory() + '/Applications', { recursive: true });
+
+
+  if (fs.existsSync(getFileSystemDirectory() + '/Libraries'))
+    fs.rmSync(getFileSystemDirectory() + '/Libraries', { recursive: true });
 
   // Clean up ISO image.
-  maybeDelete(rootDirectory + 'Perception.iso');
+  maybeDelete(getOutputPath());
 }
 
 module.exports = {
-  clean : clean
+  clean: clean
 };

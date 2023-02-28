@@ -15,20 +15,18 @@
 const fs = require('fs');
 const path = require('path');
 const child_process = require('child_process');
-const {build} = require('./build');
-const {buildPrefix, buildSettings} = require('./build_commands');
-const {getToolPath} = require('./config');
-const {rootDirectory} = require('./root_directory');
-const {escapePath} = require('./utils');
-const {getPackageBuildDirectory} = require('./package_directory');
-const {getFileLastModifiedTimestamp} = require('./file_timestamps');
-const {PackageType} = require('./package_type');
-const {applicationsWithAssets, librariesWithAssets} = require('./assets');
-const {runDeferredCommands} = require('./deferred_commands');
+const { build } = require('./build');
+const { buildSettings } = require('./build_commands');
+const { getToolPath, getFileSystemDirectory, getOutputPath } = require('./config');
+const { escapePath } = require('./utils');
+const { getPackageBuildDirectory, getAllLibraries, getAllApplications, getPackageDirectory } = require('./package_directory');
+const { getFileLastModifiedTimestamp } = require('./file_timestamps');
+const { PackageType } = require('./package_type');
+const { applicationsWithAssets, librariesWithAssets } = require('./assets');
+const { runDeferredCommands } = require('./deferred_commands');
 
 const GRUB_MKRESCUE_COMMAND = getToolPath('grub-mkrescue') + ' -o ' +
-    escapePath(rootDirectory) + 'Perception.iso' +
-    ' ' + rootDirectory + 'fs';
+  escapePath(getOutputPath()) + ' ' + escapePath(getFileSystemDirectory());
 
 function copyIfNewer(source, destination) {
   if (!fs.existsSync(source)) return false;
@@ -36,7 +34,7 @@ function copyIfNewer(source, destination) {
   if (fs.existsSync(destination)) {
     // Don't copy if the source older or same age as the destination.
     if (getFileLastModifiedTimestamp(source) <=
-        getFileLastModifiedTimestamp(destination))
+      getFileLastModifiedTimestamp(destination))
       return false;
 
     fs.unlinkSync(destination);
@@ -44,7 +42,7 @@ function copyIfNewer(source, destination) {
 
   const destinationDir = path.parse(destination).dir;
   if (!fs.existsSync(destinationDir)) {
-    fs.mkdirSync(destinationDir, {recursive: true});
+    fs.mkdirSync(destinationDir, { recursive: true });
   }
 
   console.log('Copying ' + destination);
@@ -55,7 +53,7 @@ function copyIfNewer(source, destination) {
 function copyDirectoryRecursively(sourceDir, destinationDir) {
   if (!fs.existsSync(sourceDir)) return false;
   if (!fs.existsSync(destinationDir)) {
-    fs.mkdirSync(destinationDir, {recursive: true});
+    fs.mkdirSync(destinationDir, { recursive: true });
   }
 
   // Copy each file in the source.
@@ -71,7 +69,7 @@ function copyDirectoryRecursively(sourceDir, destinationDir) {
       if (fs.existsSync(destinationPath)) {
         // Don't copy if the source is older or the same as as the destination.
         if (fileStats.mtimeMs <=
-            getFileLastModifiedTimestamp(destinationPath)) {
+          getFileLastModifiedTimestamp(destinationPath)) {
           continue;
         }
 
@@ -89,32 +87,25 @@ async function buildImage() {
   let somethingChanged = false;
   const isLocalBuild = buildSettings.os != 'Perception';
 
+  const libraries = getAllLibraries();
+  const applications = getAllApplications();
+
   if (isLocalBuild) {
     // Build every library locally.
-    let libraries = fs.readdirSync(rootDirectory + 'Libraries/');
     for (let i = 0; i < libraries.length; i++) {
       const libraryName = libraries[i];
-      const fullPath = rootDirectory + 'Libraries/' + libraryName;
-      const fileStats = fs.lstatSync(fullPath);
-      if (fileStats.isDirectory()) {
-        success = await build(PackageType.LIBRARY, libraryName);
-        if (!success) {
-          return false;
-        }
+      success = await build(PackageType.LIBRARY, libraryName);
+      if (!success) {
+        return false;
       }
     }
 
     // Build every application locally.
-    let applications = fs.readdirSync(rootDirectory + 'Applications/');
     for (let i = 0; i < applications.length; i++) {
       const applicationName = applications[i];
-      const fullPath = rootDirectory + 'Applications/' + applicationName;
-      const fileStats = fs.lstatSync(fullPath);
-      if (fileStats.isDirectory()) {
-        success = await build(PackageType.APPLICATION, applicationName);
-        if (!success) {
-          return false;
-        }
+      success = await build(PackageType.APPLICATION, applicationName);
+      if (!success) {
+        return false;
       }
     }
 
@@ -126,19 +117,10 @@ async function buildImage() {
     }
 
     // Build all applications.
-    let applicationsFileEntries =
-        fs.readdirSync(rootDirectory + 'Applications/');
-    const applications = [];
-    for (let i = 0; i < applicationsFileEntries.length; i++) {
-      const applicationName = applicationsFileEntries[i];
-
-      const fileStats =
-          fs.lstatSync(rootDirectory + 'Applications/' + applicationName);
-      if (fileStats.isDirectory()) {
-        if (!(await build(PackageType.APPLICATION, applicationName))) {
-          return false;
-        }
-        applications.push(applicationName);
+    for (let i = 0; i < applications.length; i++) {
+      const applicationName = applications[i];
+      if (!(await build(PackageType.APPLICATION, applicationName))) {
+        return false;
       }
     }
 
@@ -147,40 +129,41 @@ async function buildImage() {
     }
 
     somethingChanged |= copyIfNewer(
-        getPackageBuildDirectory(PackageType.KERNEL, '') + 'kernel.app',
-        rootDirectory + 'fs/boot/kernel.app');
+      getPackageBuildDirectory(PackageType.KERNEL, '') + 'kernel.app',
+      getFileSystemDirectory() + '/boot/kernel.app');
 
     // Copy all applications
     for (let i = 0; i < applications.length; i++) {
       const applicationName = applications[i];
       const buildDirectory =
-          getPackageBuildDirectory(PackageType.APPLICATION, applicationName);
+        getPackageBuildDirectory(PackageType.APPLICATION, applicationName);
       const fullPath = buildDirectory + applicationName + '.app';
+      const packageDirectory = getPackageDirectory(PackageType.APPLICATION, applicationName);
       somethingChanged |= copyIfNewer(
-          fullPath,
-          rootDirectory + 'fs/Applications/' + applicationName + '/' +
-              applicationName + '.app');
+        fullPath,
+        getFileSystemDirectory() + '/Applications/' + applicationName + '/' +
+        applicationName + '.app');
 
       somethingChanged |= copyIfNewer(
-          rootDirectory + 'Applications/' + applicationName + '/icon.svg',
-          rootDirectory + 'fs/Applications/' + applicationName + '/icon.svg');
+        packageDirectory + '/icon.svg',
+        getFileSystemDirectory() + '/Applications/' + applicationName + '/icon.svg');
 
       somethingChanged |= copyIfNewer(
-          rootDirectory + 'Applications/' + applicationName + '/launcher.json',
-          rootDirectory + 'fs/Applications/' + applicationName +
-              '/launcher.json');
+        packageDirectory + '/launcher.json',
+        getFileSystemDirectory() + '/Applications/' + applicationName +
+        '/launcher.json');
     }
 
     // Copy assets.
     Object.keys(applicationsWithAssets).forEach((application) => {
       copyDirectoryRecursively(
-          rootDirectory + 'Applications/' + application + '/assets/',
-          rootDirectory + 'fs/Applications/' + application + '/assets/');
+        getPackageDirectory(PackageType.APPLICATION, application) + '/assets/',
+        getFileSystemDirectory() + '/Applications/' + application + '/assets/');
     });
     Object.keys(librariesWithAssets).forEach((library) => {
       copyDirectoryRecursively(
-          rootDirectory + 'Libraries/' + library + '/assets/',
-          rootDirectory + 'fs/Libraries/' + library + '/assets/');
+        getPackageDirectory(PackageType.LIBRARY, library) + '/assets/',
+        getFileSystemDirectory() + '/Libraries/' + library + '/assets/');
     });
 
 
@@ -189,7 +172,7 @@ async function buildImage() {
       return false;
     }
 
-    if (somethingChanged || !fs.existsSync(rootDirectory + 'Perception.iso')) {
+    if (somethingChanged || !fs.existsSync(getOutputPath())) {
       let command = GRUB_MKRESCUE_COMMAND;
       try {
         child_process.execSync(command);
@@ -203,5 +186,5 @@ async function buildImage() {
 }
 
 module.exports = {
-  buildImage : buildImage
+  buildImage: buildImage
 };

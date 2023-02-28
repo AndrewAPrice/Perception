@@ -3,7 +3,7 @@ package-lock.json
 node_modules
 
 # Configuration file for the system that is running the build script.
-config.json
+local-config.json
 
 # Temporary files we output during building.
 temp/

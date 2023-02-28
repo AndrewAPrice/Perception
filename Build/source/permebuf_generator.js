@@ -14,9 +14,9 @@
 
 const fs = require('fs');
 const path = require('path');
+const {getPackageDirectory} = require('./package_directory');
 const {getPackageTypeDirectoryName} = require('./package_type');
 const ClassType = require('./permebuf_class_types');
-const {rootDirectory} = require('./root_directory');
 
 function makeSureDirectoryExists(dir) {
   if (fs.existsSync(dir)) {
@@ -2616,8 +2616,7 @@ class ${symbol.cppClassName}_Server;`;
   headerCpp += '\n';
   sourceCpp += '\n';
 
-  const packageRootDirectory = rootDirectory +
-      getPackageTypeDirectoryName(packageType) + '/' + packageName + '/';
+  const packageRootDirectory = getPackageDirectory(packageType, packageName);
 
   writeFile(
       headerCpp,

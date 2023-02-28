@@ -1,0 +1,13 @@
+{
+	"repositories": {
+		"kernel": "../Kernel",
+		"applications": ["../Applications"],
+		"libraries": [
+			"../Libraries",
+			"../third_party/Libraries"
+		]
+	},
+	"fileSystemDirectory": "../fs",
+	"outputPath": "../Perception.iso",
+	"tempDirectory": "temp"
+}

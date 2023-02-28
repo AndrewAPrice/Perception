@@ -13,36 +13,40 @@
 // limitations under the License.
 
 const fs = require('fs');
-const {escapePath} = require('./utils');
+const { escapePath } = require('./utils');
 
-function PopulateConfigJson() {
+const configFile = 'config.json';
+const localConfigFile = 'local-config.json';
+
+function PopulateLocalConfigJson() {
   const toolsPaths = {};
   ['ar', 'gas', 'nasm', 'gcc', 'grub-mkrescue', 'ld', 'qemu'].forEach(
-      (tool) => {
-        if (!toolPaths[tool]) {
-          toolPaths[tool] = '';
-        }
-      });
+    (tool) => {
+      if (!toolPaths[tool]) {
+        toolPaths[tool] = '';
+      }
+    });
 
   fs.writeFileSync(
-      'config.json', JSON.stringify({'tools': toolPaths, 'parallel_tasks': 1}));
+    localConfigFile, JSON.stringify({ 'tools': toolPaths, 'parallel_tasks': 1 }));
 };
 
 // Loads the config file that contains the tools to use on this system.
-if (!fs.existsSync('config.json')) {
-  console.log('Please fill in config.json and read ../building.md.');
-  PopulateConfigJson();
+if (!fs.existsSync(localConfigFile)) {
+  console.log('Please fill in ' + localConfigFile + ' and read ../building.md.');
+  PopulateLocalConfigJson();
   process.exit(1);
 }
-const config = JSON.parse(fs.readFileSync('config.json'));
-const toolPaths = config.tools;
+const localConfig = JSON.parse(fs.readFileSync(localConfigFile));
+const config = JSON.parse(fs.readFileSync(configFile));
+const toolPaths = localConfig.tools;
 
 function getToolPath(tool) {
   const toolPath = toolPaths[tool];
   if (!toolPath) {
     console.log(
-        'config.json doesn\'t contain an entry for "' + tool +
-        '\'. Please read ../building.md.');
+      localConfigFile + ' doesn\'t contain an entry for "' + tool +
+      '\'. Please read ../building.md.');
     PopulateToolsJson();
     process.exit(1);
   }
@@ -50,17 +54,47 @@ function getToolPath(tool) {
 }
 
 function getParallelTasks() {
-  return config.parallel_tasks;
+  return localConfig.parallel_tasks;
 }
 
 function setAndFlushParallelTasks(numTasks) {
-  config.parallel_tasks = numTasks;
+  localConfig.parallel_tasks = numTasks;
   fs.writeFileSync(
-      'config.json', JSON.stringify(config));
+    localConfigFile, JSON.stringify(localConfig));
+}
+
+function getKernelDirectory() {
+  return config.repositories.kernel;
+}
+
+function getApplicationDirectories() {
+  return config.repositories.applications;
+}
+
+function getLibraryDirectories() {
+  return config.repositories.libraries;
+}
+
+function getTempDirectory() {
+  return config.tempDirectory;
+}
+
+function getFileSystemDirectory() {
+  return config.fileSystemDirectory;
+}
+
+function getOutputPath() {
+  return config.outputPath;
 }
 
 module.exports = {
-  getToolPath : getToolPath,
+  getToolPath: getToolPath,
   getParallelTasks: getParallelTasks,
-  setAndFlushParallelTasks: setAndFlushParallelTasks
+  setAndFlushParallelTasks: setAndFlushParallelTasks,
+  getKernelDirectory: getKernelDirectory,
+  getApplicationDirectories: getApplicationDirectories,
+  getLibraryDirectories: getLibraryDirectories,
+  getTempDirectory: getTempDirectory,
+  getFileSystemDirectory: getFileSystemDirectory,
+  getOutputPath: getOutputPath
 };
