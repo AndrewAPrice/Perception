@@ -21,11 +21,12 @@ const { getStandaloneApplicationMetadata, getStandaloneLibraryMetadata } =
   require('./metadata');
 const { getFileLastModifiedTimestamp } = require('./file_timestamps');
 const { createDirectoryIfItDoesntExist, removeDirectoryIfEmpty } = require('./utils');
+const { getTempDirectory } = require('./config');
 
 const loadedThirdPartyApplications = {};
 const loadedThirdPartyLibraries = {};
 
-const repositoriesDirectory = "temp/repositories/";
+const repositoriesDirectory = getTempDirectory() + "/repositories/";
 
 const repositoriesMapPath = repositoriesDirectory + "repositories.json";
 let repositoriesToIds = null;

@@ -35,7 +35,7 @@ async function benchmarkWithNumTasks(parallelTasks) {
 
   process.stdout.write('Building with ' + parallelTasks + ': ');
   // Clean everything to start from scratch.
-  clean();
+  clean(/*deepClean=*/false);
 
   // Prepare the kernel and all applications.
   if (!(await build(PackageType.KERNEL, ''))) {

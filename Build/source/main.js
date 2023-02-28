@@ -73,8 +73,11 @@ switch (command) {
   case 'run':
     run(package);
     break;
+  case 'deep-clean':
+    clean(/*deepClean=*/true);
+    break;
   case 'clean':
-    clean();
+    clean(/*deepClean=*/false);
     break;
   case 'all':
     buildImage();
