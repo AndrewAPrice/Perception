@@ -16,7 +16,7 @@
         {
             "operation": "copy",
             "source": "${git}/yoga/event",
-            "destination": "event"
+            "destination": "source/event"
         },
         {
             "operation": "copy",

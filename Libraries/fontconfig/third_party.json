@@ -10,7 +10,7 @@
         {
             "operation": "copy",
             "source": "${git}/fontconfig",
-            "destination": "source/fontconfig",
+            "destination": "public/fontconfig",
             "extensions": [".h"]
         },
         {
@@ -53,22 +53,26 @@
         {
             "operation": "readFilesInDirectory",
             "path": "${git}/fc-lang",
-            "placeholder": "$fc-lang",
+            "placeholder": "fc-lang",
             "extensions": [".orth"]
         },
         {
+            "operation": "joinArray",
+            "placeholder": "fc-lang-flattened",
+            "value": "${fc-lang}",
+            "joint": " ",
+            "replacements": [[" ", "\\ "]]
+        },
+        {
             "operation": "execute",
-            "command": "python3 ${git}/fc-lang/fc-lang.py $fc-lang --template ${git}/fc-lang/fclang.tmpl.h --output ${@}/source/fc-lang/fclang.h --directory ${git}/fc-lang",
+            "command": "python3 ${git}/fc-lang/fc-lang.py ${fc-lang-flattened} --template ${git}/fc-lang/fclang.tmpl.h --output ${@}/source/fc-lang/fclang.h --directory ${git}/fc-lang",
             "inputs": ["${git}/fc-lang/fc-lang.py", "${git}/fc-lang/fclang.tmpl.h"],
-            "outputs": ["source/fc-lang/fclang.h"]
-        },
-        {
-            "operation": "createDirectory",
-            "path": "source/fc-case"
+            "outputs": ["source/fc-lang/fclang.h"],
+            "alwaysRun": true
         },
         {
             "operation": "execute",
-            "command": "python3 ${git}/fc-case/fc-case.py ${git}/fc-case/CaseFolding.txt --template ${git}/fc-case/fccase.tmpl.h --output ${@}/source/fc-case/fccase.h --directory ${git}/fc-lang",
+            "command": "python3 ${git}/fc-case/fc-case.py ${git}/fc-case/CaseFolding.txt --template ${git}/fc-case/fccase.tmpl.h --output ${@}/source/fc-case/fccase.h",
             "inputs": ["${git}/fc-case/fc-case.py", "${git}/fc-case/CaseFolding.txt", "${git}/fc-case/fccase.tmpl.h"],
             "outputs": ["source/fc-case/fccase.h"]
         },
@@ -90,7 +94,7 @@
         {
             "operation": "execute",
             "command": "gperf --pic -m 100 ${@}/generated/fcobjshash.gperf --output-file ${@}/generated/fcobjshash.h",
-            "inputs": ["${@}/generated/fcobjshash.gperf"],
+            "inputs": ["generated/fcobjshash.gperf"],
             "outputs": ["generated/fcobjshash.h"]
         },
         {

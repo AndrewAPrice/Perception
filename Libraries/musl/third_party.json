@@ -11,6 +11,7 @@
             "operation": "copy",
             "source": "${git}/include",
             "destination": "include",
+            "recursive": true,
             "exclude": ["include/syscall_arch.h"],
             "replace": [{
                 "file": "include/unistd.h",
@@ -19,50 +20,65 @@
         },
         {
             "operation": "copy",
-            "source": "${git}/include/arch/generic",
+            "source": "${git}/arch/generic",
             "destination": "include",
+            "recursive": true,
             "exclude": ["include/syscall_arch.h"]
         },
         {
             "operation": "copy",
-            "source": "${git}/include/arch/x86_64",
+            "source": "${git}/arch/x86_64",
             "destination": "include",
+            "recursive": true,
             "exclude": ["include/syscall_arch.h"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/aio",
-            "destination": "source/aio"
+            "destination": "source/aio",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/complex",
-            "destination": "source/complex"
+            "destination": "source/complex",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/conf",
-            "destination": "source/conf"
+            "destination": "source/conf",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/crypt",
-            "destination": "source/ctype"
+            "destination": "source/crypt",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/ctype",
+            "destination": "source/ctype",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/dirent",
-            "destination": "source/dirent"
+            "destination": "source/dirent",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/complex",
-            "destination": "source/complex"
+            "destination": "source/complex",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/env",
             "destination": "source/env",
+            "recursive": true,
             "replace": [{
                 "file": "source/env/__libc_start_main.c",
                 "replacements": [["// weak_alias(libc_start_init, __libc_start_init);", "weak_alias(libc_start_init, __libc_start_init);"]]
@@ -71,7 +87,8 @@
         {
             "operation": "copy",
             "source": "${git}/src/errno",
-            "destination": "source/errno"
+            "destination": "source/errno",
+            "recursive": true
         },
         {
             "operation": "copy",
@@ -80,8 +97,9 @@
         },
         {
             "operation": "copy",
-            "source": "${git}/src/fctnl",
-            "destination": "source/fctnl"
+            "source": "${git}/src/fcntl",
+            "destination": "source/fcntl",
+            "recursive": true
         },
         {
             "operation": "copy",
@@ -91,61 +109,72 @@
         {
             "operation": "copy",
             "source": "${git}/src/include",
-            "destination": "source/include"
+            "destination": "source/include",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/internal",
-            "destination": "source/internal"
+            "destination": "source/internal",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/ipc",
-            "destination": "source/ipc"
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/src/ldso",
-            "destination": "source/ldso"
+            "destination": "source/ipc",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/ldso/x86_64",
-            "destination": "source/ldso/x86_64"
+            "destination": "source/ldso/x86_64",
+            "recursive": true
+        },
+        {
+            "operation": "readFilesInDirectory",
+            "path": "${git}/src/ldso/x86_64",
+            "placeholder": "ldso-x86_64-files",
+            "extensions": [".s"],
+            "replacements": [
+                ["${git}/src/ldso/x86_64/", "source/ldso/"],
+                [".s", ".cc"]
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/ldso",
+            "destination": "source/ldso",
+            "exclude": ["${ldso-x86_64_files}"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/legacy",
-            "destination": "source/legacy"
+            "destination": "source/legacy",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/linux",
-            "destination": "source/linux"
+            "destination": "source/linux",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/locale",
-            "destination": "source/locale"
+            "destination": "source/locale",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/malloc",
-            "destination": "source/malloc"
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/src/math",
-            "destination": "source/math",
-            "rename": {
-                "source/math/fma.c": "source/math/fma.c.inl",
-                "source/math/fmaf.c": "source/math/fmaf.c.inl"
-            }
+            "destination": "source/malloc",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/math/x86_64",
             "destination": "source/math",
+            "recursive": true,
             "replace": [
                 {
                     "file": "source/math/fma.c",
@@ -158,64 +187,106 @@
             ]
         },
         {
+            "operation": "readFilesInDirectory",
+            "path": "${git}/src/math/x86_64",
+            "placeholder": "math-x86_64-files",
+            "extensions": [".s"],
+            "replacements": [
+                ["${git}/src/math/x86_64/", "source/math/"],
+                [".s", ".cc"]
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/math",
+            "destination": "source/math",
+            "rename": {
+                "source/math/fma.c": "source/math/fma.c.inl",
+                "source/math/fmaf.c": "source/math/fmaf.c.inl"
+            },
+            "exclude": ["${math-x86_64-files}"]
+        },
+        {
             "operation": "copy",
             "source": "${git}/src/misc",
-            "destination": "source/misc"
+            "destination": "source/misc",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/mman",
-            "destination": "source/mman"
+            "destination": "source/mman",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/mq",
-            "destination": "source/mq"
+            "destination": "source/mq",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/multibyte",
-            "destination": "source/multibyte"
+            "destination": "source/multibyte",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/network",
-            "destination": "source/network"
+            "destination": "source/network",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/passwd",
-            "destination": "source/passwd"
+            "destination": "source/passwd",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/prng",
-            "destination": "source/prng"
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/src/process",
-            "destination": "source/process"
+            "destination": "source/prng",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/process/x86_64",
-            "destination": "source/process"
+            "destination": "source/process",
+            "recursive": true
+        },
+        {
+            "operation": "readFilesInDirectory",
+            "path": "${git}/src/process/x86_64",
+            "placeholder": "process-x86_64-files",
+            "extensions": [".s"],
+            "replacements": [
+                ["${git}/src/process/x86_64/", "source/process/"],
+                [".s", ".cc"]
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/process",
+            "destination": "source/process",
+            "exclude": ["${process-x64_64_files}"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/regex",
-            "destination": "source/regex"
+            "destination": "source/regex",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/sched",
-            "destination": "source/sched"
+            "destination": "source/sched",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/search",
-            "destination": "source/search"
+            "destination": "source/search",
+            "recursive": true
         },
         {
             "operation": "copy",
@@ -225,7 +296,8 @@
         {
             "operation": "copy",
             "source": "${git}/src/select",
-            "destination": "source/select"
+            "destination": "source/select",
+            "recursive": true
         },
         {
             "operation": "copy",
@@ -235,37 +307,54 @@
         {
             "operation": "copy",
             "source": "${git}/src/stat",
-            "destination": "source/stat"
+            "destination": "source/stat",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/stdio",
-            "destination": "source/stdio"
+            "destination": "source/stdio",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/stdlib",
-            "destination": "source/stdlib"
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/src/string",
-            "destination": "source/string"
+            "destination": "source/stdlib",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/string/x86_64",
-            "destination": "source/string"
+            "destination": "source/string",
+            "recursive": true
+        },
+        {
+            "operation": "readFilesInDirectory",
+            "path": "${git}/src/string/x86_64",
+            "placeholder": "string-x86_64-files",
+            "extensions": [".s"],
+            "replacements": [
+                ["${git}/src/string/x86_64/", "source/string/"],
+                [".s", ".cc"]
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/string",
+            "destination": "source/string",
+            "exclude": ["${string-x86_64-files}"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/temp",
-            "destination": "source/temp"
+            "destination": "source/temp",
+            "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/termios",
-            "destination": "source/termios"
+            "destination": "source/termios",
+            "recursive": true
         },
         {
             "operation": "copy",
@@ -276,6 +365,7 @@
             "operation": "copy",
             "source": "${git}/src/time",
             "destination": "source/time",
+            "recursive": true,
             "replace": [{
                 "file": "source/time/__tz.c",
                 "replacements": [["index", "tindex"]]
@@ -294,7 +384,7 @@
                 "include/bits/alltypes.h.in",
                 "include/alltypes.h.in"
             ],
-            "outputs": ["/include/bits/alltypes.h"]
+            "outputs": ["include/bits/alltypes.h"]
         },
         {
             "operation": "execute",

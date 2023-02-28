@@ -9,8 +9,9 @@
     "operations" : [
         {
             "operation": "copy",
-            "source": "${git}/third_party/single_include'",
-            "destination": "public"
+            "source": "${git}/single_include/",
+            "destination": "public",
+            "recursive": true
         }
     ]
 }

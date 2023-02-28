@@ -18,7 +18,7 @@
             "source": "${git}/src",
             "destination": "source",
             "extension": [".c", ".cc"],
-            "ignore": [
+            "exclude": [
                 "source/harfbuzz.cc",
                 "source/harfbuzz-subset.cc",
                 "source/main.cc",
@@ -49,14 +49,14 @@
         {
             "operation": "copy",
             "source": "${git}/src/OT",
-            "destiation": "public/OT",
+            "destination": "public/OT",
             "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/graph",
-            "destiation": "public/graph",
-            "ignore": ["public/graph/test-classdef-graph.cc"]
+            "destination": "public/graph",
+            "exclude": ["public/graph/test-classdef-graph.cc"]
         }
     ]
 }

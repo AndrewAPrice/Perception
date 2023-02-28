@@ -45,13 +45,13 @@
             "operation": "copy",
             "source": "${git}/src/autofit",
             "destination": "source/autofit",
-            "ignore": ["source/autofit/autofit.c"]
+            "exclude": ["source/autofit/autofit.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/base",
             "destination": "source/base",
-            "ignore": [
+            "exclude": [
                 "source/base/ftbase.c",
                 "source/base/ftsystemc"
             ]
@@ -60,25 +60,25 @@
             "operation": "copy",
             "source": "${git}/src/bdf",
             "destination": "source/bdf",
-            "ignore": ["source/bdf/bdf.c"]
+            "exclude": ["source/bdf/bdf.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/cache",
             "destination": "source/cache",
-            "ignore": ["source/cache/ftcache.c"]
+            "exclude": ["source/cache/ftcache.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/cff",
             "destination": "source/cff",
-            "ignore": ["source/cff/cff.c"]
+            "exclude": ["source/cff/cff.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/cid",
             "destination": "source/cid",
-            "ignore": ["source/cid/type1cid.c"]
+            "exclude": ["source/cid/type1cid.c"]
         },
         {
             "operation": "copy",
@@ -89,7 +89,7 @@
             "operation": "copy",
             "source": "${git}/src/gxvalid",
             "destination": "source/gxvalid",
-            "ignore": ["source/gxvalid/gxvalid.c"]
+            "exclude": ["source/gxvalid/gxvalid.c"]
         },
         {
             "operation": "copy",
@@ -110,25 +110,25 @@
             "operation": "copy",
             "source": "${git}/src/otvalid",
             "destination": "source/otvalid",
-            "ignore": ["source/otvalid/otvalid.c"]
+            "exclude": ["source/otvalid/otvalid.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/pcf",
             "destination": "source/pcf",
-            "ignore": ["source/pcf/pcf.c"]
+            "exclude": ["source/pcf/pcf.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/pfr",
             "destination": "source/pfr",
-            "ignore": ["source/pfr/pfr.c"]
+            "exclude": ["source/pfr/pfr.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/psaux",
             "destination": "source/psaux",
-            "ignore": ["source/psaux/psaux.c"]
+            "exclude": ["source/psaux/psaux.c"]
         },
         {
             "operation": "copy",
@@ -139,49 +139,49 @@
             "operation": "copy",
             "source": "${git}/src/pshinter",
             "destination": "source/pshinter",
-            "ignore": ["source/pshinter/pshinter.c"]
+            "exclude": ["source/pshinter/pshinter.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/psnames",
             "destination": "source/psnames",
-            "ignore": ["source/psnames/psnames.c"]
+            "exclude": ["source/psnames/psnames.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/raster",
             "destination": "source/raster",
-            "ignore": ["source/raster/raster.c"]
+            "exclude": ["source/raster/raster.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/sdf",
             "destination": "source/sdf",
-            "ignore": ["source/sdf/sdf.c"]
+            "exclude": ["source/sdf/sdf.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/sfnt",
             "destination": "source/sfnt",
-            "ignore": ["source/sfnt/sfnt.c"]
+            "exclude": ["source/sfnt/sfnt.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/smooth",
             "destination": "source/smooth",
-            "ignore": ["source/smooth/smooth.c"]
+            "exclude": ["source/smooth/smooth.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/svg",
             "destination": "source/svg",
-            "ignore": ["source/svg/svg.c"]
+            "exclude": ["source/svg/svg.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/truetype",
             "destination": "source/truetype",
-            "ignore": ["source/truetype/truetype.c"],
+            "exclude": ["source/truetype/truetype.c"],
             "replace": [{
                 "file": "source/truetype/ttobjs.h",
                 "replacements": [["#include <freetype/internal/ftobjs.h>","#include <freetype/internal/ftobjs.h>\n#include <freetype/internal/ftmmtypes.h>"]]
@@ -191,13 +191,13 @@
             "operation": "copy",
             "source": "${git}/src/type1",
             "destination": "source/type1",
-            "ignore": ["source/type1/type1.c"]
+            "exclude": ["source/type1/type1.c"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/type42",
             "destination": "source/type42",
-            "ignore": ["source/type42/type42.c"]
+            "exclude": ["source/type42/type42.c"]
         },
         {
             "operation": "copy",

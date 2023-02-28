@@ -1,5 +1,2 @@
-# Code that exists in another git repository.
-third_party/
-
 # A list of third party files in public/ and source/.
 third_party_files.json

@@ -8,15 +8,15 @@
     ],
     "operations" : [
         {
-            "operation": "readFromFile",
-            "file": "${git}/configure.ac",
-            "values": {"_,major,minor,revision": "set\\(VERSION (\\d+).(\\d+).(\\d+)\\)"}
+            "operation": "readRegExFromFile",
+            "file": "${git}/CMakeLists.txt",
+            "values": {",major,minor,revision": "set\\(VERSION (\\d+).(\\d+).(\\d+)\\)"}
         },
         {
             "operation": "evaluate",
             "values": {
-                "$version_string": "${major}+'.'+${minor}+'.'+${revision}",
-                "$version_number": "${major} * 100000 + ${minor} * 100 + ${revision}"
+                "version_string": "'${major}'+'.'+'${minor}'+'.'+'${revision}'",
+                "version_number": "${major} * 100000 + ${minor} * 100 + ${revision}"
             }
         },
         {
@@ -52,7 +52,14 @@
             "operation": "copy",
             "source": "${git}/simd/nasm",
             "destination": "source/simd/x86_64",
-            "extensions": [".asm", ".c", ".cpp", ".h", ".hh", ".inc"]
+            "extensions": [".asm", ".c", ".cpp", ".h", ".hh", ".inc"],
+            "replace": [{
+                "file": "source/simd/x86_64/jsimdext.inc",
+                "replacements": [[
+                    ";  System-dependent configurations",
+                    ";  System-dependent configurations\n%define __x86_64__\n%define ELF\n"
+                ]]
+            }]
         },
         {
             "operation": "copy",
@@ -116,9 +123,9 @@
         {
             "operation": "copy",
             "source": "${git}/simd/nasm/jsimdcfg.inc.h",
-            "destination": "source/simd/jsidmcfg.inc.h",
+            "destination": "source/simd/jsimdcfg.inc.h",
             "replace": [{
-                "file": "jsimdcfg",
+                "file": "source/simd/jsimdcfg.inc.h",
                 "replacements": [
                     ["#include \"../jpeglib.h\"", "#include \"jpeglib.h\""],
                     ["#include \"../jconfig.h\"", "#include \"jconfig.h\""],
@@ -130,7 +137,7 @@
             "operation": "execute",
             "command": "gcc -I ${@}/public -I ${@}/source -E -P ${@}/source/simd/jsimdcfg.inc.h | grep -E '^[\\;%]|^\\ %' | sed 's%_cpp_protection_%%' | sed 's@% define@%define@g' > ${@}/source/simd/x86_64/jsimdcfg.inc",
             "inputs": ["source/simd/jsimdcfg.inc.h"],
-            "outputs": ["generated/fcobjshash.gperf"]
+            "outputs": ["source/simd/x86_64/jsimdcfg.inc"]
         }
     ]
 }

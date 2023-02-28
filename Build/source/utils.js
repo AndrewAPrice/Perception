@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+const fs = require('fs');
 const path = require('path');
 
 // Escape spaces in a path so paths aren't split up when used as part of a
@@ -25,7 +25,30 @@ function forEachIfDefined(array, onEach) {
   if (array) array.forEach(onEach);
 }
 
+function removeDirectoryIfEmpty(dirPath) {
+	if (fs.readdirSync(dirPath).length >= 1) {
+		// There are files in this directory.
+		return;
+	}
+
+	fs.rmdirSync(dirPath);
+	const parentPath = path.dirname(dirPath);
+	removeDirectoryIfEmpty(parentPath);
+}
+
+function createDirectoryIfItDoesntExist(dirPath) {
+	if (fs.existsSync(dirPath)) {
+		return;
+	}
+	// Make sure parent exists.
+	const parentPath = path.dirname(dirPath);
+	createDirectoryIfItDoesntExist(parentPath);
+	fs.mkdirSync(dirPath);
+}
+
 module.exports = {
   escapePath : escapePath,
-  forEachIfDefined : forEachIfDefined
+  forEachIfDefined : forEachIfDefined,
+  removeDirectoryIfEmpty : removeDirectoryIfEmpty,
+  createDirectoryIfItDoesntExist : createDirectoryIfItDoesntExist
 };

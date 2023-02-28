@@ -8,31 +8,36 @@
     ],
     "operations": [
         {
-            "operation": "readFromFile",
+            "operation": "readRegExFromFile",
             "file": "${git}/configure.ac",
             "values": {
-                "_,major": "m4_define\\(\\[MAJOR_VERSION\\], (\\d+)\\)",
-                "_,minor": "m4_define\\(\\[MINOR_VERSION\\], (\\d+)\\)",
-                "_,micro": "m4_define\\(\\[MICRO_VERSION\\], (\\d+)\\)"
+                ",major": "m4_define\\(\\[MAJOR_VERSION\\], (\\d+)\\)",
+                ",minor": "m4_define\\(\\[MINOR_VERSION\\], (\\d+)\\)",
+                ",micro": "m4_define\\(\\[MICRO_VERSION\\], (\\d+)\\)"
             }
         },
         {
             "operation": "evaluate",
             "values": {
-                "$version_string": "${major}+'.'+${minor}+'.'+${micro}",
-                "$version_number": "${major} * 10000 + ${minor} * 100 + ${micro}"
+                "version_string": "'${major}'+'.'+'${minor}'+'.'+'${micro}'",
+                "version_number": "${major} * 10000 + ${minor} * 100 + ${micro}"
             }
         },
         {
             "operation": "copy",
             "source": "${git}/include/libxml",
             "destination": "public/libxml",
-            "extensions": [".h"],
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/libxml/xmlversion.h.in",
+            "destination": "public/libxml/xmlversion.h",
             "replace": [{
                 "file":"public/libxml/xmlversion.h",
                 "replacements": [
                     ["@VERSION@", "${version_string}"],
-                    ["@LIBXML_VERSION_NUMBER@", "{$version_number}"],
+                    ["@LIBXML_VERSION_NUMBER@", "${version_number}"],
                     ["@LIBXML_VERSION_EXTRA@", ""],
                     ["@WITH_TRIO@", "1"],
                     ["@WITH_THREADS@", "1"],
@@ -73,13 +78,26 @@
         {
             "operation": "copy",
             "source": "${git}/include/private",
-            "destination": "source/freetype",
+            "destination": "source/private",
             "extensions": [".h"]
         },
         {
             "operation": "copy",
             "source": "${git}/",
-            "destination": "source"
+            "destination": "source",
+            "exclude": [
+                "source/testapi.c",
+                "source/testchar.c",
+                "source/testdict.c",
+                "source/testdso.c",
+                "source/testlimits.c",
+                "source/testModulec",
+                "source/testOOM.c",
+                "source/testOOMlib.c",
+                "source/testOOMlib.h",
+                "source/testrecurse.c",
+                "source/testThreads.c"
+            ]
         }
     ]
 }

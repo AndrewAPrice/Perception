@@ -3,16 +3,6 @@
 		"perception",
 		"musl"
 	],
-	"ignore":[
-		"source/support/ibm/mbsnrtowcs.cpp",
-		"source/support/ibm/wcsnrtombs.cpp",
-		"source/support/ibm/xlocale_zos.cpp",
-		"source/support/solaris/mbsnrtowcs.cpp",
-		"source/support/solaris/wcsnrtombs.cpp",
-		"source/support/win32/locale_win32.cpp",
-		"source/support/win32/support.cpp",
-		"source/support/win32/thread_win32.cpp"
-	],
 	"include_priority": 0,
 	"include":[],
 	"public_define": [

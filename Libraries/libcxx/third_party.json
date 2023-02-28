@@ -1,12 +1,12 @@
 {
-    "repositories" : [
+    "repositories": [
         {
             "url": "https://github.com/llvm/llvm-project.git",
             "type": "git",
             "placeholder": "git"
         }
     ],
-    "operations" : [
+    "operations": [
         {
             "operation": "copy",
             "source": "${git}/libcxx/include",
@@ -18,7 +18,7 @@
             "source": "${git}/libcxx/src",
             "destination": "source",
             "recursive": true,
-            "ignore": [
+            "exclude": [
                 "source/libc/stdio/nano-vfprintf.c",
                 "source/libc/stdio/nano-vfprintf_float.c",
                 "source/libc/stdio/nano-vfprintf_i.c",
@@ -28,7 +28,15 @@
                 "source/libc/stdio/nano-vfscanf_i.c",
                 "source/libc/stdio/nano-vfscanf_local.c",
                 "source/libc/stdio/nano-vfprintf_local.h",
-                "source/libc/stdio/nano-vfscanf_local.h"
+                "source/libc/stdio/nano-vfscanf_local.h",
+                "source/support/ibm/mbsnrtowcs.cpp",
+                "source/support/ibm/wcsnrtombs.cpp",
+                "source/support/ibm/xlocale_zos.cpp",
+                "source/support/solaris/mbsnrtowcs.cpp",
+                "source/support/solaris/wcsnrtombs.cpp",
+                "source/support/win32/locale_win32.cpp",
+                "source/support/win32/support.cpp",
+                "source/support/win32/thread_win32.cpp"
             ]
         },
         {

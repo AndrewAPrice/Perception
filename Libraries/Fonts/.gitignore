@@ -1,8 +1,5 @@
 # All third party files.
 assets/
 
-# All third party files.
-third_party/
-
 # A list of third party files in assets/.
 third_party_files.json

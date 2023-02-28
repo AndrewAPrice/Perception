@@ -69,7 +69,8 @@
         {
             "operation": "copy",
             "source": "${git}/include/ports",
-            "destination": "public/include/ports"
+            "destination": "public/include/ports",
+            "exclude": ["public/include/ports/SkFontConfigInterface.h"]
         },
         {
             "operation": "copy",
@@ -119,7 +120,7 @@
             "operation": "copy",
             "source": "${git}/src/codec",
             "destination": "source/src/codec",
-            "ignore": [
+            "exclude": [
                 "source/src/codec/SkIcoCodec.cpp",
                 "source/src/codec/SkIcoCodec.h",
                 "source/src/codec/SkPngCodec.cpp",
@@ -212,7 +213,7 @@
         },
         {
             "operation": "copy",
-            "source": "${git}/src/gpu/ganesh/tesselatte",
+            "source": "${git}/src/gpu/ganesh/tessellate",
             "destination": "source/src/gpu/ganesh/tessellate"
         },
         {
@@ -222,8 +223,8 @@
         },
         {
             "operation": "copy",
-            "source": "${git}/src/gpu/tesselatte",
-            "destination": "source/src/gpu/tesselate"
+            "source": "${git}/src/gpu/tessellate",
+            "destination": "source/src/gpu/tessellate"
         },
         {
             "operation": "copy",
@@ -254,7 +255,7 @@
             "operation": "copy",
             "source": "${git}/src/ports",
             "destination": "source/src/ports",
-            "ignore": [
+            "exclude": [
                 "source/src/ports/SkDebug_android.cpp",
                 "source/src/ports/SkDebug_win.cpp",
                 "source/src/ports/SkFontHost_win.cpp",
@@ -406,9 +407,9 @@
         {
             "operation": "copy",
             "source": "${git}/modules/audioplayer",
-            "destination": "source/modules/audiplayer",
+            "destination": "source/modules/audioplayer",
             "extensions": [".cpp"], 
-            "ignore": [
+            "exclude": [
                 "source/modules/audioplayer/SkAudioPlayer_oboe.cpp",
                 "source/modules/audioplayer/SkAudioPlayer_sfml.cpp"
             ]
@@ -416,19 +417,7 @@
         {
             "operation": "copy",
             "source": "${git}/modules/audioplayer",
-            "destination": "public/modules/audiplayer",
-            "extensions": [".h"]
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/modules/particles/src",
-            "destination": "source/modules/particles/src",
-            "extensions": [".cpp"]
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/modules/particles/include",
-            "destination": "public/modules/particles/include",
+            "destination": "public/modules/audioplayer",
             "extensions": [".h"]
         },
         {
@@ -439,7 +428,7 @@
             "replace": [{
                 "file": "source/modules/skcms/skcms.cc",
                 "replacements": [
-                    ["#include \"skcms", "'#include \"modules/skcms/skcms"],
+                    ["#include \"skcms", "#include \"modules/skcms/skcms"],
                     ["#include \"src/Transform_inl.h\"", "#include \"modules/skcms/src/Transform_inl.h\""]
                 ]
             }]
@@ -451,7 +440,7 @@
             "extensions": [".h"],
             "replace": [{
                 "file": "public/modules/skcms/skcms_internal.h",
-                "replacements": [["#include \"skcms", "'#include \"modules/skcms/skcms"]]
+                "replacements": [["#include \"skcms", "#include \"modules/skcms/skcms"]]
             }]
         },
         {
@@ -469,55 +458,20 @@
         {
             "operation": "copy",
             "source": "${git}/modules/skottie/src",
-            "destination": "public/modules/skottie/src"
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/modules/skottie/src/animator",
-            "destination": "public/modules/skottie/src/animator"
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/modules/skottie/src/effects",
-            "destination": "public/modules/skottie/src/effects"
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/modules/skottie/src/layers",
-            "destination": "public/modules/skottie/src/layers"
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/modules/skottie/src/layers/shapelayer",
-            "destination": "public/modules/skottie/src/layers/shapelayer"
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/modules/skottie/src/text",
-            "destination": "public/modules/skottie/src/text"
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/modules/skottie/src/utils",
-            "destination": "source/modules/skottie/src/utils",
-            "extensions": [".cpp"]
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/modules/skottie/src/utils",
-            "destination": "public/modules/skottie/src/utils",
-            "extension": [".h"]
+            "destination": "public/modules/skottie/src",
+            "recursive": true,
+            "extensions": [".cpp", ".h"]
         },
         {
             "operation": "copy",
             "source": "${git}/modules/skparagraph/include",
             "destination": "public/modules/skparagraph/include",
-            "extension": [".h"]
+            "extensions": [".h"]
         },
         {
             "operation": "copy",
-            "source": "${git}/modules/skparagraph",
-            "destination": "source/modules/skparagraph"
+            "source": "${git}/modules/skparagraph/src",
+            "destination": "source/modules/skparagraph/src"
         },
         {
             "operation": "copy",
@@ -552,7 +506,7 @@
             "operation": "copy",
             "source": "${git}/modules/skshaper/src",
             "destination": "source/modules/skshaper/src",
-            "ignore": ["source/modules/skshaper/src/SkShaper_coretext.cpp"]
+            "exclude": ["source/modules/skshaper/src/SkShaper_coretext.cpp"]
         },
         {
             "operation": "copy",

@@ -9,45 +9,45 @@
     "operations" : [
         {
             "operation": "copy",
-            "source": "${git}/repo/icu4c/source/common/",
+            "source": "${git}/icu4c/source/common/",
             "destination": "source/common"
         },
         {
             "operation": "copy",
-            "source": "${git}/repo/icu4c/source/common/unicode",
+            "source": "${git}/icu4c/source/common/unicode",
             "destination": "public/unicode",
             "extension": [".h"]
         },
         {
             "operation": "copy",
-            "source": "${git}/repo/icu4c/source/i18n",
+            "source": "${git}/icu4c/source/i18n",
             "destination": "source/common"
         },
         {
             "operation": "copy",
-            "source": "${git}/repo/icu4c/source/i18n/unicode",
+            "source": "${git}/icu4c/source/i18n/unicode",
             "destination": "public/unicode",
             "extensions": [".h"]
         },
         {
             "operation": "copy",
-            "source": "${git}/repo/icu4c/source/layoutex",
+            "source": "${git}/icu4c/source/layoutex",
             "destination": "source/common"
         },
         {
             "operation": "copy",
-            "source": "${git}/repo/icu4c/source/layoutex/layout",
+            "source": "${git}/icu4c/source/layoutex/layout",
             "destination": "public/layout",
             "extensions": [".h"]
         },
         {
             "operation": "copy",
-            "source": "${git}/repo/icu4c/source/stubdata",
+            "source": "${git}/icu4c/source/stubdata",
             "destination": "source/stubdata"
         },
         {
             "operation": "copy",
-            "source": "${git}/icudt72l.dat",
+            "source": "third_party/icudt72l.dat",
             "destination": "assets/icudt72l.dat"
         }
     ]

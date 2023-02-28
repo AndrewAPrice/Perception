@@ -1,7 +1,7 @@
 {
     "repositories" : [
         {
-            "url": "https://github.com/madler/zlib.git'",
+            "url": "https://github.com/madler/zlib.git",
             "type": "git",
             "placeholder": "git"
         }
