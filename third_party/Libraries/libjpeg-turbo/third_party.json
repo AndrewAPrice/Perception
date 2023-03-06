@@ -13,9 +13,67 @@
             "values": {",major,minor,revision": "set\\(VERSION (\\d+).(\\d+).(\\d+)\\)"}
         },
         {
+            "operation": "set",
+            "values": {
+                "12_bit_files_to_duplicate": [
+                    "jcapistd",
+                    "jccoefct",
+                    "jccolor",
+                    "jcdctmgr",
+                    "jcdiffct",
+                    "jclossls",
+                    "jcmainct",
+                    "jcprepct",
+                    "jcsample",
+                    "jdapistd",
+                    "jdcoefct",
+                    "jdcolor",
+                    "jddctmgr",
+                    "jddiffct",
+                    "jdlossls",
+                    "jdmainct",
+                    "jdmerge",
+                    "jdpostct",
+                    "jdsample",
+                    "jfdctfst",
+                    "jfdctint",
+                    "jidctflt",
+                    "jidctfst",
+                    "jidctint",
+                    "jidctred",
+                    "jquant1",
+                    "jquant2",
+                    "jutils"
+                ],
+                "16_bit_files_to_duplicate": [
+                    "jcapistd",
+                    "jccolor",
+                    "jcdiffct",
+                    "jclossls",
+                    "jcmainct",
+                    "jcprepct",
+                    "jcsample",
+                    "jdapistd",
+                    "jdcolor",
+                    "jddiffct",
+                    "jdlossls",
+                    "jdmainct",
+                    "jdpostct",
+                    "jdsample",
+                    "jquant1",
+                    "jquant2",
+                    "jutils"
+                ],
+                "12_bit_sources": "${git}/${12_bit_files_to_duplicate}.c",
+                "12_bit_destinations": "${@}/source/${12_bit_files_to_duplicate}_12.c",
+                "16_bit_sources": "${git}/${16_bit_files_to_duplicate}.c",
+                "16_bit_destinations": "${@}/source/${16_bit_files_to_duplicate}_16.c"
+            }
+        },
+        {
             "operation": "evaluate",
             "values": {
-                "version_string": "'${major}'+'.'+'${minor}'+'.'+'${revision}'",
+                "version_stering": "'${major}'+'.'+'${minor}'+'.'+'${revision}'",
                 "version_number": "${major} * 100000 + ${minor} * 100 + ${revision}"
             }
         },
@@ -28,8 +86,27 @@
                 "source/jerror.h",
                 "source/jpeglib.h",
                 "source/jmorecfg.h",
-                "source/turbojpeg-jni.c"
+                "source/turbojpeg-jni.c",
+                "source/jcapistd.c"
             ]
+        },
+        {
+            "operation": "copy",
+            "source": "${12_bit_sources}",
+            "destination": "${12_bit_destinations}",
+            "replace": [{
+                "file": "${12_bit_destinations}",
+                "prepend": "#define BITS_IN_JSAMPLE 12\n"
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${16_bit_sources}",
+            "destination": "${16_bit_destinations}",
+            "replace": [{
+                "file": "${16_bit_destinations}",
+                "prepend": "#define BITS_IN_JSAMPLE 16\n"
+            }]
         },
         {
             "operation": "copy",
@@ -79,7 +156,7 @@
 	                ["@JPEG_LIB_VERSION@", "80"],
 	                ["#cmakedefine RIGHT_SHIFT_IS_UNSIGNED 1", ""],
 	                ["#cmakedefine", "#define"],
-	                ["@BITS_IN_JSAMPLE@", "8"]
+	                ["@BITS_IN_JSAMPLE@", "12"]
                 ]
             }]
         },
