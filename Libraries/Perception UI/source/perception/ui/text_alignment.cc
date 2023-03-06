@@ -21,9 +21,9 @@
 namespace perception {
 namespace ui {
 
-void CalculateTextAlignment(std::string_view text, int width, int height,
-                            TextAlignment alignment, SkFont& font, int& x,
-                            int& y) {
+void CalculateTextAlignment(std::string_view text, float width, float height,
+                            TextAlignment alignment, SkFont& font, float& x,
+                            float& y) {
   SkRect bounds;
   (void)font.measureText(&text[0], text.length(), SkTextEncoding::kUTF8,
                          &bounds);
@@ -31,6 +31,17 @@ void CalculateTextAlignment(std::string_view text, int width, int height,
   SkFontMetrics font_metrics;
   float line_height = font.getMetrics(&font_metrics);
 
+  CalculateAlignment(bounds.width(), font_metrics.fDescent - font_metrics.fAscent,
+    width, height, alignment, x, y);
+
+  // Skia draws text from the baseline.
+  y -= font_metrics.fAscent;
+}
+
+void CalculateAlignment(float item_width, float item_height,
+  float container_width, float container_height,
+  TextAlignment alignment,
+  float& x, float& y) {
   switch (alignment) {
     case TextAlignment::TopLeft:
     case TextAlignment::TopCenter:
@@ -40,16 +51,14 @@ void CalculateTextAlignment(std::string_view text, int width, int height,
     case TextAlignment::MiddleLeft:
     case TextAlignment::MiddleCenter:
     case TextAlignment::MiddleRight:
-      y = height / 2 - (font_metrics.fDescent - font_metrics.fAscent) / 2;
+      y = container_height / 2.0f - item_height / 2.0f;
       break;
     case TextAlignment::BottomLeft:
     case TextAlignment::BottomCenter:
     case TextAlignment::BottomRight:
-      y = height - line_height;
+      y = item_height - container_height;
       break;
   }
-  // Skia draws text from the baseline.
-  y -= font_metrics.fAscent;
 
   switch (alignment) {
     case TextAlignment::TopLeft:
@@ -60,14 +69,15 @@ void CalculateTextAlignment(std::string_view text, int width, int height,
     case TextAlignment::TopCenter:
     case TextAlignment::MiddleCenter:
     case TextAlignment::BottomCenter:
-      x = width / 2 - bounds.width() / 2;
+      x = container_width / 2.0f - item_width / 2.0f;
       break;
     case TextAlignment::TopRight:
     case TextAlignment::MiddleRight:
     case TextAlignment::BottomRight:
-      x = width - bounds.width();
+      x = container_width - item_width;
       break;
   }
+
 }
 
 }  // namespace ui

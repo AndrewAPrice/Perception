@@ -36,9 +36,13 @@ enum class TextAlignment {
   BottomRight = 8
 };
 
-void CalculateTextAlignment(std::string_view text, int width, int height,
-                            TextAlignment alignment, SkFont& font, int& x,
-                            int& y);
+void CalculateTextAlignment(std::string_view text, float width, float height,
+                            TextAlignment alignment, SkFont& font, float& x,
+                            float& y);
+
+void CalculateAlignment(float item_width, float item_height,
+                        float container_width, float container_height,
+                        TextAlignment alignment, float& x, float& y);
 
 }  // namespace ui
 }  // namespace perception
