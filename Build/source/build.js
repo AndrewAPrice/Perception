@@ -289,7 +289,6 @@ async function forceBuild(packageType, packageName) {
   if (packageType == PackageType.APPLICATION && metadata.libraries) {
     for (let i = 0; i < metadata.libraries.length; i++) {
       const dependency = metadata.libraries[i];
-      const childDefines = {};
       const success = await build(PackageType.LIBRARY, dependency);
       if (!success) {
         console.log('Dependency ' + dependency + ' failed to build.');
