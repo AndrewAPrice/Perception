@@ -26,6 +26,10 @@ Commands: (Replace ./build with build.bat on Windows.)
 - `./build application <application>` - Builds a particular application.
 - `./build library <library>` - Builds a particular library.
 - `./build clean` - Cleans up built files.
+- `./build deep-clean` - Cleans up built files and all third party files. The following build will require recloning all external repositories.
+- `./build update` - Updates all third party packages.
+- `/.build update application <application>` - Updates a particular third party application.
+- `/.build update library <library>` - Updates a particular third party library.
 
 Flags that can be passed:
 - `--local` - Builds for the local OS rather than Perception.

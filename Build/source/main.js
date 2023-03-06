@@ -23,6 +23,7 @@ const {clean} = require('./clean');
 const {PackageType} = require('./package_type');
 const {run} = require('./run');
 const {test} = require('./test');
+const { updateAllThirdPartyPackages, makeSureThirdPartyIsLoaded } = require('./third_party');
 
 // Parse the input.
 let command = '';
@@ -84,6 +85,15 @@ switch (command) {
     break;
   case 'benchmark':
     benchmark();
+  case 'update':
+    updateAllThirdPartyPackages();
+    break;
+  case 'update-library':
+    makeSureThirdPartyIsLoaded(package, PackageType.LIBRARY, /*forceUpdate=*/true);
+    break;
+  case 'update-application':
+    makeSureThirdPartyIsLoaded(package, PackageType.APPLICATION, /*forceUpdate=*/true);
+    break;
   case 'help':
   case undefined:
     break;
