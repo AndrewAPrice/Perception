@@ -49,7 +49,7 @@ class Label : public Widget {
   std::string label_;
   TextAlignment text_alignment_;
   bool realign_text_;
-  int text_x_, text_y_;
+  float text_x_, text_y_;
 
 };
 

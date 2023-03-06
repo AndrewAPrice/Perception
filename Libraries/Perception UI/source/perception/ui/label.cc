@@ -72,12 +72,12 @@ void Label::Draw(DrawContext& draw_context) {
   float left_padding = GetComputedPadding(YGEdgeLeft);
   float top_padding = GetComputedPadding(YGEdgeTop);
 
-  int width = (int)GetCalculatedWidth() - left_padding -
+  float width = GetCalculatedWidth() - left_padding -
               GetComputedPadding(YGEdgeRight);
-  int height = (int)GetCalculatedHeight() - top_padding -
+  float height = GetCalculatedHeight() - top_padding -
                GetComputedPadding(YGEdgeBottom);
-  int x = (int)(GetLeft() + draw_context.offset_x + left_padding);
-  int y = (int)(GetTop() + draw_context.offset_y + top_padding);
+  float x = GetLeft() + draw_context.offset_x + left_padding;
+  float y = GetTop() + draw_context.offset_y + top_padding;
 
   if (realign_text_) {
     CalculateTextAlignment(label_, width, height, text_alignment_, *GetUiFont(),

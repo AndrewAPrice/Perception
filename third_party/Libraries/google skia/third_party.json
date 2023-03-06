@@ -114,7 +114,14 @@
         {
             "operation": "copy",
             "source": "${git}/src/base",
-            "destination": "source/src/base"
+            "destination": "source/src/base",
+            "extensions": [".cpp"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/base",
+            "destination": "public/src/base",
+            "extensions": [".h"]
         },
         {
             "operation": "copy",
@@ -144,7 +151,14 @@
         {
             "operation": "copy",
             "source": "${git}/src/core",
-            "destination": "source/src/core"
+            "destination": "source/src/core",
+            "extensions": [".cpp"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/core",
+            "destination": "public/src/core",
+            "extensions": [".h"]
         },
         {
             "operation": "copy",

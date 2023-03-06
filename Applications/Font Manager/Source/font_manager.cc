@@ -165,7 +165,9 @@ Status MakeSureFontIsLoaded(const std::string& path) {
 
 }  // namespace
 
-FontManager::FontManager() { config_ = FcConfigReference(nullptr); }
+FontManager::FontManager() {
+  config_ = FcConfigReference(nullptr);
+}
 
 FontManager::~FontManager() { FcConfigDestroy(config_); }
 
@@ -240,9 +242,6 @@ StatusOr<Permebuf<FM::MatchFontResponse>> FontManager::HandleMatchFont(
   response->SetFamilyName(std::string_view(post_config_family));
   response->MutableData().MutableBuffer().SetBuffer(
       font_data_by_path[resolved_filename]->buffer);
-
-  std::cout << "Returning " << resolved_filename << " of size " <<
-  response->GetData().GetBuffer().GetBuffer().GetSize() << std::endl;
 
   PopulateFontStyleFromFcPattern(*match, response->MutableStyle());
 
