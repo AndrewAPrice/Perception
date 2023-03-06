@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const child_process = require('child_process');
-const { getPackageDirectory } = require('./package_directory');
+const { getPackageDirectory, getAllApplications, getAllLibraries } = require('./package_directory');
 const { PackageType } = require('./package_type');
 const { getStandaloneApplicationMetadata, getStandaloneLibraryMetadata } =
   require('./metadata');
@@ -59,6 +59,13 @@ function makeSureRepositoriesMapIsLoaded() {
   repositoriesToIds = {};
   nextRepositoryId = true;
   return true;
+}
+
+function maybeFlattenArray(possibleArray) {
+  if (Array.isArray(possibleArray) && possibleArray.length == 1)
+    return possibleArray[0];
+  else
+    return possibleArray;
 }
 
 function maybeFlushRepositoriesMap() {
@@ -214,6 +221,24 @@ function substitutePlaceholders(str, placeholderInfo, allowArrays) {
     const regex = placeholderKeys.join("|");
     placeholderInfo.regex = new RegExp(regex, "gi");
   }
+  str = maybeFlattenArray(str);
+
+  if (Array.isArray(str)) {
+    if (allowArrays) {
+      const results = [];
+      str.forEach(semiStr => {
+        substitutePlaceholders(str, placeholderInfo, true).forEach(result => {
+          results.push(result);
+        });
+      });
+      return results;
+    } else {
+      console.log('Input is an array where an array isn\'t supported:');
+      console.log(str);
+      console.log('Going to use the first item only.');
+      str = str.length > 0 ? str[0] : "";
+    }
+  }
 
   const arraysToSplit = [];
 
@@ -233,6 +258,8 @@ function substitutePlaceholders(str, placeholderInfo, allowArrays) {
 
   if (arraysToSplit.length > 0) {
     return splitArray(str, arraysToSplit, 0, placeholderInfo);
+  } else if (allowArrays) {
+    return [str];
   } else {
     return str;
   }
@@ -266,13 +293,7 @@ function createExcludeMap(operationMetadata, placeholderInfo) {
 
   operationMetadata.exclude.forEach(excludePath => {
     const rawPaths = evaluatePath(excludePath, placeholderInfo, /*allowArrays=*/true);
-    if (Array.isArray(rawPaths)) {
-      rawPaths.forEach(rawPath => {
-        excludeMap[rawPath] = true;
-      });
-    } else {
-      excludeMap[rawPaths] = true;
-    }
+    rawPaths.forEach(rawPath => { excludeMap[rawPath] = true; });
   });
 
   return excludeMap;
@@ -306,17 +327,16 @@ function createReplaceMap(operationMetadata, placeholderInfo) {
 
   operationMetadata.replace.forEach((replace) => {
     const rawPaths = evaluatePath(replace.file, placeholderInfo, /*allowArrays=*/true);
-    const replaceArray = createReplaceArray(replace, placeholderInfo);
-    if (Array.isArray(rawPaths)) {
-      rawPaths.forEach(rawPath => {
-        replaceMap[rawPaths] =
-          replaceArray;
-      });
-    }
-    else {
-      replaceMap[rawPaths] =
-        replaceArray;
-    }
+    const replaceArray = replace.replacements ? createReplaceArray(replace, placeholderInfo) : null;
+    const prepend = replace.prepend ? substitutePlaceholders(replace.prepend, placeholderInfo, /*allowArrays=*/true) : null;
+    rawPaths.forEach(rawPath => {
+      const obj = {};
+      if (replaceArray)
+        obj.replacements = replaceArray;
+      if (prepend)
+        obj.prepend = prepend;
+      replaceMap[rawPath] = obj;
+    });
   });
   return replaceMap;
 }
@@ -331,9 +351,18 @@ function copyFile(from, to, replaceMap, thirdPartyFiles) {
       console.log('Error reading ' + from);
       return false;
     }
-    replaceMap[to].forEach((replacement) => {
-      contents = contents.replaceAll(replacement[0], replacement[1]);
-    });
+
+    const replaceMapForFile = replaceMap[to];
+    if (replaceMapForFile.prepend) {
+      replaceMapForFile.prepend.forEach((prepend) => {
+        contents = prepend + contents;
+      });
+    }
+    if (replaceMapForFile.replacements) {
+      replaceMapForFile.replacements.forEach((replacement) => {
+        contents = contents.replaceAll(replacement[0], replacement[1]);
+      });
+    }
 
     try {
       fs.writeFileSync(to, contents, 'utf8');
@@ -380,10 +409,27 @@ function copyFilesInDirectory(from, to, thirdPartyFiles, extensions, recursive, 
 }
 
 function executeCopy(operationMetadata, placeholderInfo, thirdPartyFiles) {
-  const from = evaluatePath(operationMetadata.source, placeholderInfo);
-  const to = evaluatePath(operationMetadata.destination, placeholderInfo);
+  const fromArr = evaluatePath(operationMetadata.source, placeholderInfo, /*allowArrays=*/true);
+  const toArr = evaluatePath(operationMetadata.destination, placeholderInfo, /*allowArrays=*/true);
   const replaceMap = createReplaceMap(operationMetadata, placeholderInfo);
 
+  if (fromArr.length != toArr.length) {
+    console.log("Source and destination aren't the same length.");
+    console.log("Source:");
+    console.log(fromArr);
+    console.log("Destination:");
+    console.log(toArr);
+    return false;
+  }
+
+  for (let i = 0; i < fromArr.length; i++) {
+    if (!executeSingleCopy(operationMetadata, fromArr[i], toArr[i], replaceMap, placeholderInfo, thirdPartyFiles))
+      return false;
+  }
+  return true;
+}
+
+function executeSingleCopy(operationMetadata, from, to, replaceMap, placeholderInfo, thirdPartyFiles) {
   if (!fs.existsSync(from)) {
     console.log(operationMetadata.source + ' doesn\'t exist, full path: ' + from);
     return false;
@@ -403,7 +449,6 @@ function executeCopy(operationMetadata, placeholderInfo, thirdPartyFiles) {
 
 function executeCreateDirectory(operationMetadata, placeholderInfo, thirdPartyFiles) {
   let paths = evaluatePath(operationMetadata.path, placeholderInfo, /*allowArrays=*/true);
-  if (!Array.isArray(paths)) paths = [paths];
 
   paths.forEach(path => {
     if (!fs.existsSync(path))
@@ -426,10 +471,10 @@ function evaluate(expression) {
 
 function executeEvaluate(operationMetadata, placeholderInfo, thirdPartyFiles) {
   const valueKeys = Object.keys(operationMetadata.values).forEach(key => {
-    placeholderInfo.placeholders["${" + key + "}"] =
-      evaluate(substitutePlaceholders(operationMetadata.values[key], placeholderInfo, /*splitArrays=*/true));
+    placeholderInfo.placeholders["${" + key + "}"] = maybeFlattenArray(
+      evaluate(substitutePlaceholders(operationMetadata.values[key], placeholderInfo, /*splitArrays=*/true)));
+    placeholderInfo.regex = null;
   });
-  placeholderInfo.regex = null;
 
   return true;
 }
@@ -443,9 +488,8 @@ function executeExecute(operationMetadata, placeholderInfo, thirdPartyFiles) {
 
   for (let inputIndex = 0; operationMetadata.inputs && inputIndex < operationMetadata.inputs.length; inputIndex++) {
     const inputPath = operationMetadata.inputs[inputIndex];
-    let rawPaths = evaluatePath(inputPath, placeholderInfo, /*allowArrays=*/true);
-    if (!Array.isArray(rawPaths)) rawPaths = [rawPaths];
-    for (let rawPathIndex = 0; rawPathIndex < rawPaths.length; rawPaths++) {
+    const rawPaths = evaluatePath(inputPath, placeholderInfo, /*allowArrays=*/true);
+    for (let rawPathIndex = 0; rawPathIndex < rawPaths.length; rawPathIndex++) {
       const rawPath = rawPaths[rawPathIndex];
       if (!fs.existsSync(rawPath)) {
         console.log(inputPath + ' doesn\'t exist. Full path ' + rawPath);
@@ -459,9 +503,8 @@ function executeExecute(operationMetadata, placeholderInfo, thirdPartyFiles) {
 
   for (let outputIndex = 0; operationMetadata.outputs && outputIndex < operationMetadata.outputs.length; outputIndex++) {
     const outputPath = operationMetadata.outputs[outputIndex];
-    let rawPaths = evaluatePath(outputPath, placeholderInfo, /*allowArrays=*/true);
-    if (!Array.isArray(rawPaths)) rawPaths = [rawPaths];
-    for (let rawPathIndex = 0; rawPathIndex < rawPaths.length; rawPaths++) {
+    const rawPaths = evaluatePath(outputPath, placeholderInfo, /*allowArrays=*/true);
+    for (let rawPathIndex = 0; rawPathIndex < rawPaths.length; rawPathIndex++) {
       const rawPath = rawPaths[rawPathIndex];
       rawOutputPaths.push(rawPath);
       thirdPartyFiles[rawPath] = true;
@@ -505,8 +548,7 @@ function executeExecute(operationMetadata, placeholderInfo, thirdPartyFiles) {
 
 function executeJoinArray(operationMetadata, placeholderInfo, thirdPartyFiles) {
   const replacements = createReplaceArray(operationMetadata, placeholderInfo);
-  let values = substitutePlaceholders(operationMetadata.value, placeholderInfo, /*allowArrays=*/true);
-  if (!Array.isArray(values)) values = [values];
+  const values = substitutePlaceholders(operationMetadata.value, placeholderInfo, /*allowArrays=*/true);
   const finalValues = [];
 
   if (replacements) {
@@ -530,10 +572,7 @@ function executeJoinArray(operationMetadata, placeholderInfo, thirdPartyFiles) {
 }
 
 function executeReadFilesInDirectory(operationMetadata, placeholderInfo, thirdPartyFiles) {
-  let paths = substitutePlaceholders(operationMetadata.path, placeholderInfo, /*allowArrays=*/true);
-  if (!Array.isArray(paths)) {
-    paths = [paths];
-  }
+  const paths = substitutePlaceholders(operationMetadata.path, placeholderInfo, /*allowArrays=*/true);
 
   const filesFound = [];
   const extensions = convertExtensionArrayToMap(operationMetadata);
@@ -569,7 +608,7 @@ function executeReadFilesInDirectory(operationMetadata, placeholderInfo, thirdPa
     }
   }
 
-  placeholderInfo.placeholders['${' + operationMetadata.placeholder + '}'] = filesFound;
+  placeholderInfo.placeholders['${' + operationMetadata.placeholder + '}'] = maybeFlattenArray(filesFound);
   placeholderInfo.regex = null;
   return true;
 }
@@ -599,7 +638,7 @@ function executeReadRegExFromFile(operationMetadata, placeholderInfo, thirdParty
     for (let index = 0; index < keys.length &&
       index < values.length; index++) {
       if (keys[index] == '') continue;  // Don't care about this value.
-      placeholderInfo.placeholders['${' + keys[index] + '}'] = values[index];
+      placeholderInfo.placeholders['${' + keys[index] + '}'] = maybeFlattenArray(values[index]);
     }
   }
 
@@ -608,6 +647,25 @@ function executeReadRegExFromFile(operationMetadata, placeholderInfo, thirdParty
   return true;
 }
 
+
+function executeSet(operationMetadata, placeholderInfo, thirdPartyFiles) {
+  const valueKeys = Object.keys(operationMetadata.values).forEach(key => {
+    let vals = operationMetadata.values[key];
+    if (!Array.isArray(vals)) vals = [vals];
+
+    const substitutedVals = [];
+    vals.forEach(val => {
+      substitutePlaceholders(val, placeholderInfo, /*splitArrays=*/true).forEach(
+        substitutedVal => { substitutedVals.push(substitutedVal); } );
+    });
+    placeholderInfo.placeholders["${" + key + "}"] = maybeFlattenArray(substitutedVals);
+    placeholderInfo.regex = null;
+  });
+
+  return true;
+}
+
+
 const operationLookupTable = {
   'copy': executeCopy,
   'createDirectory': executeCreateDirectory,
@@ -615,7 +673,8 @@ const operationLookupTable = {
   'execute': executeExecute,
   'joinArray': executeJoinArray,
   'readFilesInDirectory': executeReadFilesInDirectory,
-  'readRegExFromFile': executeReadRegExFromFile
+  'readRegExFromFile': executeReadRegExFromFile,
+  'set': executeSet
 };
 
 function executeOperation(operationMetadata, placeholderInfo, thirdPartyFiles) {
@@ -719,12 +778,9 @@ function prepareThirdPartyPackage(metadata, packageDirectory, thirdPartyFilesPat
   return flushThirdPartyFiles(thirdPartyFiles, thirdPartyFilesPath, /*hadErrors=*/false);
 }
 
-function loadThirdParty(packageName, packageType, metadata) {
+function loadThirdParty(packageName, packageType, metadata, forceUpdate) {
   if (!metadata.third_party) {
-    // Not a third party package. This should never trigger.
-    console.log(
-      'Warning: ' + packageName +
-      ' is not a third party package. Not sure why third_party.js#loadThirdParty is being called.');
+    // Not a third party package.
     return true;
   }
 
@@ -738,7 +794,7 @@ function loadThirdParty(packageName, packageType, metadata) {
       ' "' + name + '". Expected the file to be at: ' + metadataPath);
   }
   const thirdPartyFilesPath = packageDirectory + 'third_party_files.json';
-  if (!fs.existsSync(thirdPartyFilesPath) ||
+  if (forceUpdate || !fs.existsSync(thirdPartyFilesPath) ||
     getFileLastModifiedTimestamp(metadataPath) > getFileLastModifiedTimestamp(thirdPartyFilesPath)) {
     let metadata = {};
     try {
@@ -754,24 +810,34 @@ function loadThirdParty(packageName, packageType, metadata) {
   return true;
 }
 
-function makeSureThirdPartyIsLoaded(packageName, packageType) {
+function makeSureThirdPartyIsLoaded(packageName, packageType, forceUpdate) {
   if (packageType == PackageType.LIBRARY) {
     if (loadedThirdPartyLibraries[packageName] == undefined) {
       loadedThirdPartyLibraries[packageName] = loadThirdParty(
-        packageName, packageType, getStandaloneLibraryMetadata(packageName));
+        packageName, packageType, getStandaloneLibraryMetadata(packageName), forceUpdate);
     }
     return loadedThirdPartyLibraries[packageName];
   } else if (packageType == PackageType.APPLICATION) {
     if (loadedThirdPartyApplications[packageName] == undefined) {
       loadedThirdPartyApplications[packageName] = loadThirdParty(
         packageName, packageType,
-        getStandaloneApplicationMetadata(packageName));
+        getStandaloneApplicationMetadata(packageName), forceUpdate);
     }
     return loadedThirdPartyApplications[packageName];
   }
   return false;
 }
 
+function updateAllThirdPartyPackages() {
+  getAllApplications().forEach(application => {
+    makeSureThirdPartyIsLoaded(application, PackageType.APPLICATION, /*forceUpdate=*/true);
+  });
+  getAllLibraries().forEach(library => {
+    makeSureThirdPartyIsLoaded(library, PackageType.LIBRARY, /*forceUpdate=*/true);
+  });
+}
+
 module.exports = {
-  makeSureThirdPartyIsLoaded: makeSureThirdPartyIsLoaded
+  makeSureThirdPartyIsLoaded: makeSureThirdPartyIsLoaded,
+  updateAllThirdPartyPackages: updateAllThirdPartyPackages
 };
