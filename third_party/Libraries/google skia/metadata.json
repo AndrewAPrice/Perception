@@ -12,6 +12,7 @@
 		"public"	
 	],
 	"define": [
+		"SK_CODEC_DECODES_JPEG",
 		"SK_CODEC_DECODES_JPEG_GAINMAPS",
 		"SK_GANESH",
 		"SK_GANESH_ENABLED",

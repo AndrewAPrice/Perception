@@ -282,6 +282,7 @@
                 "source/src/ports/SkImageEncoder_CG.cpp",
                 "source/src/ports/SkImageEncoder_NDK.cpp",
                 "source/src/ports/SkImageEncoder_WIC.cpp",
+                "source/src/ports/SkImageGenerator_none.cpp",
                 "source/src/ports/SkImageGeneratorCG.cpp",
                 "source/src/ports/SkImageGeneratorNDK.cpp",
                 "source/src/ports/SkImageGeneratorWIC.cpp",
