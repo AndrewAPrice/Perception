@@ -7,6 +7,7 @@
 #include "messages.h"
 #include "physical_allocator.h"
 #include "process.h"
+#include "profiling.h"
 #include "registers.h"
 #include "scheduler.h"
 #include "service.h"
@@ -44,7 +45,6 @@ void InitializeSystemCalls() {
 }
 
 // Syscalls.
-// Next id is 51.
 #define PRINT_DEBUG_CHARACTER 0
 #define PRINT_REGISTERS_AND_STACK 26
 // Threading
@@ -105,6 +105,8 @@ void InitializeSystemCalls() {
 #define SEND_MESSAGE_AT_TIMESTAMP 24
 #define GET_CURRENT_TIMESTAMP 25
 
+#define TOTAL_SYSCALL_COUNT 51
+
 extern void JumpIntoThread();
 
 void SyscallHandler(int syscall_number) {
@@ -113,6 +115,10 @@ void SyscallHandler(int syscall_number) {
   PrintNumber(syscall_number);
   PrintChar('\n');
   PrintRegisters(currently_executing_thread_regs);
+#endif
+
+#ifdef PROFILING_ENABLED
+  size_t syscall_start_time = CurrentTimeForProfiling();
 #endif
   switch (syscall_number) {
     case PRINT_DEBUG_CHARACTER:
@@ -602,6 +608,9 @@ void SyscallHandler(int syscall_number) {
           GetCurrentTimestampInMicroseconds();
       break;
   }
+#ifdef PROFILING_ENABLED
+  ProfileSyscall(syscall_number, syscall_start_time);
+#endif
 #ifdef DEBUG
   PrintString("Leaving syscall: ");
   PrintNumber(syscall_number);

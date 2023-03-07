@@ -5,6 +5,7 @@
 #include "messages.h"
 #include "object_pools.h"
 #include "process.h"
+#include "profiling.h"
 #include "scheduler.h"
 #include "text_terminal.h"
 #include "timer_event.h"
@@ -13,6 +14,11 @@
 #define TIME_SLICES_PER_SECOND 100
 volatile size_t microseconds_since_kernel_started;
 struct TimerEvent* next_scheduled_timer_event;
+
+#ifdef PROFILING_ENABLED
+#define PROFILE_INTERVAL_IN_MICROSECONDS 10000000
+size_t microseconds_until_next_profile;
+#endif
 
 // Sets the timer to fire 'hz' times per second.
 void SetTimerPhase(size_t hz) {
@@ -24,7 +30,17 @@ void SetTimerPhase(size_t hz) {
 
 // The function that gets called each time to timer fires.
 void TimerHandler() {
-  microseconds_since_kernel_started += (1000000 / TIME_SLICES_PER_SECOND);
+  size_t delta_time = (1000000 / TIME_SLICES_PER_SECOND);
+  microseconds_since_kernel_started += delta_time;
+
+#ifdef PROFILING_ENABLED
+  if (delta_time >= microseconds_until_next_profile) {
+    PrintProfilingInformation();
+    microseconds_until_next_profile = PROFILE_INTERVAL_IN_MICROSECONDS;
+  } else {
+    microseconds_until_next_profile -= delta_time;
+  }
+#endif
 
   // Call any timer events that are scheduled to run.
   while (next_scheduled_timer_event != NULL &&
@@ -69,6 +85,10 @@ void InitializeTimer() {
   microseconds_since_kernel_started = 0;
   next_scheduled_timer_event = NULL;
   SetTimerPhase(TIME_SLICES_PER_SECOND);
+
+#ifdef PROFILING_ENABLED
+  microseconds_until_next_profile = PROFILE_INTERVAL_IN_MICROSECONDS;
+#endif
 }
 
 // Returns the current time, in microseconds, since the kernel has started.

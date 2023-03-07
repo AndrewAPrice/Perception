@@ -15,3 +15,6 @@ extern void PrintHex(size_t h);
 
 // Prints a number as a decimal string.
 extern void PrintNumber(size_t n);
+
+// Prints a number as a decimal string without commas.
+extern void PrintNumberWithoutCommas(size_t n);

@@ -6,6 +6,7 @@
 #include "object_pools.h"
 #include "physical_allocator.h"
 #include "process.h"
+#include "profiling.h"
 #include "scheduler.h"
 #include "service.h"
 #include "shared_memory.h"
@@ -40,6 +41,7 @@ void kmain() {
 
   InitializeScheduler();
   InitializeTimer();
+  InitializeProfiling();
 
   // Loads the multiboot modules, then frees the memory used by them.
   LoadMultibootModules();

@@ -108,3 +108,21 @@ void PrintNumber(size_t n) {
       PrintChar(',');
   }
 }
+
+void PrintNumberWithoutCommas(size_t n) {
+  if (n == 0) {
+    PrintChar('0');
+    return;
+  }
+  char temp[20];
+  size_t first_char = 20;
+
+  while (n > 0) {
+    first_char--;
+    temp[first_char] = '0' + (char)(n % 10);
+    n /= 10;
+  }
+
+  size_t i;
+  for (i = first_char; i < 20; i++) PrintChar(temp[i]);
+}
