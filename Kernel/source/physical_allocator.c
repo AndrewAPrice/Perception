@@ -259,6 +259,10 @@ size_t GetPhysicalPagePreVirtualMemory() {
 // Grabs the next physical page, returns OUT_OF_PHYSICAL_PAGES if there are no
 // more physical pages.
 size_t GetPhysicalPage() {
+  return GetPhysicalPageAtOrBelowAddress(0xFFFFFFFFFFFFFFFF);
+}
+
+size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
   if (next_free_page_address == OUT_OF_PHYSICAL_PAGES) {
     // Ran out of memory. Try to clean up some memory.
     CleanUpObjectPools();
@@ -272,10 +276,41 @@ size_t GetPhysicalPage() {
   // Take the top page from the stack.
   size_t addr = next_free_page_address;
 
-  // Pop it from the stack by mapping the page to physical memory so we can grab
-  // the pointer to the next free page.
-  size_t *bp = (size_t *)TemporarilyMapPhysicalMemory(addr, 5);
-  next_free_page_address = *bp;
+  size_t *bp;
+
+  if (addr <= max_base_address) {
+    // The first address was sufficient. This should be the most common use case
+    // except for drivers that a low physical memor address for DMA.
+
+    // Pop it from the stack by mapping the page to physical memory so we can
+    // grab the pointer to the next free page.
+    bp = (size_t *)TemporarilyMapPhysicalMemory(addr, 5);
+    next_free_page_address = *bp;
+  } else {
+    // Keep walking the stack of free pages until we find one that's below the
+    // max base address.
+
+    // We need to remember the previous address so we can update the pointer in
+    // the stack to skip over the page we took out.
+    size_t previous_addr;
+    size_t *previous_bp;
+    do {
+      // Walk to the next page.
+      previous_addr = addr;
+      previous_bp = (size_t *)TemporarilyMapPhysicalMemory(addr, 5);
+      addr = *previous_bp;
+
+      if (addr == OUT_OF_PHYSICAL_PAGES) {
+        // We've reached the end of the stack.
+        return OUT_OF_PHYSICAL_PAGES;
+      }
+    } while (addr <= max_base_address);
+
+    bp = (size_t *)TemporarilyMapPhysicalMemory(addr, 6);
+
+    // Update the previous page to skip over this page.
+    *previous_bp = *bp;
+  }
 
   // Clear out the page, so we don't leak anything from another process.
   memset((unsigned char *)bp, 0, PAGE_SIZE);

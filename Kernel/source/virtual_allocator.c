@@ -685,6 +685,12 @@ size_t GetOrCreateVirtualPage(size_t pml4, size_t virtualaddr) {
 }
 
 size_t AllocateVirtualMemoryInAddressSpace(size_t pml4, size_t pages) {
+  return AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
+      pml4, pages, 0xFFFFFFFFFFFFFFFF);
+}
+
+size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
+    size_t pml4, size_t pages, size_t max_base_address) {
   size_t start = FindFreePageRange(pml4, pages);
   if (start == OUT_OF_MEMORY) {
     return 0;
@@ -695,7 +701,7 @@ size_t AllocateVirtualMemoryInAddressSpace(size_t pml4, size_t pages) {
   size_t i;
   for (i = 0; i < pages; i++, addr += PAGE_SIZE) {
     // Get a physical page.
-    size_t phys = GetPhysicalPage();
+    size_t phys = GetPhysicalPageAtOrBelowAddress(max_base_address);
 
     if (phys == OUT_OF_PHYSICAL_PAGES) {
       // No physical pages. Unmap all memory up until this point.
@@ -1140,8 +1146,7 @@ void UnmapSharedMemoryFromProcess(
   ReleaseSharedMemoryInProcess(shared_memory_in_process);
 }
 
-void SetMemoryAccessRights(
-    size_t pml4, size_t address, size_t rights) {
+void SetMemoryAccessRights(size_t pml4, size_t address, size_t rights) {
   size_t pml4_entry = (address >> 39) & 511;
   size_t pml3_entry = (address >> 30) & 511;
   size_t pml2_entry = (address >> 21) & 511;

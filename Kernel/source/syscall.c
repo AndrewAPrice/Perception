@@ -44,7 +44,7 @@ void InitializeSystemCalls() {
 }
 
 // Syscalls.
-// Next id is 49.
+// Next id is 51.
 #define PRINT_DEBUG_CHARACTER 0
 #define PRINT_REGISTERS_AND_STACK 26
 // Threading
@@ -61,8 +61,10 @@ void InitializeSystemCalls() {
 #define SET_ADDRESS_TO_CLEAR_ON_THREAD_TERMINATION 28
 // Memory management
 #define ALLOCATE_MEMORY_PAGES 12
+#define ALLOCATE_MEMORY_PAGES_BELOW_PHYSICAL_BASE 49
 #define RELEASE_MEMORY_PAGES 13
 #define MAP_PHYSICAL_MEMORY 41
+#define GET_PHYSICAL_ADDRESS_OF_VIRTUAL_ADDRESS 50
 #define GET_FREE_SYSTEM_MEMORY 14
 #define GET_MEMORY_USED_BY_PROCESS 15
 #define GET_TOTAL_SYSTEM_MEMORY 16
@@ -188,6 +190,22 @@ void SyscallHandler(int syscall_number) {
               running_thread->process->pml4,
               currently_executing_thread_regs->rax);
       break;
+    case ALLOCATE_MEMORY_PAGES_BELOW_PHYSICAL_BASE:
+      if (running_thread->process->is_driver) {
+        size_t first_physical_address = 0;
+        currently_executing_thread_regs->rax =
+            AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
+                running_thread->process->pml4,
+                currently_executing_thread_regs->rax,
+                currently_executing_thread_regs->rbx);
+        currently_executing_thread_regs->rbx = GetPhysicalAddress(
+            running_thread->process->pml4, currently_executing_thread_regs->rax,
+            /*ignore_unowned_pages=*/false);
+      } else {
+        currently_executing_thread_regs->rax = OUT_OF_MEMORY;
+        currently_executing_thread_regs->rbx = 0;
+      }
+      break;
     case RELEASE_MEMORY_PAGES:
       ReleaseVirtualMemoryInAddressSpace(
           running_thread->process->pml4, currently_executing_thread_regs->rax,
@@ -201,6 +219,15 @@ void SyscallHandler(int syscall_number) {
             currently_executing_thread_regs->rbx);
       } else {
         currently_executing_thread_regs->rax = OUT_OF_MEMORY;
+      }
+      break;
+    case GET_PHYSICAL_ADDRESS_OF_VIRTUAL_ADDRESS:
+      if (running_thread->process->is_driver) {
+        currently_executing_thread_regs->rax = GetPhysicalAddress(
+            running_thread->process->pml4, currently_executing_thread_regs->rax,
+            /*ignore_unowned_pages=*/false);
+      } else {
+        currently_executing_thread_regs->rax = 0;
       }
       break;
     case GET_FREE_SYSTEM_MEMORY:

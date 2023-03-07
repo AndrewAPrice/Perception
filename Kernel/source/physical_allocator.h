@@ -37,5 +37,9 @@ extern size_t GetPhysicalPagePreVirtualMemory();
 // more physical pages.
 extern size_t GetPhysicalPage();
 
+// Grabs the next physical page starting at or bleow the provided physical
+// address, returns OUT_OF_PHYSICAL_PAGES if there are no more physical pages.
+extern size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address);
+
 // Frees a physical page.
 extern void FreePhysicalPage(size_t addr);

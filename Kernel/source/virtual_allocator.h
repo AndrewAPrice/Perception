@@ -45,7 +45,11 @@ extern bool MapPhysicalPageToVirtualPage(size_t pml4, size_t virtualaddr,
                                          bool can_write,
                                          bool throw_exception_on_access);
 
+
 extern size_t AllocateVirtualMemoryInAddressSpace(size_t pml4, size_t pages);
+
+extern size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(size_t pml4, size_t pages,
+                                                  size_t max_base_address);
 
 extern size_t ReleaseVirtualMemoryInAddressSpace(size_t pml4, size_t addr,
                                                  size_t pages, bool free);
@@ -97,5 +101,4 @@ extern void UnmapSharedMemoryFromProcess(
 // rights are a bitfield:
 //  Bit 0: The memory can be written to.
 //  Bit 1: The memory can be executed.
-extern void SetMemoryAccessRights(
-    size_t pml4, size_t address, size_t rights);
+extern void SetMemoryAccessRights(size_t pml4, size_t address, size_t rights);

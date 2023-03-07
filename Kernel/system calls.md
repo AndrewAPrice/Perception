@@ -148,8 +148,18 @@ Allocates a contiguous set of memory pages into the process. Memory pages are 4K
 * `rdi` - 12
 * `rax` - Number of memory pages to allocate.
 
+
+## Allocate memory pages at or below physical address.
+Allocates a contiguous set of memory pages into the process. All pages will be at or below the provided physical address. Only drivers can call this.
+
+### Input
+* `rdi` - 49
+* `rax` - Number of memory pages to allocate.
+* `rbx` - Physical address that the pages must be under.
+
 ### Output
 * `rax` - The address of the start of the set of memory pages, or 1 if no memory could be allocated.
+* `rbx` - The physical address of the first memory page.
 
 ## Release memory pages
 Releases memory pages from the process back the operating system. Memory pages are 4KB each.
@@ -172,6 +182,16 @@ Maps a physical memory page into the process. Only drivers can call this.
 
 ### Output
 * `rax` - The starting address of the set of memory pages, or 1 if it could not be allocated.
+
+## Get physical address of memory
+Returns the physical address of a virtual memory address. Only drivers can call this.
+
+### Input
+* `rdi` - 50
+* `rax` - The virtual address to get the physical memory of.
+
+### Output
+* `rax` - The physical address of the virtual address.
 
 ## Get free system memory
 Returns the amount of free memory on the system that has not yet been allocated.
