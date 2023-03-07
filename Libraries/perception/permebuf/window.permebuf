@@ -37,4 +37,8 @@ service Window {
 	// Notifies a window that it has lost focus.
 	minimessage LostFocusMessage {}
 	LostFocus : LostFocusMessage = 4;
+
+	// Notifies a window that the display environment has changed.
+	minimessage DisplayEnvironmentChangedMessage {}
+	DisplayEnvironmentChanged : DisplayEnvironmentChangedMessage = 5;
 }

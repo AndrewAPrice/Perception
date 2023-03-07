@@ -24,7 +24,7 @@
 using ::perception::ShowLauncher;
 using WM = ::permebuf::perception::WindowManager;
 
-StatusOr<WM::CreateWindowResponse> WindowManager::HandleCreateWindow(
+StatusOr<Permebuf<WM::CreateWindowResponse>> WindowManager::HandleCreateWindow(
     ::perception::ProcessId sender,
     Permebuf<WindowManager::WM::CreateWindowRequest> request) {
   Window* window;
@@ -41,12 +41,12 @@ StatusOr<WM::CreateWindowResponse> WindowManager::HandleCreateWindow(
         request->GetKeyboardListener(), request->GetMouseListener());
   }
 
-  WM::CreateWindowResponse response;
+  Permebuf<WM::CreateWindowResponse> response;
   if (window != nullptr) {
     // Respond with the window dimensions if we were able to create this
     // window.
-    response.SetWidth(window->GetWidth());
-    response.SetHeight(window->GetHeight());
+    response->SetWidth(window->GetWidth());
+    response->SetHeight(window->GetHeight());
   }
   return response;
 }

@@ -413,8 +413,8 @@ UiWindow* UiWindow::Create() {
   auto status_or_result =
       WindowManager::Get().CallCreateWindow(std::move(create_window_request));
   if (status_or_result) {
-    buffer_width_ = status_or_result->GetWidth();
-    buffer_height_ = status_or_result->GetHeight();
+    buffer_width_ = (*status_or_result)->GetWidth();
+    buffer_height_ = (*status_or_result)->GetHeight();
   } else {
     buffer_width_ = 0;
     buffer_height_ = 0;

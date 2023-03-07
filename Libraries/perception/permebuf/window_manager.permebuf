@@ -50,12 +50,15 @@ service WindowManager {
 		// mouse events.
 		MouseListener : devices.MouseListener = 8;
 	}
-	minimessage CreateWindowResponse {
+	message CreateWindowResponse {
 		// The width of the window.
 		Width : int16 = 1;
 
 		// The height of the window.
 		Height : int16 = 2;
+
+		// The current display environment.
+		DisplayEnvironment : DisplayEnvironment = 3;
 	}
 	CreateWindow : CreateWindowRequest -> CreateWindowResponse = 0;
 
@@ -116,4 +119,32 @@ service WindowManager {
 		Height : uint16 = 2;
 	}
 	GetMaximumWindowSize : GetMaximumWindowSizeRequest -> GetMaximumWindowSizeResponse = 7;
+
+	// Represents the screen's color space.
+	message ColorSpace {
+		// 7-d vector describing how to linearize the gamma.
+		TransferFunction : array<float32> = 1;
+
+		// A 3x3 matrix to convert the color to XYZ D50 color space.
+		Matrix : array<float32> = 2;
+	}
+
+	// Represents the enviroment that windows are being dispalyed on.
+	message DisplayEnvironment {
+		// The width of the screen.
+		ScreenWidth : uint16 = 1;
+
+		// The height of the screen.
+		ScreenHeight : uint16 = 2;
+
+		// The amount to scale whatever being drawn to the screen by.
+		Scale : float32 = 3;
+
+		// The color-space of the display device.
+		ColorSpace : ColorSpace = 4;
+	}
+
+	// Gets the current display environment.
+	minimessage GetDisplayEnvironmentRequest {}
+	GetDisplayEnvironment : GetDisplayEnvironmentRequest -> DisplayEnvironment = 8;
 }
