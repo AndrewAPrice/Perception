@@ -47,6 +47,32 @@ void* AllocateMemoryPages(size_t number) {
 #endif
 }
 
+void* AllocateMemoryPagesBelowPhysicalAddressBase(
+    size_t number, size_t max_base_address, size_t& first_physical_address) {
+#if PERCEPTION
+  volatile register size_t syscall_num asm("rdi") = 49;
+  volatile register size_t param1 asm("rax") = number;
+  volatile register size_t param2 asm("rbx") = max_base_address;
+  volatile register size_t return_val asm("rax");
+  volatile register size_t first_physical_address_r asm("rbx");
+
+  __asm__ __volatile__("syscall\n"
+                       : "=r"(return_val), "=r"(first_physical_address_r)
+                       : "r"(syscall_num), "r"(param1), "r"(param2)
+                       : "rcx", "r11");
+  if (return_val == kOutOfMemory) {
+    first_physical_address = 0;
+    return nullptr;
+  } else {
+    first_physical_address = first_physical_address_r;
+    return (void*)return_val;
+  }
+#else
+  first_physical_address = 0;
+  return nullptr;
+#endif
+}
+
 void ReleaseMemoryPages(void* ptr, size_t number) {
 #if PERCEPTION
   volatile register size_t syscall_num asm("rdi") = 13;
@@ -79,6 +105,27 @@ void* MapPhysicalMemory(size_t physical_address, size_t pages) {
     return (void*)return_val;
 #else
   return nullptr;
+#endif
+}
+
+size_t GetPhysicalAddressOfVirtualAddress(size_t virtual_address) {
+#if PERCEPTION
+  volatile register size_t syscall_num asm("rdi") = 50;
+  volatile register size_t param1 asm("rax") = virtual_address;
+  volatile register size_t return_val asm("rax");
+
+  __asm__ __volatile__("syscall\n"
+                       : "=r"(return_val)
+                       : "r"(syscall_num), "r"(param1)
+                       : "rcx", "r11");
+  if (return_val == kOutOfMemory)
+    return 0;
+  else {
+    size_t offset_in_page = virtual_address & (kPageSize - 1);
+    return return_val + offset_in_page;
+  }
+#else
+  return virtual_address;
 #endif
 }
 

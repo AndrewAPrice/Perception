@@ -136,6 +136,14 @@
     Read8BitsFromPort(ATA_DCR(bus)); \
   }
 
+/* Bus Master Register offsets. */
+#define ATA_BMR_COMMAND(x) (x + 0x0)
+#define ATA_BMR_STATUS(x) (x + 0x2)
+#define ATA_BMR_PRDT(x) (x + 0x4)
+
+#define ATA_BMR_COMMAND_START_BIT 0x1
+#define ATA_BMR_COMMAND_WRITE_BIT 0x8
+
 /* command set for ATAPI packets can be found here:
 http://wiki.osdev.org/ATAPI#Complete_Command_Set
 http://www.t10.org/ftp/x3t9.2/document.87/87-106r0.txt

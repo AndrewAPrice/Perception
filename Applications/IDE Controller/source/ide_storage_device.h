@@ -23,8 +23,8 @@ class IdeStorageDevice
  public:
   typedef ::permebuf::perception::devices::StorageDevice SD;
 
-  IdeStorageDevice(IdeDevice* device);
-  virtual ~IdeStorageDevice() {}
+  IdeStorageDevice(IdeDevice* device, bool supports_dma);
+  virtual ~IdeStorageDevice();
 
   StatusOr<Permebuf<SD::GetDeviceDetailsResponse>> HandleGetDeviceDetails(
       ::perception::ProcessId sender,
@@ -35,4 +35,13 @@ class IdeStorageDevice
 
  private:
   IdeDevice* device_;
+
+  // Does this device support Direct Memory Access?
+  bool supports_dma_;
+
+  // Scratch page for DMA and storing the Physical Region Descriptor Table.
+  unsigned char* scratch_page_;
+
+  // Physical address of the scratch page.
+  size_t scratch_page_physical_address_;
 };

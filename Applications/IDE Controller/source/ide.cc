@@ -34,11 +34,15 @@ using ::perception::kPciHdrBar1;
 using ::perception::kPciHdrBar2;
 using ::perception::kPciHdrBar3;
 using ::perception::kPciHdrBar4;
+using ::perception::kPciHdrCommand;
+using ::perception::kPciHdrCommandBitBusMaster;
 using ::perception::Read16BitsFromPciConfig;
 using ::perception::Read16BitsFromPort;
+using ::perception::Read8BitsFromPciConfig;
 using ::perception::Read8BitsFromPort;
 using ::perception::SleepForDuration;
 using ::perception::Write16BitsToPort;
+using ::perception::Write8BitsToPciConfig;
 using ::perception::Write8BitsToPort;
 using ::perception::Yield;
 using ::permebuf::perception::devices::DeviceManager;
@@ -49,7 +53,7 @@ namespace {
 std::vector<std::unique_ptr<IdeController>> ide_controllers;
 std::mutex ide_mutex;
 
-void MaybeInitializeIdeDevice(IdeDevice *device) {
+void MaybeInitializeIdeDevice(IdeDevice *device, bool support_dma) {
   if (device->type != IDE_ATAPI) {
     // We currently only support CD drives.
     std::cout << "Not sure what to do with " << device->name << std::endl;
@@ -88,7 +92,7 @@ void MaybeInitializeIdeDevice(IdeDevice *device) {
 
   ResetInterrupt(device->primary_channel);
 
-  // send the atapi packet - must be 6 words (12 bytes) long.
+  // Send the atapi packet - must be 6 words (12 bytes) long.
   uint8 atapi_packet[12] = {0x25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   for (int byte = 0; byte < 12; byte += 2) {
     Write16BitsToPort(ATA_DATA(bus), *(uint16 *)&atapi_packet[byte]);
@@ -113,14 +117,14 @@ void MaybeInitializeIdeDevice(IdeDevice *device) {
                        (((blockLengthInBytes >> 16) & 0xFF) << 8) |
                        (((blockLengthInBytes >> 24) & 0xFF) << 0);
 
-  // calculate the device size
+  // Calculate the device size
   device->size_in_bytes = returnLba * blockLengthInBytes;
   device->is_writable = false;
 
-  device->storage_device = std::make_unique<IdeStorageDevice>(device);
+  device->storage_device = std::make_unique<IdeStorageDevice>(device, support_dma);
 }
 
-void MaybeInitializeIdeDevices(IdeController *controller) {
+void MaybeInitializeIdeDevices(IdeController *controller, bool supports_dma) {
   auto buffer = std::make_unique<char[]>(2048);
   // Detect ATA-ATAPI devices.
   for (int i = 0; i < 2; i++) {
@@ -149,15 +153,14 @@ void MaybeInitializeIdeDevices(IdeController *controller) {
       while (true) {
         uint8 status =
             ReadByteFromIdeController(&controller->channels[i], ATA_REG_STATUS);
-        // std::cout << "Status: " << (int)status << std::endl;
         if ((status & ATA_SR_ERR)) {
           err = 1;
           break;
-        } /* not ATA */
+        }  // Not ATA.
         if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ)) break;
       }
 
-      // Probe for ATAPI device
+      // Probe for ATAPI device.
       if (err != 0) {
         uint8 cl =
             ReadByteFromIdeController(&controller->channels[i], ATA_REG_LBA1);
@@ -217,7 +220,7 @@ void MaybeInitializeIdeDevices(IdeController *controller) {
       model_chars[40] = 0;
       device->name = model_chars.get();
 
-      MaybeInitializeIdeDevice(device.get());
+      MaybeInitializeIdeDevice(device.get(), supports_dma);
 
       controller->devices.push_back(std::move(device));
     }
@@ -237,6 +240,11 @@ void InitializeIdeController(uint8 bus, uint8 slot, uint8 function,
   uint16 bar3 = Read16BitsFromPciConfig(bus, slot, function, kPciHdrBar3);
   uint16 bar4 = Read16BitsFromPciConfig(bus, slot, function, kPciHdrBar4);
 
+  // Turn on the bus master command in the PCI config.
+  uint8 command = Read8BitsFromPciConfig(bus, slot, function, kPciHdrCommand);
+  command |= kPciHdrCommandBitBusMaster;
+  Write8BitsToPciConfig(bus, slot, function, kPciHdrCommand, command);
+
   controller->channels[ATA_PRIMARY].io_base = (bar0 & 0xFFFC) + 0x1F0 * (!bar0);
   controller->channels[ATA_PRIMARY].control_base =
       (bar1 & 0xFFFC) + 0x3F6 * (!bar1);
@@ -244,8 +252,12 @@ void InitializeIdeController(uint8 bus, uint8 slot, uint8 function,
       (bar2 & 0xFFFC) + 0x170 * (!bar2);
   controller->channels[ATA_SECONDARY].control_base =
       (bar3 & 0xFFFC) + 0x736 * (!bar3);
-  controller->channels[ATA_PRIMARY].bus_master_id = (bar4 & 0xFFFC);
-  controller->channels[ATA_SECONDARY].bus_master_id = (bar4 & 0xFFC) + 8;
+  size_t bus_master_id = bar4;
+  if (bus_master_id & 1) bus_master_id &= 0xFFFFFFFC;
+  controller->channels[ATA_PRIMARY].bus_master_id = bus_master_id;
+  controller->channels[ATA_SECONDARY].bus_master_id = bus_master_id + 8;
+
+  bool supports_dma = prog_if & (1 << 7);
 
 #if 0
 	if(prog_if == 0x8A || prog_if == 0x80) {
@@ -261,7 +273,7 @@ void InitializeIdeController(uint8 bus, uint8 slot, uint8 function,
   WriteByteToIdeController(&controller->channels[ATA_SECONDARY],
                            ATA_REG_CONTROL, 2);
 
-  MaybeInitializeIdeDevices(controller.get());
+  MaybeInitializeIdeDevices(controller.get(), supports_dma);
 
   ide_controllers.push_back(std::move(controller));
 }

@@ -38,10 +38,25 @@ constexpr uint8 kPciHdrBar4 = 32;
 constexpr uint8 kPciHdrBar5 = 36;
 constexpr uint8 kPciHdrSecondaryBusNumber = 25;
 
+// Command bits:
+constexpr uint8 kPciHdrCommandBitIoSpace = (1 << 0);
+constexpr uint8 kPciHdrCommandBitMemorySpace = (1 << 1);
+constexpr uint8 kPciHdrCommandBitBusMaster = (1 << 2);
+constexpr uint8 kPciHdrCommandBitSpecialCycles = (1 << 3);
+constexpr uint8 kPciHdrCommandBitMemoryWriteAndInvalidateEnable = (1 << 4);
+constexpr uint8 kPciHdrCommandBitVGAPaletteSnoop = (1 << 5);
+constexpr uint8 kPciHdrCommandBitParityErrorResponse = (1 << 6);
+constexpr uint8 kPciHdrCommandBitEnableSERR = (1 << 8);
+constexpr uint8 kPciHdrCommandBitEnableFastBackToBack = (1 << 9);
+constexpr uint8 kPciHdrCommandBitDisableInterrupt = (1 << 10);
+
 uint8 Read8BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset);
 
 uint16 Read16BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset);
 
 uint32 Read32BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset);
+
+void Write8BitsToPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset,
+                           uint8 data);
 
 }  // namespace perception

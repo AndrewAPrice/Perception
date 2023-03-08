@@ -20,26 +20,12 @@ using ::perception::Read32BitsFromPort;
 using ::perception::Write32BitsToPort;
 
 namespace perception {
+namespace {
 
-uint8 Read8BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset) {
-  uint16 word = Read16BitsFromPciConfig(bus, slot, func, offset & 0xFE);
-  if (offset & 1)
-    return (uint8)(word >> 8);
-  else
-    return (uint8)(word & 0xFF);
-}
+constexpr uint16 kPciAddressPort = 0xCF8;
+constexpr uint16 kPciValuePort = 0xCFC;
 
-uint16 Read16BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func,
-                               uint8 offset) {
-  uint32 raw_value = Read32BitsFromPciConfig(bus, slot, func, offset & 0xFC);
-  if ((offset & 2) == 2)
-    raw_value >>= 16;
-
-  return (uint16)(raw_value & 0xFFFF);
-}
-
-uint32 Read32BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func,
-                               uint8 offset) {
+uint32 PciAddress(uint8 bus, uint8 slot, uint8 func, uint8 offset) {
   uint32 lbus = (uint32)bus;
   uint32 lslot = (uint32)slot;
   uint32 lfunc = (uint32)func;
@@ -54,12 +40,31 @@ uint32 Read32BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func,
           10-8 - function number
           7-2 - register number
           1-0 - 00 */
+  return address;
+}
+}  // namespace
 
-  /* write out the address */
-  Write32BitsToPort(0xCF8, address);
+uint8 Read8BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset) {
+  Write32BitsToPort(kPciAddressPort, PciAddress(bus, slot, func, offset) & ~3);
+  return Read8BitsFromPort(kPciValuePort + (offset & 3));
+}
 
-  /* read in the data */
-  return Read32BitsFromPort(0xCFC);
+uint16 Read16BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func,
+                               uint8 offset) {
+  Write32BitsToPort(kPciAddressPort, PciAddress(bus, slot, func, offset) & ~1);
+  return Read16BitsFromPort(kPciValuePort + (offset & 1));
+}
+
+uint32 Read32BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func,
+                               uint8 offset) {
+  Write32BitsToPort(kPciAddressPort, PciAddress(bus, slot, func, offset));
+  return Read32BitsFromPort(kPciValuePort);
+}
+
+void Write8BitsToPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset,
+                           uint8 value) {
+  Write32BitsToPort(kPciAddressPort, PciAddress(bus, slot, func, offset) & ~3);
+  Write8BitsToPort(kPciValuePort + (offset & 3), value);
 }
 
 }  // namespace perception
