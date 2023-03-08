@@ -343,6 +343,16 @@ function createReplaceMap(operationMetadata, placeholderInfo) {
 
 function copyFile(from, to, replaceMap, thirdPartyFiles) {
   createDirectoryIfItDoesntExist(path.dirname(to));
+  thirdPartyFiles[to] = true;
+
+  const sourceTimestamp = getFileLastModifiedTimestamp(from);
+  const destinationTimestamp = getFileLastModifiedTimestamp(to);
+
+  if (destinationTimestamp != Number.MAX_VALUE &&
+    sourceTimestamp <= destinationTimestamp) {
+    return true;
+  }
+
   if (replaceMap[to]) {
     let contents = null;
     try {
@@ -381,8 +391,6 @@ function copyFile(from, to, replaceMap, thirdPartyFiles) {
   }
 
   console.log("Copying " + to);
-
-  thirdPartyFiles[to] = true;
   return true;
 }
 
@@ -656,7 +664,7 @@ function executeSet(operationMetadata, placeholderInfo, thirdPartyFiles) {
     const substitutedVals = [];
     vals.forEach(val => {
       substitutePlaceholders(val, placeholderInfo, /*splitArrays=*/true).forEach(
-        substitutedVal => { substitutedVals.push(substitutedVal); } );
+        substitutedVal => { substitutedVals.push(substitutedVal); });
     });
     placeholderInfo.placeholders["${" + key + "}"] = maybeFlattenArray(substitutedVals);
     placeholderInfo.regex = null;
@@ -794,8 +802,33 @@ function loadThirdParty(packageName, packageType, metadata, forceUpdate) {
       ' "' + name + '". Expected the file to be at: ' + metadataPath);
   }
   const thirdPartyFilesPath = packageDirectory + 'third_party_files.json';
-  if (forceUpdate || !fs.existsSync(thirdPartyFilesPath) ||
-    getFileLastModifiedTimestamp(metadataPath) > getFileLastModifiedTimestamp(thirdPartyFilesPath)) {
+
+  let update = forceUpdate;
+
+  if (!fs.existsSync(thirdPartyFilesPath)) {
+    update = true;
+  } else if (getFileLastModifiedTimestamp(metadataPath) > getFileLastModifiedTimestamp(thirdPartyFilesPath)) {
+    // Metadata file changed, so we can't trust anything. Remove all old third party files and start over.
+    let thirdPartyFiles = {}
+    if (fs.existsSync(thirdPartyFilesPath)) {
+      try {
+        thirdPartyFiles = JSON.parse(fs.readFileSync(thirdPartyFilesPath, 'utf8'));
+      } catch (exp) {
+        console.log('Error reading ' + thirdPartyFilesPath + ': ' + exp);
+        return false;
+      }
+    }
+
+    Object.keys(thirdPartyFiles).forEach(filePath => {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        removeDirectoryIfEmpty(path.dirname(filePath));
+      }
+    });
+
+    update = true;
+  }
+  if (update) {
     let metadata = {};
     try {
       metadata = JSON.parse(fs.readFileSync(metadataPath));
