@@ -105,15 +105,14 @@ void InitializeSystemCalls() {
 #define SEND_MESSAGE_AT_TIMESTAMP 24
 #define GET_CURRENT_TIMESTAMP 25
 
-#define TOTAL_SYSCALL_COUNT 51
-
 extern void JumpIntoThread();
 
 void SyscallHandler(int syscall_number) {
 #ifdef DEBUG
-  PrintString("Entering syscall: ");
-  PrintNumber(syscall_number);
-  PrintChar('\n');
+  PrintString("Entering syscall ");
+  PrintString(GetSystemCallName(syscall));
+  PrintString(" (") PrintNumber(syscall_number);
+  PrintString(" )\n");
   PrintRegisters(currently_executing_thread_regs);
 #endif
 
@@ -193,7 +192,7 @@ void SyscallHandler(int syscall_number) {
     case ALLOCATE_MEMORY_PAGES:
       currently_executing_thread_regs->rax =
           AllocateVirtualMemoryInAddressSpace(
-              running_thread->process->pml4,
+              &running_thread->process->virtual_address_space,
               currently_executing_thread_regs->rax);
       break;
     case ALLOCATE_MEMORY_PAGES_BELOW_PHYSICAL_BASE:
@@ -201,12 +200,13 @@ void SyscallHandler(int syscall_number) {
         size_t first_physical_address = 0;
         currently_executing_thread_regs->rax =
             AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
-                running_thread->process->pml4,
+                &running_thread->process->virtual_address_space,
                 currently_executing_thread_regs->rax,
                 currently_executing_thread_regs->rbx);
-        currently_executing_thread_regs->rbx = GetPhysicalAddress(
-            running_thread->process->pml4, currently_executing_thread_regs->rax,
-            /*ignore_unowned_pages=*/false);
+        currently_executing_thread_regs->rbx =
+            GetPhysicalAddress(&running_thread->process->virtual_address_space,
+                               currently_executing_thread_regs->rax,
+                               /*ignore_unowned_pages=*/false);
       } else {
         currently_executing_thread_regs->rax = OUT_OF_MEMORY;
         currently_executing_thread_regs->rbx = 0;
@@ -214,14 +214,16 @@ void SyscallHandler(int syscall_number) {
       break;
     case RELEASE_MEMORY_PAGES:
       ReleaseVirtualMemoryInAddressSpace(
-          running_thread->process->pml4, currently_executing_thread_regs->rax,
+          &running_thread->process->virtual_address_space,
+          currently_executing_thread_regs->rax,
           currently_executing_thread_regs->rbx, true);
       break;
     case MAP_PHYSICAL_MEMORY:
       // Only drivers can map physical memory.
       if (running_thread->process->is_driver) {
         currently_executing_thread_regs->rax = MapPhysicalMemoryInAddressSpace(
-            running_thread->process->pml4, currently_executing_thread_regs->rax,
+            &running_thread->process->virtual_address_space,
+            currently_executing_thread_regs->rax,
             currently_executing_thread_regs->rbx);
       } else {
         currently_executing_thread_regs->rax = OUT_OF_MEMORY;
@@ -229,9 +231,10 @@ void SyscallHandler(int syscall_number) {
       break;
     case GET_PHYSICAL_ADDRESS_OF_VIRTUAL_ADDRESS:
       if (running_thread->process->is_driver) {
-        currently_executing_thread_regs->rax = GetPhysicalAddress(
-            running_thread->process->pml4, currently_executing_thread_regs->rax,
-            /*ignore_unowned_pages=*/false);
+        currently_executing_thread_regs->rax =
+            GetPhysicalAddress(&running_thread->process->virtual_address_space,
+                               currently_executing_thread_regs->rax,
+                               /*ignore_unowned_pages=*/false);
       } else {
         currently_executing_thread_regs->rax = 0;
       }
@@ -318,8 +321,10 @@ void SyscallHandler(int syscall_number) {
       PrintChar('\n');
 #endif
 
-      for (; address < max_address; address += PAGE_SIZE)
-        SetMemoryAccessRights(running_thread->process->pml4, address, rights);
+      for (; address < max_address; address += PAGE_SIZE) {
+        SetMemoryAccessRights(&running_thread->process->virtual_address_space,
+                               address, rights);
+      }
       break;
     }
     case GET_THIS_PROCESS_ID:
@@ -612,9 +617,119 @@ void SyscallHandler(int syscall_number) {
   ProfileSyscall(syscall_number, syscall_start_time);
 #endif
 #ifdef DEBUG
-  PrintString("Leaving syscall: ");
-  PrintNumber(syscall_number);
-  PrintChar('\n');
+  PrintString("Leaving syscall ");
+  PrintString(GetSystemCallName(syscall));
+  PrintString(" (") PrintNumber(syscall_number);
+  PrintString(" )\n");
   PrintRegisters(currently_executing_thread_regs);
 #endif
+}
+
+char *GetSystemCallName(int syscall) {
+  switch (syscall) {
+    default:
+      return "Unknown";
+    case PRINT_DEBUG_CHARACTER:
+      return "PRINT_DEBUG_CHARACTER";
+    case PRINT_REGISTERS_AND_STACK:
+      return "PRINT_REGISTERS_AND_STACK";
+    case CREATE_THREAD:
+      return "CREATE_THREAD";
+    case GET_THIS_THREAD_ID:
+      return "GET_THIS_THREAD_ID";
+    case SLEEP_THIS_THREAD:
+      return "SLEEP_THIS_THREAD";
+    case SLEEP_THREAD:
+      return "SLEEP_THREAD";
+    case WAKE_THREAD:
+      return "WAKE_THREAD";
+    case WAKE_AND_SWITCH_TO_THREAD:
+      return "WAKE_AND_SWITCH_TO_THREAD";
+    case TERMINATE_THIS_THREAD:
+      return "TERMINATE_THIS_THREAD";
+    case TERMINATE_THREAD:
+      return "TERMINATE_THREAD";
+    case YIELD:
+      return "YIELD";
+    case SET_THREAD_SEGMENT:
+      return "SET_THREAD_SEGMENT";
+    case SET_ADDRESS_TO_CLEAR_ON_THREAD_TERMINATION:
+      return "SET_ADDRESS_TO_CLEAR_ON_THREAD_TERMINATION";
+    case ALLOCATE_MEMORY_PAGES:
+      return "ALLOCATE_MEMORY_PAGES";
+    case ALLOCATE_MEMORY_PAGES_BELOW_PHYSICAL_BASE:
+      return "ALLOCATE_MEMORY_PAGES_BELOW_PHYSICAL_BASE";
+    case RELEASE_MEMORY_PAGES:
+      return "RELEASE_MEMORY_PAGES";
+    case MAP_PHYSICAL_MEMORY:
+      return "MAP_PHYSICAL_MEMORY";
+    case GET_PHYSICAL_ADDRESS_OF_VIRTUAL_ADDRESS:
+      return "GET_PHYSICAL_ADDRESS_OF_VIRTUAL_ADDRESS";
+    case GET_FREE_SYSTEM_MEMORY:
+      return "GET_FREE_SYSTEM_MEMORY";
+    case GET_MEMORY_USED_BY_PROCESS:
+      return "GET_MEMORY_USED_BY_PROCESS";
+    case GET_TOTAL_SYSTEM_MEMORY:
+      return "GET_TOTAL_SYSTEM_MEMORY";
+    case CREATE_SHARED_MEMORY:
+      return "CREATE_SHARED_MEMORY";
+    case JOIN_SHARED_MEMORY:
+      return "JOIN_SHARED_MEMORY";
+    case LEAVE_SHARED_MEMORY:
+      return "LEAVE_SHARED_MEMORY";
+    case MOVE_PAGE_INTO_SHARED_MEMORY:
+      return "MOVE_PAGE_INTO_SHARED_MEMORY";
+    case IS_SHARED_MEMORY_PAGE_ALLOCATED:
+      return "IS_SHARED_MEMORY_PAGE_ALLOCATED";
+    case SET_MEMORY_ACCESS_RIGHTS:
+      return "SET_MEMORY_ACCESS_RIGHTS";
+    case GET_THIS_PROCESS_ID:
+      return "GET_THIS_PROCESS_ID";
+    case TERMINATE_THIS_PROCESS:
+      return "TERMINATE_THIS_PROCESS";
+    case TERMINATE_PROCESS:
+      return "TERMINATE_PROCESS";
+    case GET_PROCESSES:
+      return "GET_PROCESSES";
+    case GET_NAME_OF_PROCESS:
+      return "GET_NAME_OF_PROCESS";
+    case NOTIFY_WHEN_PROCESS_DISAPPEARS:
+      return "NOTIFY_WHEN_PROCESS_DISAPPEARS";
+    case STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS:
+      return "STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS";
+    case REGISTER_SERVICE:
+      return "REGISTER_SERVICE";
+    case UNREGISTER_SERVICE:
+      return "UNREGISTER_SERVICE";
+    case GET_SERVICES:
+      return "GET_SERVICES";
+    case GET_NAME_OF_SERVICE:
+      return "GET_NAME_OF_SERVICE";
+    case NOTIFY_WHEN_SERVICE_APPEARS:
+      return "NOTIFY_WHEN_SERVICE_APPEARS";
+    case STOP_NOTIFYING_WHEN_SERVICE_APPEARS:
+      return "STOP_NOTIFYING_WHEN_SERVICE_APPEARS";
+    case NOTIFY_WHEN_SERVICE_DISAPPEARS:
+      return "NOTIFY_WHEN_SERVICE_DISAPPEARS";
+    case STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS:
+      return "STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS";
+    case SEND_MESSAGE:
+      return "SEND_MESSAGE";
+    case POLL_FOR_MESSAGE:
+      return "POLL_FOR_MESSAGE";
+    case SLEEP_FOR_MESSAGE:
+      return "SLEEP_FOR_MESSAGE";
+    case REGISTER_MESSAGE_TO_SEND_ON_INTERRUPT:
+      return "REGISTER_MESSAGE_TO_SEND_ON_INTERRUPT";
+    case UNREGISTER_MESSAGE_TO_SEND_ON_INTERRUPT:
+      return "UNREGISTER_MESSAGE_TO_SEND_ON_INTERRUPT";
+    case GET_MULTIBOOT_FRAMEBUFFER_INFORMATION:
+      return "GET_MULTIBOOT_FRAMEBUFFER_INFORMATION";
+    case SEND_MESSAGE_AFTER_X_MICROSECONDS:
+      return "SEND_MESSAGE_AFTER_X_MICROSECONDS";
+    case SEND_MESSAGE_AT_TIMESTAMP:
+      return "SEND_MESSAGE_AT_TIMESTAMP";
+    case GET_CURRENT_TIMESTAMP:
+      return "GET_CURRENT_TIMESTAMP";
+  }
 }

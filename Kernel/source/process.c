@@ -41,8 +41,7 @@ struct Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->pid = last_assigned_pid;
 
   // Allocate an address space.
-  proc->pml4 = CreateAddressSpace();
-  if (proc->pml4 == OUT_OF_MEMORY) {
+  if (!InitializeVirtualAddressSpace(&proc->virtual_address_space)) {
     free(proc);
     return (struct Process *)ERROR;
   }
@@ -139,7 +138,7 @@ void DestroyProcess(struct Process *process) {
     UnmapSharedMemoryFromProcess(process, process->shared_memory);
 
   // Free the address space.
-  FreeAddressSpace(process->pml4);
+  FreeAddressSpace(&process->virtual_address_space);
 
   // Free all notifications I was waiting on for processes to die.
   while (process->processes_i_want_to_be_notified_of_when_they_die != NULL) {

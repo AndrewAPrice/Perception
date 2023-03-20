@@ -1,5 +1,8 @@
 #pragma once
+
 #include "types.h"
+#include "virtual_allocator.h"
+
 /*
 struct reg128 {
         size_t low;
@@ -51,9 +54,9 @@ struct Process {
   // Is this process allowed to create other processes?
   bool can_create_processes;
 
-  // The physical address of this process's pml4. This represents the virtual
-  // address space that is unique to this process.
-  size_t pml4;
+  // The virtual address space that is unique to this process.
+  struct VirtualAddressSpace virtual_address_space;
+
   // The number of allocated pages.
   size_t allocated_pages;  // The number of allocated pages.
 

@@ -9,6 +9,7 @@ struct SharedMemoryInProcess;
 struct SharedMemoryPage;
 struct TimerEvent;
 struct ThreadWaitingForSharedMemoryPage;
+struct FreeMemoryRange;
 
 // Object pools, for fast grabbing and releasing objects that are
 // created/destoyed a lot.
@@ -74,6 +75,12 @@ AllocateThreadWaitingForSharedMemoryPage();
 void ReleaseThreadWaitingForSharedMemoryPage(
     struct ThreadWaitingForSharedMemoryPage*
         thread_waiting_for_shared_memory_page);
+
+// Allocate a FreeMemoryRange.
+struct FreeMemoryRange* AllocateFreeMemoryRange();
+
+// Release a FreeMemoryRange.
+void ReleaseFreeMemoryRange(struct FreeMemoryRange* free_memory_range);
 
 // Initialize the object pools.
 void InitializeObjectPools();

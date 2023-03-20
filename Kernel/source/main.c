@@ -27,8 +27,8 @@ void kmain() {
   }
 
   InitializePhysicalAllocator();
-  InitializeVirtualAllocator();
   InitializeObjectPools();
+  InitializeVirtualAllocator();
 
   InitializeTss();
   InitializeInterrupts();

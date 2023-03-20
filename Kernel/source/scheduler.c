@@ -74,7 +74,7 @@ void ScheduleNextThread() {
     // If there's no next thread, we'll return to the kernel's idle thread.
     running_thread = 0;
     currently_executing_thread_regs = idle_regs;
-    SwitchToAddressSpace(kernel_pml4);
+    SwitchToAddressSpace(&kernel_address_space);
 #ifdef DEBUG
     PrintString("Kernel idle thread\n");
 #endif
@@ -85,7 +85,7 @@ void ScheduleNextThread() {
   running_thread = next;
   running_thread->time_slices++;
 
-  SwitchToAddressSpace(running_thread->process->pml4);
+  SwitchToAddressSpace(&running_thread->process->virtual_address_space);
 
   if (running_thread->uses_fpu_registers) {
     asm volatile("fxrstor %0" ::"m"(*running_thread->fpu_registers));

@@ -42,32 +42,8 @@ struct Thread* CreateThread(struct Process* process, size_t entry_point,
 
   // Sets up the stack by:
   // 1) Finds a free page in the process's virtual address space.
-  thread->stack = FindFreePageRange(thread->process->pml4, STACK_PAGES);
-  if (thread->stack == OUT_OF_MEMORY) {
-    free(thread);
-    return NULL;
-  }
-
-  for (int stack_page = 0; stack_page < STACK_PAGES; stack_page++) {
-    // 2) Grabs a physical page.
-    size_t stack_physical_addr = GetPhysicalPage();
-    if (stack_physical_addr == OUT_OF_PHYSICAL_PAGES) {
-      // Free any stack pages allocated.
-      for (int allocated_stack_page = 0; allocated_stack_page < stack_page;
-           allocated_stack_page++) {
-        UnmapVirtualPage(thread->process->pml4,
-                         thread->stack + allocated_stack_page * PAGE_SIZE,
-                         true);
-      }
-      free(thread);
-      return NULL;
-    }
-
-    // 3) Maps the process's virtual address to the physical page.
-    MapPhysicalPageToVirtualPage(thread->process->pml4,
-                                 thread->stack + stack_page * PAGE_SIZE,
-                                 stack_physical_addr, true, true, false);
-  }
+  thread->stack = AllocateVirtualMemoryInAddressSpace(
+      &thread->process->virtual_address_space, STACK_PAGES);
 
   // Sets up the registers that our process will start with.
   struct Registers* regs = malloc(sizeof(struct Registers));
@@ -156,7 +132,8 @@ void DestroyThread(struct Thread* thread, bool process_being_destroyed) {
 
   // Free the thread's stack.
   for (int i = 0; i < STACK_PAGES; i++, thread->stack += PAGE_SIZE) {
-    UnmapVirtualPage(thread->process->pml4, thread->stack, true);
+    UnmapVirtualPage(&thread->process->virtual_address_space, thread->stack,
+                     true);
   }
 
   struct Process* process = thread->process;
@@ -200,9 +177,9 @@ void DestroyThread(struct Thread* thread, bool process_being_destroyed) {
     size_t page = thread->address_to_clear_on_termination - offset_in_page;
 
     // Get the physical page.
-    size_t physical_page =
-        GetPhysicalAddress(thread->process->pml4, offset_in_page,
-                           /*ignore_unowned_pages=*/false);
+    size_t physical_page = GetPhysicalAddress(
+        &thread->process->virtual_address_space, offset_in_page,
+        /*ignore_unowned_pages=*/false);
     if (physical_page != OUT_OF_MEMORY) {
       // If this virtual page was actually assigned to a physical address, set
       // our memory location to 0.

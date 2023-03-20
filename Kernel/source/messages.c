@@ -173,8 +173,8 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
     // Figure out where to move the memory from and to.
     size_t size_in_pages = registers->r12;
     size_t source_virtual_address = registers->r10;
-    size_t destination_virtual_address =
-        FindFreePageRange(receiver_process->pml4, size_in_pages);
+    size_t destination_virtual_address = FindAndReserveFreePageRange(
+        &receiver_process->virtual_address_space, size_in_pages);
 
 #if DEBUG
     PrintString("Moving ");
@@ -188,8 +188,9 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
 
     if (destination_virtual_address == OUT_OF_MEMORY) {
       // Out of memory - release message and all source pages.
-      ReleaseVirtualMemoryInAddressSpace(
-          sender_process->pml4, source_virtual_address, size_in_pages, true);
+      ReleaseVirtualMemoryInAddressSpace(&sender_process->virtual_address_space,
+                                         source_virtual_address, size_in_pages,
+                                         true);
       registers->rax = MS_OUT_OF_MEMORY;
       ReleaseMessage(message);
       return;
@@ -198,9 +199,10 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
     // Move each page over.
     for (size_t page = 0; page < size_in_pages; page++) {
       // Get the physical address of this page.
-      size_t page_physical_address = GetPhysicalAddress(
-          sender_process->pml4, source_virtual_address + page * PAGE_SIZE,
-          /*ignore_unownwed_pages=*/true);
+      size_t page_physical_address =
+          GetPhysicalAddress(&sender_process->virtual_address_space,
+                             source_virtual_address + page * PAGE_SIZE,
+                             /*ignore_unownwed_pages=*/true);
       if (page_physical_address == OUT_OF_MEMORY) {
 #if DEBUG
         PrintString("Page ");
@@ -215,22 +217,23 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
         // No memory was mapped to this area. Release message and all
         // source and destination pages.
         ReleaseVirtualMemoryInAddressSpace(
-            sender_process->pml4, source_virtual_address, size_in_pages, true);
-        ReleaseVirtualMemoryInAddressSpace(receiver_process->pml4,
-                                           destination_virtual_address,
-                                           size_in_pages, true);
+            &sender_process->virtual_address_space, source_virtual_address,
+            size_in_pages, true);
+        ReleaseVirtualMemoryInAddressSpace(
+            &receiver_process->virtual_address_space,
+            destination_virtual_address, size_in_pages, true);
         registers->rax = MS_OUT_OF_MEMORY;
         ReleaseMessage(message);
         return;
       }
 
       // Unmap the physical page from the old process.
-      UnmapVirtualPage(sender_process->pml4,
+      UnmapVirtualPage(&sender_process->virtual_address_space,
                        source_virtual_address + page * PAGE_SIZE, false);
 
       // Map the physical page to the new process.
       MapPhysicalPageToVirtualPage(
-          receiver_process->pml4,
+          &receiver_process->virtual_address_space,
           destination_virtual_address + page * PAGE_SIZE, page_physical_address,
           /*own=*/true, true, false);
     }

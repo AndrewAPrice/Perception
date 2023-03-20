@@ -36,11 +36,9 @@ void InitializeIdt() {
   in_interrupt = false;
 
   // The IDT aligns with pages - so grab a page to allocate it.
-  idt = (struct idt_entry *)FindFreePageRange(kernel_pml4, 1);
+  idt = (struct idt_entry *)AllocateVirtualMemoryInAddressSpace(&kernel_address_space, 1);
 
-  size_t idt_physical = GetPhysicalPage();
-
-  MapPhysicalPageToVirtualPage(kernel_pml4, (size_t)idt, idt_physical, true, true, false);
+  size_t idt_physical = GetPhysicalAddress(&kernel_address_space, (size_t)idt, false);
 
   // Populate the IDT reference to point to the physical memory location where
   // the IDT will be.

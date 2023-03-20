@@ -111,16 +111,7 @@ void RegisterInterruptHandlers() {
 
 // Allocates a stack to use for interrupts.
 void AllocateInterruptStack() {
-  size_t physical_addr = GetPhysicalPage();
-  size_t virtual_addr = FindFreePageRange(kernel_pml4, 1);
-  if (physical_addr == OUT_OF_PHYSICAL_PAGES || virtual_addr == OUT_OF_MEMORY) {
-    PrintString("Out of memory to allocate interrupt stack.");
-    __asm__ __volatile__("cli");
-    __asm__ __volatile__("hlt");
-  }
-
-  MapPhysicalPageToVirtualPage(kernel_pml4, virtual_addr, physical_addr, true,
-                               true, false);
+  size_t virtual_addr = AllocateVirtualMemoryInAddressSpace(&kernel_address_space, 1);
 
 #ifdef DEBUG
   PrintString("Interrupt stack is at ");

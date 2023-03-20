@@ -227,11 +227,12 @@ void MovePageIntoSharedMemory(struct Process* process, size_t shared_memory_id,
   if (process == NULL) return;
 
   size_t physical_address =
-      GetPhysicalAddress(process->pml4, page_address, true);
+      GetPhysicalAddress(&process->virtual_address_space, page_address, true);
   if (physical_address == OUT_OF_MEMORY)
     return;  // This page doesn't exist or we don't own it. We can't move
              // it.
-  ReleaseVirtualMemoryInAddressSpace(process->pml4, page_address, 1, false);
+  ReleaseVirtualMemoryInAddressSpace(&process->virtual_address_space,
+                                     page_address, 1, false);
 
   // If we fail at any point we need to return the physical address.
 
@@ -320,8 +321,9 @@ void MapSharedMemoryPageInEachProcess(struct SharedMemory* shared_memory,
     bool can_write = CanProcessWriteToSharedMemory(process, shared_memory);
     size_t virtual_address =
         shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
-    MapPhysicalPageToVirtualPage(process->pml4, virtual_address,
-                                 physical_address, false, can_write, false);
+    MapPhysicalPageToVirtualPage(&process->virtual_address_space,
+                                 virtual_address, physical_address, false,
+                                 can_write, false);
   }
 
   // Wake up each thread that was waiting for this page.
@@ -378,7 +380,7 @@ void MapPhysicalPageInSharedMemory(struct SharedMemory* shared_memory,
       size_t virtual_address =
           shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
       ReleaseVirtualMemoryInAddressSpace(
-          process->pml4, virtual_address, 1,
+          &process->virtual_address_space, virtual_address, 1,
           // Although this process doesn't own the memory, if by some bug they
           // do, free it.
           true);

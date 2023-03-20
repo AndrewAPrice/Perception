@@ -140,7 +140,8 @@ char* exception_messages[] = {
 extern void JumpIntoThread();
 
 void PrintStackTrace() {
-  size_t pml4 = running_thread->process->pml4;
+  struct VirtualAddressSpace* address_space =
+      &running_thread->process->virtual_address_space;
   size_t rbp = currently_executing_thread_regs->rbp;
   size_t rip = currently_executing_thread_regs->rip;
 
@@ -160,7 +161,8 @@ void PrintStackTrace() {
     // Read the RIP.
     size_t rip_address = rbp + 8;
     // Map the page into memory.
-    size_t physical_page_addr = GetPhysicalAddress(pml4, rip_address, false);
+    size_t physical_page_addr =
+        GetPhysicalAddress(address_space, rip_address, false);
     if (physical_page_addr == OUT_OF_MEMORY) {
       // Doesn't point to valid memory.
       return;
@@ -177,7 +179,7 @@ void PrintStackTrace() {
 
     // Now read new next RBP.
     // Map the page into memory.
-    physical_page_addr = GetPhysicalAddress(pml4, rbp, false);
+    physical_page_addr = GetPhysicalAddress(address_space, rbp, false);
     if (physical_page_addr == OUT_OF_MEMORY) {
       // Doesn't point to valid memory.
       return;

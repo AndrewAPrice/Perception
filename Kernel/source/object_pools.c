@@ -1,11 +1,15 @@
 #include "object_pools.h"
 
+#include "io.h"
 #include "liballoc.h"
 #include "messages.h"
 #include "process.h"
 #include "service.h"
 #include "shared_memory.h"
 #include "timer_event.h"
+#include "virtual_allocator.h"
+
+#define DEBUG
 
 struct ObjectPoolItem {
   struct ObjectPoolItem* next;
@@ -14,7 +18,13 @@ struct ObjectPoolItem {
 // Grabs an object from the pool, if it exists, or allocates a new object.
 void* GrabOrAllocateObject(struct ObjectPoolItem** object_pool, size_t size) {
   if (*object_pool == NULL) {
+#ifdef DEBUG
+    void* obj = malloc(size);
+    memset(obj, 0, size);
+    return obj;
+#else
     return malloc(size);
+#endif
   } else {
     void* obj_to_return = *object_pool;
     *object_pool = (*object_pool)->next;
@@ -55,7 +65,9 @@ OBJECT_POOL(Service, service)
 OBJECT_POOL(SharedMemory, shared_memory)
 OBJECT_POOL(SharedMemoryInProcess, shared_memory_in_process)
 OBJECT_POOL(TimerEvent, timer_event)
-OBJECT_POOL(ThreadWaitingForSharedMemoryPage, thread_waiting_for_shared_memory_page)
+OBJECT_POOL(ThreadWaitingForSharedMemoryPage,
+            thread_waiting_for_shared_memory_page)
+OBJECT_POOL(FreeMemoryRange, free_memory_range)
 
 // Initialize the object pools.
 void InitializeObjectPools() {
@@ -67,6 +79,7 @@ void InitializeObjectPools() {
   shared_memory_in_process_pool = NULL;
   timer_event_pool = NULL;
   thread_waiting_for_shared_memory_page_pool = NULL;
+  free_memory_range_pool = NULL;
 }
 
 // Clean up object pools to gain some memory back.
@@ -79,4 +92,5 @@ void CleanUpObjectPools() {
   FreeObjectsInPool(&shared_memory_in_process_pool);
   FreeObjectsInPool(&timer_event_pool);
   FreeObjectsInPool(&thread_waiting_for_shared_memory_page_pool);
+  FreeObjectsInPool(&free_memory_range_pool);
 }

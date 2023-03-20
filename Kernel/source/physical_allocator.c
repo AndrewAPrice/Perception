@@ -230,7 +230,7 @@ void DoneWithMultibootMemory() {
     PrintHex(page + VIRTUAL_MEMORY_OFFSET);
     PrintChar('\n');
 #endif
-    UnmapVirtualPage(kernel_pml4, page + VIRTUAL_MEMORY_OFFSET, true);
+    UnmapVirtualPage(&kernel_address_space, page + VIRTUAL_MEMORY_OFFSET, true);
   }
 }
 

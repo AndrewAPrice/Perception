@@ -36,7 +36,7 @@ int liballoc_unlock() {
  * \return A pointer to the allocated memory.
  */
 void* liballoc_alloc(size_t pages) {
-  return (void*)AllocateVirtualMemoryInAddressSpace(kernel_pml4, pages);
+  return (void*)AllocateVirtualMemoryInAddressSpace(&kernel_address_space, pages);
 }
 
 /** This frees previously allocated memory. The void* parameter passed
@@ -48,6 +48,6 @@ void* liballoc_alloc(size_t pages) {
  * \return 0 if the memory was successfully freed.
  */
 int liballoc_free(void* addr, size_t pages) {
-  ReleaseVirtualMemoryInAddressSpace(kernel_pml4, (size_t)addr, pages, true);
+  ReleaseVirtualMemoryInAddressSpace(&kernel_address_space, (size_t)addr, pages, true);
   return 0;
 }

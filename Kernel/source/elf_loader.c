@@ -77,7 +77,7 @@ bool CopyIntoMemory(size_t from_start, size_t to_start, size_t to_end,
   PrintChar('\n');
 #endif
 
-  size_t pml4 = process->pml4;
+  struct VirtualAddressSpace* address_space = &process->virtual_address_space;
 
   // The process's memory is mapped into pages. We'll copy page by page.
   size_t to_first_page = to_start & ~(PAGE_SIZE - 1);  // Round down.
@@ -86,7 +86,8 @@ bool CopyIntoMemory(size_t from_start, size_t to_start, size_t to_end,
 
   size_t to_page = to_first_page;
   for (; to_page < to_last_page; to_page += PAGE_SIZE) {
-    size_t physical_page_address = GetOrCreateVirtualPage(pml4, to_page);
+    size_t physical_page_address =
+        GetOrCreateVirtualPage(address_space, to_page);
     if (physical_page_address == OUT_OF_MEMORY) {
       // We ran out of memory trying to allocate the virtual page.
       return false;
@@ -139,7 +140,7 @@ bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
   PrintChar('\n');
 #endif
 
-  size_t pml4 = process->pml4;
+  struct VirtualAddressSpace* address_space = &process->virtual_address_space;
 
   size_t to_first_page = to_start & ~(PAGE_SIZE - 1);  // Round down.
   size_t to_last_page =
@@ -147,7 +148,8 @@ bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
 
   size_t to_page = to_first_page;
   for (; to_page < to_last_page; to_page += PAGE_SIZE) {
-    size_t physical_page_address = GetOrCreateVirtualPage(pml4, to_page);
+    size_t physical_page_address =
+        GetOrCreateVirtualPage(address_space, to_page);
     if (physical_page_address == OUT_OF_MEMORY) {
       // We ran out of memory trying to allocate the virtual page.
       return false;
