@@ -121,7 +121,8 @@ void MaybeInitializeIdeDevice(IdeDevice *device, bool support_dma) {
   device->size_in_bytes = returnLba * blockLengthInBytes;
   device->is_writable = false;
 
-  device->storage_device = std::make_unique<IdeStorageDevice>(device, support_dma);
+  device->storage_device =
+      std::make_unique<IdeStorageDevice>(device, support_dma);
 }
 
 void MaybeInitializeIdeDevices(IdeController *controller, bool supports_dma) {
