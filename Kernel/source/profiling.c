@@ -53,17 +53,21 @@ void ProfileSyscall(int syscall, size_t start_time) {
 void PrintProfilingInformation() {
   PrintString("\nProfiling information for syscalls:\n");
   PrintString(
-      "syscall,count,total_time,shortest_time,average_time,longest_time\n");
+      "syscall,name,count,total_time,shortest_time,average_time,longest_"
+      "time\n");
   for (int i = 0; i < NUMBER_OF_SYSCALLS; i++) {
     struct SyscallProfilingInformation* syscall_info =
         &syscall_profiling_information[i];
     PrintNumberWithoutCommas(i);
     PrintChar(',');
+    PrintString(GetSystemCallName(i));
+    PrintChar(',');
     PrintNumberWithoutCommas(syscall_info->count);
     PrintChar(',');
     PrintNumberWithoutCommas(syscall_info->total_time);
     PrintChar(',');
-    PrintNumberWithoutCommas(syscall_info->shortest_time);
+    PrintNumberWithoutCommas(
+        syscall_info->count == 0 ? 0 : syscall_info->shortest_time);
     PrintChar(',');
     PrintNumberWithoutCommas(syscall_info->average_time);
     PrintChar(',');
