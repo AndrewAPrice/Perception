@@ -67,6 +67,7 @@ extern void isr31();
 
 // Register the CPU exception interrupts.
 void RegisterExceptionInterrupts() {
+#ifndef __TEST__
   SetIdtEntry(0, (size_t)isr0, 0x08, 0x8E);
   SetIdtEntry(1, (size_t)isr1, 0x08, 0x8E);
   SetIdtEntry(2, (size_t)isr2, 0x08, 0x8E);
@@ -99,6 +100,7 @@ void RegisterExceptionInterrupts() {
   SetIdtEntry(29, (size_t)isr29, 0x08, 0x8E);
   SetIdtEntry(30, (size_t)isr30, 0x08, 0x8E);
   SetIdtEntry(31, (size_t)isr31, 0x08, 0x8E);
+#endif
 }
 
 // Messages for each of the exceptions.
@@ -152,7 +154,7 @@ void PrintStackTrace() {
 
   // Walk up the call stack.
   for (int i = 0; i < STACK_TRACE_DEPTH; i++) {
-    if (rbp & 7 != 0) {
+    if ((rbp & 7) != 0) {
       // RBP is not aligned, we'll avoid reading the memory address
       // that RBP points to as it could jump across pages boundaries.
       return;
@@ -241,8 +243,10 @@ void ExceptionHandler(int exception_no, size_t cr2, size_t error_code) {
   } else {
     PrintString(" outside of a thread.");
     PrintRegisters(currently_executing_thread_regs);
+#ifndef __TEST__
     asm("cli");
     asm("hlt");
+#endif
   }
 
   /*MarkInterruptHandlerAsLeft();*/

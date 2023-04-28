@@ -37,11 +37,13 @@ extern void syscall_entry();
 #define INTERRUPT_MASK 0x0200
 
 void InitializeSystemCalls() {
+#ifndef __TEST__
   wrmsr(STAR, KERNEL_SEGMENT_BASE | USER_SEGMENT_BASE);
   wrmsr(LSTAR, (size_t)syscall_entry);
   // Disable interrupts duing syscalls.
   wrmsr(IA32_FMASK, INTERRUPT_MASK);
-  //  SetInterruptHandler(0x80, (size_t)syscall_isr, 0x08, 0x8E);
+//  SetInterruptHandler(0x80, (size_t)syscall_isr, 0x08, 0x8E);
+#endif
 }
 
 // Syscalls.
@@ -323,7 +325,7 @@ void SyscallHandler(int syscall_number) {
 
       for (; address < max_address; address += PAGE_SIZE) {
         SetMemoryAccessRights(&running_thread->process->virtual_address_space,
-                               address, rights);
+                              address, rights);
       }
       break;
     }

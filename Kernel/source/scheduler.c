@@ -32,8 +32,10 @@ void InitializeScheduler() {
   currently_executing_thread_regs = malloc(sizeof(struct Registers));
   if (!currently_executing_thread_regs) {
     PrintString("Could not allocate object to store the kernel's registers.");
+#ifndef __TEST__
     __asm__ __volatile__("cli");
     __asm__ __volatile__("hlt");
+#endif
   }
   idle_regs = currently_executing_thread_regs;
 }
@@ -54,7 +56,9 @@ void ScheduleNextThread() {
     PrintRegisters(currently_executing_thread_regs);
 #endif
     if (running_thread->uses_fpu_registers) {
+#ifndef __TEST__
       asm volatile("fxsave %0" ::"m"(*running_thread->fpu_registers));
+#endif
     }
 
     // Move to the next awake thread.
@@ -88,7 +92,9 @@ void ScheduleNextThread() {
   SwitchToAddressSpace(&running_thread->process->virtual_address_space);
 
   if (running_thread->uses_fpu_registers) {
+#ifndef __TEST__
     asm volatile("fxrstor %0" ::"m"(*running_thread->fpu_registers));
+#endif
   }
   LoadThreadSegment(running_thread);
 

@@ -15,6 +15,7 @@
 #include "text_terminal.h"
 #include "types.h"
 
+#ifndef __TEST__
 // 32-bit:
 // #define STACK_CHK_GUARD 0xe2dee396
 // 64-bit:
@@ -29,3 +30,4 @@ __attribute__((noreturn)) void __stack_chk_fail(void) {
     asm("hlt");
   }
 }
+#endif

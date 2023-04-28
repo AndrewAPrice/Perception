@@ -14,4 +14,8 @@
 
 #pragma once
 
+#ifdef __TEST__
+#include <stdlib.h>
+#else
 #include "../../third_party/liballoc.h"
+#endif

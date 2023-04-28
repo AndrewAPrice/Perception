@@ -235,3 +235,7 @@ void SetThreadSegment(struct Thread* thread, size_t address) {
 void LoadThreadSegment(struct Thread* thread) {
   wrmsr(FSBASE_MSR, thread->thread_segment_offset);
 }
+
+#ifdef __TEST__
+void JumpIntoThread() {}
+#endif

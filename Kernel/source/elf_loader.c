@@ -355,7 +355,7 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
     return;
   }
 
-  CopyString(name, PROCESS_NAME_LENGTH, name_length, process->name);
+  CopyString(name, PROCESS_NAME_LENGTH, name_length, (char*)process->name);
 
   if (!LoadSegments(header, memory_start, memory_end, process)) {
     PrintString("Destroying process.\n");

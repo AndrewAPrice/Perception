@@ -10,9 +10,15 @@
 
 // Our paging structures made at boot time, these can be freed after the virtual
 // allocator has been initialized.
+#ifdef __TEST__
+size_t Pml4[512];
+size_t Pdpt[512];
+size_t Pd[512];
+#else
 extern size_t Pml4[];
 extern size_t Pdpt[];
 extern size_t Pd[];
+#endif
 
 // The kernel's virtual address space.
 struct VirtualAddressSpace kernel_address_space;
@@ -80,6 +86,44 @@ size_t FreeMemoryRangeSizeFromAATreeNode(struct AATreeNode *node) {
   return FreeMemoryRangeFromNodeBySize(node)->pages;
 }
 
+void VerifyAddressSpaceStructuresAreAllTheSameSize(
+    struct VirtualAddressSpace *address_space) {
+  int nodes_in_address_tree =
+      CountNodesInAATree(&address_space->free_chunks_by_address);
+  int nodes_in_size_tree =
+      CountNodesInAATree(&address_space->free_chunks_by_size);
+  int nodes_in_linked_list = 0;
+  struct FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
+  while (current_fmr != NULL) {
+    nodes_in_linked_list++;
+    current_fmr = current_fmr->next;
+  }
+
+  if (nodes_in_address_tree != nodes_in_size_tree ||
+      nodes_in_address_tree != nodes_in_linked_list) {
+    PrintString("Nodes in address tree: ");
+    PrintNumber(nodes_in_address_tree);
+    PrintString(" != Nodes in size tree: ");
+    PrintNumber(nodes_in_size_tree);
+    PrintString(" != Nodes in linked list: ");
+    PrintNumber(nodes_in_linked_list);
+    PrintChar('\n');
+  }
+}
+
+void PrintFreeAddressRanges(struct VirtualAddressSpace *address_space) {
+  PrintString("Free address ranges:\n");
+  struct FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
+  while (current_fmr != NULL) {
+    PrintChar(' ');
+    PrintHex(current_fmr->start_address);
+    PrintString("->");
+    PrintHex(current_fmr->start_address + PAGE_SIZE * current_fmr->pages);
+    PrintChar('\n');
+    current_fmr = current_fmr->next;
+  }
+}
+
 void AddFreeMemoryRangeToVirtualAddressSpace(
     struct VirtualAddressSpace *address_space, struct FreeMemoryRange *fmr) {
   InsertNodeIntoAATree(&address_space->free_chunks_by_address,
@@ -91,6 +135,8 @@ void AddFreeMemoryRangeToVirtualAddressSpace(
   fmr->next = address_space->free_memory_ranges;
   if (fmr->next != NULL) fmr->next->previous = fmr;
   address_space->free_memory_ranges = fmr;
+
+  VerifyAddressSpaceStructuresAreAllTheSameSize(address_space);
 }
 
 void RemoveFreeMemoryRangeFromVirtualAddressSpace(
@@ -107,6 +153,8 @@ void RemoveFreeMemoryRangeFromVirtualAddressSpace(
     fmr->previous->next = fmr->next;
   }
   if (fmr->next != 0) fmr->next->previous = fmr->previous;
+
+  VerifyAddressSpaceStructuresAreAllTheSameSize(address_space);
 }
 
 // Maps a physical address to a virtual address in the kernel - at boot time
@@ -130,7 +178,9 @@ void MapKernelMemoryPreVirtualMemory(size_t virtualaddr, size_t physicaladdr,
       kernel_address_space.pml4);
   if (pml4_entry != 511) {
     PrintString("Attempting to map kernel memory not in the last PML4 entry.");
+#ifndef __TEST__
     __asm__ __volatile__("hlt");
+#endif
   }
   if (ptr[pml4_entry] == 0) {
     // If this entry is blank blank, create a PML3 table.
@@ -282,14 +332,16 @@ void InitializeVirtualAllocator() {
   // Set the current address space to a dud entry so SwitchToAddressSpace works.
   current_address_space = (struct VirtualAddressSpace *)NULL;
   SwitchToAddressSpace(&kernel_address_space);
-  
-  // Reclaim the PML4, PDPT, PD set up at boot time.
+
+// Reclaim the PML4, PDPT, PD set up at boot time.
+#ifndef __TEST__
   UnmapVirtualPage(&kernel_address_space, (size_t)&Pml4 + VIRTUAL_MEMORY_OFFSET,
                    true);
   UnmapVirtualPage(&kernel_address_space, (size_t)&Pdpt + VIRTUAL_MEMORY_OFFSET,
                    true);
   UnmapVirtualPage(&kernel_address_space, (size_t)&Pd + VIRTUAL_MEMORY_OFFSET,
                    true);
+#endif
 }
 
 // Creates a user's sapce virtual address space, returns the PML4. Returns
@@ -405,8 +457,10 @@ void *TemporarilyMapPhysicalMemory(size_t addr, size_t index) {
   if (temp_memory_page_table[index] != entry) {
     // Map this page into our temporary page table.
     temp_memory_page_table[index] = entry;
-    // Flush our page table cache.
+// Flush our page table cache.
+#ifndef __TEST__
     __asm__ __volatile__("mov %0, %%cr3" ::"a"(current_address_space->pml4));
+#endif
   }
 
   // Return a pointer to the virtual address of the requested physical memory.
@@ -427,14 +481,25 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
   if (node_before != NULL) {
     block_before = FreeMemoryRangeFromNodeByAddress(node_before);
     if (block_before->start_address == address) {
-      PrintString("Error: block_before->start_address == address");
+      PrintString("Error: block_before->start_address == address\n");
       return;
     }
     if (block_before->start_address + (block_before->pages * PAGE_SIZE) >
         address) {
       PrintString(
           "Error: block_before->start_address + (block_before->pages * "
-          "PAGE_SIZE) > address");
+          "PAGE_SIZE) > address\n");
+      PrintString("Trying to free address ");
+      PrintHex(address);
+      PrintChar(' ');
+      PrintFreeAddressRanges(address_space);
+      PrintString("Before block: ");
+      PrintHex(block_before->start_address);
+      PrintString(" -> ");
+      PrintHex(block_before->start_address + (block_before->pages * PAGE_SIZE));
+      PrintChar('\n');
+      PrintAATree(&address_space->free_chunks_by_address,
+                  FreeMemoryRangeAddressFromAATreeNode);
       return;
     }
 
@@ -1017,7 +1082,7 @@ void UnmapVirtualPage(struct VirtualAddressSpace *address_space,
 
   // Remove this entry from the PML1.
   ptr[pml1_entry] = 0;
-  
+
   MarkAddressRangeAsFree(address_space, virtualaddr, 1);
 
   // Scan to see if we find anything in the PML tables. If not, we can free
@@ -1173,7 +1238,9 @@ void FreeAddressSpace(struct VirtualAddressSpace *address_space) {
 void SwitchToAddressSpace(struct VirtualAddressSpace *address_space) {
   if (address_space != current_address_space) {
     current_address_space = address_space;
+#ifndef __TEST__
     __asm__ __volatile__("mov %0, %%cr3" ::"b"(address_space->pml4));
+#endif
   }
 }
 
@@ -1184,7 +1251,9 @@ void FlushVirtualPage(size_t addr) {
   /*
   This gives me an assembler error:
           Error: junk `(%rbp))' after expression*/
+#ifndef __TEST__
   __asm__ __volatile__("invlpg (%0)" : : "b"(addr) : "memory");
+#endif
 }
 
 // Maps shared memory into a process's virtual address space. Returns NULL if

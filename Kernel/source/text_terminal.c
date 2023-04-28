@@ -3,6 +3,10 @@
 #include "io.h"
 #include "virtual_allocator.h"
 
+#ifdef __TEST__
+#include <stdio.h>
+#endif
+
 // The text terminal is implemented by outputting over COM1.
 
 // The sIO port to use.
@@ -25,12 +29,16 @@ void InitializeSerialOutput() {
 
 // Prints a single character.
 void PrintChar(char c) {
+#ifdef __TEST__
+  printf("%c", c);
+#else
   if (!serial_output_initialized) {
     InitializeSerialOutput();
   }
   while ((inportb(PORT + 5) & 0x20) == 0)
     ;
   outportb(PORT, c);
+#endif
 }
 
 // Prints a null-terminated string.

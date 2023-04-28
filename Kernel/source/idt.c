@@ -36,9 +36,11 @@ void InitializeIdt() {
   in_interrupt = false;
 
   // The IDT aligns with pages - so grab a page to allocate it.
-  idt = (struct idt_entry *)AllocateVirtualMemoryInAddressSpace(&kernel_address_space, 1);
+  idt = (struct idt_entry *)AllocateVirtualMemoryInAddressSpace(
+      &kernel_address_space, 1);
 
-  size_t idt_physical = GetPhysicalAddress(&kernel_address_space, (size_t)idt, false);
+  size_t idt_physical =
+      GetPhysicalAddress(&kernel_address_space, (size_t)idt, false);
 
   // Populate the IDT reference to point to the physical memory location where
   // the IDT will be.
@@ -48,8 +50,10 @@ void InitializeIdt() {
   // Clear the IDT.
   memset((unsigned char *)idt, 0, sizeof(struct idt_entry) * 256);
 
-  // Load the new IDT pointer, which is in virtual address space.
+// Load the new IDT pointer, which is in virtual address space.
+#ifndef __TEST__
   __asm__ __volatile__("lidt (%0)" : : "b"((size_t)&idt_p));
+#endif
 }
 
 void SetIdtEntry(unsigned char num, size_t handler_address, unsigned short sel,

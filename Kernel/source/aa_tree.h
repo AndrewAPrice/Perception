@@ -63,4 +63,6 @@ extern struct AATreeNode* SearchForNodeEqualToValue(
     size_t (*value_function)(struct AATreeNode* node));
 
 extern void PrintAATree(struct AATree* tree,
-                      size_t (*value_function)(struct AATreeNode* node));
+                        size_t (*value_function)(struct AATreeNode* node));
+
+extern size_t CountNodesInAATree(struct AATree* tree);

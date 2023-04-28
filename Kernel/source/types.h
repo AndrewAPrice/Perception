@@ -1,5 +1,10 @@
 #pragma once
+
+#ifdef __TEST__
+#include <sys/types.h>
+#else
 typedef unsigned long long int size_t;
+#endif
 typedef unsigned char bool;
 typedef unsigned long long int uint64;
 typedef unsigned int uint32;

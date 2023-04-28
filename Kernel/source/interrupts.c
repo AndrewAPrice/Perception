@@ -91,6 +91,7 @@ void RemapIrqsToNotOverlapWithCpuExceptions() {
 void RegisterInterruptHandlers() {
   RemapIrqsToNotOverlapWithCpuExceptions();
 
+#ifndef __TEST__
   SetIdtEntry(32, (size_t)irq0, 0x08, 0x8E);
   SetIdtEntry(33, (size_t)irq1, 0x08, 0x8E);
   SetIdtEntry(34, (size_t)irq2, 0x08, 0x8E);
@@ -107,11 +108,13 @@ void RegisterInterruptHandlers() {
   SetIdtEntry(45, (size_t)irq13, 0x08, 0x8E);
   SetIdtEntry(46, (size_t)irq14, 0x08, 0x8E);
   SetIdtEntry(47, (size_t)irq15, 0x08, 0x8E);
+#endif
 }
 
 // Allocates a stack to use for interrupts.
 void AllocateInterruptStack() {
-  size_t virtual_addr = AllocateVirtualMemoryInAddressSpace(&kernel_address_space, 1);
+  size_t virtual_addr =
+      AllocateVirtualMemoryInAddressSpace(&kernel_address_space, 1);
 
 #ifdef DEBUG
   PrintString("Interrupt stack is at ");

@@ -16,7 +16,7 @@
 
 #include "types.h"
 
-// #define PROFILING_ENABLED
+#define PROFILING_ENABLED
 
 #ifdef PROFILING_ENABLED
 

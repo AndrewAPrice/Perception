@@ -15,7 +15,16 @@ size_t total_system_memory;
 size_t free_pages;
 
 // Start of the free memory on boot.
+#ifdef __TEST__
+size_t bssEnd = 0;
+#else
 extern size_t bssEnd;
+#endif
+
+#ifdef __TEST__
+struct multiboot_info MultibootInfo;
+#endif
+
 
 // Physical memory is divided into 4kb pages. We keep a linked stack of them
 // that we can pop a page off of and push a page onto. This pointer points to

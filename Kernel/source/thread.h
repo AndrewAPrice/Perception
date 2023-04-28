@@ -57,7 +57,7 @@ struct Thread {
   bool thread_is_waiting_for_message : 1;
 
   // Set if this thread is waiting for shared memory.
-  struct ThreadWaitingForSharedMemoryPage* thread_is_waiting_for_shared_memory;
+  struct ThreadWaitingForSharedMemoryPage *thread_is_waiting_for_shared_memory;
 
   // If not 0, the virtual address in the process's space to clear on
   // termination of the thread. Must be 8-byte aligned.

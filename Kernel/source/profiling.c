@@ -33,7 +33,9 @@ struct SyscallProfilingInformation
 
 size_t CurrentTimeForProfiling() {
   unsigned hi, lo;
+#ifndef __TEST__
   __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+#endif
   return ((unsigned long long)lo) | (((unsigned long long)hi) << 32);
 }
 
