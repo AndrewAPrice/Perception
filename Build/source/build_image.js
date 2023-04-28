@@ -24,6 +24,7 @@ const { getFileLastModifiedTimestamp } = require('./file_timestamps');
 const { PackageType } = require('./package_type');
 const { applicationsWithAssets, librariesWithAssets } = require('./assets');
 const { runDeferredCommands } = require('./deferred_commands');
+const { maybeQueueAllDeferredTests } = require('./test')
 
 const GRUB_MKRESCUE_COMMAND = getToolPath('grub-mkrescue') + ' -o ' +
   escapePath(getOutputPath()) + ' ' + escapePath(getFileSystemDirectory());
@@ -109,10 +110,12 @@ async function buildImage() {
       }
     }
 
+    await maybeQueueAllDeferredTests();
+
     return await runDeferredCommands();
   } else {
     // Build everything into an image.
-    if (!(await build(PackageType.KERNEL, ''))) {
+    if (!(await build(PackageType.KERNEL, 'kernel'))) {
       return false;
     }
 

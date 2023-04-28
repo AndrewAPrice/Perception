@@ -14,12 +14,12 @@
 
 const { getKernelDirectory, getApplicationDirectories, getLibraryDirectories, getTempDirectory } = require('./config');
 const { PackageType } = require('./package_type');
-const { buildPrefix } = require('./build_commands');
+const { buildPrefix, buildSettings } = require('./build_commands');
 
 const fs = require('fs');
 
 let cachedApplicationDirectories = null;
-let  cachedLibraryDirectories = null;
+let cachedLibraryDirectories = null;
 let allApplications = null;
 let allLibraries = null;
 
@@ -64,7 +64,7 @@ function getPackageDirectory(packageType, packageName) {
       if (!allApplications) scanForApplications();
       if (cachedApplicationDirectories[packageName])
         return cachedApplicationDirectories[packageName];
-        
+
       console.log('Cannot find application ' + packageName);
       return '';
     }

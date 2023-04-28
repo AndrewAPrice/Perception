@@ -17,16 +17,17 @@ const util = require('node:util');
 const exec = util.promisify(require('node:child_process').exec);
 const readFile = util.promisify(require('node:fs').readFile);
 const exists = util.promisify(require('node:fs').exists);
-const {buildSettings} = require('./build_commands');
-const {setDependenciesOfFile, flushDependenciesForFile} =
-    require('./dependencies_per_file');
-const {escapePath} = require('./utils');
+const { buildSettings } = require('./build_commands');
+const { setDependenciesOfFile, flushDependenciesForFile } =
+  require('./dependencies_per_file');
+const { escapePath } = require('./utils');
 const { getTempDirectory } = require('./config');
 
 const STAGE = {
   COMPILE: 0,
   LINK_LIBRARY: 1,
-  LINK_APPLICATION: 2
+  LINK_APPLICATION: 2,
+  RUN_TEST: 3
 };
 
 const ERASE_LINE = '\033[2K\r';
@@ -39,7 +40,7 @@ function deferCommand(stage, command, title, sourceFile, outputWarnings) {
   }
 
   deferredCommands[stage].push(
-      {command: command, title: title, sourceFile: sourceFile, outputWarnings});
+    { command: command, title: title, sourceFile: sourceFile, outputWarnings });
 }
 
 async function processAndUpdatePerFileDeps(sourceFile, dependenciesFile) {
@@ -69,9 +70,10 @@ async function processAndUpdatePerFileDeps(sourceFile, dependenciesFile) {
 }
 
 async function runCommand(
-    deferredCommand, actionBeingPerformed, outputDepsFile,
-    escapedOutputDepsFile, errors, silent) {
+  deferredCommand, actionBeingPerformed, outputDepsFile,
+  escapedOutputDepsFile, errors, silent) {
   let command = deferredCommand.command;
+
   let updatePerFileDeps = false;
   let useDepsFile = false;
 
@@ -85,7 +87,7 @@ async function runCommand(
   }
 
   try {
-    const {stdout, stderr} = await exec(command);
+    const { stdout, stderr } = await exec(command);
     if (deferredCommand.outputWarnings && !silent && stdout.length > 0) {
       process.stdout.write(ERASE_LINE);
       console.log(deferredCommand.command);
@@ -99,20 +101,24 @@ async function runCommand(
         if (output.length > 0) output += '\n';
         output += exp.stderr;
       }
+      if (exp.signal && exp.signal.length > 0) {
+        if (output.length > 0) output += '\n';
+        output += exp.signal;
+      }
 
-      errors.push({command: deferredCommand.command, error: output});
+      errors.push({ command: deferredCommand.command, error: output });
       process.stdout.write(' ');
     }
   }
 
   if (updatePerFileDeps) {
     await processAndUpdatePerFileDeps(
-        deferredCommand.sourceFile, useDepsFile ? outputDepsFile : null);
+      deferredCommand.sourceFile, useDepsFile ? outputDepsFile : null);
   }
 }
 
 async function runCommandsUntilDone(
-    commands, actionBeingPerformed, id, errors, totalSize, silent) {
+  commands, actionBeingPerformed, id, errors, totalSize, silent) {
   const outputDepsFile = getTempDirectory() + '/deps' + id + '.d';
   const escapedOutputDepsFile = escapePath(outputDepsFile);
 
@@ -120,12 +126,12 @@ async function runCommandsUntilDone(
     const deferredCommand = commands.pop();
     if (!silent) {
       process.stdout.write(
-          ERASE_LINE + actionBeingPerformed + (totalSize - commands.length) +
-          '/' + totalSize);
+        ERASE_LINE + actionBeingPerformed + (totalSize - commands.length) +
+        '/' + totalSize);
     }
     await runCommand(
-        deferredCommand, actionBeingPerformed, outputDepsFile,
-        escapedOutputDepsFile, errors, silent);
+      deferredCommand, actionBeingPerformed, outputDepsFile,
+      escapedOutputDepsFile, errors, silent);
   }
 }
 
@@ -144,6 +150,9 @@ async function runCommandsForStage(stage, silent) {
     case STAGE.LINK_APPLICATION:
       actionBeingPerformed = 'Linking applications ';
       break;
+    case STAGE.RUN_TEST:
+      actionBeingPerformed = 'Running tests ';
+      break;
   }
   if (!silent) process.stdout.write(' ');
 
@@ -152,7 +161,7 @@ async function runCommandsForStage(stage, silent) {
   const totalCommands = commands.length;
   for (let i = 0; i < buildSettings.parallelTasks; i++) {
     tasks.push(runCommandsUntilDone(
-        commands, actionBeingPerformed, i, errors, totalCommands, silent));
+      commands, actionBeingPerformed, i, errors, totalCommands, silent));
   }
 
   await Promise.all(tasks);
@@ -185,6 +194,11 @@ async function runDeferredCommandsInternal(silent) {
   if (!(await runCommandsForStage(STAGE.LINK_APPLICATION, silent))) {
     return false;
   }
+
+  if (!(await runCommandsForStage(STAGE.RUN_TEST, silent))) {
+    return false;
+  }
+
   return true;
 }
 
@@ -195,7 +209,7 @@ async function runDeferredCommands(silent) {
 }
 
 module.exports = {
-  STAGE : STAGE,
-  deferCommand : deferCommand,
-  runDeferredCommands : runDeferredCommands
+  STAGE: STAGE,
+  deferCommand: deferCommand,
+  runDeferredCommands: runDeferredCommands
 };

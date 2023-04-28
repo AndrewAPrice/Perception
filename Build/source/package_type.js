@@ -32,7 +32,48 @@ function getPackageTypeDirectoryName(packageType) {
   }
 };
 
+function getNameOfPackage(packageType, packageName) {
+  switch (packageType) {
+    case PackageType.APPLICATION:
+      return 'Application ' + packageName;
+    case PackageType.LIBRARY:
+      return 'Library ' + packageName;
+    case PackageType.KERNEL:
+      return 'Kernel';
+    default:
+      return undefined;
+  }
+}
+
+function getNonCapitalizedNameOfPackage(packageType, packageName) {
+  switch (packageType) {
+    case PackageType.APPLICATION:
+      return 'application ' + packageName;
+    case PackageType.LIBRARY:
+      return 'library ' + packageName;
+    case PackageType.KERNEL:
+      return 'kernel';
+    default:
+      return undefined;
+  }
+}
+
+function maybePrefixPackageName(packageType, packageName) {
+  switch (packageType) {
+    case PackageType.LIBRARY:
+    default:
+      return packageName;
+    case PackageType.APPLICATION:
+      return '<application>' + packageName;
+    case PackageType.KERNEL:
+      return '<kernel>';
+  }
+}
+
 module.exports = {
-  PackageType : PackageType,
-  getPackageTypeDirectoryName : getPackageTypeDirectoryName
+  PackageType: PackageType,
+  getPackageTypeDirectoryName: getPackageTypeDirectoryName,
+  getNameOfPackage: getNameOfPackage,
+  getNonCapitalizedNameOfPackage: getNonCapitalizedNameOfPackage,
+  maybePrefixPackageName: maybePrefixPackageName
 };

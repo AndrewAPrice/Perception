@@ -35,7 +35,7 @@ Flags that can be passed:
 - `--local` - Builds for the local OS rather than Perception.
 - `--fast` - Disables compile-time optimizations to speed up building (overrides `--debug`.)
 - `--debug` - Generates debug information (overrides `--fast`.)
-- `--test` - Runs unit tests (unimplemented.)
+- `--test` - Runs unit tests.
 
 ## Package directory hierarchy
 There are 3 types of packages - the kernel, libraries, and applications. The kernel lives in `Kernel`, libraries live within their own directories in `Libraries`, and applications live within their own directories in `Applications`.
@@ -53,6 +53,9 @@ The generated files/directories inside of a package's directory are:
 - `third_party` - Files downloaded from an external repository go here.
 
 You do not have to provide the generated files/directories, and please don't check them into git. They will be created if they don't exist.
+
+## Unit tests
+Normally, files ending with `_test.c` or `_test.cc` are ignored.  When building with `--test`, the rest of the application or library (or even the kernel) is linked with each individual test source file producing an executable per test source file that is ran.
 
 ## metadata.json
 Each package's directory contains a metadata.json that controls how that package gets built. Unused fields can be emitted.

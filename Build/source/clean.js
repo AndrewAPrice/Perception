@@ -14,7 +14,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { forgetAlreadyBuiltLibraries } = require('./build');
+const { forgetAlreadyBuiltLibraries } = require('./libraries');
 const { getTempDirectory, getOutputPath, getFileSystemDirectory } = require('./config');
 const { forgetAllLastModifiedTimestamps } = require('./file_timestamps');
 const { getAllApplications, getPackageDirectory, getAllLibraries } = require('./package_directory');

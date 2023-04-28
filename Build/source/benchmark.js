@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const {performance} = require('node:perf_hooks');
-const {build} = require('./build');
-const {clean} = require('./clean');
-const {buildSettings} = require('./build_commands');
-const {setAndFlushParallelTasks, getApplicationDirectories} = require('./config');
-const {getAllApplications} = require('./package_directory');
-const {PackageType} = require('./package_type');
-const {runDeferredCommands} = require('./deferred_commands');
+const { performance } = require('node:perf_hooks');
+const { build } = require('./build');
+const { clean } = require('./clean');
+const { buildSettings } = require('./build_commands');
+const { setAndFlushParallelTasks, getApplicationDirectories } = require('./config');
+const { getAllApplications } = require('./package_directory');
+const { PackageType } = require('./package_type');
+const { runDeferredCommands } = require('./deferred_commands');
 
 function quitWithMessage() {
-	console.log(' ');
+  console.log(' ');
   console.log('Fix the build errors before benchmarking');
   process.exit(1);
 }
@@ -90,7 +90,7 @@ async function findFastestNumberOfTasks() {
     let sizesToTest = [];
     if (windowSize == 1) {
       sizesToTest =
-          [middleTask - windowSize, middleTask, middleTask + windowSize];
+        [middleTask - windowSize, middleTask, middleTask + windowSize];
     } else {
       sizesToTest = [
         middleTask - windowSize, middleTask - windowSize / 2, middleTask,
@@ -122,11 +122,15 @@ async function findFastestNumberOfTasks() {
 }
 
 async function benchmark() {
+  if (buildSettings.test) {
+    console.log('Can\'t run benchmarks with --test.');
+    return;
+  }
   const fastestNumberOfTasks = await findFastestNumberOfTasks();
   setAndFlushParallelTasks(fastestNumberOfTasks);
   console.log('We will now build with ' + fastestNumberOfTasks + ' task(s).');
 }
 
 module.exports = {
-  benchmark : benchmark
+  benchmark: benchmark
 };

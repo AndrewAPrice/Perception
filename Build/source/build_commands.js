@@ -32,8 +32,11 @@ function generateBuildCommand(language, filePath) {
     '-fdata-sections -ffunction-sections ';
   if (buildSettings.build == 'optimized')
     cParams += '-g -O3  -fomit-frame-pointer ';
-  else if (buildSettings.build == 'debug')
+  else if (buildSettings.build == 'debug') {
     cParams += '-g -Og ';
+    if (buildSettings.test)
+      cParams += '-D __TEST__ ';
+  }
 
   const isLocalBuild = buildSettings.os != 'Perception';
 
@@ -78,14 +81,14 @@ function generateBuildCommand(language, filePath) {
 const buildCommands = {};
 
 // Gets the build command to use for a file.
-function getBuildCommand(filePath, packageType, cParams, buildSettings) {
+function getBuildCommand(filePath, packageType, cParams) {
   let language = '';
   let addCParams = false;
   if (filePath.endsWith('.cc') || filePath.endsWith('.cpp')) {
     language = 'C++';
     addCParams = true;
   } else if (filePath.endsWith('.c')) {
-    language = packageType == PackageType.KERNEL ? 'Kernel C' : 'C';
+    language = packageType == PackageType.KERNEL && !buildSettings.test ? 'Kernel C' : 'C';
     addCParams = true;
   } else if (filePath.endsWith('.asm')) {
     language = 'Intel ASM';
@@ -100,6 +103,9 @@ function getBuildCommand(filePath, packageType, cParams, buildSettings) {
 
   if (!buildCommands[language])
     buildCommands[language] = generateBuildCommand(language, filePath);
+
+  if (buildCommands[language] == '')
+    return '';
 
   return addCParams ? buildCommands[language] + cParams :
     buildCommands[language];
@@ -153,6 +159,11 @@ function getLinkerCommand(packageType, outputFile, inputFiles) {
   }
 }
 
+function getTestLinkerCommand(outputFile, testObjectFile, libraryFiles) {
+  return getToolPath('local-gcc') + ' -o ' + outputFile  + ' ' +
+    testObjectFile + ' ' + libraryFiles;
+}
+
 function buildPrefix() {
   if (buildSettings.test)
     return 'test';
@@ -163,6 +174,7 @@ function buildPrefix() {
 module.exports = {
   getBuildCommand: getBuildCommand,
   getLinkerCommand: getLinkerCommand,
+  getTestLinkerCommand: getTestLinkerCommand,
   buildPrefix: buildPrefix,
   buildSettings: buildSettings
 };

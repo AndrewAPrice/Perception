@@ -29,6 +29,10 @@ const EMULATOR_COMMAND = getToolPath('qemu') + ' -boot d -cdrom ' +
 
 // Builds everything and runs the emulator.
 async function run(package) {
+  if (buildSettings.test) {
+    console.log('Can\'t run with --test.');
+    return;
+  }
   if (buildSettings.os == 'Perception') {
     if (package != '') {
       console.log(

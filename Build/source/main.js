@@ -14,16 +14,16 @@
 
 const process = require('process');
 const os = require('os');
-const {benchmark} = require('./benchmark');
-const {build} = require('./build');
-const {buildSettings} = require('./build_commands');
-const {runDeferredCommands} = require('./deferred_commands');
-const {buildImage} = require('./build_image');
-const {clean} = require('./clean');
-const {PackageType} = require('./package_type');
-const {run} = require('./run');
-const {test} = require('./test');
+const { benchmark } = require('./benchmark');
+const { buildAndMaybeRunTests } = require('./build');
+const { buildSettings } = require('./build_commands');
+const { runDeferredCommands } = require('./deferred_commands');
+const { buildImage } = require('./build_image');
+const { clean } = require('./clean');
+const { PackageType } = require('./package_type');
+const { run } = require('./run');
 const { updateAllThirdPartyPackages, makeSureThirdPartyIsLoaded } = require('./third_party');
+const { maybeQueueAllDeferredTestsForPackage } = require('./test');
 
 // Parse the input.
 let command = '';
@@ -60,16 +60,17 @@ for (let argIndex = 2; argIndex < process.argv.length; argIndex++) {
   }
 }
 
+
 // Parses the input.
 switch (command) {
   case 'application':
-    build(PackageType.APPLICATION, package).then(() => runDeferredCommands());
+    buildAndMaybeRunTests(PackageType.APPLICATION, package).then(() => runDeferredCommands());
     break;
   case 'library':
-    build(PackageType.LIBRARY, package).then(() => runDeferredCommands());
+    buildAndMaybeRunTests(PackageType.LIBRARY, package).then(() => runDeferredCommands());
     break;
   case 'kernel':
-    build(PackageType.KERNEL, '').then(() => runDeferredCommands());
+    buildAndMaybeRunTests(PackageType.KERNEL, 'kernel').then(() => runDeferredCommands());
     break;
   case 'run':
     run(package);
