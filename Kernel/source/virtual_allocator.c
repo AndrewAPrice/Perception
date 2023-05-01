@@ -61,6 +61,12 @@ extern size_t bssEnd;
 // The page sent to SetMemoryAccessRights can be executed.
 #define EXECUTE_ACCESS 2
 
+// Statically allocated FreeMemoryRanges added to the object pool so they can be
+// allocated before the dynamic memory allocation is set up.
+#define STATICALLY_ALLOCATED_FREE_MEMORY_RANGES_COUNT 2
+struct FreeMemoryRange statically_allocated_free_memory_ranges
+    [STATICALLY_ALLOCATED_FREE_MEMORY_RANGES_COUNT];
+
 // Returns the FreeMemoryRange from a pointer to a `node_by_address` field.
 struct FreeMemoryRange *FreeMemoryRangeFromNodeByAddress(
     struct AATreeNode *node) {
@@ -306,10 +312,12 @@ void InitializeVirtualAllocator() {
   size_t page_table_range = PAGE_SIZE * PAGE_TABLE_ENTRIES;
   temp_memory_start = (i + page_table_range) & ~(page_table_range - 1);
 
+  size_t before_temp_memory = i;
+
   MapKernelMemoryPreVirtualMemory(temp_memory_start,
                                   physical_temp_memory_page_table, true);
 
-  start_of_free_kernel_memory = i + (2 * 1024 * 1024);
+  start_of_free_kernel_memory = temp_memory_start + (2 * 1024 * 1024);
 
   // Set the assigned bit to each of the temporary page table entries so we
   // don't think it's free to allocate stuff into.
@@ -333,6 +341,10 @@ void InitializeVirtualAllocator() {
   current_address_space = (struct VirtualAddressSpace *)NULL;
   SwitchToAddressSpace(&kernel_address_space);
 
+  // Add the statically allocated free memory ranges.
+  for (int i = 0; i < STATICALLY_ALLOCATED_FREE_MEMORY_RANGES_COUNT; i++)
+    ReleaseFreeMemoryRange(&statically_allocated_free_memory_ranges[i]);
+
 // Reclaim the PML4, PDPT, PD set up at boot time.
 #ifndef __TEST__
   UnmapVirtualPage(&kernel_address_space, (size_t)&Pml4 + VIRTUAL_MEMORY_OFFSET,
@@ -342,6 +354,14 @@ void InitializeVirtualAllocator() {
   UnmapVirtualPage(&kernel_address_space, (size_t)&Pd + VIRTUAL_MEMORY_OFFSET,
                    true);
 #endif
+
+  if (before_temp_memory < temp_memory_start) {
+    // The virtual address space had to be rounded up to align with 2MB for the
+    // temporary page table. This is a free range.
+    size_t num_pages = (temp_memory_start - before_temp_memory) / PAGE_SIZE;
+    MarkAddressRangeAsFree(&kernel_address_space, before_temp_memory,
+                           num_pages);
+  }
 }
 
 // Creates a user's sapce virtual address space, returns the PML4. Returns
@@ -524,16 +544,13 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
     if (block_after != NULL) {
       // Merge into the block before and after
       RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_after);
-
       // Expand the size of the block before.
       block_before->pages += pages + block_after->pages;
       AddFreeMemoryRangeToVirtualAddressSpace(address_space, block_before);
-
       // Release the block after since it was merged in.
       ReleaseFreeMemoryRange(block_after);
     } else {
       // Merge into the block before.
-
       // Expand the size of the block before.
       block_before->pages += pages;
       AddFreeMemoryRangeToVirtualAddressSpace(address_space, block_before);
@@ -541,7 +558,6 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
   } else if (block_after != NULL) {
     // Merge into the block after.
     RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_after);
-
     // Expand and pull back the size of the block after.
     block_after->start_address = address;
     block_after->pages += pages;
@@ -551,7 +567,6 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
     // Stand alone free memory range that can't merge into anything.
     struct FreeMemoryRange *fmr = AllocateFreeMemoryRange();
     if (fmr == NULL) {
-      PrintString("Error: Out of memory allocating FreeMemoryRange.\n");
       return;
     }
     fmr->start_address = address;
@@ -638,7 +653,8 @@ bool MapPhysicalPageToVirtualPage(struct VirtualAddressSpace *address_space,
   if (ptr[pml4_entry] == 0) {
     // Entry blank, create a PML3 table.
     size_t new_pml3 = GetPhysicalPage();
-    if (new_pml3 == OUT_OF_PHYSICAL_PAGES) return false;  // No space for PML3.
+    if (new_pml3 == OUT_OF_PHYSICAL_PAGES)
+      return false;  // No space for PML3.
 
     // Clear it.
     ptr = (size_t *)TemporarilyMapPhysicalMemory(new_pml3, 1);
@@ -743,6 +759,9 @@ bool MapPhysicalPageToVirtualPage(struct VirtualAddressSpace *address_space,
   if (ptr[pml1_entry] != 0 && ptr[pml1_entry] != DUD_PAGE_ENTRY) {
     // We don't worry about cleaning up PML2/3 because for it to be mapped
     // PML2/3 must already exist.
+    PrintString("Mapping page to ");
+    PrintHex(virtualaddr);
+    PrintString(" but something is already there.\n");
     return false;
   }
 
@@ -950,21 +969,27 @@ size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
     // Get a physical page.
     size_t phys = GetPhysicalPageAtOrBelowAddress(max_base_address);
 
+    bool success = true;
     if (phys == OUT_OF_PHYSICAL_PAGES) {
       // No physical pages. Unmap all memory until this point.
+      PrintString("Out of physical pages.\n");
+      success = false;
+    }
+
+    // Map the physical page.
+    if (success && !MapPhysicalPageToVirtualPage(address_space, addr, phys,
+                                                 true, true, false)) {
+      PrintString("Call to MapPhysicalPageToVirtualPage failed.\n");
+      success = false;
+    }
+
+    if (!success) {
       for (; start < addr; start += PAGE_SIZE) {
         UnmapVirtualPage(address_space, start, true);
       }
       // Mark the rest as free.
       MarkAddressRangeAsFree(address_space, addr, pages - i);
       return 0;
-    }
-
-    // Map the physical page.
-    MapPhysicalPageToVirtualPage(address_space, addr, phys, true, true, false);
-
-    if (current_address_space == address_space) {
-      FlushVirtualPage(addr);
     }
   }
 
@@ -1011,7 +1036,6 @@ void UnmapVirtualPage(struct VirtualAddressSpace *address_space,
   // 4321
   //                     #### #### #@@@ @@@@ @@!! !!!! !!!+ ++++ ++++ ^^^^ ^^^^
   //                     ^^^^ pml4       pml3       pml2       pml1        flags
-
   size_t pml4_entry = (virtualaddr >> 39) & 511;
   size_t pml3_entry = (virtualaddr >> 30) & 511;
   size_t pml2_entry = (virtualaddr >> 21) & 511;
