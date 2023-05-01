@@ -17,7 +17,6 @@
 #include "io.h"
 #include "liballoc.h"
 #include "physical_allocator.h"
-#include "text_terminal.h"
 #include "virtual_allocator.h"
 
 // Pointers for the TSS entry in the GDT. WARNING: These refer to symbols in

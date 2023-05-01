@@ -168,8 +168,7 @@ size_t CountNodesInAATree(struct AATree* tree) {
 
 void PrintAATreeNode(struct AATreeNode* node,
                      size_t (*value_function)(struct AATreeNode* node),
-                     char side,
-                     int indentation) {
+                     char side, int indentation) {
   if (node == NULL) return;
   for (int i = 0; i < indentation; i++) PrintChar(' ');
   PrintChar(side);
@@ -375,10 +374,9 @@ struct AATreeNode* RemoveNodeWithValueFromBelowAANode(
         node = new_node;
       }
     } else {
-
       // Grab the next highest value node from the left.
       struct AATreeNode* new_node = GetPredecessorOfAANode(node);
-      
+
       // Remove the new node from the left.
       struct AATreeNode* new_left = RemoveNodeWithValueFromBelowAANode(
           node->left, value_function(new_node), value_function);
@@ -405,7 +403,7 @@ struct AATreeNode* RemoveNodeWithValueFromBelowAANode(
         node->left, node_to_delete_value, value_function);
     if (node->left != NULL) node->left->parent = node;
   }
-  
+
   MaybeDecreaseAANodeLevel(node);
   node = MaybeSkewAANode(node);
   if (node->right != NULL) {
