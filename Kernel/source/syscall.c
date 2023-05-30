@@ -84,6 +84,9 @@ void InitializeSystemCalls() {
 #define GET_NAME_OF_PROCESS 29
 #define NOTIFY_WHEN_PROCESS_DISAPPEARS 30
 #define STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS 31
+#define CREATE_PROCESS 51
+#define SET_PROCESS_MEMORY_PAGE 52
+#define START_EXECUTING_PROCESS 53
 // Services
 #define REGISTER_SERVICE 32
 #define UNREGISTER_SERVICE 33
@@ -440,6 +443,15 @@ void SyscallHandler(int syscall_number) {
     case STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS:
       PrintString("Implement STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS\n");
       break;
+    case CREATE_PROCESS:
+      PrintString("Implement CREATE_PROCESS\n");
+      break;
+    case SET_PROCESS_MEMORY_PAGE:
+      PrintString("Implement SET_PROCESS_MEMORY_PAGE\n");
+      break;
+    case START_EXECUTING_PROCESS:
+      PrintString("Implement START_EXECUTING_PROCESS\n");
+      break;
     case REGISTER_SERVICE: {
       // Extract the name from the input registers.
       size_t service_name[SERVICE_NAME_WORDS];
@@ -699,6 +711,12 @@ char *GetSystemCallName(int syscall) {
       return "NOTIFY_WHEN_PROCESS_DISAPPEARS";
     case STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS:
       return "STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS";
+    case CREATE_PROCESS:
+      return "CREATE_PROCESS";
+    case SET_PROCESS_MEMORY_PAGE:
+      return "SET_PROCESS_MEMORY_PAGE";
+    case START_EXECUTING_PROCESS:
+      return "START_EXECUTING_PROCESS";
     case REGISTER_SERVICE:
       return "REGISTER_SERVICE";
     case UNREGISTER_SERVICE:

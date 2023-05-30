@@ -3,7 +3,7 @@
 
 struct isr_regs;
 
-#define NUMBER_OF_SYSCALLS 51
+#define NUMBER_OF_SYSCALLS 54
 
 extern void InitializeSystemCalls();
 
