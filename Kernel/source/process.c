@@ -48,6 +48,7 @@ struct Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->allocated_pages = 0;
 
   // Various linked lists of that should be initialized to NULL.
+  proc->parent = NULL;
   proc->child_processes = NULL;
   proc->next_child_process_in_parent = NULL;
   proc->next_message = NULL;
@@ -122,11 +123,11 @@ void ReleaseNotification(struct ProcessToNotifyOnExit *notification) {
 void DestroyProcess(struct Process *process) {
   // Destroy child processes that haven't started.
   while (process->child_processes != NULL) {
-    struct Process *child = process->child_processes;
-    process->child_processes = child->next_child_process_in_parent;
-
-    DestroyProcess(child);
+    DestroyProcess(process->child_processes);
   }
+
+  // Remove from the parent.
+  if (process->parent) RemoveChildProcessOfParent(process->parent, process);
 
   // Destroy all threads.
   DestroyThreadsForProcess(process, true);
@@ -270,6 +271,7 @@ struct Process *CreateChildProcess(struct Process *parent, char *name,
   // Add to the linked list of children in the parent.
   child_process->next_child_process_in_parent = parent->child_processes;
   parent->child_processes = child_process;
+  child_process->parent = parent;
 
   CopyString(name, PROCESS_NAME_LENGTH, PROCESS_NAME_LENGTH,
              (char *)child_process->name);
@@ -294,11 +296,13 @@ bool RemoveChildProcessOfParent(struct Process *parent, struct Process *child) {
   if (child == NULL) return false;
 
   if (parent->child_processes == NULL) return false;  // Parent has no children.
+  if (child->parent != parent) return false;
 
   // Check if the child is the first child of the parent.
   if (child == parent->child_processes) {
     // Remove from the start of the linked list.
     parent->child_processes = child->next_child_process_in_parent;
+    child->parent = NULL;
     return true;
   }
 
@@ -313,6 +317,7 @@ bool RemoveChildProcessOfParent(struct Process *parent, struct Process *child) {
       // child.
       previous_child->next_child_process_in_parent =
           child_in_parent->next_child_process_in_parent;
+      child->parent = NULL;
       return true;
     }
 

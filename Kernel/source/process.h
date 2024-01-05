@@ -54,6 +54,8 @@ struct Process {
   // Is this process allowed to create other processes?
   bool can_create_processes;
 
+  // The parent of the current process. Only set if the process is in the `creator` state.
+  struct Process* parent;
   // A linked list of child processes in the `creator` state.
   struct Process* child_processes;
   // The next child process in a linked list in the parent.
