@@ -54,6 +54,11 @@ struct Process {
   // Is this process allowed to create other processes?
   bool can_create_processes;
 
+  // A linked list of child processes in the `creator` state.
+  struct Process* child_processes;
+  // The next child process in a linked list in the parent.
+  struct Process* next_child_process_in_parent;
+
   // The virtual address space that is unique to this process.
   struct VirtualAddressSpace virtual_address_space;
 
@@ -131,3 +136,27 @@ extern struct Process* GetProcessOrNextFromPid(size_t pid);
 // with the provided name. `start_from` is inclusive.
 extern struct Process* FindNextProcessWithName(const char* name,
                                                struct Process* start_from);
+
+// Creates a child process. The parent process must be allowed to create
+// children. Returns ERROR if there was an error.
+extern struct Process* CreateChildProcess(struct Process* parent, char* name,
+                                          size_t bitfield);
+
+// Unmaps a memory page from the parent and assigns it to the child. The memory
+// is unmapped from the calling process regardless of if this call succeeds. If
+// the page already exists in the child process, nothing is set.
+extern void SetChildProcessMemoryPage(struct Process* parent,
+                                      struct Process* child,
+                                      size_t source_address,
+                                      size_t destination_address);
+
+// Creates a thread in the a process that is currently in the `creating` state.
+// The child process will no longer be in the `creating` state. The calling
+// process must be the child process's creator. The child process will begin
+// executing and will no longer terminate if the creator terminates.
+extern void StartExecutingChildProcess(struct Process* parent,
+                                       struct Process* child,
+                                       size_t entry_address, size_t params);
+
+// Destroys a process in the `creating` state.
+extern void DestroyChildProcess(struct Process* parent, struct Process* child);

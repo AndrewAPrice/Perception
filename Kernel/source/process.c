@@ -48,6 +48,8 @@ struct Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->allocated_pages = 0;
 
   // Various linked lists of that should be initialized to NULL.
+  proc->child_processes = NULL;
+  proc->next_child_process_in_parent = NULL;
   proc->next_message = NULL;
   proc->last_message = NULL;
   proc->messages_queued = 0;
@@ -116,8 +118,16 @@ void ReleaseNotification(struct ProcessToNotifyOnExit *notification) {
   ReleaseProcessToNotifyOnExit(notification);
 }
 
-// Destroys a process .
+// Destroys a process.
 void DestroyProcess(struct Process *process) {
+  // Destroy child processes that haven't started.
+  while (process->child_processes != NULL) {
+    struct Process *child = process->child_processes;
+    process->child_processes = child->next_child_process_in_parent;
+
+    DestroyProcess(child);
+  }
+
   // Destroy all threads.
   DestroyThreadsForProcess(process, true);
 
@@ -241,4 +251,127 @@ struct Process *FindNextProcessWithName(const char *name,
 
   // No process was found with the name.
   return NULL;
+}
+
+// Creates a child process. The parent process must be allowed to create
+// children. Returns ERROR if there was an error.
+struct Process *CreateChildProcess(struct Process *parent, char *name,
+                                   size_t bitfield) {
+  if (!parent->can_create_processes) return NULL;
+  struct Process *child_process = CreateProcess(/*is_driver=*/false,
+                                                /*can_create_processes=*/false);
+  if (child_process == (struct Process *)ERROR) {
+    PrintString("Out of memory to create a new process: ");
+    PrintString(name);
+    PrintChar('\n');
+    return NULL;
+  }
+
+  // Add to the linked list of children in the parent.
+  child_process->next_child_process_in_parent = parent->child_processes;
+  parent->child_processes = child_process;
+
+  CopyString(name, PROCESS_NAME_LENGTH, PROCESS_NAME_LENGTH,
+             (char *)child_process->name);
+  return child_process;
+}
+
+// Returns if a process is a child of a parent. Also returns false if the child
+// is NULL.
+bool IsProcessAChildOfParent(struct Process *parent, struct Process *child) {
+  if (child == NULL) return false;
+  struct Process *proc = parent->child_processes;
+  while (proc != NULL) {
+    if (proc == child) return true;
+    proc = proc->next_child_process_in_parent;
+  }
+  return false;
+}
+
+// Removes a child process of a parent, and returns true if the process was a
+// non-NULL child of the parent before removal.
+bool RemoveChildProcessOfParent(struct Process *parent, struct Process *child) {
+  if (child == NULL) return false;
+
+  if (parent->child_processes == NULL) return false;  // Parent has no children.
+
+  // Check if the child is the first child of the parent.
+  if (child == parent->child_processes) {
+    // Remove from the start of the linked list.
+    parent->child_processes = child->next_child_process_in_parent;
+    return true;
+  }
+
+  // Iterate through the list starting from the second child.
+  struct Process *previous_child = parent->child_processes;
+  struct Process *child_in_parent =
+      previous_child->next_child_process_in_parent;
+
+  while (child_in_parent != NULL) {
+    if (child_in_parent == child) {
+      // Found the child in the parent. Point the previous child to the next
+      // child.
+      previous_child->next_child_process_in_parent =
+          child_in_parent->next_child_process_in_parent;
+      return true;
+    }
+
+    previous_child = child_in_parent;
+    child_in_parent = child_in_parent->next_child_process_in_parent;
+  }
+
+  // Couldn't find the child in the parent.
+  return false;
+}
+
+// Unmaps a memory page from the parent and assigns it to the child. The memory
+// is unmapped from the calling process regardless of if this call succeeds. If
+// the page already exists in the child process, nothing is set.
+void SetChildProcessMemoryPage(struct Process *parent, struct Process *child,
+                               size_t source_address,
+                               size_t destination_address) {
+  // Get the physical address from the parent.
+  size_t page_physical_address =
+      GetPhysicalAddress(&parent->virtual_address_space, source_address,
+                         /*ignore_unowned_pages=*/true);
+  if (page_physical_address == OUT_OF_MEMORY) return;  // Page doesn't exist.
+
+  // Unmap the physical page from the parent.
+  UnmapVirtualPage(&parent->virtual_address_space, source_address, false);
+
+  if (IsProcessAChildOfParent(parent, child)) {
+    // This isn't a child process. Release the memory for this page.
+    FreePhysicalPage(page_physical_address);
+    return;
+  }
+
+  // Map the physical page to the new process.
+  MapPhysicalPageToVirtualPage(&child->virtual_address_space,
+                               destination_address, page_physical_address,
+                               /*own=*/true, true, false);
+}
+
+// Creates a thread in the a process that is currently in the `creating` state.
+// The child process will no longer be in the `creating` state. The calling
+// process must be the child process's creator. The child process will begin
+// executing and will no longer terminate if the creator terminates.
+void StartExecutingChildProcess(struct Process *parent, struct Process *child,
+                                size_t entry_address, size_t params) {
+  if (!RemoveChildProcessOfParent(parent, child)) return;
+
+  struct Thread *thread = CreateThread(child, entry_address, params);
+
+  if (!thread) {
+    PrintString("Out of memory to create the thread.\n");
+    DestroyProcess(child);
+    return;
+  }
+
+  ScheduleThread(thread);
+}
+
+// Destroys a process in the `creating` state.
+void DestroyChildProcess(struct Process* parent, struct Process* child) {
+  if (!RemoveChildProcessOfParent(parent, child)) return;
+  DestroyProcess(child);
 }

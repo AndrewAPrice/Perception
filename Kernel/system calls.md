@@ -393,10 +393,10 @@ If the name is empty, then we loop over every running running process. If the na
 Nothing.
 
 ## Create process
-Creates a process, putting it into a `creating` state. While a process is in the `creating` state, it will not execute, and if the creator termintes, the child process will also terminate.
+Creates a process, putting it into a `creating` state. While a process is in the `creating` state, it will not execute, and if the creator terminates, the child process will also terminate.
 
 ### Input
-* `rdi` - ?
+* `rdi` - 51
 * `rbp` - Permission bitfield:
   - Bit 0: Is this process a driver?
   - Bit 1: Can this process create other processes?
@@ -415,23 +415,30 @@ Creates a process, putting it into a `creating` state. While a process is in the
 ### Output
 * `rax` - The pid of the created process, or 0 if it could not be created.
 
-## Set process memory page
+## Set child process memory page
 Unmaps a memory page from the current process and sends it to the receiving process. The receiving process must be created by the calling process and in the `creating` state. The memory is unmapped from the calling process regardless of if this call succeeds. If the page already exists in the child process, nothing is set.
 
 ### Input
-* `rdi` - ?
+* `rdi` - 52
 * `rbp` - PID of the child process.
 * `rax` - Address of the page in the current process.
 * `rbx` - Address of the page in the destination process.
 
-## Start executing process
+## Start executing child process
 Creates a thread in the a process that is currently in the `creating` state. The child process will no longer be in the `creating` state. The calling process must be the child process's creator. The child process will begin executing and will no longer terminate if the creator terminates.
 
 ### Input
-* `rdi` - ?
+* `rdi` - 53
 * `rbp` - PID of the child process.
 * `rax` - Address to start executing at.
 * `rbx` - Parameter to pass to the process.
+
+## Destroy child process
+Destroys a process in the `creating` state.
+
+### Input
+* `rdi` - 54
+* `rbp` - PID of the child process.
 
 # Services
 

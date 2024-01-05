@@ -85,8 +85,9 @@ void InitializeSystemCalls() {
 #define NOTIFY_WHEN_PROCESS_DISAPPEARS 30
 #define STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS 31
 #define CREATE_PROCESS 51
-#define SET_PROCESS_MEMORY_PAGE 52
+#define SET_CHILD_PROCESS_MEMORY_PAGE 52
 #define START_EXECUTING_PROCESS 53
+#define DESTROY_CHILD_PROCESS 54
 // Services
 #define REGISTER_SERVICE 32
 #define UNREGISTER_SERVICE 33
@@ -162,9 +163,11 @@ void SyscallHandler(int syscall_number) {
       PrintString("Implement SLEEP\n");
       break;
     case WAKE_THREAD:
+      PrintString("Implement WAKE_THREAD\n");
       // TODO: if thread is waiting for event, set bad event id
       break;
     case WAKE_AND_SWITCH_TO_THREAD:
+      PrintString("Implement WAKE_AND_SWITCH_TO_THREAD\n");
       // TODO: if thread is waiting for event, set bad event id
       break;
     case TERMINATE_THIS_THREAD:
@@ -443,15 +446,50 @@ void SyscallHandler(int syscall_number) {
     case STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS:
       PrintString("Implement STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS\n");
       break;
-    case CREATE_PROCESS:
-      PrintString("Implement CREATE_PROCESS\n");
+    case CREATE_PROCESS: {
+      // Extract the name from the input registers.
+      size_t process_name[PROCESS_NAME_WORDS];
+      process_name[0] = currently_executing_thread_regs->rax;
+      process_name[1] = currently_executing_thread_regs->rbx;
+      process_name[2] = currently_executing_thread_regs->rdx;
+      process_name[3] = currently_executing_thread_regs->rsi;
+      process_name[4] = currently_executing_thread_regs->r8;
+      process_name[5] = currently_executing_thread_regs->r9;
+      process_name[6] = currently_executing_thread_regs->r10;
+      process_name[7] = currently_executing_thread_regs->r12;
+      process_name[8] = currently_executing_thread_regs->r13;
+      process_name[9] = currently_executing_thread_regs->r14;
+      process_name[10] = currently_executing_thread_regs->r15;
+
+      struct Process *child_process =
+          CreateChildProcess(running_thread->process, (char *)process_name,
+                             currently_executing_thread_regs->rdi);
+      currently_executing_thread_regs->rax =
+          (child_process == ERROR) ? 0 : child_process->pid;
       break;
-    case SET_PROCESS_MEMORY_PAGE:
-      PrintString("Implement SET_PROCESS_MEMORY_PAGE\n");
+    }
+    case SET_CHILD_PROCESS_MEMORY_PAGE: {
+      struct Process *child_process =
+          GetProcessFromPid(currently_executing_thread_regs->rbp);
+      SetChildProcessMemoryPage(running_thread->process, child_process,
+                                currently_executing_thread_regs->rax,
+                                currently_executing_thread_regs->rbx);
       break;
-    case START_EXECUTING_PROCESS:
-      PrintString("Implement START_EXECUTING_PROCESS\n");
+    }
+    case START_EXECUTING_PROCESS: {
+      struct Process *child_process =
+          GetProcessFromPid(currently_executing_thread_regs->rbp);
+      StartExecutingChildProcess(running_thread->process, child_process,
+                                 currently_executing_thread_regs->rax,
+                                 currently_executing_thread_regs->rbx);
       break;
+    }
+    case DESTROY_CHILD_PROCESS: {
+      struct Process *child_process =
+          GetProcessFromPid(currently_executing_thread_regs->rbp);
+      DestroyChildProcess(running_thread->process, child_process);
+      break;
+    }
     case REGISTER_SERVICE: {
       // Extract the name from the input registers.
       size_t service_name[SERVICE_NAME_WORDS];
@@ -713,8 +751,8 @@ char *GetSystemCallName(int syscall) {
       return "STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS";
     case CREATE_PROCESS:
       return "CREATE_PROCESS";
-    case SET_PROCESS_MEMORY_PAGE:
-      return "SET_PROCESS_MEMORY_PAGE";
+    case SET_CHILD_PROCESS_MEMORY_PAGE:
+      return "SET_CHILD_PROCESS_MEMORY_PAGE";
     case START_EXECUTING_PROCESS:
       return "START_EXECUTING_PROCESS";
     case REGISTER_SERVICE:
