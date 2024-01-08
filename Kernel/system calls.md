@@ -420,25 +420,25 @@ Unmaps a memory page from the current process and sends it to the receiving proc
 
 ### Input
 * `rdi` - 52
-* `rbp` - PID of the child process.
-* `rax` - Address of the page in the current process.
-* `rbx` - Address of the page in the destination process.
+* `rax` - PID of the child process.
+* `rbx` - Address of the page in the current process.
+* `rdx` - Address of the page in the destination process.
 
 ## Start executing child process
 Creates a thread in the a process that is currently in the `creating` state. The child process will no longer be in the `creating` state. The calling process must be the child process's creator. The child process will begin executing and will no longer terminate if the creator terminates.
 
 ### Input
 * `rdi` - 53
-* `rbp` - PID of the child process.
-* `rax` - Address to start executing at.
-* `rbx` - Parameter to pass to the process.
+* `rax` - PID of the child process.
+* `rbx` - Address to start executing at.
+* `rdx` - Parameter to pass to the process.
 
 ## Destroy child process
 Destroys a process in the `creating` state.
 
 ### Input
 * `rdi` - 54
-* `rbp` - PID of the child process.
+* `rax` - PID of the child process.
 
 # Services
 

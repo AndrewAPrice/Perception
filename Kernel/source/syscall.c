@@ -470,23 +470,23 @@ void SyscallHandler(int syscall_number) {
     }
     case SET_CHILD_PROCESS_MEMORY_PAGE: {
       struct Process *child_process =
-          GetProcessFromPid(currently_executing_thread_regs->rbp);
+          GetProcessFromPid(currently_executing_thread_regs->rax);
       SetChildProcessMemoryPage(running_thread->process, child_process,
-                                currently_executing_thread_regs->rax,
-                                currently_executing_thread_regs->rbx);
+                                currently_executing_thread_regs->rbx,
+                                currently_executing_thread_regs->rdx);
       break;
     }
     case START_EXECUTING_PROCESS: {
       struct Process *child_process =
-          GetProcessFromPid(currently_executing_thread_regs->rbp);
+          GetProcessFromPid(currently_executing_thread_regs->rax);
       StartExecutingChildProcess(running_thread->process, child_process,
-                                 currently_executing_thread_regs->rax,
-                                 currently_executing_thread_regs->rbx);
+                                 currently_executing_thread_regs->rbx,
+                                 currently_executing_thread_regs->rdx);
       break;
     }
     case DESTROY_CHILD_PROCESS: {
       struct Process *child_process =
-          GetProcessFromPid(currently_executing_thread_regs->rbp);
+          GetProcessFromPid(currently_executing_thread_regs->rax);
       DestroyChildProcess(running_thread->process, child_process);
       break;
     }
@@ -755,6 +755,8 @@ char *GetSystemCallName(int syscall) {
       return "SET_CHILD_PROCESS_MEMORY_PAGE";
     case START_EXECUTING_PROCESS:
       return "START_EXECUTING_PROCESS";
+    case DESTROY_CHILD_PROCESS:
+      return "DESTROY_CHILD_PROCESS";
     case REGISTER_SERVICE:
       return "REGISTER_SERVICE";
     case UNREGISTER_SERVICE:
