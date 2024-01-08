@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-namespace perception;
+#include "loader.h"
+#include "perception/scheduler.h"
 
-// Represents a service that can load applications.
-service LoaderService {
-	// Launches an application.
-	message LaunchApplicationRequest {
-		// The name of the application to launch.
-		Name : string = 1;
-	}
-	minimessage LaunchApplicationResponse {
-		// The ID of the newly launched process.
-		ProcessId : uint64 = 1;
-	}
-	LaunchApplication :
-		LaunchApplicationRequest -> LaunchApplicationResponse = 0;
+using ::perception::HandOverControl;
+
+int main() {
+  auto loader = std::make_unique<Loader>();
+  HandOverControl();
+  return 0;
 }
