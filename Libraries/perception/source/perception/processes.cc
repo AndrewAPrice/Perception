@@ -148,6 +148,7 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
 void ForEachProcessWithName(
     std::string_view name,
     const std::function<void(ProcessId)>& on_each_process) {
+#ifdef PERCEPTION
   if (name.size() > kMaximumProcessNameLength) return;
 
   size_t process_name[kMaximumProcessNameLength / 8];
@@ -259,12 +260,11 @@ void ForEachProcessWithName(
     // Start the next page just afer the last process ID of this page.
     starting_pid = pid_12 + 1;
   }
+#endif
 }
 
-
 // Loops through every running process.
-void ForEachProcess(
-    const std::function<void(ProcessId)>& on_each_process) {
+void ForEachProcess(const std::function<void(ProcessId)>& on_each_process) {
   ForEachProcessWithName("", on_each_process);
 }
 
@@ -274,6 +274,7 @@ std::string GetProcessName() { return GetProcessName(GetProcessId()); }
 // Returns the name of a process, or an empty string if the process doesn't
 // exist.
 std::string GetProcessName(ProcessId pid) {
+#ifdef PERCEPTION
   // Add an extra byte for the null terminator.
   char process_name[kMaximumProcessNameLength + 1];
   process_name[kMaximumProcessNameLength] = '\0';
@@ -318,6 +319,9 @@ std::string GetProcessName(ProcessId pid) {
   ((size_t*)process_name)[10] = name_11;
 
   return std::string(process_name);
+#else
+  return "";
+#endif
 }
 
 // Returns true if the process exists.
@@ -382,6 +386,120 @@ void StopNotifyingUponProcessTermination(MessageId message_id) {
 
   __asm__ __volatile__("syscall\n" ::"r"(syscall_num), "r"(message_id_r)
                        : "rcx", "r11");
+#endif
+}
+
+// Creates a child process with a given name. Populates the `pid` with the new
+// process's id. The new process doesn't begin executing until
+// `StartExecutingChildProcess` is called. Only some processes are allowed to
+// create child processes. Returns if the child process was successfully
+// created. If the child process hasn't started executing yet, it will terminate
+// if this process terminates.
+bool CreateChildProcess(std::string_view name, size_t bitfield,
+                        ProcessId& pid) {
+#ifdef PERCEPTION
+  if (name.size() > kMaximumProcessNameLength) return false;
+
+  size_t process_name[kMaximumProcessNameLength / 8];
+  memset(process_name, 0, kMaximumProcessNameLength);
+  memcpy(process_name, &name[0], name.size());
+
+  volatile register size_t syscall asm("rdi") = 51;
+#ifdef debug_BUILD_
+  // TODO: Mutex for debug builds.
+  _perception_processes__syscall_rbp = bitfield;
+#else
+  volatile register size_t min_pid asm("rbp") = bitfield;
+#endif
+  volatile register size_t name_1 asm("rax") = process_name[0];
+  volatile register size_t name_2 asm("rbx") = process_name[1];
+  volatile register size_t name_3 asm("rdx") = process_name[2];
+  volatile register size_t name_4 asm("rsi") = process_name[3];
+  volatile register size_t name_5 asm("r8") = process_name[4];
+  volatile register size_t name_6 asm("r9") = process_name[5];
+  volatile register size_t name_7 asm("r10") = process_name[6];
+  volatile register size_t name_8 asm("r12") = process_name[7];
+  volatile register size_t name_9 asm("r13") = process_name[8];
+  volatile register size_t name_10 asm("r14") = process_name[9];
+  volatile register size_t name_11 asm("r15") = process_name[10];
+
+  volatile register size_t pid_r asm("rax");
+#ifdef debug_BUILD_
+  __asm__ __volatile__(R"(
+		mov %%rbp, _perception_processes__temp_rbp
+		mov _perception_processes__syscall_rbp, %%rbp
+		syscall
+		mov _perception_processes__temp_rbp, %%rbp
+	)"
+                       : "=r"(pid_r)
+                       : "r"(syscall), "r"(name_1), "r"(name_2), "r"(name_3),
+                         "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7),
+                         "r"(name_8), "r"(name_9), "r"(name_10), "r"(name_11)
+                       : "rcx", "r11", "memory");
+#else
+  __asm__ __volatile__("syscall\n"
+                       : "=r"(pid_r)
+                       : "r"(syscall), "r"(bitfield), "r"(name_1), "r"(name_2),
+                         "r"(name_3), "r"(name_4), "r"(name_5), "r"(name_6),
+                         "r"(name_7), "r"(name_8), "r"(name_9), "r"(name_10),
+                         "r"(name_11)
+                       : "rcx", "r11");
+#endif
+
+  if (pid_r == 0) return false;
+
+  pid = pid_r;
+  return true;
+#else
+  return false;
+#endif
+}
+
+// Unmaps a memory page from the current process and assigns it to a child
+// process that hasn't began executing. The memory is unmapped from this process
+// regardless of if this call succeeds. If the page already exists in the child
+// process, nothing is set.
+void SetChildProcessMemoryPage(ProcessId& child_pid, size_t source_address,
+                               size_t destination_address) {
+#ifdef PERCEPTION
+  volatile register size_t syscall asm("rdi") = 52;
+  volatile register size_t pid_r asm("rax") = child_pid;
+  volatile register size_t source_r asm("rbx") = source_address;
+  volatile register size_t destination_r asm("rdx") = destination_address;
+
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "r"(syscall), "r"(pid_r), "r"(source_r),
+                         "r"(destination_r)
+                       : "rcx", "r11");
+#endif
+}
+
+// Creates a thread in the a child process. The child process will begin
+// executing and will no longer terminate if the creator terminates.
+void StartExecutingChildProcess(ProcessId& child_pid, size_t entry_address,
+                                size_t params) {
+#ifdef PERCEPTION
+  volatile register size_t syscall asm("rdi") = 53;
+  volatile register size_t pid_r asm("rax") = child_pid;
+  volatile register size_t entry_address_r asm("rbx") = entry_address;
+  volatile register size_t params_r asm("rdx") = params;
+
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "r"(syscall), "r"(pid_r), "r"(entry_address_r),
+                         "r"(params_r)
+                       : "rcx", "r11");
+#endif
+}
+
+// Destroys a child process that hasn't began executing.
+void DestroyChildProcess(ProcessId& child_pid) {
+#ifdef PERCEPTION
+  volatile register size_t syscall asm("rdi") = 54;
+  volatile register size_t pid_r asm("rax") = child_pid;
+
+  __asm__ __volatile__("syscall\n" : : "r"(syscall), "r"(pid_r) : "rcx", "r11");
 #endif
 }
 

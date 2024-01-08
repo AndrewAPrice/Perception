@@ -43,8 +43,7 @@ void ForEachProcessWithName(
     const std::function<void(ProcessId)>& on_each_process);
 
 // Loops through every running process.
-void ForEachProcess(
-    const std::function<void(ProcessId)>& on_each_process);
+void ForEachProcess(const std::function<void(ProcessId)>& on_each_process);
 
 // Returns the name of the currently running process.
 std::string GetProcessName();
@@ -66,5 +65,28 @@ MessageId NotifyUponProcessTermination(
 // Registers that we don't want to be notified anymore about a process
 // terminating.
 void StopNotifyingUponProcessTermination(MessageId message_id);
+
+// Creates a child process with a given name. Populates the `pid` with the new
+// process's id. The new process doesn't begin executing until
+// `StartExecutingChildProcess` is called. Only some processes are allowed to
+// create child processes. Returns if the child process was successfully
+// created. If the child process hasn't started executing yet, it will terminate
+// if this process terminates.
+bool CreateChildProcess(std::string_view name, size_t bitfield, ProcessId& pid);
+
+// Unmaps a memory page from the current process and assigns it to a child
+// process that hasn't began executing. The memory is unmapped from this process
+// regardless of if this call succeeds. If the page already exists in the child
+// process, nothing is set.
+void SetChildProcessMemoryPage(ProcessId& child_pid, size_t source_address,
+                               size_t destination_address);
+
+// Creates a thread in the a child process. The child process will begin
+// executing and will no longer terminate if the creator terminates.
+void StartExecutingChildProcess(ProcessId& child_pid, size_t entry_address,
+                                size_t params);
+
+// Destroys a child process that hasn't began executing.
+void DestroyChildProcess(ProcessId& child_pid);
 
 }  // namespace perception
