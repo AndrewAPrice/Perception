@@ -34,7 +34,7 @@ class Image {
   }
   virtual SkSVGDOM* GetSkSVGDOM(float width, float height) { return nullptr; }
   virtual void GetSize(float container_width, float container_height,
-                       float& width, float& height);
+                       float& width, float& height) = 0;
 };
 
 }  // namespace ui
