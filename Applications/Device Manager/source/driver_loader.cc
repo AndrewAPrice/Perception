@@ -19,9 +19,11 @@
 #include <vector>
 
 #include "perception/processes.h"
+#include "permebuf/Libraries/perception/loader.permebuf.h"
 
 using ::perception::GetFirstProcessWithName;
 using ::perception::ProcessId;
+using LoaderService = ::permebuf::perception::LoaderService;
 
 namespace {
 
@@ -37,7 +39,12 @@ void LoadAllRemainingDrivers() {
   for (const auto& driver_name : drivers_to_load) {
     ProcessId pid;
     if (GetFirstProcessWithName(driver_name, pid)) continue;
-    std::cout << "Need to load " << driver_name << std::endl;
+
+    Permebuf<LoaderService::LaunchApplicationRequest> request;
+    request->SetName(driver_name);
+
+    (void)LoaderService::FindFirstInstance()->CallLaunchApplication(
+        std::move(request));
   }
   drivers_to_load.clear();
 }

@@ -19,6 +19,7 @@
 #include "perception/scheduler.h"
 #include "types.h"
 
+using ::perception::Defer;
 using ::perception::GetMultibootFramebufferDetails;
 using ::perception::HandOverControl;
 
@@ -47,7 +48,9 @@ int main() {
   AddDriverToLoad("PS2 Keyboard and Mouse");
   LoadVideoDriver();
 
-  LoadAllRemainingDrivers();
+  // Actually loading the drivers off disk issues RPCs that can come around and
+  // try to query for the Device Manager, so defer this action to be in a fiber.
+  Defer([]() { LoadAllRemainingDrivers(); });
 
   auto device_manager = std::make_unique<DeviceManager>();
 
