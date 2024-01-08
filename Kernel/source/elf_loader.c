@@ -14,7 +14,7 @@
 
 #include "elf_loader.h"
 
-#include "../../third_party/elf.h"
+#include "../../third_party/Libraries/elf/public/elf.h"
 #include "io.h"
 #include "physical_allocator.h"
 #include "process.h"
@@ -178,7 +178,7 @@ bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
                   size_t memory_end, struct Process* process) {
   Elf64_Phdr* segment_header = (Elf64_Phdr*)(memory_start + header->e_phoff);
 
-  // Figure out the number of segments in the binary..
+  // Figure out the number of segments in the binary.
   size_t number_of_segments = 0;
   if (header->e_phnum == PN_XNUM) {
     // The number of program headers is too large to fit into e_phnum. Instead,
@@ -244,7 +244,7 @@ bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
         // Segment is out of bounds of the ELF file.
         PrintString(
             "Segment is trying to load memory that is out of bounds of the "
-            "file.");
+            "file.\n");
         return false;
       }
 
