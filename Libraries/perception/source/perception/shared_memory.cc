@@ -349,6 +349,25 @@ void* SharedMemory::operator->() {
   return ptr_;
 }
 
+// Returns a pointer to a specific offset in the shared memory, or nullptr if
+// the shared memory is invalid.
+void* SharedMemory::operator[](size_t offset) {
+  (void)Join();
+  if (ptr_ == nullptr) return nullptr;
+  if (offset >= size_in_bytes_) return nullptr;
+  return (void*)((size_t)ptr_ + offset);
+}
+
+// Returns a pointer to a specific offset in the shared memory, or nullptr if
+// the shared memory is invalid, or there is not enough space to fit the size in
+// after this offset.
+void* SharedMemory::GetRangeAtOffset(size_t offset, size_t size) {
+  (void)Join();
+  if (ptr_ == nullptr) return nullptr;
+  if (offset + size >= size_in_bytes_) return nullptr;
+  return (void*)((size_t)ptr_ + offset);
+}
+
 // Calls the passed in function if the shared memory is valid, passing in a
 // pointer to the data and the size of the shared memory.
 void SharedMemory::Apply(const std::function<void(void*, size_t)>& function) {
