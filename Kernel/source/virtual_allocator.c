@@ -636,11 +636,13 @@ bool MapPhysicalPageToVirtualPage(struct VirtualAddressSpace *address_space,
   if (address_space == &kernel_address_space) {
     // Kernel virtual addreses must in the highest pml4 entry.
     if (user_page) {
+      PrintString("Error mapping user addresses in kernel space.\n");
       return false;
     }
   } else {
     // User space virtual addresses must be below kernel memory.
     if (!user_page) {
+      PrintString("Error kernel addresses in user space.\n");
       return false;
     }
   }
