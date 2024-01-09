@@ -47,9 +47,6 @@ class Fiber {
   // Creates a fiber to invoke a message handler.
   static Fiber* Create(const MessageHandler& message_handler);
 
-  // Returns a Fiber* object, either off the stack or a new one.
-  static Fiber* Create();
-
   // Switches to this fiber.
   void SwitchTo();
 
@@ -61,6 +58,9 @@ class Fiber {
 
  private:
   friend Scheduler;
+
+  // Returns a Fiber* object, either off the stack or a new one.
+  static Fiber* Create();
 
   // The state of the registers when we context switch.
   CalleePreservedRegisters registers_;
