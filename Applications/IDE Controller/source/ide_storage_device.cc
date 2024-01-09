@@ -248,9 +248,9 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
       // Need to read the status to flush the data to memory.
       uint8 status = Read8BitsFromPort(ATA_BMR_STATUS(bus_master_id));
 
-      size_t bytes_read =
-          std::min((size_t)ATAPI_SECTOR_SIZE, (size_t)bytes_to_copy) -
-          skip_bytes;
+      // Calculate how many bytes to read from this sector.
+      size_t remaining_bytes_in_sector = (size_t)ATAPI_SECTOR_SIZE - skip_bytes;
+      size_t bytes_read = std::min(remaining_bytes_in_sector, (size_t)bytes_to_copy);
 
       if (copy_into_dma_scratch_page) {
         // Copy the data out of the scratch buffer and into the destination
