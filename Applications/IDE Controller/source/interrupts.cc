@@ -90,7 +90,7 @@ void CommonResetInterrupt(bool& interrupt_triggered,
     // Someone else is already waiting on
     // this interrupt. Reset after the interrupt
     // is called.
-    waiting_on_primary_interrupt.push_back(GetCurrentlyExecutingFiber());
+    waiting_on_interrupt.push_back(GetCurrentlyExecutingFiber());
     Sleep();
   }
   interrupt_triggered = false;
