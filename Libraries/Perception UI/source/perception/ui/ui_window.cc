@@ -42,7 +42,8 @@ UiWindow::UiWindow(std::string_view title, bool dialog)
       background_color_(kBackgroundWindowColor),
       texture_id_(0),
       frontbuffer_texture_id_(0),
-      rebuild_texture_(true) {
+      rebuild_texture_(true),
+      invalidated_(false) {
   SkGraphics::Init();  // See if this isn't needed.
   auto maximum_window_size = WindowManager::Get().CallGetMaximumWindowSize(
       WindowManager::GetMaximumWindowSizeRequest());
