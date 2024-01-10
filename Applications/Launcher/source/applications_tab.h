@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,16 +14,9 @@
 
 #pragma once
 
-#include <functional>
-#include <string>
+#include <memory>
 
-#include "permebuf/Libraries/perception/launcher.permebuf.h"
+#include "perception/ui/widget.h"
 
-// Implementation of the launcher service.
-class Launcher : public ::permebuf::perception::Launcher::Server {
- public:
-  virtual void HandleShowLauncher(
-      ::perception::ProcessId sender,
-      const ::permebuf::perception::Launcher::ShowLauncherMessage& message)
-      override;
-};
+// Gets or constructs the applications tab of the launcher.
+std::shared_ptr<::perception::ui::Widget> GetOrConstructApplicationsTab();

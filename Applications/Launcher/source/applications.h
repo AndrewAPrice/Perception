@@ -15,15 +15,27 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "nanosvg.h"
 
+// Represents an application that can be launched.
 struct Application {
+  // The name of the application.
   std::string name;
 
+  // The path to the application.
+  std::string path;
+
+  // The description of the appliction.
   std::string description;
 
+  // The icon of the application.
   NSVGimage* icon;
 };
 
-void InitializeApplications();
+// Scans for applications.
+void ScanForApplications();
+
+// Returns the list of applications.
+const std::vector<Application>& GetApplications();

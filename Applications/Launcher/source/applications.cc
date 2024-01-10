@@ -19,6 +19,7 @@
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "nlohmann/json.hpp"
 
@@ -26,25 +27,48 @@ using json = ::nlohmann::json;
 
 namespace {
 
+std::vector<Application> applications;
+
 void MaybeLoadApplication(std::string_view path) {
   try {
     std::ifstream launcher_metadata_file(std::string(path) + "/launcher.json");
     if (!launcher_metadata_file.is_open()) {
-      std::cout << path << " is missing a launcher.json" << std::endl;
       // The application is missing a launcher.json so we won't show it in the
       // launcher.
       return;
     }
-    std::cout << path << " has a launcher.json" << std::endl;
     json data = json::parse(launcher_metadata_file);
-    std::cout << data.dump() << std::endl;
+    Application application;
+    auto name_itr = data.find("name");
+    if (name_itr != data.end() && name_itr->is_string())
+      name_itr->get_to(application.name);
+
+    if (application.name.empty())
+      application.name = std::filesystem::path(path).filename();
+
+    application.path = std::string(path) + "/" +
+                       std::string(std::filesystem::path(path).filename()) +
+                       ".app";
+    auto description_itr = data.find("description");
+    if (description_itr != data.end() && description_itr->is_string())
+      description_itr->get_to(application.description);
+
+    applications.push_back(application);
+
     launcher_metadata_file.close();
   } catch (...) {
     std::cout << "Unhandled exception" << std::endl;
   }
 }
 
-void LoadApplications() {
+bool applications_initialized = false;
+
+}  // namespace
+
+void ScanForApplications() {
+  if (applications_initialized) return;
+  applications_initialized = true;
+
   for (const auto& root_entry : std::filesystem::directory_iterator("/")) {
     for (const auto& application_entry : std::filesystem::directory_iterator(
              std::string(root_entry.path()) + "/Applications")) {
@@ -53,12 +77,6 @@ void LoadApplications() {
   }
 }
 
-bool applications_initialized = false;
-
-}  // namespace
-
-void InitializeApplications() {
-  if (applications_initialized) return;
-  applications_initialized = true;
-  LoadApplications();
+const std::vector<Application>& GetApplications() {
+  return applications;
 }

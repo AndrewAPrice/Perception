@@ -16,6 +16,7 @@
 
 #include <iostream>
 #include <memory>
+#include <optional>
 
 #include "perception/processes.h"
 #include "perception/scheduler.h"
@@ -23,6 +24,7 @@
 #include "perception/ui/text_alignment.h"
 #include "perception/ui/ui_window.h"
 #include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
+#include "side_panel.h"
 
 using ::perception::Defer;
 using ::perception::TerminateProcess;
@@ -36,6 +38,16 @@ namespace {
 
 std::shared_ptr<UiWindow> launcher_window;
 
+// The current tab that is showing.
+std::optional<Tab> current_tab;
+
+}  // namespace
+
+void SwitchToTab(Tab tab) {
+  if (current_tab && *current_tab == tab) return;  // Already on this tab.
+  current_tab = tab;
+  launcher_window->RemoveChildren()->AddChildren(
+      {GetOrConstructSidePanel(), GetOrConstructTabContents(tab)});
 }
 
 void ShowLauncherWindow() {
@@ -56,11 +68,11 @@ void ShowLauncherWindow() {
   launcher_window->OnClose([]() { Defer([]() { launcher_window.reset(); }); })
       ->SetWidth(launcher_width)
       ->SetHeight(launcher_height)
-      ->SetJustifyContent(YGJustifyCenter)
-      ->SetAlignContent(YGAlignCenter)
-      ->AddChild(std::make_shared<Label>()
-                     ->SetTextAlignment(TextAlignment::MiddleCenter)
-                     ->SetLabel("TODO: Implement")
-                     ->ToSharedPtr());
+      ->SetFlexDirection(YGFlexDirectionRow)
+      ->SetPadding(YGEdgeAll, 0.0f);
+
+  current_tab = std::nullopt;
+  SwitchToTab(Tab::APPLICATIONS);
+
   launcher_window->Create();
 }

@@ -11,5 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#pragma once
 
+#include "tabs.h"
+
+// Shows the launcher window, if it's not already opened.
 void ShowLauncherWindow();
+
+// Switches the launcher window to a particular tab.
+void SwitchToTab(Tab tab);
