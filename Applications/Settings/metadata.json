@@ -1,8 +1,0 @@
-{
-	"dependencies": [
-		"libcxx",
-		"musl",
-		"perception",
-		"Perception UI"
-	]
-}
