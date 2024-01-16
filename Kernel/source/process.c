@@ -5,7 +5,10 @@
 #include "liballoc.h"
 #include "messages.h"
 #include "object_pools.h"
+#include "physical_allocator.h"
 #include "service.h"
+#include "scheduler.h"
+#include "text_terminal.h"
 #include "thread.h"
 #include "timer.h"
 #include "virtual_allocator.h"
@@ -36,7 +39,8 @@ struct Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->can_create_processes = can_create_processes;
 
   // Assign a name and process ID.
-  memset(proc->name, 0, PROCESS_NAME_LENGTH);  // Clear the name.
+  memset((unsigned char *)proc->name, 0,
+         PROCESS_NAME_LENGTH);  // Clear the name.
   last_assigned_pid++;
   proc->pid = last_assigned_pid;
 
@@ -313,8 +317,8 @@ struct Process *CreateChildProcess(struct Process *parent, char *name,
   parent->child_processes = child_process;
   child_process->parent = parent;
 
-  CopyString(name, PROCESS_NAME_LENGTH, PROCESS_NAME_LENGTH,
-             (char *)child_process->name);
+  CopyString((unsigned char *)name, PROCESS_NAME_LENGTH, PROCESS_NAME_LENGTH,
+             (unsigned char *)child_process->name);
   return child_process;
 }
 

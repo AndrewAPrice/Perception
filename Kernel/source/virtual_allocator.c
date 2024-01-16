@@ -67,6 +67,11 @@ extern size_t bssEnd;
 struct FreeMemoryRange statically_allocated_free_memory_ranges
     [STATICALLY_ALLOCATED_FREE_MEMORY_RANGES_COUNT];
 
+// Marks an address range as being free in the address space, starting at the
+// address and spanning the provided number of pages.
+void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
+                            size_t address, size_t pages);
+
 // Returns the FreeMemoryRange from a pointer to a `node_by_address` field.
 struct FreeMemoryRange *FreeMemoryRangeFromNodeByAddress(
     struct AATreeNode *node) {
@@ -655,8 +660,7 @@ bool MapPhysicalPageToVirtualPage(struct VirtualAddressSpace *address_space,
   if (ptr[pml4_entry] == 0) {
     // Entry blank, create a PML3 table.
     size_t new_pml3 = GetPhysicalPage();
-    if (new_pml3 == OUT_OF_PHYSICAL_PAGES)
-      return false;  // No space for PML3.
+    if (new_pml3 == OUT_OF_PHYSICAL_PAGES) return false;  // No space for PML3.
 
     // Clear it.
     ptr = (size_t *)TemporarilyMapPhysicalMemory(new_pml3, 1);
