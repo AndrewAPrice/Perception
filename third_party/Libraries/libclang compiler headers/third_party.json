@@ -1,0 +1,17 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/llvm/llvm-project.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/clang/lib/Headers",
+            "destination": "public",
+            "recursive": true
+        }
+    ]
+}
