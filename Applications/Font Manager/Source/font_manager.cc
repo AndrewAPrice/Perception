@@ -251,7 +251,7 @@ StatusOr<Permebuf<FM::MatchFontResponse>> FontManager::HandleMatchFont(
 StatusOr<Permebuf<FM::GetFontFamiliesResponse>>
 FontManager::HandleGetFontFamilies(::perception::ProcessId sender,
                                    const FM::GetFontFamiliesRequest& request) {
-  std::scoped_lock(mutex_);
+  std::scoped_lock lock(mutex_);
   std::cout << "TODO: Implement FontManager::HandleGetFontFamilies"
             << std::endl;
   return Permebuf<FM::GetFontFamiliesResponse>();
@@ -261,7 +261,7 @@ StatusOr<Permebuf<FM::GetFontFamilyStylesResponse>>
 FontManager::HandleGetFontFamilyStyles(
     ::perception::ProcessId sender,
     Permebuf<FM::GetFontFamilyStylesRequest> request) {
-  std::scoped_lock(mutex_);
+  std::scoped_lock lock(mutex_);
   std::cout << "TODO: Implement FontManager::HandleGetFontFamilyStyles"
             << std::endl;
   return Permebuf<FM::GetFontFamilyStylesResponse>();
