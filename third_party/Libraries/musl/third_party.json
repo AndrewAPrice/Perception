@@ -135,9 +135,10 @@
             "path": "${git}/src/ldso/x86_64",
             "placeholder": "ldso-x86_64-files",
             "extensions": [".s"],
+            "fullPath": true,
             "replacements": [
-                ["${git}/src/ldso/x86_64/", "source/ldso/"],
-                [".s", ".cc"]
+                ["${git}/src/ldso/x86_64/", "${@}/source/ldso/"],
+                [".s", ".c"]
             ]
         },
         {
@@ -191,9 +192,10 @@
             "path": "${git}/src/math/x86_64",
             "placeholder": "math-x86_64-files",
             "extensions": [".s"],
+            "fullPath": true,
             "replacements": [
-                ["${git}/src/math/x86_64/", "source/math/"],
-                [".s", ".cc"]
+                ["${git}/src/math/x86_64/", "${@}/source/math/"],
+                [".s", ".c"]
             ]
         },
         {
@@ -259,9 +261,10 @@
             "path": "${git}/src/process/x86_64",
             "placeholder": "process-x86_64-files",
             "extensions": [".s"],
+            "fullPath": true,
             "replacements": [
-                ["${git}/src/process/x86_64/", "source/process/"],
-                [".s", ".cc"]
+                ["${git}/src/process/x86_64/", "${@}/source/process/"],
+                [".s", ".c"]
             ]
         },
         {
@@ -333,9 +336,10 @@
             "path": "${git}/src/string/x86_64",
             "placeholder": "string-x86_64-files",
             "extensions": [".s"],
+            "fullPath": true,
             "replacements": [
-                ["${git}/src/string/x86_64/", "source/string/"],
-                [".s", ".cc"]
+                ["${git}/src/string/x86_64/", "${@}/source/string/"],
+                [".s", ".c"]
             ]
         },
         {
