@@ -107,6 +107,29 @@ function loadRepository(repositoryMetadata, placeholderInfo) {
   let repositoryDirectory = null;
 
   switch (repositoryMetadata.type) {
+    case 'download': {
+      repositoryDirectory = getRepositoryDirectory(repositoryKey);
+      if (!fs.existsSync(repositoryDirectory))
+        fs.mkdirSync(repositoryDirectory, { recursive: true });
+
+      let filename = repositoryMetadata.url;
+      const lastSlashIndex = filename.lastIndexOf('/');
+      if (lastSlashIndex > 0) filename = filename.substr(lastSlashIndex + 1);
+      const path = repositoryDirectory + '/' + filename;
+
+      if (!fs.existsSync(path)) {
+        console.log('Downloading ' + repositoryMetadata.url);
+
+        const command = 'curl -L ' + repositoryMetadata.url + ' --output ' + path;
+        try {
+          child_process.execSync(command, { stdio: 'inherit' });
+        } catch (exp) {
+          console.log('Error downloading ' + repositoryMetadata.url + ': ' + exp);
+          return false;
+        }
+      }
+      break;
+    }
     case 'git': {
       repositoryDirectory = getRepositoryDirectory(repositoryKey);
 
