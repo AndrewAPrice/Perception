@@ -87,6 +87,7 @@
             "destination": "source",
             "extensions": [".c", ".h"],
             "exclude": [
+                "source/rngparser.c",
                 "source/testapi.c",
                 "source/testchar.c",
                 "source/testdict.c",

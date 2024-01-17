@@ -25,13 +25,13 @@ const buildSettings = {
   parallelTasks: getParallelTasks()
 };
 
-function generateBuildCommand(language, filePath) {
-  let cParams = ' -D' + buildSettings.os.toUpperCase().replace(/-/g, '_') +
-    ' ' +
+function generateBuildCommand(language, cParams, inputFile, outputFile) {
+  cParams += ' -D' + buildSettings.os.toUpperCase().replace(/-/g, '_') +
+    ' --target=x86_64-unknown-none-elf ' +
     ' -D' + buildSettings.build + '_BUILD_ ' +
-    '-fdata-sections -ffunction-sections ';
+    '-fdata-sections -ffunction-sections -nostdinc ';
   if (buildSettings.build == 'optimized')
-    cParams += '-g -O3  -fomit-frame-pointer ';
+    cParams += '-g -O3  -fomit-frame-pointer -flto ';
   else if (buildSettings.build == 'debug') {
     cParams += '-g -Og ';
     if (buildSettings.test)
@@ -44,71 +44,58 @@ function generateBuildCommand(language, filePath) {
     let command = '';
     if (isLocalBuild)
       return getToolPath('local-gcc') + ' -c -std=c++20 -MD -MF ${deps}' +
-        cParams;
+        cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
     else
       return getToolPath('gcc') +
-        ' -fverbose-asm -m64 -ffreestanding -nostdlib ' +
-        '-nostdinc++ -mno-red-zone -c -std=c++20 -MD -MF ${deps}' + cParams;
+        ' -fverbose-asm -m64 -ffreestanding -nostdlibinc ' +
+        '-nostdinc++ -mno-red-zone -c -std=c++20 -MD -MF ${deps}' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
   } else if (language == 'C') {
     if (isLocalBuild)
       return getToolPath('local-gcc') + ' -c -std=c17 -MD -MF ${deps}' +
-        cParams;
+        cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
     else
       return getToolPath('gcc') +
-        ' -D PERCEPTION -std=c17 -m64 -ffreestanding -nostdlib ' +
-        '-mno-red-zone -c -MD -MF ${deps}' + cParams;
+        ' -D PERCEPTION -std=c17 -m64 -ffreestanding ' +
+        '-mno-red-zone -c -MD -MF ${deps}' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
   } else if (language == 'Kernel C') {
-    return getToolPath('gcc') + ' -m64 -mcmodel=kernel ' +
-      '-ffreestanding -fno-builtin -nostdlib -nostdinc -mno-red-zone  -c ' +
-      '-msoft-float -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mno-avx ' +
-      '-mno-avx2 -MD -MF ${deps}  -O3 -isystem ' + escapePath(getKernelDirectory() + '/source')
-      + ' ' + cParams;
+    return getToolPath('gcc') + ' -mcmodel=kernel ' +
+      '-ffreestanding -fno-builtin  -c ' +
+      '-MD -MF ${deps}  -O3 -isystem ' + escapePath(getKernelDirectory() + '/source')
+      + ' ' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
   } else if (language == 'Intel ASM') {
     if (isLocalBuild)
       return '';
     else {
-      return getToolPath('nasm') + ' -felf64 -dPERCEPTION';
+      return getToolPath('nasm')
+        + ' -i ' + escapePath(path.dirname(inputFile)) + ' -felf64 -dPERCEPTION -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
     }
   } else if (language == 'AT&T ASM') {
-    return getToolPath('gcc') + ' -c';
+    return getToolPath('gcc') +
+      + ' -i ' + escapePath(path.dirname(inputFile)) +
+      ' -E ' + cParams + ' ' + escapePath(inputFile) + ' | ' + getToolPath('gas') + ' --triple=x86_64-unknown-none-elf -o ' + escapePath(outputFile);
   } else {
     console.log('Unhandled language: ' + language);
     return '';
   }
 }
 
-// Cached build commands.
-const buildCommands = {};
-
 // Gets the build command to use for a file.
-function getBuildCommand(filePath, packageType, cParams) {
+function getBuildCommand(filePath, packageType, cParams, outputFile) {
   let language = '';
-  let addCParams = false;
   if (filePath.endsWith('.cc') || filePath.endsWith('.cpp')) {
     language = 'C++';
-    addCParams = true;
   } else if (filePath.endsWith('.c')) {
     language = packageType == PackageType.KERNEL && !buildSettings.test ? 'Kernel C' : 'C';
-    addCParams = true;
   } else if (filePath.endsWith('.asm')) {
     language = 'Intel ASM';
 
-    addCParams = true;
     cParams = ' -i ' + escapePath(path.dirname(filePath));
   } else if (filePath.endsWith('.s') || filePath.endsWith('.S')) {
     language = 'AT&T ASM';
   }
 
   if (language == '') return '';
-
-  if (!buildCommands[language])
-    buildCommands[language] = generateBuildCommand(language, filePath);
-
-  if (buildCommands[language] == '')
-    return '';
-
-  return addCParams ? buildCommands[language] + cParams :
-    buildCommands[language];
+  return generateBuildCommand(language, cParams, filePath, outputFile);
 }
 
 function getLinkerCommand(packageType, outputFile, inputFiles) {
@@ -120,7 +107,8 @@ function getLinkerCommand(packageType, outputFile, inputFiles) {
       } else {
         extras += ' -g ';
       }
-      return getToolPath('ld') + ' -z nodefaultlibs -z max-page-size=4096 ' +
+      return getToolPath('ld') + ' -z max-page-size=4096' +
+        // ' -flto ' + // -fwhole-program  -fuse-ld=gold ' +
         extras + ' -T ' + getKernelDirectory() +
         '/source/linker.ld -o ' + outputFile + ' ' + inputFiles;
     }
@@ -132,7 +120,8 @@ function getLinkerCommand(packageType, outputFile, inputFiles) {
         extras += ' -g ';
       }
       if (buildSettings.os == 'Perception')
-        return getToolPath('gcc') + extras + ' -nostdlib  -nodefaultlibs ' +
+        return getToolPath('gcc') + extras + ' -nostdlib  -nodefaultlibs' +
+          ' -flto ' +
           ' -nolibc -nostartfiles -z max-page-size=1 -T userland.ld -o ' +
           outputFile + ' -Wl,--start-group ' + inputFiles +
           ' -Wl,--end-group -Wl,-lgcc';
@@ -151,7 +140,7 @@ function getLinkerCommand(packageType, outputFile, inputFiles) {
     }
     case PackageType.LIBRARY:
       if (buildSettings.os == 'Perception') {
-        return getToolPath('ar') + ' rvs -o ' + outputFile + ' ' + inputFiles;
+        return getToolPath('ar') + ' rvs ' + outputFile + ' ' + inputFiles;
       } else {
         return getToolPath('local-ar') + ' -rvs ' + outputFile + ' ' +
           inputFiles;
@@ -160,7 +149,7 @@ function getLinkerCommand(packageType, outputFile, inputFiles) {
 }
 
 function getTestLinkerCommand(outputFile, testObjectFile, libraryFiles) {
-  return getToolPath('local-gcc') + ' -o ' + outputFile  + ' ' +
+  return getToolPath('local-gcc') + ' -o ' + outputFile + ' ' +
     testObjectFile + ' ' + libraryFiles;
 }
 

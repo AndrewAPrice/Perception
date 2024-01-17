@@ -99,15 +99,15 @@ async function compileAndLink(
         // Skip this file because we're not running tests.
         return;
       }
-      const buildCommand = getBuildCommand(file, packageType, params);
+      const objectFile = buildPath +
+            /*sourceFileToObjectFile(packageDirectory, file) + */ '.obj';
+      const buildCommand = getBuildCommand(file, packageType, params, objectFile);
       if (buildCommand == '') {
         // Skip this file.
         return;
       }
 
       let shouldCompileFile = false;
-      const objectFile = buildPath +
-            /*sourceFileToObjectFile(packageDirectory, file) + */ '.obj';
       if (isTest) {
         testObjectFiles.push({
           source: getDisplayFilename(file),
@@ -145,11 +145,8 @@ async function compileAndLink(
 
       if (shouldCompileFile) {
         anythingChanged = true;
-        const command = buildCommand + ' -o ' + escapePath(objectFile) + ' ' +
-          escapePath(file);
-
         deferCommand(
-          STAGE.COMPILE, command, 'Compiling ' + getDisplayFilename(file),
+          STAGE.COMPILE, buildCommand, 'Compiling ' + getDisplayFilename(file),
           file, metadata.output_warnings);
       }
     });
