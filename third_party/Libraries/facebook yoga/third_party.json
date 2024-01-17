@@ -15,11 +15,6 @@
         },
         {
             "operation": "copy",
-            "source": "${git}/yoga/event",
-            "destination": "source/event"
-        },
-        {
-            "operation": "copy",
             "source": "${git}/yoga",
             "destination": "public/yoga",
             "extensions": [".h"],
@@ -28,6 +23,89 @@
                 "file": "public/yoga/CompactValue.h",
                 "replacements": [["__cpp_lib_bit_cast", "true"]]
             }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/algorithm",
+            "destination": "source/algorithm",
+            "extensions": [".cpp"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/algorithm",
+            "destination": "public/yoga/algorithm",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/config",
+            "destination": "source/config",
+            "extensions": [".cpp"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/config",
+            "destination": "public/yoga/config",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/debug",
+            "destination": "source/debug",
+            "extensions": [".cpp"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/debug",
+            "destination": "public/yoga/debug",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/enums",
+            "destination": "public/yoga/enums",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/event",
+            "destination": "source/event",
+            "extensions": [".cpp"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/event",
+            "destination": "public/yoga/event",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/node",
+            "destination": "source/node",
+            "extensions": [".cpp"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/node",
+            "destination": "public/yoga/node",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/numeric",
+            "destination": "public/yoga/numeric",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/style",
+            "destination": "public/yoga/style",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/yoga/event",
+            "destination": "source/event"
         }
     ]
 }
