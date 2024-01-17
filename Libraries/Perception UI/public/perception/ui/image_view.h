@@ -19,8 +19,8 @@
 #include <string>
 #include <string_view>
 
-#include "perception/ui/resize_method.h"
 #include "perception/ui/image.h"
+#include "perception/ui/resize_method.h"
 #include "perception/ui/text_alignment.h"
 #include "perception/ui/widget.h"
 
@@ -42,10 +42,11 @@ class ImageView : public Widget {
  private:
   virtual void Draw(DrawContext& draw_context) override;
 
-  static YGSize Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
-                        float height, YGMeasureMode height_mode);
+  static YGSize Measure(const YGNode* node, float width,
+                        YGMeasureMode width_mode, float height,
+                        YGMeasureMode height_mode);
 
-  static void LayoutDirtied(YGNode* node);
+  static void LayoutDirtied(const YGNode* node);
 
   std::shared_ptr<Image> image_;
   TextAlignment alignment_;
@@ -54,7 +55,6 @@ class ImageView : public Widget {
   float image_x_, image_y_;
   float image_width_, image_height_;
   float displayed_width_, displayed_height_;
-
 };
 
 }  // namespace ui

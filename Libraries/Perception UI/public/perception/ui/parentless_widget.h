@@ -41,7 +41,7 @@ class ParentlessWidget : public Widget {
       const std::function<void()>& invalidate_parent_layout_handler);
   virtual void InvalidateRender() override;
   virtual void Draw(DrawContext& draw_context) override;
-  
+
   virtual bool GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
                            float& x_in_selected_widget,
                            float& y_in_selected_widget) override;
@@ -51,7 +51,7 @@ class ParentlessWidget : public Widget {
  private:
   ParentlessWidget();
 
-  static void LayoutDirtied(YGNode* node);
+  static void LayoutDirtied(const YGNode* node);
 
   bool invalidated_;
   float width_, height_;

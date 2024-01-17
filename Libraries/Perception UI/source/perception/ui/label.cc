@@ -72,10 +72,10 @@ void Label::Draw(DrawContext& draw_context) {
   float left_padding = GetComputedPadding(YGEdgeLeft);
   float top_padding = GetComputedPadding(YGEdgeTop);
 
-  float width = GetCalculatedWidth() - left_padding -
-              GetComputedPadding(YGEdgeRight);
-  float height = GetCalculatedHeight() - top_padding -
-               GetComputedPadding(YGEdgeBottom);
+  float width =
+      GetCalculatedWidth() - left_padding - GetComputedPadding(YGEdgeRight);
+  float height =
+      GetCalculatedHeight() - top_padding - GetComputedPadding(YGEdgeBottom);
   float x = GetLeft() + draw_context.offset_x + left_padding;
   float y = GetTop() + draw_context.offset_y + top_padding;
 
@@ -95,7 +95,7 @@ void Label::Draw(DrawContext& draw_context) {
                                        y + text_y_, *GetUiFont(), paint);
 }
 
-YGSize Label::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
+YGSize Label::Measure(const YGNode* node, float width, YGMeasureMode width_mode,
                       float height, YGMeasureMode height_mode) {
   Label* label = (Label*)YGNodeGetContext(node);
   YGSize size;
@@ -132,7 +132,7 @@ YGSize Label::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
   return size;
 }
 
-void Label::LayoutDirtied(YGNode* node) {
+void Label::LayoutDirtied(const YGNode* node) {
   Label* label = (Label*)YGNodeGetContext(node);
   label->realign_text_ = true;
 }

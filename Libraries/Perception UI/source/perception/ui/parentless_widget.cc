@@ -84,7 +84,7 @@ void ParentlessWidget::MaybeRecalculateLayout() {
   YGNodeCalculateLayout(yoga_node_, width_, height_, YGDirectionLTR);
 }
 
-void ParentlessWidget::LayoutDirtied(YGNode* node) {
+void ParentlessWidget::LayoutDirtied(const YGNode* node) {
   ParentlessWidget* parentless_widget =
       (ParentlessWidget*)YGNodeGetContext(node);
   if (parentless_widget->invalidate_parent_layout_handler_)

@@ -89,8 +89,8 @@ bool ScrollContainer::GetWidgetAt(float x, float y,
   x += scroll_x_;
   y += scroll_y_;
   MaybeUpdateContentSize();
-  return content_->GetWidgetAt(
-      x, y, widget, x_in_selected_widget, y_in_selected_widget);
+  return content_->GetWidgetAt(x, y, widget, x_in_selected_widget,
+                               y_in_selected_widget);
 }
 
 ScrollContainer* ScrollContainer::ScrollTo(float x, float y) {
@@ -243,7 +243,7 @@ void ScrollContainer::RebuildLayout() {
   InvalidateScrollBars();
 }
 
-void ScrollContainer::LayoutDirtied(YGNode* node) {
+void ScrollContainer::LayoutDirtied(const YGNode* node) {
   ScrollContainer* scroll_container = (ScrollContainer*)YGNodeGetContext(node);
   scroll_container->MaybeUpdateContentSize();
   scroll_container->InvalidateScrollBars();

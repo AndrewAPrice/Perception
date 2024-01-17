@@ -94,9 +94,7 @@ std::shared_ptr<Image> Image::LoadImage(std::string_view path) {
     auto sk_stream = SkStream::MakeFromFile(std::string(path).c_str());
     auto rp = skresources::DataURIResourceProviderProxy::Make(
         skresources::FileResourceProvider::Make(
-            SkString(std::filesystem::path(path).parent_path().c_str()),
-            /*predecode=*/true),
-        /*predecode=*/true);
+            SkString(std::filesystem::path(path).parent_path().c_str())));
 
     auto sk_svg_dom =
         SkSVGDOM::Builder().setResourceProvider(std::move(rp)).make(*sk_stream);
@@ -106,7 +104,7 @@ std::shared_ptr<Image> Image::LoadImage(std::string_view path) {
     auto sk_data = SkData::MakeFromFileName(std::string(path).c_str());
     if (!sk_data) return nullptr;
 
-    auto sk_image = SkImage::MakeFromEncoded(sk_data);
+    auto sk_image = SkImages::DeferredFromEncodedData(sk_data, std::nullopt);
     if (sk_image) return std::make_shared<RasterImage>(sk_image);
   }
 

@@ -61,7 +61,7 @@ class ScrollContainer : public Container {
   virtual void Draw(DrawContext& draw_context) override;
   virtual void DrawContents(DrawContext& draw_context) override;
   void RebuildLayout();
-  static void LayoutDirtied(YGNode* node);
+  static void LayoutDirtied(const YGNode* node);
   void InvalidateScrollBars();
   void MaybeUpdateScrollBars();
   void ScrollToInternal(float x, float y);

@@ -122,9 +122,11 @@ void ImageView::Draw(DrawContext& draw_context) {
     x += image_x_;
     y += image_y_;
 
-    std::cout << "Image is: " << image_width_ << "," << image_height_ << std::endl;
+    std::cout << "Image is: " << image_width_ << "," << image_height_
+              << std::endl;
     std::cout << "Container is: " << width << "," << height << std::endl;
-    std::cout << "Display size is: " << displayed_width_ << "," << displayed_height_ << std::endl;
+    std::cout << "Display size is: " << displayed_width_ << ","
+              << displayed_height_ << std::endl;
     std::cout << "Position is: " << image_x_ << "," << image_y_ << std::endl;
 
     if (image_matches_displayed_dimensions) {
@@ -149,8 +151,9 @@ void ImageView::Draw(DrawContext& draw_context) {
   if (clip_contents) draw_context.skia_canvas->restore();
 }
 
-YGSize ImageView::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
-                          float height, YGMeasureMode height_mode) {
+YGSize ImageView::Measure(const YGNode* node, float width,
+                          YGMeasureMode width_mode, float height,
+                          YGMeasureMode height_mode) {
   ImageView* image_view = (ImageView*)YGNodeGetContext(node);
   YGSize size;
 
@@ -180,7 +183,7 @@ YGSize ImageView::Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
   return size;
 }
 
-void ImageView::LayoutDirtied(YGNode* node) {
+void ImageView::LayoutDirtied(const YGNode* node) {
   ImageView* image_view = (ImageView*)YGNodeGetContext(node);
   image_view->realign_image_ = true;
 }

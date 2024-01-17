@@ -16,6 +16,7 @@
 
 #include "include/core/SkFont.h"
 #include "include/core/SkFontMetrics.h"
+#include "include/core/SkFontTypes.h"
 #include "include/core/SkRect.h"
 
 namespace perception {

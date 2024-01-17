@@ -98,7 +98,7 @@ void UiWindow::HandleOnMouseScroll(
 
 void UiWindow::HandleOnMouseButton(
     ProcessId, const MouseListener::OnMouseButtonMessage& message) {
-  std::scoped_lock(window_mutex_);
+  std::scoped_lock lock(window_mutex_);
   // std::cout << title_ << " - button: " << (int)message.GetButton() <<
   //  " down: " << message.GetIsPressedDown() << std::endl;
 }
@@ -111,7 +111,7 @@ void UiWindow::HandleOnMouseClick(
   float x = (float)message.GetX();
   float y = (float)message.GetY();
 
-  (bool)GetWidgetAt(x, y, widget, x_in_selected_widget, y_in_selected_widget);
+  (void)GetWidgetAt(x, y, widget, x_in_selected_widget, y_in_selected_widget);
 
   SwitchToMouseOverWidget(widget);
 
@@ -150,7 +150,7 @@ void UiWindow::HandleOnMouseHover(
   float x = (float)message.GetX();
   float y = (float)message.GetY();
 
-  (bool)GetWidgetAt(x, y, widget, x_in_selected_widget, y_in_selected_widget);
+  (void)GetWidgetAt(x, y, widget, x_in_selected_widget, y_in_selected_widget);
 
   SwitchToMouseOverWidget(widget);
 
@@ -277,8 +277,8 @@ void UiWindow::Draw() {
         buffer_width_, buffer_height_, SkColorType::kBGRA_8888_SkColorType,
         SkAlphaType::kOpaque_SkAlphaType, SkColorSpace::MakeSRGB());
 
-    skia_surface_ = SkSurface::MakeRasterDirect(
-        image_info, *texture_shared_memory_, buffer_width_ * 4);
+    skia_surface_ = SkSurfaces::WrapPixels(image_info, *texture_shared_memory_,
+                                           buffer_width_ * 4);
   }
 
   // Set up our DrawContext to draw into back buffer.

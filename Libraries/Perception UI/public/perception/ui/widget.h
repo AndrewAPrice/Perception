@@ -180,7 +180,7 @@ class Widget : public std::enable_shared_from_this<Widget> {
   virtual void OnMouseButtonUp(
       float x, float y, ::permebuf::perception::devices::MouseButton button);
 
-  YGNode *GetYogaNode();
+  YGNode* GetYogaNode();
 
  protected:
   virtual void InvalidateRender();
@@ -193,7 +193,7 @@ class Widget : public std::enable_shared_from_this<Widget> {
   bool layout_dirtied_;
 
  private:
-  static void LayoutDirtied(YGNode* node);
+  static void LayoutDirtied(const YGNode* node);
 };
 
 }  // namespace ui

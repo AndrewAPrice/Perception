@@ -40,17 +40,17 @@ class Label : public Widget {
  private:
   virtual void Draw(DrawContext& draw_context) override;
 
-  static YGSize Measure(YGNodeRef node, float width, YGMeasureMode width_mode,
-                        float height, YGMeasureMode height_mode);
+  static YGSize Measure(const YGNode* node, float width,
+                        YGMeasureMode width_mode, float height,
+                        YGMeasureMode height_mode);
 
-  static void LayoutDirtied(YGNode* node);
+  static void LayoutDirtied(const YGNode* node);
 
   uint32_t color_;
   std::string label_;
   TextAlignment text_alignment_;
   bool realign_text_;
   float text_x_, text_y_;
-
 };
 
 }  // namespace ui
