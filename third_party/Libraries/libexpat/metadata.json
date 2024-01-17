@@ -2,6 +2,9 @@
 	"dependencies":[
 		"musl"
 	],
+	"define": [
+		"XML_GE"
+	],
 	"third_party": true
 }
 
