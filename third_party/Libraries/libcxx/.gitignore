@@ -1,4 +1,7 @@
-# All third party files
+# All third party files.
+assets/
+
+# All third party files.
 source/
 
 # A list of third party files in public/ and source/.

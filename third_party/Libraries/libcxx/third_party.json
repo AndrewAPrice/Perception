@@ -4,6 +4,11 @@
             "url": "https://github.com/llvm/llvm-project.git",
             "type": "git",
             "placeholder": "git"
+        },
+        {
+            "url": "https://data.iana.org/time-zones/tzdb/tzdata.zi",
+            "type": "download",
+            "placeholder": "tzdata"
         }
     ],
     "operations": [
@@ -12,6 +17,11 @@
             "source": "${git}/libcxx/include",
             "destination": "public",
             "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${tzdata}/tzdata.zi",
+            "destination": "assets/tzdata.zi"
         },
         {
             "operation": "copy",
@@ -29,6 +39,7 @@
                 "source/libc/stdio/nano-vfscanf_local.c",
                 "source/libc/stdio/nano-vfprintf_local.h",
                 "source/libc/stdio/nano-vfscanf_local.h",
+                "source/pstl/libdispatch.cpp",
                 "source/support/ibm/mbsnrtowcs.cpp",
                 "source/support/ibm/wcsnrtombs.cpp",
                 "source/support/ibm/xlocale_zos.cpp",
@@ -37,7 +48,13 @@
                 "source/support/win32/locale_win32.cpp",
                 "source/support/win32/support.cpp",
                 "source/support/win32/thread_win32.cpp"
-            ]
+            ],
+            "replace": [{
+                "file": "source/tz.cpp",
+                "replacements": [[
+                    "#if defined(__linux__)\n  return \"/usr/share/zoneinfo/\";",
+                    "#if PERCEPTION\n  return \"/Libraries/Fonts/assets/libcxx/\";\n#elif defined(__linux__)\n  return \"/usr/share/zoneinfo/\";"]]
+            }]
         },
         {
             "operation": "copy",
