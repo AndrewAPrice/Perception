@@ -72,6 +72,19 @@ std::chrono::microseconds GetTimeSinceKernelStarted() {
 #endif
 }
 
+// Returns the number of CPU clock cycles since the processor turned on.
+size_t GetClockCyclesSinceBoot() {
+#ifdef PERCEPTION
+  unsigned hi, lo;
+#ifndef __TEST__
+  __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+#endif
+  return ((unsigned long long)lo) | (((unsigned long long)hi) << 32);
+#else
+  return 0;
+#endif
+}
+
 // Sleeps the current fiber and returns after the duration has passed.
 void SleepForDuration(std::chrono::microseconds time) {
   MessageId message_id = GenerateUniqueMessageId();
@@ -85,6 +98,7 @@ void SleepForDuration(std::chrono::microseconds time) {
 
     // Keep sleeping if the message wasn't from the kernel.
   } while (pid != 0);
+  UnregisterMessageHandler(message_id);
 }
 
 // Sleeps the current fiber and returns after the duration since the
@@ -101,6 +115,7 @@ void SleepUntilTimeSinceKernelStarted(std::chrono::microseconds time) {
 
     // Keep sleeping if the message wasn't from the kernel.
   } while (pid != 0);
+  UnregisterMessageHandler(message_id);
 }
 
 // Calls the on_duration function after a duration has passed.

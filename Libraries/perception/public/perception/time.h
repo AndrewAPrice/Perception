@@ -22,6 +22,9 @@ namespace perception {
 // Returns the time since the kernel started.
 std::chrono::microseconds GetTimeSinceKernelStarted();
 
+// Returns the number of CPU clock cycles since the processor turned on.
+size_t GetClockCyclesSinceBoot();
+
 // Sleeps the current fiber and returns after the duration has passed.
 void SleepForDuration(std::chrono::microseconds time);
 
