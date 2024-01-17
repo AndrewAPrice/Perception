@@ -27,8 +27,10 @@
                 "source/test-bimap.cc",
                 "source/test-buffer-serialize.cc",
                 "source/test-gpos-size-params.cc",
+                "source/test-gsub-get-alternatives.cc",
                 "source/test-gsub-would-substitute.cc",
                 "source/test-iter.cc",
+                "source/test-item-varstore.cc",
                 "source/test-machinery.cc",
                 "source/test-map.cc",
                 "source/test-multimap.cc",
@@ -40,8 +42,10 @@
                 "source/test-repacker.cc",
                 "source/test-serialize.cc",
                 "source/test-set.cc",
+                "source/test-subset-instancer-solver.cc",
                 "source/test-unicode-ranges.cc",
                 "source/test-use-table.cc",
+                "source/test-tuple-varstore.cc",
                 "source/test-vector.cc",
                 "source/test.cc"
             ]
