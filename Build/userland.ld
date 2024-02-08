@@ -34,10 +34,10 @@ SECTIONS
   
   .rodata ALIGN(0x1000) : AT(ADDR(.rodata))
   {
-    __init_array_start = .;
+    /* __init_array_start = .;
     KEEP(*(SORT(.ctors*)))
     __init_array_end = .;
-
+*/
     start_dtors = .;
     KEEP(*(SORT(.dtors*)))
     end_dtors = .;

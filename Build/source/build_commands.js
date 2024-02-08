@@ -122,7 +122,7 @@ function getLinkerCommand(packageType, outputFile, inputFiles) {
       if (buildSettings.os == 'Perception')
         return getToolPath('ld') + extras + ' -nostdlib ' +
           ' --gc-sections' +
-          '  -z max-page-size=1 -T userland.ld -o ' +
+          '  -z max-page-size=1 -o ' +
           outputFile + ' --start-group ' + inputFiles +
           ' --end-group';
       else {

@@ -13,12 +13,9 @@
 ; limitations under the License.
 
 [BITS 64]
-[GLOBAL crt0_entry]
-[GLOBAL call_global_constructors]
+[GLOBAL _start]
 [extern _main]
 [extern __libc_start_main]
-[extern start_dtors]
-[extern end_dtors]
 [extern __cxa_finalize]
 
 envp:
@@ -29,7 +26,7 @@ envp:
 	DQ 0
 
 ; This is the entrypoint where programs begin running.
-crt0_entry:
+_start:
 	; Call the C entry point.
 	mov rdi, _main
 	mov rsi, 0 ; argc
@@ -39,16 +36,6 @@ crt0_entry:
 	; Call registered destructors.
 	mov rdi, 0
 	call __cxa_finalize
-
-	; Call the global destructors.
-	mov rbx, end_dtors
-	jmp .checkIfWeHaveAGlobalDestructor
-.callGlobalDestructor:
-	sub rbx, 8
-	call [rbx]
-.checkIfWeHaveAGlobalDestructor:
-	cmp rbx, start_dtors
-	ja .callGlobalDestructor
 
 	; Terminate the process if main returns.
 	mov rdi, 6
