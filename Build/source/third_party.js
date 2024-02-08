@@ -250,7 +250,7 @@ function substitutePlaceholders(str, placeholderInfo, allowArrays) {
     if (allowArrays) {
       const results = [];
       str.forEach(semiStr => {
-        substitutePlaceholders(str, placeholderInfo, true).forEach(result => {
+        substitutePlaceholders(semiStr, placeholderInfo, true).forEach(result => {
           results.push(result);
         });
       });
@@ -289,7 +289,13 @@ function substitutePlaceholders(str, placeholderInfo, allowArrays) {
 }
 
 function evaluatePath(path, placeholderInfo, allowArrays) {
-  if (!path.startsWith('$')) {
+  if (Array.isArray(path)) {
+    for (let i = 0; i < path.length; i++) {
+      if (!path[i].startsWith('$')) {
+        path[i] = placeholderInfo.placeholders['${@}'] + '/' + path[i];
+      }
+    }
+  } else if (!path.startsWith('$')) {
     path = placeholderInfo.placeholders['${@}'] + '/' + path;
   }
 
