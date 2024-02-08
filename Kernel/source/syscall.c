@@ -112,13 +112,21 @@ void InitializeSystemCalls() {
 #define GET_CURRENT_TIMESTAMP 25
 
 extern void JumpIntoThread();
+extern void PrintStackTrace();
 
 void SyscallHandler(int syscall_number) {
 #ifdef DEBUG
   PrintString("Entering syscall ");
-  PrintString(GetSystemCallName(syscall));
-  PrintString(" (") PrintNumber(syscall_number);
-  PrintString(" )\n");
+  PrintString(GetSystemCallName(syscall_number));
+  PrintString(" (");
+  PrintNumber(syscall_number);
+  if (running_thread) {
+    PrintString(") from ");
+    PrintString(running_thread->process->name);
+    PrintString(" (");
+    PrintNumber(running_thread->process->pid);
+  }
+  PrintString(")\n");
   PrintRegisters(currently_executing_thread_regs);
 #endif
 
@@ -339,6 +347,9 @@ void SyscallHandler(int syscall_number) {
       currently_executing_thread_regs->rax = running_thread->process->pid;
       break;
     case TERMINATE_THIS_PROCESS:
+#ifdef DEBUG
+      PrintStackTrace();
+#endif
       DestroyProcess(running_thread->process);
       JumpIntoThread();  // Doesn't return.
       break;
@@ -670,8 +681,9 @@ void SyscallHandler(int syscall_number) {
 #endif
 #ifdef DEBUG
   PrintString("Leaving syscall ");
-  PrintString(GetSystemCallName(syscall));
-  PrintString(" (") PrintNumber(syscall_number);
+  PrintString(GetSystemCallName(syscall_number));
+  PrintString(" (");
+  PrintNumber(syscall_number);
   PrintString(" )\n");
   PrintRegisters(currently_executing_thread_regs);
 #endif
