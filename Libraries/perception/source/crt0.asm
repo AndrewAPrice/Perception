@@ -15,7 +15,7 @@
 [BITS 64]
 [GLOBAL crt0_entry]
 [GLOBAL call_global_constructors]
-[extern main]
+[extern _main]
 [extern __libc_start_main]
 [extern start_dtors]
 [extern end_dtors]
@@ -31,7 +31,7 @@ envp:
 ; This is the entrypoint where programs begin running.
 crt0_entry:
 	; Call the C entry point.
-	mov rdi, main
+	mov rdi, _main
 	mov rsi, 0 ; argc
 	mov rdx, envp ; argv
 	call __libc_start_main
