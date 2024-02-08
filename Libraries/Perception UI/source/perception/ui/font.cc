@@ -18,7 +18,10 @@
 
 #include "include/core/SkFont.h"
 #include "include/core/SkFontStyle.h"
-#include "include/core/SkTypeface.h"
+#include "include/core/SkFontMgr.h"
+#include "include/ports/SkFontConfigInterface.h"
+#include "include/ports/SkFontMgr_FontConfigInterface.h"
+#include "include/ports/SkFontConfigInterface.h"
 
 namespace perception {
 namespace ui {
@@ -26,12 +29,18 @@ namespace {
 
 std::unique_ptr<SkFont> ui_font;
 
+SkFontMgr *GetFontManager() {
+  static sk_sp<SkFontMgr> font_manager = SkFontMgr_New_FCI(
+    sk_sp( SkFontConfigInterface::GetSingletonDirectInterface()));
+  return font_manager.get();
+}
+
 }
 
 SkFont* GetUiFont() {
   if (!ui_font) {
     ui_font = std::make_unique<SkFont>(
-        SkTypeface::MakeFromName(
+        GetFontManager()->legacyMakeTypeface(
             "DejaVuSans",
             SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
                         SkFontStyle::kUpright_Slant)),
