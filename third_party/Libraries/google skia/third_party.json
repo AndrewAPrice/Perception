@@ -161,7 +161,14 @@
             "exclude": [
                 "source/src/core/SkSwizzler_opts_hsw.cpp",
                 "source/src/core/SkSwizzler_opts_ssse3.cpp"
-            ]
+            ],
+            "replace": [{
+                "file": "source/src/core/SkSwizzler_opts.cpp",
+                "replacements": [
+                    ["{ Init_Swizzler_ssse3(); }", "{}"],
+                    ["{ Init_Swizzler_hsw(); }", "{}"]
+                ]
+            }]
         },
         {
             "operation": "copy",
@@ -477,6 +484,23 @@
             "replace": [{
                 "file": "public/modules/skcms/skcms_internal.h",
                 "replacements": [["#include \"skcms", "#include \"modules/skcms/skcms"]]
+            }]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/modules/skcms/src",
+            "destination": "source/modules/skcms/src",
+            "extensions": [".cc"],
+            "replace": [{
+                "file": [
+                    "source/modules/skcms/src/skcms_TransformBaseline.cc",
+                    "source/modules/skcms/src/skcms_TransformHsw.cc",
+                    "source/modules/skcms/src/skcms_TransformSkx.cc"
+                ],
+                "replacements": [
+                    ["#include \"skcms", "#include \"modules/skcms/src/skcms"],
+                    ["#include \"Transform_inl.h\"", "#include \"modules/skcms/src/Transform_inl.h\""]
+                ]
             }]
         },
         {
