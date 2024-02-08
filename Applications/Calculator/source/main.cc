@@ -139,7 +139,7 @@ std::shared_ptr<Widget> CreateButton(std::string_view label,
 
 }  // namespace
 
-int main() {
+int main (int argc, char *argv[]) {
   auto window = std::make_shared<UiWindow>("Calculator");
   display = std::static_pointer_cast<TextBox>(
       TextBox::Create()

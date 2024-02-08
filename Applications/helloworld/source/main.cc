@@ -42,7 +42,7 @@ std::shared_ptr<UiWindow> CreateWindow(std::string_view title, uint32 color,
   return window;
 }
 
-int main() {
+int main (int argc, char *argv[]) {
   auto a = CreateWindow("Raspberry", 0x0ed321ff);
   auto b = CreateWindow("Blueberry", 0xc5c20dff);
   auto c = CreateWindow("Blackberry", 0xa5214eff);

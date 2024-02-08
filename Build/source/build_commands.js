@@ -63,16 +63,18 @@ function generateBuildCommand(language, cParams, inputFile, outputFile) {
       '-MD -MF ${deps}  -O3 -isystem ' + escapePath(getKernelDirectory() + '/source')
       + ' ' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
   } else if (language == 'Intel ASM') {
-    if (isLocalBuild)
-      return '';
-    else {
-      return getToolPath('nasm')
-        + ' -i ' + escapePath(path.dirname(inputFile)) + ' -felf64 -dPERCEPTION -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
-    }
+    return getToolPath('nasm')
+      + ' -i ' + escapePath(path.dirname(inputFile)) + ' -felf64 -dPERCEPTION -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
+  /* } else if (language == 'Intel ASM') {
+    return getToolPath('gcc')
+      + ' -masm=intel --language=assembler-with-cpp -isystem ' + escapePath(path.dirname(inputFile)) +
+      ' ' + cParams + ' -c -o ' + escapePath(outputFile) + ' ' +
+      escapePath(inputFile); */
   } else if (language == 'AT&T ASM') {
-    return getToolPath('gcc') +
-      + ' -i ' + escapePath(path.dirname(inputFile)) +
-      ' -E ' + cParams + ' ' + escapePath(inputFile) + ' | ' + getToolPath('gas') + ' --triple=x86_64-unknown-none-elf -o ' + escapePath(outputFile);
+    return getToolPath('gcc')
+      + ' -isystem ' + escapePath(path.dirname(inputFile)) +
+      ' ' + cParams + ' -c -o ' + escapePath(outputFile) + ' ' +
+      escapePath(inputFile);
   } else {
     console.log('Unhandled language: ' + language);
     return '';
@@ -88,8 +90,6 @@ function getBuildCommand(filePath, packageType, cParams, outputFile) {
     language = packageType == PackageType.KERNEL && !buildSettings.test ? 'Kernel C' : 'C';
   } else if (filePath.endsWith('.asm')) {
     language = 'Intel ASM';
-
-    cParams = ' -i ' + escapePath(path.dirname(filePath));
   } else if (filePath.endsWith('.s') || filePath.endsWith('.S')) {
     language = 'AT&T ASM';
   }
@@ -113,18 +113,18 @@ function getLinkerCommand(packageType, outputFile, inputFiles) {
         '/source/linker.ld -o ' + outputFile + ' ' + inputFiles;
     }
     case PackageType.APPLICATION: {
-      let extras = ' -Wl,--gc-sections ';
+      let extras = '  ';
       if (buildSettings.build == 'optimized') {
         extras += ' -O3 -g -s';
       } else {
         extras += ' -g ';
       }
       if (buildSettings.os == 'Perception')
-        return getToolPath('gcc') + extras + ' -nostdlib  -nodefaultlibs' +
-          ' -flto ' +
-          ' -nolibc -nostartfiles -z max-page-size=1 -T userland.ld -o ' +
-          outputFile + ' -Wl,--start-group ' + inputFiles +
-          ' -Wl,--end-group -Wl,-lgcc';
+        return getToolPath('ld') + extras + ' -nostdlib ' +
+          ' --gc-sections' +
+          '  -z max-page-size=1 -T userland.ld -o ' +
+          outputFile + ' --start-group ' + inputFiles +
+          ' --end-group';
       else {
         // whole-archive/no-whole-archive is less efficient than
         // --start-group/--end-group because it links in dead code, but the LD

@@ -19,7 +19,7 @@
 
 using ::perception::HandOverControl;
 
-int main() {
+int main (int argc, char *argv[]) {
   auto font_manager = std::make_unique<FontManager>();
 
   HandOverControl();

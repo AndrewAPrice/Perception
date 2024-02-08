@@ -42,7 +42,7 @@ void LoadVideoDriver() {
 
 }  // namespace
 
-int main() {
+int main (int argc, char *argv[]) {
   InitializePci();
 
   AddDriverToLoad("PS2 Keyboard and Mouse");

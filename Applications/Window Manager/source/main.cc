@@ -25,7 +25,7 @@
 
 using ::perception::WaitForMessagesThenReturn;
 
-int main() {
+int main (int argc, char *argv[]) {
   InitializeScreen();
   InitializeMouse();
   InitializeCompositor();

@@ -17,7 +17,7 @@
 
 using ::perception::HandOverControl;
 
-int main() {
+int main (int argc, char *argv[]) {
   auto loader = std::make_unique<Loader>();
   HandOverControl();
   return 0;

@@ -27,7 +27,7 @@ using ::perception::ui::Label;
 using ::perception::ui::TextAlignment;
 using ::perception::ui::UiWindow;
 
-int main() {
+int main (int argc, char *argv[]) {
   auto window = std::make_shared<UiWindow>("Welcome!", true);
   window->SetJustifyContent(YGJustifyCenter)
       ->SetAlignContent(YGAlignCenter)

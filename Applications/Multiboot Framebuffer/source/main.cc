@@ -851,7 +851,7 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
   }
 };
 
-int main() {
+int main (int argc, char *argv[]) {
   size_t physical_address;
   uint32 width, height, pitch;
   uint8 bpp;

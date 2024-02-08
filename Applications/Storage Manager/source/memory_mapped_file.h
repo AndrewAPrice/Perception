@@ -34,6 +34,16 @@ class MemoryMappedFile : public ::permebuf::perception::MemoryMappedFile::Server
   size_t length_of_file_;
   std::unique_ptr<::perception::SharedMemory> buffer_;
   std::mutex mutex_;
+  size_t cycles_to_read_chunks_;
+  size_t cycles_for_mutex_;
+  size_t cycles_for_checking_if_page_is_allocated_;
+  size_t cycles_for_allocating_temp_buffer_;
+  size_t cycles_for_building_read_file_request_;
+  size_t cycles_for_read_file_rpc_;
+  size_t cycles_to_assign_page_;
+  size_t cycles_to_allocate_page_;
+  size_t cycles_to_copy_page_;
+  size_t cycles_to_release_shared_memory_;
 
   // Reads in a page-sized chunk of the file into the buffer.
   void ReadInPageChunk(size_t start_of_page);

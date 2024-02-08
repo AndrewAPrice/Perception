@@ -24,7 +24,7 @@ using ::file_systems::InitializeStorageDevice;
 using ::perception::HandOverControl;
 using ::permebuf::perception::devices::StorageDevice;
 
-int main() {
+int main (int argc, char *argv[]) {
   StorageDevice::NotifyOnEachNewInstance([](StorageDevice storage_device) {
     auto file_system = InitializeStorageDevice(storage_device);
     if (file_system) {

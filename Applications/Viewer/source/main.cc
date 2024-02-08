@@ -71,7 +71,7 @@ void OpenImage(std::string_view path) {
 
 }  // namespace
 
-int main() {
+int main (int argc, char *argv[]) {
   SleepForDuration(std::chrono::seconds(2));
 
   OpenImage("/Optical 1/Sample Images/1546182636.svg");

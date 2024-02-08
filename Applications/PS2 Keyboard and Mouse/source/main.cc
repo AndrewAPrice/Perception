@@ -286,7 +286,7 @@ void InitializePS2Controller() {
 
 }  // namespace
 
-int main() {
+int main (int argc, char *argv[]) {
   mouse_driver = std::make_unique<PS2MouseDriver>();
   keyboard_driver = std::make_unique<PS2KeyboardDriver>();
   InitializePS2Controller();
