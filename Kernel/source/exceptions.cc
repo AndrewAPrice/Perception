@@ -222,9 +222,12 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2, size_t error_code
     PrintNumber(exception_no);
   }
 
-  // The below code doesn't take into account if kernel code caused an
-  // exception - such as in a syscall or an interrupt handler.
-  if (running_thread != nullptr) {
+  bool in_kernel = currently_executing_thread_regs == nullptr ||
+    IsKernelAddress(currently_executing_thread_regs->rip);
+
+  if (in_kernel) {
+    PrintString(" in kernel");
+  } else {
     PrintString(" by PID ");
     struct Process* process = running_thread->process;
     PrintNumber(process->pid);
@@ -232,25 +235,26 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2, size_t error_code
     PrintString(process->name);
     PrintString(") in TID ");
     PrintNumber(running_thread->id);
-    if (exception_no == PAGE_FAULT) {
-      PrintString(" for trying to access ");
-      PrintHex(cr2);
-    }
-    PrintString(" with error code: ");
-    PrintHex(error_code);
-    PrintChar('\n');
-    PrintRegistersAndStackTrace();
+  }
 
-    // Terminate the process.
-    DestroyProcess(process);
-    JumpIntoThread();  // Doesn't return.
+  if (exception_no == PAGE_FAULT) {
+    PrintString(" for trying to access ");
+    PrintHex(cr2);
+  }
+  PrintString(" with error code: ");
+  PrintHex(error_code);
+  PrintChar('\n');
+  PrintRegistersAndStackTrace();
+
+  if (in_kernel) {
+  #ifndef __TEST__
+      asm("cli");
+      asm("hlt");
+  #endif
   } else {
-    PrintString(" outside of a thread.");
-    PrintRegisters(currently_executing_thread_regs);
-#ifndef __TEST__
-    asm("cli");
-    asm("hlt");
-#endif
+    // Terminate the process.
+    DestroyProcess(running_thread->process);
+    JumpIntoThread();  // Doesn't return.
   }
 
   /*MarkInterruptHandlerAsLeft();*/
