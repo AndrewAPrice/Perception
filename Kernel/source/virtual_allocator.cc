@@ -1002,7 +1002,7 @@ size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
   return start;
 }
 
-size_t ReleaseVirtualMemoryInAddressSpace(
+void ReleaseVirtualMemoryInAddressSpace(
     struct VirtualAddressSpace *address_space, size_t addr, size_t pages,
     bool free) {
   size_t i = 0;
@@ -1497,4 +1497,8 @@ void SetMemoryAccessRights(struct VirtualAddressSpace *address_space,
     ptr[pml1_entry] = entry;
     FlushVirtualPage(address);
   }
+}
+
+extern bool IsKernelAddress(size_t address) {
+  return address >= VIRTUAL_MEMORY_OFFSET;
 }

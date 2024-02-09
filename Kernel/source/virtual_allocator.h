@@ -91,7 +91,7 @@ extern size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
     struct VirtualAddressSpace *address_space, size_t pages,
     size_t max_base_address);
 
-extern size_t ReleaseVirtualMemoryInAddressSpace(
+extern void ReleaseVirtualMemoryInAddressSpace(
     struct VirtualAddressSpace *address_space, size_t addr, size_t pages,
     bool free);
 
@@ -142,3 +142,6 @@ extern void UnmapSharedMemoryFromProcess(
 //  Bit 1: The memory can be executed.
 extern void SetMemoryAccessRights(struct VirtualAddressSpace *address_space,
                                   size_t address, size_t rights);
+
+// Returns whether the provided address lives within kernel space.
+extern bool IsKernelAddress(size_t address);
