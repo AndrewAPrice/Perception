@@ -6,8 +6,6 @@
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 
-// #define DEBUG
-
 // The total number of bytes of system memory.
 size_t total_system_memory;
 
@@ -94,14 +92,6 @@ void CalculateStartOfFreeMemoryAtBoot() {
   // Round up to the nearest whole page.
   start_of_free_memory_at_boot =
       (start_of_free_memory_at_boot + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-
-#ifdef DEBUG
-  PrintString("End of kernel: ");
-  PrintHex((size_t)&bssEnd);
-  PrintString(" Start of free memory: ");
-  PrintHex(start_of_free_memory_at_boot);
-  PrintChar('\n');
-#endif
 }
 
 void InitializePhysicalAllocator() {
@@ -134,32 +124,12 @@ void InitializePhysicalAllocator() {
       // This is a memory map tag!
       struct multiboot_tag_mmap *mmap_tag = (struct multiboot_tag_mmap *)tag;
 
-#ifdef DEBUG
-      PrintString("Entry size: ");
-      PrintNumber(SafeReadUint32(&mmap_tag->entry_size));
-      PrintString(" Tag size: ");
-      PrintNumber(size);
-      PrintString(" Entries: ");
-      PrintNumber(size / SafeReadUint32(&mmap_tag->entry_size));
-      PrintString("\n");
-#endif
-
       // Iterate over each entry in the memory map.
       struct multiboot_mmap_entry *mmap;
       for (mmap = mmap_tag->entries; (size_t)mmap < (size_t)tag + size;
            mmap = (struct multiboot_mmap_entry *)((size_t)mmap +
                                                   (size_t)SafeReadUint32(
                                                       &mmap_tag->entry_size))) {
-#ifdef DEBUG
-        PrintString("Base: ");
-        PrintHex(SafeReadUint64(&mmap->addr));
-        PrintString(" Length: ");
-        PrintNumber(SafeReadUint64(&mmap->len));
-        PrintString(" Type: ");
-        PrintNumber(SafeReadUint32(&mmap->type));
-        PrintChar('\n');
-#endif
-
         uint64 len = SafeReadUint64(&mmap->len);
         total_system_memory += len;
 
@@ -177,16 +147,6 @@ void InitializePhysicalAllocator() {
 
           start = (start + PAGE_SIZE - 1) &
                   ~(PAGE_SIZE - 1);  // Round up to page size.
-
-#ifdef DEBUG
-          if (end > start) {
-            PrintString("Adding pages from ");
-            PrintHex(start);
-            PrintString(" to ");
-            PrintHex(end - PAGE_SIZE);
-            PrintChar('\n');
-          }
-#endif
 
           // Now we will divide this memory up into pages and iterate through
           // them.
@@ -223,24 +183,8 @@ void DoneWithMultibootMemory() {
                                               // PAGE_SIZE - 1) & ~(PAGE_SIZE -
                                               // 1); // Round up.
 
-#ifdef DEBUG
-  PrintString("Done with multiboot memory, freeing from ");
-  PrintHex(start);
-  PrintString(" to ");
-  PrintHex(end);
-  PrintChar('\n');
-#endif
-
-  for (size_t page = start; page < end; page += PAGE_SIZE) {
-#ifdef DEBUG
-    PrintString("Unmapping ");
-    PrintHex(page);
-    PrintString(" at virtual address ");
-    PrintHex(page + VIRTUAL_MEMORY_OFFSET);
-    PrintChar('\n');
-#endif
+  for (size_t page = start; page < end; page += PAGE_SIZE)
     UnmapVirtualPage(&kernel_address_space, page + VIRTUAL_MEMORY_OFFSET, true);
-  }
 }
 
 // Grabs the next physical page (at boot time before the virtual memory

@@ -19,11 +19,13 @@
 
 #ifndef __TEST__
 extern "C" void kmain() {
+  InitializePrinter();
+
   // Make sure we were booted with a multiboot2 bootloader - we need this
   // because we depend on GRUB for providing us with some initialization
   // information.
   if (MultibootInfo.magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
-    PrintString("Not booted with a multiboot2 bootloader!");
+    print << "Not booted with a multiboot2 bootloader!";
     asm("hlt");
   }
 

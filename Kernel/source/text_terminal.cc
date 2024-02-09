@@ -9,97 +9,110 @@
 
 // The text terminal is implemented by outputting over COM1.
 
-// The sIO port to use.
-#define PORT 0x3f8  // COM1
+namespace {
+// The IO port to use.
+constexpr unsigned short kPort = 0x3f8;  // COM1
 
-// Has the serial output been initialized?
-bool serial_output_initialized = false;
+static const char *kHexidecimalCharset = "0123456789ABCDEF";
 
 // Initialize the serial output.
 void InitializeSerialOutput() {
-  outportb(PORT + 1, 0x00);  // Disable all interrupts
-  outportb(PORT + 3, 0x80);  // Enable DLAB (set baud rate divisor)
-  outportb(PORT + 0, 0x03);  // Set divisor to 3 (lo byte) 38400 baud
-  outportb(PORT + 1, 0x00);  //                  (hi byte)
-  outportb(PORT + 3, 0x03);  // 8 bits, no parity, one stop bit
-  outportb(PORT + 2, 0xC7);  // Enable FIFO, clear them, with 14-byte threshold
-  outportb(PORT + 4, 0x0B);  // IRQs enabled, RTS/DSR set
-  serial_output_initialized = true;
+  outportb(kPort + 1, 0x00);  // Disable all interrupts
+  outportb(kPort + 3, 0x80);  // Enable DLAB (set baud rate divisor)
+  outportb(kPort + 0, 0x03);  // Set divisor to 3 (lo byte) 38400 baud
+  outportb(kPort + 1, 0x00);  //                  (hi byte)
+  outportb(kPort + 3, 0x03);  // 8 bits, no parity, one stop bit
+  outportb(kPort + 2, 0xC7);  // Enable FIFO, clear them, with 14-byte threshold
+  outportb(kPort + 4, 0x0B);  // IRQs enabled, RTS/DSR set
 }
 
+}
+
+Printer::Printer() : number_format_(NumberFormat::Decimal) {}
+
 // Prints a single character.
-void PrintChar(char c) {
+Printer& Printer::operator << (char c) {    
 #ifdef __TEST__
   printf("%c", c);
 #else
-  if (!serial_output_initialized) {
-    InitializeSerialOutput();
-  }
-  while ((inportb(PORT + 5) & 0x20) == 0)
-    ;
-  outportb(PORT, c);
+  while ((inportb(kPort + 5) & 0x20) == 0);
+  outportb(kPort, c);
 #endif
+  return *this;
 }
 
 // Prints a null-terminated string.
-void PrintString(const char *str) {
+Printer& Printer::operator <<(const char *str) {
   char *str1 = (char *)str;
   while (*str1) {
-    PrintChar(*str1);
+    *this << *str1;
     str1++;
   }
+  return *this;
 }
 
-// Prints a fixed length string.
-void PrintFixedString(const char *str, size_t length) {
-  size_t i;
-  for (i = 0; i < length; i++) PrintChar(str[i]);
+// Prints a string view.
+Printer& Printer::operator <<(StringView& str) {
+  for (size_t i = 0; i < str.length; i++) *this << str.str[i];
+  return *this;
+}
+
+// Prints an signed int.
+Printer& Printer::operator <<(int c) {
+  if (c < 0) {
+    *this << "-";
+    c = -c;
+  }
+  *this << (size_t)c;
+  return *this;
+}
+
+// Prints a long int.
+Printer& Printer::operator <<(size_t num) {
+  switch (number_format_) {
+    case NumberFormat::Decimal:
+      PrintDecimal(num, /*with_commas=*/true);
+    break;
+    case NumberFormat::DecimalWithCommas:
+      PrintDecimal(num, /*with_commas=*/false);
+    break;
+    case NumberFormat::Hexidecimal:
+      PrintHexidecimal(num);
+    break;
+  }
+  return *this;
+}
+
+// Switches to a new number format.
+Printer& Printer::operator <<(NumberFormat format) {
+  number_format_ = format;
+  return *this;
 }
 
 // Prints a number as a 64-bit hexidecimal string.
-void PrintHex(size_t h) {
-  PrintChar('0');
-  PrintChar('x');
-  const char *charset = "0123456789ABCDEF";
+void Printer::PrintHexidecimal(size_t h) {
+  *this << "0x";
   char temp[16];
-
   size_t i;
   for (i = 0; i < 16; i++) {
-    temp[i] = charset[h % 16];
+    temp[i] = kHexidecimalCharset[h % 16];
     h /= 16;
   }
-
-  PrintChar(temp[15]);
-  PrintChar(temp[14]);
-  PrintChar(temp[13]);
-  PrintChar(temp[12]);
-  PrintChar('-');
-  PrintChar(temp[11]);
-  PrintChar(temp[10]);
-  PrintChar(temp[9]);
-  PrintChar(temp[8]);
-  PrintChar('-');
-  PrintChar(temp[7]);
-  PrintChar(temp[6]);
-  PrintChar(temp[5]);
-  PrintChar(temp[4]);
-  PrintChar('-');
-  PrintChar(temp[3]);
-  PrintChar(temp[2]);
-  PrintChar(temp[1]);
-  PrintChar(temp[0]);
+  for (int i = 15; i >= 0; i--) {
+    if (i == 11 || i == 7 || i == 3)
+      *this << '-';
+    *this << temp[i];
+  }
 }
 
 // Prints a number as a decimal string.
-void PrintNumber(size_t n) {
+void Printer::PrintDecimal(size_t n, bool with_commas) {
   if (n == 0) {
-    PrintChar('0');
+    *this << '0';
     return;
   }
 
-  /* maximum value is 18,446,744,073,709,551,615
-                      01123445677891111111111111
-                                   0012334566789*/
+  // The maximum 64-bit value is 18,446,744,073,709,551,615 which fits in 20 characters.
   char temp[20];
   size_t first_char = 20;
 
@@ -111,26 +124,19 @@ void PrintNumber(size_t n) {
 
   size_t i;
   for (i = first_char; i < 20; i++) {
-    PrintChar(temp[i]);
-    if (i == 1 || i == 4 || i == 7 || i == 10 || i == 13 || i == 16)
-      PrintChar(',');
+    *this << temp[i];
+    if (with_commas && (i == 1 || i == 4 || i == 7 || i == 10 || i == 13 || i == 16))
+      *this << ',';
   }
 }
 
-void PrintNumberWithoutCommas(size_t n) {
-  if (n == 0) {
-    PrintChar('0');
-    return;
-  }
-  char temp[20];
-  size_t first_char = 20;
+// The singleton instance of the printer.
+Printer print;
 
-  while (n > 0) {
-    first_char--;
-    temp[first_char] = '0' + (char)(n % 10);
-    n /= 10;
-  }
-
-  size_t i;
-  for (i = first_char; i < 20; i++) PrintChar(temp[i]);
+void InitializePrinter() {
+  InitializeSerialOutput();
+  // The kernel isn't set up for global constructors, so the printer must be initialized
+  // explicitly.
+  print = Printer();
 }
+

@@ -8,9 +8,6 @@
 #include "thread.h"
 #include "virtual_allocator.h"
 
-// Uncomment for debug printing.
-// #define DEBUG
-
 // Linked list of awake threads we can cycle through.
 struct Thread *first_awake_thread;
 struct Thread *last_awake_thread;
@@ -31,7 +28,7 @@ void InitializeScheduler() {
   running_thread = nullptr;
   currently_executing_thread_regs = (struct Registers*)malloc(sizeof(struct Registers));
   if (!currently_executing_thread_regs) {
-    PrintString("Could not allocate object to store the kernel's registers.");
+    print << "Could not allocate object to store the kernel's registers.";
 #ifndef __TEST__
     __asm__ __volatile__("cli");
     __asm__ __volatile__("hlt");
@@ -47,14 +44,6 @@ void ScheduleNextThread() {
 
   if (running_thread) {
     // We were currently executing a thread.
-#ifdef DEBUG
-    PrintString("Leaving tid ");
-    PrintNumber(running_thread->id);
-    PrintString(" pid ");
-    PrintNumber(running_thread->process->pid);
-    PrintChar('\n');
-    PrintRegisters(currently_executing_thread_regs);
-#endif
     if (running_thread->uses_fpu_registers) {
 #ifndef __TEST__
       asm volatile("fxsave %0" ::"m"(*running_thread->fpu_registers));
@@ -79,9 +68,6 @@ void ScheduleNextThread() {
     running_thread = 0;
     currently_executing_thread_regs = idle_regs;
     SwitchToAddressSpace(&kernel_address_space);
-#ifdef DEBUG
-    PrintString("Kernel idle thread\n");
-#endif
     return;
   }
 
@@ -99,18 +85,6 @@ void ScheduleNextThread() {
   LoadThreadSegment(running_thread);
 
   currently_executing_thread_regs = running_thread->registers;
-
-#ifdef DEBUG
-  PrintString("Entering tid ");
-  PrintNumber(running_thread->id);
-  PrintString(" pid ");
-  PrintNumber(running_thread->process->pid);
-  PrintString(" for time ");
-  PrintNumber(running_thread->time_slices++);
-  PrintChar('\n');
-  PrintRegisters(currently_executing_thread_regs);
-  PrintChar('\n');
-#endif
 }
 
 void ScheduleThread(struct Thread *thread) {

@@ -151,10 +151,7 @@ void PrintStackTrace() {
   size_t rbp = currently_executing_thread_regs->rbp;
   size_t rip = currently_executing_thread_regs->rip;
 
-  PrintString("Stack trace:\n");
-  PrintString(" ");
-  PrintHex(rip);
-  PrintString("\n");
+  print << "Stack trace:\n " << NumberFormat::Hexidecimal << rip << '\n';
 
   // Walk up the call stack.
   for (int i = 0; i < STACK_TRACE_DEPTH; i++) {
@@ -177,11 +174,7 @@ void PrintStackTrace() {
         (size_t*)TemporarilyMapPhysicalMemory(physical_page_addr, 4);
     // Read the new RIP value.
     rip = memory[(rip_address & (PAGE_SIZE - 1)) >> 3];
-    PrintString(" ^ ");
-    PrintHex(rip);
-    PrintString(" Stack base: ");
-    PrintHex(rbp);
-    PrintString("\n");
+    print << " ^ " << rip << " Stack base: " << rbp << '\n';
 
     // Now read new next RBP.
     // Map the page into memory.
@@ -210,40 +203,29 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2, size_t error_code
 
   // Output the exception that occured.
   if (exception_no < 32) {
-    PrintString("\nException occured: ");
-    PrintString(exception_messages[exception_no]);
-    PrintString(" (");
-    PrintNumber(exception_no);
-    PrintChar(')');
+    print << "\nException occured: " << exception_messages[exception_no] << " (" <<
+      NumberFormat::Decimal << exception_no << ')';
   } else {
     // This should never trigger, because we haven't registered ourselves
     // for interrupts >= 32.
-    PrintString("\nUnknown exception: ");
-    PrintNumber(exception_no);
+    print << "\nUnknown exception: " << NumberFormat::Decimal << exception_no;
   }
 
   bool in_kernel = currently_executing_thread_regs == nullptr ||
     IsKernelAddress(currently_executing_thread_regs->rip);
 
   if (in_kernel) {
-    PrintString(" in kernel");
+    print << " in kernel";
   } else {
-    PrintString(" by PID ");
     struct Process* process = running_thread->process;
-    PrintNumber(process->pid);
-    PrintString(" (");
-    PrintString(process->name);
-    PrintString(") in TID ");
-    PrintNumber(running_thread->id);
+    print << " by PID " << process->pid << " (" << process->name << ") in TID " <<
+      running_thread->id;
   }
 
   if (exception_no == PAGE_FAULT) {
-    PrintString(" for trying to access ");
-    PrintHex(cr2);
+    print << " for trying to access " << NumberFormat::Hexidecimal << cr2;
   }
-  PrintString(" with error code: ");
-  PrintHex(error_code);
-  PrintChar('\n');
+  print << " with error code: " << NumberFormat::Decimal << error_code << '\n';
   PrintRegistersAndStackTrace();
 
   if (in_kernel) {

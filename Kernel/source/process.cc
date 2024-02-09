@@ -305,9 +305,7 @@ struct Process *CreateChildProcess(struct Process *parent, char *name,
       CreateProcess(/*is_driver=*/bitfield & (1 << 0),
                     /*can_create_processes=*/bitfield & (1 << 2));
   if (child_process == (struct Process *)ERROR) {
-    PrintString("Out of memory to create a new process: ");
-    PrintString(name);
-    PrintChar('\n');
+    print << "Out of memory to create a new process: " << name << '\n';
     return nullptr;
   }
 
@@ -373,7 +371,7 @@ void StartExecutingChildProcess(struct Process *parent, struct Process *child,
   struct Thread *thread = CreateThread(child, entry_address, params);
 
   if (!thread) {
-    PrintString("Out of memory to create the thread.\n");
+    print << "Out of memory to create the thread.\n";
     DestroyProcess(child);
     return;
   }

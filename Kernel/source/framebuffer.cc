@@ -18,8 +18,6 @@
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 
-// #define DEBUG
-
 // Frame buffer details we saved from the multiboot header.
 size_t framebuffer_address;
 uint32 framebuffer_width;
@@ -35,18 +33,6 @@ void SetFramebufferDetails(size_t address, uint32 width, uint32 height,
   framebuffer_height = height;
   framebuffer_pitch = pitch;
   framebuffer_bits_per_pixel = bpp;
-
-#ifdef DEBUG
-  PrintString("Entered framebuffer during boot: ");
-  PrintNumber((size_t)framebuffer_width);
-  PrintString("x");
-  PrintNumber((size_t)framebuffer_height);
-  PrintString("x");
-  PrintNumber((size_t)framebuffer_bits_per_pixel);
-  PrintString(" @ ");
-  PrintHex((size_t)framebuffer_address);
-  PrintString("\n");
-#endif
 }
 
 // Maybe load the framebuffer from the multiboot header.
@@ -80,9 +66,9 @@ void MaybeLoadFramebuffer() {
             tagfb->common.framebuffer_height, tagfb->common.framebuffer_pitch,
             tagfb->common.framebuffer_bpp);
       } else {
-        PrintString(
+        print << 
             "Found a VESA framebuffer tag, but the framebuffer "
-            "is not of type MULTIBOOT_FRAMEBUFFER_TYPE_RGB.\n");
+            "is not of type MULTIBOOT_FRAMEBUFFER_TYPE_RGB.\n";
       }
     }
   }

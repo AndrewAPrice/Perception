@@ -27,8 +27,6 @@
 #include "tss.h"
 #include "virtual_allocator.h"
 
-// #define DEBUG
-
 extern "C" {
 
 extern void irq0();
@@ -119,13 +117,6 @@ void RegisterInterruptHandlers() {
 void AllocateInterruptStack() {
   size_t virtual_addr =
       AllocateVirtualMemoryInAddressSpace(&kernel_address_space, 1);
-
-#ifdef DEBUG
-  PrintString("Interrupt stack is at ");
-  PrintHex(virtual_addr);
-  PrintChar('\n');
-#endif
-
   interrupt_stack_top = virtual_addr + PAGE_SIZE;
 
   SetInterruptStack(virtual_addr);

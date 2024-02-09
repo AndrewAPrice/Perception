@@ -6,8 +6,6 @@
 #include "shared_memory.h"
 #include "text_terminal.h"
 
-// #define DEBUG
-
 // Our paging structures made at boot time, these can be freed after the virtual
 // allocator has been initialized.
 #ifdef __TEST__
@@ -112,25 +110,18 @@ void VerifyAddressSpaceStructuresAreAllTheSameSize(
 
   if (nodes_in_address_tree != nodes_in_size_tree ||
       nodes_in_address_tree != nodes_in_linked_list) {
-    PrintString("Nodes in address tree: ");
-    PrintNumber(nodes_in_address_tree);
-    PrintString(" != Nodes in size tree: ");
-    PrintNumber(nodes_in_size_tree);
-    PrintString(" != Nodes in linked list: ");
-    PrintNumber(nodes_in_linked_list);
-    PrintChar('\n');
+    print << "Nodes in address tree: " << NumberFormat::Decimal << nodes_in_address_tree <<
+      " != Nodes in size tree: " << nodes_in_size_tree << " != Nodes in linked list: " <<
+      nodes_in_linked_list << '\n';
   }
 }
 
 void PrintFreeAddressRanges(struct VirtualAddressSpace *address_space) {
-  PrintString("Free address ranges:\n");
+  print << "Free address ranges:\n" << NumberFormat::Hexidecimal;
   struct FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
   while (current_fmr != nullptr) {
-    PrintChar(' ');
-    PrintHex(current_fmr->start_address);
-    PrintString("->");
-    PrintHex(current_fmr->start_address + PAGE_SIZE * current_fmr->pages);
-    PrintChar('\n');
+    print << ' ' << current_fmr->start_address << "->" <<
+      (current_fmr->start_address + PAGE_SIZE * current_fmr->pages) << '\n';
     current_fmr = current_fmr->next;
   }
 }
@@ -188,7 +179,7 @@ void MapKernelMemoryPreVirtualMemory(size_t virtualaddr, size_t physicaladdr,
   size_t *ptr = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(
       kernel_address_space.pml4);
   if (pml4_entry != 511) {
-    PrintString("Attempting to map kernel memory not in the last PML4 entry.");
+    print << "Attempting to map kernel memory not in the last PML4 entry.\n";
 #ifndef __TEST__
     __asm__ __volatile__("hlt");
 #endif
@@ -435,17 +426,7 @@ void *TemporarilyMapPhysicalMemoryPreVirtualMemory(size_t addr) {
   // Round this down to the nearest 2MB as we use 2MB pages before we setup the
   // virtual allocator.
   size_t addr_start = addr & ~(2 * 1024 * 1024 - 1);
-
   size_t addr_offset = addr - addr_start;
-  /*
-          PrintString("Requested: ");
-          PrintHex(addr);
-          PrintString("\nMapping ");
-          PrintHex(addr_start);
-          PrintString(" Offset: ");
-          PrintNumber(addr_offset);
-  */
-
   size_t entry = addr_start | 0x83;
 
   // Check if it different to what is currently loaded.
@@ -459,14 +440,6 @@ void *TemporarilyMapPhysicalMemoryPreVirtualMemory(size_t addr) {
 
   // The virtual address of the temp page: 1GB - 2MB.
   size_t temp_page_boot = 1022 * 1024 * 1024;
-
-  /*
-          PrintString(" vir: ");
-          PrintHex(temp_page_boot + addr_offset);
-          PrintString("\nPd[511]:");
-          PrintHex(Pd[511]);
-          PrintChar('\n');
-  */
 
   // Return a pointer to the virtual address of the requested physical memory.
   return (void *)(temp_page_boot + addr_offset);
@@ -506,23 +479,18 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
   if (node_before != nullptr) {
     block_before = FreeMemoryRangeFromNodeByAddress(node_before);
     if (block_before->start_address == address) {
-      PrintString("Error: block_before->start_address == address\n");
+      print << "Error: block_before->start_address == address\n";
       return;
     }
     if (block_before->start_address + (block_before->pages * PAGE_SIZE) >
         address) {
-      PrintString(
+      print <<
           "Error: block_before->start_address + (block_before->pages * "
-          "PAGE_SIZE) > address\n");
-      PrintString("Trying to free address ");
-      PrintHex(address);
-      PrintChar(' ');
+          "PAGE_SIZE) > address\n Trying to free address " << NumberFormat::Hexidecimal <<
+          address << ' ';
       PrintFreeAddressRanges(address_space);
-      PrintString("Before block: ");
-      PrintHex(block_before->start_address);
-      PrintString(" -> ");
-      PrintHex(block_before->start_address + (block_before->pages * PAGE_SIZE));
-      PrintChar('\n');
+      print << "Before block: " << NumberFormat::Hexidecimal << block_before->start_address <<
+        " -> " << (block_before->start_address + (block_before->pages * PAGE_SIZE)) << '\n';
       PrintAATree(&address_space->free_chunks_by_address,
                   FreeMemoryRangeAddressFromAATreeNode);
       return;
@@ -641,13 +609,13 @@ bool MapPhysicalPageToVirtualPage(struct VirtualAddressSpace *address_space,
   if (address_space == &kernel_address_space) {
     // Kernel virtual addreses must in the highest pml4 entry.
     if (user_page) {
-      PrintString("Error mapping user addresses in kernel space.\n");
+      print << "Error mapping user addresses in kernel space.\n";
       return false;
     }
   } else {
     // User space virtual addresses must be below kernel memory.
     if (!user_page) {
-      PrintString("Error kernel addresses in user space.\n");
+      print << "Error kernel addresses in user space.\n";
       return false;
     }
   }
@@ -765,9 +733,8 @@ bool MapPhysicalPageToVirtualPage(struct VirtualAddressSpace *address_space,
   if (ptr[pml1_entry] != 0 && ptr[pml1_entry] != DUD_PAGE_ENTRY) {
     // We don't worry about cleaning up PML2/3 because for it to be mapped
     // PML2/3 must already exist.
-    PrintString("Mapping page to ");
-    PrintHex(virtualaddr);
-    PrintString(" but something is already there.\n");
+    print << "Mapping page to " << NumberFormat::Hexidecimal << virtualaddr <<
+      " but something is already there.\n";
     return false;
   }
 
@@ -978,14 +945,14 @@ size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
     bool success = true;
     if (phys == OUT_OF_PHYSICAL_PAGES) {
       // No physical pages. Unmap all memory until this point.
-      PrintString("Out of physical pages.\n");
+      print << "Out of physical pages.\n";
       success = false;
     }
 
     // Map the physical page.
     if (success && !MapPhysicalPageToVirtualPage(address_space, addr, phys,
                                                  true, true, false)) {
-      PrintString("Call to MapPhysicalPageToVirtualPage failed.\n");
+      print << "Call to MapPhysicalPageToVirtualPage failed.\n";
       success = false;
     }
 
@@ -1019,13 +986,6 @@ size_t MapPhysicalMemoryInAddressSpace(
 
   for (size_t virtual_address = start_virtual_address; pages > 0;
        pages--, virtual_address += PAGE_SIZE, addr += PAGE_SIZE) {
-#ifdef DEBUG
-    PrintString("Mapping ");
-    PrintHex(addr);
-    PrintString(" to ");
-    PrintHex(virtual_address);
-    PrintString("\n");
-#endif
     MapPhysicalPageToVirtualPage(address_space, virtual_address, addr, false,
                                  true, false);
   }
@@ -1307,14 +1267,6 @@ struct SharedMemoryInProcess *MapSharedMemoryIntoProcess(
     return nullptr;
   }
 
-#ifdef DEBUG
-  PrintString("Process ");
-  PrintNumber(process->pid);
-  PrintString(" joined shared memory at ");
-  PrintHex(virtual_address);
-  PrintString("\n");
-#endif
-
   // Increment the references to this shared memory block.
   shared_memory->processes_referencing_this_block++;
 
@@ -1359,11 +1311,6 @@ struct SharedMemoryInProcess *MapSharedMemoryIntoProcess(
 void UnmapSharedMemoryFromProcess(
     struct Process *process,
     struct SharedMemoryInProcess *shared_memory_in_process) {
-#ifdef DEBUG
-  PrintString("Process ");
-  PrintNumber(process->pid);
-  PrintString(" is leaving shared memory.\n");
-#endif
   // TODO: Wake any threads waiting for this page. (They'll page fault, but what
   // else can we do?)
 
@@ -1386,9 +1333,9 @@ void UnmapSharedMemoryFromProcess(
     }
 
     if (previous == nullptr) {
-      PrintString(
+      print << 
           "Shared memory can't be unmapped from a process that "
-          "it's not mapped to.\n");
+          "it's not mapped to.\n";
       return;
     }
 

@@ -25,7 +25,7 @@ uint64 __stack_chk_guard = STACK_CHK_GUARD;
 
 __attribute__((noreturn)) void __stack_chk_fail(void) {
   asm("cli");
-  PrintString("Stack smashing detected.");
+  print << "Stack smashing detected.";
   for (;;) {
     asm("hlt");
   }

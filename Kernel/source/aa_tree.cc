@@ -29,15 +29,13 @@ void InitializeAATree(struct AATree* tree) { tree->root = nullptr; }
 void InsertNodeIntoAATree(struct AATree* tree, struct AATreeNode* node,
                           size_t (*value_function)(struct AATreeNode* node)) {
 #ifdef DEBUG
-  PrintString("Inserting ");
-  // PrintHex((size_t)node);
-  PrintChar('\n');
+  print << "Inserting " << NumberFormat::Hexidecimal << (size_t)node << '\n';
 #endif
   if (node->parent != nullptr) {
     if (node->parent == tree) {
-      PrintString("Adding node back to same tree without removing.\n");
+      print << "Adding node back to same tree without removing.\n";
     } else {
-      PrintString("Adding node to a different tree without removing.\n");
+      print << "Adding node to a different tree without removing.\n";
     }
   }
   node->parent = (struct AATreeNode*)tree;
@@ -54,15 +52,13 @@ extern void RemoveNodeFromAATree(
     struct AATree* tree, struct AATreeNode* node,
     size_t (*value_function)(struct AATreeNode* node)) {
 #ifdef DEBUG
-  PrintString("Removing ");
-  PrintHex((size_t)node);
-  PrintChar('\n');
+  print << "Removing " << NumberFormat::Hexidecimal << (size_t)node << '\n';
 #endif
   if (node->parent != (struct ATTreeNode*)tree) {
     if (node->parent == nullptr) {
-      PrintString("Removing node that isn't in any tree.\n");
+      print << "Removing node that isn't in any tree.\n";
     } else {
-      PrintString("Removing node that is in another tree.\n");
+      print << "Removing node that is in another tree.\n";
     }
   }
   node->parent = nullptr;
@@ -145,19 +141,15 @@ struct AATreeNode* SearchForNodeEqualToValue(
 
 void PrintAATree(struct AATree* tree,
                  size_t (*value_function)(struct AATreeNode* node)) {
-  PrintString("Linked list ");
-  PrintHex((size_t)tree);
-  PrintString(" has ");
-  PrintNumber(CountNodesInAATree(tree));
-  PrintString(" node(s).\n");
+  print << "Linked list " << NumberFormat::Hexidecimal << (size_t)tree <<
+    " has " << NumberFormat::Decimal << CountNodesInAATree(tree) <<
+    " node(s).\n";
 }
 
 size_t CountNodesInAATree(struct AATree* tree) {
   int count = 0;
   struct AATreeNode* node = tree->root;
   while (node != nullptr) {
-    PrintHex(node);
-    PrintChar(' ');
     count++;
     node = node->next;
   }
@@ -170,34 +162,26 @@ void PrintAATreeNode(struct AATreeNode* node,
                      size_t (*value_function)(struct AATreeNode* node),
                      char side, int indentation) {
   if (node == nullptr) return;
-  for (int i = 0; i < indentation; i++) PrintChar(' ');
-  PrintChar(side);
+  for (int i = 0; i < indentation; i++) print << ' ';
+  print << side;
 
-  PrintString(" Value: ");
   size_t value = value_function(node);
-  PrintNumber(value);
-  PrintChar('/');
-  PrintHex(value);
-  PrintString(" Count: ");
+  print << " Value: " << NumberFormat::Decimal << value <<
+    "/" << NumberFormat::Hexidecimal  << value << " Count: ";
   int count = 1;
   struct AATreeNode* next_node = node->next;
   while (next_node != nullptr) {
     count++;
     next_node = next_node->next;
   }
-  PrintNumber(count);
-  PrintString(" Level:");
-  PrintNumber(node->level);
-  PrintChar('\n');
+  print << NumberFormat::Decimal << count << " Level: " << node->level << '\n';
   PrintAATreeNode(node->left, value_function, 'l', indentation + 1);
   PrintAATreeNode(node->right, value_function, 'r', indentation + 1);
 }
 
 void PrintAATree(struct AATree* tree,
                  size_t (*value_function)(struct AATreeNode* node)) {
-  PrintString("Tree: ");
-  PrintHex((size_t)tree);
-  PrintString(":\n");
+  print << "Tree: " << NumberFormat::Hexidecimal << (size_t)tree << '\n';
   PrintAATreeNode(tree->root, value_function, '*', 1);
 }
 
@@ -304,7 +288,7 @@ struct AATreeNode* InsertNodeIntoAANode(
 void InsertNodeIntoAATree(struct AATree* tree, struct AATreeNode* node,
                           size_t (*value_function)(struct AATreeNode* node)) {
 #ifdef DEBUG
-  PrintString("Inserting node\n");
+  print << "Inserting node\n";
 #endif
   node->left = node->right = node->previous = node->next = nullptr;
   node->level = 1;
@@ -422,7 +406,7 @@ struct AATreeNode* RemoveNodeWithValueFromBelowAANode(
 void RemoveNodeFromAATree(struct AATree* tree, struct AATreeNode* node,
                           size_t (*value_function)(struct AATreeNode* node)) {
 #ifdef DEBUG
-  PrintString("Removing node\n");
+  print << "Removing node\n";
 #endif
   if (node->previous != nullptr) {
     // Multiple nodes have the same value, and we're not at the front of the

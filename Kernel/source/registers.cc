@@ -18,47 +18,15 @@
 
 // Prints the registers, for debugging.
 void PrintRegisters(struct Registers* regs) {
-  PrintString("Printing registers:\n");
-
-  PrintString("rax: ");
-  PrintHex(regs->rax);
-  PrintString("   rbx: ");
-  PrintHex(regs->rbx);
-  PrintString("\nrcx: ");
-  PrintHex(regs->rcx);
-  PrintString("   rdx: ");
-  PrintHex(regs->rdx);
-  PrintString("\nrsp: ");
-  PrintHex(regs->rsp);
-  PrintString("   rbp: ");
-  PrintHex(regs->rbp);
-  PrintString("\nrsi: ");
-  PrintHex(regs->rsi);
-  PrintString("   rdi: ");
-  PrintHex(regs->rdi);
-  PrintString("\n r8: ");
-  PrintHex(regs->r8);
-  PrintString("    r9: ");
-  PrintHex(regs->r9);
-  PrintString("\nr10: ");
-  PrintHex(regs->r10);
-  PrintString("   r11: ");
-  PrintHex(regs->r11);
-  PrintString("\nr12: ");
-  PrintHex(regs->r12);
-  PrintString("   r13: ");
-  PrintHex(regs->r13);
-  PrintString("\nr14: ");
-  PrintHex(regs->r14);
-  PrintString("   r15: ");
-  PrintHex(regs->r15);
-  PrintString("\n cs: ");
-  PrintHex(regs->cs);
-  PrintString("    ss: ");
-  PrintHex(regs->ss);
-  PrintString("\nrip: ");
-  PrintHex(regs->rip);
-  PrintString(" flags: ");
-  PrintHex(regs->rflags);
-  PrintChar('\n');
+  print << "Printing registers:\n" << NumberFormat::Hexidecimal <<
+    "rax: " << regs->rax << "   rbx: " << regs->rbx <<
+    "\nrcx: " << regs->rcx << "   rdx: " << regs->rdx <<
+    "\nrsp: " << regs->rsp << "   rbp: " << regs->rbp <<
+    "\nrsi: " << regs->rsi << "   rdi: " << regs->rdi <<
+    "\n r8: " << regs->r8 << "    r9: " << regs->r9 <<
+    "\nr10: " << regs->r10 << "   r11: " <<regs->r11 <<
+    "\nr12: " << regs->r12 << "   r13: " << regs->r13 <<
+    "\nr14: " << regs->r14 << "   r15: " << regs->r15 <<
+    "\n cs: " << regs->cs << "    ss: " << regs->ss <<
+    "\nrip: " << regs->rip << " flags: " << regs->rflags << '\n';
 }

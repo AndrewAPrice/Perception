@@ -32,32 +32,32 @@ bool IsValidElfHeader(Elf64_Ehdr* header) {
       header->e_ident[EI_MAG1] != ELFMAG1 ||
       header->e_ident[EI_MAG2] != ELFMAG2 ||
       header->e_ident[EI_MAG3] != ELFMAG3) {
-    PrintString("Invalid ELF header.");
+    print << "Invalid ELF header.";
     return false;
   }
 
   if (header->e_ident[EI_CLASS] != ELFCLASS64) {
-    PrintString("Not a 64-bit ELF header.");
+    print << "Not a 64-bit ELF header.";
     return false;
   }
 
   if (header->e_ident[EI_DATA] != ELFDATA2LSB) {
-    PrintString("Not little endian.");
+    print << "Not little endian.";
     return false;
   }
 
   if (header->e_ident[EI_VERSION] != EV_CURRENT) {
-    PrintString("Not an ELF header version.");
+    print << "Not an ELF header version.";
     return false;
   }
 
   if (header->e_type != ET_EXEC) {
-    PrintString("Not an executable file.");
+    print << "Not an executable file.";
     return false;
   }
 
   if (header->e_machine != EM_X86_64) {
-    PrintString("Not an X86_64 binary.");
+    print << "Not an X86_64 binary.";
     return false;
   }
 
@@ -67,16 +67,6 @@ bool IsValidElfHeader(Elf64_Ehdr* header) {
 // Copies data from the module into the process's memory.
 bool CopyIntoMemory(size_t from_start, size_t to_start, size_t to_end,
                     struct Process* process) {
-#ifdef DEBUG
-  PrintString("Copy memory ");
-  PrintHex(from_start);
-  PrintString(" to ");
-  PrintHex(to_start);
-  PrintString("->");
-  PrintHex(to_end);
-  PrintChar('\n');
-#endif
-
   struct VirtualAddressSpace* address_space = &process->virtual_address_space;
 
   // The process's memory is mapped into pages. We'll copy page by page.
@@ -104,22 +94,6 @@ bool CopyIntoMemory(size_t from_start, size_t to_start, size_t to_end,
     size_t copy_length = offset_in_page_to_finish_copying_at -
                          offset_in_page_to_start_copying_at;
 
-#ifdef DEBUG
-    PrintString("Loaded page ");
-    PrintHex(to_page);
-    PrintString(" (phys: ");
-    PrintHex(physical_page_address);
-    PrintString(") - copying from ");
-    PrintHex(from_start);
-    PrintString(" to page ");
-    PrintHex(to_page + offset_in_page_to_start_copying_at);
-    PrintString("->");
-    PrintHex(to_page + offset_in_page_to_finish_copying_at);
-    PrintString(" length: ");
-    PrintHex(copy_length);
-    PrintChar('\n');
-#endif
-
     memcpy((char*)(temp_addr + offset_in_page_to_start_copying_at),
            (char*)(from_start), copy_length);
 
@@ -132,14 +106,6 @@ bool CopyIntoMemory(size_t from_start, size_t to_start, size_t to_end,
 // Touches memory, to make sure it is available, but doesn't copy anything into
 // it.
 bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
-#ifdef DEBUG
-  PrintString("Loading memory ");
-  PrintHex(to_start);
-  PrintString("->");
-  PrintHex(to_end);
-  PrintChar('\n');
-#endif
-
   struct VirtualAddressSpace* address_space = &process->virtual_address_space;
 
   size_t to_first_page = to_start & ~(PAGE_SIZE - 1);  // Round down.
@@ -154,11 +120,6 @@ bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
       // We ran out of memory trying to allocate the virtual page.
       return false;
     }
-#ifdef DEBUG
-    PrintString("Loaded page ");
-    PrintHex(to_page);
-    PrintChar('\n');
-#endif
     size_t temp_addr =
         (size_t)TemporarilyMapPhysicalMemory(physical_page_address, 5);
     // Indices where to start/finish clearing within the page.
@@ -183,10 +144,10 @@ bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
   if (header->e_phnum == PN_XNUM) {
     // The number of program headers is too large to fit into e_phnum. Instead,
     // it's found in the field sh_info of section 0.
-    PrintString("Loading ELF file where e_phnum == PN_XNUM\n");
+    print << "Loading ELF file where e_phnum == PN_XNUM\n";
     Elf64_Shdr* section_header = (Elf64_Shdr*)(memory_start + header->e_shnum);
     if ((size_t)section_header + sizeof(Elf64_Shdr) > memory_end) {
-      PrintString("ELF not big enough for section.\n");
+      print << "ELF not big enough for section.\n";
       return false;
     }
 
@@ -195,34 +156,12 @@ bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
     number_of_segments = header->e_phnum;
   }
 
-#ifdef DEBUG
-  PrintString("We have ");
-  PrintNumber(number_of_segments);
-  PrintString(" segments.\n");
-#endif
-
   // Load the segments.
   for (int i = 0; i < number_of_segments; i++, segment_header++) {
     if ((size_t)segment_header + sizeof(Elf64_Phdr) > memory_end) {
-      PrintString("ELF not big enough for segment.\n");
+      print << "ELF not big enough for segment.\n";
       return false;
     }
-
-#ifdef DEBUG
-    PrintString("Found segment. Flags: ");
-    PrintHex(segment_header->p_flags);
-    PrintString(" type: ");
-    PrintHex(segment_header->p_type);
-    PrintString(" file size: ");
-    PrintHex(segment_header->p_filesz);
-    PrintString(" memsize size: ");
-    PrintHex(segment_header->p_memsz);
-    PrintString(" physical address: ");
-    PrintHex(segment_header->p_paddr);
-    PrintString(" virtual address: ");
-    PrintHex(segment_header->p_vaddr);
-    PrintChar('\n');
-#endif
 
     if (segment_header->p_type != PT_LOAD) {
       // Skip segments that aren't to be loaded into memory.
@@ -231,7 +170,7 @@ bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
 
     if (segment_header->p_vaddr + segment_header->p_memsz >
         VIRTUAL_MEMORY_OFFSET) {
-      PrintString("Trying to load data into kernel memory.\n");
+      print << "Trying to load data into kernel memory.\n";
       return false;
     }
 
@@ -242,9 +181,9 @@ bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
 
       if (from_start + from_size > memory_end) {
         // Segment is out of bounds of the ELF file.
-        PrintString(
+        print <<
             "Segment is trying to load memory that is out of bounds of the "
-            "file.\n");
+            "file.\n";
         return false;
       }
 
@@ -305,9 +244,7 @@ bool ParseName(char** name, size_t* name_length, bool* is_driver,
       case '-':
         break;
       default:
-        PrintString("Unknown attribute '");
-        PrintChar(**name);
-        PrintString("'. ");
+        print << "Unknown attribute '" << **name << "'.";
         return false;
     }
 
@@ -324,23 +261,20 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
   bool can_create_processes = false;
 
   if (!ParseName(&name, &name_length, &is_driver, &can_create_processes)) {
-    PrintString("Can't load module \"");
-    PrintString(original_name);
-    PrintString("\" because the name is not in the correct format.\n");
+    print << "Can't load module \"" << original_name << "\" because the name is not in the correct format.\n";
     return;
   }
 
   if (is_driver) {
-    PrintString("Loading driver ");
+    print << "Loading driver ";
   } else {
-    PrintString("Loading application ");
+    print << "Loading application ";
   }
 
-  PrintString(name);
-  PrintString("...\n");
+  print << name << "...\n";
 
   if (memory_start + sizeof(Elf64_Ehdr) > memory_end) {
-    PrintString("ELF not big enough for header.\n");
+    print << "ELF not big enough for header.\n";
     return;
   }
 
@@ -351,28 +285,21 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
 
   struct Process* process = CreateProcess(is_driver, can_create_processes);
   if (!process) {
-    PrintString("Out of memory to create the process.\n");
+    print << "Out of memory to create the process.\n";
     return;
   }
 
   CopyString(name, PROCESS_NAME_LENGTH, name_length, (char*)process->name);
 
   if (!LoadSegments(header, memory_start, memory_end, process)) {
-    PrintString("Destroying process.\n");
+    print << "Destroying process.\n";
     DestroyProcess(process);
     return;
   }
 
-#ifdef DEBUG
-  PrintString("Creating thread with entry point ");
-  PrintHex(header->e_entry);
-  PrintChar('\n');
-#endif
-
   struct Thread* thread = CreateThread(process, header->e_entry, 0);
-
   if (!thread) {
-    PrintString("Out of memory to create the thread.\n");
+    print << "Out of memory to create the thread.\n";
     DestroyProcess(process);
     return;
   }

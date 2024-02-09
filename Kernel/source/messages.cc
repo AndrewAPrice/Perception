@@ -47,9 +47,9 @@ void SendMessageToProcess(struct Message* message, struct Process* receiver) {
     // There is a thread sleeping for messages.
     if (receiver->messages_queued != 0) {
       // This should never happen.
-      PrintString(
+      print << 
           "A thread is sleeping for messages even though there are messages "
-          "queued.\n");
+          "queued.\n";
     }
     // Wake the thread that is sleeping.
     struct Thread* thread_to_wake = receiver->thread_sleeping_for_message;
@@ -58,11 +58,11 @@ void SendMessageToProcess(struct Message* message, struct Process* receiver) {
 
     if (!thread_to_wake->thread_is_waiting_for_message) {
       // This should never happen.
-      PrintString("thread_is_waiting_for_message == false\n");
+      print << "thread_is_waiting_for_message == false\n";
     }
     if (thread_to_wake->awake) {
       // This should never happen.
-      PrintString("Thread waiting for message isn't even asleep.\n");
+      print << "Thread waiting for message isn't even asleep.\n";
     }
 
     LoadMessageIntoThread(message, thread_to_wake);
@@ -176,16 +176,6 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
     size_t destination_virtual_address = FindAndReserveFreePageRange(
         &receiver_process->virtual_address_space, size_in_pages);
 
-#if DEBUG
-    PrintString("Moving ");
-    PrintNumber(size_in_pages);
-    PrintString(" pages - Source address: ");
-    PrintHex(source_virtual_address);
-    PrintString(" Destination address: ");
-    PrintHex(destination_virtual_address);
-    PrintString("\n");
-#endif
-
     if (destination_virtual_address == OUT_OF_MEMORY) {
       // Out of memory - release message and all source pages.
       ReleaseVirtualMemoryInAddressSpace(&sender_process->virtual_address_space,
@@ -204,16 +194,6 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
                              source_virtual_address + page * PAGE_SIZE,
                              /*ignore_unownwed_pages=*/true);
       if (page_physical_address == OUT_OF_MEMORY) {
-#if DEBUG
-        PrintString("Page ");
-        PrintNumber(page);
-        PrintString("/");
-        PrintNumber(size_in_pages);
-        PrintString(" at ");
-        PrintHex(source_virtual_address + page * PAGE_SIZE);
-        PrintString(" doesn't exist.");
-#endif
-
         // No memory was mapped to this area. Release message and all
         // source and destination pages.
         ReleaseVirtualMemoryInAddressSpace(
@@ -288,7 +268,7 @@ void LoadNextMessageIntoThread(struct Thread* thread) {
 // false if a message was loaded.
 bool SleepThreadUntilMessage(struct Thread* thread) {
   if (!thread->awake || thread->thread_is_waiting_for_message) {
-    PrintString("Can't sleep a thread that is already asleep.");
+    print << "Can't sleep a thread that is already asleep.\n";
     return false;
   }
 

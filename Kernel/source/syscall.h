@@ -7,4 +7,4 @@ struct isr_regs;
 
 extern void InitializeSystemCalls();
 
-extern char* GetSystemCallName(int syscall);
+extern const char* GetSystemCallName(int syscall);

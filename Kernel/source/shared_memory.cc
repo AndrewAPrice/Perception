@@ -121,16 +121,16 @@ struct SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
 void ReleaseSharedMemoryBlock(struct SharedMemory* shared_memory) {
   if (shared_memory->processes_referencing_this_block > 0) {
     // This should never be triggered.
-    PrintString(
+    print <<
         "Attempting to release shared memory that still is being "
-        "referenced by a process.\n");
+        "referenced by a process.\n";
     return;
   }
   if (shared_memory->first_waiting_thread != nullptr) {
     // This should never be triggered.
-    PrintString(
+    print <<
         "Attempting to release shared memory that still is blocking "
-        "other threads.\n");
+        "other threads.\n";
     return;
   }
 

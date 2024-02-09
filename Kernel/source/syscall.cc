@@ -116,17 +116,13 @@ extern void PrintStackTrace();
 
 extern "C" void SyscallHandler(int syscall_number) {
 #ifdef DEBUG
-  PrintString("Entering syscall ");
-  PrintString(GetSystemCallName(syscall_number));
-  PrintString(" (");
-  PrintNumber(syscall_number);
+  print << "Entering syscall " << GetSystemCallName(syscall_number) <<
+    " (" << NumberFormat::Decimal << syscall_number;
   if (running_thread) {
-    PrintString(") from ");
-    PrintString(running_thread->process->name);
-    PrintString(" (");
-    PrintNumber(running_thread->process->pid);
+    print << ") from " << running_thread->process->name << " (" <<
+      running_thread->process->pid;
   }
-  PrintString(")\n");
+  print << ")\n";
   PrintRegisters(currently_executing_thread_regs);
 #endif
 
@@ -135,18 +131,13 @@ extern "C" void SyscallHandler(int syscall_number) {
 #endif
   switch (syscall_number) {
     case PRINT_DEBUG_CHARACTER:
-      PrintChar((unsigned char)currently_executing_thread_regs->rax);
+      print << (char)currently_executing_thread_regs->rax;
       break;
     case PRINT_REGISTERS_AND_STACK: {
-      PrintString("Dump requested by PID ");
       struct Process *process = running_thread->process;
-      PrintNumber(running_thread->process->pid);
-      PrintString(" (");
-      PrintString(running_thread->process->name);
-      PrintString(") in TID ");
-      PrintNumber(running_thread->id);
-      PrintChar('\n');
-
+      print << "Dump requested by PID " << NumberFormat::Decimal <<
+        running_thread->process->pid << " (" << running_thread->process->name <<
+        ") in TID " << running_thread->id << '\n';
       PrintRegistersAndStackTrace();
       break;
     }
@@ -166,17 +157,17 @@ extern "C" void SyscallHandler(int syscall_number) {
       currently_executing_thread_regs->rax = running_thread->id;
       break;
     case SLEEP_THIS_THREAD:
-      PrintString("Implement SLEEP_THREAD\n");
+      print << "Implement SLEEP_THREAD\n";
       break;
     case SLEEP_THREAD:
-      PrintString("Implement SLEEP\n");
+      print << "Implement SLEEP\n";
       break;
     case WAKE_THREAD:
-      PrintString("Implement WAKE_THREAD\n");
+      print << "Implement WAKE_THREAD\n";
       // TODO: if thread is waiting for event, set bad event id
       break;
     case WAKE_AND_SWITCH_TO_THREAD:
-      PrintString("Implement WAKE_AND_SWITCH_TO_THREAD\n");
+      print << "Implement WAKE_AND_SWITCH_TO_THREAD\n";
       // TODO: if thread is waiting for event, set bad event id
       break;
     case TERMINATE_THIS_THREAD:
@@ -325,19 +316,6 @@ extern "C" void SyscallHandler(int syscall_number) {
       size_t max_address = address + num_pages * PAGE_SIZE;
       size_t rights = currently_executing_thread_regs->rdx;
 
-#ifdef DEBUG
-      PrintString(running_thread->process->name);
-      PrintString(" protecting ");
-      PrintNumber(num_pages);
-      PrintString(" page(s) from ");
-      PrintHex(address);
-      PrintString(" to ");
-      PrintHex(max_address);
-      PrintString(" with rights ");
-      PrintNumber(rights);
-      PrintChar('\n');
-#endif
-
       for (; address < max_address; address += PAGE_SIZE) {
         SetMemoryAccessRights(&running_thread->process->virtual_address_space,
                               address, rights);
@@ -447,7 +425,7 @@ extern "C" void SyscallHandler(int syscall_number) {
         // doesn't exist. It's possible that is just died, so whatever
         // the case, the safest thing to do here is to imemdiately send
         // an event.
-        PrintString("NOTIFY_WHEN_PROCESS_DISAPPEARS");
+        print << "NOTIFY_WHEN_PROCESS_DISAPPEARS";
         SendKernelMessageToProcess(running_thread->process, event_id,
                                    target_pid, 0, 0, 0, 0);
       } else {
@@ -456,7 +434,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     }
     case STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS:
-      PrintString("Implement STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS\n");
+      print << "Implement STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS\n";
       break;
     case CREATE_PROCESS: {
       // Extract the name from the input registers.
@@ -515,16 +493,6 @@ extern "C" void SyscallHandler(int syscall_number) {
       service_name[7] = currently_executing_thread_regs->r12;
       service_name[8] = currently_executing_thread_regs->r13;
       service_name[9] = currently_executing_thread_regs->r14;
-
-#ifdef DEBUG
-      PrintString("Registering service ");
-      PrintString((char *)service_name);
-      PrintString(" / ");
-      PrintNumber(currently_executing_thread_regs->rbp);
-      PrintString(" in process ");
-      PrintNumber(running_thread->process->pid);
-      PrintString("\n");
-#endif
 
       RegisterService((char *)service_name, running_thread->process,
                       currently_executing_thread_regs->rbp);
@@ -629,10 +597,10 @@ extern "C" void SyscallHandler(int syscall_number) {
           running_thread->process, currently_executing_thread_regs->rbp);
       break;
     case NOTIFY_WHEN_SERVICE_DISAPPEARS:
-      PrintString("Implement NOTIFY_WHEN_SERVICE_DISAPPEARS\n");
+      print << "Implement NOTIFY_WHEN_SERVICE_DISAPPEARS\n";
       break;
     case STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS:
-      PrintString("Implement STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS\n");
+      print << "Implement STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS\n";
       break;
     case SEND_MESSAGE:
       SendMessageFromThreadSyscall(running_thread);
@@ -681,16 +649,11 @@ extern "C" void SyscallHandler(int syscall_number) {
   ProfileSyscall(syscall_number, syscall_start_time);
 #endif
 #ifdef DEBUG
-  PrintString("Leaving syscall ");
-  PrintString(GetSystemCallName(syscall_number));
-  PrintString(" (");
-  PrintNumber(syscall_number);
-  PrintString(" )\n");
-  PrintRegisters(currently_executing_thread_regs);
+  print << "Leaving syscall " << GetSystemCallName(syscall_number) << '\n';
 #endif
 }
 
-char *GetSystemCallName(int syscall) {
+const char *GetSystemCallName(int syscall) {
   switch (syscall) {
     default:
       return "Unknown";
