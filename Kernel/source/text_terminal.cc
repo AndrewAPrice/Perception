@@ -1,6 +1,7 @@
 #include "text_terminal.h"
 
 #include "io.h"
+#include "string_view.h"
 #include "virtual_allocator.h"
 
 #ifdef __TEST__
@@ -52,7 +53,7 @@ Printer& Printer::operator <<(const char *str) {
 }
 
 // Prints a string view.
-Printer& Printer::operator <<(StringView& str) {
+Printer& Printer::operator <<(const StringView& str) {
   for (size_t i = 0; i < str.length; i++) *this << str.str[i];
   return *this;
 }
