@@ -57,7 +57,12 @@ function generateBuildCommand(language, cParams, inputFile, outputFile) {
       return getToolPath('gcc') +
         ' -D PERCEPTION -std=c17 -m64 -ffreestanding ' +
         '-mno-red-zone -c -MD -MF ${deps}' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
-  } else if (language == 'Kernel C') {
+  } else if (language == 'Kernel C++') {
+    return getToolPath('gcc') + ' -mcmodel=kernel ' +
+      '-ffreestanding -fno-builtin  -c -std=c++20 ' +
+      '-MD -MF ${deps}  -O3 -isystem ' + escapePath(getKernelDirectory() + '/source')
+      + ' ' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
+  }  else if (language == 'Kernel C') {
     return getToolPath('gcc') + ' -mcmodel=kernel ' +
       '-ffreestanding -fno-builtin  -c ' +
       '-MD -MF ${deps}  -O3 -isystem ' + escapePath(getKernelDirectory() + '/source')
@@ -85,7 +90,7 @@ function generateBuildCommand(language, cParams, inputFile, outputFile) {
 function getBuildCommand(filePath, packageType, cParams, outputFile) {
   let language = '';
   if (filePath.endsWith('.cc') || filePath.endsWith('.cpp')) {
-    language = 'C++';
+    language = packageType == PackageType.KERNEL && !buildSettings.test ? 'Kernel C++' : 'C++';
   } else if (filePath.endsWith('.c')) {
     language = packageType == PackageType.KERNEL && !buildSettings.test ? 'Kernel C' : 'C';
   } else if (filePath.endsWith('.asm')) {
