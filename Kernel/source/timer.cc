@@ -10,6 +10,8 @@
 #include "text_terminal.h"
 #include "timer_event.h"
 
+namespace {
+
 // The number of time slices (or how many times the timer triggers) per second.
 #define TIME_SLICES_PER_SECOND 100
 volatile size_t microseconds_since_kernel_started;
@@ -27,6 +29,8 @@ void SetTimerPhase(size_t hz) {
   outportb(0x40, divisor & 0xFF);
   outportb(0x40, divisor >> 8);
 }
+
+} // namespace
 
 // The function that gets called each time to timer fires.
 void TimerHandler() {

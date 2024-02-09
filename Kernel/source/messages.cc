@@ -9,6 +9,8 @@
 #include "thread.h"
 #include "virtual_allocator.h"
 
+namespace {
+
 // The maximum number of messages that can be queued.
 #define MAX_EVENTS_QUEUED 1024
 
@@ -95,6 +97,8 @@ bool CanProcessReceiveMessage(Process* receiver) {
   return receiver->messages_queued < MAX_EVENTS_QUEUED;
 }
 
+}  // namespace
+
 // Sends a message from the kernel to a process. The message will be ignored on
 // an error.
 void SendKernelMessageToProcess(Process* receiver_process,
@@ -124,8 +128,6 @@ void SendKernelMessageToProcess(Process* receiver_process,
   // Send the message to the receiver.
   SendMessageToProcess(message, receiver_process);
 }
-
-void PrintStackTrace();
 
 // Sends an message from a thread. This is intended to be called from within a
 // syscall.

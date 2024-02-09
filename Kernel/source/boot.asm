@@ -97,7 +97,6 @@ SetupPagingAndLongMode:
 
 ; 32-bit Global Descriptor Table, it tells us about the memory segments. It maps all of the
 ; 32-bit address field as executable and data.
-[GLOBAL Gdt32]
 Gdt32:
 	; Invalid segment
 	DQ 0x0000000000000000
@@ -106,7 +105,6 @@ Gdt32:
 	; 0->4GB is RW, data, code/data segment, present, 4k, 32-bit
 	DQ 0x00CF92000000FFFF
 ; 64-bit Global Descriptor Table. It must be defined, but segments map to all of memory in long mode.
-[GLOBAL Gdt64]
 Gdt64:
 	; Invalid segment
 	DQ 0x0000000000000000 ; 0x0

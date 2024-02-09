@@ -7,18 +7,14 @@
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 
-// The total number of bytes of system memory.
-size_t total_system_memory;
-
-// The total number of free pages.
-size_t free_pages;
-
 // Start of the free memory on boot.
 #ifdef __TEST__
 size_t bssEnd = 0;
 #else
 extern size_t bssEnd;
 #endif
+
+namespace {
 
 #ifdef __TEST__
 multiboot_info MultibootInfo;
@@ -30,11 +26,6 @@ multiboot_info MultibootInfo;
 // the top of the stack (next free page), and the first thing in that page will
 // be a pointer to the next page.
 size_t next_free_page_address;
-
-// The end of multiboot memory. This is memory that is temporarily reserved to
-// hold the multiboot information put there by the bootloader, and will be
-// released after calling DoneWithMultibootMemory.
-size_t start_of_free_memory_at_boot;
 
 // Before virtual memory is set up, the temporary paging system we set up in
 // boot.asm only associates the maps the first 8MB of physical memory into
@@ -94,6 +85,19 @@ void CalculateStartOfFreeMemoryAtBoot() {
   start_of_free_memory_at_boot =
       (start_of_free_memory_at_boot + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 }
+
+}  // namespace
+
+// The total number of bytes of system memory.
+size_t total_system_memory;
+
+// The total number of free pages.
+size_t free_pages;
+
+// The end of multiboot memory. This is memory that is temporarily reserved to
+// hold the multiboot information put there by the bootloader, and will be
+// released after calling DoneWithMultibootMemory.
+size_t start_of_free_memory_at_boot;
 
 void InitializePhysicalAllocator() {
   total_system_memory = 0;

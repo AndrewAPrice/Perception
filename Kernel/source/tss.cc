@@ -14,15 +14,14 @@
 
 #include "tss.h"
 
+#include "boot.asm.h"
 #include "io.h"
 #include "liballoc.h"
 #include "physical_allocator.h"
 #include "virtual_allocator.h"
 
-// Pointers for the TSS entry in the GDT. WARNING: These refer to symbols in
-// lower memory, so we'll have to add VIRTUAL_MEMORY_OFFSET when deferencing
-// them.
-extern uint64 TSSEntry;
+
+namespace {
 
 // Size of the TSS
 #define TSS_SIZE 104
@@ -34,6 +33,8 @@ uint32* tss;
 
 // TSS offset in the GDT. The GDT is hardcoded in boot.asm.
 #define TSS_GDT_OFFSET 0x28
+
+}  // namespace
 
 // Initializes the task segment structure.
 void InitializeTss() {

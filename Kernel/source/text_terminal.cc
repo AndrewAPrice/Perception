@@ -11,6 +11,7 @@
 // The text terminal is implemented by outputting over COM1.
 
 namespace {
+
 // The IO port to use.
 constexpr unsigned short kPort = 0x3f8;  // COM1
 
@@ -27,7 +28,7 @@ void InitializeSerialOutput() {
   outportb(kPort + 4, 0x0B);  // IRQs enabled, RTS/DSR set
 }
 
-}
+}  // namespace
 
 Printer::Printer() : number_format_(NumberFormat::Decimal) {}
 

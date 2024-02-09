@@ -20,6 +20,8 @@
 #include "syscall.h"
 #include "text_terminal.h"
 
+namespace {
+
 struct SyscallProfilingInformation {
   size_t total_time;
   size_t count;
@@ -30,6 +32,8 @@ struct SyscallProfilingInformation {
 
 SyscallProfilingInformation
     syscall_profiling_information[NUMBER_OF_SYSCALLS];
+
+}  // namespace
 
 size_t CurrentTimeForProfiling() {
   unsigned hi, lo;

@@ -5,6 +5,8 @@
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 
+namespace {
+
 // An entry in the interrupt descriptor table.
 struct idt_entry {
   unsigned short base_low;
@@ -30,6 +32,8 @@ struct idt_ptr {
 idt_ptr idt_p;
 
 unsigned char in_interrupt;
+
+}  // namespace
 
 // Initializes the interrupt descriptor table.
 void InitializeIdt() {

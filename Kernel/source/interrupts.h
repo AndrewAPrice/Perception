@@ -18,6 +18,27 @@
 
 struct Process;
 
+// A message to fire on an interrupt.
+struct MessageToFireOnInterrupt {
+  // The process to send the message to.
+  Process* process;
+
+  // The message ID to fire.
+  size_t message_id;
+
+  // The interrupt number.
+  uint8 interrupt_number;
+
+  // Next message to fire for this interrupt.
+  MessageToFireOnInterrupt* next_message_for_interrupt;
+
+  // Next message for this process.
+  MessageToFireOnInterrupt* next_message_for_process;
+};
+
+// The top of the interrupt's stack.
+extern size_t interrupt_stack_top;
+
 // Initializes interrupts.
 extern void InitializeInterrupts();
 

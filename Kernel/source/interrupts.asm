@@ -114,7 +114,6 @@ irq15:
 [EXTERN CommonHardwareInterruptHandler]
 [EXTERN currently_executing_thread_regs]
 [EXTERN interrupt_stack_top]
-[EXTERN JumpIntoThread]
 irq_common_stub:
 	; Copy what's at the top of the thread's stack.
 	push rbp
@@ -164,6 +163,7 @@ irq_common_stub:
 	mov rax, CommonHardwareInterruptHandler
 	call rax
 
+[GLOBAL JumpIntoThread]
 JumpIntoThread:
 	; Move back to userland data segment.
 	mov ax, 0x18 | 3

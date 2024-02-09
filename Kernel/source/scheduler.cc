@@ -8,19 +8,23 @@
 #include "thread.h"
 #include "virtual_allocator.h"
 
+// The currently executing thread. This can be nullptr if all threads are asleep.
+Thread *running_thread;
+
+// Currently executing registers.
+Registers *currently_executing_thread_regs;
+
+namespace {
+
 // Linked list of awake threads we can cycle through.
 Thread *first_awake_thread;
 Thread *last_awake_thread;
-
-// The currently executing thread. This can be nullptr if all threads are asleep.
-Thread *running_thread;
 
 // The idle registers to return to when no thread is awake. (This points us to
 // the while(true) {hlt} in kmain.)
 Registers *idle_regs;
 
-// Currently executing registers.
-Registers *currently_executing_thread_regs;
+}  // namespace
 
 void InitializeScheduler() {
   first_awake_thread = nullptr;

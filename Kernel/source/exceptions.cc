@@ -14,7 +14,9 @@
 
 #include "exceptions.h"
 
+#include "exceptions.asm.h"
 #include "idt.h"
+#include "interrupts.asm.h"
 #include "interrupts.h"
 #include "physical_allocator.h"
 #include "process.h"
@@ -30,44 +32,6 @@
 
 // Exception number for page faults.
 #define PAGE_FAULT 14
-
-// The first 32 interrupts are used for processor exceptions.
-extern "C" {
-
-extern void isr0();
-extern void isr1();
-extern void isr2();
-extern void isr3();
-extern void isr4();
-extern void isr5();
-extern void isr6();
-extern void isr7();
-extern void isr8();
-extern void isr9();
-extern void isr10();
-extern void isr11();
-extern void isr12();
-extern void isr13();
-extern void isr14();
-extern void isr15();
-extern void isr16();
-extern void isr17();
-extern void isr18();
-extern void isr19();
-extern void isr20();
-extern void isr21();
-extern void isr22();
-extern void isr23();
-extern void isr24();
-extern void isr25();
-extern void isr26();
-extern void isr27();
-extern void isr28();
-extern void isr29();
-extern void isr30();
-extern void isr31();
-
-}  // extern "C"
 
 // Register the CPU exception interrupts.
 void RegisterExceptionInterrupts() {
@@ -143,7 +107,7 @@ const char* exception_messages[] = {
     "Reserved"                  /* 31 */
 };
 
-extern "C" void JumpIntoThread();
+namespace {
 
 void PrintStackTrace() {
   VirtualAddressSpace* address_space =
@@ -188,6 +152,8 @@ void PrintStackTrace() {
     rbp = memory[(rbp & (PAGE_SIZE - 1)) >> 3];
   }
 }
+
+}  // namespace
 
 void PrintRegistersAndStackTrace() {
   PrintRegisters(currently_executing_thread_regs);

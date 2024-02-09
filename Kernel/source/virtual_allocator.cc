@@ -13,16 +13,12 @@ size_t Pml4[512];
 size_t Pdpt[512];
 size_t Pd[512];
 #else
-extern size_t Pml4[];
-extern size_t Pdpt[];
-extern size_t Pd[];
+extern "C" size_t Pml4[];
+extern "C" size_t Pdpt[];
+extern "C" size_t Pd[];
 #endif
 
-// The kernel's virtual address space.
-VirtualAddressSpace kernel_address_space;
-
-// The currently loaded virtual address space.
-VirtualAddressSpace *current_address_space;
+namespace {
 
 // Pointer to a page table that we use when we want to temporarily map physical
 // memory.
@@ -263,9 +259,100 @@ void MapKernelMemoryPreVirtualMemory(size_t virtualaddr, size_t physicaladdr,
   ptr[pml1_entry] = entry;
 }
 
+void MarkAddressRangeAsFree(VirtualAddressSpace *address_space,
+                            size_t address, size_t pages) {
+  // See if this address range can be merged into a memory block before or
+  // after.
+
+  // Search for a block right before.
+  FreeMemoryRange *block_before = nullptr;
+  AATreeNode *node_before = SearchForNodeLessThanOrEqualToValue(
+      &address_space->free_chunks_by_address, address,
+      FreeMemoryRangeAddressFromAATreeNode);
+
+  if (node_before != nullptr) {
+    block_before = FreeMemoryRangeFromNodeByAddress(node_before);
+    if (block_before->start_address == address) {
+      print << "Error: block_before->start_address == address\n";
+      return;
+    }
+    if (block_before->start_address + (block_before->pages * PAGE_SIZE) >
+        address) {
+      print <<
+          "Error: block_before->start_address + (block_before->pages * "
+          "PAGE_SIZE) > address\n Trying to free address " << NumberFormat::Hexidecimal <<
+          address << ' ';
+      PrintFreeAddressRanges(address_space);
+      print << "Before block: " << NumberFormat::Hexidecimal << block_before->start_address <<
+        " -> " << (block_before->start_address + (block_before->pages * PAGE_SIZE)) << '\n';
+      PrintAATree(&address_space->free_chunks_by_address,
+                  FreeMemoryRangeAddressFromAATreeNode);
+      return;
+    }
+
+    if (block_before->start_address + (block_before->pages * PAGE_SIZE) !=
+        address) {
+      // The previous block doesn't touch the start of this address range.
+      block_before = nullptr;
+    }
+  }
+
+  // Search for a block right after.
+  FreeMemoryRange *block_after = nullptr;
+  AATreeNode *node_after = SearchForNodeEqualToValue(
+      &address_space->free_chunks_by_address, address + (pages * PAGE_SIZE),
+      FreeMemoryRangeAddressFromAATreeNode);
+  if (node_after != nullptr)
+    block_after = FreeMemoryRangeFromNodeByAddress(node_after);
+
+  if (block_before != nullptr) {
+    RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_before);
+
+    if (block_after != nullptr) {
+      // Merge into the block before and after
+      RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_after);
+      // Expand the size of the block before.
+      block_before->pages += pages + block_after->pages;
+      AddFreeMemoryRangeToVirtualAddressSpace(address_space, block_before);
+      // Release the block after since it was merged in.
+      ObjectPool<FreeMemoryRange>::Release(block_after);
+    } else {
+      // Merge into the block before.
+      // Expand the size of the block before.
+      block_before->pages += pages;
+      AddFreeMemoryRangeToVirtualAddressSpace(address_space, block_before);
+    }
+  } else if (block_after != nullptr) {
+    // Merge into the block after.
+    RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_after);
+    // Expand and pull back the size of the block after.
+    block_after->start_address = address;
+    block_after->pages += pages;
+    AddFreeMemoryRangeToVirtualAddressSpace(address_space, block_after);
+
+  } else {
+    // Stand alone free memory range that can't merge into anything.
+    auto fmr = ObjectPool<FreeMemoryRange>::Allocate();
+    if (fmr == nullptr) {
+      return;
+    }
+    fmr->start_address = address;
+    fmr->pages = pages;
+    AddFreeMemoryRangeToVirtualAddressSpace(address_space, fmr);
+  }
+}
+
 // An initial statically allocated FreeMemoryRange that we can use to represent
 // the initial range of free memory before we can dynamically allocate memory.
 FreeMemoryRange initial_kernel_memory_range;
+
+} // namespace
+
+// The kernel's virtual address space.
+VirtualAddressSpace kernel_address_space;
+
+// The currently loaded virtual address space.
+VirtualAddressSpace *current_address_space;
 
 // Initializes the virtual allocator.
 void InitializeVirtualAllocator() {
@@ -463,89 +550,6 @@ void *TemporarilyMapPhysicalMemory(size_t addr, size_t index) {
 
   // Return a pointer to the virtual address of the requested physical memory.
   return (void *)(temp_memory_start + PAGE_SIZE * index);
-}
-
-void MarkAddressRangeAsFree(VirtualAddressSpace *address_space,
-                            size_t address, size_t pages) {
-  // See if this address range can be merged into a memory block before or
-  // after.
-
-  // Search for a block right before.
-  FreeMemoryRange *block_before = nullptr;
-  AATreeNode *node_before = SearchForNodeLessThanOrEqualToValue(
-      &address_space->free_chunks_by_address, address,
-      FreeMemoryRangeAddressFromAATreeNode);
-
-  if (node_before != nullptr) {
-    block_before = FreeMemoryRangeFromNodeByAddress(node_before);
-    if (block_before->start_address == address) {
-      print << "Error: block_before->start_address == address\n";
-      return;
-    }
-    if (block_before->start_address + (block_before->pages * PAGE_SIZE) >
-        address) {
-      print <<
-          "Error: block_before->start_address + (block_before->pages * "
-          "PAGE_SIZE) > address\n Trying to free address " << NumberFormat::Hexidecimal <<
-          address << ' ';
-      PrintFreeAddressRanges(address_space);
-      print << "Before block: " << NumberFormat::Hexidecimal << block_before->start_address <<
-        " -> " << (block_before->start_address + (block_before->pages * PAGE_SIZE)) << '\n';
-      PrintAATree(&address_space->free_chunks_by_address,
-                  FreeMemoryRangeAddressFromAATreeNode);
-      return;
-    }
-
-    if (block_before->start_address + (block_before->pages * PAGE_SIZE) !=
-        address) {
-      // The previous block doesn't touch the start of this address range.
-      block_before = nullptr;
-    }
-  }
-
-  // Search for a block right after.
-  FreeMemoryRange *block_after = nullptr;
-  AATreeNode *node_after = SearchForNodeEqualToValue(
-      &address_space->free_chunks_by_address, address + (pages * PAGE_SIZE),
-      FreeMemoryRangeAddressFromAATreeNode);
-  if (node_after != nullptr)
-    block_after = FreeMemoryRangeFromNodeByAddress(node_after);
-
-  if (block_before != nullptr) {
-    RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_before);
-
-    if (block_after != nullptr) {
-      // Merge into the block before and after
-      RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_after);
-      // Expand the size of the block before.
-      block_before->pages += pages + block_after->pages;
-      AddFreeMemoryRangeToVirtualAddressSpace(address_space, block_before);
-      // Release the block after since it was merged in.
-      ObjectPool<FreeMemoryRange>::Release(block_after);
-    } else {
-      // Merge into the block before.
-      // Expand the size of the block before.
-      block_before->pages += pages;
-      AddFreeMemoryRangeToVirtualAddressSpace(address_space, block_before);
-    }
-  } else if (block_after != nullptr) {
-    // Merge into the block after.
-    RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_after);
-    // Expand and pull back the size of the block after.
-    block_after->start_address = address;
-    block_after->pages += pages;
-    AddFreeMemoryRangeToVirtualAddressSpace(address_space, block_after);
-
-  } else {
-    // Stand alone free memory range that can't merge into anything.
-    auto fmr = ObjectPool<FreeMemoryRange>::Allocate();
-    if (fmr == nullptr) {
-      return;
-    }
-    fmr->start_address = address;
-    fmr->pages = pages;
-    AddFreeMemoryRangeToVirtualAddressSpace(address_space, fmr);
-  }
 }
 
 // Finds a range of free physical pages in memory - returns the first address or

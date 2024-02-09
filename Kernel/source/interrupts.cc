@@ -16,6 +16,7 @@
 
 #include "exceptions.h"
 #include "idt.h"
+#include "interrupts.asm.h"
 #include "io.h"
 #include "liballoc.h"
 #include "messages.h"
@@ -27,47 +28,7 @@
 #include "tss.h"
 #include "virtual_allocator.h"
 
-extern "C" {
-
-extern void irq0();
-extern void irq1();
-extern void irq2();
-extern void irq3();
-extern void irq4();
-extern void irq5();
-extern void irq6();
-extern void irq7();
-extern void irq8();
-extern void irq9();
-extern void irq10();
-extern void irq11();
-extern void irq12();
-extern void irq13();
-extern void irq14();
-extern void irq15();
-
-}  // extern "C"
-
-// The top of the interrupt's stack.
-size_t interrupt_stack_top;
-
-// A message to fire on an interrupt.
-struct MessageToFireOnInterrupt {
-  // The process to send the message to.
-  Process* process;
-
-  // The message ID to fire.
-  size_t message_id;
-
-  // The interrupt number.
-  uint8 interrupt_number;
-
-  // Next message to fire for this interrupt.
-  MessageToFireOnInterrupt* next_message_for_interrupt;
-
-  // Next message for this process.
-  MessageToFireOnInterrupt* next_message_for_process;
-};
+namespace {
 
 // A list of messages pointers to our IRQ handlers.
 struct MessageToFireOnInterrupt* messages_to_fire_on_interrupt[16] = {
@@ -121,6 +82,11 @@ void AllocateInterruptStack() {
 
   SetInterruptStack(virtual_addr);
 }
+
+} // namespace
+
+// The top of the interrupt's stack.
+size_t interrupt_stack_top;
 
 // Initializes interrupts.
 void InitializeInterrupts() {

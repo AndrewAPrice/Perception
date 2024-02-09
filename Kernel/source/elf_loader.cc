@@ -23,8 +23,7 @@
 #include "thread.h"
 #include "virtual_allocator.h"
 
-// Uncomment for debug printing.
-// #define DEBUG
+namespace {
 
 // Is this a valid ELF header?
 bool IsValidElfHeader(Elf64_Ehdr* header) {
@@ -253,6 +252,8 @@ bool ParseName(char** name, size_t* name_length, bool* is_driver,
     (*name_length)--;
   }
 }
+
+}  // namespace
 
 void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
   char* original_name = name;

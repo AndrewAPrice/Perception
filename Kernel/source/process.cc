@@ -13,12 +13,16 @@
 #include "timer.h"
 #include "virtual_allocator.h"
 
+namespace {
+
 // The last assigned process ID.
 size_t last_assigned_pid;
 
 //  Linked list of processes that are running.
 Process *first_process;
 Process *last_process;
+
+}  // namespace
 
 // Initializes the internal structures for tracking processes.
 void InitializeProcesses() {

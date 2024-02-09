@@ -18,6 +18,8 @@
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 
+namespace {
+
 // Frame buffer details we saved from the multiboot header.
 size_t framebuffer_address;
 uint32 framebuffer_width;
@@ -34,6 +36,8 @@ void SetFramebufferDetails(size_t address, uint32 width, uint32 height,
   framebuffer_pitch = pitch;
   framebuffer_bits_per_pixel = bpp;
 }
+
+}  // namespace
 
 // Maybe load the framebuffer from the multiboot header.
 void MaybeLoadFramebuffer() {

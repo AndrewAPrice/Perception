@@ -18,8 +18,12 @@
 #include "object_pool.h"
 #include "process.h"
 
+namespace {
+
 ProcessToNotifyWhenServiceAppears*
     first_process_to_be_notified_when_a_service_appears = nullptr;
+
+}  // namespace
 
 // Initializes the internal structures for tracking services.
 void InitializeServices() {

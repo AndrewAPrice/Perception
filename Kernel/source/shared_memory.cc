@@ -24,20 +24,13 @@
 #include "thread.h"
 #include "virtual_allocator.h"
 
+namespace {
+
 // The last assigned shared memory ID.
 size_t last_assigned_shared_memory_id;
 
 // Linked list of all shared memory blocks.
 SharedMemory* first_shared_memory;
-
-void MapSharedMemoryPageInEachProcess(SharedMemory* shared_memory,
-                                      size_t page);
-
-// Initializes the internal structures for shared memory.
-void InitializeSharedMemory() {
-  last_assigned_shared_memory_id = 0;
-  first_shared_memory = nullptr;
-}
 
 // Creates a shared memory block.
 SharedMemory* CreateSharedMemoryBlock(
@@ -93,6 +86,178 @@ SharedMemory* CreateSharedMemoryBlock(
   }
 
   return shared_memory;
+}
+
+void MapSharedMemoryPageInEachProcess(SharedMemory* shared_memory,
+                                      size_t page) {
+  if (page >= shared_memory->size_in_pages)
+    return;  // Beyond the end of the shared memory.
+
+  // Map the page into each shared memory block.
+  size_t physical_address = shared_memory->physical_pages[page];
+  if (physical_address == OUT_OF_PHYSICAL_PAGES)
+    return;  // No physical address is allocated to this page.
+
+  size_t offset_of_page_in_bytes = page * PAGE_SIZE;
+
+  for (SharedMemoryInProcess* shared_memory_in_process =
+           shared_memory->first_process;
+       shared_memory_in_process != nullptr;
+       shared_memory_in_process =
+           shared_memory_in_process->next_in_shared_memory) {
+    Process* process = shared_memory_in_process->process;
+    bool can_write = CanProcessWriteToSharedMemory(process, shared_memory);
+    size_t virtual_address =
+        shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
+    MapPhysicalPageToVirtualPage(&process->virtual_address_space,
+                                 virtual_address, physical_address, false,
+                                 can_write, false);
+  }
+
+  // Wake up each thread that was waiting for this page.
+  for (ThreadWaitingForSharedMemoryPage* waiting_thread =
+           shared_memory->first_waiting_thread;
+       waiting_thread != nullptr;) {
+    if (waiting_thread->page == page) {
+      // This thread is waiting for this page.
+
+      // Wake this thread.
+      ScheduleThread(waiting_thread->thread);
+      waiting_thread->thread->thread_is_waiting_for_shared_memory = nullptr;
+
+      // Remove it from the linked list of waiting threads for this shared
+      // memory.
+      if (waiting_thread->previous == nullptr) {
+        shared_memory->first_waiting_thread = waiting_thread->next;
+      } else {
+        waiting_thread->previous->next = waiting_thread->next;
+      }
+
+      if (waiting_thread->next != nullptr) {
+        waiting_thread->next->previous = waiting_thread->previous;
+      }
+
+      ThreadWaitingForSharedMemoryPage* next = waiting_thread->next;
+      ObjectPool<ThreadWaitingForSharedMemoryPage>::Release(waiting_thread);
+      waiting_thread = next;
+    } else {
+      // This thread is waiting for another page.
+      waiting_thread = waiting_thread->next;
+    }
+  }
+}
+
+SharedMemory* GetSharedMemoryFromId(size_t shared_memory_id) {
+  SharedMemory* shared_memory = first_shared_memory;
+  while (shared_memory != nullptr) {
+    if (shared_memory->id == shared_memory_id) {
+      // Found a shared memory block that matches the ID.
+      return shared_memory;
+    }
+    shared_memory = shared_memory->next;
+  }
+
+  // Can't find any shared memory block with this ID.
+  return nullptr;
+}
+
+void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
+    SharedMemory* shared_memory, size_t page, Process* creator) {
+  if (page >= shared_memory->size_in_pages)
+    return;  // Beyond the end of the shared memory.
+
+  if (shared_memory->physical_pages[page] != OUT_OF_PHYSICAL_PAGES)
+    return;  // The memory is already allocated. Nothing to wait for.
+
+  auto waiting_thread = ObjectPool<ThreadWaitingForSharedMemoryPage>::Allocate();
+  if (waiting_thread == nullptr) return;  // Out of memory.
+
+  waiting_thread->thread = running_thread;
+  waiting_thread->shared_memory = shared_memory;
+  waiting_thread->page = page;
+
+  waiting_thread->next = shared_memory->first_waiting_thread;
+  if (waiting_thread->next != nullptr) {
+    waiting_thread->next->previous = waiting_thread;
+  }
+  waiting_thread->previous = nullptr;
+  shared_memory->first_waiting_thread = waiting_thread;
+
+  // Sleep the thread. It will be rewoken when the shared memory page is
+  // allocated.
+  UnscheduleThread(running_thread);
+
+  // Notify the creator that someone wants this page.
+  SendKernelMessageToProcess(creator,
+                             shared_memory->message_id_for_lazily_loaded_pages,
+                             page * PAGE_SIZE, 0, 0, 0, 0);
+}
+
+void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory,
+                                   size_t page, size_t physical_address) {
+  size_t old_page = shared_memory->physical_pages[page];
+  if (old_page == physical_address)
+    return;  // Page is already mapped. Nothing to do.
+
+  if (old_page != OUT_OF_PHYSICAL_PAGES) {
+    FreePhysicalPage(old_page);  // Unallocate the existing physical page.
+
+    // Unmap it in each process so we don't get an error trying to overwrite an
+    // existing page table entry.
+    size_t offset_of_page_in_bytes = page * PAGE_SIZE;
+    for (SharedMemoryInProcess* shared_memory_in_process =
+             shared_memory->first_process;
+         shared_memory_in_process != nullptr;
+         shared_memory_in_process =
+             shared_memory_in_process->next_in_shared_memory) {
+      Process* process = shared_memory_in_process->process;
+      size_t virtual_address =
+          shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
+      ReleaseVirtualMemoryInAddressSpace(
+          &process->virtual_address_space, virtual_address, 1,
+          // Although this process doesn't own the memory, if by some bug they
+          // do, free it.
+          true);
+    }
+  }
+
+  shared_memory->physical_pages[page] = physical_address;
+
+  // Now each process needs to know about the shared memory page.
+  MapSharedMemoryPageInEachProcess(shared_memory, page);
+}
+
+// Handles a page fault because the process tried to access an unallocated page
+// in a shared memory block.
+bool HandleSharedMessagePageFault(Process* process,
+                                  SharedMemory* shared_memory,
+                                  size_t page) {
+  Process* creator = GetProcessFromPid(shared_memory->creator_pid);
+
+  // Should we create the page?
+  if (creator == nullptr || process == creator) {
+    // Either the creator no longer exists, or we are the creator. We'll create
+    // the page.
+    size_t physical_address = GetPhysicalPage();
+    if (physical_address == OUT_OF_PHYSICAL_PAGES)
+      return false;  // Out of memory.
+
+    MapPhysicalPageInSharedMemory(shared_memory, page, physical_address);
+
+  } else {
+    // We are not the creator. We'll message the creator and sleep this thread.
+    SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(shared_memory,
+                                                              page, creator);
+  }
+  return true;
+}
+
+}  // namespace
+
+// Initializes the internal structures for shared memory.
+void InitializeSharedMemory() {
+  last_assigned_shared_memory_id = 0;
+  first_shared_memory = nullptr;
 }
 
 // Creates a shared memory block and map it into a procses.
@@ -156,20 +321,6 @@ void ReleaseSharedMemoryBlock(SharedMemory* shared_memory) {
 
   // Release the SharedMemory object.
   ObjectPool<SharedMemory>::Release(shared_memory);
-}
-
-SharedMemory* GetSharedMemoryFromId(size_t shared_memory_id) {
-  SharedMemory* shared_memory = first_shared_memory;
-  while (shared_memory != nullptr) {
-    if (shared_memory->id == shared_memory_id) {
-      // Found a shared memory block that matches the ID.
-      return shared_memory;
-    }
-    shared_memory = shared_memory->next;
-  }
-
-  // Can't find any shared memory block with this ID.
-  return nullptr;
 }
 
 // Joins a shared memory block. Ensures that a shared memory is only mapped once
@@ -265,156 +416,6 @@ void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
   // Move this page into the shared memory, and map it into each process.
   shared_memory->physical_pages[page] = physical_address;
   MapSharedMemoryPageInEachProcess(shared_memory, page);
-}
-
-void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
-    SharedMemory* shared_memory, size_t page, Process* creator) {
-  if (page >= shared_memory->size_in_pages)
-    return;  // Beyond the end of the shared memory.
-
-  if (shared_memory->physical_pages[page] != OUT_OF_PHYSICAL_PAGES)
-    return;  // The memory is already allocated. Nothing to wait for.
-
-  auto waiting_thread = ObjectPool<ThreadWaitingForSharedMemoryPage>::Allocate();
-  if (waiting_thread == nullptr) return;  // Out of memory.
-
-  waiting_thread->thread = running_thread;
-  waiting_thread->shared_memory = shared_memory;
-  waiting_thread->page = page;
-
-  waiting_thread->next = shared_memory->first_waiting_thread;
-  if (waiting_thread->next != nullptr) {
-    waiting_thread->next->previous = waiting_thread;
-  }
-  waiting_thread->previous = nullptr;
-  shared_memory->first_waiting_thread = waiting_thread;
-
-  // Sleep the thread. It will be rewoken when the shared memory page is
-  // allocated.
-  UnscheduleThread(running_thread);
-
-  // Notify the creator that someone wants this page.
-  SendKernelMessageToProcess(creator,
-                             shared_memory->message_id_for_lazily_loaded_pages,
-                             page * PAGE_SIZE, 0, 0, 0, 0);
-}
-
-void MapSharedMemoryPageInEachProcess(SharedMemory* shared_memory,
-                                      size_t page) {
-  if (page >= shared_memory->size_in_pages)
-    return;  // Beyond the end of the shared memory.
-
-  // Map the page into each shared memory block.
-  size_t physical_address = shared_memory->physical_pages[page];
-  if (physical_address == OUT_OF_PHYSICAL_PAGES)
-    return;  // No physical address is allocated to this page.
-
-  size_t offset_of_page_in_bytes = page * PAGE_SIZE;
-
-  for (SharedMemoryInProcess* shared_memory_in_process =
-           shared_memory->first_process;
-       shared_memory_in_process != nullptr;
-       shared_memory_in_process =
-           shared_memory_in_process->next_in_shared_memory) {
-    Process* process = shared_memory_in_process->process;
-    bool can_write = CanProcessWriteToSharedMemory(process, shared_memory);
-    size_t virtual_address =
-        shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
-    MapPhysicalPageToVirtualPage(&process->virtual_address_space,
-                                 virtual_address, physical_address, false,
-                                 can_write, false);
-  }
-
-  // Wake up each thread that was waiting for this page.
-  for (ThreadWaitingForSharedMemoryPage* waiting_thread =
-           shared_memory->first_waiting_thread;
-       waiting_thread != nullptr;) {
-    if (waiting_thread->page == page) {
-      // This thread is waiting for this page.
-
-      // Wake this thread.
-      ScheduleThread(waiting_thread->thread);
-      waiting_thread->thread->thread_is_waiting_for_shared_memory = nullptr;
-
-      // Remove it from the linked list of waiting threads for this shared
-      // memory.
-      if (waiting_thread->previous == nullptr) {
-        shared_memory->first_waiting_thread = waiting_thread->next;
-      } else {
-        waiting_thread->previous->next = waiting_thread->next;
-      }
-
-      if (waiting_thread->next != nullptr) {
-        waiting_thread->next->previous = waiting_thread->previous;
-      }
-
-      ThreadWaitingForSharedMemoryPage* next = waiting_thread->next;
-      ObjectPool<ThreadWaitingForSharedMemoryPage>::Release(waiting_thread);
-      waiting_thread = next;
-    } else {
-      // This thread is waiting for another page.
-      waiting_thread = waiting_thread->next;
-    }
-  }
-}
-
-void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory,
-                                   size_t page, size_t physical_address) {
-  size_t old_page = shared_memory->physical_pages[page];
-  if (old_page == physical_address)
-    return;  // Page is already mapped. Nothing to do.
-
-  if (old_page != OUT_OF_PHYSICAL_PAGES) {
-    FreePhysicalPage(old_page);  // Unallocate the existing physical page.
-
-    // Unmap it in each process so we don't get an error trying to overwrite an
-    // existing page table entry.
-    size_t offset_of_page_in_bytes = page * PAGE_SIZE;
-    for (SharedMemoryInProcess* shared_memory_in_process =
-             shared_memory->first_process;
-         shared_memory_in_process != nullptr;
-         shared_memory_in_process =
-             shared_memory_in_process->next_in_shared_memory) {
-      Process* process = shared_memory_in_process->process;
-      size_t virtual_address =
-          shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
-      ReleaseVirtualMemoryInAddressSpace(
-          &process->virtual_address_space, virtual_address, 1,
-          // Although this process doesn't own the memory, if by some bug they
-          // do, free it.
-          true);
-    }
-  }
-
-  shared_memory->physical_pages[page] = physical_address;
-
-  // Now each process needs to know about the shared memory page.
-  MapSharedMemoryPageInEachProcess(shared_memory, page);
-}
-
-// Handles a page fault because the process tried to access an unallocated page
-// in a shared memory block.
-bool HandleSharedMessagePageFault(Process* process,
-                                  SharedMemory* shared_memory,
-                                  size_t page) {
-  Process* creator = GetProcessFromPid(shared_memory->creator_pid);
-
-  // Should we create the page?
-  if (creator == nullptr || process == creator) {
-    // Either the creator no longer exists, or we are the creator. We'll create
-    // the page.
-    size_t physical_address = GetPhysicalPage();
-    if (physical_address == OUT_OF_PHYSICAL_PAGES)
-      return false;  // Out of memory.
-
-    MapPhysicalPageInSharedMemory(shared_memory, page, physical_address);
-
-  } else {
-    // We are not the creator. We'll message the creator and sleep this thread.
-    SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(shared_memory,
-                                                              page, creator);
-  }
-  return true;
 }
 
 bool MaybeHandleSharedMessagePageFault(size_t address) {

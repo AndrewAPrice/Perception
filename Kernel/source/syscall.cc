@@ -2,6 +2,7 @@
 
 #include "exceptions.h"
 #include "framebuffer.h"
+#include "interrupts.asm.h"
 #include "interrupts.h"
 #include "io.h"
 #include "messages.h"
@@ -12,6 +13,7 @@
 #include "scheduler.h"
 #include "service.h"
 #include "shared_memory.h"
+#include "syscall.asm.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "timer.h"
@@ -20,7 +22,7 @@
 // Uncomment for debug printing.
 // #define DEBUG
 
-extern "C" void syscall_entry();
+namespace {
 
 // MSR that contains the kernel's SYSCALL entrypoint.
 #define LSTAR 0xC0000082
@@ -35,16 +37,6 @@ extern "C" void syscall_entry();
 #define IA32_FMASK 0xC0000084
 // Mask for the interrupt bit in IA32_FMASK
 #define INTERRUPT_MASK 0x0200
-
-void InitializeSystemCalls() {
-#ifndef __TEST__
-  wrmsr(STAR, KERNEL_SEGMENT_BASE | USER_SEGMENT_BASE);
-  wrmsr(LSTAR, (size_t)syscall_entry);
-  // Disable interrupts duing syscalls.
-  wrmsr(IA32_FMASK, INTERRUPT_MASK);
-//  SetInterruptHandler(0x80, (size_t)syscall_isr, 0x08, 0x8E);
-#endif
-}
 
 // Syscalls.
 #define PRINT_DEBUG_CHARACTER 0
@@ -111,8 +103,17 @@ void InitializeSystemCalls() {
 #define SEND_MESSAGE_AT_TIMESTAMP 24
 #define GET_CURRENT_TIMESTAMP 25
 
-extern "C" void JumpIntoThread();
-extern void PrintStackTrace();
+}  // namespace
+
+void InitializeSystemCalls() {
+#ifndef __TEST__
+  wrmsr(STAR, KERNEL_SEGMENT_BASE | USER_SEGMENT_BASE);
+  wrmsr(LSTAR, (size_t)syscall_entry);
+  // Disable interrupts duing syscalls.
+  wrmsr(IA32_FMASK, INTERRUPT_MASK);
+//  SetInterruptHandler(0x80, (size_t)syscall_isr, 0x08, 0x8E);
+#endif
+}
 
 extern "C" void SyscallHandler(int syscall_number) {
 #ifdef DEBUG
@@ -326,9 +327,6 @@ extern "C" void SyscallHandler(int syscall_number) {
       currently_executing_thread_regs->rax = running_thread->process->pid;
       break;
     case TERMINATE_THIS_PROCESS:
-#ifdef DEBUG
-      PrintStackTrace();
-#endif
       DestroyProcess(running_thread->process);
       JumpIntoThread();  // Doesn't return.
       break;

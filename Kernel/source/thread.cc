@@ -9,6 +9,8 @@
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 
+namespace {
+
 // The model specific register that stores the FS segment's base address.
 #define FSBASE_MSR 0xC0000100
 
@@ -17,7 +19,10 @@
 
 size_t next_thread_id;
 
+}  // namespace
+
 extern void save_fpu_registers(size_t regs_addr);
+
 
 // Initialize threads.
 void InitializeThreads() {
