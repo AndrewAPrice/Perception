@@ -1,6 +1,5 @@
 #include "syscall.h"
 
-#include "exceptions.h"
 #include "framebuffer.h"
 #include "interrupts.asm.h"
 #include "interrupts.h"
@@ -13,6 +12,7 @@
 #include "scheduler.h"
 #include "service.h"
 #include "shared_memory.h"
+#include "stack_trace.h"
 #include "syscall.asm.h"
 #include "text_terminal.h"
 #include "thread.h"
