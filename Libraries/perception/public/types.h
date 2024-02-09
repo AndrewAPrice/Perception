@@ -38,5 +38,3 @@ typedef size_t MessageId;
 typedef size_t ProcessId;
 
 }  // namespace perception
-
-#define NULL 0
