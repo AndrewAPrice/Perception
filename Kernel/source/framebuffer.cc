@@ -55,24 +55,21 @@ void MaybeLoadFramebuffer() {
 
   // Loop through the multiboot sections.
   multiboot_tag *tag;
-  for (tag = (multiboot_tag *)(size_t)(higher_half_multiboot_info->addr +
-                                              8 + VIRTUAL_MEMORY_OFFSET);
+  for (tag = (multiboot_tag *)(size_t)(higher_half_multiboot_info->addr + 8 +
+                                       VIRTUAL_MEMORY_OFFSET);
        tag->type != MULTIBOOT_TAG_TYPE_END;
-       tag = (multiboot_tag *)((size_t)tag +
-                                      (size_t)((tag->size + 7) & ~7))) {
+       tag = (multiboot_tag *)((size_t)tag + (size_t)((tag->size + 7) & ~7))) {
     // Found a framebuffer.
     if (tag->type == MULTIBOOT_TAG_TYPE_FRAMEBUFFER) {
-      multiboot_tag_framebuffer *tagfb =
-          (multiboot_tag_framebuffer *)tag;
+      multiboot_tag_framebuffer *tagfb = (multiboot_tag_framebuffer *)tag;
       if (tagfb->common.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
         SetFramebufferDetails(
             tagfb->common.framebuffer_addr, tagfb->common.framebuffer_width,
             tagfb->common.framebuffer_height, tagfb->common.framebuffer_pitch,
             tagfb->common.framebuffer_bpp);
       } else {
-        print << 
-            "Found a VESA framebuffer tag, but the framebuffer "
-            "is not of type MULTIBOOT_FRAMEBUFFER_TYPE_RGB.\n";
+        print << "Found a VESA framebuffer tag, but the framebuffer "
+                 "is not of type MULTIBOOT_FRAMEBUFFER_TYPE_RGB.\n";
       }
     }
   }

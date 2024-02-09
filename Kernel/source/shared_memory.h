@@ -119,7 +119,7 @@ extern void ReleaseSharedMemoryBlock(SharedMemory* shared_memory);
 // Joins a shared memory block. Ensures that a shared memory is only mapped once
 // per process.
 extern SharedMemoryInProcess* JoinSharedMemory(Process* process,
-                                                      size_t shared_memory_id);
+                                               size_t shared_memory_id);
 
 // Leaves a shared memory block, but doesn't unmap it if there are still other
 // referenes to the shared memory block in the process.
@@ -127,8 +127,7 @@ extern void LeaveSharedMemory(Process* process, size_t shared_memory_id);
 
 // Moves a page into a shared memory block. Only the creator of the shared
 // memory block can acall this.
-extern void MovePageIntoSharedMemory(Process* process,
-                                     size_t shared_memory_id,
+extern void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
                                      size_t offset_in_buffer,
                                      size_t page_address);
 

@@ -46,7 +46,7 @@ SharedMemory* CreateSharedMemoryBlock(
   shared_memory->size_in_pages = pages;
   shared_memory->flags = flags;
   shared_memory->processes_referencing_this_block = 0;
-  shared_memory->physical_pages = (size_t *)malloc(sizeof(size_t) * pages);
+  shared_memory->physical_pages = (size_t*)malloc(sizeof(size_t) * pages);
 
   if (shared_memory->physical_pages == nullptr) {
     // Out of memory.
@@ -169,7 +169,8 @@ void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
   if (shared_memory->physical_pages[page] != OUT_OF_PHYSICAL_PAGES)
     return;  // The memory is already allocated. Nothing to wait for.
 
-  auto waiting_thread = ObjectPool<ThreadWaitingForSharedMemoryPage>::Allocate();
+  auto waiting_thread =
+      ObjectPool<ThreadWaitingForSharedMemoryPage>::Allocate();
   if (waiting_thread == nullptr) return;  // Out of memory.
 
   waiting_thread->thread = running_thread;
@@ -193,8 +194,8 @@ void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
                              page * PAGE_SIZE, 0, 0, 0, 0);
 }
 
-void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory,
-                                   size_t page, size_t physical_address) {
+void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory, size_t page,
+                                   size_t physical_address) {
   size_t old_page = shared_memory->physical_pages[page];
   if (old_page == physical_address)
     return;  // Page is already mapped. Nothing to do.
@@ -229,8 +230,7 @@ void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory,
 
 // Handles a page fault because the process tried to access an unallocated page
 // in a shared memory block.
-bool HandleSharedMessagePageFault(Process* process,
-                                  SharedMemory* shared_memory,
+bool HandleSharedMessagePageFault(Process* process, SharedMemory* shared_memory,
                                   size_t page) {
   Process* creator = GetProcessFromPid(shared_memory->creator_pid);
 
@@ -286,16 +286,14 @@ SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
 void ReleaseSharedMemoryBlock(SharedMemory* shared_memory) {
   if (shared_memory->processes_referencing_this_block > 0) {
     // This should never be triggered.
-    print <<
-        "Attempting to release shared memory that still is being "
-        "referenced by a process.\n";
+    print << "Attempting to release shared memory that still is being "
+             "referenced by a process.\n";
     return;
   }
   if (shared_memory->first_waiting_thread != nullptr) {
     // This should never be triggered.
-    print <<
-        "Attempting to release shared memory that still is blocking "
-        "other threads.\n";
+    print << "Attempting to release shared memory that still is blocking "
+             "other threads.\n";
     return;
   }
 
@@ -326,10 +324,9 @@ void ReleaseSharedMemoryBlock(SharedMemory* shared_memory) {
 // Joins a shared memory block. Ensures that a shared memory is only mapped once
 // per process. Returns the virtual address of the shared memory block or 0.
 SharedMemoryInProcess* JoinSharedMemory(Process* process,
-                                               size_t shared_memory_id) {
+                                        size_t shared_memory_id) {
   // See if this shared memory is already mapped into this process.
-  SharedMemoryInProcess* shared_memory_in_process =
-      process->shared_memory;
+  SharedMemoryInProcess* shared_memory_in_process = process->shared_memory;
   while (shared_memory_in_process != nullptr) {
     if (shared_memory_in_process->shared_memory->id == shared_memory_id) {
       // This shared memory is already mapped into the process.
@@ -354,8 +351,7 @@ SharedMemoryInProcess* JoinSharedMemory(Process* process,
 // referenes to the shared memory block in the process.
 void LeaveSharedMemory(Process* process, size_t shared_memory_id) {
   // Find the shared memory.
-  SharedMemoryInProcess* shared_memory_in_process =
-      process->shared_memory;
+  SharedMemoryInProcess* shared_memory_in_process = process->shared_memory;
   while (shared_memory_in_process != nullptr) {
     if (shared_memory_in_process->shared_memory->id == shared_memory_id) {
       // Found the shared memory block.

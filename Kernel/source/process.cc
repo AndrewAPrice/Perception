@@ -6,8 +6,8 @@
 #include "messages.h"
 #include "object_pool.h"
 #include "physical_allocator.h"
-#include "service.h"
 #include "scheduler.h"
+#include "service.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "timer.h"
@@ -34,7 +34,7 @@ void InitializeProcesses() {
 // Creates a process, returns ERROR if there was an error.
 Process *CreateProcess(bool is_driver, bool can_create_processes) {
   // Create a memory space for it.
-  Process *proc = (Process*)malloc(sizeof(Process));
+  Process *proc = (Process *)malloc(sizeof(Process));
   if (proc == 0) {
     // Out of memory.
     return (Process *)ERROR;
@@ -131,7 +131,8 @@ void ReleaseNotification(ProcessToNotifyOnExit *notification) {
 bool RemoveChildProcessOfParent(Process *parent, Process *child) {
   if (child == nullptr) return false;
 
-  if (parent->child_processes == nullptr) return false;  // Parent has no children.
+  if (parent->child_processes == nullptr)
+    return false;  // Parent has no children.
   if (child->parent != parent) return false;
 
   // Check if the child is the first child of the parent.
@@ -144,8 +145,7 @@ bool RemoveChildProcessOfParent(Process *parent, Process *child) {
 
   // Iterate through the list starting from the second child.
   Process *previous_child = parent->child_processes;
-  Process *child_in_parent =
-      previous_child->next_child_process_in_parent;
+  Process *child_in_parent = previous_child->next_child_process_in_parent;
 
   while (child_in_parent != nullptr) {
     if (child_in_parent == child) {
@@ -230,8 +230,8 @@ void DestroyProcess(Process *process) {
 }
 
 // Registers that a process wants to be notified if another process dies.
-extern void NotifyProcessOnDeath(Process *target,
-                                 Process *notifyee, size_t event_id) {
+extern void NotifyProcessOnDeath(Process *target, Process *notifyee,
+                                 size_t event_id) {
   auto notification = ObjectPool<ProcessToNotifyOnExit>::Allocate();
   if (notification == nullptr) return;
 
@@ -282,10 +282,9 @@ bool DoProcessNamesMatch(const char *a, const char *b) {
 
 // Returns the next process with the given name (which must be an array of
 // length PROCESS_NAME_LENGTH). last_process may be nullptr if you want to fetch
-// the first process with the name. Returns nullptr if there are no more processes
-// with the provided name.
-Process *FindNextProcessWithName(const char *name,
-                                        Process *start_from) {
+// the first process with the name. Returns nullptr if there are no more
+// processes with the provided name.
+Process *FindNextProcessWithName(const char *name, Process *start_from) {
   Process *potential_process = start_from;
   // Loop over every process.
   while (potential_process != nullptr) {
@@ -302,8 +301,7 @@ Process *FindNextProcessWithName(const char *name,
 
 // Creates a child process. The parent process must be allowed to create
 // children. Returns ERROR if there was an error.
-Process *CreateChildProcess(Process *parent, char *name,
-                                   size_t bitfield) {
+Process *CreateChildProcess(Process *parent, char *name, size_t bitfield) {
   if (!parent->can_create_processes) return nullptr;
   Process *child_process =
       CreateProcess(/*is_driver=*/bitfield & (1 << 0),

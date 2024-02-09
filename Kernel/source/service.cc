@@ -41,8 +41,7 @@ bool DoServiceNamesMatch(const char* a, const char* b) {
 
 // Registers a service, and notifies anybody listening for new instances
 // of services with this name.
-void RegisterService(char* service_name, Process* process,
-                     size_t message_id) {
+void RegisterService(char* service_name, Process* process, size_t message_id) {
   auto service = ObjectPool<Service>::Allocate();
   if (service == nullptr) return;  // Out of memory.
   service->process = process;
@@ -160,9 +159,8 @@ Service* FindServiceByProcessAndMid(size_t pid, size_t message_id) {
 
 // Returns the next service, starting at the provided process ID and message
 // ID.
-Service* FindNextServiceByPidAndMidWithName(char* service_name,
-                                                   size_t min_pid,
-                                                   size_t min_message_id) {
+Service* FindNextServiceByPidAndMidWithName(char* service_name, size_t min_pid,
+                                            size_t min_message_id) {
   Process* process = GetProcessOrNextFromPid(min_pid);
 
   // We only care about starting from this mid if we are continuing
@@ -199,7 +197,7 @@ Service* FindNextServiceByPidAndMidWithName(char* service_name,
 
 // Returns the next service, or nullptr if there are no more services.
 Service* FindNextServiceWithName(char* service_name,
-                                        Service* previous_service) {
+                                 Service* previous_service) {
   // We're out of services.
   if (previous_service == nullptr) return nullptr;
 
@@ -235,11 +233,9 @@ Service* FindNextServiceWithName(char* service_name,
 // Registers that we want this process to be notified when a service of the
 // given service name appears. This also sends a notification for all existing
 // services with the given service name.
-void NotifyProcessWhenServiceAppears(char* service_name,
-                                     Process* process,
+void NotifyProcessWhenServiceAppears(char* service_name, Process* process,
                                      size_t message_id) {
-  auto notification =
-      ObjectPool<ProcessToNotifyWhenServiceAppears>::Allocate();
+  auto notification = ObjectPool<ProcessToNotifyWhenServiceAppears>::Allocate();
   if (notification == nullptr) return;  // Out of memory.
 
   // Conthe object.

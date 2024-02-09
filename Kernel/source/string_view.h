@@ -15,16 +15,16 @@
 
 #include "types.h"
 
-// A wrapper around a non-null terminated string. StringView does not own the string, so the underlying
-// data needs to stay in scope.
+// A wrapper around a non-null terminated string. StringView does not own the
+// string, so the underlying data needs to stay in scope.
 class StringView {
-public:
-    // Constructs a string view around "str" and "length".
-    StringView(const char *str, size_t length) : str(str), length(length) {}
+ public:
+  // Constructs a string view around "str" and "length".
+  StringView(const char *str, size_t length) : str(str), length(length) {}
 
-    // The source string.
-    const char *str;
+  // The source string.
+  const char *str;
 
-    // The length of the string.
-    size_t length;
+  // The length of the string.
+  size_t length;
 };

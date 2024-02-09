@@ -30,7 +30,8 @@
 
 namespace {
 
-// List of CPU exceptions. The values are the exception numbers reported by the CPU.
+// List of CPU exceptions. The values are the exception numbers reported by the
+// CPU.
 enum class Exception {
   DivisionByZero = 0,
   Debug = 1,
@@ -149,8 +150,8 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
 
   // Output the exception that occured.
   if (exception_no < 32) {
-    print << "\nException occured: " << GetMessageForException(exception) << " ("
-          << NumberFormat::Decimal << exception_no << ')';
+    print << "\nException occured: " << GetMessageForException(exception)
+          << " (" << NumberFormat::Decimal << exception_no << ')';
   } else {
     // This should never trigger, because we haven't registered ourselves
     // for interrupts >= 32.

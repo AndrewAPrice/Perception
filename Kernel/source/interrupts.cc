@@ -83,7 +83,7 @@ void AllocateInterruptStack() {
   SetInterruptStack(virtual_addr);
 }
 
-} // namespace
+}  // namespace
 
 // The top of the interrupt's stack.
 size_t interrupt_stack_top;
@@ -100,8 +100,7 @@ void InitializeInterrupts() {
 }
 
 // Registers a message to send to a process upon receiving an interrupt.
-void RegisterMessageToSendOnInterrupt(size_t interrupt_number,
-                                      Process* process,
+void RegisterMessageToSendOnInterrupt(size_t interrupt_number, Process* process,
                                       size_t message_id) {
   if (!process->is_driver) {
     // Only drivers can listen to interrupts.
@@ -111,7 +110,7 @@ void RegisterMessageToSendOnInterrupt(size_t interrupt_number,
   interrupt_number &= 0xF;
 
   MessageToFireOnInterrupt* message =
-       (MessageToFireOnInterrupt*)malloc(sizeof(MessageToFireOnInterrupt));
+      (MessageToFireOnInterrupt*)malloc(sizeof(MessageToFireOnInterrupt));
   message->process = process;
   message->message_id = message_id;
   message->interrupt_number = (uint8)interrupt_number;
@@ -128,8 +127,7 @@ void RegisterMessageToSendOnInterrupt(size_t interrupt_number,
 
 // Unregisters a message to send to a process upon receiving an interrupt.
 void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
-                                        Process* process,
-                                        size_t message_id) {
+                                        Process* process, size_t message_id) {
   if (!process->is_driver) {
     // Only drivers can listen to interrupts.
     return;
@@ -182,8 +180,7 @@ void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
 void UnregisterAllMessagesToForOnInterruptForProcess(Process* process) {
   while (process->message_to_fire_on_interrupt != nullptr) {
     // Remove this message from the process's list.
-    MessageToFireOnInterrupt* message =
-        process->message_to_fire_on_interrupt;
+    MessageToFireOnInterrupt* message = process->message_to_fire_on_interrupt;
     process->message_to_fire_on_interrupt = message->next_message_for_process;
 
     // Remove this message for the interrupt's list.
@@ -193,8 +190,7 @@ void UnregisterAllMessagesToForOnInterruptForProcess(Process* process) {
         messages_to_fire_on_interrupt[interrupt_number];
 
     while (current != nullptr) {
-      MessageToFireOnInterrupt* next =
-          current->next_message_for_interrupt;
+      MessageToFireOnInterrupt* next = current->next_message_for_interrupt;
       if (current == message) {
         // We found the message!
         if (previous == nullptr) {

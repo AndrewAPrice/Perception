@@ -53,5 +53,4 @@ extern void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
                                                size_t message_id);
 
 // Unregisters all messages for a process.
-extern void UnregisterAllMessagesToForOnInterruptForProcess(
-    Process* process);
+extern void UnregisterAllMessagesToForOnInterruptForProcess(Process* process);

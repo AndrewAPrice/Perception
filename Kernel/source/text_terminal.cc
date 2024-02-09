@@ -141,4 +141,3 @@ void InitializePrinter() {
   // explicitly.
   print = Printer();
 }
-

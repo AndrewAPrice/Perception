@@ -31,8 +31,7 @@ struct SyscallProfilingInformation {
   size_t longest_time;
 };
 
-SyscallProfilingInformation
-    syscall_profiling_information[NUMBER_OF_SYSCALLS];
+SyscallProfilingInformation syscall_profiling_information[NUMBER_OF_SYSCALLS];
 
 }  // namespace
 
@@ -58,16 +57,19 @@ void ProfileSyscall(int syscall, size_t start_time) {
 }
 
 void PrintProfilingInformation() {
-  print << "\nProfiling information for syscalls:\n" <<
-      "syscall,name,count,total_time,shortest_time,average_time,longest_"
-      "time\n" << NumberFormat::DecimalWithoutCommas;
+  print << "\nProfiling information for syscalls:\n"
+        << "syscall,name,count,total_time,shortest_time,average_time,longest_"
+           "time\n"
+        << NumberFormat::DecimalWithoutCommas;
   for (int i = 0; i < NUMBER_OF_SYSCALLS; i++) {
     SyscallProfilingInformation* syscall_info =
         &syscall_profiling_information[i];
-    print << i << ',' << GetSystemCallName(i) << ',' << syscall_info->count << ',' <<
-      syscall_info->total_time << ',' <<
-        (syscall_info->count == 0 ? 0 : syscall_info->shortest_time) << ',' <<
-        syscall_info->average_time << ',' << syscall_info->longest_time << '\n';  }
+    print << i << ',' << GetSystemCallName(i) << ',' << syscall_info->count
+          << ',' << syscall_info->total_time << ','
+          << (syscall_info->count == 0 ? 0 : syscall_info->shortest_time) << ','
+          << syscall_info->average_time << ',' << syscall_info->longest_time
+          << '\n';
+  }
 }
 
 #endif

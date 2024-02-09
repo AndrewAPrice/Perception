@@ -90,3 +90,6 @@ const char *GetSystemCallName(int syscall);
 
 // Returns the name of a system call, by enum.
 const char *GetSystemCallName(Syscall syscall);
+
+// Actual handling of the system call execution is handled in SyscallHandler in
+// syscall.cc.

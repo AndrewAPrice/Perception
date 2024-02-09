@@ -18,15 +18,16 @@
 
 // Prints the registers, for debugging.
 void PrintRegisters(Registers* regs) {
-  print << "Printing registers:\n" << NumberFormat::Hexidecimal <<
-    "rax: " << regs->rax << "   rbx: " << regs->rbx <<
-    "\nrcx: " << regs->rcx << "   rdx: " << regs->rdx <<
-    "\nrsp: " << regs->rsp << "   rbp: " << regs->rbp <<
-    "\nrsi: " << regs->rsi << "   rdi: " << regs->rdi <<
-    "\n r8: " << regs->r8 << "    r9: " << regs->r9 <<
-    "\nr10: " << regs->r10 << "   r11: " <<regs->r11 <<
-    "\nr12: " << regs->r12 << "   r13: " << regs->r13 <<
-    "\nr14: " << regs->r14 << "   r15: " << regs->r15 <<
-    "\n cs: " << regs->cs << "    ss: " << regs->ss <<
-    "\nrip: " << regs->rip << " flags: " << regs->rflags << '\n';
+  print << "Printing registers:\n"
+        << NumberFormat::Hexidecimal << "rax: " << regs->rax
+        << "   rbx: " << regs->rbx << "\nrcx: " << regs->rcx
+        << "   rdx: " << regs->rdx << "\nrsp: " << regs->rsp
+        << "   rbp: " << regs->rbp << "\nrsi: " << regs->rsi
+        << "   rdi: " << regs->rdi << "\n r8: " << regs->r8
+        << "    r9: " << regs->r9 << "\nr10: " << regs->r10
+        << "   r11: " << regs->r11 << "\nr12: " << regs->r12
+        << "   r13: " << regs->r13 << "\nr14: " << regs->r14
+        << "   r15: " << regs->r15 << "\n cs: " << regs->cs
+        << "    ss: " << regs->ss << "\nrip: " << regs->rip
+        << " flags: " << regs->rflags << '\n';
 }

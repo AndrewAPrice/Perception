@@ -29,43 +29,43 @@ struct ObjectPoolItem {
 // https://en.wikipedia.org/wiki/Object_pool_pattern
 template <class T>
 class ObjectPool {
-    friend ObjectPoolInitializer;
-public:
-    // Returns an object, preferably from the pool.
-    static T* Allocate() {
-        T* obj = (T*)next_item_;
-        if (obj == nullptr) {
-            obj = (T*)malloc(sizeof(T));
-            memset((char *)obj, 0, sizeof(T));
-        } else {
-            next_item_ = next_item_->next;
-        }
+  friend ObjectPoolInitializer;
 
-        return new (obj) T();
+ public:
+  // Returns an object, preferably from the pool.
+  static T* Allocate() {
+    T* obj = (T*)next_item_;
+    if (obj == nullptr) {
+      obj = (T*)malloc(sizeof(T));
+      memset((char*)obj, 0, sizeof(T));
+    } else {
+      next_item_ = next_item_->next;
     }
 
-    // Releases an object back to the pool.
-    static void Release(T* obj) {
-        obj->~T();
-        auto item = (ObjectPoolItem*)obj;
-        item->next = next_item_;
-        next_item_ = item;
-    }
+    return new (obj) T();
+  }
 
-    // Frees all the objects in the pool.
-    static void FreeObjectsInPool() {
-        while (next_item_ != nullptr) {
-            auto next = next_item_->next;
-            free(next_item_);
-            next_item_ = next;
-        }
-    }
+  // Releases an object back to the pool.
+  static void Release(T* obj) {
+    obj->~T();
+    auto item = (ObjectPoolItem*)obj;
+    item->next = next_item_;
+    next_item_ = item;
+  }
 
-private:
-    // The next item on the object pool.
-    static ObjectPoolItem *next_item_;
+  // Frees all the objects in the pool.
+  static void FreeObjectsInPool() {
+    while (next_item_ != nullptr) {
+      auto next = next_item_->next;
+      free(next_item_);
+      next_item_ = next;
+    }
+  }
+
+ private:
+  // The next item on the object pool.
+  static ObjectPoolItem* next_item_;
 };
 
-
-template <class T> ObjectPoolItem *ObjectPool<T>::next_item_;
-
+template <class T>
+ObjectPoolItem* ObjectPool<T>::next_item_;

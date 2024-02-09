@@ -48,9 +48,8 @@ void InsertNodeIntoAATree(AATree* tree, AATreeNode* node,
 #endif
 }
 
-extern void RemoveNodeFromAATree(
-    AATree* tree, AATreeNode* node,
-    size_t (*value_function)(AATreeNode* node)) {
+extern void RemoveNodeFromAATree(AATree* tree, AATreeNode* node,
+                                 size_t (*value_function)(AATreeNode* node)) {
 #ifdef DEBUG
   print << "Removing " << NumberFormat::Hexidecimal << (size_t)node << '\n';
 #endif
@@ -77,8 +76,7 @@ extern void RemoveNodeFromAATree(
 }
 
 AATreeNode* SearchForNodeLessThanOrEqualToValue(
-    AATree* tree, size_t value,
-    size_t (*value_function)(AATreeNode* node)) {
+    AATree* tree, size_t value, size_t (*value_function)(AATreeNode* node)) {
   AATreeNode* node = tree->root;
 
   AATreeNode* closest = nullptr;
@@ -101,8 +99,7 @@ AATreeNode* SearchForNodeLessThanOrEqualToValue(
 }
 
 AATreeNode* SearchForNodeGreaterThanOrEqualToValue(
-    AATree* tree, size_t value,
-    size_t (*value_function)(AATreeNode* node)) {
+    AATree* tree, size_t value, size_t (*value_function)(AATreeNode* node)) {
   AATreeNode* node = tree->root;
 
   AATreeNode* closest = nullptr;
@@ -125,8 +122,7 @@ AATreeNode* SearchForNodeGreaterThanOrEqualToValue(
 }
 
 AATreeNode* SearchForNodeEqualToValue(
-    AATree* tree, size_t value,
-    size_t (*value_function)(AATreeNode* node)) {
+    AATree* tree, size_t value, size_t (*value_function)(AATreeNode* node)) {
   AATreeNode* node = tree->root;
   while (node != nullptr) {
     size_t current_value = value_function(node);
@@ -139,11 +135,10 @@ AATreeNode* SearchForNodeEqualToValue(
   return nullptr;
 }
 
-void PrintAATree(AATree* tree,
-                 size_t (*value_function)(AATreeNode* node)) {
-  print << "Linked list " << NumberFormat::Hexidecimal << (size_t)tree <<
-    " has " << NumberFormat::Decimal << CountNodesInAATree(tree) <<
-    " node(s).\n";
+void PrintAATree(AATree* tree, size_t (*value_function)(AATreeNode* node)) {
+  print << "Linked list " << NumberFormat::Hexidecimal << (size_t)tree
+        << " has " << NumberFormat::Decimal << CountNodesInAATree(tree)
+        << " node(s).\n";
 }
 
 size_t CountNodesInAATree(AATree* tree) {
@@ -159,15 +154,15 @@ size_t CountNodesInAATree(AATree* tree) {
 #else
 
 void PrintAATreeNode(AATreeNode* node,
-                     size_t (*value_function)(AATreeNode* node),
-                     char side, int indentation) {
+                     size_t (*value_function)(AATreeNode* node), char side,
+                     int indentation) {
   if (node == nullptr) return;
   for (int i = 0; i < indentation; i++) print << ' ';
   print << side;
 
   size_t value = value_function(node);
-  print << " Value: " << NumberFormat::Decimal << value <<
-    "/" << NumberFormat::Hexidecimal  << value << " Count: ";
+  print << " Value: " << NumberFormat::Decimal << value << "/"
+        << NumberFormat::Hexidecimal << value << " Count: ";
   int count = 1;
   AATreeNode* next_node = node->next;
   while (next_node != nullptr) {
@@ -179,8 +174,7 @@ void PrintAATreeNode(AATreeNode* node,
   PrintAATreeNode(node->right, value_function, 'r', indentation + 1);
 }
 
-void PrintAATree(AATree* tree,
-                 size_t (*value_function)(AATreeNode* node)) {
+void PrintAATree(AATree* tree, size_t (*value_function)(AATreeNode* node)) {
   print << "Tree: " << NumberFormat::Hexidecimal << (size_t)tree << '\n';
   PrintAATreeNode(tree->root, value_function, '*', 1);
 }
@@ -244,10 +238,9 @@ AATreeNode* MaybeSplitAANode(AATreeNode* node) {
   return node;
 }
 
-AATreeNode* InsertNodeIntoAANode(
-    AATreeNode* parent, AATreeNode* node_to_insert,
-    size_t value_being_inserted,
-    size_t (*value_function)(AATreeNode* node)) {
+AATreeNode* InsertNodeIntoAANode(AATreeNode* parent, AATreeNode* node_to_insert,
+                                 size_t value_being_inserted,
+                                 size_t (*value_function)(AATreeNode* node)) {
   if (parent == nullptr) {
     // Stand-alone leaf node.
     return node_to_insert;
@@ -448,8 +441,7 @@ void RemoveNodeFromAATree(AATree* tree, AATreeNode* node,
 }
 
 AATreeNode* SearchForNodeLessThanOrEqualToValue(
-    AATree* tree, size_t value,
-    size_t (*value_function)(AATreeNode* node)) {
+    AATree* tree, size_t value, size_t (*value_function)(AATreeNode* node)) {
   // Try to find an exact match, and if one doesn't exist, return the the
   // heighest valued node we found along the way that was below the value.
 
@@ -484,8 +476,7 @@ AATreeNode* SearchForNodeLessThanOrEqualToValue(
 }
 
 AATreeNode* SearchForNodeGreaterThanOrEqualToValue(
-    AATree* tree, size_t value,
-    size_t (*value_function)(AATreeNode* node)) {
+    AATree* tree, size_t value, size_t (*value_function)(AATreeNode* node)) {
   // Try to find an exact match, and if one doesn't exist, return the the
   // smallest node we found along the way that was below the value.
 
@@ -523,8 +514,7 @@ AATreeNode* SearchForNodeGreaterThanOrEqualToValue(
 }
 
 AATreeNode* SearchForNodeEqualToValue(
-    AATree* tree, size_t value,
-    size_t (*value_function)(AATreeNode* node)) {
+    AATree* tree, size_t value, size_t (*value_function)(AATreeNode* node)) {
   // Try to find an exact match.
 
   AATreeNode* current_node = tree->root;

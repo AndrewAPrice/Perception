@@ -26,15 +26,13 @@ void LoadMultibootModules() {
 
   // Loop through the multiboot sections.
   multiboot_tag *tag;
-  for (tag = (multiboot_tag *)(size_t)(higher_half_multiboot_info->addr +
-                                              8 + VIRTUAL_MEMORY_OFFSET);
+  for (tag = (multiboot_tag *)(size_t)(higher_half_multiboot_info->addr + 8 +
+                                       VIRTUAL_MEMORY_OFFSET);
        tag->type != MULTIBOOT_TAG_TYPE_END;
-       tag = (multiboot_tag *)((size_t)tag +
-                                      (size_t)((tag->size + 7) & ~7))) {
+       tag = (multiboot_tag *)((size_t)tag + (size_t)((tag->size + 7) & ~7))) {
     // Found a multiboot module.
     if (tag->type == MULTIBOOT_TAG_TYPE_MODULE) {
-      multiboot_tag_module *module_tag =
-          (multiboot_tag_module *)tag;
+      multiboot_tag_module *module_tag = (multiboot_tag_module *)tag;
 
       LoadElfProcess(module_tag->mod_start + VIRTUAL_MEMORY_OFFSET,
                      module_tag->mod_end + VIRTUAL_MEMORY_OFFSET,

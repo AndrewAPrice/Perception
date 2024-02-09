@@ -13,8 +13,8 @@ extern void memset(char *dest, char val, size_t count);
 #endif
 
 // Copies a string.
-extern void CopyString(const char *source, size_t buffer_size,
-                       size_t strlen, char *dest);
+extern void CopyString(const char *source, size_t buffer_size, size_t strlen,
+                       char *dest);
 
 #ifndef __TEST__
 // Compares two strings and returns if they're equal.

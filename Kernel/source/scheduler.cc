@@ -8,7 +8,8 @@
 #include "thread.h"
 #include "virtual_allocator.h"
 
-// The currently executing thread. This can be nullptr if all threads are asleep.
+// The currently executing thread. This can be nullptr if all threads are
+// asleep.
 Thread *running_thread;
 
 // Currently executing registers.
@@ -30,7 +31,7 @@ void InitializeScheduler() {
   first_awake_thread = nullptr;
   last_awake_thread = nullptr;
   running_thread = nullptr;
-  currently_executing_thread_regs = (Registers*)malloc(sizeof(Registers));
+  currently_executing_thread_regs = (Registers *)malloc(sizeof(Registers));
   if (!currently_executing_thread_regs) {
     print << "Could not allocate object to store the kernel's registers.";
 #ifndef __TEST__

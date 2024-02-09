@@ -19,4 +19,5 @@
 // them.
 extern "C" uint64 TSSEntry;
 
-// boot.asm defines MultibootInfo but that is declared in third_party/multiboot2.h.
+// boot.asm defines MultibootInfo but that is declared in
+// third_party/multiboot2.h.

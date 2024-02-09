@@ -14,16 +14,16 @@
 
 #include "stack_trace.h"
 
+#include "physical_allocator.h"
 #include "process.h"
 #include "registers.h"
 #include "scheduler.h"
 #include "text_terminal.h"
 #include "thread.h"
-#include "physical_allocator.h"
 #include "virtual_allocator.h"
 
 namespace {
-    
+
 // The maximum number of levels to print up the call stack for a stack trace.
 constexpr int kStackTraceDepth = 100;
 

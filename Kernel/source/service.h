@@ -63,8 +63,7 @@ void InitializeServices();
 
 // Registers a service, and notifies anybody listening for new instances
 // of services with this name.
-void RegisterService(char* service_name, Process* process,
-                     size_t message_id);
+void RegisterService(char* service_name, Process* process, size_t message_id);
 
 // Unregisters a service, and notifies anybody listening.
 void UnregisterServiceByMessageId(Process* process, size_t message_id);
@@ -78,19 +77,16 @@ Service* FindServiceByProcessAndMid(size_t pid, size_t message_id);
 
 // Returns the next service, starting at the provided process ID and message
 // ID.
-Service* FindNextServiceByPidAndMidWithName(char* service_name,
-                                                   size_t min_pid,
-                                                   size_t min_message_id);
+Service* FindNextServiceByPidAndMidWithName(char* service_name, size_t min_pid,
+                                            size_t min_message_id);
 
 // Returns the next service, or nullptr if there are no more services.
-Service* FindNextServiceWithName(char* service_name,
-                                        Service* previous_service);
+Service* FindNextServiceWithName(char* service_name, Service* previous_service);
 
 // Registers that we want this process to be notified when a service of the
 // given service name appears. This also sends a notification for all existing
 // services with the given service name.
-void NotifyProcessWhenServiceAppears(char* service_name,
-                                     Process* process,
+void NotifyProcessWhenServiceAppears(char* service_name, Process* process,
                                      size_t message_id);
 
 // Registers that we no longer want to be notified when a service appears.

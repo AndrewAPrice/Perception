@@ -54,7 +54,8 @@ struct Process {
   // Is this process allowed to create other processes?
   bool can_create_processes;
 
-  // The parent of the current process. Only set if the process is in the `creator` state.
+  // The parent of the current process. Only set if the process is in the
+  // `creator` state.
   Process* parent;
   // A linked list of child processes in the `creator` state.
   Process* child_processes;
@@ -92,8 +93,7 @@ struct Process {
   // Linked lists of processes to notify when I die.
   ProcessToNotifyOnExit* processes_to_notify_when_i_die;
   // Linked lists of processes I want to be notified of when they die.
-  ProcessToNotifyOnExit*
-      processes_i_want_to_be_notified_of_when_they_die;
+  ProcessToNotifyOnExit* processes_i_want_to_be_notified_of_when_they_die;
   // Linked list of services I want to be notified of when they appear.
   ProcessToNotifyWhenServiceAppears*
       services_i_want_to_be_notified_of_when_they_appear;
@@ -122,8 +122,8 @@ extern Process* CreateProcess(bool is_driver, bool can_create_processes);
 extern void DestroyProcess(Process* process);
 
 // Registers that a process wants to be notified if another process dies.
-extern void NotifyProcessOnDeath(Process* target,
-                                 Process* notifyee, size_t event_id);
+extern void NotifyProcessOnDeath(Process* target, Process* notifyee,
+                                 size_t event_id);
 
 // Returns a process with the provided pid, returns nullptr if it doesn't exist.
 extern Process* GetProcessFromPid(size_t pid);
@@ -136,19 +136,17 @@ extern Process* GetProcessOrNextFromPid(size_t pid);
 // Returns the next process with the given name (which must be an array of
 // length PROCESS_NAME_LENGTH). Returns nullptr if there are no more processes
 // with the provided name. `start_from` is inclusive.
-extern Process* FindNextProcessWithName(const char* name,
-                                               Process* start_from);
+extern Process* FindNextProcessWithName(const char* name, Process* start_from);
 
 // Creates a child process. The parent process must be allowed to create
 // children. Returns ERROR if there was an error.
 extern Process* CreateChildProcess(Process* parent, char* name,
-                                          size_t bitfield);
+                                   size_t bitfield);
 
 // Unmaps a memory page from the parent and assigns it to the child. The memory
 // is unmapped from the calling process regardless of if this call succeeds. If
 // the page already exists in the child process, nothing is set.
-extern void SetChildProcessMemoryPage(Process* parent,
-                                      Process* child,
+extern void SetChildProcessMemoryPage(Process* parent, Process* child,
                                       size_t source_address,
                                       size_t destination_address);
 
@@ -156,8 +154,7 @@ extern void SetChildProcessMemoryPage(Process* parent,
 // The child process will no longer be in the `creating` state. The calling
 // process must be the child process's creator. The child process will begin
 // executing and will no longer terminate if the creator terminates.
-extern void StartExecutingChildProcess(Process* parent,
-                                       Process* child,
+extern void StartExecutingChildProcess(Process* parent, Process* child,
                                        size_t entry_address, size_t params);
 
 // Destroys a process in the `creating` state.

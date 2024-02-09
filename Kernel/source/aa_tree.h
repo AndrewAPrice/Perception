@@ -42,25 +42,20 @@ struct AATree {
 
 extern void InitializeAATree(AATree* tree);
 
-extern void InsertNodeIntoAATree(
-    AATree* tree, AATreeNode* node,
-    size_t (*value_function)(AATreeNode* node));
+extern void InsertNodeIntoAATree(AATree* tree, AATreeNode* node,
+                                 size_t (*value_function)(AATreeNode* node));
 
-extern void RemoveNodeFromAATree(
-    AATree* tree, AATreeNode* node,
-    size_t (*value_function)(AATreeNode* node));
+extern void RemoveNodeFromAATree(AATree* tree, AATreeNode* node,
+                                 size_t (*value_function)(AATreeNode* node));
 
 extern AATreeNode* SearchForNodeLessThanOrEqualToValue(
-    AATree* tree, size_t value,
-    size_t (*value_function)(AATreeNode* node));
+    AATree* tree, size_t value, size_t (*value_function)(AATreeNode* node));
 
 extern AATreeNode* SearchForNodeGreaterThanOrEqualToValue(
-    AATree* tree, size_t value,
-    size_t (*value_function)(AATreeNode* node));
+    AATree* tree, size_t value, size_t (*value_function)(AATreeNode* node));
 
 extern AATreeNode* SearchForNodeEqualToValue(
-    AATree* tree, size_t value,
-    size_t (*value_function)(AATreeNode* node));
+    AATree* tree, size_t value, size_t (*value_function)(AATreeNode* node));
 
 extern void PrintAATree(AATree* tree,
                         size_t (*value_function)(AATreeNode* node));

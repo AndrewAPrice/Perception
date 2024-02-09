@@ -180,9 +180,9 @@ bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
 
       if (from_start + from_size > memory_end) {
         // Segment is out of bounds of the ELF file.
-        print <<
-            "Segment is trying to load memory that is out of bounds of the "
-            "file.\n";
+        print
+            << "Segment is trying to load memory that is out of bounds of the "
+               "file.\n";
         return false;
       }
 
@@ -262,7 +262,8 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
   bool can_create_processes = false;
 
   if (!ParseName(&name, &name_length, &is_driver, &can_create_processes)) {
-    print << "Can't load module \"" << original_name << "\" because the name is not in the correct format.\n";
+    print << "Can't load module \"" << original_name
+          << "\" because the name is not in the correct format.\n";
     return;
   }
 

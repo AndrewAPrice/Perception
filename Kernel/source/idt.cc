@@ -40,8 +40,8 @@ void InitializeIdt() {
   in_interrupt = false;
 
   // The IDT aligns with pages - so grab a page to allocate it.
-  idt = (idt_entry *)AllocateVirtualMemoryInAddressSpace(
-      &kernel_address_space, 1);
+  idt = (idt_entry *)AllocateVirtualMemoryInAddressSpace(&kernel_address_space,
+                                                         1);
 
   size_t idt_physical =
       GetPhysicalAddress(&kernel_address_space, (size_t)idt, false);

@@ -49,9 +49,9 @@ void SendMessageToProcess(Message* message, Process* receiver) {
     // There is a thread sleeping for messages.
     if (receiver->messages_queued != 0) {
       // This should never happen.
-      print << 
-          "A thread is sleeping for messages even though there are messages "
-          "queued.\n";
+      print
+          << "A thread is sleeping for messages even though there are messages "
+             "queued.\n";
     }
     // Wake the thread that is sleeping.
     Thread* thread_to_wake = receiver->thread_sleeping_for_message;
@@ -101,9 +101,9 @@ bool CanProcessReceiveMessage(Process* receiver) {
 
 // Sends a message from the kernel to a process. The message will be ignored on
 // an error.
-void SendKernelMessageToProcess(Process* receiver_process,
-                                size_t event_id, size_t param1, size_t param2,
-                                size_t param3, size_t param4, size_t param5) {
+void SendKernelMessageToProcess(Process* receiver_process, size_t event_id,
+                                size_t param1, size_t param2, size_t param3,
+                                size_t param4, size_t param5) {
   if (!CanProcessReceiveMessage(receiver_process)) {
     // The receiver's queue is full.
     return;
@@ -137,8 +137,8 @@ void SendMessageFromThreadSyscall(Thread* sender_thread) {
 
   // Find the receiver process, which maybe ourselves.
   Process* receiver_process = (registers->rbx == sender_process->pid)
-                                         ? sender_process
-                                         : GetProcessFromPid(registers->rbx);
+                                  ? sender_process
+                                  : GetProcessFromPid(registers->rbx);
 
   if (receiver_process == nullptr) {
     // Error, process doesn't exist.
