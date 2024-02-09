@@ -73,7 +73,7 @@ void UnregisterServiceByMessageId(struct Process* process, size_t message_id);
 void UnregisterService(struct Service* service);
 
 // Returns a service running in a process with the matching message id, or
-// NULL if it does not exist.
+// nullptr if it does not exist.
 struct Service* FindServiceByProcessAndMid(size_t pid, size_t message_id);
 
 // Returns the next service, starting at the provided process ID and message
@@ -82,7 +82,7 @@ struct Service* FindNextServiceByPidAndMidWithName(char* service_name,
                                                    size_t min_pid,
                                                    size_t min_message_id);
 
-// Returns the next service, or NULL if there are no more services.
+// Returns the next service, or nullptr if there are no more services.
 struct Service* FindNextServiceWithName(char* service_name,
                                         struct Service* previous_service);
 

@@ -17,10 +17,10 @@ struct ObjectPoolItem {
 
 // Grabs an object from the pool, if it exists, or allocates a new object.
 void* GrabOrAllocateObject(struct ObjectPoolItem** object_pool, size_t size) {
-  if (*object_pool == NULL) {
+  if (*object_pool == nullptr) {
 #ifdef DEBUG
     void* obj = malloc(size);
-    memset(obj, 0, size);
+    memset((char *)obj, 0, size);
     return obj;
 #else
     return malloc(size);
@@ -40,7 +40,7 @@ void ReleaseObjectToPool(struct ObjectPoolItem** object_pool, void* item) {
 
 // Frees all the objects in the pool
 void FreeObjectsInPool(struct ObjectPoolItem** object_pool) {
-  while (*object_pool != NULL) {
+  while (*object_pool != nullptr) {
     struct ObjectPoolItem* next = (*object_pool)->next;
     free(*object_pool);
     *object_pool = next;
@@ -48,7 +48,7 @@ void FreeObjectsInPool(struct ObjectPoolItem** object_pool) {
 }
 
 #define OBJECT_POOL(Struct, CamelCase)                                  \
-  struct ObjectPoolItem* CamelCase##_pool = NULL;                       \
+  struct ObjectPoolItem* CamelCase##_pool = nullptr;                       \
   struct Struct* Allocate##Struct() {                                   \
     return (struct Struct*)GrabOrAllocateObject(&CamelCase##_pool,      \
                                                 sizeof(struct Struct)); \
@@ -71,15 +71,15 @@ OBJECT_POOL(FreeMemoryRange, free_memory_range)
 
 // Initialize the object pools.
 void InitializeObjectPools() {
-  message_pool = NULL;
-  process_to_notify_on_exit_pool = NULL;
-  process_to_notify_when_service_appears_pool = NULL;
-  service_pool = NULL;
-  shared_memory_pool = NULL;
-  shared_memory_in_process_pool = NULL;
-  timer_event_pool = NULL;
-  thread_waiting_for_shared_memory_page_pool = NULL;
-  free_memory_range_pool = NULL;
+  message_pool = nullptr;
+  process_to_notify_on_exit_pool = nullptr;
+  process_to_notify_when_service_appears_pool = nullptr;
+  service_pool = nullptr;
+  shared_memory_pool = nullptr;
+  shared_memory_in_process_pool = nullptr;
+  timer_event_pool = nullptr;
+  thread_waiting_for_shared_memory_page_pool = nullptr;
+  free_memory_range_pool = nullptr;
 }
 
 // Clean up object pools to gain some memory back.

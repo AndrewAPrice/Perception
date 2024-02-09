@@ -36,12 +36,12 @@ size_t ValueOfAATreeNode(struct AATreeNode *node) {
 size_t ValueOfNode(struct Node *node) { return node->value; }
 
 void AssertNodeNotNullAndHasValue(struct AATreeNode *node, int value) {
-  assert(node != NULL);
+  assert(node != nullptr);
   assert(ValueOfAATreeNode(node) == value);
 }
 
 int CalculateNodeHeight(struct AATreeNode *aa_node) {
-  if (aa_node == NULL) return 0;
+  if (aa_node == nullptr) return 0;
 
   int left = CalculateNodeHeight(aa_node->left);
   int right = CalculateNodeHeight(aa_node->right);
@@ -49,7 +49,7 @@ int CalculateNodeHeight(struct AATreeNode *aa_node) {
 }
 
 int CalculateMaxTree(struct AATree *aa_tree) {
-  assert(aa_tree != NULL);
+  assert(aa_tree != nullptr);
   return CalculateNodeHeight(aa_tree->root);
 }
 
@@ -124,7 +124,7 @@ int main() {
   VerifyRebalancedTree(aa_tree);
 
   assert(SearchForNodeLessThanOrEqualToValue(aa_tree, 1, ValueOfAATreeNode) ==
-         NULL);
+         nullptr);
   assert(NodeFromAATreeNode(SearchForNodeLessThanOrEqualToValue(
              aa_tree, 3, ValueOfAATreeNode)) == nodes[3]);
   assert(NodeFromAATreeNode(SearchForNodeLessThanOrEqualToValue(
@@ -133,7 +133,7 @@ int main() {
              aa_tree, 99, ValueOfAATreeNode)) == nodes[19]);
 
   assert(SearchForNodeGreaterThanOrEqualToValue(aa_tree, 20,
-                                                ValueOfAATreeNode) == NULL);
+                                                ValueOfAATreeNode) == nullptr);
   assert(NodeFromAATreeNode(SearchForNodeGreaterThanOrEqualToValue(
              aa_tree, 19, ValueOfAATreeNode)) == nodes[19]);
   assert(NodeFromAATreeNode(SearchForNodeGreaterThanOrEqualToValue(
@@ -143,9 +143,9 @@ int main() {
   assert(NodeFromAATreeNode(SearchForNodeGreaterThanOrEqualToValue(
              aa_tree, 15, ValueOfAATreeNode)) == nodes[16]);
 
-  assert(SearchForNodeEqualToValue(aa_tree, 0, ValueOfAATreeNode) == NULL);
-  assert(SearchForNodeEqualToValue(aa_tree, 20, ValueOfAATreeNode) == NULL);
-  assert(SearchForNodeEqualToValue(aa_tree, 11, ValueOfAATreeNode) == NULL);
+  assert(SearchForNodeEqualToValue(aa_tree, 0, ValueOfAATreeNode) == nullptr);
+  assert(SearchForNodeEqualToValue(aa_tree, 20, ValueOfAATreeNode) == nullptr);
+  assert(SearchForNodeEqualToValue(aa_tree, 11, ValueOfAATreeNode) == nullptr);
   assert(NodeFromAATreeNode(SearchForNodeEqualToValue(
              aa_tree, 10, ValueOfAATreeNode)) == nodes[10]);
 

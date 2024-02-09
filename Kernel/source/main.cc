@@ -18,7 +18,7 @@
 #include "virtual_allocator.h"
 
 #ifndef __TEST__
-void kmain() {
+extern "C" void kmain() {
   // Make sure we were booted with a multiboot2 bootloader - we need this
   // because we depend on GRUB for providing us with some initialization
   // information.

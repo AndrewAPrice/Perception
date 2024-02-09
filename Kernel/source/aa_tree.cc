@@ -24,7 +24,7 @@
 
 #ifdef LINKED_LIST
 
-void InitializeAATree(struct AATree* tree) { tree->root = NULL; }
+void InitializeAATree(struct AATree* tree) { tree->root = nullptr; }
 
 void InsertNodeIntoAATree(struct AATree* tree, struct AATreeNode* node,
                           size_t (*value_function)(struct AATreeNode* node)) {
@@ -33,7 +33,7 @@ void InsertNodeIntoAATree(struct AATree* tree, struct AATreeNode* node,
   // PrintHex((size_t)node);
   PrintChar('\n');
 #endif
-  if (node->parent != NULL) {
+  if (node->parent != nullptr) {
     if (node->parent == tree) {
       PrintString("Adding node back to same tree without removing.\n");
     } else {
@@ -42,9 +42,9 @@ void InsertNodeIntoAATree(struct AATree* tree, struct AATreeNode* node,
   }
   node->parent = (struct AATreeNode*)tree;
   node->next = tree->root;
-  node->previous = NULL;
+  node->previous = nullptr;
   tree->root = node;
-  if (node->next != NULL) node->next->previous = node;
+  if (node->next != nullptr) node->next->previous = node;
 #ifdef DEBUG
   PrintAATree(tree, value_function);
 #endif
@@ -59,20 +59,20 @@ extern void RemoveNodeFromAATree(
   PrintChar('\n');
 #endif
   if (node->parent != (struct ATTreeNode*)tree) {
-    if (node->parent == NULL) {
+    if (node->parent == nullptr) {
       PrintString("Removing node that isn't in any tree.\n");
     } else {
       PrintString("Removing node that is in another tree.\n");
     }
   }
-  node->parent = NULL;
-  if (node->previous == NULL) {
+  node->parent = nullptr;
+  if (node->previous == nullptr) {
     tree->root = node->next;
   } else {
     node->previous->next = node->next;
   }
 
-  if (node->next != NULL) {
+  if (node->next != nullptr) {
     node->next->previous = node->previous;
   }
 #ifdef DEBUG
@@ -85,16 +85,16 @@ struct AATreeNode* SearchForNodeLessThanOrEqualToValue(
     size_t (*value_function)(struct AATreeNode* node)) {
   struct AATreeNode* node = tree->root;
 
-  struct AATreeNode* closest = NULL;
+  struct AATreeNode* closest = nullptr;
   size_t closest_value = 0;
 
-  while (node != NULL) {
+  while (node != nullptr) {
     size_t current_value = value_function(node);
     if (current_value == value) {
       return node;
     }
     if (current_value < value &&
-        (current_value > closest_value || closest == NULL)) {
+        (current_value > closest_value || closest == nullptr)) {
       closest = node;
       closest_value = current_value;
     }
@@ -109,16 +109,16 @@ struct AATreeNode* SearchForNodeGreaterThanOrEqualToValue(
     size_t (*value_function)(struct AATreeNode* node)) {
   struct AATreeNode* node = tree->root;
 
-  struct AATreeNode* closest = NULL;
+  struct AATreeNode* closest = nullptr;
   size_t closest_value = 0;
 
-  while (node != NULL) {
+  while (node != nullptr) {
     size_t current_value = value_function(node);
     if (current_value == value) {
       return node;
     }
     if (current_value > value &&
-        (current_value < closest_value || closest == NULL)) {
+        (current_value < closest_value || closest == nullptr)) {
       closest = node;
       closest_value = current_value;
     }
@@ -132,7 +132,7 @@ struct AATreeNode* SearchForNodeEqualToValue(
     struct AATree* tree, size_t value,
     size_t (*value_function)(struct AATreeNode* node)) {
   struct AATreeNode* node = tree->root;
-  while (node != NULL) {
+  while (node != nullptr) {
     size_t current_value = value_function(node);
     if (current_value == value) {
       return node;
@@ -140,7 +140,7 @@ struct AATreeNode* SearchForNodeEqualToValue(
     node = node->next;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 void PrintAATree(struct AATree* tree,
@@ -155,7 +155,7 @@ void PrintAATree(struct AATree* tree,
 size_t CountNodesInAATree(struct AATree* tree) {
   int count = 0;
   struct AATreeNode* node = tree->root;
-  while (node != NULL) {
+  while (node != nullptr) {
     PrintHex(node);
     PrintChar(' ');
     count++;
@@ -169,7 +169,7 @@ size_t CountNodesInAATree(struct AATree* tree) {
 void PrintAATreeNode(struct AATreeNode* node,
                      size_t (*value_function)(struct AATreeNode* node),
                      char side, int indentation) {
-  if (node == NULL) return;
+  if (node == nullptr) return;
   for (int i = 0; i < indentation; i++) PrintChar(' ');
   PrintChar(side);
 
@@ -181,7 +181,7 @@ void PrintAATreeNode(struct AATreeNode* node,
   PrintString(" Count: ");
   int count = 1;
   struct AATreeNode* next_node = node->next;
-  while (next_node != NULL) {
+  while (next_node != nullptr) {
     count++;
     next_node = next_node->next;
   }
@@ -202,11 +202,11 @@ void PrintAATree(struct AATree* tree,
 }
 
 size_t CountNodesInAANode(struct AATreeNode* node) {
-  if (node == NULL) return 0;
+  if (node == nullptr) return 0;
 
   size_t count = 1;
   struct AATreeNode* next_node = node->next;
-  while (next_node != NULL) {
+  while (next_node != nullptr) {
     count++;
     next_node = next_node->next;
   }
@@ -219,10 +219,10 @@ size_t CountNodesInAATree(struct AATree* tree) {
   return CountNodesInAANode(tree->root);
 }
 
-void InitializeAATree(struct AATree* tree) { tree->root = NULL; }
+void InitializeAATree(struct AATree* tree) { tree->root = nullptr; }
 
 struct AATreeNode* MaybeSkewAANode(struct AATreeNode* node) {
-  if (node->left != NULL && node->left->level == node->level) {
+  if (node->left != nullptr && node->left->level == node->level) {
     // Swap the pointers of the horizontal left links.
     struct AATreeNode* new_parent = node->left;
     node->left = new_parent->right;
@@ -230,7 +230,7 @@ struct AATreeNode* MaybeSkewAANode(struct AATreeNode* node) {
 
     // Update the parents.
     new_parent->parent = node->parent;
-    if (node->left != NULL) node->left->parent = node;
+    if (node->left != nullptr) node->left->parent = node;
     node->parent = new_parent;
 
     return new_parent;
@@ -240,7 +240,7 @@ struct AATreeNode* MaybeSkewAANode(struct AATreeNode* node) {
 }
 
 struct AATreeNode* MaybeSplitAANode(struct AATreeNode* node) {
-  if (node->right != NULL && node->right->right != NULL &&
+  if (node->right != nullptr && node->right->right != nullptr &&
       node->level == node->right->right->level) {
     // We have two horiziontal right links. Make the middle node the new parent.
 
@@ -252,7 +252,7 @@ struct AATreeNode* MaybeSplitAANode(struct AATreeNode* node) {
 
     // Update the parents.
     new_parent->parent = node->parent;
-    if (node->right != NULL) node->right->parent = node;
+    if (node->right != nullptr) node->right->parent = node;
     node->parent = new_parent;
 
     return new_parent;
@@ -264,7 +264,7 @@ struct AATreeNode* InsertNodeIntoAANode(
     struct AATreeNode* parent, struct AATreeNode* node_to_insert,
     size_t value_being_inserted,
     size_t (*value_function)(struct AATreeNode* node)) {
-  if (parent == NULL) {
+  if (parent == nullptr) {
     // Stand-alone leaf node.
     return node_to_insert;
   }
@@ -277,13 +277,13 @@ struct AATreeNode* InsertNodeIntoAANode(
     // Copy the existing node's tree fields over to the new node.
     node_to_insert->left = parent->left;
     node_to_insert->right = parent->right;
-    if (node_to_insert->left != NULL)
+    if (node_to_insert->left != nullptr)
       node_to_insert->left->parent = node_to_insert;
-    if (node_to_insert->right != NULL)
+    if (node_to_insert->right != nullptr)
       node_to_insert->right->parent = node_to_insert;
 
     // Make this node the first one in the linked list.
-    node_to_insert->previous = NULL;
+    node_to_insert->previous = nullptr;
     parent->previous = node_to_insert;
     node_to_insert->next = parent;
 
@@ -306,18 +306,18 @@ void InsertNodeIntoAATree(struct AATree* tree, struct AATreeNode* node,
 #ifdef DEBUG
   PrintString("Inserting node\n");
 #endif
-  node->left = node->right = node->previous = node->next = NULL;
+  node->left = node->right = node->previous = node->next = nullptr;
   node->level = 1;
-  if (tree->root == NULL) {
+  if (tree->root == nullptr) {
     // The tree is otherwise empty, so this will be the first and only
     // node.
     tree->root = node;
-    node->parent = NULL;
+    node->parent = nullptr;
   } else {
     size_t value_being_inserted = value_function(node);
     tree->root = InsertNodeIntoAANode(tree->root, node, value_being_inserted,
                                       value_function);
-    tree->root->parent = NULL;
+    tree->root->parent = nullptr;
   }
 
 #ifdef DEBUG
@@ -326,40 +326,40 @@ void InsertNodeIntoAATree(struct AATree* tree, struct AATreeNode* node,
 }
 
 void MaybeDecreaseAANodeLevel(struct AATreeNode* node) {
-  uint8 left_level = node->left != NULL ? node->left->level : 0;
-  uint8 right_level = node->right != NULL ? node->right->level : 0;
+  uint8 left_level = node->left != nullptr ? node->left->level : 0;
+  uint8 right_level = node->right != nullptr ? node->right->level : 0;
   uint8 should_be = (left_level < right_level ? left_level : right_level) + 1;
 
   if (should_be < node->level) {
     node->level = should_be;
-    if (node->right != NULL && should_be < node->right->level)
+    if (node->right != nullptr && should_be < node->right->level)
       node->right->level = should_be;
   }
 }
 
 struct AATreeNode* GetPredecessorOfAANode(struct AATreeNode* node) {
   node = node->left;
-  while (node->right != NULL) node = node->right;
+  while (node->right != nullptr) node = node->right;
   return node;
 }
 
 struct AATreeNode* GetSuccessorOfAANode(struct AATreeNode* node) {
   node = node->right;
-  while (node->left != NULL) node = node->left;
+  while (node->left != nullptr) node = node->left;
   return node;
 }
 
 struct AATreeNode* RemoveNodeWithValueFromBelowAANode(
     struct AATreeNode* node, size_t node_to_delete_value,
     size_t (*value_function)(struct AATreeNode* node)) {
-  if (node == NULL) return NULL;
+  if (node == nullptr) return nullptr;
 
   size_t node_value = value_function(node);
   if (node_to_delete_value == node_value) {
-    if (node->left == NULL) {
-      if (node->right == NULL) {
+    if (node->left == nullptr) {
+      if (node->right == nullptr) {
         // This is a leaf, so return null.
-        return NULL;
+        return nullptr;
       } else {
         // Grab the next lowest value node from the right.
         struct AATreeNode* new_node = GetSuccessorOfAANode(node);
@@ -389,31 +389,31 @@ struct AATreeNode* RemoveNodeWithValueFromBelowAANode(
     }
 
     // Let the child nodes know who their new parent is.
-    if (node->left != NULL) node->left->parent = node;
-    if (node->right != NULL) node->right->parent = node;
+    if (node->left != nullptr) node->left->parent = node;
+    if (node->right != nullptr) node->right->parent = node;
 
   } else if (node_to_delete_value > node_value) {
     // Walk down the left side.
     node->right = RemoveNodeWithValueFromBelowAANode(
         node->right, node_to_delete_value, value_function);
-    if (node->right != NULL) node->right->parent = node;
+    if (node->right != nullptr) node->right->parent = node;
   } else {
     // Walk down the right side.
     node->left = RemoveNodeWithValueFromBelowAANode(
         node->left, node_to_delete_value, value_function);
-    if (node->left != NULL) node->left->parent = node;
+    if (node->left != nullptr) node->left->parent = node;
   }
 
   MaybeDecreaseAANodeLevel(node);
   node = MaybeSkewAANode(node);
-  if (node->right != NULL) {
+  if (node->right != nullptr) {
     node->right = MaybeSkewAANode(node->right);
-    if (node->right->right != NULL) {
+    if (node->right->right != nullptr) {
       node->right->right = MaybeSkewAANode(node->right->right);
     }
   }
   node = MaybeSplitAANode(node);
-  if (node->right != NULL) {
+  if (node->right != nullptr) {
     node->right = MaybeSplitAANode(node->right);
   }
   return node;
@@ -424,23 +424,23 @@ void RemoveNodeFromAATree(struct AATree* tree, struct AATreeNode* node,
 #ifdef DEBUG
   PrintString("Removing node\n");
 #endif
-  if (node->previous != NULL) {
+  if (node->previous != nullptr) {
     // Multiple nodes have the same value, and we're not at the front of the
     // linked list. So just remove us from the linked list and need to update
     // the tree structure.
     node->previous->next = node->next;
-    if (node->next != NULL) node->next->previous = node->previous;
-  } else if (node->next != NULL) {
+    if (node->next != nullptr) node->next->previous = node->previous;
+  } else if (node->next != nullptr) {
     // Multiple nodes have the same value but we're at the front of the linked
     // list. Swap the next item in the linked list for us.
     struct AATreeNode* next = node->next;
-    next->previous = NULL;
+    next->previous = nullptr;
     next->left = node->left;
-    if (next->left != NULL) next->left->parent = next;
+    if (next->left != nullptr) next->left->parent = next;
     next->right = node->right;
-    if (next->right != NULL) next->right->parent = next;
+    if (next->right != nullptr) next->right->parent = next;
     next->parent = node->parent;
-    if (next->parent == NULL) {
+    if (next->parent == nullptr) {
       // We're the root node.
       tree->root = next;
     } else {
@@ -455,7 +455,7 @@ void RemoveNodeFromAATree(struct AATree* tree, struct AATreeNode* node,
     // We're the only node with this value, so remove us from the tree.
     tree->root = RemoveNodeWithValueFromBelowAANode(
         tree->root, value_function(node), value_function);
-    if (tree->root != NULL) tree->root->parent = NULL;
+    if (tree->root != nullptr) tree->root->parent = nullptr;
   }
 
 #ifdef DEBUG
@@ -471,16 +471,16 @@ struct AATreeNode* SearchForNodeLessThanOrEqualToValue(
 
   // The backup node if we don't find one.
   size_t highest_suitable_node_value = 0;
-  struct AATreeNode* highest_suitable_node = NULL;
+  struct AATreeNode* highest_suitable_node = nullptr;
 
   struct AATreeNode* current_node = tree->root;
-  while (current_node != NULL) {
+  while (current_node != nullptr) {
     size_t current_value = value_function(current_node);
     if (current_value == value) return current_node;  // Exact match.
 
     // Not a match but test if it's the closest we've found that is less than.
     if (current_value < value && (current_value > highest_suitable_node_value ||
-                                  highest_suitable_node == NULL)) {
+                                  highest_suitable_node == nullptr)) {
       // This is the largest node we've found so far that's less than the
       // target value.
       highest_suitable_node_value = current_value;
@@ -507,10 +507,10 @@ struct AATreeNode* SearchForNodeGreaterThanOrEqualToValue(
 
   // The backup node if we don't find one.
   size_t lowest_suitable_node_value = 0;
-  struct AATreeNode* lowest_suitable_node = NULL;
+  struct AATreeNode* lowest_suitable_node = nullptr;
   struct AATreeNode* current_node = tree->root;
 
-  while (current_node != NULL) {
+  while (current_node != nullptr) {
     size_t current_value = value_function(current_node);
     if (current_value == value) {
       return current_node;  // Exact match.
@@ -519,7 +519,7 @@ struct AATreeNode* SearchForNodeGreaterThanOrEqualToValue(
     // Not a match but test if it's the closest we've found that is greater
     // than.
     if (current_value > value && (current_value < lowest_suitable_node_value ||
-                                  lowest_suitable_node == NULL)) {
+                                  lowest_suitable_node == nullptr)) {
       // This is the largest node we've found so far that's less than the
       // target value.
       lowest_suitable_node_value = current_value;
@@ -544,7 +544,7 @@ struct AATreeNode* SearchForNodeEqualToValue(
   // Try to find an exact match.
 
   struct AATreeNode* current_node = tree->root;
-  while (current_node != NULL) {
+  while (current_node != nullptr) {
     size_t current_value = value_function(current_node);
     if (current_value == value) {
       return current_node;  // Exact match.
@@ -557,7 +557,7 @@ struct AATreeNode* SearchForNodeEqualToValue(
   }
 
   // No node was found.
-  return NULL;
+  return nullptr;
 }
 
 #endif

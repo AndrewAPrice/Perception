@@ -105,7 +105,7 @@ void VerifyAddressSpaceStructuresAreAllTheSameSize(
       CountNodesInAATree(&address_space->free_chunks_by_size);
   int nodes_in_linked_list = 0;
   struct FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
-  while (current_fmr != NULL) {
+  while (current_fmr != nullptr) {
     nodes_in_linked_list++;
     current_fmr = current_fmr->next;
   }
@@ -125,7 +125,7 @@ void VerifyAddressSpaceStructuresAreAllTheSameSize(
 void PrintFreeAddressRanges(struct VirtualAddressSpace *address_space) {
   PrintString("Free address ranges:\n");
   struct FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
-  while (current_fmr != NULL) {
+  while (current_fmr != nullptr) {
     PrintChar(' ');
     PrintHex(current_fmr->start_address);
     PrintString("->");
@@ -142,9 +142,9 @@ void AddFreeMemoryRangeToVirtualAddressSpace(
                        FreeMemoryRangeAddressFromAATreeNode);
   InsertNodeIntoAATree(&address_space->free_chunks_by_size, &fmr->node_by_size,
                        FreeMemoryRangeSizeFromAATreeNode);
-  fmr->previous = NULL;
+  fmr->previous = nullptr;
   fmr->next = address_space->free_memory_ranges;
-  if (fmr->next != NULL) fmr->next->previous = fmr;
+  if (fmr->next != nullptr) fmr->next->previous = fmr;
   address_space->free_memory_ranges = fmr;
 
   VerifyAddressSpaceStructuresAreAllTheSameSize(address_space);
@@ -284,7 +284,7 @@ void InitializeVirtualAllocator() {
   // Allocate a physical page to use as the kernel's PML4 and clear it.
   size_t kernel_pml4 = GetPhysicalPagePreVirtualMemory();
   kernel_address_space.pml4 = kernel_pml4;
-  kernel_address_space.free_memory_ranges = NULL;
+  kernel_address_space.free_memory_ranges = nullptr;
   InitializeAATree(&kernel_address_space.free_chunks_by_address);
   InitializeAATree(&kernel_address_space.free_chunks_by_size);
 
@@ -335,15 +335,15 @@ void InitializeVirtualAllocator() {
   // Subtracting by 0 because the kernel lives at the top of the address space.
   initial_kernel_memory_range.pages =
       (0 - start_of_free_kernel_memory) / PAGE_SIZE;
-  initial_kernel_memory_range.previous = NULL;
-  initial_kernel_memory_range.next = NULL;
+  initial_kernel_memory_range.previous = nullptr;
+  initial_kernel_memory_range.next = nullptr;
 
   AddFreeMemoryRangeToVirtualAddressSpace(&kernel_address_space,
                                           &initial_kernel_memory_range);
 
   // Flush and load the kernel's new and final PML4.
   // Set the current address space to a dud entry so SwitchToAddressSpace works.
-  current_address_space = (struct VirtualAddressSpace *)NULL;
+  current_address_space = (struct VirtualAddressSpace *)nullptr;
   SwitchToAddressSpace(&kernel_address_space);
 
   // Add the statically allocated free memory ranges.
@@ -396,7 +396,7 @@ bool InitializeVirtualAddressSpace(
     struct VirtualAddressSpace *virtual_address_space) {
   virtual_address_space->pml4 = CreateUserSpacePML4();
   if (virtual_address_space->pml4 == OUT_OF_MEMORY) return false;
-  virtual_address_space->free_memory_ranges = NULL;
+  virtual_address_space->free_memory_ranges = nullptr;
   InitializeAATree(&virtual_address_space->free_chunks_by_address);
   InitializeAATree(&virtual_address_space->free_chunks_by_size);
 
@@ -405,7 +405,7 @@ bool InitializeVirtualAddressSpace(
 
   // First, add the lower half memory.
   struct FreeMemoryRange *fmr = AllocateFreeMemoryRange();
-  if (fmr == NULL) {
+  if (fmr == nullptr) {
     FreePhysicalPage(virtual_address_space->pml4);
     return false;
   }
@@ -416,7 +416,7 @@ bool InitializeVirtualAddressSpace(
 
   // Now add the higher half memory.
   fmr = AllocateFreeMemoryRange();
-  if (fmr != NULL) {
+  if (fmr != nullptr) {
     // We can gracefully continue if for some reason we couldn't allocate
     // another FreeMemoryRange.
 
@@ -498,12 +498,12 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
   // after.
 
   // Search for a block right before.
-  struct FreeMemoryRange *block_before = NULL;
+  struct FreeMemoryRange *block_before = nullptr;
   struct AATreeNode *node_before = SearchForNodeLessThanOrEqualToValue(
       &address_space->free_chunks_by_address, address,
       FreeMemoryRangeAddressFromAATreeNode);
 
-  if (node_before != NULL) {
+  if (node_before != nullptr) {
     block_before = FreeMemoryRangeFromNodeByAddress(node_before);
     if (block_before->start_address == address) {
       PrintString("Error: block_before->start_address == address\n");
@@ -531,22 +531,22 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
     if (block_before->start_address + (block_before->pages * PAGE_SIZE) !=
         address) {
       // The previous block doesn't touch the start of this address range.
-      block_before = NULL;
+      block_before = nullptr;
     }
   }
 
   // Search for a block right after.
-  struct FreeMemoryRange *block_after = NULL;
+  struct FreeMemoryRange *block_after = nullptr;
   struct AATreeNode *node_after = SearchForNodeEqualToValue(
       &address_space->free_chunks_by_address, address + (pages * PAGE_SIZE),
       FreeMemoryRangeAddressFromAATreeNode);
-  if (node_after != NULL)
+  if (node_after != nullptr)
     block_after = FreeMemoryRangeFromNodeByAddress(node_after);
 
-  if (block_before != NULL) {
+  if (block_before != nullptr) {
     RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_before);
 
-    if (block_after != NULL) {
+    if (block_after != nullptr) {
       // Merge into the block before and after
       RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_after);
       // Expand the size of the block before.
@@ -560,7 +560,7 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
       block_before->pages += pages;
       AddFreeMemoryRangeToVirtualAddressSpace(address_space, block_before);
     }
-  } else if (block_after != NULL) {
+  } else if (block_after != nullptr) {
     // Merge into the block after.
     RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_after);
     // Expand and pull back the size of the block after.
@@ -571,7 +571,7 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
   } else {
     // Stand alone free memory range that can't merge into anything.
     struct FreeMemoryRange *fmr = AllocateFreeMemoryRange();
-    if (fmr == NULL) {
+    if (fmr == nullptr) {
       return;
     }
     fmr->start_address = address;
@@ -864,7 +864,7 @@ bool MarkVirtualAddressAsUsed(struct VirtualAddressSpace *address_space,
       &address_space->free_chunks_by_address, address,
       FreeMemoryRangeAddressFromAATreeNode);
 
-  if (node_before == NULL) {
+  if (node_before == nullptr) {
     // Memory is occupied.
     return false;
   }
@@ -900,7 +900,7 @@ bool MarkVirtualAddressAsUsed(struct VirtualAddressSpace *address_space,
     // Split this free memory block into two.
 
     struct FreeMemoryRange *block_after = AllocateFreeMemoryRange();
-    if (block_after == NULL) {
+    if (block_after == nullptr) {
       // Out of memory, undo what we did above.
       AddFreeMemoryRangeToVirtualAddressSpace(address_space, block_before);
       return false;
@@ -1257,7 +1257,7 @@ void FreeAddressSpace(struct VirtualAddressSpace *address_space) {
 
   // Walk through the link of FreeMemoryRange objects and release them.
   struct FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
-  while (current_fmr != NULL) {
+  while (current_fmr != nullptr) {
     struct FreeMemoryRange *next = current_fmr->next;
     ReleaseFreeMemoryRange(current_fmr);
     current_fmr = next;
@@ -1286,7 +1286,7 @@ void FlushVirtualPage(size_t addr) {
 #endif
 }
 
-// Maps shared memory into a process's virtual address space. Returns NULL if
+// Maps shared memory into a process's virtual address space. Returns nullptr if
 // there was an issue.
 struct SharedMemoryInProcess *MapSharedMemoryIntoProcess(
     struct Process *process, struct SharedMemory *shared_memory) {
@@ -1295,16 +1295,16 @@ struct SharedMemoryInProcess *MapSharedMemoryIntoProcess(
       &process->virtual_address_space, shared_memory->size_in_pages);
   if (virtual_address == OUT_OF_MEMORY) {
     // No space to allocate these pages to!
-    return NULL;
+    return nullptr;
   }
 
   struct SharedMemoryInProcess *shared_memory_in_process =
       AllocateSharedMemoryInProcess();
-  if (shared_memory_in_process == NULL) {
+  if (shared_memory_in_process == nullptr) {
     // Out of memory.
     MarkAddressRangeAsFree(&process->virtual_address_space, virtual_address,
                            shared_memory->size_in_pages);
-    return NULL;
+    return nullptr;
   }
 
 #ifdef DEBUG
@@ -1328,7 +1328,7 @@ struct SharedMemoryInProcess *MapSharedMemoryIntoProcess(
   process->shared_memory = shared_memory_in_process;
 
   // Add the process to the shared memory.
-  shared_memory_in_process->previous_in_shared_memory = NULL;
+  shared_memory_in_process->previous_in_shared_memory = nullptr;
   shared_memory_in_process->next_in_shared_memory =
       shared_memory->first_process;
   shared_memory->first_process = shared_memory_in_process;
@@ -1380,12 +1380,12 @@ void UnmapSharedMemoryFromProcess(
   } else {
     // Iterate through until we find it.
     struct SharedMemoryInProcess *previous = process->shared_memory;
-    while (previous != NULL &&
+    while (previous != nullptr &&
            previous->next_in_process != shared_memory_in_process) {
       previous = previous->next_in_process;
     }
 
-    if (previous == NULL) {
+    if (previous == nullptr) {
       PrintString(
           "Shared memory can't be unmapped from a process that "
           "it's not mapped to.\n");
@@ -1399,14 +1399,14 @@ void UnmapSharedMemoryFromProcess(
   // Remove from the linked list in the shared memory.
   struct SharedMemory *shared_memory = shared_memory_in_process->shared_memory;
 
-  if (shared_memory_in_process->previous_in_shared_memory == NULL) {
+  if (shared_memory_in_process->previous_in_shared_memory == nullptr) {
     shared_memory->first_process =
         shared_memory_in_process->next_in_shared_memory;
   } else {
     shared_memory_in_process->previous_in_shared_memory->next_in_shared_memory =
         shared_memory_in_process->next_in_shared_memory;
   }
-  if (shared_memory_in_process->next_in_shared_memory != NULL) {
+  if (shared_memory_in_process->next_in_shared_memory != nullptr) {
     shared_memory_in_process->next_in_shared_memory->previous_in_shared_memory =
         shared_memory_in_process->previous_in_shared_memory;
   }

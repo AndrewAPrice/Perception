@@ -6,15 +6,15 @@
 #else
 
 // Copies `count` bytes from `src` to `dest`.
-extern void memcpy(unsigned char *dest, const unsigned char *src, size_t count);
+extern void memcpy(char *dest, const char *src, size_t count);
 
 // Sets `count` bytes in `dest` to `val`.
-extern void memset(unsigned char *dest, unsigned char val, size_t count);
+extern void memset(char *dest, char val, size_t count);
 #endif
 
 // Copies a string.
-extern void CopyString(const unsigned char *source, size_t buffer_size,
-                       size_t strlen, unsigned char *dest);
+extern void CopyString(const char *source, size_t buffer_size,
+                       size_t strlen, char *dest);
 
 #ifndef __TEST__
 // Compares two strings and returns if they're equal.

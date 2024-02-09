@@ -38,7 +38,7 @@ uint32* tss;
 // Initializes the task segment structure.
 void InitializeTss() {
   // Allocate and clear the TSS.
-  tss = malloc(TSS_SIZE);
+  tss = (uint32*)malloc(TSS_SIZE);
   memset((char*)tss, 0, TSS_SIZE);
 
   // Set the TSS entry in the GDT.

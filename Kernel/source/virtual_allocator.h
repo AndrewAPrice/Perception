@@ -125,7 +125,7 @@ extern void SwitchToAddressSpace(struct VirtualAddressSpace *address_space);
 // Flush the CPU lookup for a particular virtual address.
 extern void FlushVirtualPage(size_t addr);
 
-// Maps shared memory into a process's virtual address space. Returns NULL if
+// Maps shared memory into a process's virtual address space. Returns nullptr if
 // there was an issue.
 extern struct SharedMemoryInProcess *MapSharedMemoryIntoProcess(
     struct Process *process, struct SharedMemory *shared_memory);

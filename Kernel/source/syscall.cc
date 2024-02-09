@@ -20,7 +20,7 @@
 // Uncomment for debug printing.
 // #define DEBUG
 
-extern void syscall_entry();
+extern "C" void syscall_entry();
 
 // MSR that contains the kernel's SYSCALL entrypoint.
 #define LSTAR 0xC0000082
@@ -111,10 +111,10 @@ void InitializeSystemCalls() {
 #define SEND_MESSAGE_AT_TIMESTAMP 24
 #define GET_CURRENT_TIMESTAMP 25
 
-extern void JumpIntoThread();
+extern "C" void JumpIntoThread();
 extern void PrintStackTrace();
 
-void SyscallHandler(int syscall_number) {
+extern "C" void SyscallHandler(int syscall_number) {
 #ifdef DEBUG
   PrintString("Entering syscall ");
   PrintString(GetSystemCallName(syscall_number));
@@ -137,7 +137,7 @@ void SyscallHandler(int syscall_number) {
     case PRINT_DEBUG_CHARACTER:
       PrintChar((unsigned char)currently_executing_thread_regs->rax);
       break;
-    case PRINT_REGISTERS_AND_STACK:
+    case PRINT_REGISTERS_AND_STACK: {
       PrintString("Dump requested by PID ");
       struct Process *process = running_thread->process;
       PrintNumber(running_thread->process->pid);
@@ -149,6 +149,7 @@ void SyscallHandler(int syscall_number) {
 
       PrintRegistersAndStackTrace();
       break;
+    }
     case CREATE_THREAD: {
       struct Thread *new_thread = CreateThread(
           running_thread->process, currently_executing_thread_regs->rax,
@@ -271,7 +272,7 @@ void SyscallHandler(int syscall_number) {
               running_thread->process, currently_executing_thread_regs->rax,
               currently_executing_thread_regs->rbx,
               currently_executing_thread_regs->rdx);
-      if (shared_memory == NULL) {
+      if (shared_memory == nullptr) {
         // Could not create the shared memory block.
         currently_executing_thread_regs->rax = 0;
         currently_executing_thread_regs->rbx = 0;
@@ -286,7 +287,7 @@ void SyscallHandler(int syscall_number) {
       struct SharedMemoryInProcess *shared_memory = JoinSharedMemory(
           running_thread->process, currently_executing_thread_regs->rax);
 
-      if (shared_memory == NULL) {
+      if (shared_memory == nullptr) {
         // Could not join the shared memory block.
         currently_executing_thread_regs->rax = 0;
         currently_executing_thread_regs->rbx = 0;
@@ -356,7 +357,7 @@ void SyscallHandler(int syscall_number) {
     case TERMINATE_PROCESS: {
       struct Process *process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
-      if (process == NULL) {
+      if (process == nullptr) {
         break;
       }
       bool currently_running_process = process == running_thread->process;
@@ -388,9 +389,9 @@ void SyscallHandler(int syscall_number) {
       size_t processes_found = 0;
       struct Process *process =
           GetProcessOrNextFromPid(currently_executing_thread_regs->rbp);
-      while (process != NULL) {
+      while (process != nullptr) {
         process = FindNextProcessWithName((char *)process_name, process);
-        if (process != NULL) {
+        if (process != nullptr) {
           if (processes_found < 12) pids[processes_found] = process->pid;
 
           processes_found++;
@@ -417,7 +418,7 @@ void SyscallHandler(int syscall_number) {
     case GET_NAME_OF_PROCESS: {
       struct Process *process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
-      if (process == NULL) {
+      if (process == nullptr) {
         currently_executing_thread_regs->rdi = 0;
       } else {
         currently_executing_thread_regs->rdi = 1;
@@ -441,7 +442,7 @@ void SyscallHandler(int syscall_number) {
 
       struct Process *target =
           GetProcessFromPid(currently_executing_thread_regs->rax);
-      if (target == NULL) {
+      if (target == nullptr) {
         // The target process we want to be notified of when it dies
         // doesn't exist. It's possible that is just died, so whatever
         // the case, the safest thing to do here is to imemdiately send
@@ -476,7 +477,7 @@ void SyscallHandler(int syscall_number) {
           CreateChildProcess(running_thread->process, (char *)process_name,
                              currently_executing_thread_regs->rdi);
       currently_executing_thread_regs->rax =
-          (child_process == ERROR) ? 0 : child_process->pid;
+          ((size_t)child_process == ERROR) ? 0 : child_process->pid;
       break;
     }
     case SET_CHILD_PROCESS_MEMORY_PAGE: {
@@ -559,7 +560,7 @@ void SyscallHandler(int syscall_number) {
       size_t services_found = 0;
       for (struct Service *service = FindNextServiceByPidAndMidWithName(
                (char *)service_name, min_pid, min_sid);
-           service != NULL;
+           service != nullptr;
            service = FindNextServiceWithName((char *)service_name, service)) {
         if (services_found < 6) {
           pids[services_found] = service->process->pid;
@@ -587,7 +588,7 @@ void SyscallHandler(int syscall_number) {
       size_t pid = currently_executing_thread_regs->rax;
       size_t sid = currently_executing_thread_regs->rbx;
       struct Service *service = FindServiceByProcessAndMid(pid, sid);
-      if (service == NULL) {
+      if (service == nullptr) {
         currently_executing_thread_regs->rdi = 0;
       } else {
         currently_executing_thread_regs->rdi = 1;

@@ -23,14 +23,14 @@ struct Process *last_process;
 // Initializes the internal structures for tracking processes.
 void InitializeProcesses() {
   last_assigned_pid = 0;
-  first_process = NULL;
-  last_process = NULL;
+  first_process = nullptr;
+  last_process = nullptr;
 }
 
 // Creates a process, returns ERROR if there was an error.
 struct Process *CreateProcess(bool is_driver, bool can_create_processes) {
   // Create a memory space for it.
-  struct Process *proc = malloc(sizeof(struct Process));
+  struct Process *proc = (struct Process*)malloc(sizeof(struct Process));
   if (proc == 0) {
     // Out of memory.
     return (struct Process *)ERROR;
@@ -39,8 +39,7 @@ struct Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->can_create_processes = can_create_processes;
 
   // Assign a name and process ID.
-  memset((unsigned char *)proc->name, 0,
-         PROCESS_NAME_LENGTH);  // Clear the name.
+  memset((char *)proc->name, 0, PROCESS_NAME_LENGTH);  // Clear the name.
   last_assigned_pid++;
   proc->pid = last_assigned_pid;
 
@@ -51,40 +50,40 @@ struct Process *CreateProcess(bool is_driver, bool can_create_processes) {
   }
   proc->allocated_pages = 0;
 
-  // Various linked lists of that should be initialized to NULL.
-  proc->parent = NULL;
-  proc->child_processes = NULL;
-  proc->next_child_process_in_parent = NULL;
-  proc->next_message = NULL;
-  proc->last_message = NULL;
+  // Various linked lists of that should be initialized to nullptr.
+  proc->parent = nullptr;
+  proc->child_processes = nullptr;
+  proc->next_child_process_in_parent = nullptr;
+  proc->next_message = nullptr;
+  proc->last_message = nullptr;
   proc->messages_queued = 0;
-  proc->thread_sleeping_for_message = NULL;
-  proc->message_to_fire_on_interrupt = NULL;
-  proc->processes_to_notify_when_i_die = NULL;
-  proc->processes_i_want_to_be_notified_of_when_they_die = NULL;
-  proc->services_i_want_to_be_notified_of_when_they_appear = NULL;
-  proc->first_service = NULL;
-  proc->last_service = NULL;
-  proc->shared_memory = NULL;
-  proc->timer_event = NULL;
+  proc->thread_sleeping_for_message = nullptr;
+  proc->message_to_fire_on_interrupt = nullptr;
+  proc->processes_to_notify_when_i_die = nullptr;
+  proc->processes_i_want_to_be_notified_of_when_they_die = nullptr;
+  proc->services_i_want_to_be_notified_of_when_they_appear = nullptr;
+  proc->first_service = nullptr;
+  proc->last_service = nullptr;
+  proc->shared_memory = nullptr;
+  proc->timer_event = nullptr;
 
   // Threads.
   proc->threads = 0;
   proc->thread_count = 0;
 
   // Add to the linked list of running processes.
-  if (first_process == NULL) {
+  if (first_process == nullptr) {
     // No running processes.
     first_process = proc;
     last_process = proc;
-    proc->previous = NULL;
+    proc->previous = nullptr;
   } else {
     last_process->next = proc;
     proc->previous = last_process;
     last_process = proc;
   }
 
-  proc->next = NULL;
+  proc->next = nullptr;
 
   return proc;
 }
@@ -93,7 +92,7 @@ struct Process *CreateProcess(bool is_driver, bool can_create_processes) {
 // linked lists.
 void ReleaseNotification(struct ProcessToNotifyOnExit *notification) {
   // Remove from target.
-  if (notification->previous_in_target == NULL) {
+  if (notification->previous_in_target == nullptr) {
     notification->target->processes_to_notify_when_i_die =
         notification->next_in_target;
   } else {
@@ -101,13 +100,13 @@ void ReleaseNotification(struct ProcessToNotifyOnExit *notification) {
         notification->next_in_target;
   }
 
-  if (notification->next_in_target != NULL) {
+  if (notification->next_in_target != nullptr) {
     notification->next_in_target->previous_in_target =
         notification->previous_in_target;
   }
 
   // Remove from notifyee.
-  if (notification->previous_in_notifyee == NULL) {
+  if (notification->previous_in_notifyee == nullptr) {
     notification->notifyee->processes_i_want_to_be_notified_of_when_they_die =
         notification->next_in_notifyee;
   } else {
@@ -115,7 +114,7 @@ void ReleaseNotification(struct ProcessToNotifyOnExit *notification) {
         notification->next_in_notifyee;
   }
 
-  if (notification->next_in_notifyee != NULL) {
+  if (notification->next_in_notifyee != nullptr) {
     notification->next_in_notifyee->previous_in_notifyee =
         notification->previous_in_notifyee;
   }
@@ -124,18 +123,18 @@ void ReleaseNotification(struct ProcessToNotifyOnExit *notification) {
 }
 
 // Removes a child process of a parent, and returns true if the process was a
-// non-NULL child of the parent before removal.
+// non-nullptr child of the parent before removal.
 bool RemoveChildProcessOfParent(struct Process *parent, struct Process *child) {
-  if (child == NULL) return false;
+  if (child == nullptr) return false;
 
-  if (parent->child_processes == NULL) return false;  // Parent has no children.
+  if (parent->child_processes == nullptr) return false;  // Parent has no children.
   if (child->parent != parent) return false;
 
   // Check if the child is the first child of the parent.
   if (child == parent->child_processes) {
     // Remove from the start of the linked list.
     parent->child_processes = child->next_child_process_in_parent;
-    child->parent = NULL;
+    child->parent = nullptr;
     return true;
   }
 
@@ -144,13 +143,13 @@ bool RemoveChildProcessOfParent(struct Process *parent, struct Process *child) {
   struct Process *child_in_parent =
       previous_child->next_child_process_in_parent;
 
-  while (child_in_parent != NULL) {
+  while (child_in_parent != nullptr) {
     if (child_in_parent == child) {
       // Found the child in the parent. Point the previous child to the next
       // child.
       previous_child->next_child_process_in_parent =
           child_in_parent->next_child_process_in_parent;
-      child->parent = NULL;
+      child->parent = nullptr;
       return true;
     }
 
@@ -165,7 +164,7 @@ bool RemoveChildProcessOfParent(struct Process *parent, struct Process *child) {
 // Destroys a process.
 void DestroyProcess(struct Process *process) {
   // Destroy child processes that haven't started.
-  while (process->child_processes != NULL) {
+  while (process->child_processes != nullptr) {
     DestroyProcess(process->child_processes);
   }
 
@@ -175,33 +174,33 @@ void DestroyProcess(struct Process *process) {
   // Destroy all threads.
   DestroyThreadsForProcess(process, true);
 
-  if (process->message_to_fire_on_interrupt != NULL)
+  if (process->message_to_fire_on_interrupt != nullptr)
     UnregisterAllMessagesToForOnInterruptForProcess(process);
 
-  while (process->services_i_want_to_be_notified_of_when_they_appear != NULL)
+  while (process->services_i_want_to_be_notified_of_when_they_appear != nullptr)
     StopNotifyingProcessWhenServiceAppears(
         process->services_i_want_to_be_notified_of_when_they_appear);
 
-  while (process->first_service != NULL)
+  while (process->first_service != nullptr)
     UnregisterService(process->first_service);
 
-  if (process->timer_event != NULL) CancelAllTimerEventsForProcess(process);
+  if (process->timer_event != nullptr) CancelAllTimerEventsForProcess(process);
 
   // Release any shared memory mapped into this process.
-  while (process->shared_memory != NULL)
+  while (process->shared_memory != nullptr)
     UnmapSharedMemoryFromProcess(process, process->shared_memory);
 
   // Free the address space.
   FreeAddressSpace(&process->virtual_address_space);
 
   // Free all notifications I was waiting on for processes to die.
-  while (process->processes_i_want_to_be_notified_of_when_they_die != NULL) {
+  while (process->processes_i_want_to_be_notified_of_when_they_die != nullptr) {
     ReleaseNotification(
         process->processes_i_want_to_be_notified_of_when_they_die);
   }
 
   // Notify the processes that were wanting to know when this process died.
-  while (process->processes_to_notify_when_i_die != NULL) {
+  while (process->processes_to_notify_when_i_die != nullptr) {
     SendKernelMessageToProcess(
         process->processes_to_notify_when_i_die->notifyee,
         process->processes_to_notify_when_i_die->event_id, process->pid, 0, 0,
@@ -210,13 +209,13 @@ void DestroyProcess(struct Process *process) {
   }
 
   // Remove from linked list.
-  if (process->previous == NULL) {
+  if (process->previous == nullptr) {
     first_process = process->next;
   } else {
     process->previous->next = process->next;
   }
 
-  if (process->next == NULL) {
+  if (process->next == nullptr) {
     last_process = process->previous;
   } else {
     process->next->previous = process->previous;
@@ -230,43 +229,43 @@ void DestroyProcess(struct Process *process) {
 extern void NotifyProcessOnDeath(struct Process *target,
                                  struct Process *notifyee, size_t event_id) {
   struct ProcessToNotifyOnExit *notification = AllocateProcessToNotifyOnExit();
-  if (notification == NULL) return;
+  if (notification == nullptr) return;
 
   notification->target = target;
   notification->notifyee = notifyee;
   notification->event_id = event_id;
 
-  notification->previous_in_target = NULL;
+  notification->previous_in_target = nullptr;
   notification->next_in_target = target->processes_to_notify_when_i_die;
   target->processes_to_notify_when_i_die = notification;
 
-  notification->previous_in_notifyee = NULL;
+  notification->previous_in_notifyee = nullptr;
   notification->next_in_notifyee =
       notifyee->processes_i_want_to_be_notified_of_when_they_die;
   notifyee->processes_i_want_to_be_notified_of_when_they_die = notification;
 }
 
-// Returns a process with the provided pid, returns NULL if it doesn't
+// Returns a process with the provided pid, returns nullptr if it doesn't
 // exist.
 struct Process *GetProcessFromPid(size_t pid) {
   // Walk through the linked list to find our process.
-  for (struct Process *proc = first_process; proc != NULL; proc = proc->next)
+  for (struct Process *proc = first_process; proc != nullptr; proc = proc->next)
     if (proc->pid == pid) return proc;
 
-  return (struct Process *)NULL;
+  return (struct Process *)nullptr;
 }
 
 // Returns a process with the provided pid, and if it doesn't exist, returns
-// the process with the next highest pid. Returns NULL if no process exists
+// the process with the next highest pid. Returns nullptr if no process exists
 // with a pid >= pid.
 struct Process *GetProcessOrNextFromPid(size_t pid) {
   // Walk through the linked list to find our process.
   struct Process *proc = first_process;
-  for (struct Process *proc = first_process; proc != NULL; proc = proc->next) {
+  for (struct Process *proc = first_process; proc != nullptr; proc = proc->next) {
     if (proc->pid >= pid) return proc;
   }
 
-  return (struct Process *)NULL;
+  return (struct Process *)nullptr;
 }
 
 // Do two process names (of length PROCESS_NAME_LENGTH) match?
@@ -278,14 +277,14 @@ bool DoProcessNamesMatch(const char *a, const char *b) {
 }
 
 // Returns the next process with the given name (which must be an array of
-// length PROCESS_NAME_LENGTH). last_process may be NULL if you want to fetch
-// the first process with the name. Returns NULL if there are no more processes
+// length PROCESS_NAME_LENGTH). last_process may be nullptr if you want to fetch
+// the first process with the name. Returns nullptr if there are no more processes
 // with the provided name.
 struct Process *FindNextProcessWithName(const char *name,
                                         struct Process *start_from) {
   struct Process *potential_process = start_from;
   // Loop over every process.
-  while (potential_process != NULL) {
+  while (potential_process != nullptr) {
     if (name[0] == 0 || DoProcessNamesMatch(name, potential_process->name))
       // We found a process with this name!
       return potential_process;
@@ -294,14 +293,14 @@ struct Process *FindNextProcessWithName(const char *name,
   }
 
   // No process was found with the name.
-  return NULL;
+  return nullptr;
 }
 
 // Creates a child process. The parent process must be allowed to create
 // children. Returns ERROR if there was an error.
 struct Process *CreateChildProcess(struct Process *parent, char *name,
                                    size_t bitfield) {
-  if (!parent->can_create_processes) return NULL;
+  if (!parent->can_create_processes) return nullptr;
   struct Process *child_process =
       CreateProcess(/*is_driver=*/bitfield & (1 << 0),
                     /*can_create_processes=*/bitfield & (1 << 2));
@@ -309,7 +308,7 @@ struct Process *CreateChildProcess(struct Process *parent, char *name,
     PrintString("Out of memory to create a new process: ");
     PrintString(name);
     PrintChar('\n');
-    return NULL;
+    return nullptr;
   }
 
   // Add to the linked list of children in the parent.
@@ -317,17 +316,17 @@ struct Process *CreateChildProcess(struct Process *parent, char *name,
   parent->child_processes = child_process;
   child_process->parent = parent;
 
-  CopyString((unsigned char *)name, PROCESS_NAME_LENGTH, PROCESS_NAME_LENGTH,
-             (unsigned char *)child_process->name);
+  CopyString((char *)name, PROCESS_NAME_LENGTH, PROCESS_NAME_LENGTH,
+             (char *)child_process->name);
   return child_process;
 }
 
 // Returns if a process is a child of a parent. Also returns false if the child
-// is NULL.
+// is nullptr.
 bool IsProcessAChildOfParent(struct Process *parent, struct Process *child) {
-  if (child == NULL) return false;
+  if (child == nullptr) return false;
   struct Process *proc = parent->child_processes;
-  while (proc != NULL) {
+  while (proc != nullptr) {
     if (proc == child) return true;
     proc = proc->next_child_process_in_parent;
   }

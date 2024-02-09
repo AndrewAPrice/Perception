@@ -125,16 +125,16 @@ extern void DestroyProcess(struct Process* process);
 extern void NotifyProcessOnDeath(struct Process* target,
                                  struct Process* notifyee, size_t event_id);
 
-// Returns a process with the provided pid, returns NULL if it doesn't exist.
+// Returns a process with the provided pid, returns nullptr if it doesn't exist.
 extern struct Process* GetProcessFromPid(size_t pid);
 
 // Returns a process with the provided pid, and if it doesn't exist, returns
-// the process with the next highest pid. Returns NULL if no process exists
+// the process with the next highest pid. Returns nullptr if no process exists
 // with a pid >= pid.
 extern struct Process* GetProcessOrNextFromPid(size_t pid);
 
 // Returns the next process with the given name (which must be an array of
-// length PROCESS_NAME_LENGTH). Returns NULL if there are no more processes
+// length PROCESS_NAME_LENGTH). Returns nullptr if there are no more processes
 // with the provided name. `start_from` is inclusive.
 extern struct Process* FindNextProcessWithName(const char* name,
                                                struct Process* start_from);

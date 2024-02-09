@@ -15,7 +15,7 @@
 struct Thread *first_awake_thread;
 struct Thread *last_awake_thread;
 
-// The currently executing thread. This can be NULL if all threads are asleep.
+// The currently executing thread. This can be nullptr if all threads are asleep.
 struct Thread *running_thread;
 
 // The idle registers to return to when no thread is awake. (This points us to
@@ -26,10 +26,10 @@ struct Registers *idle_regs;
 struct Registers *currently_executing_thread_regs;
 
 void InitializeScheduler() {
-  first_awake_thread = NULL;
-  last_awake_thread = NULL;
-  running_thread = NULL;
-  currently_executing_thread_regs = malloc(sizeof(struct Registers));
+  first_awake_thread = nullptr;
+  last_awake_thread = nullptr;
+  running_thread = nullptr;
+  currently_executing_thread_regs = (struct Registers*)malloc(sizeof(struct Registers));
   if (!currently_executing_thread_regs) {
     PrintString("Could not allocate object to store the kernel's registers.");
 #ifndef __TEST__
@@ -162,7 +162,7 @@ void UnscheduleThread(struct Thread *thread) {
 // Schedules a thread if we are currently halted - such as an interrupt
 // woke up a thread.
 void ScheduleThreadIfWeAreHalted() {
-  if (running_thread == NULL && first_awake_thread != NULL) {
+  if (running_thread == nullptr && first_awake_thread != nullptr) {
     // No thread was running, but there is a thread waiting to run.
     ScheduleNextThread();
   }

@@ -120,8 +120,8 @@ bool CopyIntoMemory(size_t from_start, size_t to_start, size_t to_end,
     PrintChar('\n');
 #endif
 
-    memcpy((unsigned char*)(temp_addr + offset_in_page_to_start_copying_at),
-           (unsigned char*)(from_start), copy_length);
+    memcpy((char*)(temp_addr + offset_in_page_to_start_copying_at),
+           (char*)(from_start), copy_length);
 
     from_start += copy_length;
   }
@@ -168,7 +168,7 @@ bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
         to_page + PAGE_SIZE > to_end ? to_end - to_page : PAGE_SIZE;
     size_t copy_length = offset_in_page_to_finish_copying_at -
                          offset_in_page_to_start_copying_at;
-    memset((unsigned char*)(temp_addr + offset_in_page_to_start_copying_at), 0,
+    memset((char*)(temp_addr + offset_in_page_to_start_copying_at), 0,
            copy_length);
   }
   return true;

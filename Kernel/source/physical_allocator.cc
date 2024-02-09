@@ -322,7 +322,7 @@ size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
   }
 
   // Clear out the page, so we don't leak anything from another process.
-  memset((unsigned char *)bp, 0, PAGE_SIZE);
+  memset((char *)bp, 0, PAGE_SIZE);
 
   free_pages--;
 

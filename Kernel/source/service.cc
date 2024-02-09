@@ -21,11 +21,11 @@
 // #define DEBUG
 
 struct ProcessToNotifyWhenServiceAppears*
-    first_process_to_be_notified_when_a_service_appears = NULL;
+    first_process_to_be_notified_when_a_service_appears = nullptr;
 
 // Initializes the internal structures for tracking services.
 void InitializeServices() {
-  first_process_to_be_notified_when_a_service_appears = NULL;
+  first_process_to_be_notified_when_a_service_appears = nullptr;
 }
 
 // Do two service names (of length SERVICE_NAME_LENGTH) match?
@@ -42,7 +42,7 @@ bool DoServiceNamesMatch(const char* a, const char* b) {
 void RegisterService(char* service_name, struct Process* process,
                      size_t message_id) {
   struct Service* service = AllocateService();
-  if (service == NULL) return;  // Out of memory.
+  if (service == nullptr) return;  // Out of memory.
   service->process = process;
   service->message_id = message_id;
   for (int i = 0; i < SERVICE_NAME_WORDS; i++)
@@ -55,10 +55,10 @@ void RegisterService(char* service_name, struct Process* process,
 #endif
 
   // Add to the linked list of services in the process.
-  if (process->first_service == NULL) {
+  if (process->first_service == nullptr) {
     // This is the process's only service.
-    service->previous_service_in_process = NULL;
-    service->next_service_in_process = NULL;
+    service->previous_service_in_process = nullptr;
+    service->next_service_in_process = nullptr;
     process->first_service = service;
     process->last_service = service;
   } else {
@@ -68,7 +68,7 @@ void RegisterService(char* service_name, struct Process* process,
     // order. We'll walk backwards from the end to find where to insert
     // us.
     struct Service* previous_service = process->last_service;
-    while (previous_service != NULL &&
+    while (previous_service != nullptr &&
            service->message_id < previous_service->message_id) {
       previous_service = previous_service->previous_service_in_process;
     }
@@ -79,9 +79,9 @@ void RegisterService(char* service_name, struct Process* process,
       return;
     }
 
-    if (previous_service == NULL) {
+    if (previous_service == nullptr) {
       // Add us to the beginning.
-      service->previous_service_in_process = NULL;
+      service->previous_service_in_process = nullptr;
       service->next_service_in_process = process->first_service;
       process->first_service->previous_service_in_process = service;
       process->first_service = service;
@@ -89,7 +89,7 @@ void RegisterService(char* service_name, struct Process* process,
       // Add us to the end.
       service->previous_service_in_process = process->last_service;
       process->last_service->next_service_in_process = service;
-      service->next_service_in_process = NULL;
+      service->next_service_in_process = nullptr;
       process->last_service = service;
     } else {
       // Slot us between two processes.
@@ -104,7 +104,7 @@ void RegisterService(char* service_name, struct Process* process,
   // Notify everyone listening for this new service.
   struct ProcessToNotifyWhenServiceAppears* notification =
       first_process_to_be_notified_when_a_service_appears;
-  while (notification != NULL) {
+  while (notification != nullptr) {
     if (DoServiceNamesMatch(service_name, notification->service_name)) {
       SendKernelMessageToProcess(notification->process,
                                  notification->message_id, process->pid,
@@ -117,7 +117,7 @@ void RegisterService(char* service_name, struct Process* process,
 // Unregisters a service, and notifies anybody listening.
 void UnregisterServiceByMessageId(struct Process* process, size_t message_id) {
   struct Service* service = process->first_service;
-  while (service != NULL && message_id <= service->message_id) {
+  while (service != nullptr && message_id <= service->message_id) {
     if (message_id == service->message_id) {
       return UnregisterService(service);
     }
@@ -130,7 +130,7 @@ void UnregisterService(struct Service* service) {
   // TODO: Notify everyone listening for this service to die.
 
   // Remove from the linked list of services in the process.
-  if (service->previous_service_in_process == NULL)
+  if (service->previous_service_in_process == nullptr)
     // We are the first service.
     service->process->first_service = service->next_service_in_process;
   else
@@ -138,7 +138,7 @@ void UnregisterService(struct Service* service) {
     service->previous_service_in_process->next_service_in_process =
         service->next_service_in_process;
 
-  if (service->next_service_in_process == NULL)
+  if (service->next_service_in_process == nullptr)
     // We are the last service.
     service->process->last_service = service->previous_service_in_process;
   else
@@ -151,15 +151,15 @@ void UnregisterService(struct Service* service) {
 
 struct Service* FindServiceByProcessAndMid(size_t pid, size_t message_id) {
   struct Process* process = GetProcessFromPid(pid);
-  if (process == NULL) return NULL;  // Process doesn't exist.
+  if (process == nullptr) return nullptr;  // Process doesn't exist.
 
-  for (struct Service* service = process->first_service; service != NULL;
+  for (struct Service* service = process->first_service; service != nullptr;
        service = service->next_service_in_process) {
     if (service->message_id == message_id)
       return service;  // Found the service we want.
   }
 
-  return NULL;  // Service doesn't exist in process.
+  return nullptr;  // Service doesn't exist in process.
 }
 
 // Returns the next service, starting at the provided process ID and message
@@ -175,10 +175,10 @@ struct Service* FindNextServiceByPidAndMidWithName(char* service_name,
 
   // We'll return if we find the next process, otherwise keep
   // looping and scanning the next processes for services.
-  while (process != NULL) {
+  while (process != nullptr) {
     struct Service* service = process->first_service;
     // Keep looping through services in this process.
-    while (service != NULL) {
+    while (service != nullptr) {
       // Does this message meet our min message id threshold
       // and also have the same service name that we're looking
       // for?
@@ -198,14 +198,14 @@ struct Service* FindNextServiceByPidAndMidWithName(char* service_name,
   }
 
   // Couldn't find any more services with this name.
-  return NULL;
+  return nullptr;
 }
 
-// Returns the next service, or NULL if there are no more services.
+// Returns the next service, or nullptr if there are no more services.
 struct Service* FindNextServiceWithName(char* service_name,
                                         struct Service* previous_service) {
   // We're out of services.
-  if (previous_service == NULL) return NULL;
+  if (previous_service == nullptr) return nullptr;
 
   // Remember the process we're starting from.
   struct Process* process = previous_service->process;
@@ -215,9 +215,9 @@ struct Service* FindNextServiceWithName(char* service_name,
   struct Service* service = previous_service->next_service_in_process;
 
   // While we still have processes.
-  while (process != NULL) {
+  while (process != nullptr) {
     // While we still have in this process.
-    while (service != NULL) {
+    while (service != nullptr) {
       // Does this service have the same name that we're
       // looking for?
       if (service_name[0] == 0 ||
@@ -231,9 +231,9 @@ struct Service* FindNextServiceWithName(char* service_name,
 
     // Jump to the next process.
     process = process->next;
-    if (process != NULL) service = process->first_service;
+    if (process != nullptr) service = process->first_service;
   }
-  return NULL;
+  return nullptr;
 }
 
 // Registers that we want this process to be notified when a service of the
@@ -244,7 +244,7 @@ void NotifyProcessWhenServiceAppears(char* service_name,
                                      size_t message_id) {
   struct ProcessToNotifyWhenServiceAppears* notification =
       AllocateProcessToNotifyWhenServiceAppears();
-  if (notification == NULL) return;  // Out of memory.
+  if (notification == nullptr) return;  // Out of memory.
 
   // Construct the object.
   notification->process = process;
@@ -253,9 +253,9 @@ void NotifyProcessWhenServiceAppears(char* service_name,
     ((size_t*)notification->service_name)[i] = ((size_t*)service_name)[i];
 
   // Add to global linked list.
-  notification->previous_notification = NULL;
-  if (first_process_to_be_notified_when_a_service_appears == NULL) {
-    notification->next_notification = NULL;
+  notification->previous_notification = nullptr;
+  if (first_process_to_be_notified_when_a_service_appears == nullptr) {
+    notification->next_notification = nullptr;
   } else {
     notification->next_notification =
         first_process_to_be_notified_when_a_service_appears;
@@ -265,9 +265,9 @@ void NotifyProcessWhenServiceAppears(char* service_name,
   first_process_to_be_notified_when_a_service_appears = notification;
 
   // Add to linked list in process.
-  notification->previous_notification_in_process = NULL;
-  if (process->services_i_want_to_be_notified_of_when_they_appear == NULL) {
-    notification->next_notification_in_process = NULL;
+  notification->previous_notification_in_process = nullptr;
+  if (process->services_i_want_to_be_notified_of_when_they_appear == nullptr) {
+    notification->next_notification_in_process = nullptr;
   } else {
     notification->next_notification_in_process =
         process->services_i_want_to_be_notified_of_when_they_appear;
@@ -279,9 +279,9 @@ void NotifyProcessWhenServiceAppears(char* service_name,
   // Loop through all services and send the process a message for any that
   // match the name we are listening for.
   struct Process* process_to_scan = GetProcessOrNextFromPid(0);
-  while (process_to_scan != NULL) {
+  while (process_to_scan != nullptr) {
     struct Service* service = process_to_scan->first_service;
-    while (service != NULL) {
+    while (service != nullptr) {
       if (DoServiceNamesMatch(service_name, service->name)) {
         SendKernelMessageToProcess(process, message_id, service->process->pid,
                                    service->message_id, 0, 0, 0);
@@ -301,7 +301,7 @@ void StopNotifyingProcessWhenServiceAppearsByMessageId(struct Process* process,
 
   // There might be multiple notification with the same message ID,
   // so we will unregister them all.
-  while (notification != NULL) {
+  while (notification != nullptr) {
     struct ProcessToNotifyWhenServiceAppears* next_notification =
         notification->next_notification_in_process;
     if (notification->message_id == message_id)
@@ -315,20 +315,20 @@ void StopNotifyingProcessWhenServiceAppearsByMessageId(struct Process* process,
 void StopNotifyingProcessWhenServiceAppears(
     struct ProcessToNotifyWhenServiceAppears* notification) {
   // Remove from global linked list.
-  if (notification->previous_notification == NULL) {
+  if (notification->previous_notification == nullptr) {
     first_process_to_be_notified_when_a_service_appears =
         notification->next_notification;
   } else {
     notification->previous_notification->next_notification =
         notification->next_notification;
   }
-  if (notification->next_notification != NULL) {
+  if (notification->next_notification != nullptr) {
     notification->next_notification->previous_notification =
         notification->previous_notification;
   }
 
   // Remove from process's linked list.
-  if (notification->previous_notification_in_process == NULL) {
+  if (notification->previous_notification_in_process == nullptr) {
     notification->process->services_i_want_to_be_notified_of_when_they_appear =
         notification->next_notification_in_process;
   } else {
@@ -336,7 +336,7 @@ void StopNotifyingProcessWhenServiceAppears(
         ->next_notification_in_process =
         notification->next_notification_in_process;
   }
-  if (notification->next_notification_in_process != NULL) {
+  if (notification->next_notification_in_process != nullptr) {
     notification->next_notification_in_process
         ->previous_notification_in_process =
         notification->previous_notification_in_process;

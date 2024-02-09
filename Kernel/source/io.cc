@@ -3,7 +3,7 @@
 #ifdef __TEST__
 #include <stdio.h>
 #else
-void memcpy(unsigned char *dest, const unsigned char *src, size_t count) {
+void memcpy(char *dest, const char *src, size_t count) {
   while (count > 0) {
     *dest = *src;
     dest++;
@@ -12,7 +12,7 @@ void memcpy(unsigned char *dest, const unsigned char *src, size_t count) {
   }
 }
 
-void memset(unsigned char *dest, unsigned char val, size_t count) {
+void memset(char *dest, char val, size_t count) {
   while (count > 0) {
     *dest = val;
     dest++;
@@ -21,8 +21,8 @@ void memset(unsigned char *dest, unsigned char val, size_t count) {
 }
 #endif
 
-void CopyString(const unsigned char *source, size_t buffer_size, size_t strlen,
-                unsigned char *dest) {
+void CopyString(const char *source, size_t buffer_size, size_t strlen,
+                char *dest) {
   // Leave room for a null terminator.
   if (strlen > buffer_size - 1) {
     strlen = buffer_size - 1;

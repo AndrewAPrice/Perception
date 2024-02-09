@@ -32,6 +32,8 @@
 #define PAGE_FAULT 14
 
 // The first 32 interrupts are used for processor exceptions.
+extern "C" {
+
 extern void isr0();
 extern void isr1();
 extern void isr2();
@@ -64,6 +66,8 @@ extern void isr28();
 extern void isr29();
 extern void isr30();
 extern void isr31();
+
+}  // extern "C"
 
 // Register the CPU exception interrupts.
 void RegisterExceptionInterrupts() {
@@ -104,7 +108,7 @@ void RegisterExceptionInterrupts() {
 }
 
 // Messages for each of the exceptions.
-char* exception_messages[] = {
+const char* exception_messages[] = {
     "Division By Zero",         /* 0 */
     "Debug",                    /* 1 */
     "Non Maskable Interrupt",   /* 2 */
@@ -139,7 +143,7 @@ char* exception_messages[] = {
     "Reserved"                  /* 31 */
 };
 
-extern void JumpIntoThread();
+extern "C" void JumpIntoThread();
 
 void PrintStackTrace() {
   struct VirtualAddressSpace* address_space =
@@ -198,8 +202,8 @@ void PrintRegistersAndStackTrace() {
 }
 
 // The exception handler.
-void ExceptionHandler(int exception_no, size_t cr2, size_t error_code) {
-  if (exception_no == PAGE_FAULT && running_thread != NULL) {
+extern "C" void ExceptionHandler(int exception_no, size_t cr2, size_t error_code) {
+  if (exception_no == PAGE_FAULT && running_thread != nullptr) {
     if (MaybeHandleSharedMessagePageFault(cr2))
       JumpIntoThread();  // Doesn't return.
   }
@@ -220,7 +224,7 @@ void ExceptionHandler(int exception_no, size_t cr2, size_t error_code) {
 
   // The below code doesn't take into account if kernel code caused an
   // exception - such as in a syscall or an interrupt handler.
-  if (running_thread != NULL) {
+  if (running_thread != nullptr) {
     PrintString(" by PID ");
     struct Process* process = running_thread->process;
     PrintNumber(process->pid);

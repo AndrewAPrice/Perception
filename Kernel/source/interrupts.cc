@@ -29,6 +29,8 @@
 
 // #define DEBUG
 
+extern "C" {
+
 extern void irq0();
 extern void irq1();
 extern void irq2();
@@ -45,6 +47,8 @@ extern void irq12();
 extern void irq13();
 extern void irq14();
 extern void irq15();
+
+}  // extern "C"
 
 // The top of the interrupt's stack.
 size_t interrupt_stack_top;
@@ -69,8 +73,8 @@ struct MessageToFireOnInterrupt {
 
 // A list of messages pointers to our IRQ handlers.
 struct MessageToFireOnInterrupt* messages_to_fire_on_interrupt[16] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 // Remaps hardware interrupts 0->15 to 32->47 on the Interrupt Descriptor Table
 // to not overlap with CPU exceptions.
@@ -150,7 +154,7 @@ void RegisterMessageToSendOnInterrupt(size_t interrupt_number,
   interrupt_number &= 0xF;
 
   struct MessageToFireOnInterrupt* message =
-      malloc(sizeof(struct MessageToFireOnInterrupt));
+       (struct MessageToFireOnInterrupt*)malloc(sizeof(struct MessageToFireOnInterrupt));
   message->process = process;
   message->message_id = message_id;
   message->interrupt_number = (uint8)interrupt_number;
@@ -177,14 +181,14 @@ void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
   interrupt_number &= 0xF;
 
   // Remove all matching messages from the interrupt's list.
-  struct MessageToFireOnInterrupt* previous = NULL;
+  struct MessageToFireOnInterrupt* previous = nullptr;
   struct MessageToFireOnInterrupt* current =
       messages_to_fire_on_interrupt[interrupt_number];
-  while (current != NULL) {
+  while (current != nullptr) {
     struct MessageToFireOnInterrupt* next = current->next_message_for_interrupt;
     if (current->process == process && current->message_id == message_id) {
       // We found the message!
-      if (previous == NULL) {
+      if (previous == nullptr) {
         messages_to_fire_on_interrupt[interrupt_number] = next;
       } else {
         previous->next_message_for_interrupt = next;
@@ -196,14 +200,14 @@ void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
   }
 
   // Remove (and release) all matching messages from the process's list.
-  previous = NULL;
+  previous = nullptr;
   current = process->message_to_fire_on_interrupt;
-  while (current != NULL) {
+  while (current != nullptr) {
     struct MessageToFireOnInterrupt* next = current->next_message_for_process;
     if (current->interrupt_number == interrupt_number &&
         current->message_id == message_id) {
       // We found the message!
-      if (previous == NULL) {
+      if (previous == nullptr) {
         process->message_to_fire_on_interrupt = next;
       } else {
         previous->next_message_for_process = next;
@@ -219,7 +223,7 @@ void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
 
 // Unregisters all messages for a process.
 void UnregisterAllMessagesToForOnInterruptForProcess(struct Process* process) {
-  while (process->message_to_fire_on_interrupt != NULL) {
+  while (process->message_to_fire_on_interrupt != nullptr) {
     // Remove this message from the process's list.
     struct MessageToFireOnInterrupt* message =
         process->message_to_fire_on_interrupt;
@@ -227,16 +231,16 @@ void UnregisterAllMessagesToForOnInterruptForProcess(struct Process* process) {
 
     // Remove this message for the interrupt's list.
     int interrupt_number = message->interrupt_number & 0xF;
-    struct MessageToFireOnInterrupt* previous = NULL;
+    struct MessageToFireOnInterrupt* previous = nullptr;
     struct MessageToFireOnInterrupt* current =
         messages_to_fire_on_interrupt[interrupt_number];
 
-    while (current != NULL) {
+    while (current != nullptr) {
       struct MessageToFireOnInterrupt* next =
           current->next_message_for_interrupt;
       if (current == message) {
         // We found the message!
-        if (previous == NULL) {
+        if (previous == nullptr) {
           messages_to_fire_on_interrupt[interrupt_number] = next;
         } else {
           previous->next_message_for_interrupt = next;
@@ -252,7 +256,7 @@ void UnregisterAllMessagesToForOnInterruptForProcess(struct Process* process) {
 }
 
 // The common handler that is called when a hardware interrupt occurs.
-void CommonHardwareInterruptHandler(int interrupt_number) {
+extern "C" void CommonHardwareInterruptHandler(int interrupt_number) {
   if (interrupt_number == 0) {
     // The only hardware interrupt the microkernel knows about - the timer.
     TimerHandler();
@@ -260,7 +264,7 @@ void CommonHardwareInterruptHandler(int interrupt_number) {
     // Send messages to any processes listening for this interrupt.
     struct MessageToFireOnInterrupt* message =
         messages_to_fire_on_interrupt[interrupt_number];
-    while (message != NULL) {
+    while (message != nullptr) {
       SendKernelMessageToProcess(message->process, message->message_id, 0, 0, 0,
                                  0, 0);
       message = message->next_message_for_interrupt;

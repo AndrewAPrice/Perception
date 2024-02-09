@@ -43,7 +43,7 @@ bool IsPagingMessage(size_t metadata) { return (metadata & 1) == 1; }
 
 // Sends an message to a process.
 void SendMessageToProcess(struct Message* message, struct Process* receiver) {
-  if (receiver->thread_sleeping_for_message != NULL) {
+  if (receiver->thread_sleeping_for_message != nullptr) {
     // There is a thread sleeping for messages.
     if (receiver->messages_queued != 0) {
       // This should never happen.
@@ -74,7 +74,7 @@ void SendMessageToProcess(struct Message* message, struct Process* receiver) {
     return;
   }
 
-  if (receiver->last_message == NULL) {
+  if (receiver->last_message == nullptr) {
     // No messages are queued, this is the only one.
     receiver->next_message = message;
     receiver->last_message = message;
@@ -87,7 +87,7 @@ void SendMessageToProcess(struct Message* message, struct Process* receiver) {
   }
 
   // We're the last element on the list.
-  message->next_message = NULL;
+  message->next_message = nullptr;
 }
 
 // Can this process receive an message?
@@ -106,7 +106,7 @@ void SendKernelMessageToProcess(struct Process* receiver_process,
   }
 
   struct Message* message = AllocateMessage();
-  if (message == NULL) {
+  if (message == nullptr) {
     // Out of memory.
     return;
   }
@@ -138,7 +138,7 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
                                          ? sender_process
                                          : GetProcessFromPid(registers->rbx);
 
-  if (receiver_process == NULL) {
+  if (receiver_process == nullptr) {
     // Error, process doesn't exist.
     registers->rax = MS_PROCESS_DOESNT_EXIST;
     return;
@@ -151,7 +151,7 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
   }
 
   struct Message* message = AllocateMessage();
-  if (message == NULL) {
+  if (message == nullptr) {
     // Error, out of memory.
     registers->rax = MS_OUT_OF_MEMORY;
     return;
@@ -251,21 +251,21 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
   SendMessageToProcess(message, receiver_process);
 }
 
-// Gets the next message queued for a process. Returns NULL if there are no
+// Gets the next message queued for a process. Returns nullptr if there are no
 // messages queued.
 struct Message* GetNextQueuedMessage(struct Process* receiver) {
-  if (receiver->next_message == NULL) {
+  if (receiver->next_message == nullptr) {
     // No messages are queued.
-    return NULL;
+    return nullptr;
   }
 
   // Grab the message at the front of the list.
   struct Message* message = receiver->next_message;
   receiver->next_message = message->next_message;
 
-  if (receiver->next_message == NULL) {
+  if (receiver->next_message == nullptr) {
     // We removed the last item from the list.
-    receiver->last_message = NULL;
+    receiver->last_message = nullptr;
   }
 
   receiver->messages_queued--;
@@ -275,7 +275,7 @@ struct Message* GetNextQueuedMessage(struct Process* receiver) {
 // Loads the next queued message for the process into the thread.
 void LoadNextMessageIntoThread(struct Thread* thread) {
   struct Message* message = GetNextQueuedMessage(thread->process);
-  if (message == NULL) {
+  if (message == nullptr) {
     // There is no message queued.
     thread->registers->rax = ID_FOR_NO_EVENTS;
   } else {
@@ -293,7 +293,7 @@ bool SleepThreadUntilMessage(struct Thread* thread) {
   }
 
   // Check if there is an message queued.
-  if (thread->process->next_message != NULL) {
+  if (thread->process->next_message != nullptr) {
     LoadNextMessageIntoThread(thread);
     return false;
   }

@@ -28,9 +28,9 @@ void InitializeThreads() {
 // Createss a thread.
 struct Thread* CreateThread(struct Process* process, size_t entry_point,
                             size_t param) {
-  struct Thread* thread = malloc(sizeof(struct Thread));
-  if (thread == NULL) {
-    return NULL;
+  struct Thread* thread = (struct Thread*)malloc(sizeof(struct Thread));
+  if (thread == nullptr) {
+    return nullptr;
   }
 
   thread->process = process;
@@ -46,7 +46,7 @@ struct Thread* CreateThread(struct Process* process, size_t entry_point,
       &thread->process->virtual_address_space, STACK_PAGES);
 
   // Sets up the registers that our process will start with.
-  struct Registers* regs = malloc(sizeof(struct Registers));
+  struct Registers* regs = (struct Registers*)malloc(sizeof(struct Registers));
   thread->registers = regs;
 
   // Initialize our general purpose registers to 0.
@@ -82,7 +82,7 @@ struct Thread* CreateThread(struct Process* process, size_t entry_point,
   regs->ss = 0x18 | 3;  // Likewise with user data, not kernel data.
 
   // No thread segment.
-  thread->thread_segment_offset = (size_t)NULL;
+  thread->thread_segment_offset = (size_t)nullptr;
 
   // Sets up the processor's flags.
   regs->rflags =
@@ -93,15 +93,15 @@ struct Thread* CreateThread(struct Process* process, size_t entry_point,
 
   // The thread isn't initially awake until we schedule it.
   thread->awake = false;
-  thread->next_awake = NULL;
-  thread->previous_awake = NULL;
+  thread->next_awake = nullptr;
+  thread->previous_awake = nullptr;
 
   // The thread hasn't ran for any time slices yet.
   thread->time_slices = 0;
 
   // The thread isn't sleeping waiting for messages.
   thread->thread_is_waiting_for_message = false;
-  thread->next_thread_sleeping_for_messages = NULL;
+  thread->next_thread_sleeping_for_messages = nullptr;
 
   // Add this to the linked list of threads in the process.
   thread->previous = 0;
@@ -141,14 +141,14 @@ void DestroyThread(struct Thread* thread, bool process_being_destroyed) {
   // If this thread is waiting for a message, remove it from the process's
   // queue of threads waiting for messages.
   if (thread->thread_is_waiting_for_message) {
-    struct Thread* previous = NULL;
+    struct Thread* previous = nullptr;
     struct Thread* current = process->thread_sleeping_for_message;
 
-    while (current != NULL) {
+    while (current != nullptr) {
       struct Thread* next = current->next_thread_sleeping_for_messages;
       if (current == thread) {
         // We have found us in the list.
-        if (previous == NULL) {
+        if (previous == nullptr) {
           process->thread_sleeping_for_message = next;
         } else {
           previous->next_thread_sleeping_for_messages = next;
@@ -156,7 +156,7 @@ void DestroyThread(struct Thread* thread, bool process_being_destroyed) {
       }
       current = next;
     }
-    thread->next_thread_sleeping_for_messages = NULL;
+    thread->next_thread_sleeping_for_messages = nullptr;
   }
 
   // Remove this thread from the process's linked list of threads.
@@ -237,5 +237,5 @@ void LoadThreadSegment(struct Thread* thread) {
 }
 
 #ifdef __TEST__
-void JumpIntoThread() {}
+void "C" JumpIntoThread() {}
 #endif

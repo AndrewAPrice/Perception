@@ -48,7 +48,7 @@ void InitializeIdt() {
   idt_p.base = (size_t)idt;
 
   // Clear the IDT.
-  memset((unsigned char *)idt, 0, sizeof(struct idt_entry) * 256);
+  memset((char *)idt, 0, sizeof(struct idt_entry) * 256);
 
 // Load the new IDT pointer, which is in virtual address space.
 #ifndef __TEST__

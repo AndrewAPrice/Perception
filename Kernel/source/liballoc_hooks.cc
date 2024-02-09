@@ -1,8 +1,9 @@
 #ifndef __TEST__
-#include "../../third_party/liballoc.c"
 #include "physical_allocator.h"
 #include "text_terminal.h"
 #include "virtual_allocator.h"
+
+extern "C" {
 
 /** This function is supposed to lock the memory data structures. It
  * could be as simple as disabling interrupts or acquiring a spinlock.
@@ -33,7 +34,7 @@ int liballoc_unlock() {
  * accepts an integer parameter which is the number of pages
  * required.  The page size was set up in the liballoc_init function.
  *
- * \return NULL if the pages were not allocated.
+ * \return nullptr if the pages were not allocated.
  * \return A pointer to the allocated memory.
  */
 void* liballoc_alloc(size_t pages) {
@@ -54,4 +55,7 @@ int liballoc_free(void* addr, size_t pages) {
                                      true);
   return 0;
 }
+
+}  // extern "C"
+
 #endif
