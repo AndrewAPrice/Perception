@@ -16,7 +16,7 @@
 
 #include "liballoc.h"
 #include "messages.h"
-#include "object_pools.h"
+#include "object_pool.h"
 #include "physical_allocator.h"
 #include "process.h"
 #include "scheduler.h"
@@ -43,7 +43,7 @@ void InitializeSharedMemory() {
 struct SharedMemory* CreateSharedMemoryBlock(
     struct Process* process, size_t pages, size_t flags,
     size_t message_id_for_lazily_loaded_pages) {
-  struct SharedMemory* shared_memory = AllocateSharedMemory();
+  struct SharedMemory* shared_memory = ObjectPool<SharedMemory>::Allocate();
   if (shared_memory == nullptr) {
     return nullptr;
   }
@@ -57,7 +57,7 @@ struct SharedMemory* CreateSharedMemoryBlock(
 
   if (shared_memory->physical_pages == nullptr) {
     // Out of memory.
-    ReleaseSharedMemory(shared_memory);
+    ObjectPool<SharedMemory>::Release(shared_memory);
     return nullptr;
   }
 
@@ -85,7 +85,7 @@ struct SharedMemory* CreateSharedMemoryBlock(
       size_t physical_page = GetPhysicalPage();
       if (physical_page == OUT_OF_PHYSICAL_PAGES) {
         // Out of memory.
-        ReleaseSharedMemoryBlock(shared_memory);
+        ObjectPool<SharedMemory>::Release(shared_memory);
         return nullptr;
       }
       shared_memory->physical_pages[page] = physical_page;
@@ -111,7 +111,7 @@ struct SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
   struct SharedMemoryInProcess* shared_memory_in_process =
       MapSharedMemoryIntoProcess(process, shared_memory);
   if (shared_memory_in_process == nullptr) {
-    ReleaseSharedMemoryBlock(shared_memory);
+    ObjectPool<SharedMemory>::Release(shared_memory);
   }
   return shared_memory_in_process;
 }
@@ -155,7 +155,7 @@ void ReleaseSharedMemoryBlock(struct SharedMemory* shared_memory) {
   }
 
   // Release the SharedMemory object.
-  ReleaseSharedMemory(shared_memory);
+  ObjectPool<SharedMemory>::Release(shared_memory);
 }
 
 struct SharedMemory* GetSharedMemoryFromId(size_t shared_memory_id) {
@@ -275,8 +275,7 @@ void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
   if (shared_memory->physical_pages[page] != OUT_OF_PHYSICAL_PAGES)
     return;  // The memory is already allocated. Nothing to wait for.
 
-  struct ThreadWaitingForSharedMemoryPage* waiting_thread =
-      AllocateThreadWaitingForSharedMemoryPage();
+  auto waiting_thread = ObjectPool<ThreadWaitingForSharedMemoryPage>::Allocate();
   if (waiting_thread == nullptr) return;  // Out of memory.
 
   waiting_thread->thread = running_thread;
@@ -350,7 +349,7 @@ void MapSharedMemoryPageInEachProcess(struct SharedMemory* shared_memory,
       }
 
       struct ThreadWaitingForSharedMemoryPage* next = waiting_thread->next;
-      ReleaseThreadWaitingForSharedMemoryPage(waiting_thread);
+      ObjectPool<ThreadWaitingForSharedMemoryPage>::Release(waiting_thread);
       waiting_thread = next;
     } else {
       // This thread is waiting for another page.

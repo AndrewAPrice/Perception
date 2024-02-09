@@ -1,6 +1,6 @@
 #include "messages.h"
 
-#include "object_pools.h"
+#include "object_pool.h"
 #include "physical_allocator.h"
 #include "process.h"
 #include "registers.h"
@@ -35,7 +35,7 @@ void LoadMessageIntoThread(struct Message* message, struct Thread* thread) {
   registers->r10 = message->param4;
   registers->r12 = message->param5;
 
-  ReleaseMessage(message);
+  ObjectPool<Message>::Release(message);
 }
 
 // Is this a message that involves transferring memory pages?
@@ -105,7 +105,7 @@ void SendKernelMessageToProcess(struct Process* receiver_process,
     return;
   }
 
-  struct Message* message = AllocateMessage();
+  struct Message* message = ObjectPool<Message>::Allocate();
   if (message == nullptr) {
     // Out of memory.
     return;
@@ -150,7 +150,7 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
     return;
   }
 
-  struct Message* message = AllocateMessage();
+  struct Message* message = ObjectPool<Message>::Allocate();
   if (message == nullptr) {
     // Error, out of memory.
     registers->rax = MS_OUT_OF_MEMORY;
@@ -182,7 +182,7 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
                                          source_virtual_address, size_in_pages,
                                          true);
       registers->rax = MS_OUT_OF_MEMORY;
-      ReleaseMessage(message);
+      ObjectPool<Message>::Release(message);
       return;
     }
 
@@ -203,7 +203,7 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
             &receiver_process->virtual_address_space,
             destination_virtual_address, size_in_pages, true);
         registers->rax = MS_OUT_OF_MEMORY;
-        ReleaseMessage(message);
+        ObjectPool<Message>::Release(message);
         return;
       }
 

@@ -1,6 +1,6 @@
 #include "virtual_allocator.h"
 
-#include "object_pools.h"
+#include "object_pool.h"
 #include "physical_allocator.h"
 #include "process.h"
 #include "shared_memory.h"
@@ -339,7 +339,7 @@ void InitializeVirtualAllocator() {
 
   // Add the statically allocated free memory ranges.
   for (int i = 0; i < STATICALLY_ALLOCATED_FREE_MEMORY_RANGES_COUNT; i++)
-    ReleaseFreeMemoryRange(&statically_allocated_free_memory_ranges[i]);
+    ObjectPool<FreeMemoryRange>::Release(&statically_allocated_free_memory_ranges[i]);
 
 // Reclaim the PML4, PDPT, PD set up at boot time.
 #ifndef __TEST__
@@ -395,7 +395,7 @@ bool InitializeVirtualAddressSpace(
   // addresses, split into lower-half and higher-half memory.
 
   // First, add the lower half memory.
-  struct FreeMemoryRange *fmr = AllocateFreeMemoryRange();
+  auto fmr = ObjectPool<FreeMemoryRange>::Allocate();
   if (fmr == nullptr) {
     FreePhysicalPage(virtual_address_space->pml4);
     return false;
@@ -406,7 +406,7 @@ bool InitializeVirtualAddressSpace(
   AddFreeMemoryRangeToVirtualAddressSpace(virtual_address_space, fmr);
 
   // Now add the higher half memory.
-  fmr = AllocateFreeMemoryRange();
+  fmr = ObjectPool<FreeMemoryRange>::Allocate();
   if (fmr != nullptr) {
     // We can gracefully continue if for some reason we couldn't allocate
     // another FreeMemoryRange.
@@ -521,7 +521,7 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
       block_before->pages += pages + block_after->pages;
       AddFreeMemoryRangeToVirtualAddressSpace(address_space, block_before);
       // Release the block after since it was merged in.
-      ReleaseFreeMemoryRange(block_after);
+      ObjectPool<FreeMemoryRange>::Release(block_after);
     } else {
       // Merge into the block before.
       // Expand the size of the block before.
@@ -538,7 +538,7 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
 
   } else {
     // Stand alone free memory range that can't merge into anything.
-    struct FreeMemoryRange *fmr = AllocateFreeMemoryRange();
+    auto fmr = ObjectPool<FreeMemoryRange>::Allocate();
     if (fmr == nullptr) {
       return;
     }
@@ -573,7 +573,7 @@ size_t FindAndReserveFreePageRange(struct VirtualAddressSpace *address_space,
     // This is exactly the size we need! We can use this whole block.
     size_t address = fmr->start_address;
 
-    ReleaseFreeMemoryRange(fmr);
+    ObjectPool<FreeMemoryRange>::Release(fmr);
 
     return address;
   } else {
@@ -850,7 +850,7 @@ bool MarkVirtualAddressAsUsed(struct VirtualAddressSpace *address_space,
   if (block_before->start_address == address) {
     if (block_before->pages == 1) {
       // Exactly the size we need.
-      ReleaseFreeMemoryRange(block_before);
+      ObjectPool<FreeMemoryRange>::Release(block_before);
     } else {
       // Bump up this free memory range and re-add it.
       block_before->start_address += PAGE_SIZE;
@@ -866,7 +866,7 @@ bool MarkVirtualAddressAsUsed(struct VirtualAddressSpace *address_space,
   } else {
     // Split this free memory block into two.
 
-    struct FreeMemoryRange *block_after = AllocateFreeMemoryRange();
+    auto block_after = ObjectPool<FreeMemoryRange>::Allocate();
     if (block_after == nullptr) {
       // Out of memory, undo what we did above.
       AddFreeMemoryRangeToVirtualAddressSpace(address_space, block_before);
@@ -1219,7 +1219,7 @@ void FreeAddressSpace(struct VirtualAddressSpace *address_space) {
   struct FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
   while (current_fmr != nullptr) {
     struct FreeMemoryRange *next = current_fmr->next;
-    ReleaseFreeMemoryRange(current_fmr);
+    ObjectPool<FreeMemoryRange>::Release(current_fmr);
     current_fmr = next;
   }
 }
@@ -1258,8 +1258,8 @@ struct SharedMemoryInProcess *MapSharedMemoryIntoProcess(
     return nullptr;
   }
 
-  struct SharedMemoryInProcess *shared_memory_in_process =
-      AllocateSharedMemoryInProcess();
+  auto shared_memory_in_process =
+      ObjectPool<SharedMemoryInProcess>::Allocate();
   if (shared_memory_in_process == nullptr) {
     // Out of memory.
     MarkAddressRangeAsFree(&process->virtual_address_space, virtual_address,
@@ -1372,7 +1372,7 @@ void UnmapSharedMemoryFromProcess(
     // TODO
   }
 
-  ReleaseSharedMemoryInProcess(shared_memory_in_process);
+  ObjectPool<SharedMemoryInProcess>::Release(shared_memory_in_process);
 }
 
 void SetMemoryAccessRights(struct VirtualAddressSpace *address_space,

@@ -15,7 +15,7 @@
 #include "service.h"
 
 #include "messages.h"
-#include "object_pools.h"
+#include "object_pool.h"
 #include "process.h"
 
 struct ProcessToNotifyWhenServiceAppears*
@@ -39,7 +39,7 @@ bool DoServiceNamesMatch(const char* a, const char* b) {
 // of services with this name.
 void RegisterService(char* service_name, struct Process* process,
                      size_t message_id) {
-  struct Service* service = AllocateService();
+  auto service = ObjectPool<Service>::Allocate();
   if (service == nullptr) return;  // Out of memory.
   service->process = process;
   service->message_id = message_id;
@@ -67,7 +67,7 @@ void RegisterService(char* service_name, struct Process* process,
 
     if (service->message_id == previous_service->message_id) {
       // Trying to register multiple services with the same message ID.
-      ReleaseService(service);
+      ObjectPool<Service>::Release(service);
       return;
     }
 
@@ -138,7 +138,7 @@ void UnregisterService(struct Service* service) {
     service->next_service_in_process->previous_service_in_process =
         service->previous_service_in_process;
 
-  ReleaseService(service);
+  ObjectPool<Service>::Release(service);
 }
 
 struct Service* FindServiceByProcessAndMid(size_t pid, size_t message_id) {
@@ -234,8 +234,8 @@ struct Service* FindNextServiceWithName(char* service_name,
 void NotifyProcessWhenServiceAppears(char* service_name,
                                      struct Process* process,
                                      size_t message_id) {
-  struct ProcessToNotifyWhenServiceAppears* notification =
-      AllocateProcessToNotifyWhenServiceAppears();
+  auto notification =
+      ObjectPool<ProcessToNotifyWhenServiceAppears>::Allocate();
   if (notification == nullptr) return;  // Out of memory.
 
   // Construct the object.
@@ -335,5 +335,5 @@ void StopNotifyingProcessWhenServiceAppears(
   }
 
   // Release this notification.
-  ReleaseProcessToNotifyWhenServiceAppears(notification);
+  ObjectPool<ProcessToNotifyWhenServiceAppears>::Release(notification);
 }

@@ -4,7 +4,7 @@
 #include "io.h"
 #include "liballoc.h"
 #include "messages.h"
-#include "object_pools.h"
+#include "object_pool.h"
 #include "physical_allocator.h"
 #include "service.h"
 #include "scheduler.h"
@@ -119,7 +119,7 @@ void ReleaseNotification(struct ProcessToNotifyOnExit *notification) {
         notification->previous_in_notifyee;
   }
 
-  ReleaseProcessToNotifyOnExit(notification);
+  ObjectPool<ProcessToNotifyOnExit>::Release(notification);
 }
 
 // Removes a child process of a parent, and returns true if the process was a
@@ -228,7 +228,7 @@ void DestroyProcess(struct Process *process) {
 // Registers that a process wants to be notified if another process dies.
 extern void NotifyProcessOnDeath(struct Process *target,
                                  struct Process *notifyee, size_t event_id) {
-  struct ProcessToNotifyOnExit *notification = AllocateProcessToNotifyOnExit();
+  auto notification = ObjectPool<ProcessToNotifyOnExit>::Allocate();
   if (notification == nullptr) return;
 
   notification->target = target;

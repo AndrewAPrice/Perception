@@ -2,6 +2,7 @@
 
 #include "../../third_party/multiboot2.h"
 #include "io.h"
+#include "object_pool.h"
 #include "object_pools.h"
 #include "text_terminal.h"
 #include "virtual_allocator.h"

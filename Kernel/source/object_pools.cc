@@ -3,94 +3,43 @@
 #include "io.h"
 #include "liballoc.h"
 #include "messages.h"
+#include "object_pool.h"
 #include "process.h"
 #include "service.h"
 #include "shared_memory.h"
 #include "timer_event.h"
 #include "virtual_allocator.h"
 
-#define DEBUG
-
-struct ObjectPoolItem {
-  struct ObjectPoolItem* next;
+// Initializer that can touch the private members of ObjectPool.
+class ObjectPoolInitializer {
+  public:
+  static void Initialize() {
+    ObjectPool<Message>::next_item_= nullptr;
+    ObjectPool<ProcessToNotifyOnExit>::next_item_= nullptr;
+    ObjectPool<Service>::next_item_= nullptr;
+    ObjectPool<ProcessToNotifyWhenServiceAppears>::next_item_= nullptr;
+    ObjectPool<SharedMemory>::next_item_= nullptr;
+    ObjectPool<SharedMemoryInProcess>::next_item_ = nullptr;
+    ObjectPool<TimerEvent>::next_item_ = nullptr;
+    ObjectPool<ThreadWaitingForSharedMemoryPage>::next_item_ = nullptr;
+    ObjectPool<FreeMemoryRange>::next_item_ = nullptr;
+  }
 };
-
-// Grabs an object from the pool, if it exists, or allocates a new object.
-void* GrabOrAllocateObject(struct ObjectPoolItem** object_pool, size_t size) {
-  if (*object_pool == nullptr) {
-#ifdef DEBUG
-    void* obj = malloc(size);
-    memset((char *)obj, 0, size);
-    return obj;
-#else
-    return malloc(size);
-#endif
-  } else {
-    void* obj_to_return = *object_pool;
-    *object_pool = (*object_pool)->next;
-    return obj_to_return;
-  }
-}
-
-// Returns an object to the pool.
-void ReleaseObjectToPool(struct ObjectPoolItem** object_pool, void* item) {
-  ((struct ObjectPoolItem*)item)->next = *object_pool;
-  *object_pool = ((struct ObjectPoolItem*)item);
-}
-
-// Frees all the objects in the pool
-void FreeObjectsInPool(struct ObjectPoolItem** object_pool) {
-  while (*object_pool != nullptr) {
-    struct ObjectPoolItem* next = (*object_pool)->next;
-    free(*object_pool);
-    *object_pool = next;
-  }
-}
-
-#define OBJECT_POOL(Struct, CamelCase)                                  \
-  struct ObjectPoolItem* CamelCase##_pool = nullptr;                       \
-  struct Struct* Allocate##Struct() {                                   \
-    return (struct Struct*)GrabOrAllocateObject(&CamelCase##_pool,      \
-                                                sizeof(struct Struct)); \
-  }                                                                     \
-  void Release##Struct(struct Struct* obj) {                            \
-    ReleaseObjectToPool(&CamelCase##_pool, obj);                        \
-  }
-
-OBJECT_POOL(Message, message)
-OBJECT_POOL(ProcessToNotifyOnExit, process_to_notify_on_exit)
-OBJECT_POOL(ProcessToNotifyWhenServiceAppears,
-            process_to_notify_when_service_appears)
-OBJECT_POOL(Service, service)
-OBJECT_POOL(SharedMemory, shared_memory)
-OBJECT_POOL(SharedMemoryInProcess, shared_memory_in_process)
-OBJECT_POOL(TimerEvent, timer_event)
-OBJECT_POOL(ThreadWaitingForSharedMemoryPage,
-            thread_waiting_for_shared_memory_page)
-OBJECT_POOL(FreeMemoryRange, free_memory_range)
 
 // Initialize the object pools.
 void InitializeObjectPools() {
-  message_pool = nullptr;
-  process_to_notify_on_exit_pool = nullptr;
-  process_to_notify_when_service_appears_pool = nullptr;
-  service_pool = nullptr;
-  shared_memory_pool = nullptr;
-  shared_memory_in_process_pool = nullptr;
-  timer_event_pool = nullptr;
-  thread_waiting_for_shared_memory_page_pool = nullptr;
-  free_memory_range_pool = nullptr;
+  ObjectPoolInitializer::Initialize();
 }
 
 // Clean up object pools to gain some memory back.
 void CleanUpObjectPools() {
-  FreeObjectsInPool(&message_pool);
-  FreeObjectsInPool(&process_to_notify_on_exit_pool);
-  FreeObjectsInPool(&process_to_notify_when_service_appears_pool);
-  FreeObjectsInPool(&service_pool);
-  FreeObjectsInPool(&shared_memory_pool);
-  FreeObjectsInPool(&shared_memory_in_process_pool);
-  FreeObjectsInPool(&timer_event_pool);
-  FreeObjectsInPool(&thread_waiting_for_shared_memory_page_pool);
-  FreeObjectsInPool(&free_memory_range_pool);
+  ObjectPool<Message>::FreeObjectsInPool();
+  ObjectPool<ProcessToNotifyOnExit>::FreeObjectsInPool();
+  ObjectPool<Service>::FreeObjectsInPool();
+  ObjectPool<ProcessToNotifyWhenServiceAppears>::FreeObjectsInPool();
+  ObjectPool<SharedMemory> ::FreeObjectsInPool();
+  ObjectPool<SharedMemoryInProcess>::FreeObjectsInPool();
+  ObjectPool<TimerEvent>::FreeObjectsInPool();
+  ObjectPool<ThreadWaitingForSharedMemoryPage>::FreeObjectsInPool();
+  ObjectPool<FreeMemoryRange>::FreeObjectsInPool();
 }

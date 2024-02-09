@@ -3,7 +3,7 @@
 #include "interrupts.h"
 #include "io.h"
 #include "messages.h"
-#include "object_pools.h"
+#include "object_pool.h"
 #include "process.h"
 #include "profiling.h"
 #include "scheduler.h"
@@ -74,7 +74,7 @@ void TimerHandler() {
                                timer_event->message_id_to_send, 0, 0, 0, 0, 0);
 
     // Release the memory for the TimerEvent.
-    ReleaseTimerEvent(timer_event);
+    ObjectPool<TimerEvent>::Release(timer_event);
   }
 
   ScheduleNextThread();
@@ -100,7 +100,7 @@ size_t GetCurrentTimestampInMicroseconds() {
 // have ellapsed since the kernel started.
 void SendMessageToProcessAtMicroseconds(struct Process* process,
                                         size_t timestamp, size_t message_id) {
-  struct TimerEvent* timer_event = AllocateTimerEvent();
+  struct TimerEvent* timer_event = ObjectPool<TimerEvent>::Allocate();
   if (timer_event == nullptr) {
     // Out of memory.
     return;
@@ -180,6 +180,6 @@ void CancelAllTimerEventsForProcess(struct Process* process) {
     }
 
     // Release the memory for the TimerEvent.
-    ReleaseTimerEvent(timer_event);
+    ObjectPool<TimerEvent>::Release(timer_event);
   }
 }
