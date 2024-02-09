@@ -22,7 +22,7 @@ class ObjectPoolInitializer;
 // An item on the object pool.
 struct ObjectPoolItem {
   // The next item on the object pool.
-  struct ObjectPoolItem* next;
+  ObjectPoolItem* next;
 };
 
 // An object pool.
@@ -47,7 +47,7 @@ public:
     // Releases an object back to the pool.
     static void Release(T* obj) {
         obj->~T();
-        auto item = (struct ObjectPoolItem*)obj;
+        auto item = (ObjectPoolItem*)obj;
         item->next = next_item_;
         next_item_ = item;
     }

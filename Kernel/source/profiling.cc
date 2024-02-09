@@ -28,7 +28,7 @@ struct SyscallProfilingInformation {
   size_t longest_time;
 };
 
-struct SyscallProfilingInformation
+SyscallProfilingInformation
     syscall_profiling_information[NUMBER_OF_SYSCALLS];
 
 size_t CurrentTimeForProfiling() {
@@ -42,7 +42,7 @@ size_t CurrentTimeForProfiling() {
 void ProfileSyscall(int syscall, size_t start_time) {
   size_t end_time = CurrentTimeForProfiling();
   size_t time = end_time - start_time;
-  struct SyscallProfilingInformation* syscall_info =
+  SyscallProfilingInformation* syscall_info =
       &syscall_profiling_information[syscall];
 
   syscall_info->count++;
@@ -57,7 +57,7 @@ void PrintProfilingInformation() {
       "syscall,name,count,total_time,shortest_time,average_time,longest_"
       "time\n" << NumberFormat::DecimalWithoutCommas;
   for (int i = 0; i < NUMBER_OF_SYSCALLS; i++) {
-    struct SyscallProfilingInformation* syscall_info =
+    SyscallProfilingInformation* syscall_info =
         &syscall_profiling_information[i];
     print << i << ',' << GetSystemCallName(i) << ',' << syscall_info->count << ',' <<
       syscall_info->total_time << ',' <<
@@ -70,7 +70,7 @@ void PrintProfilingInformation() {
 void InitializeProfiling() {
 #ifdef PROFILING_ENABLED
   size_t size_of_new_table =
-      sizeof(struct SyscallProfilingInformation) * NUMBER_OF_SYSCALLS;
+      sizeof(SyscallProfilingInformation) * NUMBER_OF_SYSCALLS;
   memset(syscall_profiling_information, 0, size_of_new_table);
 
   for (int s = 0; s < NUMBER_OF_SYSCALLS; s++)

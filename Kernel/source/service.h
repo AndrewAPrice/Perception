@@ -25,7 +25,7 @@ struct Process;
 // Represents a registered service.
 struct Service {
   // The process this service belongs to.
-  struct Process* process;
+  Process* process;
 
   // Message ID to use for communicating to this service.
   size_t message_id;
@@ -34,8 +34,8 @@ struct Service {
   char name[SERVICE_NAME_LENGTH];
 
   // Linked list of registered services in this process.
-  struct Service* previous_service_in_process;
-  struct Service* next_service_in_process;
+  Service* previous_service_in_process;
+  Service* next_service_in_process;
 };
 
 // Represents a process to notify when a service appears.
@@ -44,18 +44,18 @@ struct ProcessToNotifyWhenServiceAppears {
   char service_name[SERVICE_NAME_LENGTH];
 
   // The process to notify.
-  struct Process* process;
+  Process* process;
 
   // The message ID to send a message to when this process appears.
   size_t message_id;
 
   // Linked list in the global list of notifications.
-  struct ProcessToNotifyWhenServiceAppears* previous_notification;
-  struct ProcessToNotifyWhenServiceAppears* next_notification;
+  ProcessToNotifyWhenServiceAppears* previous_notification;
+  ProcessToNotifyWhenServiceAppears* next_notification;
 
   // Linked list in the process.
-  struct ProcessToNotifyWhenServiceAppears* previous_notification_in_process;
-  struct ProcessToNotifyWhenServiceAppears* next_notification_in_process;
+  ProcessToNotifyWhenServiceAppears* previous_notification_in_process;
+  ProcessToNotifyWhenServiceAppears* next_notification_in_process;
 };
 
 // Initializes the internal structures for tracking services.
@@ -63,40 +63,40 @@ void InitializeServices();
 
 // Registers a service, and notifies anybody listening for new instances
 // of services with this name.
-void RegisterService(char* service_name, struct Process* process,
+void RegisterService(char* service_name, Process* process,
                      size_t message_id);
 
 // Unregisters a service, and notifies anybody listening.
-void UnregisterServiceByMessageId(struct Process* process, size_t message_id);
+void UnregisterServiceByMessageId(Process* process, size_t message_id);
 
 // Unregisters a service, and notifies anybody listening.
-void UnregisterService(struct Service* service);
+void UnregisterService(Service* service);
 
 // Returns a service running in a process with the matching message id, or
 // nullptr if it does not exist.
-struct Service* FindServiceByProcessAndMid(size_t pid, size_t message_id);
+Service* FindServiceByProcessAndMid(size_t pid, size_t message_id);
 
 // Returns the next service, starting at the provided process ID and message
 // ID.
-struct Service* FindNextServiceByPidAndMidWithName(char* service_name,
+Service* FindNextServiceByPidAndMidWithName(char* service_name,
                                                    size_t min_pid,
                                                    size_t min_message_id);
 
 // Returns the next service, or nullptr if there are no more services.
-struct Service* FindNextServiceWithName(char* service_name,
-                                        struct Service* previous_service);
+Service* FindNextServiceWithName(char* service_name,
+                                        Service* previous_service);
 
 // Registers that we want this process to be notified when a service of the
 // given service name appears. This also sends a notification for all existing
 // services with the given service name.
 void NotifyProcessWhenServiceAppears(char* service_name,
-                                     struct Process* process,
+                                     Process* process,
                                      size_t message_id);
 
 // Registers that we no longer want to be notified when a service appears.
-void StopNotifyingProcessWhenServiceAppearsByMessageId(struct Process* process,
+void StopNotifyingProcessWhenServiceAppearsByMessageId(Process* process,
                                                        size_t message_id);
 
 // Registers that we no longer want to be notified when a service appears.
 void StopNotifyingProcessWhenServiceAppears(
-    struct ProcessToNotifyWhenServiceAppears* notification);
+    ProcessToNotifyWhenServiceAppears* notification);

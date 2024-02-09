@@ -17,7 +17,7 @@
 #include "text_terminal.h"
 
 // Prints the registers, for debugging.
-void PrintRegisters(struct Registers* regs) {
+void PrintRegisters(Registers* regs) {
   print << "Printing registers:\n" << NumberFormat::Hexidecimal <<
     "rax: " << regs->rax << "   rbx: " << regs->rbx <<
     "\nrcx: " << regs->rcx << "   rdx: " << regs->rdx <<

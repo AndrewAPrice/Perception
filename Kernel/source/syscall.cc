@@ -134,7 +134,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       print << (char)currently_executing_thread_regs->rax;
       break;
     case PRINT_REGISTERS_AND_STACK: {
-      struct Process *process = running_thread->process;
+      Process *process = running_thread->process;
       print << "Dump requested by PID " << NumberFormat::Decimal <<
         running_thread->process->pid << " (" << running_thread->process->name <<
         ") in TID " << running_thread->id << '\n';
@@ -142,7 +142,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     }
     case CREATE_THREAD: {
-      struct Thread *new_thread = CreateThread(
+      Thread *new_thread = CreateThread(
           running_thread->process, currently_executing_thread_regs->rax,
           currently_executing_thread_regs->rbx);
       if (new_thread == 0) {
@@ -175,7 +175,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       JumpIntoThread();  // Doesn't return.
       break;
     case TERMINATE_THREAD: {
-      struct Thread *thread = GetThreadFromTid(
+      Thread *thread = GetThreadFromTid(
           running_thread->process, currently_executing_thread_regs->rax);
       if (thread == running_thread) {
         DestroyThread(running_thread, false);
@@ -258,7 +258,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       currently_executing_thread_regs->rax = total_system_memory;
       break;
     case CREATE_SHARED_MEMORY: {
-      struct SharedMemoryInProcess *shared_memory =
+      SharedMemoryInProcess *shared_memory =
           CreateAndMapSharedMemoryBlockIntoProcess(
               running_thread->process, currently_executing_thread_regs->rax,
               currently_executing_thread_regs->rbx,
@@ -275,7 +275,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     }
     case JOIN_SHARED_MEMORY: {
-      struct SharedMemoryInProcess *shared_memory = JoinSharedMemory(
+      SharedMemoryInProcess *shared_memory = JoinSharedMemory(
           running_thread->process, currently_executing_thread_regs->rax);
 
       if (shared_memory == nullptr) {
@@ -333,7 +333,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       JumpIntoThread();  // Doesn't return.
       break;
     case TERMINATE_PROCESS: {
-      struct Process *process =
+      Process *process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
       if (process == nullptr) {
         break;
@@ -365,7 +365,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       // the pids of the first 12 that we find.
       size_t pids[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
       size_t processes_found = 0;
-      struct Process *process =
+      Process *process =
           GetProcessOrNextFromPid(currently_executing_thread_regs->rbp);
       while (process != nullptr) {
         process = FindNextProcessWithName((char *)process_name, process);
@@ -394,7 +394,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     }
     case GET_NAME_OF_PROCESS: {
-      struct Process *process =
+      Process *process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
       if (process == nullptr) {
         currently_executing_thread_regs->rdi = 0;
@@ -418,7 +418,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       size_t target_pid = currently_executing_thread_regs->rax;
       size_t event_id = currently_executing_thread_regs->rbx;
 
-      struct Process *target =
+      Process *target =
           GetProcessFromPid(currently_executing_thread_regs->rax);
       if (target == nullptr) {
         // The target process we want to be notified of when it dies
@@ -451,7 +451,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       process_name[9] = currently_executing_thread_regs->r14;
       process_name[10] = currently_executing_thread_regs->r15;
 
-      struct Process *child_process =
+      Process *child_process =
           CreateChildProcess(running_thread->process, (char *)process_name,
                              currently_executing_thread_regs->rdi);
       currently_executing_thread_regs->rax =
@@ -459,7 +459,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     }
     case SET_CHILD_PROCESS_MEMORY_PAGE: {
-      struct Process *child_process =
+      Process *child_process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
       SetChildProcessMemoryPage(running_thread->process, child_process,
                                 currently_executing_thread_regs->rbx,
@@ -467,7 +467,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     }
     case START_EXECUTING_PROCESS: {
-      struct Process *child_process =
+      Process *child_process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
       StartExecutingChildProcess(running_thread->process, child_process,
                                  currently_executing_thread_regs->rbx,
@@ -475,7 +475,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     }
     case DESTROY_CHILD_PROCESS: {
-      struct Process *child_process =
+      Process *child_process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
       DestroyChildProcess(running_thread->process, child_process);
       break;
@@ -526,7 +526,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       size_t pids[6] = {0, 0, 0, 0, 0, 0};
       size_t sids[6] = {0, 0, 0, 0, 0, 0};
       size_t services_found = 0;
-      for (struct Service *service = FindNextServiceByPidAndMidWithName(
+      for (Service *service = FindNextServiceByPidAndMidWithName(
                (char *)service_name, min_pid, min_sid);
            service != nullptr;
            service = FindNextServiceWithName((char *)service_name, service)) {
@@ -555,7 +555,7 @@ extern "C" void SyscallHandler(int syscall_number) {
     case GET_NAME_OF_SERVICE: {
       size_t pid = currently_executing_thread_regs->rax;
       size_t sid = currently_executing_thread_regs->rbx;
-      struct Service *service = FindServiceByProcessAndMid(pid, sid);
+      Service *service = FindServiceByProcessAndMid(pid, sid);
       if (service == nullptr) {
         currently_executing_thread_regs->rdi = 0;
       } else {

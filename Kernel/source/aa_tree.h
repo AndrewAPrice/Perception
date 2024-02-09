@@ -24,45 +24,45 @@ struct AATreeNode {
 
   // The parent in the tree structure. If there are multiple nodes with the same
   // value, this field is only valid for the first node.
-  struct AATreeNode* parent;
+  AATreeNode* parent;
 
   // The child that is has a lower and higher value than this node.  If there
   // are multiple nodes with the same value, this field is only valid for the
   // first node.
-  struct AATreeNode *left, *right;
+  AATreeNode *left, *right;
 
   // Linked list of nodes of the same value.
-  struct AATreeNode *previous, *next;
+  AATreeNode *previous, *next;
 };
 
 // An AA tree, which is a self balancing binary trree.
 struct AATree {
-  struct AATreeNode* root;
+  AATreeNode* root;
 };
 
-extern void InitializeAATree(struct AATree* tree);
+extern void InitializeAATree(AATree* tree);
 
 extern void InsertNodeIntoAATree(
-    struct AATree* tree, struct AATreeNode* node,
-    size_t (*value_function)(struct AATreeNode* node));
+    AATree* tree, AATreeNode* node,
+    size_t (*value_function)(AATreeNode* node));
 
 extern void RemoveNodeFromAATree(
-    struct AATree* tree, struct AATreeNode* node,
-    size_t (*value_function)(struct AATreeNode* node));
+    AATree* tree, AATreeNode* node,
+    size_t (*value_function)(AATreeNode* node));
 
-extern struct AATreeNode* SearchForNodeLessThanOrEqualToValue(
-    struct AATree* tree, size_t value,
-    size_t (*value_function)(struct AATreeNode* node));
+extern AATreeNode* SearchForNodeLessThanOrEqualToValue(
+    AATree* tree, size_t value,
+    size_t (*value_function)(AATreeNode* node));
 
-extern struct AATreeNode* SearchForNodeGreaterThanOrEqualToValue(
-    struct AATree* tree, size_t value,
-    size_t (*value_function)(struct AATreeNode* node));
+extern AATreeNode* SearchForNodeGreaterThanOrEqualToValue(
+    AATree* tree, size_t value,
+    size_t (*value_function)(AATreeNode* node));
 
-extern struct AATreeNode* SearchForNodeEqualToValue(
-    struct AATree* tree, size_t value,
-    size_t (*value_function)(struct AATreeNode* node));
+extern AATreeNode* SearchForNodeEqualToValue(
+    AATree* tree, size_t value,
+    size_t (*value_function)(AATreeNode* node));
 
-extern void PrintAATree(struct AATree* tree,
-                        size_t (*value_function)(struct AATreeNode* node));
+extern void PrintAATree(AATree* tree,
+                        size_t (*value_function)(AATreeNode* node));
 
-extern size_t CountNodesInAATree(struct AATree* tree);
+extern size_t CountNodesInAATree(AATree* tree);

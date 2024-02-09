@@ -19,6 +19,7 @@
 struct Process;
 struct Thread;
 struct SharedMemory;
+struct SharedMemoryInProcess;
 
 // Shared memory bitwise flags:
 // Is this shared memory lazily allocated?
@@ -30,17 +31,17 @@ struct SharedMemory;
 // Represents a thread that is waiting for a shared memory page.
 struct ThreadWaitingForSharedMemoryPage {
   // The thread that is waiting.
-  struct Thread* thread;
+  Thread* thread;
 
   // The shared memory the page the thread is waiting for is a part of.
-  struct SharedMemory* shared_memory;
+  SharedMemory* shared_memory;
 
   // The index of the page the thread is waiting for.
   size_t page;
 
   // Linked list structure of threads waiting in the shared memory.
-  struct ThreadWaitingForSharedMemoryPage* previous;
-  struct ThreadWaitingForSharedMemoryPage* next;
+  ThreadWaitingForSharedMemoryPage* previous;
+  ThreadWaitingForSharedMemoryPage* next;
 };
 
 // Represents a block of shared memory.
@@ -70,34 +71,34 @@ struct SharedMemory {
   size_t message_id_for_lazily_loaded_pages;
 
   // Linked list of shared memory.
-  struct SharedMemory* previous;
-  struct SharedMemory* next;
+  SharedMemory* previous;
+  SharedMemory* next;
 
   // Linked list of threads waiting for pages to become available in this shared
   // memory.
-  struct ThreadWaitingForSharedMemoryPage* first_waiting_thread;
+  ThreadWaitingForSharedMemoryPage* first_waiting_thread;
 
   // Linked list of processes that have joined this shared memory.
-  struct SharedMemoryInProcess* first_process;
+  SharedMemoryInProcess* first_process;
 };
 
 // Represents a block of shared memory mapped into a proces.
 struct SharedMemoryInProcess {
   // The shared memory block we're talking about.
-  struct SharedMemory* shared_memory;
+  SharedMemory* shared_memory;
 
   // The process we're in.
-  struct Process* process;
+  Process* process;
 
   // The virtual address of this shared memory block.
   size_t virtual_address;
 
   // The next shared memory block in the process.
-  struct SharedMemoryInProcess* next_in_process;
+  SharedMemoryInProcess* next_in_process;
 
   // Linked list in SharedMemory.
-  struct SharedMemoryInProcess* previous_in_shared_memory;
-  struct SharedMemoryInProcess* next_in_shared_memory;
+  SharedMemoryInProcess* previous_in_shared_memory;
+  SharedMemoryInProcess* next_in_shared_memory;
 
   // The number of references to this shared memory block in this process.
   size_t references;
@@ -107,26 +108,26 @@ struct SharedMemoryInProcess {
 extern void InitializeSharedMemory();
 
 // Creates a shared memory block and map it into a procses.
-extern struct SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
-    struct Process* process, size_t pages, size_t flags,
+extern SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
+    Process* process, size_t pages, size_t flags,
     size_t message_id_for_lazily_loaded_pages);
 
 // Releases a shared memory block. Please make sure that there are no
 // processes referencing the shared memory block before calling this.
-extern void ReleaseSharedMemoryBlock(struct SharedMemory* shared_memory);
+extern void ReleaseSharedMemoryBlock(SharedMemory* shared_memory);
 
 // Joins a shared memory block. Ensures that a shared memory is only mapped once
 // per process.
-extern struct SharedMemoryInProcess* JoinSharedMemory(struct Process* process,
+extern SharedMemoryInProcess* JoinSharedMemory(Process* process,
                                                       size_t shared_memory_id);
 
 // Leaves a shared memory block, but doesn't unmap it if there are still other
 // referenes to the shared memory block in the process.
-extern void LeaveSharedMemory(struct Process* process, size_t shared_memory_id);
+extern void LeaveSharedMemory(Process* process, size_t shared_memory_id);
 
 // Moves a page into a shared memory block. Only the creator of the shared
 // memory block can acall this.
-extern void MovePageIntoSharedMemory(struct Process* process,
+extern void MovePageIntoSharedMemory(Process* process,
                                      size_t shared_memory_id,
                                      size_t offset_in_buffer,
                                      size_t page_address);
@@ -140,5 +141,5 @@ extern bool IsAddressAllocatedInSharedMemory(size_t shared_memory_id,
                                              size_t offset_in_shared_memory);
 
 // Can this process write to this shared memory?
-extern bool CanProcessWriteToSharedMemory(struct Process* process,
-                                          struct SharedMemory* shared_memory);
+extern bool CanProcessWriteToSharedMemory(Process* process,
+                                          SharedMemory* shared_memory);

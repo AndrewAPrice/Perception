@@ -66,8 +66,8 @@ bool IsValidElfHeader(Elf64_Ehdr* header) {
 
 // Copies data from the module into the process's memory.
 bool CopyIntoMemory(size_t from_start, size_t to_start, size_t to_end,
-                    struct Process* process) {
-  struct VirtualAddressSpace* address_space = &process->virtual_address_space;
+                    Process* process) {
+  VirtualAddressSpace* address_space = &process->virtual_address_space;
 
   // The process's memory is mapped into pages. We'll copy page by page.
   size_t to_first_page = to_start & ~(PAGE_SIZE - 1);  // Round down.
@@ -105,8 +105,8 @@ bool CopyIntoMemory(size_t from_start, size_t to_start, size_t to_end,
 
 // Touches memory, to make sure it is available, but doesn't copy anything into
 // it.
-bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
-  struct VirtualAddressSpace* address_space = &process->virtual_address_space;
+bool LoadMemory(size_t to_start, size_t to_end, Process* process) {
+  VirtualAddressSpace* address_space = &process->virtual_address_space;
 
   size_t to_first_page = to_start & ~(PAGE_SIZE - 1);  // Round down.
   size_t to_last_page =
@@ -136,7 +136,7 @@ bool LoadMemory(size_t to_start, size_t to_end, struct Process* process) {
 }
 
 bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
-                  size_t memory_end, struct Process* process) {
+                  size_t memory_end, Process* process) {
   Elf64_Phdr* segment_header = (Elf64_Phdr*)(memory_start + header->e_phoff);
 
   // Figure out the number of segments in the binary.
@@ -283,7 +283,7 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
     return;
   }
 
-  struct Process* process = CreateProcess(is_driver, can_create_processes);
+  Process* process = CreateProcess(is_driver, can_create_processes);
   if (!process) {
     print << "Out of memory to create the process.\n";
     return;
@@ -297,7 +297,7 @@ void LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
     return;
   }
 
-  struct Thread* thread = CreateThread(process, header->e_entry, 0);
+  Thread* thread = CreateThread(process, header->e_entry, 0);
   if (!thread) {
     print << "Out of memory to create the thread.\n";
     DestroyProcess(process);

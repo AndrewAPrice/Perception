@@ -23,9 +23,9 @@
 #define MS_UNIMPLEMENTED 4
 
 // Loads an message in to the thread.
-void LoadMessageIntoThread(struct Message* message, struct Thread* thread) {
+void LoadMessageIntoThread(Message* message, Thread* thread) {
   // Set the thread's registers to contain this message.
-  struct Registers* registers = thread->registers;
+  Registers* registers = thread->registers;
   registers->rax = message->message_id;
   registers->rbx = message->sender_pid;
   registers->rdx = message->metadata;
@@ -42,7 +42,7 @@ void LoadMessageIntoThread(struct Message* message, struct Thread* thread) {
 bool IsPagingMessage(size_t metadata) { return (metadata & 1) == 1; }
 
 // Sends an message to a process.
-void SendMessageToProcess(struct Message* message, struct Process* receiver) {
+void SendMessageToProcess(Message* message, Process* receiver) {
   if (receiver->thread_sleeping_for_message != nullptr) {
     // There is a thread sleeping for messages.
     if (receiver->messages_queued != 0) {
@@ -52,7 +52,7 @@ void SendMessageToProcess(struct Message* message, struct Process* receiver) {
           "queued.\n";
     }
     // Wake the thread that is sleeping.
-    struct Thread* thread_to_wake = receiver->thread_sleeping_for_message;
+    Thread* thread_to_wake = receiver->thread_sleeping_for_message;
     receiver->thread_sleeping_for_message =
         thread_to_wake->next_thread_sleeping_for_messages;
 
@@ -91,13 +91,13 @@ void SendMessageToProcess(struct Message* message, struct Process* receiver) {
 }
 
 // Can this process receive an message?
-bool CanProcessReceiveMessage(struct Process* receiver) {
+bool CanProcessReceiveMessage(Process* receiver) {
   return receiver->messages_queued < MAX_EVENTS_QUEUED;
 }
 
 // Sends a message from the kernel to a process. The message will be ignored on
 // an error.
-void SendKernelMessageToProcess(struct Process* receiver_process,
+void SendKernelMessageToProcess(Process* receiver_process,
                                 size_t event_id, size_t param1, size_t param2,
                                 size_t param3, size_t param4, size_t param5) {
   if (!CanProcessReceiveMessage(receiver_process)) {
@@ -105,7 +105,7 @@ void SendKernelMessageToProcess(struct Process* receiver_process,
     return;
   }
 
-  struct Message* message = ObjectPool<Message>::Allocate();
+  Message* message = ObjectPool<Message>::Allocate();
   if (message == nullptr) {
     // Out of memory.
     return;
@@ -129,12 +129,12 @@ void PrintStackTrace();
 
 // Sends an message from a thread. This is intended to be called from within a
 // syscall.
-void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
-  struct Process* sender_process = sender_thread->process;
-  struct Registers* registers = sender_thread->registers;
+void SendMessageFromThreadSyscall(Thread* sender_thread) {
+  Process* sender_process = sender_thread->process;
+  Registers* registers = sender_thread->registers;
 
   // Find the receiver process, which maybe ourselves.
-  struct Process* receiver_process = (registers->rbx == sender_process->pid)
+  Process* receiver_process = (registers->rbx == sender_process->pid)
                                          ? sender_process
                                          : GetProcessFromPid(registers->rbx);
 
@@ -150,7 +150,7 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
     return;
   }
 
-  struct Message* message = ObjectPool<Message>::Allocate();
+  Message* message = ObjectPool<Message>::Allocate();
   if (message == nullptr) {
     // Error, out of memory.
     registers->rax = MS_OUT_OF_MEMORY;
@@ -233,14 +233,14 @@ void SendMessageFromThreadSyscall(struct Thread* sender_thread) {
 
 // Gets the next message queued for a process. Returns nullptr if there are no
 // messages queued.
-struct Message* GetNextQueuedMessage(struct Process* receiver) {
+Message* GetNextQueuedMessage(Process* receiver) {
   if (receiver->next_message == nullptr) {
     // No messages are queued.
     return nullptr;
   }
 
   // Grab the message at the front of the list.
-  struct Message* message = receiver->next_message;
+  Message* message = receiver->next_message;
   receiver->next_message = message->next_message;
 
   if (receiver->next_message == nullptr) {
@@ -253,8 +253,8 @@ struct Message* GetNextQueuedMessage(struct Process* receiver) {
 }
 
 // Loads the next queued message for the process into the thread.
-void LoadNextMessageIntoThread(struct Thread* thread) {
-  struct Message* message = GetNextQueuedMessage(thread->process);
+void LoadNextMessageIntoThread(Thread* thread) {
+  Message* message = GetNextQueuedMessage(thread->process);
   if (message == nullptr) {
     // There is no message queued.
     thread->registers->rax = ID_FOR_NO_EVENTS;
@@ -266,7 +266,7 @@ void LoadNextMessageIntoThread(struct Thread* thread) {
 
 // Sleeps a thread until an message. Returns if the thread is now asleep, or
 // false if a message was loaded.
-bool SleepThreadUntilMessage(struct Thread* thread) {
+bool SleepThreadUntilMessage(Thread* thread) {
   if (!thread->awake || thread->thread_is_waiting_for_message) {
     print << "Can't sleep a thread that is already asleep.\n";
     return false;

@@ -13,7 +13,7 @@
 // The number of time slices (or how many times the timer triggers) per second.
 #define TIME_SLICES_PER_SECOND 100
 volatile size_t microseconds_since_kernel_started;
-struct TimerEvent* next_scheduled_timer_event;
+TimerEvent* next_scheduled_timer_event;
 
 #ifdef PROFILING_ENABLED
 #define PROFILE_INTERVAL_IN_MICROSECONDS 10000000
@@ -46,7 +46,7 @@ void TimerHandler() {
   while (next_scheduled_timer_event != nullptr &&
          next_scheduled_timer_event->timestamp_to_trigger_at <=
              microseconds_since_kernel_started) {
-    struct TimerEvent* timer_event = next_scheduled_timer_event;
+    TimerEvent* timer_event = next_scheduled_timer_event;
 
     // Remove this timer event from the front of the queue.
     next_scheduled_timer_event = timer_event->next_scheduled_timer_event;
@@ -98,9 +98,9 @@ size_t GetCurrentTimestampInMicroseconds() {
 
 // Sends a message to the process at or after a specified number of microseconds
 // have ellapsed since the kernel started.
-void SendMessageToProcessAtMicroseconds(struct Process* process,
+void SendMessageToProcessAtMicroseconds(Process* process,
                                         size_t timestamp, size_t message_id) {
-  struct TimerEvent* timer_event = ObjectPool<TimerEvent>::Allocate();
+  TimerEvent* timer_event = ObjectPool<TimerEvent>::Allocate();
   if (timer_event == nullptr) {
     // Out of memory.
     return;
@@ -113,7 +113,7 @@ void SendMessageToProcessAtMicroseconds(struct Process* process,
   // Add to global queue, in assending order based on timestamp.
 
   // Find the timer event we should insert ourselves after.
-  struct TimerEvent* previous_timer_event = nullptr;
+  TimerEvent* previous_timer_event = nullptr;
   if (next_scheduled_timer_event != nullptr &&
       next_scheduled_timer_event->timestamp_to_trigger_at < timestamp) {
     // We have events to trigger before us.
@@ -159,9 +159,9 @@ void SendMessageToProcessAtMicroseconds(struct Process* process,
 }
 
 // Cancel all timer events that could be scheduled for a process.
-void CancelAllTimerEventsForProcess(struct Process* process) {
+void CancelAllTimerEventsForProcess(Process* process) {
   while (process->timer_event != nullptr) {
-    struct TimerEvent* timer_event = process->timer_event;
+    TimerEvent* timer_event = process->timer_event;
 
     // Remove this TimerEvent from the linked list in the process.
     process->timer_event = timer_event->next_timer_event_in_process;

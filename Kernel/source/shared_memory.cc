@@ -28,9 +28,9 @@
 size_t last_assigned_shared_memory_id;
 
 // Linked list of all shared memory blocks.
-struct SharedMemory* first_shared_memory;
+SharedMemory* first_shared_memory;
 
-void MapSharedMemoryPageInEachProcess(struct SharedMemory* shared_memory,
+void MapSharedMemoryPageInEachProcess(SharedMemory* shared_memory,
                                       size_t page);
 
 // Initializes the internal structures for shared memory.
@@ -40,10 +40,10 @@ void InitializeSharedMemory() {
 }
 
 // Creates a shared memory block.
-struct SharedMemory* CreateSharedMemoryBlock(
-    struct Process* process, size_t pages, size_t flags,
+SharedMemory* CreateSharedMemoryBlock(
+    Process* process, size_t pages, size_t flags,
     size_t message_id_for_lazily_loaded_pages) {
-  struct SharedMemory* shared_memory = ObjectPool<SharedMemory>::Allocate();
+  SharedMemory* shared_memory = ObjectPool<SharedMemory>::Allocate();
   if (shared_memory == nullptr) {
     return nullptr;
   }
@@ -96,11 +96,11 @@ struct SharedMemory* CreateSharedMemoryBlock(
 }
 
 // Creates a shared memory block and map it into a procses.
-struct SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
-    struct Process* process, size_t pages, size_t flags,
+SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
+    Process* process, size_t pages, size_t flags,
     size_t message_id_for_lazily_loaded_pages) {
   // Create the shared memory block.
-  struct SharedMemory* shared_memory = CreateSharedMemoryBlock(
+  SharedMemory* shared_memory = CreateSharedMemoryBlock(
       process, pages, flags, message_id_for_lazily_loaded_pages);
   if (shared_memory == nullptr) {
     // Could not create shared memory.
@@ -108,7 +108,7 @@ struct SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
   }
 
   // Map it into this process.
-  struct SharedMemoryInProcess* shared_memory_in_process =
+  SharedMemoryInProcess* shared_memory_in_process =
       MapSharedMemoryIntoProcess(process, shared_memory);
   if (shared_memory_in_process == nullptr) {
     ObjectPool<SharedMemory>::Release(shared_memory);
@@ -118,7 +118,7 @@ struct SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
 
 // Releases a shared memory block. Please make sure that there are no
 // processes referencing the shared memory block before calling this.
-void ReleaseSharedMemoryBlock(struct SharedMemory* shared_memory) {
+void ReleaseSharedMemoryBlock(SharedMemory* shared_memory) {
   if (shared_memory->processes_referencing_this_block > 0) {
     // This should never be triggered.
     print <<
@@ -158,8 +158,8 @@ void ReleaseSharedMemoryBlock(struct SharedMemory* shared_memory) {
   ObjectPool<SharedMemory>::Release(shared_memory);
 }
 
-struct SharedMemory* GetSharedMemoryFromId(size_t shared_memory_id) {
-  struct SharedMemory* shared_memory = first_shared_memory;
+SharedMemory* GetSharedMemoryFromId(size_t shared_memory_id) {
+  SharedMemory* shared_memory = first_shared_memory;
   while (shared_memory != nullptr) {
     if (shared_memory->id == shared_memory_id) {
       // Found a shared memory block that matches the ID.
@@ -174,10 +174,10 @@ struct SharedMemory* GetSharedMemoryFromId(size_t shared_memory_id) {
 
 // Joins a shared memory block. Ensures that a shared memory is only mapped once
 // per process. Returns the virtual address of the shared memory block or 0.
-struct SharedMemoryInProcess* JoinSharedMemory(struct Process* process,
+SharedMemoryInProcess* JoinSharedMemory(Process* process,
                                                size_t shared_memory_id) {
   // See if this shared memory is already mapped into this process.
-  struct SharedMemoryInProcess* shared_memory_in_process =
+  SharedMemoryInProcess* shared_memory_in_process =
       process->shared_memory;
   while (shared_memory_in_process != nullptr) {
     if (shared_memory_in_process->shared_memory->id == shared_memory_id) {
@@ -189,7 +189,7 @@ struct SharedMemoryInProcess* JoinSharedMemory(struct Process* process,
   }
 
   // The shared memory is not mapped to the process, so we'll try to find it.
-  struct SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
+  SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
   if (shared_memory == nullptr) {
     // No shared memory with this ID exists.
     return 0;
@@ -201,9 +201,9 @@ struct SharedMemoryInProcess* JoinSharedMemory(struct Process* process,
 
 // Leaves a shared memory block, but doesn't unmap it if there are still other
 // referenes to the shared memory block in the process.
-void LeaveSharedMemory(struct Process* process, size_t shared_memory_id) {
+void LeaveSharedMemory(Process* process, size_t shared_memory_id) {
   // Find the shared memory.
-  struct SharedMemoryInProcess* shared_memory_in_process =
+  SharedMemoryInProcess* shared_memory_in_process =
       process->shared_memory;
   while (shared_memory_in_process != nullptr) {
     if (shared_memory_in_process->shared_memory->id == shared_memory_id) {
@@ -222,7 +222,7 @@ void LeaveSharedMemory(struct Process* process, size_t shared_memory_id) {
   }
 }
 
-void MovePageIntoSharedMemory(struct Process* process, size_t shared_memory_id,
+void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
                               size_t offset_in_buffer, size_t page_address) {
   if (process == nullptr) return;
 
@@ -236,7 +236,7 @@ void MovePageIntoSharedMemory(struct Process* process, size_t shared_memory_id,
 
   // If we fail at any point we need to return the physical address.
 
-  struct SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
+  SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
   if (shared_memory == nullptr) {
     // Unknown shared memory ID.
     FreePhysicalPage(physical_address);
@@ -268,7 +268,7 @@ void MovePageIntoSharedMemory(struct Process* process, size_t shared_memory_id,
 }
 
 void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
-    struct SharedMemory* shared_memory, size_t page, struct Process* creator) {
+    SharedMemory* shared_memory, size_t page, Process* creator) {
   if (page >= shared_memory->size_in_pages)
     return;  // Beyond the end of the shared memory.
 
@@ -299,7 +299,7 @@ void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
                              page * PAGE_SIZE, 0, 0, 0, 0);
 }
 
-void MapSharedMemoryPageInEachProcess(struct SharedMemory* shared_memory,
+void MapSharedMemoryPageInEachProcess(SharedMemory* shared_memory,
                                       size_t page) {
   if (page >= shared_memory->size_in_pages)
     return;  // Beyond the end of the shared memory.
@@ -311,12 +311,12 @@ void MapSharedMemoryPageInEachProcess(struct SharedMemory* shared_memory,
 
   size_t offset_of_page_in_bytes = page * PAGE_SIZE;
 
-  for (struct SharedMemoryInProcess* shared_memory_in_process =
+  for (SharedMemoryInProcess* shared_memory_in_process =
            shared_memory->first_process;
        shared_memory_in_process != nullptr;
        shared_memory_in_process =
            shared_memory_in_process->next_in_shared_memory) {
-    struct Process* process = shared_memory_in_process->process;
+    Process* process = shared_memory_in_process->process;
     bool can_write = CanProcessWriteToSharedMemory(process, shared_memory);
     size_t virtual_address =
         shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
@@ -326,7 +326,7 @@ void MapSharedMemoryPageInEachProcess(struct SharedMemory* shared_memory,
   }
 
   // Wake up each thread that was waiting for this page.
-  for (struct ThreadWaitingForSharedMemoryPage* waiting_thread =
+  for (ThreadWaitingForSharedMemoryPage* waiting_thread =
            shared_memory->first_waiting_thread;
        waiting_thread != nullptr;) {
     if (waiting_thread->page == page) {
@@ -348,7 +348,7 @@ void MapSharedMemoryPageInEachProcess(struct SharedMemory* shared_memory,
         waiting_thread->next->previous = waiting_thread->previous;
       }
 
-      struct ThreadWaitingForSharedMemoryPage* next = waiting_thread->next;
+      ThreadWaitingForSharedMemoryPage* next = waiting_thread->next;
       ObjectPool<ThreadWaitingForSharedMemoryPage>::Release(waiting_thread);
       waiting_thread = next;
     } else {
@@ -358,7 +358,7 @@ void MapSharedMemoryPageInEachProcess(struct SharedMemory* shared_memory,
   }
 }
 
-void MapPhysicalPageInSharedMemory(struct SharedMemory* shared_memory,
+void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory,
                                    size_t page, size_t physical_address) {
   size_t old_page = shared_memory->physical_pages[page];
   if (old_page == physical_address)
@@ -370,12 +370,12 @@ void MapPhysicalPageInSharedMemory(struct SharedMemory* shared_memory,
     // Unmap it in each process so we don't get an error trying to overwrite an
     // existing page table entry.
     size_t offset_of_page_in_bytes = page * PAGE_SIZE;
-    for (struct SharedMemoryInProcess* shared_memory_in_process =
+    for (SharedMemoryInProcess* shared_memory_in_process =
              shared_memory->first_process;
          shared_memory_in_process != nullptr;
          shared_memory_in_process =
              shared_memory_in_process->next_in_shared_memory) {
-      struct Process* process = shared_memory_in_process->process;
+      Process* process = shared_memory_in_process->process;
       size_t virtual_address =
           shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
       ReleaseVirtualMemoryInAddressSpace(
@@ -394,10 +394,10 @@ void MapPhysicalPageInSharedMemory(struct SharedMemory* shared_memory,
 
 // Handles a page fault because the process tried to access an unallocated page
 // in a shared memory block.
-bool HandleSharedMessagePageFault(struct Process* process,
-                                  struct SharedMemory* shared_memory,
+bool HandleSharedMessagePageFault(Process* process,
+                                  SharedMemory* shared_memory,
                                   size_t page) {
-  struct Process* creator = GetProcessFromPid(shared_memory->creator_pid);
+  Process* creator = GetProcessFromPid(shared_memory->creator_pid);
 
   // Should we create the page?
   if (creator == nullptr || process == creator) {
@@ -426,10 +426,10 @@ bool MaybeHandleSharedMessagePageFault(size_t address) {
   // Round address down to the page it's in.
   address &= ~(PAGE_SIZE - 1);
 
-  struct Process* process = running_thread->process;
+  Process* process = running_thread->process;
 
   // Loop through each shared memory in process.
-  for (struct SharedMemoryInProcess* current_shared_memory_in_process =
+  for (SharedMemoryInProcess* current_shared_memory_in_process =
            process->shared_memory;
        current_shared_memory_in_process != nullptr;
        current_shared_memory_in_process =
@@ -442,7 +442,7 @@ bool MaybeHandleSharedMessagePageFault(size_t address) {
         (address - current_shared_memory_in_process->virtual_address) /
         PAGE_SIZE;
 
-    struct SharedMemory* shared_memory =
+    SharedMemory* shared_memory =
         current_shared_memory_in_process->shared_memory;
 
     if (page_in_shared_memory >= shared_memory->size_in_pages)
@@ -470,7 +470,7 @@ bool MaybeHandleSharedMessagePageFault(size_t address) {
 
 bool IsAddressAllocatedInSharedMemory(size_t shared_memory_id,
                                       size_t offset_in_shared_memory) {
-  struct SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
+  SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
   if (shared_memory == nullptr) return false;
 
   size_t page_in_shared_memory = offset_in_shared_memory / PAGE_SIZE;
@@ -482,8 +482,8 @@ bool IsAddressAllocatedInSharedMemory(size_t shared_memory_id,
          OUT_OF_PHYSICAL_PAGES;
 }
 
-bool CanProcessWriteToSharedMemory(struct Process* process,
-                                   struct SharedMemory* shared_memory) {
+bool CanProcessWriteToSharedMemory(Process* process,
+                                   SharedMemory* shared_memory) {
   // Either the shared memory is writable by everyone, or this process is the
   // creator of the shared memory.
   return ((shared_memory->flags & SM_JOINERS_CAN_WRITE) != 0) ||

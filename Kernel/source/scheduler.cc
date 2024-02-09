@@ -9,24 +9,24 @@
 #include "virtual_allocator.h"
 
 // Linked list of awake threads we can cycle through.
-struct Thread *first_awake_thread;
-struct Thread *last_awake_thread;
+Thread *first_awake_thread;
+Thread *last_awake_thread;
 
 // The currently executing thread. This can be nullptr if all threads are asleep.
-struct Thread *running_thread;
+Thread *running_thread;
 
 // The idle registers to return to when no thread is awake. (This points us to
 // the while(true) {hlt} in kmain.)
-struct Registers *idle_regs;
+Registers *idle_regs;
 
 // Currently executing registers.
-struct Registers *currently_executing_thread_regs;
+Registers *currently_executing_thread_regs;
 
 void InitializeScheduler() {
   first_awake_thread = nullptr;
   last_awake_thread = nullptr;
   running_thread = nullptr;
-  currently_executing_thread_regs = (struct Registers*)malloc(sizeof(struct Registers));
+  currently_executing_thread_regs = (Registers*)malloc(sizeof(Registers));
   if (!currently_executing_thread_regs) {
     print << "Could not allocate object to store the kernel's registers.";
 #ifndef __TEST__
@@ -40,7 +40,7 @@ void InitializeScheduler() {
 // Initializes the scheduler.
 void ScheduleNextThread() {
   // The next thread to switch to.
-  struct Thread *next;
+  Thread *next;
 
   if (running_thread) {
     // We were currently executing a thread.
@@ -87,7 +87,7 @@ void ScheduleNextThread() {
   currently_executing_thread_regs = running_thread->registers;
 }
 
-void ScheduleThread(struct Thread *thread) {
+void ScheduleThread(Thread *thread) {
   // lock_interrupts();
   if (thread->awake) {
     //	unlock_interrupts();
@@ -109,7 +109,7 @@ void ScheduleThread(struct Thread *thread) {
   // unlock_interrupts();
 }
 
-void UnscheduleThread(struct Thread *thread) {
+void UnscheduleThread(Thread *thread) {
   if (!thread->awake) {
     return;
   }

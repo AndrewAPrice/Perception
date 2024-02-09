@@ -19,10 +19,10 @@ extern size_t Pd[];
 #endif
 
 // The kernel's virtual address space.
-struct VirtualAddressSpace kernel_address_space;
+VirtualAddressSpace kernel_address_space;
 
 // The currently loaded virtual address space.
-struct VirtualAddressSpace *current_address_space;
+VirtualAddressSpace *current_address_space;
 
 // Pointer to a page table that we use when we want to temporarily map physical
 // memory.
@@ -62,47 +62,47 @@ extern size_t bssEnd;
 // Statically allocated FreeMemoryRanges added to the object pool so they can be
 // allocated before the dynamic memory allocation is set up.
 #define STATICALLY_ALLOCATED_FREE_MEMORY_RANGES_COUNT 2
-struct FreeMemoryRange statically_allocated_free_memory_ranges
+FreeMemoryRange statically_allocated_free_memory_ranges
     [STATICALLY_ALLOCATED_FREE_MEMORY_RANGES_COUNT];
 
 // Marks an address range as being free in the address space, starting at the
 // address and spanning the provided number of pages.
-void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
+void MarkAddressRangeAsFree(VirtualAddressSpace *address_space,
                             size_t address, size_t pages);
 
 // Returns the FreeMemoryRange from a pointer to a `node_by_address` field.
-struct FreeMemoryRange *FreeMemoryRangeFromNodeByAddress(
-    struct AATreeNode *node) {
+FreeMemoryRange *FreeMemoryRangeFromNodeByAddress(
+    AATreeNode *node) {
   size_t node_offset =
-      (size_t) & ((struct FreeMemoryRange *)0)->node_by_address;
-  return (struct FreeMemoryRange *)((size_t)node - node_offset);
+      (size_t) & ((FreeMemoryRange *)0)->node_by_address;
+  return (FreeMemoryRange *)((size_t)node - node_offset);
 }
 
 // Returns the start address from a pointer to a `node_by_address` field.
-size_t FreeMemoryRangeAddressFromAATreeNode(struct AATreeNode *node) {
+size_t FreeMemoryRangeAddressFromAATreeNode(AATreeNode *node) {
   return FreeMemoryRangeFromNodeByAddress(node)->start_address;
 }
 
 // Returns the FreeMemoryRange from a pointer to a `node_by_size` field.
-struct FreeMemoryRange *FreeMemoryRangeFromNodeBySize(struct AATreeNode *node) {
-  size_t node_offset = (size_t) & ((struct FreeMemoryRange *)0)->node_by_size;
+FreeMemoryRange *FreeMemoryRangeFromNodeBySize(AATreeNode *node) {
+  size_t node_offset = (size_t) & ((FreeMemoryRange *)0)->node_by_size;
 
-  return (struct FreeMemoryRange *)((size_t)node - node_offset);
+  return (FreeMemoryRange *)((size_t)node - node_offset);
 }
 
 // Returns the size from a pointer to a `node_by_size` field.
-size_t FreeMemoryRangeSizeFromAATreeNode(struct AATreeNode *node) {
+size_t FreeMemoryRangeSizeFromAATreeNode(AATreeNode *node) {
   return FreeMemoryRangeFromNodeBySize(node)->pages;
 }
 
 void VerifyAddressSpaceStructuresAreAllTheSameSize(
-    struct VirtualAddressSpace *address_space) {
+    VirtualAddressSpace *address_space) {
   int nodes_in_address_tree =
       CountNodesInAATree(&address_space->free_chunks_by_address);
   int nodes_in_size_tree =
       CountNodesInAATree(&address_space->free_chunks_by_size);
   int nodes_in_linked_list = 0;
-  struct FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
+  FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
   while (current_fmr != nullptr) {
     nodes_in_linked_list++;
     current_fmr = current_fmr->next;
@@ -116,9 +116,9 @@ void VerifyAddressSpaceStructuresAreAllTheSameSize(
   }
 }
 
-void PrintFreeAddressRanges(struct VirtualAddressSpace *address_space) {
+void PrintFreeAddressRanges(VirtualAddressSpace *address_space) {
   print << "Free address ranges:\n" << NumberFormat::Hexidecimal;
-  struct FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
+  FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
   while (current_fmr != nullptr) {
     print << ' ' << current_fmr->start_address << "->" <<
       (current_fmr->start_address + PAGE_SIZE * current_fmr->pages) << '\n';
@@ -127,7 +127,7 @@ void PrintFreeAddressRanges(struct VirtualAddressSpace *address_space) {
 }
 
 void AddFreeMemoryRangeToVirtualAddressSpace(
-    struct VirtualAddressSpace *address_space, struct FreeMemoryRange *fmr) {
+    VirtualAddressSpace *address_space, FreeMemoryRange *fmr) {
   InsertNodeIntoAATree(&address_space->free_chunks_by_address,
                        &fmr->node_by_address,
                        FreeMemoryRangeAddressFromAATreeNode);
@@ -142,7 +142,7 @@ void AddFreeMemoryRangeToVirtualAddressSpace(
 }
 
 void RemoveFreeMemoryRangeFromVirtualAddressSpace(
-    struct VirtualAddressSpace *address_space, struct FreeMemoryRange *fmr) {
+    VirtualAddressSpace *address_space, FreeMemoryRange *fmr) {
   RemoveNodeFromAATree(&address_space->free_chunks_by_address,
                        &fmr->node_by_address,
                        FreeMemoryRangeAddressFromAATreeNode);
@@ -265,7 +265,7 @@ void MapKernelMemoryPreVirtualMemory(size_t virtualaddr, size_t physicaladdr,
 
 // An initial statically allocated FreeMemoryRange that we can use to represent
 // the initial range of free memory before we can dynamically allocate memory.
-struct FreeMemoryRange initial_kernel_memory_range;
+FreeMemoryRange initial_kernel_memory_range;
 
 // Initializes the virtual allocator.
 void InitializeVirtualAllocator() {
@@ -334,7 +334,7 @@ void InitializeVirtualAllocator() {
 
   // Flush and load the kernel's new and final PML4.
   // Set the current address space to a dud entry so SwitchToAddressSpace works.
-  current_address_space = (struct VirtualAddressSpace *)nullptr;
+  current_address_space = (VirtualAddressSpace *)nullptr;
   SwitchToAddressSpace(&kernel_address_space);
 
   // Add the statically allocated free memory ranges.
@@ -384,7 +384,7 @@ size_t CreateUserSpacePML4() {
 }
 
 bool InitializeVirtualAddressSpace(
-    struct VirtualAddressSpace *virtual_address_space) {
+    VirtualAddressSpace *virtual_address_space) {
   virtual_address_space->pml4 = CreateUserSpacePML4();
   if (virtual_address_space->pml4 == OUT_OF_MEMORY) return false;
   virtual_address_space->free_memory_ranges = nullptr;
@@ -465,14 +465,14 @@ void *TemporarilyMapPhysicalMemory(size_t addr, size_t index) {
   return (void *)(temp_memory_start + PAGE_SIZE * index);
 }
 
-void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
+void MarkAddressRangeAsFree(VirtualAddressSpace *address_space,
                             size_t address, size_t pages) {
   // See if this address range can be merged into a memory block before or
   // after.
 
   // Search for a block right before.
-  struct FreeMemoryRange *block_before = nullptr;
-  struct AATreeNode *node_before = SearchForNodeLessThanOrEqualToValue(
+  FreeMemoryRange *block_before = nullptr;
+  AATreeNode *node_before = SearchForNodeLessThanOrEqualToValue(
       &address_space->free_chunks_by_address, address,
       FreeMemoryRangeAddressFromAATreeNode);
 
@@ -504,8 +504,8 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
   }
 
   // Search for a block right after.
-  struct FreeMemoryRange *block_after = nullptr;
-  struct AATreeNode *node_after = SearchForNodeEqualToValue(
+  FreeMemoryRange *block_after = nullptr;
+  AATreeNode *node_after = SearchForNodeEqualToValue(
       &address_space->free_chunks_by_address, address + (pages * PAGE_SIZE),
       FreeMemoryRangeAddressFromAATreeNode);
   if (node_after != nullptr)
@@ -550,7 +550,7 @@ void MarkAddressRangeAsFree(struct VirtualAddressSpace *address_space,
 
 // Finds a range of free physical pages in memory - returns the first address or
 // OUT_OF_MEMORY if it can't find a fit.
-size_t FindAndReserveFreePageRange(struct VirtualAddressSpace *address_space,
+size_t FindAndReserveFreePageRange(VirtualAddressSpace *address_space,
                                    size_t pages) {
   if (pages == 0) {
     // Too many or not enough entries.
@@ -559,14 +559,14 @@ size_t FindAndReserveFreePageRange(struct VirtualAddressSpace *address_space,
 
   // Find a free chunk of memory in the virutal address space that is either
   // equal to or greater than what we need.
-  struct AATreeNode *node = SearchForNodeGreaterThanOrEqualToValue(
+  AATreeNode *node = SearchForNodeGreaterThanOrEqualToValue(
       &address_space->free_chunks_by_size, pages,
       FreeMemoryRangeSizeFromAATreeNode);
   if (node == 0) {
     // Virtual address space is full.
     return OUT_OF_MEMORY;
   }
-  struct FreeMemoryRange *fmr = FreeMemoryRangeFromNodeBySize(node);
+  FreeMemoryRange *fmr = FreeMemoryRangeFromNodeBySize(node);
   RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, fmr);
 
   if (fmr->pages == pages) {
@@ -589,7 +589,7 @@ size_t FindAndReserveFreePageRange(struct VirtualAddressSpace *address_space,
 }
 
 // Maps a physical page to a virtual page. Returns if it was successful.
-bool MapPhysicalPageToVirtualPage(struct VirtualAddressSpace *address_space,
+bool MapPhysicalPageToVirtualPage(VirtualAddressSpace *address_space,
                                   size_t virtualaddr, size_t physicaladdr,
                                   bool own, bool can_write,
                                   bool throw_exception_on_access) {
@@ -766,7 +766,7 @@ bool MapPhysicalPageToVirtualPage(struct VirtualAddressSpace *address_space,
 
 // Return the physical address mapped at a virtual address, returning
 // OUT_OF_MEMORY if is not mapped.
-size_t GetPhysicalAddress(struct VirtualAddressSpace *address_space,
+size_t GetPhysicalAddress(VirtualAddressSpace *address_space,
                           size_t virtualaddr, bool ignore_unowned_pages) {
   size_t pml4_entry = (virtualaddr >> 39) & 511;
   size_t pml3_entry = (virtualaddr >> 30) & 511;
@@ -825,9 +825,9 @@ size_t GetPhysicalAddress(struct VirtualAddressSpace *address_space,
   }
 }
 
-bool MarkVirtualAddressAsUsed(struct VirtualAddressSpace *address_space,
+bool MarkVirtualAddressAsUsed(VirtualAddressSpace *address_space,
                               size_t address) {
-  struct AATreeNode *node_before = SearchForNodeLessThanOrEqualToValue(
+  AATreeNode *node_before = SearchForNodeLessThanOrEqualToValue(
       &address_space->free_chunks_by_address, address,
       FreeMemoryRangeAddressFromAATreeNode);
 
@@ -836,7 +836,7 @@ bool MarkVirtualAddressAsUsed(struct VirtualAddressSpace *address_space,
     return false;
   }
 
-  struct FreeMemoryRange *block_before =
+  FreeMemoryRange *block_before =
       FreeMemoryRangeFromNodeByAddress(node_before);
 
   if (block_before->start_address + (block_before->pages * PAGE_SIZE) <=
@@ -891,7 +891,7 @@ bool MarkVirtualAddressAsUsed(struct VirtualAddressSpace *address_space,
 
 // Return the physical address mapped at a virtual address, returning
 // OUT_OF_MEMORY if is not mapped.
-size_t GetOrCreateVirtualPage(struct VirtualAddressSpace *address_space,
+size_t GetOrCreateVirtualPage(VirtualAddressSpace *address_space,
                               size_t virtualaddr) {
   size_t physical_address = GetPhysicalAddress(address_space, virtualaddr,
                                                /*ignore_unowned_pages=*/false);
@@ -922,13 +922,13 @@ size_t GetOrCreateVirtualPage(struct VirtualAddressSpace *address_space,
 }
 
 size_t AllocateVirtualMemoryInAddressSpace(
-    struct VirtualAddressSpace *address_space, size_t pages) {
+    VirtualAddressSpace *address_space, size_t pages) {
   return AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
       address_space, pages, 0xFFFFFFFFFFFFFFFF);
 }
 
 size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
-    struct VirtualAddressSpace *address_space, size_t pages,
+    VirtualAddressSpace *address_space, size_t pages,
     size_t max_base_address) {
   size_t start = FindAndReserveFreePageRange(address_space, pages);
   if (start == OUT_OF_MEMORY) {
@@ -970,7 +970,7 @@ size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
 }
 
 void ReleaseVirtualMemoryInAddressSpace(
-    struct VirtualAddressSpace *address_space, size_t addr, size_t pages,
+    VirtualAddressSpace *address_space, size_t addr, size_t pages,
     bool free) {
   size_t i = 0;
   for (; i < pages; i++, addr += PAGE_SIZE) {
@@ -979,7 +979,7 @@ void ReleaseVirtualMemoryInAddressSpace(
 }
 
 size_t MapPhysicalMemoryInAddressSpace(
-    struct VirtualAddressSpace *address_space, size_t addr, size_t pages) {
+    VirtualAddressSpace *address_space, size_t addr, size_t pages) {
   size_t start_virtual_address =
       FindAndReserveFreePageRange(address_space, pages);
   if (start_virtual_address == OUT_OF_MEMORY) return OUT_OF_MEMORY;
@@ -994,7 +994,7 @@ size_t MapPhysicalMemoryInAddressSpace(
 
 // Unmaps a virtual page - free specifies if that page should be returned to the
 // physical memory manager.
-void UnmapVirtualPage(struct VirtualAddressSpace *address_space,
+void UnmapVirtualPage(VirtualAddressSpace *address_space,
                       size_t virtualaddr, bool free) {
   // Find the index into each PML table.
   // 6666 5555 5555 5544 4444 4444 4333 3333 3332 2222 2222 2111 1111 111
@@ -1140,7 +1140,7 @@ void UnmapVirtualPage(struct VirtualAddressSpace *address_space,
 // Frees an address space. Everything it finds will be returned to the physical
 // allocator so unmap any shared memory before. Please don't pass it the
 // kernel's PML4.
-void FreeAddressSpace(struct VirtualAddressSpace *address_space) {
+void FreeAddressSpace(VirtualAddressSpace *address_space) {
   // If we're working in this address space, switch to kernel space.
   if (current_address_space == address_space) {
     SwitchToAddressSpace(&kernel_address_space);
@@ -1216,16 +1216,16 @@ void FreeAddressSpace(struct VirtualAddressSpace *address_space) {
   FreePhysicalPage(pml4);
 
   // Walk through the link of FreeMemoryRange objects and release them.
-  struct FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
+  FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
   while (current_fmr != nullptr) {
-    struct FreeMemoryRange *next = current_fmr->next;
+    FreeMemoryRange *next = current_fmr->next;
     ObjectPool<FreeMemoryRange>::Release(current_fmr);
     current_fmr = next;
   }
 }
 
 // Switch to a virtual address space.
-void SwitchToAddressSpace(struct VirtualAddressSpace *address_space) {
+void SwitchToAddressSpace(VirtualAddressSpace *address_space) {
   if (address_space != current_address_space) {
     current_address_space = address_space;
 #ifndef __TEST__
@@ -1248,8 +1248,8 @@ void FlushVirtualPage(size_t addr) {
 
 // Maps shared memory into a process's virtual address space. Returns nullptr if
 // there was an issue.
-struct SharedMemoryInProcess *MapSharedMemoryIntoProcess(
-    struct Process *process, struct SharedMemory *shared_memory) {
+SharedMemoryInProcess *MapSharedMemoryIntoProcess(
+    Process *process, SharedMemory *shared_memory) {
   // Find a free page range to map this shared memory into.
   size_t virtual_address = FindAndReserveFreePageRange(
       &process->virtual_address_space, shared_memory->size_in_pages);
@@ -1309,8 +1309,8 @@ struct SharedMemoryInProcess *MapSharedMemoryIntoProcess(
 // Unmaps shared memory from a process and releases the SharedMemoryInProcess
 // object.
 void UnmapSharedMemoryFromProcess(
-    struct Process *process,
-    struct SharedMemoryInProcess *shared_memory_in_process) {
+    Process *process,
+    SharedMemoryInProcess *shared_memory_in_process) {
   // TODO: Wake any threads waiting for this page. (They'll page fault, but what
   // else can we do?)
 
@@ -1326,7 +1326,7 @@ void UnmapSharedMemoryFromProcess(
     process->shared_memory = shared_memory_in_process->next_in_process;
   } else {
     // Iterate through until we find it.
-    struct SharedMemoryInProcess *previous = process->shared_memory;
+    SharedMemoryInProcess *previous = process->shared_memory;
     while (previous != nullptr &&
            previous->next_in_process != shared_memory_in_process) {
       previous = previous->next_in_process;
@@ -1344,7 +1344,7 @@ void UnmapSharedMemoryFromProcess(
   }
 
   // Remove from the linked list in the shared memory.
-  struct SharedMemory *shared_memory = shared_memory_in_process->shared_memory;
+  SharedMemory *shared_memory = shared_memory_in_process->shared_memory;
 
   if (shared_memory_in_process->previous_in_shared_memory == nullptr) {
     shared_memory->first_process =
@@ -1375,7 +1375,7 @@ void UnmapSharedMemoryFromProcess(
   ObjectPool<SharedMemoryInProcess>::Release(shared_memory_in_process);
 }
 
-void SetMemoryAccessRights(struct VirtualAddressSpace *address_space,
+void SetMemoryAccessRights(VirtualAddressSpace *address_space,
                            size_t address, size_t rights) {
   size_t pml4_entry = (address >> 39) & 511;
   size_t pml3_entry = (address >> 30) & 511;

@@ -18,7 +18,7 @@ struct idt_entry {
 
 // Pointer to the interrupt descriptor table. This is an array of up to 256
 // entries.
-struct idt_entry *idt;
+idt_entry *idt;
 
 // Reference to the interrupt descriptor.
 struct idt_ptr {
@@ -27,7 +27,7 @@ struct idt_ptr {
 } __attribute__((packed));
 
 // A reference to the interrupt descriptor table.
-struct idt_ptr idt_p;
+idt_ptr idt_p;
 
 unsigned char in_interrupt;
 
@@ -36,7 +36,7 @@ void InitializeIdt() {
   in_interrupt = false;
 
   // The IDT aligns with pages - so grab a page to allocate it.
-  idt = (struct idt_entry *)AllocateVirtualMemoryInAddressSpace(
+  idt = (idt_entry *)AllocateVirtualMemoryInAddressSpace(
       &kernel_address_space, 1);
 
   size_t idt_physical =
@@ -44,11 +44,11 @@ void InitializeIdt() {
 
   // Populate the IDT reference to point to the physical memory location where
   // the IDT will be.
-  idt_p.limit = (sizeof(struct idt_entry) * 256) - 1;
+  idt_p.limit = (sizeof(idt_entry) * 256) - 1;
   idt_p.base = (size_t)idt;
 
   // Clear the IDT.
-  memset((char *)idt, 0, sizeof(struct idt_entry) * 256);
+  memset((char *)idt, 0, sizeof(idt_entry) * 256);
 
 // Load the new IDT pointer, which is in virtual address space.
 #ifndef __TEST__

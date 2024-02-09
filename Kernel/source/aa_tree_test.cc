@@ -20,27 +20,27 @@
 
 struct Node {
   int value;
-  struct AATreeNode node;
+  AATreeNode node;
 };
 
-struct Node *NodeFromAATreeNode(struct AATreeNode *node) {
-  size_t node_offset = (size_t) & ((struct Node *)0)->node;
-  return (struct Node *)((size_t)node - node_offset);
+Node *NodeFromAATreeNode(AATreeNode *node) {
+  size_t node_offset = (size_t) & ((Node *)0)->node;
+  return (Node *)((size_t)node - node_offset);
 }
 
 // Returns the start address from a pointer to a `node_by_address` field.
-size_t ValueOfAATreeNode(struct AATreeNode *node) {
+size_t ValueOfAATreeNode(AATreeNode *node) {
   return NodeFromAATreeNode(node)->value;
 }
 
-size_t ValueOfNode(struct Node *node) { return node->value; }
+size_t ValueOfNode(Node *node) { return node->value; }
 
-void AssertNodeNotNullAndHasValue(struct AATreeNode *node, int value) {
+void AssertNodeNotNullAndHasValue(AATreeNode *node, int value) {
   assert(node != nullptr);
   assert(ValueOfAATreeNode(node) == value);
 }
 
-int CalculateNodeHeight(struct AATreeNode *aa_node) {
+int CalculateNodeHeight(AATreeNode *aa_node) {
   if (aa_node == nullptr) return 0;
 
   int left = CalculateNodeHeight(aa_node->left);
@@ -48,12 +48,12 @@ int CalculateNodeHeight(struct AATreeNode *aa_node) {
   return (left > right ? left : right) + 1;
 }
 
-int CalculateMaxTree(struct AATree *aa_tree) {
+int CalculateMaxTree(AATree *aa_tree) {
   assert(aa_tree != nullptr);
   return CalculateNodeHeight(aa_tree->root);
 }
 
-void VerifyBalancedTreeOf0To19(struct AATree *aa_tree) {
+void VerifyBalancedTreeOf0To19(AATree *aa_tree) {
   assert(CountNodesInAATree(aa_tree) == 20);
   AssertNodeNotNullAndHasValue(aa_tree->root, 10);
   AssertNodeNotNullAndHasValue(aa_tree->root->left, 5);
@@ -73,7 +73,7 @@ void VerifyBalancedTreeOf0To19(struct AATree *aa_tree) {
   assert(CalculateMaxTree(aa_tree) == 5);
 }
 
-void VerifyRebalancedTree(struct AATree *aa_tree) {
+void VerifyRebalancedTree(AATree *aa_tree) {
   assert(CountNodesInAATree(aa_tree) == 14);
   AssertNodeNotNullAndHasValue(aa_tree->root, 7);
   AssertNodeNotNullAndHasValue(aa_tree->root->left, 5);
@@ -95,15 +95,15 @@ void VerifyRebalancedTree(struct AATree *aa_tree) {
 }
 
 int main() {
-  struct AATree *aa_tree = malloc(sizeof(struct AATree));
+  AATree *aa_tree = malloc(sizeof(AATree));
   InitializeAATree(aa_tree);
 
-  struct Node **nodes = malloc(sizeof(size_t) * 20);
+  Node **nodes = malloc(sizeof(size_t) * 20);
 
   // Create some nodes.
   for (int start = 0; start < 5; start++) {
     for (int i = start; i < 20; i += 5) {
-      struct Node *node = malloc(sizeof(struct Node));
+      Node *node = malloc(sizeof(Node));
       node->value = i;
       nodes[i] = node;
 

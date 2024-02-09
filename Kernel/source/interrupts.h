@@ -23,14 +23,14 @@ extern void InitializeInterrupts();
 
 // Registers a message to send to a process upon receiving an interrupt.
 extern void RegisterMessageToSendOnInterrupt(size_t interrupt_number,
-                                             struct Process* process,
+                                             Process* process,
                                              size_t message_id);
 
 // Unregisters a message to send to a process upon receiving an interrupt.
 extern void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
-                                               struct Process* process,
+                                               Process* process,
                                                size_t message_id);
 
 // Unregisters all messages for a process.
 extern void UnregisterAllMessagesToForOnInterruptForProcess(
-    struct Process* process);
+    Process* process);

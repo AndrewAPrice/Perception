@@ -21,7 +21,7 @@ extern size_t bssEnd;
 #endif
 
 #ifdef __TEST__
-struct multiboot_info MultibootInfo;
+multiboot_info MultibootInfo;
 #endif
 
 
@@ -62,13 +62,13 @@ void CalculateStartOfFreeMemoryAtBoot() {
   start_of_free_memory_at_boot = (size_t)&bssEnd;
 
   // Loop through each of the tags in the multiboot.
-  struct multiboot_tag *tag;
-  for (tag = (struct multiboot_tag *)(size_t)(SafeReadUint32(
+  multiboot_tag *tag;
+  for (tag = (multiboot_tag *)(size_t)(SafeReadUint32(
                                                   &MultibootInfo.addr) +
                                               8);
        SafeReadUint32(&tag->type) != MULTIBOOT_TAG_TYPE_END;
        tag =
-           (struct multiboot_tag *)((size_t)tag +
+           (multiboot_tag *)((size_t)tag +
                                     (size_t)((SafeReadUint32(&tag->size) + 7) &
                                              ~7))) {
     // Make sure we're enough to fit in this tag.
@@ -78,8 +78,8 @@ void CalculateStartOfFreeMemoryAtBoot() {
     }
 
     if (SafeReadUint32(&tag->type) == MULTIBOOT_TAG_TYPE_MODULE) {
-      struct multiboot_tag_module *module_tag =
-          (struct multiboot_tag_module *)tag;
+      multiboot_tag_module *module_tag =
+          (multiboot_tag_module *)tag;
       uint32 mod_end = SafeReadUint32(&module_tag->mod_end);
 
       // If this is a multiboot module, make sure we're enough to fit
@@ -109,11 +109,11 @@ void InitializePhysicalAllocator() {
   // information into the multiboot header.
 
   // Loop through each of the tags in the multiboot.
-  struct multiboot_tag *tag;
-  for (tag = (struct multiboot_tag *)(size_t)(MultibootInfo.addr + 8);
+  multiboot_tag *tag;
+  for (tag = (multiboot_tag *)(size_t)(MultibootInfo.addr + 8);
        SafeReadUint32(&tag->type) != MULTIBOOT_TAG_TYPE_END;
        tag =
-           (struct multiboot_tag *)((size_t)tag +
+           (multiboot_tag *)((size_t)tag +
                                     (size_t)((SafeReadUint32(&tag->size) + 7) &
                                              ~7))) {
     uint32 size = SafeReadUint32(&tag->size);
@@ -123,12 +123,12 @@ void InitializePhysicalAllocator() {
     uint16 type = SafeReadUint32(&tag->type);
     if (type == MULTIBOOT_TAG_TYPE_MMAP) {
       // This is a memory map tag!
-      struct multiboot_tag_mmap *mmap_tag = (struct multiboot_tag_mmap *)tag;
+      multiboot_tag_mmap *mmap_tag = (multiboot_tag_mmap *)tag;
 
       // Iterate over each entry in the memory map.
-      struct multiboot_mmap_entry *mmap;
+      multiboot_mmap_entry *mmap;
       for (mmap = mmap_tag->entries; (size_t)mmap < (size_t)tag + size;
-           mmap = (struct multiboot_mmap_entry *)((size_t)mmap +
+           mmap = (multiboot_mmap_entry *)((size_t)mmap +
                                                   (size_t)SafeReadUint32(
                                                       &mmap_tag->entry_size))) {
         uint64 len = SafeReadUint64(&mmap->len);

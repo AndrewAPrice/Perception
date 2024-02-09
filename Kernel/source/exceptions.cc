@@ -146,7 +146,7 @@ const char* exception_messages[] = {
 extern "C" void JumpIntoThread();
 
 void PrintStackTrace() {
-  struct VirtualAddressSpace* address_space =
+  VirtualAddressSpace* address_space =
       &running_thread->process->virtual_address_space;
   size_t rbp = currently_executing_thread_regs->rbp;
   size_t rip = currently_executing_thread_regs->rip;
@@ -217,7 +217,7 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2, size_t error_code
   if (in_kernel) {
     print << " in kernel";
   } else {
-    struct Process* process = running_thread->process;
+    Process* process = running_thread->process;
     print << " by PID " << process->pid << " (" << process->name << ") in TID " <<
       running_thread->id;
   }

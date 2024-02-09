@@ -26,9 +26,9 @@ void InitializeThreads() {
 }
 
 // Createss a thread.
-struct Thread* CreateThread(struct Process* process, size_t entry_point,
+Thread* CreateThread(Process* process, size_t entry_point,
                             size_t param) {
-  struct Thread* thread = (struct Thread*)malloc(sizeof(struct Thread));
+  Thread* thread = (Thread*)malloc(sizeof(Thread));
   if (thread == nullptr) {
     return nullptr;
   }
@@ -46,7 +46,7 @@ struct Thread* CreateThread(struct Process* process, size_t entry_point,
       &thread->process->virtual_address_space, STACK_PAGES);
 
   // Sets up the registers that our process will start with.
-  struct Registers* regs = (struct Registers*)malloc(sizeof(struct Registers));
+  Registers* regs = (Registers*)malloc(sizeof(Registers));
   thread->registers = regs;
 
   // Initialize our general purpose registers to 0.
@@ -124,7 +124,7 @@ struct Thread* CreateThread(struct Process* process, size_t entry_point,
 }
 
 // Destroys a thread.
-void DestroyThread(struct Thread* thread, bool process_being_destroyed) {
+void DestroyThread(Thread* thread, bool process_being_destroyed) {
   // Make sure the thread is not scheduled.
   if (thread->awake) {
     UnscheduleThread(thread);
@@ -136,16 +136,16 @@ void DestroyThread(struct Thread* thread, bool process_being_destroyed) {
                      true);
   }
 
-  struct Process* process = thread->process;
+  Process* process = thread->process;
 
   // If this thread is waiting for a message, remove it from the process's
   // queue of threads waiting for messages.
   if (thread->thread_is_waiting_for_message) {
-    struct Thread* previous = nullptr;
-    struct Thread* current = process->thread_sleeping_for_message;
+    Thread* previous = nullptr;
+    Thread* current = process->thread_sleeping_for_message;
 
     while (current != nullptr) {
-      struct Thread* next = current->next_thread_sleeping_for_messages;
+      Thread* next = current->next_thread_sleeping_for_messages;
       if (current == thread) {
         // We have found us in the list.
         if (previous == nullptr) {
@@ -202,7 +202,7 @@ void DestroyThread(struct Thread* thread, bool process_being_destroyed) {
 }
 
 // Destroys all threads for a process.
-void DestroyThreadsForProcess(struct Process* process,
+void DestroyThreadsForProcess(Process* process,
                               bool process_being_destroyed) {
   while (process->threads) {
     DestroyThread(process->threads, process_being_destroyed);
@@ -211,8 +211,8 @@ void DestroyThreadsForProcess(struct Process* process,
 
 // Returns a thread with the provided tid in process, return 0 if it doesn't
 // exist.
-struct Thread* GetThreadFromTid(struct Process* process, size_t tid) {
-  struct Thread* thread = process->threads;
+Thread* GetThreadFromTid(Process* process, size_t tid) {
+  Thread* thread = process->threads;
   while (thread != 0) {
     if (thread->id == tid) {
       return thread;
@@ -223,7 +223,7 @@ struct Thread* GetThreadFromTid(struct Process* process, size_t tid) {
 }
 
 // Set the thread's segment offset (FS).
-void SetThreadSegment(struct Thread* thread, size_t address) {
+void SetThreadSegment(Thread* thread, size_t address) {
   thread->thread_segment_offset = address;
 
   if (thread == running_thread) {
@@ -232,7 +232,7 @@ void SetThreadSegment(struct Thread* thread, size_t address) {
 }
 
 // Load's a thread segment.
-void LoadThreadSegment(struct Thread* thread) {
+void LoadThreadSegment(Thread* thread) {
   wrmsr(FSBASE_MSR, thread->thread_segment_offset);
 }
 

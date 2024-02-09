@@ -17,8 +17,8 @@
 size_t last_assigned_pid;
 
 //  Linked list of processes that are running.
-struct Process *first_process;
-struct Process *last_process;
+Process *first_process;
+Process *last_process;
 
 // Initializes the internal structures for tracking processes.
 void InitializeProcesses() {
@@ -28,12 +28,12 @@ void InitializeProcesses() {
 }
 
 // Creates a process, returns ERROR if there was an error.
-struct Process *CreateProcess(bool is_driver, bool can_create_processes) {
+Process *CreateProcess(bool is_driver, bool can_create_processes) {
   // Create a memory space for it.
-  struct Process *proc = (struct Process*)malloc(sizeof(struct Process));
+  Process *proc = (Process*)malloc(sizeof(Process));
   if (proc == 0) {
     // Out of memory.
-    return (struct Process *)ERROR;
+    return (Process *)ERROR;
   }
   proc->is_driver = is_driver;
   proc->can_create_processes = can_create_processes;
@@ -46,7 +46,7 @@ struct Process *CreateProcess(bool is_driver, bool can_create_processes) {
   // Allocate an address space.
   if (!InitializeVirtualAddressSpace(&proc->virtual_address_space)) {
     free(proc);
-    return (struct Process *)ERROR;
+    return (Process *)ERROR;
   }
   proc->allocated_pages = 0;
 
@@ -90,7 +90,7 @@ struct Process *CreateProcess(bool is_driver, bool can_create_processes) {
 
 // Releases a ProcessToNotifyOnExit object and disconnects it from the
 // linked lists.
-void ReleaseNotification(struct ProcessToNotifyOnExit *notification) {
+void ReleaseNotification(ProcessToNotifyOnExit *notification) {
   // Remove from target.
   if (notification->previous_in_target == nullptr) {
     notification->target->processes_to_notify_when_i_die =
@@ -124,7 +124,7 @@ void ReleaseNotification(struct ProcessToNotifyOnExit *notification) {
 
 // Removes a child process of a parent, and returns true if the process was a
 // non-nullptr child of the parent before removal.
-bool RemoveChildProcessOfParent(struct Process *parent, struct Process *child) {
+bool RemoveChildProcessOfParent(Process *parent, Process *child) {
   if (child == nullptr) return false;
 
   if (parent->child_processes == nullptr) return false;  // Parent has no children.
@@ -139,8 +139,8 @@ bool RemoveChildProcessOfParent(struct Process *parent, struct Process *child) {
   }
 
   // Iterate through the list starting from the second child.
-  struct Process *previous_child = parent->child_processes;
-  struct Process *child_in_parent =
+  Process *previous_child = parent->child_processes;
+  Process *child_in_parent =
       previous_child->next_child_process_in_parent;
 
   while (child_in_parent != nullptr) {
@@ -162,7 +162,7 @@ bool RemoveChildProcessOfParent(struct Process *parent, struct Process *child) {
 }
 
 // Destroys a process.
-void DestroyProcess(struct Process *process) {
+void DestroyProcess(Process *process) {
   // Destroy child processes that haven't started.
   while (process->child_processes != nullptr) {
     DestroyProcess(process->child_processes);
@@ -226,8 +226,8 @@ void DestroyProcess(struct Process *process) {
 }
 
 // Registers that a process wants to be notified if another process dies.
-extern void NotifyProcessOnDeath(struct Process *target,
-                                 struct Process *notifyee, size_t event_id) {
+extern void NotifyProcessOnDeath(Process *target,
+                                 Process *notifyee, size_t event_id) {
   auto notification = ObjectPool<ProcessToNotifyOnExit>::Allocate();
   if (notification == nullptr) return;
 
@@ -247,25 +247,25 @@ extern void NotifyProcessOnDeath(struct Process *target,
 
 // Returns a process with the provided pid, returns nullptr if it doesn't
 // exist.
-struct Process *GetProcessFromPid(size_t pid) {
+Process *GetProcessFromPid(size_t pid) {
   // Walk through the linked list to find our process.
-  for (struct Process *proc = first_process; proc != nullptr; proc = proc->next)
+  for (Process *proc = first_process; proc != nullptr; proc = proc->next)
     if (proc->pid == pid) return proc;
 
-  return (struct Process *)nullptr;
+  return (Process *)nullptr;
 }
 
 // Returns a process with the provided pid, and if it doesn't exist, returns
 // the process with the next highest pid. Returns nullptr if no process exists
 // with a pid >= pid.
-struct Process *GetProcessOrNextFromPid(size_t pid) {
+Process *GetProcessOrNextFromPid(size_t pid) {
   // Walk through the linked list to find our process.
-  struct Process *proc = first_process;
-  for (struct Process *proc = first_process; proc != nullptr; proc = proc->next) {
+  Process *proc = first_process;
+  for (Process *proc = first_process; proc != nullptr; proc = proc->next) {
     if (proc->pid >= pid) return proc;
   }
 
-  return (struct Process *)nullptr;
+  return (Process *)nullptr;
 }
 
 // Do two process names (of length PROCESS_NAME_LENGTH) match?
@@ -280,9 +280,9 @@ bool DoProcessNamesMatch(const char *a, const char *b) {
 // length PROCESS_NAME_LENGTH). last_process may be nullptr if you want to fetch
 // the first process with the name. Returns nullptr if there are no more processes
 // with the provided name.
-struct Process *FindNextProcessWithName(const char *name,
-                                        struct Process *start_from) {
-  struct Process *potential_process = start_from;
+Process *FindNextProcessWithName(const char *name,
+                                        Process *start_from) {
+  Process *potential_process = start_from;
   // Loop over every process.
   while (potential_process != nullptr) {
     if (name[0] == 0 || DoProcessNamesMatch(name, potential_process->name))
@@ -298,13 +298,13 @@ struct Process *FindNextProcessWithName(const char *name,
 
 // Creates a child process. The parent process must be allowed to create
 // children. Returns ERROR if there was an error.
-struct Process *CreateChildProcess(struct Process *parent, char *name,
+Process *CreateChildProcess(Process *parent, char *name,
                                    size_t bitfield) {
   if (!parent->can_create_processes) return nullptr;
-  struct Process *child_process =
+  Process *child_process =
       CreateProcess(/*is_driver=*/bitfield & (1 << 0),
                     /*can_create_processes=*/bitfield & (1 << 2));
-  if (child_process == (struct Process *)ERROR) {
+  if (child_process == (Process *)ERROR) {
     print << "Out of memory to create a new process: " << name << '\n';
     return nullptr;
   }
@@ -321,9 +321,9 @@ struct Process *CreateChildProcess(struct Process *parent, char *name,
 
 // Returns if a process is a child of a parent. Also returns false if the child
 // is nullptr.
-bool IsProcessAChildOfParent(struct Process *parent, struct Process *child) {
+bool IsProcessAChildOfParent(Process *parent, Process *child) {
   if (child == nullptr) return false;
-  struct Process *proc = parent->child_processes;
+  Process *proc = parent->child_processes;
   while (proc != nullptr) {
     if (proc == child) return true;
     proc = proc->next_child_process_in_parent;
@@ -334,7 +334,7 @@ bool IsProcessAChildOfParent(struct Process *parent, struct Process *child) {
 // Unmaps a memory page from the parent and assigns it to the child. The memory
 // is unmapped from the calling process regardless of if this call succeeds. If
 // the page already exists in the child process, nothing is set.
-void SetChildProcessMemoryPage(struct Process *parent, struct Process *child,
+void SetChildProcessMemoryPage(Process *parent, Process *child,
                                size_t source_address,
                                size_t destination_address) {
   // Get the physical address from the parent.
@@ -364,11 +364,11 @@ void SetChildProcessMemoryPage(struct Process *parent, struct Process *child,
 // The child process will no longer be in the `creating` state. The calling
 // process must be the child process's creator. The child process will begin
 // executing and will no longer terminate if the creator terminates.
-void StartExecutingChildProcess(struct Process *parent, struct Process *child,
+void StartExecutingChildProcess(Process *parent, Process *child,
                                 size_t entry_address, size_t params) {
   if (!RemoveChildProcessOfParent(parent, child)) return;
 
-  struct Thread *thread = CreateThread(child, entry_address, params);
+  Thread *thread = CreateThread(child, entry_address, params);
 
   if (!thread) {
     print << "Out of memory to create the thread.\n";
@@ -380,7 +380,7 @@ void StartExecutingChildProcess(struct Process *parent, struct Process *child,
 }
 
 // Destroys a process in the `creating` state.
-void DestroyChildProcess(struct Process *parent, struct Process *child) {
+void DestroyChildProcess(Process *parent, Process *child) {
   if (!RemoveChildProcessOfParent(parent, child)) return;
   DestroyProcess(child);
 }

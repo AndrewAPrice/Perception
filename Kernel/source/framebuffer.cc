@@ -46,20 +46,20 @@ void MaybeLoadFramebuffer() {
   framebuffer_bits_per_pixel = 0;
 
   // We are now in higher half memory, so we have to add VIRTUAL_MEMORY_OFFSET.
-  struct multiboot_info *higher_half_multiboot_info =
-      (struct multiboot_info *)((size_t)&MultibootInfo + VIRTUAL_MEMORY_OFFSET);
+  multiboot_info *higher_half_multiboot_info =
+      (multiboot_info *)((size_t)&MultibootInfo + VIRTUAL_MEMORY_OFFSET);
 
   // Loop through the multiboot sections.
-  struct multiboot_tag *tag;
-  for (tag = (struct multiboot_tag *)(size_t)(higher_half_multiboot_info->addr +
+  multiboot_tag *tag;
+  for (tag = (multiboot_tag *)(size_t)(higher_half_multiboot_info->addr +
                                               8 + VIRTUAL_MEMORY_OFFSET);
        tag->type != MULTIBOOT_TAG_TYPE_END;
-       tag = (struct multiboot_tag *)((size_t)tag +
+       tag = (multiboot_tag *)((size_t)tag +
                                       (size_t)((tag->size + 7) & ~7))) {
     // Found a framebuffer.
     if (tag->type == MULTIBOOT_TAG_TYPE_FRAMEBUFFER) {
-      struct multiboot_tag_framebuffer *tagfb =
-          (struct multiboot_tag_framebuffer *)tag;
+      multiboot_tag_framebuffer *tagfb =
+          (multiboot_tag_framebuffer *)tag;
       if (tagfb->common.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
         SetFramebufferDetails(
             tagfb->common.framebuffer_addr, tagfb->common.framebuffer_width,
@@ -75,7 +75,7 @@ void MaybeLoadFramebuffer() {
 }
 
 // Populates the registers with framebuffer details.
-void PopulateRegistersWithFramebufferDetails(struct Registers *regs) {
+void PopulateRegistersWithFramebufferDetails(Registers *regs) {
   regs->rax = framebuffer_address;
   regs->rbx = (size_t)framebuffer_width;
   regs->rdx = (size_t)framebuffer_height;
