@@ -2,7 +2,7 @@
 
 Perception is a hobby operating system. It is a [x86-64](https://en.wikipedia.org/wiki/X86-64) operating system built around a [microkernel](https://en.wikipedia.org/wiki/Microkernel).
 
-[The kernel](Kernel/README.md) is written in C. I use [a custom build system](Build/README.md). I provide a C++ runtime for libraries, services, drivers, and programs. I created an [interface descriptor language](https://en.wikipedia.org/wiki/Interface_description_language) known as [Permebuf](Build/Permebuf.md).
+[The kernel](Kernel/README.md) is written in C++. I use [a custom build system](Build/README.md). I provide a C++ runtime for libraries, services, drivers, and programs. I created an [interface descriptor language](https://en.wikipedia.org/wiki/Interface_description_language) known as [Permebuf](Build/Permebuf.md).
 
 ## Features
 Very few right now.
