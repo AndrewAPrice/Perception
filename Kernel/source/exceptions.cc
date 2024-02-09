@@ -30,8 +30,77 @@
 // The maximum number of levels to print up the call stack for a stack trace.
 #define STACK_TRACE_DEPTH 100
 
-// Exception number for page faults.
-#define PAGE_FAULT 14
+namespace {
+
+// List of CPU exceptions. The values are the exception numbers reported by the CPU.
+enum class Exception {
+  DivisionByZero = 0,
+  Debug = 1,
+  NonMaskableInterrupt = 2,
+  Breakpoint = 3,
+  IntoDetectedOverflow = 4,
+  OutOfBounds = 5,
+  InvalidOpcode = 6,
+  NoCoprocessor = 7,
+  DoubleFault = 8,
+  CoprocessorSegment = 9,
+  BadTSS = 10,
+  SegmentNotPreset = 11,
+  StackFault = 12,
+  GeneralProtectionFault = 13,
+  PageFault = 14,
+  UnknownInterrupt = 15,
+  CoprocessorFault = 16,
+  AlignmentCheck = 17,
+  MachineCheck = 18
+};
+
+const char* GetMessageForException(Exception exception) {
+  switch (exception) {
+    case Exception::DivisionByZero:
+      return "Division By Zero";
+    case Exception::Debug:
+      return "Debug";
+    case Exception::NonMaskableInterrupt:
+      return "Non Maskable Interrupt";
+    case Exception::Breakpoint:
+      return "Breakpoint";
+    case Exception::IntoDetectedOverflow:
+      return "Into Detected Overflow";
+    case Exception::OutOfBounds:
+      return "Out of Bounds";
+    case Exception::InvalidOpcode:
+      return "Invalid Opcode";
+    case Exception::NoCoprocessor:
+      return "No Coprocessor";
+    case Exception::DoubleFault:
+      return "Double Fault";
+    case Exception::CoprocessorSegment:
+      return "Coprocessor Segment";
+    case Exception::BadTSS:
+      return "Bad TSS";
+    case Exception::SegmentNotPreset:
+      return "Segment Not Present";
+    case Exception::StackFault:
+      return "Stack Fault";
+    case Exception::GeneralProtectionFault:
+      return "General Protection Fault";
+    case Exception::PageFault:
+      return "Page Fault";
+    case Exception::UnknownInterrupt:
+      return "Unknown Interrupt";
+    case Exception::CoprocessorFault:
+      return "Coprocessor Fault";
+    case Exception::AlignmentCheck:
+      return "Alignment Check";
+    case Exception::MachineCheck:
+      return "Machine Check";
+    default:
+      return "Unknown";
+  }
+}
+
+}  // namespace
 
 // Register the CPU exception interrupts.
 void RegisterExceptionInterrupts() {
@@ -70,42 +139,6 @@ void RegisterExceptionInterrupts() {
   SetIdtEntry(31, (size_t)isr31, 0x08, 0x8E);
 #endif
 }
-
-// Messages for each of the exceptions.
-const char* exception_messages[] = {
-    "Division By Zero",         /* 0 */
-    "Debug",                    /* 1 */
-    "Non Maskable Interrupt",   /* 2 */
-    "Breakpoint",               /* 3 */
-    "Into Detected Overflow",   /* 4 */
-    "Out of Bounds",            /* 5 */
-    "Invalid Opcode",           /* 6 */
-    "No Coprocessor",           /* 7 */
-    "Double Fault",             /* 8 */
-    "Coprocessor Segment",      /* 9 */
-    "Bad TSS",                  /* 10 */
-    "Segment Not Present",      /* 11 */
-    "Stack Fault",              /* 12 */
-    "General Protection Fault", /* 13 */
-    "Page Fault",               /* 14 */
-    "Unknown Interrupt",        /* 15 */
-    "Coprocessor Fault",        /* 16 */
-    "Alignment Check",          /* 17 */
-    "Machine Check",            /* 18 */
-    "Reserved",                 /* 19 */
-    "Reserved",                 /* 20 */
-    "Reserved",                 /* 21 */
-    "Reserved",                 /* 22 */
-    "Reserved",                 /* 23 */
-    "Reserved",                 /* 24 */
-    "Reserved",                 /* 25 */
-    "Reserved",                 /* 26 */
-    "Reserved",                 /* 27 */
-    "Reserved",                 /* 28 */
-    "Reserved",                 /* 29 */
-    "Reserved",                 /* 30 */
-    "Reserved"                  /* 31 */
-};
 
 namespace {
 
@@ -161,16 +194,18 @@ void PrintRegistersAndStackTrace() {
 }
 
 // The exception handler.
-extern "C" void ExceptionHandler(int exception_no, size_t cr2, size_t error_code) {
-  if (exception_no == PAGE_FAULT && running_thread != nullptr) {
+extern "C" void ExceptionHandler(int exception_no, size_t cr2,
+                                 size_t error_code) {
+  Exception exception = static_cast<Exception>(exception_no);
+  if (exception == Exception::PageFault && running_thread != nullptr) {
     if (MaybeHandleSharedMessagePageFault(cr2))
       JumpIntoThread();  // Doesn't return.
   }
 
   // Output the exception that occured.
   if (exception_no < 32) {
-    print << "\nException occured: " << exception_messages[exception_no] << " (" <<
-      NumberFormat::Decimal << exception_no << ')';
+    print << "\nException occured: " << GetMessageForException(exception) << " ("
+          << NumberFormat::Decimal << exception_no << ')';
   } else {
     // This should never trigger, because we haven't registered ourselves
     // for interrupts >= 32.
@@ -178,27 +213,27 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2, size_t error_code
   }
 
   bool in_kernel = currently_executing_thread_regs == nullptr ||
-    IsKernelAddress(currently_executing_thread_regs->rip);
+                   IsKernelAddress(currently_executing_thread_regs->rip);
 
   if (in_kernel) {
     print << " in kernel";
   } else {
     Process* process = running_thread->process;
-    print << " by PID " << process->pid << " (" << process->name << ") in TID " <<
-      running_thread->id;
+    print << " by PID " << process->pid << " (" << process->name << ") in TID "
+          << running_thread->id;
   }
 
-  if (exception_no == PAGE_FAULT) {
+  if (exception == Exception::PageFault) {
     print << " for trying to access " << NumberFormat::Hexidecimal << cr2;
   }
   print << " with error code: " << NumberFormat::Decimal << error_code << '\n';
   PrintRegistersAndStackTrace();
 
   if (in_kernel) {
-  #ifndef __TEST__
-      asm("cli");
-      asm("hlt");
-  #endif
+#ifndef __TEST__
+    asm("cli");
+    asm("hlt");
+#endif
   } else {
     // Terminate the process.
     DestroyProcess(running_thread->process);
