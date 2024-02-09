@@ -14,6 +14,7 @@
 #include "shared_memory.h"
 #include "stack_trace.h"
 #include "syscall.asm.h"
+#include "syscalls.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "timer.h"
@@ -37,71 +38,6 @@ namespace {
 #define IA32_FMASK 0xC0000084
 // Mask for the interrupt bit in IA32_FMASK
 #define INTERRUPT_MASK 0x0200
-
-// Syscalls.
-#define PRINT_DEBUG_CHARACTER 0
-#define PRINT_REGISTERS_AND_STACK 26
-// Threading
-#define CREATE_THREAD 1
-#define GET_THIS_THREAD_ID 2
-#define SLEEP_THIS_THREAD 3
-#define SLEEP_THREAD 9
-#define WAKE_THREAD 10
-#define WAKE_AND_SWITCH_TO_THREAD 11
-#define TERMINATE_THIS_THREAD 4
-#define TERMINATE_THREAD 5
-#define YIELD 8
-#define SET_THREAD_SEGMENT 27
-#define SET_ADDRESS_TO_CLEAR_ON_THREAD_TERMINATION 28
-// Memory management
-#define ALLOCATE_MEMORY_PAGES 12
-#define ALLOCATE_MEMORY_PAGES_BELOW_PHYSICAL_BASE 49
-#define RELEASE_MEMORY_PAGES 13
-#define MAP_PHYSICAL_MEMORY 41
-#define GET_PHYSICAL_ADDRESS_OF_VIRTUAL_ADDRESS 50
-#define GET_FREE_SYSTEM_MEMORY 14
-#define GET_MEMORY_USED_BY_PROCESS 15
-#define GET_TOTAL_SYSTEM_MEMORY 16
-#define CREATE_SHARED_MEMORY 42
-#define JOIN_SHARED_MEMORY 43
-#define LEAVE_SHARED_MEMORY 44
-#define MOVE_PAGE_INTO_SHARED_MEMORY 45
-#define IS_SHARED_MEMORY_PAGE_ALLOCATED 46
-#define SET_MEMORY_ACCESS_RIGHTS 48
-// Processes
-#define GET_THIS_PROCESS_ID 39
-#define TERMINATE_THIS_PROCESS 6
-#define TERMINATE_PROCESS 7
-#define GET_PROCESSES 22
-#define GET_NAME_OF_PROCESS 29
-#define NOTIFY_WHEN_PROCESS_DISAPPEARS 30
-#define STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS 31
-#define CREATE_PROCESS 51
-#define SET_CHILD_PROCESS_MEMORY_PAGE 52
-#define START_EXECUTING_PROCESS 53
-#define DESTROY_CHILD_PROCESS 54
-// Services
-#define REGISTER_SERVICE 32
-#define UNREGISTER_SERVICE 33
-#define GET_SERVICES 34
-#define GET_NAME_OF_SERVICE 47
-#define NOTIFY_WHEN_SERVICE_APPEARS 35
-#define STOP_NOTIFYING_WHEN_SERVICE_APPEARS 36
-#define NOTIFY_WHEN_SERVICE_DISAPPEARS 37
-#define STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS 38
-// Messaging
-#define SEND_MESSAGE 17
-#define POLL_FOR_MESSAGE 18
-#define SLEEP_FOR_MESSAGE 19
-// Interrupts
-#define REGISTER_MESSAGE_TO_SEND_ON_INTERRUPT 20
-#define UNREGISTER_MESSAGE_TO_SEND_ON_INTERRUPT 21
-// Drivers
-#define GET_MULTIBOOT_FRAMEBUFFER_INFORMATION 40
-// Time
-#define SEND_MESSAGE_AFTER_X_MICROSECONDS 23
-#define SEND_MESSAGE_AT_TIMESTAMP 24
-#define GET_CURRENT_TIMESTAMP 25
 
 }  // namespace
 
@@ -130,11 +66,11 @@ extern "C" void SyscallHandler(int syscall_number) {
 #ifdef PROFILING_ENABLED
   size_t syscall_start_time = CurrentTimeForProfiling();
 #endif
-  switch (syscall_number) {
-    case PRINT_DEBUG_CHARACTER:
+  switch (static_cast<Syscall>(syscall_number)) {
+    case Syscall::PrintDebugCharacter:
       print << (char)currently_executing_thread_regs->rax;
       break;
-    case PRINT_REGISTERS_AND_STACK: {
+    case Syscall::PrintRegistersAndStack: {
       Process *process = running_thread->process;
       print << "Dump requested by PID " << NumberFormat::Decimal <<
         running_thread->process->pid << " (" << running_thread->process->name <<
@@ -142,7 +78,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       PrintRegistersAndStackTrace();
       break;
     }
-    case CREATE_THREAD: {
+    case Syscall::CreateThread: {
       Thread *new_thread = CreateThread(
           running_thread->process, currently_executing_thread_regs->rax,
           currently_executing_thread_regs->rbx);
@@ -154,28 +90,28 @@ extern "C" void SyscallHandler(int syscall_number) {
       ScheduleThread(new_thread);
       break;
     }
-    case GET_THIS_THREAD_ID:
+    case Syscall::GetThisThreadId:
       currently_executing_thread_regs->rax = running_thread->id;
       break;
-    case SLEEP_THIS_THREAD:
-      print << "Implement SLEEP_THREAD\n";
+    case Syscall::SleepThisThread:
+      print << "Implement Syscall::SleepThread\n";
       break;
-    case SLEEP_THREAD:
+    case Syscall::SleepThread:
       print << "Implement SLEEP\n";
       break;
-    case WAKE_THREAD:
-      print << "Implement WAKE_THREAD\n";
+    case Syscall::WakeThread:
+      print << "Implement Syscall::WakeThread\n";
       // TODO: if thread is waiting for event, set bad event id
       break;
-    case WAKE_AND_SWITCH_TO_THREAD:
-      print << "Implement WAKE_AND_SWITCH_TO_THREAD\n";
+    case Syscall::WaitAndSwitchToThread:
+      print << "Implement Syscall::WaitAndSwitchToThread\n";
       // TODO: if thread is waiting for event, set bad event id
       break;
-    case TERMINATE_THIS_THREAD:
+    case Syscall::TerminateThisThread:
       DestroyThread(running_thread, false);
       JumpIntoThread();  // Doesn't return.
       break;
-    case TERMINATE_THREAD: {
+    case Syscall::TerminateThread: {
       Thread *thread = GetThreadFromTid(
           running_thread->process, currently_executing_thread_regs->rax);
       if (thread == running_thread) {
@@ -186,25 +122,25 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
-    case YIELD:
+    case Syscall::Yield:
       ScheduleNextThread();
       JumpIntoThread();  // Doesn't return.
       break;
-    case SET_THREAD_SEGMENT:
+    case Syscall::SetThreadSegment:
       SetThreadSegment(running_thread, currently_executing_thread_regs->rax);
       break;
-    case SET_ADDRESS_TO_CLEAR_ON_THREAD_TERMINATION:
+    case Syscall::SetAddressToClearOnThreadTermination:
       // Align the address to 8 bytes to avoid crossing page boundaries.
       running_thread->address_to_clear_on_termination =
           currently_executing_thread_regs->rax & (~7L);
       break;
-    case ALLOCATE_MEMORY_PAGES:
+    case Syscall::AllocateMemoryPages:
       currently_executing_thread_regs->rax =
           AllocateVirtualMemoryInAddressSpace(
               &running_thread->process->virtual_address_space,
               currently_executing_thread_regs->rax);
       break;
-    case ALLOCATE_MEMORY_PAGES_BELOW_PHYSICAL_BASE:
+    case Syscall::AllocateMemoryPagesBelowPhysicalBase:
       if (running_thread->process->is_driver) {
         size_t first_physical_address = 0;
         currently_executing_thread_regs->rax =
@@ -221,13 +157,13 @@ extern "C" void SyscallHandler(int syscall_number) {
         currently_executing_thread_regs->rbx = 0;
       }
       break;
-    case RELEASE_MEMORY_PAGES:
+    case Syscall::ReleaseMemoryPages:
       ReleaseVirtualMemoryInAddressSpace(
           &running_thread->process->virtual_address_space,
           currently_executing_thread_regs->rax,
           currently_executing_thread_regs->rbx, true);
       break;
-    case MAP_PHYSICAL_MEMORY:
+    case Syscall::MapPhysicalMemory:
       // Only drivers can map physical memory.
       if (running_thread->process->is_driver) {
         currently_executing_thread_regs->rax = MapPhysicalMemoryInAddressSpace(
@@ -238,7 +174,7 @@ extern "C" void SyscallHandler(int syscall_number) {
         currently_executing_thread_regs->rax = OUT_OF_MEMORY;
       }
       break;
-    case GET_PHYSICAL_ADDRESS_OF_VIRTUAL_ADDRESS:
+    case Syscall::GetPhysicalAddressOfVirtualAddress:
       if (running_thread->process->is_driver) {
         currently_executing_thread_regs->rax =
             GetPhysicalAddress(&running_thread->process->virtual_address_space,
@@ -248,17 +184,17 @@ extern "C" void SyscallHandler(int syscall_number) {
         currently_executing_thread_regs->rax = 0;
       }
       break;
-    case GET_FREE_SYSTEM_MEMORY:
+    case Syscall::GetFreeSystemMemory:
       currently_executing_thread_regs->rax = free_pages * PAGE_SIZE;
       break;
-    case GET_MEMORY_USED_BY_PROCESS:
+    case Syscall::GetMemoryUsedByProcess:
       currently_executing_thread_regs->rax =
           running_thread->process->allocated_pages * PAGE_SIZE;
       break;
-    case GET_TOTAL_SYSTEM_MEMORY:
+    case Syscall::GetTotalSystemMemory:
       currently_executing_thread_regs->rax = total_system_memory;
       break;
-    case CREATE_SHARED_MEMORY: {
+    case Syscall::CreateSharedMemory: {
       SharedMemoryInProcess *shared_memory =
           CreateAndMapSharedMemoryBlockIntoProcess(
               running_thread->process, currently_executing_thread_regs->rax,
@@ -275,7 +211,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
-    case JOIN_SHARED_MEMORY: {
+    case Syscall::JoinSharedMemory: {
       SharedMemoryInProcess *shared_memory = JoinSharedMemory(
           running_thread->process, currently_executing_thread_regs->rax);
 
@@ -294,24 +230,24 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
-    case LEAVE_SHARED_MEMORY:
+    case Syscall::LeaveSharedMemory:
       LeaveSharedMemory(running_thread->process,
                         currently_executing_thread_regs->rax);
       break;
-    case MOVE_PAGE_INTO_SHARED_MEMORY:
+    case Syscall::MovePageIntoSharedMemory:
       MovePageIntoSharedMemory(running_thread->process,
                                currently_executing_thread_regs->rax,
                                currently_executing_thread_regs->rbx,
                                currently_executing_thread_regs->rdx);
       break;
-    case IS_SHARED_MEMORY_PAGE_ALLOCATED:
+    case Syscall::IsSharedMemoryPageAllocated:
       currently_executing_thread_regs->rax =
           IsAddressAllocatedInSharedMemory(currently_executing_thread_regs->rax,
                                            currently_executing_thread_regs->rbx)
               ? 1
               : 0;
       break;
-    case SET_MEMORY_ACCESS_RIGHTS: {
+    case Syscall::SetMemoryAccessRights: {
       size_t address = currently_executing_thread_regs->rax;
       size_t num_pages = currently_executing_thread_regs->rbx;
       size_t max_address = address + num_pages * PAGE_SIZE;
@@ -323,14 +259,14 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
-    case GET_THIS_PROCESS_ID:
+    case Syscall::GetThisProcessId:
       currently_executing_thread_regs->rax = running_thread->process->pid;
       break;
-    case TERMINATE_THIS_PROCESS:
+    case Syscall::TerminateThisProcess:
       DestroyProcess(running_thread->process);
       JumpIntoThread();  // Doesn't return.
       break;
-    case TERMINATE_PROCESS: {
+    case Syscall::TerminateProcess: {
       Process *process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
       if (process == nullptr) {
@@ -343,7 +279,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
-    case GET_PROCESSES: {
+    case Syscall::GetProcesses: {
       // Extract the name from the input registers.
       size_t process_name[PROCESS_NAME_WORDS];
       process_name[0] = currently_executing_thread_regs->rax;
@@ -391,7 +327,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       currently_executing_thread_regs->r15 = pids[11];
       break;
     }
-    case GET_NAME_OF_PROCESS: {
+    case Syscall::GetNameOfProcess: {
       Process *process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
       if (process == nullptr) {
@@ -412,7 +348,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
-    case NOTIFY_WHEN_PROCESS_DISAPPEARS: {
+    case Syscall::NotifyWhenProcessDisappears: {
       size_t target_pid = currently_executing_thread_regs->rax;
       size_t event_id = currently_executing_thread_regs->rbx;
 
@@ -423,7 +359,7 @@ extern "C" void SyscallHandler(int syscall_number) {
         // doesn't exist. It's possible that is just died, so whatever
         // the case, the safest thing to do here is to imemdiately send
         // an event.
-        print << "NOTIFY_WHEN_PROCESS_DISAPPEARS";
+        print << "Syscall::NotifyWhenProcessDisappears";
         SendKernelMessageToProcess(running_thread->process, event_id,
                                    target_pid, 0, 0, 0, 0);
       } else {
@@ -431,10 +367,10 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
-    case STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS:
-      print << "Implement STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS\n";
+    case Syscall::StopNotifyingWhenProcessDisappears:
+      print << "Implement Syscall::StopNotifyingWhenProcessDisappears\n";
       break;
-    case CREATE_PROCESS: {
+    case Syscall::CreateProcess: {
       // Extract the name from the input registers.
       size_t process_name[PROCESS_NAME_WORDS];
       process_name[0] = currently_executing_thread_regs->rax;
@@ -456,7 +392,7 @@ extern "C" void SyscallHandler(int syscall_number) {
           ((size_t)child_process == ERROR) ? 0 : child_process->pid;
       break;
     }
-    case SET_CHILD_PROCESS_MEMORY_PAGE: {
+    case Syscall::SetChildProcessMemoryPage: {
       Process *child_process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
       SetChildProcessMemoryPage(running_thread->process, child_process,
@@ -464,7 +400,7 @@ extern "C" void SyscallHandler(int syscall_number) {
                                 currently_executing_thread_regs->rdx);
       break;
     }
-    case START_EXECUTING_PROCESS: {
+    case Syscall::StartExecutionProcess: {
       Process *child_process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
       StartExecutingChildProcess(running_thread->process, child_process,
@@ -472,13 +408,13 @@ extern "C" void SyscallHandler(int syscall_number) {
                                  currently_executing_thread_regs->rdx);
       break;
     }
-    case DESTROY_CHILD_PROCESS: {
+    case Syscall::DestroyChildProcess: {
       Process *child_process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
       DestroyChildProcess(running_thread->process, child_process);
       break;
     }
-    case REGISTER_SERVICE: {
+    case Syscall::RegisterService: {
       // Extract the name from the input registers.
       size_t service_name[SERVICE_NAME_WORDS];
       service_name[0] = currently_executing_thread_regs->rax;
@@ -496,11 +432,11 @@ extern "C" void SyscallHandler(int syscall_number) {
                       currently_executing_thread_regs->rbp);
       break;
     }
-    case UNREGISTER_SERVICE:
+    case Syscall::UnregisterService:
       UnregisterServiceByMessageId(running_thread->process,
                                    currently_executing_thread_regs->rax);
       break;
-    case GET_SERVICES: {
+    case Syscall::GetServices: {
       // Extract the name from the input registers.
       size_t service_name[SERVICE_NAME_WORDS];
       service_name[0] = currently_executing_thread_regs->rbx;
@@ -550,7 +486,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       currently_executing_thread_regs->r15 = sids[5];
       break;
     }
-    case GET_NAME_OF_SERVICE: {
+    case Syscall::GetNameOfService: {
       size_t pid = currently_executing_thread_regs->rax;
       size_t sid = currently_executing_thread_regs->rbx;
       Service *service = FindServiceByProcessAndMid(pid, sid);
@@ -571,7 +507,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
-    case NOTIFY_WHEN_SERVICE_APPEARS: {
+    case Syscall::NotifyWhenServiceAppears: {
       // Extract the name from the input registers.
       size_t service_name[SERVICE_NAME_WORDS];
       service_name[0] = currently_executing_thread_regs->rax;
@@ -590,55 +526,55 @@ extern "C" void SyscallHandler(int syscall_number) {
                                       currently_executing_thread_regs->rbp);
       break;
     }
-    case STOP_NOTIFYING_WHEN_SERVICE_APPEARS:
+    case Syscall::StopNotifyingWhenServiceAppears:
       StopNotifyingProcessWhenServiceAppearsByMessageId(
           running_thread->process, currently_executing_thread_regs->rbp);
       break;
-    case NOTIFY_WHEN_SERVICE_DISAPPEARS:
-      print << "Implement NOTIFY_WHEN_SERVICE_DISAPPEARS\n";
+    case Syscall::NotifyWhenServiceDisappears:
+      print << "Implement Syscall::NotifyWhenServiceDisappears\n";
       break;
-    case STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS:
-      print << "Implement STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS\n";
+    case Syscall::StopNotifyingWhenServiceDisappears:
+      print << "Implement Syscall::StopNotifyingWhenServiceDisappears\n";
       break;
-    case SEND_MESSAGE:
+    case Syscall::SendMessage:
       SendMessageFromThreadSyscall(running_thread);
       break;
-    case POLL_FOR_MESSAGE:
+    case Syscall::PollForMessage:
       LoadNextMessageIntoThread(running_thread);
       break;
-    case SLEEP_FOR_MESSAGE:
+    case Syscall::SleepForMessage:
       if (SleepThreadUntilMessage(running_thread)) {
         // The thread is now asleep. We need to schedule a new thread.
         ScheduleNextThread();
         JumpIntoThread();  // Doesn't return.
       }
       break;
-    case REGISTER_MESSAGE_TO_SEND_ON_INTERRUPT:
+    case Syscall::RegisterMessageToSendOnInterrupt:
       RegisterMessageToSendOnInterrupt(
           (int)currently_executing_thread_regs->rax, running_thread->process,
           currently_executing_thread_regs->rbx);
       break;
-    case UNREGISTER_MESSAGE_TO_SEND_ON_INTERRUPT:
+    case Syscall::UnregisterMessageToSendOnInterrupt:
       UnregisterMessageToSendOnInterrupt(
           (int)currently_executing_thread_regs->rax, running_thread->process,
           currently_executing_thread_regs->rbx);
       break;
-    case GET_MULTIBOOT_FRAMEBUFFER_INFORMATION:
+    case Syscall::GetMultibootFramebufferInformation:
       PopulateRegistersWithFramebufferDetails(currently_executing_thread_regs);
       break;
-    case SEND_MESSAGE_AFTER_X_MICROSECONDS:
+    case Syscall::SendMessageAfterXMicroseconds:
       SendMessageToProcessAtMicroseconds(
           running_thread->process,
           currently_executing_thread_regs->rax +
               GetCurrentTimestampInMicroseconds(),
           (int)currently_executing_thread_regs->rbx);
       break;
-    case SEND_MESSAGE_AT_TIMESTAMP:
+    case Syscall::SendMessageAtTimestamp:
       SendMessageToProcessAtMicroseconds(
           running_thread->process, currently_executing_thread_regs->rax,
           (int)currently_executing_thread_regs->rbx);
       break;
-    case GET_CURRENT_TIMESTAMP:
+    case Syscall::GetCurrentTimestamp:
       currently_executing_thread_regs->rax =
           GetCurrentTimestampInMicroseconds();
       break;
@@ -649,121 +585,4 @@ extern "C" void SyscallHandler(int syscall_number) {
 #ifdef DEBUG
   print << "Leaving syscall " << GetSystemCallName(syscall_number) << '\n';
 #endif
-}
-
-const char *GetSystemCallName(int syscall) {
-  switch (syscall) {
-    default:
-      return "Unknown";
-    case PRINT_DEBUG_CHARACTER:
-      return "PRINT_DEBUG_CHARACTER";
-    case PRINT_REGISTERS_AND_STACK:
-      return "PRINT_REGISTERS_AND_STACK";
-    case CREATE_THREAD:
-      return "CREATE_THREAD";
-    case GET_THIS_THREAD_ID:
-      return "GET_THIS_THREAD_ID";
-    case SLEEP_THIS_THREAD:
-      return "SLEEP_THIS_THREAD";
-    case SLEEP_THREAD:
-      return "SLEEP_THREAD";
-    case WAKE_THREAD:
-      return "WAKE_THREAD";
-    case WAKE_AND_SWITCH_TO_THREAD:
-      return "WAKE_AND_SWITCH_TO_THREAD";
-    case TERMINATE_THIS_THREAD:
-      return "TERMINATE_THIS_THREAD";
-    case TERMINATE_THREAD:
-      return "TERMINATE_THREAD";
-    case YIELD:
-      return "YIELD";
-    case SET_THREAD_SEGMENT:
-      return "SET_THREAD_SEGMENT";
-    case SET_ADDRESS_TO_CLEAR_ON_THREAD_TERMINATION:
-      return "SET_ADDRESS_TO_CLEAR_ON_THREAD_TERMINATION";
-    case ALLOCATE_MEMORY_PAGES:
-      return "ALLOCATE_MEMORY_PAGES";
-    case ALLOCATE_MEMORY_PAGES_BELOW_PHYSICAL_BASE:
-      return "ALLOCATE_MEMORY_PAGES_BELOW_PHYSICAL_BASE";
-    case RELEASE_MEMORY_PAGES:
-      return "RELEASE_MEMORY_PAGES";
-    case MAP_PHYSICAL_MEMORY:
-      return "MAP_PHYSICAL_MEMORY";
-    case GET_PHYSICAL_ADDRESS_OF_VIRTUAL_ADDRESS:
-      return "GET_PHYSICAL_ADDRESS_OF_VIRTUAL_ADDRESS";
-    case GET_FREE_SYSTEM_MEMORY:
-      return "GET_FREE_SYSTEM_MEMORY";
-    case GET_MEMORY_USED_BY_PROCESS:
-      return "GET_MEMORY_USED_BY_PROCESS";
-    case GET_TOTAL_SYSTEM_MEMORY:
-      return "GET_TOTAL_SYSTEM_MEMORY";
-    case CREATE_SHARED_MEMORY:
-      return "CREATE_SHARED_MEMORY";
-    case JOIN_SHARED_MEMORY:
-      return "JOIN_SHARED_MEMORY";
-    case LEAVE_SHARED_MEMORY:
-      return "LEAVE_SHARED_MEMORY";
-    case MOVE_PAGE_INTO_SHARED_MEMORY:
-      return "MOVE_PAGE_INTO_SHARED_MEMORY";
-    case IS_SHARED_MEMORY_PAGE_ALLOCATED:
-      return "IS_SHARED_MEMORY_PAGE_ALLOCATED";
-    case SET_MEMORY_ACCESS_RIGHTS:
-      return "SET_MEMORY_ACCESS_RIGHTS";
-    case GET_THIS_PROCESS_ID:
-      return "GET_THIS_PROCESS_ID";
-    case TERMINATE_THIS_PROCESS:
-      return "TERMINATE_THIS_PROCESS";
-    case TERMINATE_PROCESS:
-      return "TERMINATE_PROCESS";
-    case GET_PROCESSES:
-      return "GET_PROCESSES";
-    case GET_NAME_OF_PROCESS:
-      return "GET_NAME_OF_PROCESS";
-    case NOTIFY_WHEN_PROCESS_DISAPPEARS:
-      return "NOTIFY_WHEN_PROCESS_DISAPPEARS";
-    case STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS:
-      return "STOP_NOTIFYING_WHEN_PROCESS_DISAPPEARS";
-    case CREATE_PROCESS:
-      return "CREATE_PROCESS";
-    case SET_CHILD_PROCESS_MEMORY_PAGE:
-      return "SET_CHILD_PROCESS_MEMORY_PAGE";
-    case START_EXECUTING_PROCESS:
-      return "START_EXECUTING_PROCESS";
-    case DESTROY_CHILD_PROCESS:
-      return "DESTROY_CHILD_PROCESS";
-    case REGISTER_SERVICE:
-      return "REGISTER_SERVICE";
-    case UNREGISTER_SERVICE:
-      return "UNREGISTER_SERVICE";
-    case GET_SERVICES:
-      return "GET_SERVICES";
-    case GET_NAME_OF_SERVICE:
-      return "GET_NAME_OF_SERVICE";
-    case NOTIFY_WHEN_SERVICE_APPEARS:
-      return "NOTIFY_WHEN_SERVICE_APPEARS";
-    case STOP_NOTIFYING_WHEN_SERVICE_APPEARS:
-      return "STOP_NOTIFYING_WHEN_SERVICE_APPEARS";
-    case NOTIFY_WHEN_SERVICE_DISAPPEARS:
-      return "NOTIFY_WHEN_SERVICE_DISAPPEARS";
-    case STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS:
-      return "STOP_NOTIFYING_WHEN_SERVICE_DISAPPEARS";
-    case SEND_MESSAGE:
-      return "SEND_MESSAGE";
-    case POLL_FOR_MESSAGE:
-      return "POLL_FOR_MESSAGE";
-    case SLEEP_FOR_MESSAGE:
-      return "SLEEP_FOR_MESSAGE";
-    case REGISTER_MESSAGE_TO_SEND_ON_INTERRUPT:
-      return "REGISTER_MESSAGE_TO_SEND_ON_INTERRUPT";
-    case UNREGISTER_MESSAGE_TO_SEND_ON_INTERRUPT:
-      return "UNREGISTER_MESSAGE_TO_SEND_ON_INTERRUPT";
-    case GET_MULTIBOOT_FRAMEBUFFER_INFORMATION:
-      return "GET_MULTIBOOT_FRAMEBUFFER_INFORMATION";
-    case SEND_MESSAGE_AFTER_X_MICROSECONDS:
-      return "SEND_MESSAGE_AFTER_X_MICROSECONDS";
-    case SEND_MESSAGE_AT_TIMESTAMP:
-      return "SEND_MESSAGE_AT_TIMESTAMP";
-    case GET_CURRENT_TIMESTAMP:
-      return "GET_CURRENT_TIMESTAMP";
-  }
 }

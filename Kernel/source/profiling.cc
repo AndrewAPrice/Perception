@@ -18,6 +18,7 @@
 
 #include "io.h"
 #include "syscall.h"
+#include "syscalls.h"
 #include "text_terminal.h"
 
 namespace {
