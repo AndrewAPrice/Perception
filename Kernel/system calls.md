@@ -716,6 +716,22 @@ Returns the time (in microseconds) since the kernel started.
 ### Output
 * `rax` - The number of microseconds since the kernel started.
 
+# Profiling
+
+## Enable profiling
+Start recording the amount of cycles spent in processes, the kernel, and system calls.
+
+### Intput
+* `rdi` - 55
+
+### Output
+Nothing.
+
+## Disable profiling and output the results
+Stop recording profiling and output the results via COM1.
+
+### Input
+* `rdi` - 56
 
 ### Output
 Nothing.
