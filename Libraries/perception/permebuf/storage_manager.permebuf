@@ -57,6 +57,19 @@ service File {
 	}
 	minimessage ReadFileResponse {}
 	ReadFile : ReadFileRequest -> ReadFileResponse = 1;
+
+	// Grants the storage device permission to allocate memory pages into a buffer.
+	// The caller must have granted permission to process ID serving the File for
+	// this operation to work.
+	minimessage GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest {
+		// The shared memory buffer to grant permission for the storage device to
+		// allocate memory pages to.
+		Buffer : SharedMemory = 1;
+	}
+	minimessage GrantStorageDevicePermissionToAllocateSharedMemoryPagesResponse {}
+	GrantStorageDevicePermissionToAllocateSharedMemoryPages :
+		GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest ->
+		GrantStorageDevicePermissionToAllocateSharedMemoryPagesResponse = 2;
 }
 
 // A memory mapped file.
@@ -79,6 +92,9 @@ service StorageManager {
 
 		// The size of this file, in bytes.
 		SizeInBytes : uint64 = 2;
+
+		// The optimal operation size, in bytes.
+		OptimalOperationSize : uint64 = 3;
 	}
 	OpenFile : OpenFileRequest -> OpenFileResponse = 0;
 
@@ -158,6 +174,9 @@ service StorageManager {
 
 		// The size of this file in bytes, if it's a file.
 		SizeInBytes : uint64 = 4;
+
+		// Get the optimal size for file operations, in bytes.
+		OptimalOperationSize : uint64 = 5;
 	}
 	GetFileStatistics : GetFileStatisticsRequest -> GetFileStatisticsResponse = 4;
 }
