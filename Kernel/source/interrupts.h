@@ -16,6 +16,9 @@
 
 #include "types.h"
 
+// The number of interrupts.
+#define NUMBER_OF_INTERRUPTS 16
+
 struct Process;
 
 // A message to fire on an interrupt.

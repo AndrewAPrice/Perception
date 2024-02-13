@@ -6,6 +6,7 @@
 #include "messages.h"
 #include "object_pool.h"
 #include "physical_allocator.h"
+#include "profiling.h"
 #include "scheduler.h"
 #include "service.h"
 #include "text_terminal.h"
@@ -74,6 +75,10 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
   // Threads.
   proc->threads = 0;
   proc->thread_count = 0;
+
+  // Profiling.
+  proc->has_enabled_profiling = 0;
+  proc->cycles_spent_executing_while_profiled = 0;
 
   // Add to the linked list of running processes.
   if (first_process == nullptr) {
@@ -171,6 +176,8 @@ void DestroyProcess(Process *process) {
   while (process->child_processes != nullptr) {
     DestroyProcess(process->child_processes);
   }
+
+  NotifyProfilerThatProcessExited(process);
 
   // Remove from the parent.
   if (process->parent) RemoveChildProcessOfParent(process->parent, process);

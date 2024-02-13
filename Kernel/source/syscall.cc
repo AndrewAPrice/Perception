@@ -62,10 +62,6 @@ extern "C" void SyscallHandler(int syscall_number) {
   print << ")\n";
   PrintRegisters(currently_executing_thread_regs);
 #endif
-
-#ifdef PROFILING_ENABLED
-  size_t syscall_start_time = CurrentTimeForProfiling();
-#endif
   switch (static_cast<Syscall>(syscall_number)) {
     case Syscall::PrintDebugCharacter:
       print << (char)currently_executing_thread_regs->rax;
@@ -578,10 +574,13 @@ extern "C" void SyscallHandler(int syscall_number) {
       currently_executing_thread_regs->rax =
           GetCurrentTimestampInMicroseconds();
       break;
+    case Syscall::EnableProfiling:
+      EnableProfiling(running_thread->process);
+      break;
+    case Syscall::DisableAndOutputProfiling:
+      DisableAndOutputProfiling(running_thread->process);
+      break;
   }
-#ifdef PROFILING_ENABLED
-  ProfileSyscall(syscall_number, syscall_start_time);
-#endif
 #ifdef DEBUG
   print << "Leaving syscall " << GetSystemCallName(syscall_number) << '\n';
 #endif

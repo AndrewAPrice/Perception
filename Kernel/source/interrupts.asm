@@ -30,90 +30,93 @@
 [GLOBAL irq13]
 [GLOBAL irq14]
 [GLOBAL irq15]
+[EXTERN CommonHardwareInterruptHandler]
+[EXTERN currently_executing_thread_regs]
+[EXTERN interrupt_stack_top]
+[EXTERN ProfileEnteringKernelSpaceForInterrupt]
+[EXTERN profiling_enabling_count]
+[EXTERN ProfileSwitchToUserSpace]
 
 irq0:
-	cli
+	; cli
 	push 0
 	jmp irq_common_stub
 
 irq1:
-	cli
+	; cli
 	push 1
 	jmp irq_common_stub
 
 irq2:
-	cli
+	; cli
 	push 2
 	jmp irq_common_stub
 
 irq3:
-	cli
+	; cli
 	push 3
 	jmp irq_common_stub
 
 irq4:
-	cli
+	; cli
 	push 4
 	jmp irq_common_stub
 
 irq5:
-	cli
+	; cli
 	push 5
 	jmp irq_common_stub
 
 irq6:
-	cli
+	; cli
 	push 6
 	jmp irq_common_stub
 
 irq7:
-	cli
+	; cli
 	push 7
 	jmp irq_common_stub
 
 irq8:
-	cli
+	; cli
 	push 8
 	jmp irq_common_stub
 
 irq9:
-	cli
+	; cli
 	push 9
 	jmp irq_common_stub
 
 irq10:
-	cli
+	; cli
 	push 10
 	jmp irq_common_stub
 
 irq11:
-	cli
+	; cli
 	push 11
 	jmp irq_common_stub
 
 irq12:
-	cli
+	; cli
 	push 12
 	jmp irq_common_stub
 
 irq13:
-	cli
+	; cli
 	push 13
 	jmp irq_common_stub
 
 irq14:
-	cli
+	; cli
 	push 14
 	jmp irq_common_stub
 
 irq15:
-	cli
+	; cli
 	push 15
 	jmp irq_common_stub
 
-[EXTERN CommonHardwareInterruptHandler]
-[EXTERN currently_executing_thread_regs]
-[EXTERN interrupt_stack_top]
 irq_common_stub:
 	; Copy what's at the top of the thread's stack.
 	push rbp
@@ -157,6 +160,22 @@ irq_common_stub:
 	mov ds, ax
 	mov es, ax
 
+    ; Jump over profiling code if profiler isn't enabled.
+    mov r8, [profiling_enabling_count]
+    test r8, r8
+    jz .jump_over_pre_handler_profiling
+
+    ; Save parameters that are going to be passed to CommonHardwareInterruptHandler.
+    push rdi
+
+    ; Call the profiler - rdi is already populated with the exception handler.
+    call ProfileEnteringKernelSpaceForInterrupt
+
+    ; Restore parameters that are going to be passed to CommonHardwareInterruptHandler.
+    pop rdi
+
+.jump_over_pre_handler_profiling:
+
 	; Call the handler
 	; mov rdi, [rbp - 46] ; pass interrupt number as argument
 	; Interrupt number is in rdi and will get passed as an argument.
@@ -165,6 +184,17 @@ irq_common_stub:
 
 [GLOBAL JumpIntoThread]
 JumpIntoThread:
+
+    ; Jump over profiling code if profiler isn't enabled.
+    mov r8, [profiling_enabling_count]
+    test r8, r8
+    jz .jump_over_post_handler_profiling
+
+    ; Call the profiler - rdi is already populated with the exception handler.
+    call ProfileSwitchToUserSpace
+
+ .jump_over_post_handler_profiling:
+
 	; Move back to userland data segment.
 	mov ax, 0x18 | 3
 	mov ds, ax

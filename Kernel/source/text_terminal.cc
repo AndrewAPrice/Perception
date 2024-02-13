@@ -75,7 +75,7 @@ Printer& Printer::operator <<(size_t num) {
     case NumberFormat::Decimal:
       PrintDecimal(num, /*with_commas=*/true);
     break;
-    case NumberFormat::DecimalWithCommas:
+    case NumberFormat::DecimalWithoutCommas:
       PrintDecimal(num, /*with_commas=*/false);
     break;
     case NumberFormat::Hexidecimal:

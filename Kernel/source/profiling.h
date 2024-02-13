@@ -16,14 +16,17 @@
 
 #include "types.h"
 
-// #define PROFILING_ENABLED
+class Process;
 
-#ifdef PROFILING_ENABLED
-
-extern size_t CurrentTimeForProfiling();
-extern void ProfileSyscall(int syscall, size_t start_time);
-extern void PrintProfilingInformation();
-
-#endif
-
+// Initializes profiling.
 extern void InitializeProfiling();
+
+// Starts profiling the system, passing the process that requested it.
+extern void EnableProfiling(Process* process);
+
+// Finishes profiling and outputs the data, passing the process that requested
+// it.
+extern void DisableAndOutputProfiling(Process* process);
+
+// Notifies profiler that a process has exited.
+extern void NotifyProfilerThatProcessExited(Process* process);

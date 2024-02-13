@@ -46,6 +46,13 @@
 [GLOBAL isr30]
 [GLOBAL isr31]
 
+[EXTERN currently_executing_thread_regs]
+[EXTERN ExceptionHandler]
+[EXTERN interrupt_stack_top]
+[EXTERN JumpIntoThread]
+[EXTERN ProfileEnteringKernelSpaceForException]
+[EXTERN profiling_enabling_count]
+
 ;  0: Divide By Zero Exception
 isr0:
     cli
@@ -264,10 +271,6 @@ isr31:
     push 31
     jmp exception_common_stub
 
-[EXTERN ExceptionHandler]
-[EXTERN currently_executing_thread_regs]
-[EXTERN interrupt_stack_top]
-[EXTERN JumpIntoThread]
 exception_common_stub:
     ; Copy what's at the top of the thread's stack.
     push rbp
@@ -313,6 +316,26 @@ exception_common_stub:
     mov ax, 0x10
     mov ds, ax
     mov es, ax
+
+    ; Jump over profiling code if profiler isn't enabled.
+    pushfq
+    mov r8, [profiling_enabling_count]
+    test r8, r8
+    jz .jump_over_profiling
+
+    ; Save parameters that are going to be passed to ExceptionHandler.
+    push rdi
+    push rdx
+
+    ; Call the profiler - rdi is already populated with the exception number.
+    call ProfileEnteringKernelSpaceForException
+
+    ; Restore parameters that are going to be passed to ExceptionHandler.
+    pop rdx
+    pop rdi
+
+.jump_over_profiling:
+    popfq
 
     ; rdi is already populated with the interrupt number, and we can pass
     ; in additional arguments to the handler.

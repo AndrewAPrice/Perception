@@ -15,7 +15,7 @@
 #pragma once
 
 // The total number of system calls.
-#define NUMBER_OF_SYSCALLS 55
+#define NUMBER_OF_SYSCALLS 57
 
 // The canonical list of system calls, mapped to the system call number.
 enum class Syscall {
@@ -82,7 +82,10 @@ enum class Syscall {
   // Time,
   SendMessageAfterXMicroseconds = 23,
   SendMessageAtTimestamp = 24,
-  GetCurrentTimestamp = 25
+  GetCurrentTimestamp = 25,
+  // Profiling
+  EnableProfiling = 55,
+  DisableAndOutputProfiling = 56
 };
 
 // Returns the name of a system call, by int.

@@ -25,7 +25,7 @@ size_t microseconds_until_next_profile;
 // Sets the timer to fire 'hz' times per second.
 void SetTimerPhase(size_t hz) {
   size_t divisor = 1193180 / hz;
-  outportb(0x43, 0x36);
+  outportb(0x43, 0b00110110);
   outportb(0x40, divisor & 0xFF);
   outportb(0x40, divisor >> 8);
 }

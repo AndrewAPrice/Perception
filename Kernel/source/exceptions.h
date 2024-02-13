@@ -14,5 +14,35 @@
 
 #pragma once
 
+// The number of exceptions.
+#define NUMBER_OF_EXCEPTIONS 32
+
+// List of CPU exceptions. The values are the exception numbers reported by the
+// CPU.
+enum class Exception {
+  DivisionByZero = 0,
+  Debug = 1,
+  NonMaskableInterrupt = 2,
+  Breakpoint = 3,
+  IntoDetectedOverflow = 4,
+  OutOfBounds = 5,
+  InvalidOpcode = 6,
+  NoCoprocessor = 7,
+  DoubleFault = 8,
+  CoprocessorSegment = 9,
+  BadTSS = 10,
+  SegmentNotPreset = 11,
+  StackFault = 12,
+  GeneralProtectionFault = 13,
+  PageFault = 14,
+  UnknownInterrupt = 15,
+  CoprocessorFault = 16,
+  AlignmentCheck = 17,
+  MachineCheck = 18
+};
+
 // Register the CPU exception interrupts.
 extern void RegisterExceptionInterrupts();
+
+// Returns the name for an exception.
+const char* GetExceptionName(Exception exception);

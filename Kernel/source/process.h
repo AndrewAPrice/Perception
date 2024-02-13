@@ -109,6 +109,14 @@ struct Process {
 
   // Linked list of timer events that are scheduled for this process.
   TimerEvent* timer_event;
+
+  // Whether this process has enabled profiling. This is actually a count
+  // because the calls to enable profiling are nested.
+  size_t has_enabled_profiling;
+
+  // The number of CPU cycles spent executing this process while it has been
+  // profiled.
+  size_t cycles_spent_executing_while_profiled;
 };
 
 // Initializes the internal structures for tracking processes.

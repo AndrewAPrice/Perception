@@ -8,7 +8,7 @@ enum class NumberFormat {
     // A base 10 number, with commas.
     Decimal,
     // A base 10 number, without commas.
-    DecimalWithCommas,
+    DecimalWithoutCommas,
     // A hexidecimal number, starting with 0x.
     Hexidecimal
 };

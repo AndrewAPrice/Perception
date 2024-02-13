@@ -1,14 +1,16 @@
 [BITS 64]
 
 [GLOBAL syscall_entry]
+[EXTERN currently_executing_thread_regs]
+[EXTERN interrupt_stack_top]
+[EXTERN ProfileEnteringKernelSpaceForSyscall]
+[EXTERN profiling_enabling_count]
+[EXTERN ProfileSwitchToUserSpace]
 [EXTERN SyscallHandler]
 
 ; temp location to put the stack pointer while we manipulate the code
 sys_call_stack_pointer:
     DQ 0x0000000000000000 
-
-[EXTERN currently_executing_thread_regs]
-[EXTERN interrupt_stack_top]
 
 syscall_entry:
     ; Temporarily save userland rsp
@@ -49,9 +51,39 @@ syscall_entry:
     ; Move to the interrupt's stack.
     mov rsp, [interrupt_stack_top]
 
+    ; Jump over profiling code if profiler isn't enabled.
+    pushfq
+    mov r8, [profiling_enabling_count]
+    test r8, r8
+    jz .jump_over_pre_handler_profiling
+
+    ; Save parameters that are going to be passed to SyscallHandler.
+    push rdi
+
+    ; Call the profiler - rdi is already populated with the exception handler.
+    call ProfileEnteringKernelSpaceForSyscall
+
+    ; Restore parameters that are going to be passed to SyscallHandler.
+    pop rdi
+
+.jump_over_pre_handler_profiling:
+    popfq
+
     ; Call the handler
     mov rax, SyscallHandler
     call rax
+
+    ; Jump over profiling code if profiler isn't enabled.
+    pushfq
+    mov r8, [profiling_enabling_count]
+    test r8, r8
+    jz .jump_over_post_handler_profiling
+
+    ; Call the profiler - rdi is already populated with the exception handler.
+    call ProfileSwitchToUserSpace
+
+.jump_over_post_handler_profiling:
+    popfq
 
     ; Restore the registers of the caller - maybe not needed?
     mov ax, 0x18 | 3
