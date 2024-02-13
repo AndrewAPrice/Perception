@@ -129,18 +129,8 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
 
   // Select drive - master/slave.
   uint16 bus = device_->primary_channel ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
-  Write8BitsToPort(ATA_DRIVE_SELECT(bus), (!device_->master_drive) << 4);
-  // Wait 400ns.
-  ATA_SELECT_DELAY(bus);
-
-  // set features register to 0 (PIO Mode).
-  Write8BitsToPort(ATA_FEATURES(bus), supports_dma_ ? 1 : 0);
-
-  // Set lba1 and lba2 registers to 0x0008 (number of bytes will be returned).
-  Write8BitsToPort(ATA_ADDRESS2(bus),
-                   supports_dma_ ? 0 : (ATAPI_SECTOR_SIZE & 0xFF));
-  Write8BitsToPort(ATA_ADDRESS3(bus),
-                   supports_dma_ ? 0 : (ATAPI_SECTOR_SIZE >> 8));
+  SelectDriveOnBusIfNotSelected(device_->primary_channel,
+                                device_->master_drive);
 
   size_t start_lba = device_offset_start / ATAPI_SECTOR_SIZE;
   size_t end_lba =
@@ -196,25 +186,24 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
                         (size_t)scratch_page_physical_address_);
     }
 
-    // Send packet command .
-    Write8BitsToPort(ATA_COMMAND(bus), 0xA0);
+    // Send packet command.
+    Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_PACKET);
 
-    // TODO: Replace polling with wait for interrupt.
+    ResetInterrupt(device_->primary_channel);
 
     // Poll while busy.
-    uint8 status;
-    while ((status = Read8BitsFromPort(ATA_COMMAND(bus))) & 0x80)
+    uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
+    while ((status & ATA_SR_BSY) ||
+           !(status & (ATA_REG_SECCOUNT1 | ATA_REG_ERROR))) {
       SleepForDuration(std::chrono::milliseconds(10));
-
-    while (!((status = Read8BitsFromPort(ATA_COMMAND(bus))) & 0x8) &&
-           !(status & 0x1))
-      SleepForDuration(std::chrono::milliseconds(10));
+      status = Read8BitsFromPort(ATA_COMMAND(bus));
+    }
 
     // is there an error?
-    if (status & 0x1) return ::perception::Status::MISSING_MEDIA;
+    if (status & ATA_REG_ERROR) return ::perception::Status::MISSING_MEDIA;
 
-    /* send the atapi packet - must be 6 words (12 bytes) long */
-    uint8 atapi_packet[12] = {0xA8,
+    // Send the ATAPI packet, which is 6 words / 12 bytes long.
+    uint8 atapi_packet[12] = {ATAPI_CMD_READ,
                               0,
                               uint8((lba >> 0x18) & 0xFF),
                               uint8((lba >> 0x10) & 0xFF),
@@ -227,15 +216,11 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
                               0,
                               0};
 
-    ResetInterrupt(device_->primary_channel);
-
     for (status = 0; status < 12; status += 2) {
       Write16BitsToPort(ATA_DATA(bus), *(uint16*)&atapi_packet[status]);
     }
 
     if (supports_dma_) {
-      // ResetInterrupt(device_->primary_channel);
-
       // Start!
       Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id),
                        ATA_BMR_COMMAND_START_BIT);
@@ -250,7 +235,8 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
 
       // Calculate how many bytes to read from this sector.
       size_t remaining_bytes_in_sector = (size_t)ATAPI_SECTOR_SIZE - skip_bytes;
-      size_t bytes_read = std::min(remaining_bytes_in_sector, (size_t)bytes_to_copy);
+      size_t bytes_read =
+          std::min(remaining_bytes_in_sector, (size_t)bytes_to_copy);
 
       if (copy_into_dma_scratch_page) {
         // Copy the data out of the scratch buffer and into the destination
@@ -295,6 +281,5 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
       }
     }
   }
-
   return StorageDevice::ReadResponse();
 }

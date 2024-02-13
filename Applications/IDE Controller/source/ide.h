@@ -19,3 +19,6 @@
 void InitializeIdeControllers();
 
 std::mutex& GetIdeMutex();
+
+// Selects a drive on a bus, if it's not already selected.
+void SelectDriveOnBusIfNotSelected(bool is_primary_bus, bool is_primary_drive);

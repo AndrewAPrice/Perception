@@ -53,7 +53,22 @@ namespace {
 std::vector<std::unique_ptr<IdeController>> ide_controllers;
 std::mutex ide_mutex;
 
-void MaybeInitializeIdeDevice(IdeDevice *device, bool support_dma) {
+// The currently selected drive on the primary bus. -1 means no drive is
+// selected.
+int primary_bus_drive;
+
+// The currently selected drive on the secondary bus. -1 means no drive is
+// selected.
+int secondary_bus_drive;
+
+void SelectDriveOnBus(bool is_primary_channel, bool is_primary_drive) {
+  uint16 bus = is_primary_channel ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
+  Write8BitsToPort(ATA_DRIVE_SELECT(bus), (!is_primary_drive) << 4);
+  // Wait 400ns.
+  ATA_SELECT_DELAY(bus);
+}
+
+void MaybeInitializeIdeDevice(IdeDevice *device, bool supports_dma) {
   if (device->type != IDE_ATAPI) {
     // We currently only support CD drives.
     std::cout << "Not sure what to do with " << device->name << std::endl;
@@ -61,12 +76,10 @@ void MaybeInitializeIdeDevice(IdeDevice *device, bool support_dma) {
   }
 
   // Select the drive.
-  uint16 bus = device->primary_channel ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
-  Write8BitsToPort(ATA_DRIVE_SELECT(bus), (!device->master_drive) << 4);
-  // Wait 400ns.
-  ATA_SELECT_DELAY(bus);
+  SelectDriveOnBus(device->primary_channel, device->master_drive);
 
   // Set features register to 0 (PIO Mode).
+  uint16 bus = device->primary_channel ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
   Write8BitsToPort(ATA_FEATURES(bus), 0x0);
 
   // Set lba1 and lba2 registers to 0x0008 (number of bytes will be returned )
@@ -74,7 +87,7 @@ void MaybeInitializeIdeDevice(IdeDevice *device, bool support_dma) {
   Write8BitsToPort(ATA_ADDRESS3(bus), 0);  // ATAPI_SECTOR_SIZE >> 8);
 
   // send packet command
-  Write8BitsToPort(ATA_COMMAND(bus), 0xA0);
+  Write8BitsToPort(ATA_COMMAND(bus), ATA_DRIVE_MASTER);
 
   // Poll.
   uint8 status;
@@ -93,7 +106,8 @@ void MaybeInitializeIdeDevice(IdeDevice *device, bool support_dma) {
   ResetInterrupt(device->primary_channel);
 
   // Send the atapi packet - must be 6 words (12 bytes) long.
-  uint8 atapi_packet[12] = {0x25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  uint8 atapi_packet[12] = {
+      ATA_CMD_READ_DMA_EXT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   for (int byte = 0; byte < 12; byte += 2) {
     Write16BitsToPort(ATA_DATA(bus), *(uint16 *)&atapi_packet[byte]);
   }
@@ -117,15 +131,28 @@ void MaybeInitializeIdeDevice(IdeDevice *device, bool support_dma) {
                        (((blockLengthInBytes >> 16) & 0xFF) << 8) |
                        (((blockLengthInBytes >> 24) & 0xFF) << 0);
 
+  // Prepare the device for DMA or not.
+  // Set features register to 0 (PIO Mode).
+  Write8BitsToPort(ATA_FEATURES(bus), supports_dma ? 1 : 0);
+
+  // Set lba1 and lba2 registers to 0x0008 (number of bytes will be returned).
+  Write8BitsToPort(ATA_ADDRESS2(bus),
+                   supports_dma ? 0 : (ATAPI_SECTOR_SIZE & 0xFF));
+  Write8BitsToPort(ATA_ADDRESS3(bus),
+                   supports_dma ? 0 : (ATAPI_SECTOR_SIZE >> 8));
+
   // Calculate the device size
   device->size_in_bytes = returnLba * blockLengthInBytes;
   device->is_writable = false;
 
   device->storage_device =
-      std::make_unique<IdeStorageDevice>(device, support_dma);
+      std::make_unique<IdeStorageDevice>(device, supports_dma);
 }
 
 void MaybeInitializeIdeDevices(IdeController *controller, bool supports_dma) {
+  primary_bus_drive = -1;
+  secondary_bus_drive = -1;
+
   auto buffer = std::make_unique<char[]>(2048);
   // Detect ATA-ATAPI devices.
   for (int i = 0; i < 2; i++) {
@@ -220,7 +247,6 @@ void MaybeInitializeIdeDevices(IdeController *controller, bool supports_dma) {
       }
       model_chars[40] = 0;
       device->name = model_chars.get();
-
       MaybeInitializeIdeDevice(device.get(), supports_dma);
 
       controller->devices.push_back(std::move(device));
@@ -303,3 +329,20 @@ void InitializeIdeControllers() {
 }
 
 std::mutex &GetIdeMutex() { return ide_mutex; }
+
+void SelectDriveOnBusIfNotSelected(bool is_primary_channel,
+                                   bool is_primary_drive) {
+  uint16 bus;
+
+  if (is_primary_channel) {
+    if (primary_bus_drive == (int)is_primary_drive) return;
+    primary_bus_drive = (int)is_primary_drive;
+    bus = ATA_BUS_PRIMARY;
+  } else {
+    if (secondary_bus_drive == (int)is_primary_drive) return;
+    secondary_bus_drive = (int)is_primary_drive;
+    bus = ATA_BUS_SECONDARY;
+  }
+
+  SelectDriveOnBus(is_primary_channel, is_primary_drive);
+}
