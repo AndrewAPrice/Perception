@@ -34,6 +34,9 @@ service StorageDevice {
 
 		// The name of the device.odel
 		Name : string = 4;
+
+		// The optimal size for operations, in bytes.
+		OptimalOperationSize : uint64 = 5;
 	}
 	GetDeviceDetails : GetDeviceDetailsRequest -> GetDeviceDetailsResponse = 0;
 

@@ -27,6 +27,7 @@ FileSystem::FileSystem(StorageDevice storage_device)
   device_name_ = std::string(*(*status_or_device_details)->GetName());
   storage_type_ = (*status_or_device_details)->GetType();
   is_writable_ = (*status_or_device_details)->GetIsWritable();
+  optimal_operation_size_ = (*status_or_device_details)->GetOptimalOperationSize();
 }
 
 std::unique_ptr<FileSystem> InitializeStorageDevice(

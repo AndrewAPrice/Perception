@@ -26,6 +26,7 @@ class MemoryMappedFile;
 void MountFileSystem(std::unique_ptr<file_systems::FileSystem> file_system);
 
 StatusOr<File*> OpenFile(std::string_view path, size_t& size_in_bytes,
+                         size_t& optimal_operation_size,
                          ::perception::ProcessId sender);
 
 StatusOr<MemoryMappedFile*> OpenMemoryMappedFile(

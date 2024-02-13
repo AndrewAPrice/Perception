@@ -24,18 +24,42 @@ using ::perception::kPageSize;
 using ::perception::ProcessId;
 using ::perception::SharedMemory;
 using ReadFileRequest = ::permebuf::perception::File::ReadFileRequest;
+using GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest =
+    ::permebuf::perception::File::
+        GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest;
 using MMF = ::permebuf::perception::MemoryMappedFile;
+
+namespace {
+
+// Rounds a size down to the nearest page aligned size, but never below the size
+// of a single page.
+size_t RoundDownToPageAlignSize(size_t size) {
+  if (size < kPageSize) size = kPageSize;
+  return (size / kPageSize) * kPageSize;
+}
+
+}  // namespace
 
 MemoryMappedFile::MemoryMappedFile(std::unique_ptr<File> file,
                                    size_t length_of_file,
+                                   size_t optimal_operation_size,
                                    ProcessId allowed_process)
     : file_(std::move(file)),
       allowed_process_(allowed_process),
+      optimal_operation_size_(RoundDownToPageAlignSize(optimal_operation_size)),
       length_of_file_(length_of_file) {
   if (length_of_file > 0) {
     buffer_ = SharedMemory::FromSize(
         length_of_file, SharedMemory::kLazilyAllocated,
         [this](size_t offset_of_page) { ReadInPageChunk(offset_of_page); });
+    buffer_->GrantPermissionToLazilyAllocatePage(file_->GetProcessId());
+
+    GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest
+        grant_request;
+    grant_request.SetBuffer(*buffer_);
+    (void)file_->HandleGrantStorageDevicePermissionToAllocateSharedMemoryPages(
+        allowed_process_, grant_request);
+
     buffer_->Join();
   }
 }
@@ -52,43 +76,35 @@ void MemoryMappedFile::HandleCloseFile(ProcessId sender,
 void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
   std::scoped_lock lock(mutex_);
 
+  // Round the page offset down.
+  offset_of_page =
+      (offset_of_page / optimal_operation_size_) * optimal_operation_size_;
+
   if (buffer_->IsPageAllocated(offset_of_page)) {
     return;  // This page is already allocated, so nothing to do.
   }
 
   // Read the page in from the file.
-  auto temp_buffer = kSharedMemoryPool.GetSharedMemory();
   ReadFileRequest request;
-  request.SetBufferToCopyInto(*temp_buffer->shared_memory);
+  request.SetBufferToCopyInto(*buffer_);
   request.SetOffsetInFile(offset_of_page);
+  request.SetOffsetInDestinationBuffer(offset_of_page);
   size_t remaining_bytes_in_file = length_of_file_ - offset_of_page;
   size_t bytes_to_copy =
-      kPageSize > remaining_bytes_in_file ? remaining_bytes_in_file : kPageSize;
+      std::min(optimal_operation_size_, remaining_bytes_in_file);
   request.SetBytesToCopy(bytes_to_copy);
+
   auto read_status = file_->HandleReadFile(allowed_process_, request);
-
-  // Create a new page to copy this temporary page into.
-  void* new_page = AllocateMemoryPages(1);
-  if (read_status.Ok()) {
-    // An optimization would be to modify the kernel so we could the ownership
-    // of the temporary buffer's page to this process, thereby avoiding this
-    // copying.
-    memcpy(new_page, **temp_buffer->shared_memory, kPageSize);
-
-    if (bytes_to_copy < kPageSize) {
-      // We didn't copy an entire page, so we'll clear the end of the page.
-      memset((void*)((size_t)new_page + bytes_to_copy), 0,
-             kPageSize - bytes_to_copy);
+  if (!read_status.Ok()) {
+    size_t first_page = offset_of_page;
+    size_t last_page = first_page + (bytes_to_copy - 1) / kPageSize * kPageSize;
+    for (size_t page = first_page; page <= last_page; page++) {
+      // Create a new page to copy this temporary page into.
+      void* new_page = AllocateMemoryPages(1);
+      memset(new_page, 0, kPageSize);
+      buffer_->AssignPage(new_page, page * kPageSize);
     }
-  } else {
-    memset(new_page, 0, kPageSize);
   }
-
-  kSharedMemoryPool.ReleaseSharedMemory(std::move(temp_buffer));
-
-  // Assigns the page, that's now filled with the file's contents, into the
-  // shared buffer.
-  buffer_->AssignPage(new_page, offset_of_page);
 }
 
 SharedMemory& MemoryMappedFile::GetBuffer() { return *buffer_; }

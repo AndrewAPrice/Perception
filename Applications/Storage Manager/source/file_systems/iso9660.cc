@@ -28,6 +28,12 @@ using ::permebuf::perception::DirectoryEntryType;
 using PFile = ::permebuf::perception::File;
 using ::permebuf::perception::StorageManager;
 using ::permebuf::perception::devices::StorageDevice;
+using GrantStorageDevicePermissionToAllocateSharedMemoryPagesResponse =
+    ::permebuf::perception::File::
+        GrantStorageDevicePermissionToAllocateSharedMemoryPagesResponse;
+using GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest =
+    ::permebuf::perception::File::
+        GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest;
 
 namespace file_systems {
 namespace {
@@ -70,6 +76,18 @@ class Iso9660File : public File {
     RETURN_ON_ERROR(storage_device_.CallRead(read_request));
 
     return PFile::ReadFileResponse();
+  }
+
+  StatusOr<GrantStorageDevicePermissionToAllocateSharedMemoryPagesResponse>
+  HandleGrantStorageDevicePermissionToAllocateSharedMemoryPages(
+      ::perception::ProcessId sender,
+      const GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest
+          &request) override {
+    if (sender != allowed_process_) return ::perception::Status::NOT_ALLOWED;
+    request.GetBuffer().GrantPermissionToLazilyAllocatePage(
+        storage_device_.GetProcessId());
+
+    return GrantStorageDevicePermissionToAllocateSharedMemoryPagesResponse();
   }
 
  private:
@@ -442,6 +460,7 @@ std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
 StatusOr<StorageManager::GetFileStatisticsResponse> Iso9660::GetFileStatistics(
     std::string_view path) {
   StorageManager::GetFileStatisticsResponse response;
+  response.SetOptimalOperationSize(optimal_operation_size_);
 
   if (path.empty()) return response;
 

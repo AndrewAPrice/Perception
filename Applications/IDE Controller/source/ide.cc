@@ -284,7 +284,8 @@ void InitializeIdeController(uint8 bus, uint8 slot, uint8 function,
   controller->channels[ATA_PRIMARY].bus_master_id = bus_master_id;
   controller->channels[ATA_SECONDARY].bus_master_id = bus_master_id + 8;
 
-  bool supports_dma = prog_if & (1 << 7);
+  // Temporarily disabled until the reading code is reimplemented.
+  bool supports_dma = false; // prog_if & (1 << 7);
 
 #if 0
 	if(prog_if == 0x8A || prog_if == 0x80) {

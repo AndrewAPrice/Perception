@@ -44,4 +44,8 @@ class IdeStorageDevice
 
   // Physical address of the scratch page.
   size_t scratch_page_physical_address_;
+
+  // Sends an ATAPI command.
+  ::perception::Status SentAtapiPacketCommand(uint16 bus, uint8 atapi_command,
+                                              size_t lba, size_t num_sectors);
 };

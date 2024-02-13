@@ -112,6 +112,7 @@ Status ExtractMountPointAndPath(std::string_view path,
 
 StatusOr<std::unique_ptr<File>> OpenFileInternal(std::string_view path,
                                                  size_t& size_in_bytes,
+                                                 size_t& optimal_operation_size,
                                                  ProcessId sender) {
   std::string_view mount_point, path_on_mount_point;
   RETURN_ON_ERROR(
@@ -123,8 +124,9 @@ StatusOr<std::unique_ptr<File>> OpenFileInternal(std::string_view path,
     return Status::FILE_NOT_FOUND;  // No mount point.
   }
 
-  return mount_point_itr->second->OpenFile(path_on_mount_point, size_in_bytes,
-                                           sender);
+  FileSystem* fs = mount_point_itr->second.get();
+  optimal_operation_size = fs->GetOptionalOperationSize();
+  return fs->OpenFile(path_on_mount_point, size_in_bytes, sender);
 }
 
 }  // namespace
@@ -146,9 +148,10 @@ void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
 }
 
 StatusOr<File*> OpenFile(std::string_view path, size_t& size_in_bytes,
-                         ProcessId sender) {
+                         size_t& optimal_operation_size, ProcessId sender) {
   // Scan the directory within the file system.
-  ASSIGN_OR_RETURN(auto file, OpenFileInternal(path, size_in_bytes, sender));
+  ASSIGN_OR_RETURN(auto file, OpenFileInternal(path, size_in_bytes,
+                                               optimal_operation_size, sender));
   File* file_ptr = file.get();
 
   auto itr = open_files_by_process_id.find(sender);
@@ -167,10 +170,12 @@ StatusOr<File*> OpenFile(std::string_view path, size_t& size_in_bytes,
 StatusOr<MemoryMappedFile*> OpenMemoryMappedFile(
     std::string_view path, ::perception::ProcessId sender) {
   size_t size_in_bytes;
-  ASSIGN_OR_RETURN(auto file, OpenFileInternal(path, size_in_bytes, sender));
+  size_t optimal_operation_size;
+  ASSIGN_OR_RETURN(auto file, OpenFileInternal(path, size_in_bytes,
+                                               optimal_operation_size, sender));
 
-  auto mmfile = std::make_unique<MemoryMappedFile>(std::move(file),
-                                                   size_in_bytes, sender);
+  auto mmfile = std::make_unique<MemoryMappedFile>(
+      std::move(file), size_in_bytes, optimal_operation_size, sender);
   MemoryMappedFile* mmfile_ptr = mmfile.get();
 
   auto itr = open_memory_mapped_files_by_process_id.find(sender);

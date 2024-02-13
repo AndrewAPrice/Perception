@@ -16,7 +16,8 @@
 
 #include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 
-// A wrapper that makes the protected functions public, so we can call them directly.
+// A wrapper that makes the protected functions public, so we can call them
+// directly.
 class File : public permebuf::perception::File::Server {
  public:
   virtual void HandleCloseFile(
@@ -24,8 +25,16 @@ class File : public permebuf::perception::File::Server {
       const ::permebuf::perception::File::CloseFileMessage&) override = 0;
 
   virtual StatusOr<::permebuf::perception::File::ReadFileResponse>
-  HandleReadFile(
-      ::perception::ProcessId sender,
-      const ::permebuf::perception::File::ReadFileRequest& request) override = 0;
+  HandleReadFile(::perception::ProcessId sender,
+                 const ::permebuf::perception::File::ReadFileRequest& request)
+      override = 0;
 
+  virtual StatusOr<
+      ::permebuf::perception::File::
+          GrantStorageDevicePermissionToAllocateSharedMemoryPagesResponse>
+  HandleGrantStorageDevicePermissionToAllocateSharedMemoryPages(
+      ::perception::ProcessId sender,
+      const ::permebuf::perception::File::
+          GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest&
+              request) override = 0;
 };

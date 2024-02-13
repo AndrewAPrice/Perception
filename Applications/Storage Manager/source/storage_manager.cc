@@ -39,12 +39,14 @@ StatusOr<SM::OpenFileResponse> StorageManager::HandleOpenFile(
             << *request->GetPath() << std::endl;
 #endif
   size_t size_in_bytes = 0;
-  ASSIGN_OR_RETURN(auto* file,
-                   OpenFile(*request->GetPath(), size_in_bytes, sender));
+  size_t optimal_operation_size = 0;
+  ASSIGN_OR_RETURN(auto* file, OpenFile(*request->GetPath(), size_in_bytes,
+                                        optimal_operation_size, sender));
 
   SM::OpenFileResponse response;
   response.SetFile(*(::permebuf::perception::File::Server*)file);
   response.SetSizeInBytes(size_in_bytes);
+  response.SetOptimalOperationSize(optimal_operation_size);
   return response;
 }
 

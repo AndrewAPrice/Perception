@@ -50,13 +50,13 @@ class FileSystem {
 
   virtual std::string_view GetFileSystemType() = 0;
 
-  ::permebuf::perception::devices::StorageType GetStorageType() {
+  ::permebuf::perception::devices::StorageType GetStorageType() const {
     return storage_type_;
   }
 
-  std::string_view GetDeviceName() { return device_name_; }
+  std::string_view GetDeviceName() const { return device_name_; }
 
-  bool IsWritable() { return is_writable_; }
+  bool IsWritable() const { return is_writable_; }
 
   virtual void CheckFilePermissions(std::string_view path, bool& file_exists,
                                     bool& can_read, bool& can_write,
@@ -65,6 +65,8 @@ class FileSystem {
   virtual StatusOr<
       ::permebuf::perception::StorageManager::GetFileStatisticsResponse>
   GetFileStatistics(std::string_view path) = 0;
+
+  size_t GetOptionalOperationSize() const { return optimal_operation_size_; }
 
  protected:
   // Storage device.
@@ -78,6 +80,9 @@ class FileSystem {
 
   // Is this device writable?
   bool is_writable_;
+
+  // The optimal size for operations, in bytes.
+  size_t optimal_operation_size_;
 };
 
 // Returns a FileSystem instance for accessing this storage device if it's

@@ -26,6 +26,7 @@
 #include "perception/threads.h"
 #include "perception/time.h"
 
+using ::perception::AllocateMemoryPages;
 using ::perception::AllocateMemoryPagesBelowPhysicalAddressBase;
 using ::perception::GetPhysicalAddressOfVirtualAddress;
 using ::perception::kPageSize;
@@ -43,6 +44,15 @@ using ::permebuf::perception::devices::StorageType;
 namespace {
 
 constexpr size_t kMaxDmaBufferAddress = 0xFFFFFFFF - ATAPI_SECTOR_SIZE + 1;
+// The optimal operation size, in bytes. The ATA PRDT has 512 entries. Each
+// entry can read up to 64KiB, so the maximum size that can be read in a single
+// DMA operation is 32MiB. But, the entries need to be physical contingious,
+// which is functionaliy the kernel doesn't current support.
+constexpr size_t kOptimalOperationSize = kPageSize * 512;
+
+// The maximum number of sections that can be copied at once using DMA.
+constexpr size_t kMaxDMASectorsAtOnce =
+    kOptimalOperationSize / ATAPI_SECTOR_SIZE;
 
 // Offset, in bytes, into the scratch buffer of where the drive should write to
 // during DMA. The scratch buffer is also used to store the Physical Region
@@ -88,15 +98,23 @@ IdeStorageDevice::HandleGetDeviceDetails(
   response->SetIsWritable(device_->is_writable);
   response->SetType(StorageType::Optical);
   response->SetName(device_->name);
+  response->SetOptimalOperationSize(kOptimalOperationSize);
   return response;
 }
 
 StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
     ::perception::ProcessId sender, const StorageDevice::ReadRequest& request) {
   SharedMemory destination_shared_memory = request.GetBuffer();
-  if (!destination_shared_memory.Join() ||
-      destination_shared_memory.IsLazilyAllocated() ||
-      !destination_shared_memory.CanWrite()) {
+  // Right now, join the memory buffer, but in the future it'll be nice to be
+  // able to write without joining the memory buffer, which means if being able
+  // to lock it without joining.
+  if (!destination_shared_memory.Join()) {
+    return ::perception::Status::INVALID_ARGUMENT;
+  }
+
+  auto details = destination_shared_memory.GetDetails();
+  if (!details.CanWrite && !details.CanAssignPages) {
+    // Can't move the written data into this memory page.
     return ::perception::Status::INVALID_ARGUMENT;
   }
 
@@ -125,26 +143,159 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
 
   IdeChannelRegisters* channel_registers =
       &device_->controller->channels[device_->primary_channel ? 0 : 1];
-  uint16 bus_master_id = channel_registers->bus_master_id;
+  // uint16 bus_master_id = channel_registers->bus_master_id;
+
+  uint16 bus = device_->primary_channel ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
 
   // Select drive - master/slave.
-  uint16 bus = device_->primary_channel ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
   SelectDriveOnBusIfNotSelected(device_->primary_channel,
                                 device_->master_drive);
 
   size_t start_lba = device_offset_start / ATAPI_SECTOR_SIZE;
   size_t end_lba =
-      (device_offset_start + bytes_to_copy + ATAPI_SECTOR_SIZE - 1) /
-      ATAPI_SECTOR_SIZE;
+      (device_offset_start + bytes_to_copy - 1) / ATAPI_SECTOR_SIZE;
 
   // We read in entire sectors at a time, so if we don't want the data at the
   // start of the sector we need to skip some bytes.
   size_t skip_bytes = device_offset_start - (start_lba * ATAPI_SECTOR_SIZE);
 
+  if (supports_dma_) {
+    std::cout << "DMA is temporarily disabled until it is reimpmlemented.\n";
+  } else {
+    // Round up the bytes to sectors.
+    size_t sectors_to_read = end_lba - start_lba + 1;
+    RETURN_ON_ERROR(SentAtapiPacketCommand(bus, ATAPI_CMD_READ, start_lba,
+                                           sectors_to_read));
+    WaitForInterrupt(device_->primary_channel);
+
+    size_t current_page_in_buffer = 0xFFFFFFFFFFFFFFFF;
+    bool assign_page = 0;
+    uint8* current_destination_page = nullptr;
+
+    for (size_t i = 0; i < sectors_to_read; i++) {
+      // Wait until ready
+      uint8_t status = Read8BitsFromPort(ATA_COMMAND(bus));
+      while (1) {
+        uint8_t status = Read8BitsFromPort(ATA_COMMAND(bus));
+        if (status & ATA_SR_ERR) {
+          std::cout << "Device has en error.";
+          return ::perception::Status::INTERNAL_ERROR;
+        }
+        if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ)) break;
+      }
+
+      // The size of the data that's ready..
+      int size = Read8BitsFromPort(ATA_ADDRESS3(bus)) << 8 |
+                 Read8BitsFromPort(ATA_ADDRESS2(bus));
+
+      // Read in the data from PIO, 2 bytes at a time.
+      for (size_t j = 0; j < size; j += 2) {
+        uint16 b = Read16BitsFromPort(ATA_DATA(bus));
+        if (bytes_to_copy == 0) {
+          // Skip these bytes because there's no more data we want to copy.
+          continue;
+        } else if (skip_bytes >= 2) {
+          // Skip these bytes.
+          skip_bytes -= 2;
+          continue;
+        }
+
+        // The page index in the buffer.
+        size_t buffer_page_index = buffer_offset / kPageSize;
+        // Start of the buffer page.
+        size_t buffer_page_start = buffer_page_index * kPageSize;
+        // The offset in the page.
+        size_t offset_in_buffer_page = buffer_offset - buffer_page_start;
+
+        if (buffer_page_index != current_page_in_buffer) {
+          // The page index in the buffer has changed.
+          if (assign_page) {
+            // Assign the previous page that was worked on.
+            destination_shared_memory.AssignPage(
+                current_destination_page, current_page_in_buffer * kPageSize);
+          }
+
+          current_page_in_buffer = buffer_page_index;
+          if (details.CanWrite) {
+            // Can write directly into the destination buffer.
+            current_destination_page = &destination_buffer[buffer_page_start];
+            assign_page = false;
+          } else {
+            // Wwrite to a temp page that will be assigned into the shared
+            // buffer.
+            current_destination_page = (uint8*)AllocateMemoryPages(1);
+            assign_page = true;
+            // Will the buffer fill the entire page?
+            bool will_fill_entire_memory =
+                (offset_in_buffer_page == 0) && bytes_to_copy >= kPageSize;
+            if (!will_fill_entire_memory) {
+              // Does an old memory buffer exist?
+              bool does_old_memory_exist =
+                  destination_shared_memory.IsPageAllocated(buffer_page_start);
+              size_t after_last_byte = offset_in_buffer_page + bytes_to_copy;
+              if (does_old_memory_exist) {
+                // Copy the data around the region being read.
+                // Before the data.
+                if (offset_in_buffer_page > 0) {
+                  memcpy(current_destination_page,
+                         &destination_buffer[buffer_page_start],
+                         offset_in_buffer_page);
+                }
+                // The data after.
+                if (after_last_byte < kPageSize) {
+                  memcpy(
+                      &current_destination_page[after_last_byte],
+                      &destination_buffer[buffer_page_start + after_last_byte],
+                      kPageSize - after_last_byte);
+                }
+
+              } else {
+                // Clear the data round the region being read.
+                if (offset_in_buffer_page > 0)
+                  memset(current_destination_page, 0, offset_in_buffer_page);
+                if (after_last_byte < kPageSize) {
+                  memset(&current_destination_page[after_last_byte], 0,
+                         kPageSize - after_last_byte);
+                }
+              }
+            }
+
+            assign_page = true;
+          }
+        }
+
+        if (skip_bytes == 1) {
+          // Skip one byte and read just the last byte.
+          current_destination_page[offset_in_buffer_page] = (b >> 8) & 0xFF;
+          bytes_to_copy--;
+          buffer_offset++;
+        } else if (bytes_to_copy == 1) {
+          // We only want one more byte so read just the first byte.
+          current_destination_page[offset_in_buffer_page] = b & 0xFF;
+          bytes_to_copy--;
+          buffer_offset++;
+        } else if (bytes_to_copy > 1) {
+          // Copy both bytes.
+          *(uint16*)&current_destination_page[offset_in_buffer_page] = b;
+          bytes_to_copy -= 2;
+          buffer_offset += 2;
+        }
+      }
+    }
+
+    if (assign_page) {
+      // Assign the page that was just written.
+      destination_shared_memory.AssignPage(current_destination_page,
+                                           current_page_in_buffer * kPageSize);
+    }
+  }
+
+/*
   for (size_t lba = start_lba; lba <= end_lba; lba++) {
     bool copy_into_dma_scratch_page = true;
 
     if (supports_dma_) {
+      copy_into_dma_scratch_page = true;
       // Figure out if we can DMA directly into the destination buffer.
       if (bytes_to_copy >= ATAPI_SECTOR_SIZE &&
           IsRegionInTheSameMemoryPage(
@@ -186,41 +337,9 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
                         (size_t)scratch_page_physical_address_);
     }
 
-    // Send packet command.
-    Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_PACKET);
-
-    ResetInterrupt(device_->primary_channel);
-
-    // Poll while busy.
-    uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
-    while ((status & ATA_SR_BSY) ||
-           !(status & (ATA_REG_SECCOUNT1 | ATA_REG_ERROR))) {
-      SleepForDuration(std::chrono::milliseconds(10));
-      status = Read8BitsFromPort(ATA_COMMAND(bus));
-    }
-
-    // is there an error?
-    if (status & ATA_REG_ERROR) return ::perception::Status::MISSING_MEDIA;
-
-    // Send the ATAPI packet, which is 6 words / 12 bytes long.
-    uint8 atapi_packet[12] = {ATAPI_CMD_READ,
-                              0,
-                              uint8((lba >> 0x18) & 0xFF),
-                              uint8((lba >> 0x10) & 0xFF),
-                              uint8((lba >> 0x08) & 0xFF),
-                              uint8((lba >> 0x00) & 0xFF),
-                              0,
-                              0,
-                              0,
-                              1,
-                              0,
-                              0};
-
-    for (status = 0; status < 12; status += 2) {
-      Write16BitsToPort(ATA_DATA(bus), *(uint16*)&atapi_packet[status]);
-    }
 
     if (supports_dma_) {
+      std::cout << "DMA oh no!" << std::endl;
       // Start!
       Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id),
                        ATA_BMR_COMMAND_START_BIT);
@@ -248,38 +367,44 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
       bytes_to_copy -= bytes_read;
       buffer_offset += bytes_read;
       skip_bytes = 0;
-    } else {
-      WaitForInterrupt(device_->primary_channel);
-      // Read in the data from PIO.
-      size_t indx = lba * ATAPI_SECTOR_SIZE;
-      for (size_t i = 0; i < ATAPI_SECTOR_SIZE; i += 2) {
-        uint16 b = Read16BitsFromPort(ATA_DATA(bus));
-
-        if (bytes_to_copy == 0) {
-          // Skip these bytes because there's no more data we want to copy.
-          continue;
-        } else if (skip_bytes >= 2) {
-          // Skip these bytes.
-          skip_bytes -= 2;
-          continue;
-        } else if (skip_bytes == 1) {
-          // Skip one byte and read just the last byte.
-          destination_buffer[buffer_offset] = (b > 8) & 0xFF;
-          bytes_to_copy--;
-          buffer_offset++;
-        } else if (bytes_to_copy == 1) {
-          // We only want one more byte so read just the first byte.
-          destination_buffer[buffer_offset] = b & 0xFF;
-          bytes_to_copy--;
-          buffer_offset++;
-        } else if (bytes_to_copy > 1) {
-          // Copy both bytes.
-          *(uint16*)&destination_buffer[buffer_offset] = b;
-          bytes_to_copy -= 2;
-          buffer_offset += 2;
-        }
-      }
     }
-  }
+*/
   return StorageDevice::ReadResponse();
+}
+
+::perception::Status IdeStorageDevice::SentAtapiPacketCommand(
+    uint16 bus, uint8 atapi_command, size_t lba, size_t num_sectors) {
+  // Send packet command.
+  Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_PACKET);
+  ResetInterrupt(device_->primary_channel);
+
+  // Poll while busy.
+  uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
+  while ((status & ATA_SR_BSY) ||
+         !(status & (ATA_REG_SECCOUNT1 | ATA_REG_ERROR))) {
+    SleepForDuration(std::chrono::milliseconds(10));
+    status = Read8BitsFromPort(ATA_COMMAND(bus));
+  }
+
+  // is there an error?
+  if (status & ATA_REG_ERROR) return ::perception::Status::MISSING_MEDIA;
+
+  // Send the ATAPI packet, which is 6 words / 12 bytes long.
+  uint8 atapi_packet[12] = {atapi_command,
+                            0,
+                            uint8((lba >> 0x18) & 0xFF),
+                            uint8((lba >> 0x10) & 0xFF),
+                            uint8((lba >> 0x08) & 0xFF),
+                            uint8((lba >> 0x00) & 0xFF),
+                            uint8((num_sectors >> 0x18) & 0xFF),
+                            uint8((num_sectors >> 0x10) & 0xFF),
+                            uint8((num_sectors >> 0x08) & 0xFF),
+                            uint8((num_sectors >> 0x00) & 0xFF),
+                            0,
+                            0};
+
+  for (int byte = 0; byte < 12; byte += 2)
+    Write16BitsToPort(ATA_DATA(bus), *(uint16*)&atapi_packet[byte]);
+
+  return ::perception::Status::OK;
 }
