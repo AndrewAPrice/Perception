@@ -14,6 +14,7 @@
 
 #include "shared_memory.h"
 
+#include "aa_tree.h"
 #include "liballoc.h"
 #include "messages.h"
 #include "object_pool.h"
@@ -58,6 +59,7 @@ SharedMemory* CreateSharedMemoryBlock(
     shared_memory->physical_pages[page] = OUT_OF_PHYSICAL_PAGES;
 
   shared_memory->creator_pid = process->pid;
+  shared_memory->pids_allowed_to_assign_memory_pages.Insert(process->pid);
   shared_memory->message_id_for_lazily_loaded_pages =
       message_id_for_lazily_loaded_pages;
   shared_memory->next = nullptr;
@@ -390,11 +392,12 @@ void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
     return;
   }
 
-  if (shared_memory->creator_pid != process->pid) {
+  //if (!shared_memory->pids_allowed_to_assign_memory_pages.Contains(
+    //      process->pid)) {
     // Only the creator of the shared memory can move pages into shared memory.
-    FreePhysicalPage(physical_address);
-    return;
-  }
+    //FreePhysicalPage(physical_address);
+    //return;
+  //}
 
   // Work out where we are moving this page in the shared memory.
   size_t page = offset_in_buffer / PAGE_SIZE;
@@ -404,14 +407,7 @@ void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
     return;
   }
 
-  if (shared_memory->physical_pages[page] != OUT_OF_PHYSICAL_PAGES) {
-    // There's already a physical page allocated here, so we need to release it.
-    FreePhysicalPage(shared_memory->physical_pages[page]);
-  }
-
-  // Move this page into the shared memory, and map it into each process.
-  shared_memory->physical_pages[page] = physical_address;
-  MapSharedMemoryPageInEachProcess(shared_memory, page);
+  MapPhysicalPageInSharedMemory(shared_memory, page, physical_address);
 }
 
 bool MaybeHandleSharedMessagePageFault(size_t address) {
@@ -467,16 +463,34 @@ bool MaybeHandleSharedMessagePageFault(size_t address) {
 
 bool IsAddressAllocatedInSharedMemory(size_t shared_memory_id,
                                       size_t offset_in_shared_memory) {
+  return GetPhysicalAddressOfPageInSharedMemory(shared_memory_id,
+                                                offset_in_shared_memory) !=
+         OUT_OF_PHYSICAL_PAGES;
+}
+
+size_t GetPhysicalAddressOfPageInSharedMemory(size_t shared_memory_id,
+                                              size_t offset_in_shared_memory) {
   SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
-  if (shared_memory == nullptr) return false;
+  if (shared_memory == nullptr) return OUT_OF_PHYSICAL_PAGES;
 
   size_t page_in_shared_memory = offset_in_shared_memory / PAGE_SIZE;
   if (page_in_shared_memory >= shared_memory->size_in_pages)
-    return false;  // Address is far too high.
+    return OUT_OF_PHYSICAL_PAGES;  // Address is far too high.
 
   // Check that the page has a physical page allocated to it.
-  return shared_memory->physical_pages[page_in_shared_memory] !=
-         OUT_OF_PHYSICAL_PAGES;
+  return shared_memory->physical_pages[page_in_shared_memory];
+}
+
+void GrantPermissionToAllocateIntoSharedMemory(Process* grantor,
+                                                 size_t shared_memory_id,
+                                                 size_t grantee_pid) {
+  SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
+  if (shared_memory == nullptr) return;
+  if (!shared_memory->pids_allowed_to_assign_memory_pages.Contains(
+          grantor->pid))
+    return;  // The grantor isn't allowed itself.
+
+  shared_memory->pids_allowed_to_assign_memory_pages.Insert(grantee_pid);
 }
 
 bool CanProcessWriteToSharedMemory(Process* process,
@@ -485,4 +499,34 @@ bool CanProcessWriteToSharedMemory(Process* process,
   // creator of the shared memory.
   return ((shared_memory->flags & SM_JOINERS_CAN_WRITE) != 0) ||
          shared_memory->creator_pid == process->pid;
+}
+
+// Gets information about a shared memory buffer as it pertains to a processes.
+void GetSharedMemoryDetailsPertainingToProcess(Process* process,
+                                               size_t shared_memory_id,
+                                               size_t& flags,
+                                               size_t& size_in_bytes) {
+  SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
+  if (shared_memory == nullptr) {
+    flags = 0;
+    size_in_bytes = 0;
+    return;
+  }
+
+  flags = SMD_EXISTS;
+  if (((shared_memory->flags & SM_JOINERS_CAN_WRITE) != 0) ||
+      shared_memory->creator_pid == process->pid) {
+    flags |= SMD_CAN_PROCESS_WRITE;
+  }
+
+  if ((shared_memory->flags & SM_LAZILY_ALLOCATED) != 0) {
+    flags |= SMD_LAZILY_ALLOCATED;
+  }
+
+  // if (shared_memory->pids_allowed_to_assign_memory_pages.Contains(
+     //     process->pid)) {
+    flags |= SMD_CAN_PROCESS_ASSIGN_PAGES;
+ // }
+
+  size_in_bytes = shared_memory->size_in_pages * PAGE_SIZE;
 }

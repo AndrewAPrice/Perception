@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "set.h"
 #include "types.h"
 
 struct Process;
@@ -27,6 +28,19 @@ struct SharedMemoryInProcess;
 
 // Can joiners (not the creator of the shared memory) write to it?
 #define SM_JOINERS_CAN_WRITE (1 << 1)
+
+// Shared memory details bitwise flags:
+// Does the shared memory exist?
+#define SMD_EXISTS (1 << 0)
+
+// Can this process write to this shared memory?
+#define SMD_CAN_PROCESS_WRITE (1 << 1)
+
+// Is this shared memory lazily allocated?
+#define SMD_LAZILY_ALLOCATED (1 << 2)
+
+// Can this process assign pages to this shared memory?
+#define SMD_CAN_PROCESS_ASSIGN_PAGES (1 << 3)
 
 // Represents a thread that is waiting for a shared memory page.
 struct ThreadWaitingForSharedMemoryPage {
@@ -65,6 +79,9 @@ struct SharedMemory {
 
   // The process that created this shared memory.
   size_t creator_pid;
+
+  // Processes that are allowed to assign memory pages.
+  Set<size_t> pids_allowed_to_assign_memory_pages;
 
   // Message ID to send to the creator if another process accesses a lazily
   // loaded memory page that hasn't been loaded yet.
@@ -135,10 +152,28 @@ extern void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
 // message. Returns if we were able to handle the exception.
 extern bool MaybeHandleSharedMessagePageFault(size_t address);
 
-// Does the address exist in the shared memory block and is it allocated?
+// Does the address exist in the shared memory block and is it allocated? Sets
+// the physical address of the memory page, if it exists.
 extern bool IsAddressAllocatedInSharedMemory(size_t shared_memory_id,
                                              size_t offset_in_shared_memory);
+
+// Returns the physical address of a page in shared memory. Returns
+// OUT_OF_PHYSICAL_PAGES if it does not exist.
+extern size_t GetPhysicalAddressOfPageInSharedMemory(
+    size_t shared_memory_id, size_t offset_in_shared_memory);
+
+// Grants permission for another process to allocate into this shared memory
+// block.
+extern void GrantPermissionToAllocateIntoSharedMemory(Process* grantor,
+                                                        size_t shared_memory_id,
+                                                        size_t grantee_pid);
 
 // Can this process write to this shared memory?
 extern bool CanProcessWriteToSharedMemory(Process* process,
                                           SharedMemory* shared_memory);
+
+// Gets information about a shared memory buffer as it pertains to a processes.
+extern void GetSharedMemoryDetailsPertainingToProcess(Process* process,
+                                                      size_t shared_memory_id,
+                                                      size_t& flags,
+                                                      size_t& size_in_bytes);

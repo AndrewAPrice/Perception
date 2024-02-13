@@ -15,7 +15,7 @@
 #pragma once
 
 // The total number of system calls.
-#define NUMBER_OF_SYSCALLS 57
+#define NUMBER_OF_SYSCALLS 60
 
 // The canonical list of system calls, mapped to the system call number.
 enum class Syscall {
@@ -46,8 +46,11 @@ enum class Syscall {
   CreateSharedMemory = 42,
   JoinSharedMemory = 43,
   LeaveSharedMemory = 44,
+  GetSharedMemoryDetails = 58,
   MovePageIntoSharedMemory = 45,
+  GrantPermissionToAllocateIntoSharedMemory = 57,
   IsSharedMemoryPageAllocated = 46,
+  GetSharedMemoryPagePhysicalAddress = 59,
   SetMemoryAccessRights = 48,
   // Processes,
   GetThisProcessId = 39,

@@ -23,114 +23,120 @@ const char *GetSystemCallName(Syscall syscall) {
     default:
       return "Unknown";
     case Syscall::PrintDebugCharacter:
-      return "Syscall::PrintDebugCharacter";
+      return "PrintDebugCharacter";
     case Syscall::PrintRegistersAndStack:
-      return "Syscall::PrintRegistersAndStack";
+      return "PrintRegistersAndStack";
     case Syscall::CreateThread:
-      return "Syscall::CreateThread";
+      return "CreateThread";
     case Syscall::GetThisThreadId:
-      return "Syscall::GetThisThreadId";
+      return "GetThisThreadId";
     case Syscall::SleepThisThread:
-      return "Syscall::SleepThisThread";
+      return "SleepThisThread";
     case Syscall::SleepThread:
-      return "Syscall::SleepThread";
+      return "SleepThread";
     case Syscall::WakeThread:
-      return "Syscall::WakeThread";
+      return "WakeThread";
     case Syscall::WaitAndSwitchToThread:
-      return "Syscall::WaitAndSwitchToThread";
+      return "WaitAndSwitchToThread";
     case Syscall::TerminateThisThread:
-      return "Syscall::TerminateThisThread";
+      return "TerminateThisThread";
     case Syscall::TerminateThread:
-      return "Syscall::TerminateThread";
+      return "TerminateThread";
     case Syscall::Yield:
-      return "Syscall::Yield";
+      return "Yield";
     case Syscall::SetThreadSegment:
-      return "Syscall::SetThreadSegment";
+      return "SetThreadSegment";
     case Syscall::SetAddressToClearOnThreadTermination:
-      return "Syscall::SetAddressToClearOnThreadTermination";
+      return "SetAddressToClearOnThreadTermination";
     case Syscall::AllocateMemoryPages:
-      return "Syscall::AllocateMemoryPages";
+      return "AllocateMemoryPages";
     case Syscall::AllocateMemoryPagesBelowPhysicalBase:
-      return "Syscall::AllocateMemoryPagesBelowPhysicalBase";
+      return "AllocateMemoryPagesBelowPhysicalBase";
     case Syscall::ReleaseMemoryPages:
-      return "Syscall::ReleaseMemoryPages";
+      return "ReleaseMemoryPages";
     case Syscall::MapPhysicalMemory:
-      return "Syscall::MapPhysicalMemory";
+      return "MapPhysicalMemory";
     case Syscall::GetPhysicalAddressOfVirtualAddress:
-      return "Syscall::GetPhysicalAddressOfVirtualAddress";
+      return "GetPhysicalAddressOfVirtualAddress";
     case Syscall::GetFreeSystemMemory:
-      return "Syscall::GetFreeSystemMemory";
+      return "GetFreeSystemMemory";
     case Syscall::GetMemoryUsedByProcess:
-      return "Syscall::GetMemoryUsedByProcess";
+      return "GetMemoryUsedByProcess";
     case Syscall::GetTotalSystemMemory:
-      return "Syscall::GetTotalSystemMemory";
+      return "GetTotalSystemMemory";
     case Syscall::CreateSharedMemory:
-      return "Syscall::CreateSharedMemory";
+      return "CreateSharedMemory";
     case Syscall::JoinSharedMemory:
-      return "Syscall::JoinSharedMemory";
+      return "JoinSharedMemory";
     case Syscall::LeaveSharedMemory:
-      return "Syscall::LeaveSharedMemory";
+      return "LeaveSharedMemory";
+    case Syscall::GetSharedMemoryDetails:
+      return "GetSharedMemoryDetails";
     case Syscall::MovePageIntoSharedMemory:
-      return "Syscall::MovePageIntoSharedMemory";
+      return "MovePageIntoSharedMemory";
+    case Syscall::GrantPermissionToAllocateIntoSharedMemory:
+      return "GrantPermissionToAllocateIntoSharedMemory";
     case Syscall::IsSharedMemoryPageAllocated:
-      return "Syscall::IsSharedMemoryPageAllocated";
+      return "IsSharedMemoryPageAllocated";
+    case Syscall::GetSharedMemoryPagePhysicalAddress:
+      return "GetSharedMemoryPagePhysicalAddress";
     case Syscall::SetMemoryAccessRights:
-      return "Syscall::SetMemoryAccessRights";
+      return "SetMemoryAccessRights";
     case Syscall::GetThisProcessId:
-      return "Syscall::GetThisProcessId";
+      return "GetThisProcessId";
     case Syscall::TerminateThisProcess:
-      return "Syscall::TerminateThisProcess";
+      return "TerminateThisProcess";
     case Syscall::TerminateProcess:
-      return "Syscall::TerminateProcess";
+      return "TerminateProcess";
     case Syscall::GetProcesses:
-      return "Syscall::GetProcesses";
+      return "GetProcesses";
     case Syscall::GetNameOfProcess:
-      return "Syscall::GetNameOfProcess";
+      return "GetNameOfProcess";
     case Syscall::NotifyWhenProcessDisappears:
-      return "Syscall::NotifyWhenProcessDisappears";
+      return "NotifyWhenProcessDisappears";
     case Syscall::StopNotifyingWhenProcessDisappears:
-      return "Syscall::StopNotifyingWhenProcessDisappears";
+      return "StopNotifyingWhenProcessDisappears";
     case Syscall::CreateProcess:
-      return "Syscall::CreateProcess";
+      return "CreateProcess";
     case Syscall::SetChildProcessMemoryPage:
-      return "Syscall::SetChildProcessMemoryPage";
+      return "SetChildProcessMemoryPage";
     case Syscall::StartExecutionProcess:
-      return "Syscall::StartExecutionProcess";
+      return "StartExecutionProcess";
     case Syscall::DestroyChildProcess:
-      return "Syscall::DestroyChildProcess";
+      return "DestroyChildProcess";
     case Syscall::RegisterService:
-      return "Syscall::RegisterService";
+      return "RegisterService";
     case Syscall::UnregisterService:
-      return "Syscall::UnregisterService";
+      return "UnregisterService";
     case Syscall::GetServices:
-      return "Syscall::GetServices";
+      return "GetServices";
     case Syscall::GetNameOfService:
-      return "Syscall::GetNameOfService";
+      return "GetNameOfService";
     case Syscall::NotifyWhenServiceAppears:
-      return "Syscall::NotifyWhenServiceAppears";
+      return "NotifyWhenServiceAppears";
     case Syscall::StopNotifyingWhenServiceAppears:
-      return "Syscall::StopNotifyingWhenServiceAppears";
+      return "StopNotifyingWhenServiceAppears";
     case Syscall::NotifyWhenServiceDisappears:
-      return "Syscall::NotifyWhenServiceDisappears";
+      return "NotifyWhenServiceDisappears";
     case Syscall::StopNotifyingWhenServiceDisappears:
-      return "Syscall::StopNotifyingWhenServiceDisappears";
+      return "StopNotifyingWhenServiceDisappears";
     case Syscall::SendMessage:
-      return "Syscall::SendMessage";
+      return "SendMessage";
     case Syscall::PollForMessage:
-      return "Syscall::PollForMessage";
+      return "PollForMessage";
     case Syscall::SleepForMessage:
-      return "Syscall::SleepForMessage";
+      return "SleepForMessage";
     case Syscall::RegisterMessageToSendOnInterrupt:
-      return "Syscall::RegisterMessageToSendOnInterrupt";
+      return "RegisterMessageToSendOnInterrupt";
     case Syscall::UnregisterMessageToSendOnInterrupt:
-      return "Syscall::UnregisterMessageToSendOnInterrupt";
+      return "UnregisterMessageToSendOnInterrupt";
     case Syscall::GetMultibootFramebufferInformation:
-      return "Syscall::GetMultibootFramebufferInformation";
+      return "GetMultibootFramebufferInformation";
     case Syscall::SendMessageAfterXMicroseconds:
-      return "Syscall::SendMessageAfterXMicroseconds";
+      return "SendMessageAfterXMicroseconds";
     case Syscall::SendMessageAtTimestamp:
-      return "Syscall::SendMessageAtTimestamp";
+      return "SendMessageAtTimestamp";
     case Syscall::GetCurrentTimestamp:
-      return "Syscall::GetCurrentTimestamp";
+      return "GetCurrentTimestamp";
   }
 }

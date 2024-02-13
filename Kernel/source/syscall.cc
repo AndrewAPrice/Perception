@@ -53,31 +53,41 @@ void InitializeSystemCalls() {
 
 extern "C" void SyscallHandler(int syscall_number) {
 #ifdef DEBUG
-  print << "Entering syscall " << GetSystemCallName(syscall_number) <<
-    " (" << NumberFormat::Decimal << syscall_number;
+  print << "Entering syscall " << GetSystemCallName(syscall_number) << " ("
+        << NumberFormat::Decimal << syscall_number;
   if (running_thread) {
-    print << ") from " << running_thread->process->name << " (" <<
-      running_thread->process->pid;
+    print << ") from " << running_thread->process->name << " ("
+          << running_thread->process->pid;
   }
   print << ")\n";
   PrintRegisters(currently_executing_thread_regs);
 #endif
   switch (static_cast<Syscall>(syscall_number)) {
+    default:
+      print << "Syscall " << GetSystemCallName(syscall_number) << " ("
+            << NumberFormat::Decimal << syscall_number;
+      if (running_thread) {
+        print << ") from " << running_thread->process->name << " ("
+              << running_thread->process->pid;
+      }
+      print << ") is unimplemented.\n";
+      break;
     case Syscall::PrintDebugCharacter:
       print << (char)currently_executing_thread_regs->rax;
       break;
     case Syscall::PrintRegistersAndStack: {
       Process *process = running_thread->process;
-      print << "Dump requested by PID " << NumberFormat::Decimal <<
-        running_thread->process->pid << " (" << running_thread->process->name <<
-        ") in TID " << running_thread->id << '\n';
+      print << "Dump requested by PID " << NumberFormat::Decimal
+            << running_thread->process->pid << " ("
+            << running_thread->process->name << ") in TID "
+            << running_thread->id << '\n';
       PrintRegistersAndStackTrace();
       break;
     }
     case Syscall::CreateThread: {
-      Thread *new_thread = CreateThread(
-          running_thread->process, currently_executing_thread_regs->rax,
-          currently_executing_thread_regs->rbx);
+      Thread *new_thread = CreateThread(running_thread->process,
+                                        currently_executing_thread_regs->rax,
+                                        currently_executing_thread_regs->rbx);
       if (new_thread == 0) {
         currently_executing_thread_regs->rax = 0;
       } else {
@@ -89,27 +99,29 @@ extern "C" void SyscallHandler(int syscall_number) {
     case Syscall::GetThisThreadId:
       currently_executing_thread_regs->rax = running_thread->id;
       break;
-    case Syscall::SleepThisThread:
-      print << "Implement Syscall::SleepThread\n";
-      break;
-    case Syscall::SleepThread:
-      print << "Implement SLEEP\n";
-      break;
-    case Syscall::WakeThread:
-      print << "Implement Syscall::WakeThread\n";
-      // TODO: if thread is waiting for event, set bad event id
-      break;
-    case Syscall::WaitAndSwitchToThread:
-      print << "Implement Syscall::WaitAndSwitchToThread\n";
-      // TODO: if thread is waiting for event, set bad event id
-      break;
+      /*
+        case Syscall::SleepThisThread:
+         print << "Implement Syscall::SleepThread\n";
+         break;
+       case Syscall::SleepThread:
+         print << "Implement SLEEP\n";
+         break;
+       case Syscall::WakeThread:
+         print << "Implement Syscall::WakeThread\n";
+         // TODO: if thread is waiting for event, set bad event id
+         break;
+       case Syscall::WaitAndSwitchToThread:
+         print << "Implement Syscall::WaitAndSwitchToThread\n";
+         // TODO: if thread is waiting for event, set bad event id
+         break;
+         */
     case Syscall::TerminateThisThread:
       DestroyThread(running_thread, false);
       JumpIntoThread();  // Doesn't return.
       break;
     case Syscall::TerminateThread: {
-      Thread *thread = GetThreadFromTid(
-          running_thread->process, currently_executing_thread_regs->rax);
+      Thread *thread = GetThreadFromTid(running_thread->process,
+                                        currently_executing_thread_regs->rax);
       if (thread == running_thread) {
         DestroyThread(running_thread, false);
         JumpIntoThread();  // Doesn't return.
@@ -230,11 +242,23 @@ extern "C" void SyscallHandler(int syscall_number) {
       LeaveSharedMemory(running_thread->process,
                         currently_executing_thread_regs->rax);
       break;
+    case Syscall::GetSharedMemoryDetails:
+      GetSharedMemoryDetailsPertainingToProcess(
+          running_thread->process, currently_executing_thread_regs->rax,
+          currently_executing_thread_regs->rax,
+          currently_executing_thread_regs->rbx);
+
+      break;
     case Syscall::MovePageIntoSharedMemory:
       MovePageIntoSharedMemory(running_thread->process,
                                currently_executing_thread_regs->rax,
                                currently_executing_thread_regs->rbx,
                                currently_executing_thread_regs->rdx);
+      break;
+    case Syscall::GrantPermissionToAllocateIntoSharedMemory:
+      GrantPermissionToAllocateIntoSharedMemory(
+          running_thread->process, currently_executing_thread_regs->rax,
+          currently_executing_thread_regs->rbx);
       break;
     case Syscall::IsSharedMemoryPageAllocated:
       currently_executing_thread_regs->rax =
@@ -243,6 +267,16 @@ extern "C" void SyscallHandler(int syscall_number) {
               ? 1
               : 0;
       break;
+    case Syscall::GetSharedMemoryPagePhysicalAddress:
+      if (running_thread->process->is_driver) {
+        currently_executing_thread_regs->rax =
+            GetPhysicalAddressOfPageInSharedMemory(
+                currently_executing_thread_regs->rax,
+                currently_executing_thread_regs->rbx);
+      } else {
+        currently_executing_thread_regs->rax = OUT_OF_MEMORY;
+      }
+      return;
     case Syscall::SetMemoryAccessRights: {
       size_t address = currently_executing_thread_regs->rax;
       size_t num_pages = currently_executing_thread_regs->rbx;
@@ -348,8 +382,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       size_t target_pid = currently_executing_thread_regs->rax;
       size_t event_id = currently_executing_thread_regs->rbx;
 
-      Process *target =
-          GetProcessFromPid(currently_executing_thread_regs->rax);
+      Process *target = GetProcessFromPid(currently_executing_thread_regs->rax);
       if (target == nullptr) {
         // The target process we want to be notified of when it dies
         // doesn't exist. It's possible that is just died, so whatever
@@ -363,9 +396,11 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
-    case Syscall::StopNotifyingWhenProcessDisappears:
+    /*
+      case Syscall::StopNotifyingWhenProcessDisappears:
       print << "Implement Syscall::StopNotifyingWhenProcessDisappears\n";
       break;
+  */
     case Syscall::CreateProcess: {
       // Extract the name from the input registers.
       size_t process_name[PROCESS_NAME_WORDS];
@@ -526,12 +561,14 @@ extern "C" void SyscallHandler(int syscall_number) {
       StopNotifyingProcessWhenServiceAppearsByMessageId(
           running_thread->process, currently_executing_thread_regs->rbp);
       break;
+    /*
     case Syscall::NotifyWhenServiceDisappears:
       print << "Implement Syscall::NotifyWhenServiceDisappears\n";
       break;
     case Syscall::StopNotifyingWhenServiceDisappears:
       print << "Implement Syscall::StopNotifyingWhenServiceDisappears\n";
       break;
+    */
     case Syscall::SendMessage:
       SendMessageFromThreadSyscall(running_thread);
       break;
