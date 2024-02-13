@@ -257,6 +257,21 @@ Leaves a shared memory block. If there are no more references to the shared memo
 * `rdi` - 44
 * `rax` - The ID of the shared memory block.
 
+## Get shared memory details.
+Gets information about a shared memory buffer as it pertains to this process.
+
+### Input
+* `rdi` -  58
+* `rax` - The ID of the shared memory block.
+
+### Output
+* `rax` - Flags pertaining to this shared memory block. This is a bitfield:
+ - Bit 0: The shared memory block exists.
+ - Bit 1: This process can write to the shared memory block.
+ - Bit 2: The shared memory block is lazily allocated.
+ - Bit 3: This process can assign pages to the shared memory block.
+* `rbx` - The size of the shared memory, in bytes.
+
 ## Move page into shared memory.
 Moves a page into a shared memory block. Only the creator of the shared memory can call this. The page is unmapped from its old address and moved to its new virtual address inside of the shared memory, and mapped into every process. Any thread that is waiting for on a lazily loaded memory page will be rewoken. If the page is already allocated in the shared memory block, then it is overriden. Even if this fails (we're not the creator, of the offset is beyond the end of the buffer), the page is unallocated from the old address.
 
@@ -268,6 +283,14 @@ The intention of this is to allow the creator to fully populate lazily loaded pa
 * `rbx` - The offset of the page, in bytes, in the shared memory block to allocate.
 * `rdx` - The virtual address of the page to move into the shared memory.
 
+## Grant permission for a process to allocate into shared memory.
+Grants another process permission to write into shared memory.
+
+### Input
+* `rdi` - 57
+* `rax` - The ID of the shared memory block.
+* `rbx` - The process ID allowed to write into the shared memory.
+
 ## Is shared memory page allocated?
 Returns if a shared memory page is allocated. We can use this to tell if a page needs to be lazily loaded.
 
@@ -278,6 +301,15 @@ Returns if a shared memory page is allocated. We can use this to tell if a page 
 
 ### Output
 * `rax` - 1 if the shared memory block page is exists, 0 otherwise.
+
+## Gets shared memory page physical address
+Returns the physical address of shared memory page. Only drives may call this function.
+
+### Input
+* `rdi` - 59
+
+### Output
+* `rax` - The physical adress of a shared memory page. If it's not allocated, this is 1.
 
 ## Set memory access rights
 Sets the access rights for a page of memory. This only applies to memory that the process owns.
