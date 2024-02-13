@@ -68,4 +68,4 @@ class ObjectPool {
 };
 
 template <class T>
-ObjectPoolItem* ObjectPool<T>::next_item_;
+ObjectPoolItem* ObjectPool<T>::next_item_ = 0;
