@@ -16,10 +16,29 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 
 #include "types.h"
 
 namespace perception {
+
+// Details of a shared memory buffer pertaining to this process.
+struct SharedMemoryDetails {
+  // Does the shared memory buffer exist?
+  bool Exists;
+
+  // Can this process write to this shared memory buffer?
+  bool CanWrite;
+
+  // Is this shared memory buffer lazily allocated?
+  bool IsLazilyAllocated;
+
+  // Can this process assign pages to this shared memory?
+  bool CanAssignPages;
+
+  // The size of this shared memory buffer.
+  size_t SizeInBytes;
+};
 
 // Represents a memory block that can be shared between multiple processess.
 // Shared memory is reference counted. The reference counter is increased
@@ -79,10 +98,16 @@ class SharedMemory {
   // Is this shared memory lazily allocated?
   bool IsLazilyAllocated();
 
+  // Gets details about this shared memory buffer as it pertains to this process.
+  SharedMemoryDetails GetDetails();
+
   // Is this particular page allocated?
   // The can be used by creators of lazily allocated pages to tell if a page
   // needs populating.
   bool IsPageAllocated(size_t offset_in_bytes);
+
+  // Returns the physical address of a page. Only drivers can call this.
+  std::optional<size_t> GetPhysicalAddress(size_t offset_in_bytes);
 
   // Assign page to the shared memory, if we're the creator of the memory
   // buffer. The page is unmapped from its old address and moved into the shared
@@ -92,6 +117,11 @@ class SharedMemory {
   // The entire memory page containing the address is moved into the buffer,
   // so it's preferred that you pass PAGE_SIZE aligned addresses.
   void AssignPage(void* page, size_t offset_in_bytes);
+
+  // Grants permission for another process to be able to lazily allocate pages
+  // in this shared memory buffer. This can only work if the current process can
+  // lazily allocate pages in this shared memory buffer.
+  void GrantPermissionToLazilyAllocatePage(ProcessId process_id);
 
   // Returns the ID of the shared memory. Used to identify this shared memory
   // block.

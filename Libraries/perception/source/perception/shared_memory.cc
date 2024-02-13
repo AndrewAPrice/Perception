@@ -24,6 +24,16 @@
 namespace perception {
 namespace {
 
+// Values for the GetSharedMemoryDetails syscall flags bitfield:
+// Does this shared memory buffer exist?
+constexpr size_t kDetails_Exists = (1 << 0);
+// Can this process write to this shared memory buffer?
+constexpr size_t kDetails_CanWrite = (1 << 1);
+// Is this shared memory buffer lazily allocated?
+constexpr size_t kDetails_IsLazilyAllocated = (1 << 2);
+// Can this process assign pages to this shared memory buffer?
+constexpr size_t kDetails_CanAssignPages = (1 << 3);
+
 #ifndef PERCEPTION
 // When we are not building for running on the Perception OS, we simulated
 // shared memory in the process's local memory.
@@ -287,6 +297,28 @@ bool SharedMemory::IsLazilyAllocated() {
   return (flags_ & kLazilyAllocated) != 0;
 }
 
+SharedMemoryDetails SharedMemory::GetDetails() {
+  volatile register size_t syscall_num asm("rdi") = 58;
+  volatile register size_t id_r asm("rax") = shared_memory_id_;
+  volatile register size_t flags_r asm("rax");
+  volatile register size_t size_in_bytes_r asm("rbx");
+
+  __asm__ __volatile__("syscall\n"
+                       : "=r"(flags_r), "=r"(size_in_bytes_r)
+                       : "r"(syscall_num), "r"(id_r)
+                       : "rcx", "r11");
+
+  SharedMemoryDetails details;
+  details.Exists = (flags_r & kDetails_Exists) == kDetails_Exists;
+  details.CanWrite = (flags_r & kDetails_CanWrite) == kDetails_CanWrite;
+  details.IsLazilyAllocated =
+      (flags_r & kDetails_IsLazilyAllocated) == kDetails_IsLazilyAllocated;
+  details.CanAssignPages =
+      (flags_r & kDetails_CanAssignPages) == kDetails_CanAssignPages;
+  details.SizeInBytes = size_in_bytes_r;
+  return details;
+}
+
 // Is this particular page allocated?
 // The can be used by creators of lazily allocated pages to tell if a page
 // needs populating.
@@ -310,6 +342,28 @@ bool SharedMemory::IsPageAllocated(size_t offset_in_bytes) {
   return is_allocated_r == 1;
 }
 
+std::optional<size_t> SharedMemory::GetPhysicalAddress(size_t offset_in_bytes) {
+  if (offset_in_bytes >= GetSize())
+    return std::nullopt;  // Beyond the end of the shared memory.
+
+  size_t page = (offset_in_bytes / kPageSize) * kPageSize;
+  size_t offset_in_page = offset_in_bytes - page;
+
+  volatile register size_t syscall_num asm("rdi") = 59;
+  volatile register size_t id_r asm("rax") = shared_memory_id_;
+  volatile register size_t page_r asm("rbx") = page;
+  volatile register size_t physical_addr_r asm("rax");
+
+  __asm__ __volatile__("syscall\n"
+                       : "=r"(physical_addr_r)
+                       : "r"(syscall_num), "r"(id_r), "r"(page_r)
+                       : "rcx", "r11");
+
+  if (physical_addr_r == 1) return std::nullopt;  // No physical address.
+
+  return physical_addr_r + offset_in_page;
+}
+
 void SharedMemory::AssignPage(void* page, size_t offset_in_bytes) {
   volatile register size_t syscall_num asm("rdi") = 45;
   volatile register size_t id_r asm("rax") = shared_memory_id_;
@@ -321,6 +375,17 @@ void SharedMemory::AssignPage(void* page, size_t offset_in_bytes) {
                        :
                        : "r"(syscall_num), "r"(id_r),
                          "r"(offset_in_shared_memory_r), "r"(page_r)
+                       : "rcx", "r11");
+}
+
+void SharedMemory::GrantPermissionToLazilyAllocatePage(ProcessId process_id) {
+  volatile register size_t syscall_num asm("rdi") = 57;
+  volatile register size_t id_r asm("rax") = shared_memory_id_;
+  volatile register size_t process_id_r asm("rbx") = process_id;
+
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "r"(syscall_num), "r"(id_r), "r"(process_id_r)
                        : "rcx", "r11");
 }
 
