@@ -15,6 +15,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <string>
 
 #include "permebuf/Libraries/perception/devices/keyboard_listener.permebuf.h"
@@ -85,6 +86,7 @@ class Window {
  private:
   friend Frame;
 
+  void CommonInit();
   static void DrawHeaderBackground(int x, int y, int width, uint32 color);
 
   void DrawDecorations(int min_x, int min_y, int max_x, int max_y);
@@ -122,6 +124,7 @@ class Window {
   uint32 fill_color_;
 
   ::permebuf::perception::Window window_listener_;
+  ::perception::MessageId message_id_to_notify_on_window_disappearence_;
 
   ::permebuf::perception::devices::KeyboardListener keyboard_listener_;
 

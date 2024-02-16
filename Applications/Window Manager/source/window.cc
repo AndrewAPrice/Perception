@@ -273,7 +273,6 @@ void Window::Close() {
       else /* unfocus everything */
         UnfocusAllWindows();
     }
-
     frame_->RemoveWindow(*this);
   }
 
@@ -282,6 +281,10 @@ void Window::Close() {
   if (this == hovered_window) hovered_window = nullptr;
 
   if (window_listener_) {
+    // Stop listening for the service to disappear before telling the window
+    // listener that it has closed, otherwise Close() will be called again.
+    window_listener_.StopNotifyingOnDisappearance(
+        message_id_to_notify_on_window_disappearence_);
     window_listener_.SendClosed(
         ::permebuf::perception::Window::ClosedMessage());
   }
@@ -418,7 +421,6 @@ bool Window::MouseEvent(int screen_x, int screen_y, MouseButton button,
           screen_x >= x_ + title_width_ - 1 - WINDOW_TITLE_WIDTH_PADDING) {
         // We clicked the close button.
         Close();
-        std::cout << "Window closed" << std::endl;
         return true;
       }
       // We're starting to drag the window.
@@ -528,6 +530,18 @@ void Window::InvalidateContents(int min_x, int min_y, int max_x, int max_y) {
 }
 
 void Window::SetTextureId(int texture_id) { texture_id_ = texture_id; }
+
+void Window::CommonInit() {
+  if (window_listener_) {
+    message_id_to_notify_on_window_disappearence_ =
+        window_listener_.NotifyOnDisappearance([this]() {
+          // Unassign the window listener first, so messages don't get sent to a
+          // non-existent service.
+          window_listener_ = ::permebuf::perception::Window();
+          Close();
+        });
+  }
+}
 
 void Window::DrawHeaderBackground(int x, int y, int width, uint32 color) {
   uint32 outer_line = color - 0x10101000;
