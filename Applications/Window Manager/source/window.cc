@@ -88,6 +88,7 @@ Window* Window::CreateDialog(std::string_view title, int width, int height,
   window->window_listener_ = window_listener;
   window->keyboard_listener_ = keyboard_listener;
   window->mouse_listener_ = mouse_listener;
+  window->CommonInit();
 
   // Window can't be smaller than the title, or larger than the screen.
   window->width_ =
@@ -145,6 +146,7 @@ Window* Window::CreateWindow(
   window->fill_color_ = background_color;
   window->keyboard_listener_ = keyboard_listener;
   window->mouse_listener_ = mouse_listener;
+  window->CommonInit();
 
   Frame::AddWindowToLastFocusedFrame(*window);
 
