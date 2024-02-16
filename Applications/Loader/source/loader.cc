@@ -19,6 +19,7 @@
 
 #include "elf_loader.h"
 #include "perception/processes.h"
+// #include "perception/profiling.h"
 
 using ::perception::CreateChildProcess;
 using ::perception::DestroyChildProcess;
@@ -71,6 +72,7 @@ StatusOr<LoaderService::LaunchApplicationResponse>
 Loader::HandleLaunchApplication(
     ::perception::ProcessId sender,
     Permebuf<LoaderService::LaunchApplicationRequest> request) {
+  // ::perception::EnableProfiling();
   // Extract the path and process name from the request.
   std::string_view name = *request->GetName();
   auto opt_path = GetPathToApplication(name);
@@ -114,5 +116,6 @@ Loader::HandleLaunchApplication(
 
   LoaderService::LaunchApplicationResponse response;
   response.SetProcessId(child_pid);
+  // ::perception::DisableAndOutputProfiling();
   return response;
 }
