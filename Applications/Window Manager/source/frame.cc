@@ -518,6 +518,7 @@ void Frame::UpdateFrame(bool resized, Window* window_to_update) {
       if (root_frame == this) { /* close the root frame */
         delete this;
         root_frame = nullptr;
+        last_focused_frame = nullptr;
         InvalidateScreen(0, 0, GetScreenWidth(), GetScreenHeight());
         return;
       }
@@ -621,12 +622,12 @@ void Frame::RemoveWindow(Window& window) {
   if (window.next_)
     window.next_->previous_ = window.previous_;
   else
-    window.frame_->DockFrame.last_window_ = window.previous_;
+    DockFrame.last_window_ = window.previous_;
 
   if (window.previous_)
     window.previous_->next_ = window.next_;
   else
-    window.frame_->DockFrame.first_window_ = window.next_;
+    DockFrame.first_window_ = window.next_;
 
   if (DockFrame.focused_window_ == &window) { /* was our focused window? */
     if (window.next_)
