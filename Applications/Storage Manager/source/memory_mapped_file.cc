@@ -47,11 +47,20 @@ MemoryMappedFile::MemoryMappedFile(std::unique_ptr<File> file,
     : file_(std::move(file)),
       allowed_process_(allowed_process),
       optimal_operation_size_(RoundDownToPageAlignSize(optimal_operation_size)),
-      length_of_file_(length_of_file) {
+      length_of_file_(length_of_file),
+      close_after_all_operations_(false),
+      is_closed_(false),
+      running_operations_(0) {
   if (length_of_file > 0) {
-    buffer_ = SharedMemory::FromSize(
-        length_of_file, SharedMemory::kLazilyAllocated,
-        [this](size_t offset_of_page) { ReadInPageChunk(offset_of_page); });
+    buffer_ =
+        SharedMemory::FromSize(length_of_file, SharedMemory::kLazilyAllocated,
+                               [this](size_t offset_of_page) {
+                                 if (is_closed_) return;
+                                 running_operations_++;
+                                 ReadInPageChunk(offset_of_page);
+                                 running_operations_--;
+                                 MaybeCloseIfUnlocked();
+                               });
     buffer_->GrantPermissionToLazilyAllocatePage(file_->GetProcessId());
 
     GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest
@@ -68,9 +77,11 @@ void MemoryMappedFile::HandleCloseFile(ProcessId sender,
                                        const MMF::CloseFileMessage&) {
   if (sender != allowed_process_) return;
 
-  std::scoped_lock lock(mutex_);
-
-  Defer([sender, this]() { CloseMemoryMappedFile(sender, this); });
+  if (running_operations_ == 0) {
+    CloseFile();
+  } else {
+    close_after_all_operations_ = true;
+  }
 }
 
 void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
@@ -108,3 +119,17 @@ void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
 }
 
 SharedMemory& MemoryMappedFile::GetBuffer() { return *buffer_; }
+
+void MemoryMappedFile::MaybeCloseIfUnlocked() {
+  if (close_after_all_operations_ && running_operations_ == 0) {
+    CloseFile();
+  }
+}
+
+// Closes the file.
+void MemoryMappedFile::CloseFile() {
+  if (is_closed_) return;
+  is_closed_ = true;
+  ProcessId owner = allowed_process_;
+  Defer([owner, this]() { CloseMemoryMappedFile(owner, this); });
+}

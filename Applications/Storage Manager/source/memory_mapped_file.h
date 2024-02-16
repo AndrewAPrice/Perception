@@ -40,6 +40,21 @@ class MemoryMappedFile
   // The optimal size of operations, in bytes.
   size_t optimal_operation_size_;
 
+  // Should this file close after all operations?
+  bool close_after_all_operations_;
+
+  // Is the file closed?
+  bool is_closed_;
+
+  // How many operations are running?
+  int running_operations_;
+
   // Reads in a page-sized chunk of the file into the buffer.
   void ReadInPageChunk(size_t start_of_page);
+
+  // Maybe closes the file if there are no operations running.
+  void MaybeCloseIfUnlocked();
+
+  // Closes the file.
+  void CloseFile();
 };
