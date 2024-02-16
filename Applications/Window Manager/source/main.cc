@@ -37,30 +37,6 @@ int main (int argc, char *argv[]) {
   // Draw the entire screen.
   InvalidateScreen(0, 0, GetScreenWidth(), GetScreenHeight());
   DrawScreen();
-  /*
-          for (int i = 0; i < 10; i++) {
-          Window::CreateDialog(
-                          "hello",
-                          200,
-                          200,
-                          0xABCDEFFF);
-
-          Window::CreateWindow(
-                          "goodbye",
-                          0xFFEEDDFF);
-
-
-          Window::CreateDialog(
-                          "parcel",
-                          400,
-                          100,
-                          0xABCDEFFF);
-
-          Window::CreateWindow(
-                          "box",
-                          0xFFEEDDFF);
-          }*/
-
   while (true) {
     // Sleep until we have messages, then process them.
     WaitForMessagesThenReturn();
