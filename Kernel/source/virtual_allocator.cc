@@ -63,14 +63,12 @@ FreeMemoryRange statically_allocated_free_memory_ranges
 
 // Marks an address range as being free in the address space, starting at the
 // address and spanning the provided number of pages.
-void MarkAddressRangeAsFree(VirtualAddressSpace *address_space,
-                            size_t address, size_t pages);
+void MarkAddressRangeAsFree(VirtualAddressSpace *address_space, size_t address,
+                            size_t pages);
 
 // Returns the FreeMemoryRange from a pointer to a `node_by_address` field.
-FreeMemoryRange *FreeMemoryRangeFromNodeByAddress(
-    AATreeNode *node) {
-  size_t node_offset =
-      (size_t) & ((FreeMemoryRange *)0)->node_by_address;
+FreeMemoryRange *FreeMemoryRangeFromNodeByAddress(AATreeNode *node) {
+  size_t node_offset = (size_t) & ((FreeMemoryRange *)0)->node_by_address;
   return (FreeMemoryRange *)((size_t)node - node_offset);
 }
 
@@ -106,9 +104,10 @@ void VerifyAddressSpaceStructuresAreAllTheSameSize(
 
   if (nodes_in_address_tree != nodes_in_size_tree ||
       nodes_in_address_tree != nodes_in_linked_list) {
-    print << "Nodes in address tree: " << NumberFormat::Decimal << nodes_in_address_tree <<
-      " != Nodes in size tree: " << nodes_in_size_tree << " != Nodes in linked list: " <<
-      nodes_in_linked_list << '\n';
+    print << "Nodes in address tree: " << NumberFormat::Decimal
+          << nodes_in_address_tree
+          << " != Nodes in size tree: " << nodes_in_size_tree
+          << " != Nodes in linked list: " << nodes_in_linked_list << '\n';
   }
 }
 
@@ -116,14 +115,15 @@ void PrintFreeAddressRanges(VirtualAddressSpace *address_space) {
   print << "Free address ranges:\n" << NumberFormat::Hexidecimal;
   FreeMemoryRange *current_fmr = address_space->free_memory_ranges;
   while (current_fmr != nullptr) {
-    print << ' ' << current_fmr->start_address << "->" <<
-      (current_fmr->start_address + PAGE_SIZE * current_fmr->pages) << '\n';
+    print << ' ' << current_fmr->start_address << "->"
+          << (current_fmr->start_address + PAGE_SIZE * current_fmr->pages)
+          << '\n';
     current_fmr = current_fmr->next;
   }
 }
 
-void AddFreeMemoryRangeToVirtualAddressSpace(
-    VirtualAddressSpace *address_space, FreeMemoryRange *fmr) {
+void AddFreeMemoryRangeToVirtualAddressSpace(VirtualAddressSpace *address_space,
+                                             FreeMemoryRange *fmr) {
   InsertNodeIntoAATree(&address_space->free_chunks_by_address,
                        &fmr->node_by_address,
                        FreeMemoryRangeAddressFromAATreeNode);
@@ -259,8 +259,8 @@ void MapKernelMemoryPreVirtualMemory(size_t virtualaddr, size_t physicaladdr,
   ptr[pml1_entry] = entry;
 }
 
-void MarkAddressRangeAsFree(VirtualAddressSpace *address_space,
-                            size_t address, size_t pages) {
+void MarkAddressRangeAsFree(VirtualAddressSpace *address_space, size_t address,
+                            size_t pages) {
   // See if this address range can be merged into a memory block before or
   // after.
 
@@ -278,13 +278,14 @@ void MarkAddressRangeAsFree(VirtualAddressSpace *address_space,
     }
     if (block_before->start_address + (block_before->pages * PAGE_SIZE) >
         address) {
-      print <<
-          "Error: block_before->start_address + (block_before->pages * "
-          "PAGE_SIZE) > address\n Trying to free address " << NumberFormat::Hexidecimal <<
-          address << ' ';
+      print << "Error: block_before->start_address + (block_before->pages * "
+               "PAGE_SIZE) > address\n Trying to free address "
+            << NumberFormat::Hexidecimal << address << ' ';
       PrintFreeAddressRanges(address_space);
-      print << "Before block: " << NumberFormat::Hexidecimal << block_before->start_address <<
-        " -> " << (block_before->start_address + (block_before->pages * PAGE_SIZE)) << '\n';
+      print << "Before block: " << NumberFormat::Hexidecimal
+            << block_before->start_address << " -> "
+            << (block_before->start_address + (block_before->pages * PAGE_SIZE))
+            << '\n';
       PrintAATree(&address_space->free_chunks_by_address,
                   FreeMemoryRangeAddressFromAATreeNode);
       return;
@@ -346,7 +347,19 @@ void MarkAddressRangeAsFree(VirtualAddressSpace *address_space,
 // the initial range of free memory before we can dynamically allocate memory.
 FreeMemoryRange initial_kernel_memory_range;
 
-} // namespace
+// Creates a page table entry creation with relevant flags.
+uint64 CreatePageTableEntry(size_t physicaladdr, bool is_writable,
+                            bool is_user_space, bool is_owned) {
+  uint64 entry = physicaladdr | 1;  // Set the present bit.
+
+  if (is_writable) entry |= (1 << 1);    // Set the write bit.
+  if (is_user_space) entry |= (1 << 2);  // Set the user bit.
+  if (is_owned) entry |= (1 << 9);  // Set the ownership bit (a custom bit).
+
+  return entry;
+}
+
+}  // namespace
 
 // The kernel's virtual address space.
 VirtualAddressSpace kernel_address_space;
@@ -426,7 +439,8 @@ void InitializeVirtualAllocator() {
 
   // Add the statically allocated free memory ranges.
   for (int i = 0; i < STATICALLY_ALLOCATED_FREE_MEMORY_RANGES_COUNT; i++)
-    ObjectPool<FreeMemoryRange>::Release(&statically_allocated_free_memory_ranges[i]);
+    ObjectPool<FreeMemoryRange>::Release(
+        &statically_allocated_free_memory_ranges[i]);
 
 // Reclaim the PML4, PDPT, PD set up at boot time.
 #ifndef __TEST__
@@ -470,8 +484,7 @@ size_t CreateUserSpacePML4() {
   return pml4;
 }
 
-bool InitializeVirtualAddressSpace(
-    VirtualAddressSpace *virtual_address_space) {
+bool InitializeVirtualAddressSpace(VirtualAddressSpace *virtual_address_space) {
   virtual_address_space->pml4 = CreateUserSpacePML4();
   if (virtual_address_space->pml4 == OUT_OF_MEMORY) return false;
   virtual_address_space->free_memory_ranges = nullptr;
@@ -592,174 +605,119 @@ size_t FindAndReserveFreePageRange(VirtualAddressSpace *address_space,
   }
 }
 
+// TODO: move
+int CalculateIndexForAddressInPageTable(int page_table_level,
+                                        size_t virtualaddr) {
+  constexpr int num_page_table_levels = 4;
+  // The number of address bits per page table level.
+  constexpr int address_bits_per_page_table_level = 9;
+  // The number of address bits in a page.
+  constexpr int address_bits_in_page = 12;
+  constexpr int max_address_bits_in_page = 39;
+
+  /*
+  size_t pml4_entry = (virtualaddr >> 39) & 511;
+  size_t pml3_entry = (virtualaddr >> 30) & 511;
+  size_t pml2_entry = (virtualaddr >> 21) & 511;
+  size_t pml1_entry = (virtualaddr >> 12) & 511;
+  */
+
+  return (virtualaddr >>
+          (max_address_bits_in_page -
+           address_bits_per_page_table_level * page_table_level)) &
+         511;
+}
+
 // Maps a physical page to a virtual page. Returns if it was successful.
 bool MapPhysicalPageToVirtualPage(VirtualAddressSpace *address_space,
                                   size_t virtualaddr, size_t physicaladdr,
                                   bool own, bool can_write,
                                   bool throw_exception_on_access) {
-  // Find the index into each PML table.
-  // 6666 5555 5555 5544 4444 4444 4333 3333 3332 2222 2222 2111 1111 111
-  // 4321 0987 6543 2109 8765 4321 0987 6543 2109 8765 4321 0978 6543 2109 8765
-  // 4321
-  //                     #### #### #@@@ @@@@ @@!! !!!! !!!+ ++++ ++++ ^^^^ ^^^^
-  //                     ^^^^ pml4       pml3       pml2       pml1        flags
-  size_t pml4_entry = (virtualaddr >> 39) & 511;
-  size_t pml3_entry = (virtualaddr >> 30) & 511;
-  size_t pml2_entry = (virtualaddr >> 21) & 511;
-  size_t pml1_entry = (virtualaddr >> 12) & 511;
-
-  bool user_page = pml4_entry != PAGE_TABLE_ENTRIES - 1;
-
-  if (address_space == &kernel_address_space) {
-    // Kernel virtual addreses must in the highest pml4 entry.
-    if (user_page) {
-      print << "Error mapping user addresses in kernel space.\n";
-      return false;
-    }
-  } else {
-    // User space virtual addresses must be below kernel memory.
-    if (!user_page) {
-      print << "Error kernel addresses in user space.\n";
-      return false;
-    }
-  }
-
-  bool created_pml3, created_pml2;
-
-  size_t pml4 = address_space->pml4;
-  // Look in PML4.
-  size_t *ptr = (size_t *)TemporarilyMapPhysicalMemory(pml4, 0);
-  if (ptr[pml4_entry] == 0) {
-    // Entry blank, create a PML3 table.
-    size_t new_pml3 = GetPhysicalPage();
-    if (new_pml3 == OUT_OF_PHYSICAL_PAGES) return false;  // No space for PML3.
-
-    // Clear it.
-    ptr = (size_t *)TemporarilyMapPhysicalMemory(new_pml3, 1);
-    size_t i;
-    for (i = 0; i < PAGE_TABLE_ENTRIES; i++) {
-      ptr[i] = 0;
-    }
-
-    // Switch back to the PML4.
-    ptr = (size_t *)TemporarilyMapPhysicalMemory(pml4, 0);
-
-    // Write it in.
-    ptr[pml4_entry] = new_pml3 | 0x3 |
-                      // Set the user bit.
-                      (user_page ? (1 << 2) : 0);
-
-    created_pml3 = true;
-  } else {
-    created_pml3 = false;
-  }
-
-  size_t pml3 = ptr[pml4_entry] & ~(PAGE_SIZE - 1);
-
-  // Look in PML3.
-  ptr = (size_t *)TemporarilyMapPhysicalMemory(pml3, 1);
-  if (ptr[pml3_entry] == 0) {
-    // Entry blank, create a PML2 table.
-    size_t new_pml2 = GetPhysicalPage();
-    if (new_pml2 == OUT_OF_PHYSICAL_PAGES) {
-      // No space for pml2.
-      if (created_pml3) {
-        ptr = (size_t *)TemporarilyMapPhysicalMemory(pml4, 0);
-        ptr[pml4_entry] = 0;
-        FreePhysicalPage((size_t)pml3);
-      }
-      return false;
-    }
-
-    // Clear it.
-    ptr = (size_t *)TemporarilyMapPhysicalMemory(new_pml2, 2);
-    size_t i;
-    for (i = 0; i < PAGE_TABLE_ENTRIES; i++) {
-      ptr[i] = 0;
-    }
-
-    // Switch back to the PML3.
-    ptr = (size_t *)TemporarilyMapPhysicalMemory(pml3, 1);
-
-    // Write it in.
-    ptr[pml3_entry] = new_pml2 | 0x3 |
-                      // Set the user bit.
-                      (user_page ? (1 << 2) : 0);
-
-    created_pml2 = true;
-  } else {
-    created_pml2 = false;
-  }
-
-  size_t pml2 = ptr[pml3_entry] & ~(PAGE_SIZE - 1);
-
-  // Look in PML2.
-  ptr = (size_t *)TemporarilyMapPhysicalMemory(pml2, 2);
-  if (ptr[pml2_entry] == 0) {
-    // Entry blank, create a PML1 table.
-    size_t new_pml1 = GetPhysicalPage();
-    if (new_pml1 == OUT_OF_PHYSICAL_PAGES) {
-      // No space for PML1.
-      if (created_pml2) {
-        ptr = (size_t *)TemporarilyMapPhysicalMemory(pml3, 1);
-        ptr[pml3_entry] = ((size_t)pml3);
-        FreePhysicalPage((size_t)pml2);
-      }
-
-      if (created_pml3) {
-        ptr = (size_t *)TemporarilyMapPhysicalMemory(pml4, 0);
-        ptr[pml4_entry] = 0;
-        FreePhysicalPage((size_t)pml3);
-      }
-      return false;
-    }
-
-    // Clear it.
-    ptr = (size_t *)TemporarilyMapPhysicalMemory(new_pml1, 3);
-    size_t i;
-    for (i = 0; i < PAGE_TABLE_ENTRIES; i++) {
-      ptr[i] = 0;
-    }
-
-    // Switch back to the PML2.
-    ptr = (size_t *)TemporarilyMapPhysicalMemory(pml2, 2);
-
-    // Write it in.
-    ptr[pml2_entry] = new_pml1 | 0x3 |
-                      // Set the user bit.
-                      (user_page ? (1 << 2) : 0);
-  }
-
-  size_t pml1 = ptr[pml2_entry] & ~(PAGE_SIZE - 1);
-
-  // Check if this address has already been mapped in PML1.
-  ptr = (size_t *)TemporarilyMapPhysicalMemory(pml1, 3);
-  if (ptr[pml1_entry] != 0 && ptr[pml1_entry] != DUD_PAGE_ENTRY) {
-    // We don't worry about cleaning up PML2/3 because for it to be mapped
-    // PML2/3 must already exist.
-    print << "Mapping page to " << NumberFormat::Hexidecimal << virtualaddr <<
-      " but something is already there.\n";
+  bool is_kernel_address = IsKernelAddress(virtualaddr);
+  bool is_kernel_address_space = address_space == &kernel_address_space;
+  if (is_kernel_address != is_kernel_address_space) {
+    print << "Error mapping user addresses in kernel space, or vice versa.\n";
     return false;
   }
 
-  // Write us in PML1.
-  size_t entry;
-  if (throw_exception_on_access) {
-    entry = DUD_PAGE_ENTRY;
-  } else {
-    entry = physicaladdr |
-            // Set the present bit.
-            1 |
-            // Set the write bit.
-            (can_write ? (1 << 1) : 0) |
-            // Set the user bit.
-            (user_page ? (1 << 2) : 0) |
-            // Set the ownership bit (a custom bit.)
-            (own ? (1 << 9) : 0);
-  }
-  ptr[pml1_entry] = entry;
+  // The number of page table levels.
+  constexpr int num_page_table_levels = 4;
 
-  if (address_space == current_address_space || !user_page) {
+  // The physical addresses of the tables at each level.
+  size_t table_addr[num_page_table_levels];
+  // Pointers to the mapped table at each lavel.
+  size_t *tables[num_page_table_levels];
+  // Whether the table at this level was allocated during this call.
+  bool allocated_table[num_page_table_levels];
+
+  // Populate the highest level.
+  table_addr[0] = address_space->pml4;
+  tables[0] = (size_t *)TemporarilyMapPhysicalMemory(table_addr[0], 0);
+  allocated_table[0] = false;
+
+  // Walk the page table hierarchy, creating tables as needed.
+  for (int level = 0; level < num_page_table_levels - 1; level++) {
+    int index = CalculateIndexForAddressInPageTable(level, virtualaddr);
+    if (tables[level][index] == 0) {
+      // Entry is blank, create a new table.
+      size_t new_table_physicaladdr = GetPhysicalPage();
+      if (new_table_physicaladdr == OUT_OF_PHYSICAL_PAGES) {
+        // Deallocate any pages that were allocated this call.
+        for (int level_to_deallocate = level; level_to_deallocate >= 1;
+             level_to_deallocate--) {
+          if (allocated_table[level_to_deallocate]) {
+            // This table was allocated this call, so free it.
+            FreePhysicalPage(table_addr[level_to_deallocate]);
+            // Erase it in the parent table.
+            int index_in_parent = CalculateIndexForAddressInPageTable(
+                level_to_deallocate - 1, virtualaddr);
+            tables[level_to_deallocate - 1][index_in_parent] = 0;
+          }
+        }
+        return false;
+      }
+      // Write in the page table entry.
+      tables[level][index] =
+          CreatePageTableEntry(new_table_physicaladdr, /*is_writable=*/true,
+                               !is_kernel_address, /*is_owned=*/false);
+      table_addr[level + 1] = new_table_physicaladdr;
+      // Map it into memory.
+      tables[level + 1] = (size_t *)TemporarilyMapPhysicalMemory(
+          new_table_physicaladdr, level + 1);
+
+      // Clear the new table.
+      for (int i = 0; i < PAGE_TABLE_ENTRIES; i++) tables[level + 1][i] = 0;
+      allocated_table[level + 1] = true;
+    } else {
+      // Entry is not blank, map it into memory.
+      table_addr[level + 1] = tables[level][index] & ~(PAGE_SIZE - 1);
+      tables[level + 1] = (size_t *)TemporarilyMapPhysicalMemory(
+          table_addr[level + 1], level + 1);
+      allocated_table[level + 1] = false;
+    }
+  }
+
+  // Get the entry in the deepest page table level (PML1).
+  constexpr int deepest_page_table_level = num_page_table_levels - 1;
+  int index_in_deepest_level = CalculateIndexForAddressInPageTable(
+      deepest_page_table_level, virtualaddr);
+  size_t &entry = tables[deepest_page_table_level][index_in_deepest_level];
+
+  if (entry != 0 && entry != DUD_PAGE_ENTRY) {
+    // Don't worry about cleaning up PML2/3 because for it to be mapped PML2/3
+    // must already exist.
+    print << "Mapping page to " << NumberFormat::Hexidecimal << virtualaddr
+          << " but something is already there.\n";
+    return false;
+  }
+
+  // Write the new entry in the in ePML1.
+  entry = throw_exception_on_access
+              ? DUD_PAGE_ENTRY
+              : CreatePageTableEntry(physicaladdr, can_write,
+                                     !is_kernel_address, own);
+
+  if (address_space == current_address_space || is_kernel_address) {
     // We need to flush the TLB because we are either in this address space or
     // it's kernel memory (which we're always in the address space of.)
     FlushVirtualPage(virtualaddr);
@@ -840,8 +798,7 @@ bool MarkVirtualAddressAsUsed(VirtualAddressSpace *address_space,
     return false;
   }
 
-  FreeMemoryRange *block_before =
-      FreeMemoryRangeFromNodeByAddress(node_before);
+  FreeMemoryRange *block_before = FreeMemoryRangeFromNodeByAddress(node_before);
 
   if (block_before->start_address + (block_before->pages * PAGE_SIZE) <=
       address) {
@@ -877,8 +834,8 @@ bool MarkVirtualAddressAsUsed(VirtualAddressSpace *address_space,
       return false;
     }
 
-    // Calculate how many free pages there will be before and after this page is
-    // removed.
+    // Calculate how many free pages there will be before and after this page
+    // is removed.
     size_t pages_before = (address - block_before->start_address) / PAGE_SIZE;
     size_t pages_after = block_before->pages - pages_before - 1;
 
@@ -925,15 +882,14 @@ size_t GetOrCreateVirtualPage(VirtualAddressSpace *address_space,
   }
 }
 
-size_t AllocateVirtualMemoryInAddressSpace(
-    VirtualAddressSpace *address_space, size_t pages) {
+size_t AllocateVirtualMemoryInAddressSpace(VirtualAddressSpace *address_space,
+                                           size_t pages) {
   return AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
       address_space, pages, 0xFFFFFFFFFFFFFFFF);
 }
 
 size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
-    VirtualAddressSpace *address_space, size_t pages,
-    size_t max_base_address) {
+    VirtualAddressSpace *address_space, size_t pages, size_t max_base_address) {
   size_t start = FindAndReserveFreePageRange(address_space, pages);
   if (start == OUT_OF_MEMORY) {
     return 0;
@@ -973,17 +929,16 @@ size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
   return start;
 }
 
-void ReleaseVirtualMemoryInAddressSpace(
-    VirtualAddressSpace *address_space, size_t addr, size_t pages,
-    bool free) {
+void ReleaseVirtualMemoryInAddressSpace(VirtualAddressSpace *address_space,
+                                        size_t addr, size_t pages, bool free) {
   size_t i = 0;
   for (; i < pages; i++, addr += PAGE_SIZE) {
     UnmapVirtualPage(address_space, addr, free);
   }
 }
 
-size_t MapPhysicalMemoryInAddressSpace(
-    VirtualAddressSpace *address_space, size_t addr, size_t pages) {
+size_t MapPhysicalMemoryInAddressSpace(VirtualAddressSpace *address_space,
+                                       size_t addr, size_t pages) {
   size_t start_virtual_address =
       FindAndReserveFreePageRange(address_space, pages);
   if (start_virtual_address == OUT_OF_MEMORY) return OUT_OF_MEMORY;
@@ -996,16 +951,17 @@ size_t MapPhysicalMemoryInAddressSpace(
   return start_virtual_address;
 }
 
-// Unmaps a virtual page - free specifies if that page should be returned to the
-// physical memory manager.
-void UnmapVirtualPage(VirtualAddressSpace *address_space,
-                      size_t virtualaddr, bool free) {
+// Unmaps a virtual page - free specifies if that page should be returned to
+// the physical memory manager.
+void UnmapVirtualPage(VirtualAddressSpace *address_space, size_t virtualaddr,
+                      bool free) {
   // Find the index into each PML table.
   // 6666 5555 5555 5544 4444 4444 4333 3333 3332 2222 2222 2111 1111 111
-  // 4321 0987 6543 2109 8765 4321 0987 6543 2109 8765 4321 0978 6543 2109 8765
-  // 4321
-  //                     #### #### #@@@ @@@@ @@!! !!!! !!!+ ++++ ++++ ^^^^ ^^^^
-  //                     ^^^^ pml4       pml3       pml2       pml1        flags
+  // 4321 0987 6543 2109 8765 4321 0987 6543 2109 8765 4321 0978 6543 2109
+  // 8765 4321
+  //                     #### #### #@@@ @@@@ @@!! !!!! !!!+ ++++ ++++ ^^^^
+  //                     ^^^^
+  //                     ^^^^ pml4       pml3       pml2       pml1 flags
   size_t pml4_entry = (virtualaddr >> 39) & 511;
   size_t pml3_entry = (virtualaddr >> 30) & 511;
   size_t pml2_entry = (virtualaddr >> 21) & 511;
@@ -1063,8 +1019,8 @@ void UnmapVirtualPage(VirtualAddressSpace *address_space,
 
   // Should we free it, and it is owned by this process?
   if (free && (ptr[pml1_entry] & (1 << 9)) != 0) {
-    // Return the memory to the physical allocator. This is optional because we
-    // don't want to do this if it's shared or memory mapped IO.
+    // Return the memory to the physical allocator. This is optional because
+    // we don't want to do this if it's shared or memory mapped IO.
 
     // Figure out the physical address that this entry points to and free it.
     size_t physicaladdr = ptr[pml1_entry] & ~(PAGE_SIZE - 1);
@@ -1141,9 +1097,9 @@ void UnmapVirtualPage(VirtualAddressSpace *address_space,
   }
 }
 
-// Frees an address space. Everything it finds will be returned to the physical
-// allocator so unmap any shared memory before. Please don't pass it the
-// kernel's PML4.
+// Frees an address space. Everything it finds will be returned to the
+// physical allocator so unmap any shared memory before. Please don't pass it
+// the kernel's PML4.
 void FreeAddressSpace(VirtualAddressSpace *address_space) {
   // If we're working in this address space, switch to kernel space.
   if (current_address_space == address_space) {
@@ -1211,7 +1167,8 @@ void FreeAddressSpace(VirtualAddressSpace *address_space) {
       // Free the PML3.
       FreePhysicalPage(pml3);
 
-      // Make sure the PML4 is mapped in memory after calling FreePhysicalPage.
+      // Make sure the PML4 is mapped in memory after calling
+      // FreePhysicalPage.
       ptr = (size_t *)TemporarilyMapPhysicalMemory(pml4, 0);
     }
   }
@@ -1250,10 +1207,10 @@ void FlushVirtualPage(size_t addr) {
 #endif
 }
 
-// Maps shared memory into a process's virtual address space. Returns nullptr if
-// there was an issue.
-SharedMemoryInProcess *MapSharedMemoryIntoProcess(
-    Process *process, SharedMemory *shared_memory) {
+// Maps shared memory into a process's virtual address space. Returns nullptr
+// if there was an issue.
+SharedMemoryInProcess *MapSharedMemoryIntoProcess(Process *process,
+                                                  SharedMemory *shared_memory) {
   // Find a free page range to map this shared memory into.
   size_t virtual_address = FindAndReserveFreePageRange(
       &process->virtual_address_space, shared_memory->size_in_pages);
@@ -1262,8 +1219,7 @@ SharedMemoryInProcess *MapSharedMemoryIntoProcess(
     return nullptr;
   }
 
-  auto shared_memory_in_process =
-      ObjectPool<SharedMemoryInProcess>::Allocate();
+  auto shared_memory_in_process = ObjectPool<SharedMemoryInProcess>::Allocate();
   if (shared_memory_in_process == nullptr) {
     // Out of memory.
     MarkAddressRangeAsFree(&process->virtual_address_space, virtual_address,
@@ -1313,10 +1269,9 @@ SharedMemoryInProcess *MapSharedMemoryIntoProcess(
 // Unmaps shared memory from a process and releases the SharedMemoryInProcess
 // object.
 void UnmapSharedMemoryFromProcess(
-    Process *process,
-    SharedMemoryInProcess *shared_memory_in_process) {
-  // TODO: Wake any threads waiting for this page. (They'll page fault, but what
-  // else can we do?)
+    Process *process, SharedMemoryInProcess *shared_memory_in_process) {
+  // TODO: Wake any threads waiting for this page. (They'll page fault, but
+  // what else can we do?)
 
   // Unmap the virtual pages.
   ReleaseVirtualMemoryInAddressSpace(
@@ -1337,9 +1292,8 @@ void UnmapSharedMemoryFromProcess(
     }
 
     if (previous == nullptr) {
-      print << 
-          "Shared memory can't be unmapped from a process that "
-          "it's not mapped to.\n";
+      print << "Shared memory can't be unmapped from a process that "
+               "it's not mapped to.\n";
       return;
     }
 
@@ -1379,8 +1333,8 @@ void UnmapSharedMemoryFromProcess(
   ObjectPool<SharedMemoryInProcess>::Release(shared_memory_in_process);
 }
 
-void SetMemoryAccessRights(VirtualAddressSpace *address_space,
-                           size_t address, size_t rights) {
+void SetMemoryAccessRights(VirtualAddressSpace *address_space, size_t address,
+                           size_t rights) {
   size_t pml4_entry = (address >> 39) & 511;
   size_t pml3_entry = (address >> 30) & 511;
   size_t pml2_entry = (address >> 21) & 511;
