@@ -96,11 +96,7 @@ void MapSharedMemoryPageInEachProcess(SharedMemory* shared_memory,
 
   size_t offset_of_page_in_bytes = page * PAGE_SIZE;
 
-  for (SharedMemoryInProcess* shared_memory_in_process =
-           shared_memory->joined_processes.FirstItem();
-       shared_memory_in_process != nullptr;
-       shared_memory_in_process =
-           shared_memory->joined_processes.NextItem(shared_memory_in_process)) {
+  for (auto* shared_memory_in_process : shared_memory->joined_processes) {
     Process* process = shared_memory_in_process->process;
     bool can_write = CanProcessWriteToSharedMemory(process, shared_memory);
     size_t virtual_address =
@@ -130,12 +126,9 @@ void MapSharedMemoryPageInEachProcess(SharedMemory* shared_memory,
 }
 
 SharedMemory* GetSharedMemoryFromId(size_t shared_memory_id) {
-  for (auto* shared_memory = all_shared_memories.FirstItem();
-       shared_memory != nullptr;
-       shared_memory = all_shared_memories.NextItem(shared_memory)) {
-    // Does this shared memory block matches the ID being searched for?
+  // Search for the shared memory block with the matching ID.
+  for (auto* shared_memory : all_shared_memories)
     if (shared_memory->id == shared_memory_id) return shared_memory;
-  }
 
   // Can't find any shared memory block with this ID.
   return nullptr;
@@ -181,11 +174,7 @@ void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory, size_t page,
     // Unmap it in each process so we don't get an error trying to overwrite an
     // existing page table entry.
     size_t offset_of_page_in_bytes = page * PAGE_SIZE;
-    for (SharedMemoryInProcess* shared_memory_in_process =
-             shared_memory->joined_processes.FirstItem();
-         shared_memory_in_process != nullptr;
-         shared_memory_in_process = shared_memory->joined_processes.NextItem(
-             shared_memory_in_process)) {
+    for (auto* shared_memory_in_process : shared_memory->joined_processes) {
       Process* process = shared_memory_in_process->process;
       size_t virtual_address =
           shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
@@ -294,11 +283,7 @@ void ReleaseSharedMemoryBlock(SharedMemory* shared_memory) {
 SharedMemoryInProcess* JoinSharedMemory(Process* process,
                                         size_t shared_memory_id) {
   // See if this shared memory is already mapped into this process.
-  for (auto* shared_memory_in_process =
-           process->joined_shared_memories.FirstItem();
-       shared_memory_in_process != nullptr;
-       shared_memory_in_process =
-           process->joined_shared_memories.NextItem(shared_memory_in_process)) {
+  for (auto* shared_memory_in_process : process->joined_shared_memories) {
     if (shared_memory_in_process->shared_memory->id == shared_memory_id) {
       // This shared memory is already mapped into the process.
       shared_memory_in_process->references++;
@@ -321,10 +306,7 @@ SharedMemoryInProcess* JoinSharedMemory(Process* process,
 // referenes to the shared memory block in the process.
 void LeaveSharedMemory(Process* process, size_t shared_memory_id) {
   // Find the shared memory.
-  for (auto* shared_memory_in_process =
-           process->joined_shared_memories.FirstItem();
-       shared_memory_in_process != nullptr;
-       process->joined_shared_memories.NextItem(shared_memory_in_process)) {
+  for (auto* shared_memory_in_process : process->joined_shared_memories) {
     if (shared_memory_in_process->shared_memory->id == shared_memory_id) {
       // Found the shared memory block.
       shared_memory_in_process->references--;
@@ -388,11 +370,8 @@ bool MaybeHandleSharedMessagePageFault(size_t address) {
   Process* process = running_thread->process;
 
   // Loop through each shared memory in process.
-  for (SharedMemoryInProcess* shared_memory_in_process =
-           process->joined_shared_memories.FirstItem();
-       shared_memory_in_process != nullptr;
-       shared_memory_in_process =
-           process->joined_shared_memories.NextItem(shared_memory_in_process)) {
+  for (SharedMemoryInProcess* shared_memory_in_process :
+       process->joined_shared_memories) {
     // Does this address fall within the shared memory block?
     if (address < shared_memory_in_process->virtual_address)
       continue;  // Address is too low.

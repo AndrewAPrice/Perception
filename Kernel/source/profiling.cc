@@ -183,7 +183,7 @@ void PrintProfilingOutput() {
   while (process != nullptr) {
     print << process->name << ','
           << process->cycles_spent_executing_while_profiled << '\n';
-    process = process->next;
+    process = GetNextProcess(process);
   }
   print << "<terminated processes>,"
         << cycles_from_processes_that_quit_while_profiling_is_enabled << '\n';
@@ -218,7 +218,7 @@ void EnableProfiling(Process *process) {
   Process *process_to_reset = GetProcessOrNextFromPid(0);
   while (process_to_reset != nullptr) {
     process_to_reset->cycles_spent_executing_while_profiled = 0;
-    process_to_reset = process_to_reset->next;
+    process_to_reset = GetNextProcess(process_to_reset);
   }
 }
 

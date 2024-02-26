@@ -80,8 +80,7 @@ struct Process {
   unsigned short thread_count;
 
   // Linked list of processes.
-  Process* next;
-  Process* previous;
+  LinkedListNode node_in_all_processes;
 
   // Linked lists of processes to notify when I die.
   LinkedList<ProcessToNotifyOnExit, &ProcessToNotifyOnExit::target_node> processes_to_notify_when_i_die;
@@ -160,3 +159,7 @@ extern void StartExecutingChildProcess(Process* parent, Process* child,
 
 // Destroys a process in the `creating` state.
 extern void DestroyChildProcess(Process* parent, Process* child);
+
+// Returns the next process in the system when iterating through all running processes.
+extern Process *GetNextProcess(Process *process);
+

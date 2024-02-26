@@ -107,6 +107,38 @@ class LinkedList {
     return NodeToItem(previous_node);
   }
 
+  class Iterator {
+   public:
+    Iterator(LinkedList* list, C* item) : list_(list), item_(item) {}
+
+    C* operator*() const { return item_; }
+
+    Iterator& operator++() {
+      item_ = list_->NextItem(item_);
+      return *this;
+    }
+
+    bool operator==(const Iterator& other) const {
+      return item_ == other.item_;
+    }
+
+    bool operator!=(const Iterator& other) const {
+      return !(*this == other);
+    }
+
+   private:
+    LinkedList* list_;
+    C* item_;
+  };
+
+  Iterator begin() {
+    return Iterator(this, FirstItem());
+  }
+
+  Iterator end() {
+    return Iterator(this, nullptr);
+  }
+
  private:
   void InsertAsOnlyNode(LinkedListNode* node) {
     first_node_ = last_node_ = node;

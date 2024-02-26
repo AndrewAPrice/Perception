@@ -187,7 +187,7 @@ Service* FindNextServiceByPidAndMidWithName(char* service_name, size_t min_pid,
 
     // Jump to the next process, and reset the min mid we care
     // about.
-    process = process->next;
+    process = GetNextProcess(process);
     min_message_id = 0;
   }
 
@@ -224,7 +224,7 @@ Service* FindNextServiceWithName(char* service_name,
     }
 
     // Jump to the next process.
-    process = process->next;
+    process = GetNextProcess(process);
     if (process != nullptr) service = process->first_service;
   }
   return nullptr;
@@ -281,7 +281,7 @@ void NotifyProcessWhenServiceAppears(char* service_name, Process* process,
 
       service = service->next_service_in_process;
     }
-    process_to_scan = process_to_scan->next;
+    process_to_scan = GetNextProcess(process_to_scan);
   }
 }
 

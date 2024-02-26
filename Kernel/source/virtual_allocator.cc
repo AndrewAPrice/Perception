@@ -140,10 +140,7 @@ void VerifyAddressSpaceStructuresAreAllTheSameSize(
   int nodes_in_size_tree =
       CountNodesInAATree(&address_space->free_chunks_by_size);
   int nodes_in_linked_list = 0;
-  for (auto *fmr = address_space->free_memory_ranges.FirstItem();
-       fmr != nullptr; fmr = address_space->free_memory_ranges.NextItem(fmr)) {
-    nodes_in_linked_list++;
-  }
+  for (auto *fmr : address_space->free_memory_ranges) nodes_in_linked_list++;
 
   if (nodes_in_address_tree != nodes_in_size_tree ||
       nodes_in_address_tree != nodes_in_linked_list) {
@@ -156,8 +153,7 @@ void VerifyAddressSpaceStructuresAreAllTheSameSize(
 
 void PrintFreeAddressRanges(VirtualAddressSpace *address_space) {
   print << "Free address ranges:\n" << NumberFormat::Hexidecimal;
-  for (auto *fmr = address_space->free_memory_ranges.FirstItem();
-       fmr != nullptr; fmr = address_space->free_memory_ranges.NextItem(fmr)) {
+  for (auto *fmr : address_space->free_memory_ranges) {
     print << ' ' << fmr->start_address << "->"
           << (fmr->start_address + PAGE_SIZE * fmr->pages) << '\n';
   }
@@ -1030,11 +1026,12 @@ SharedMemoryInProcess *MapSharedMemoryIntoProcess(Process *process,
 
 // Unmaps shared memory from a process and releases the SharedMemoryInProcess
 // object.
-void UnmapSharedMemoryFromProcess(SharedMemoryInProcess *shared_memory_in_process) {
+void UnmapSharedMemoryFromProcess(
+    SharedMemoryInProcess *shared_memory_in_process) {
   // TODO: Wake any threads waiting for this page. (They'll page fault, but
   // what else can we do?)
   auto *process = shared_memory_in_process->process;
-  auto* shared_memory = shared_memory_in_process->shared_memory;
+  auto *shared_memory = shared_memory_in_process->shared_memory;
 
   // Unmap the virtual pages.
   ReleaseVirtualMemoryInAddressSpace(

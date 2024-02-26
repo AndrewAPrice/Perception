@@ -3,6 +3,7 @@
 #include "interrupts.h"
 #include "io.h"
 #include "liballoc.h"
+#include "linked_list.h"
 #include "messages.h"
 #include "object_pool.h"
 #include "physical_allocator.h"
@@ -20,16 +21,14 @@ namespace {
 size_t last_assigned_pid;
 
 //  Linked list of processes that are running.
-Process *first_process;
-Process *last_process;
+LinkedList<Process, &Process::node_in_all_processes> all_processes;
 
 }  // namespace
 
 // Initializes the internal structures for tracking processes.
 void InitializeProcesses() {
   last_assigned_pid = 0;
-  first_process = nullptr;
-  last_process = nullptr;
+  new (&all_processes) LinkedList<Process, &Process::node_in_all_processes>();
 }
 
 // Creates a process, returns ERROR if there was an error.
@@ -76,19 +75,7 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->cycles_spent_executing_while_profiled = 0;
 
   // Add to the linked list of running processes.
-  if (first_process == nullptr) {
-    // No running processes.
-    first_process = proc;
-    last_process = proc;
-    proc->previous = nullptr;
-  } else {
-    last_process->next = proc;
-    proc->previous = last_process;
-    last_process = proc;
-  }
-
-  proc->next = nullptr;
-
+  all_processes.AddBack(proc);
   return proc;
 }
 
@@ -192,17 +179,7 @@ void DestroyProcess(Process *process) {
   }
 
   // Remove from linked list.
-  if (process->previous == nullptr) {
-    first_process = process->next;
-  } else {
-    process->previous->next = process->next;
-  }
-
-  if (process->next == nullptr) {
-    last_process = process->previous;
-  } else {
-    process->next->previous = process->previous;
-  }
+  all_processes.Remove(process);
 
   // Free the process.
   free(process);
@@ -227,7 +204,7 @@ extern void NotifyProcessOnDeath(Process *target, Process *notifyee,
 // exist.
 Process *GetProcessFromPid(size_t pid) {
   // Walk through the linked list to find our process.
-  for (Process *proc = first_process; proc != nullptr; proc = proc->next)
+  for (Process *proc : all_processes)
     if (proc->pid == pid) return proc;
 
   return (Process *)nullptr;
@@ -238,10 +215,8 @@ Process *GetProcessFromPid(size_t pid) {
 // with a pid >= pid.
 Process *GetProcessOrNextFromPid(size_t pid) {
   // Walk through the linked list to find our process.
-  Process *proc = first_process;
-  for (Process *proc = first_process; proc != nullptr; proc = proc->next) {
+  for (Process *proc : all_processes)
     if (proc->pid >= pid) return proc;
-  }
 
   return (Process *)nullptr;
 }
@@ -266,7 +241,7 @@ Process *FindNextProcessWithName(const char *name, Process *start_from) {
       // We found a process with this name!
       return potential_process;
     // Try the next process.
-    potential_process = potential_process->next;
+    potential_process = all_processes.NextItem(potential_process);
   }
 
   // No process was found with the name.
@@ -359,4 +334,11 @@ void StartExecutingChildProcess(Process *parent, Process *child,
 void DestroyChildProcess(Process *parent, Process *child) {
   if (!RemoveChildProcessOfParent(parent, child)) return;
   DestroyProcess(child);
+}
+
+Process *GetNextProcess(Process *process) {
+  if (process == nullptr)
+    return all_processes.FirstItem();
+
+  return all_processes.NextItem(process);
 }

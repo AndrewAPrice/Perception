@@ -337,7 +337,7 @@ extern "C" void SyscallHandler(int syscall_number) {
           if (processes_found < 12) pids[processes_found] = process->pid;
 
           processes_found++;
-          process = process->next;
+          process = GetNextProcess(process);
         }
       }
 
