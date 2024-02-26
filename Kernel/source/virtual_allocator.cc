@@ -1002,14 +1002,10 @@ SharedMemoryInProcess *MapSharedMemoryIntoProcess(Process *process,
   shared_memory_in_process->references = 1;
 
   // Add the shared memory to our process's linked list.
-  shared_memory_in_process->next_in_process = process->shared_memory;
-  process->shared_memory = shared_memory_in_process;
+  process->joined_shared_memories.AddBack(shared_memory_in_process);
 
   // Add the process to the shared memory.
-  shared_memory_in_process->previous_in_shared_memory = nullptr;
-  shared_memory_in_process->next_in_shared_memory =
-      shared_memory->first_process;
-  shared_memory->first_process = shared_memory_in_process;
+  shared_memory->joined_processes.AddBack(shared_memory_in_process);
 
   bool can_write = CanProcessWriteToSharedMemory(process, shared_memory);
 
@@ -1034,10 +1030,11 @@ SharedMemoryInProcess *MapSharedMemoryIntoProcess(Process *process,
 
 // Unmaps shared memory from a process and releases the SharedMemoryInProcess
 // object.
-void UnmapSharedMemoryFromProcess(
-    Process *process, SharedMemoryInProcess *shared_memory_in_process) {
+void UnmapSharedMemoryFromProcess(SharedMemoryInProcess *shared_memory_in_process) {
   // TODO: Wake any threads waiting for this page. (They'll page fault, but
   // what else can we do?)
+  auto *process = shared_memory_in_process->process;
+  auto* shared_memory = shared_memory_in_process->shared_memory;
 
   // Unmap the virtual pages.
   ReleaseVirtualMemoryInAddressSpace(
@@ -1045,42 +1042,8 @@ void UnmapSharedMemoryFromProcess(
       shared_memory_in_process->virtual_address,
       shared_memory_in_process->shared_memory->size_in_pages, false);
 
-  // Remove from linked list in the process.
-  if (process->shared_memory == shared_memory_in_process) {
-    // First element in the linked list.
-    process->shared_memory = shared_memory_in_process->next_in_process;
-  } else {
-    // Iterate through until we find it.
-    SharedMemoryInProcess *previous = process->shared_memory;
-    while (previous != nullptr &&
-           previous->next_in_process != shared_memory_in_process) {
-      previous = previous->next_in_process;
-    }
-
-    if (previous == nullptr) {
-      print << "Shared memory can't be unmapped from a process that "
-               "it's not mapped to.\n";
-      return;
-    }
-
-    // Remove us from the linked list.
-    previous->next_in_process = shared_memory_in_process->next_in_process;
-  }
-
-  // Remove from the linked list in the shared memory.
-  SharedMemory *shared_memory = shared_memory_in_process->shared_memory;
-
-  if (shared_memory_in_process->previous_in_shared_memory == nullptr) {
-    shared_memory->first_process =
-        shared_memory_in_process->next_in_shared_memory;
-  } else {
-    shared_memory_in_process->previous_in_shared_memory->next_in_shared_memory =
-        shared_memory_in_process->next_in_shared_memory;
-  }
-  if (shared_memory_in_process->next_in_shared_memory != nullptr) {
-    shared_memory_in_process->next_in_shared_memory->previous_in_shared_memory =
-        shared_memory_in_process->previous_in_shared_memory;
-  }
+  process->joined_shared_memories.Remove(shared_memory_in_process);
+  shared_memory->joined_processes.Remove(shared_memory_in_process);
 
   // Decrement the references to this shared memory block.
   shared_memory->processes_referencing_this_block--;

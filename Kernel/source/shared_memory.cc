@@ -16,6 +16,7 @@
 
 #include "aa_tree.h"
 #include "liballoc.h"
+#include "linked_list.h"
 #include "messages.h"
 #include "object_pool.h"
 #include "physical_allocator.h"
@@ -31,7 +32,8 @@ namespace {
 size_t last_assigned_shared_memory_id;
 
 // Linked list of all shared memory blocks.
-SharedMemory* first_shared_memory;
+LinkedList<SharedMemory, &SharedMemory::all_shared_memories_node>
+    all_shared_memories;
 
 // Creates a shared memory block.
 SharedMemory* CreateSharedMemoryBlock(
@@ -62,16 +64,8 @@ SharedMemory* CreateSharedMemoryBlock(
   shared_memory->pids_allowed_to_assign_memory_pages.Insert(process->pid);
   shared_memory->message_id_for_lazily_loaded_pages =
       message_id_for_lazily_loaded_pages;
-  shared_memory->next = nullptr;
-  shared_memory->previous = nullptr;
-  shared_memory->first_waiting_thread = nullptr;
-  shared_memory->first_process = nullptr;
 
-  if (first_shared_memory != nullptr) {
-    first_shared_memory->previous = shared_memory;
-    shared_memory->next = first_shared_memory;
-  }
-  first_shared_memory = shared_memory;
+  all_shared_memories.AddBack(shared_memory);
 
   if ((flags & SM_LAZILY_ALLOCATED) == 0) {
     // We're not lazily allocated, so we should allocate all of
@@ -103,10 +97,10 @@ void MapSharedMemoryPageInEachProcess(SharedMemory* shared_memory,
   size_t offset_of_page_in_bytes = page * PAGE_SIZE;
 
   for (SharedMemoryInProcess* shared_memory_in_process =
-           shared_memory->first_process;
+           shared_memory->joined_processes.FirstItem();
        shared_memory_in_process != nullptr;
        shared_memory_in_process =
-           shared_memory_in_process->next_in_shared_memory) {
+           shared_memory->joined_processes.NextItem(shared_memory_in_process)) {
     Process* process = shared_memory_in_process->process;
     bool can_write = CanProcessWriteToSharedMemory(process, shared_memory);
     size_t virtual_address =
@@ -118,45 +112,29 @@ void MapSharedMemoryPageInEachProcess(SharedMemory* shared_memory,
 
   // Wake up each thread that was waiting for this page.
   for (ThreadWaitingForSharedMemoryPage* waiting_thread =
-           shared_memory->first_waiting_thread;
+           shared_memory->waiting_threads.FirstItem();
        waiting_thread != nullptr;) {
+    auto* next = shared_memory->waiting_threads.NextItem(waiting_thread);
     if (waiting_thread->page == page) {
       // This thread is waiting for this page.
+      shared_memory->waiting_threads.Remove(waiting_thread);
 
       // Wake this thread.
       ScheduleThread(waiting_thread->thread);
       waiting_thread->thread->thread_is_waiting_for_shared_memory = nullptr;
 
-      // Remove it from the linked list of waiting threads for this shared
-      // memory.
-      if (waiting_thread->previous == nullptr) {
-        shared_memory->first_waiting_thread = waiting_thread->next;
-      } else {
-        waiting_thread->previous->next = waiting_thread->next;
-      }
-
-      if (waiting_thread->next != nullptr) {
-        waiting_thread->next->previous = waiting_thread->previous;
-      }
-
-      ThreadWaitingForSharedMemoryPage* next = waiting_thread->next;
       ObjectPool<ThreadWaitingForSharedMemoryPage>::Release(waiting_thread);
-      waiting_thread = next;
-    } else {
-      // This thread is waiting for another page.
-      waiting_thread = waiting_thread->next;
     }
+    waiting_thread = next;
   }
 }
 
 SharedMemory* GetSharedMemoryFromId(size_t shared_memory_id) {
-  SharedMemory* shared_memory = first_shared_memory;
-  while (shared_memory != nullptr) {
-    if (shared_memory->id == shared_memory_id) {
-      // Found a shared memory block that matches the ID.
-      return shared_memory;
-    }
-    shared_memory = shared_memory->next;
+  for (auto* shared_memory = all_shared_memories.FirstItem();
+       shared_memory != nullptr;
+       shared_memory = all_shared_memories.NextItem(shared_memory)) {
+    // Does this shared memory block matches the ID being searched for?
+    if (shared_memory->id == shared_memory_id) return shared_memory;
   }
 
   // Can't find any shared memory block with this ID.
@@ -179,12 +157,7 @@ void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
   waiting_thread->shared_memory = shared_memory;
   waiting_thread->page = page;
 
-  waiting_thread->next = shared_memory->first_waiting_thread;
-  if (waiting_thread->next != nullptr) {
-    waiting_thread->next->previous = waiting_thread;
-  }
-  waiting_thread->previous = nullptr;
-  shared_memory->first_waiting_thread = waiting_thread;
+  shared_memory->waiting_threads.AddBack(waiting_thread);
 
   // Sleep the thread. It will be rewoken when the shared memory page is
   // allocated.
@@ -209,10 +182,10 @@ void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory, size_t page,
     // existing page table entry.
     size_t offset_of_page_in_bytes = page * PAGE_SIZE;
     for (SharedMemoryInProcess* shared_memory_in_process =
-             shared_memory->first_process;
+             shared_memory->joined_processes.FirstItem();
          shared_memory_in_process != nullptr;
-         shared_memory_in_process =
-             shared_memory_in_process->next_in_shared_memory) {
+         shared_memory_in_process = shared_memory->joined_processes.NextItem(
+             shared_memory_in_process)) {
       Process* process = shared_memory_in_process->process;
       size_t virtual_address =
           shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
@@ -259,7 +232,8 @@ bool HandleSharedMessagePageFault(Process* process, SharedMemory* shared_memory,
 // Initializes the internal structures for shared memory.
 void InitializeSharedMemory() {
   last_assigned_shared_memory_id = 0;
-  first_shared_memory = nullptr;
+  new (&all_shared_memories)
+      LinkedList<SharedMemory, &SharedMemory::all_shared_memories_node>();
 }
 
 // Creates a shared memory block and map it into a procses.
@@ -292,7 +266,7 @@ void ReleaseSharedMemoryBlock(SharedMemory* shared_memory) {
              "referenced by a process.\n";
     return;
   }
-  if (shared_memory->first_waiting_thread != nullptr) {
+  if (!shared_memory->waiting_threads.IsEmpty()) {
     // This should never be triggered.
     print << "Attempting to release shared memory that still is blocking "
              "other threads.\n";
@@ -309,15 +283,7 @@ void ReleaseSharedMemoryBlock(SharedMemory* shared_memory) {
   free(shared_memory->physical_pages);
 
   // Remove us from the linked list of shared memory.
-  if (shared_memory->next != nullptr) {
-    shared_memory->next->previous = shared_memory->previous;
-  }
-
-  if (shared_memory->previous == nullptr) {
-    first_shared_memory = shared_memory->next;
-  } else {
-    shared_memory->previous->next = shared_memory->next;
-  }
+  all_shared_memories.Remove(shared_memory);
 
   // Release the SharedMemory object.
   ObjectPool<SharedMemory>::Release(shared_memory);
@@ -328,14 +294,16 @@ void ReleaseSharedMemoryBlock(SharedMemory* shared_memory) {
 SharedMemoryInProcess* JoinSharedMemory(Process* process,
                                         size_t shared_memory_id) {
   // See if this shared memory is already mapped into this process.
-  SharedMemoryInProcess* shared_memory_in_process = process->shared_memory;
-  while (shared_memory_in_process != nullptr) {
+  for (auto* shared_memory_in_process =
+           process->joined_shared_memories.FirstItem();
+       shared_memory_in_process != nullptr;
+       shared_memory_in_process =
+           process->joined_shared_memories.NextItem(shared_memory_in_process)) {
     if (shared_memory_in_process->shared_memory->id == shared_memory_id) {
       // This shared memory is already mapped into the process.
       shared_memory_in_process->references++;
       return shared_memory_in_process;
     }
-    shared_memory_in_process = shared_memory_in_process->next_in_process;
   }
 
   // The shared memory is not mapped to the process, so we'll try to find it.
@@ -353,21 +321,19 @@ SharedMemoryInProcess* JoinSharedMemory(Process* process,
 // referenes to the shared memory block in the process.
 void LeaveSharedMemory(Process* process, size_t shared_memory_id) {
   // Find the shared memory.
-  SharedMemoryInProcess* shared_memory_in_process = process->shared_memory;
-  while (shared_memory_in_process != nullptr) {
+  for (auto* shared_memory_in_process =
+           process->joined_shared_memories.FirstItem();
+       shared_memory_in_process != nullptr;
+       process->joined_shared_memories.NextItem(shared_memory_in_process)) {
     if (shared_memory_in_process->shared_memory->id == shared_memory_id) {
       // Found the shared memory block.
       shared_memory_in_process->references--;
 
-      if (shared_memory_in_process == 0) {
-        // No more references to this shared memory, so we can unmap
-        // it.
-        UnmapSharedMemoryFromProcess(process, shared_memory_in_process);
-      }
-
+      // TODO: This is broken.
+      // if (shared_memory_in_process->references == 0)
+      //  UnmapSharedMemoryFromProcess(shared_memory_in_process);
       return;
     }
-    shared_memory_in_process = shared_memory_in_process->next_in_process;
   }
 }
 
@@ -392,11 +358,11 @@ void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
     return;
   }
 
-  //if (!shared_memory->pids_allowed_to_assign_memory_pages.Contains(
-    //      process->pid)) {
-    // Only the creator of the shared memory can move pages into shared memory.
-    //FreePhysicalPage(physical_address);
-    //return;
+  // if (!shared_memory->pids_allowed_to_assign_memory_pages.Contains(
+  //       process->pid)) {
+  //  Only the creator of the shared memory can move pages into shared memory.
+  // FreePhysicalPage(physical_address);
+  // return;
   //}
 
   // Work out where we are moving this page in the shared memory.
@@ -422,22 +388,19 @@ bool MaybeHandleSharedMessagePageFault(size_t address) {
   Process* process = running_thread->process;
 
   // Loop through each shared memory in process.
-  for (SharedMemoryInProcess* current_shared_memory_in_process =
-           process->shared_memory;
-       current_shared_memory_in_process != nullptr;
-       current_shared_memory_in_process =
-           current_shared_memory_in_process->next_in_process) {
+  for (SharedMemoryInProcess* shared_memory_in_process =
+           process->joined_shared_memories.FirstItem();
+       shared_memory_in_process != nullptr;
+       shared_memory_in_process =
+           process->joined_shared_memories.NextItem(shared_memory_in_process)) {
     // Does this address fall within the shared memory block?
-    if (address < current_shared_memory_in_process->virtual_address)
+    if (address < shared_memory_in_process->virtual_address)
       continue;  // Address is too low.
 
     size_t page_in_shared_memory =
-        (address - current_shared_memory_in_process->virtual_address) /
-        PAGE_SIZE;
+        (address - shared_memory_in_process->virtual_address) / PAGE_SIZE;
 
-    SharedMemory* shared_memory =
-        current_shared_memory_in_process->shared_memory;
-
+    SharedMemory* shared_memory = shared_memory_in_process->shared_memory;
     if (page_in_shared_memory >= shared_memory->size_in_pages)
       continue;  // Address is too high.
 
@@ -482,8 +445,8 @@ size_t GetPhysicalAddressOfPageInSharedMemory(size_t shared_memory_id,
 }
 
 void GrantPermissionToAllocateIntoSharedMemory(Process* grantor,
-                                                 size_t shared_memory_id,
-                                                 size_t grantee_pid) {
+                                               size_t shared_memory_id,
+                                               size_t grantee_pid) {
   SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
   if (shared_memory == nullptr) return;
   if (!shared_memory->pids_allowed_to_assign_memory_pages.Contains(
@@ -524,9 +487,9 @@ void GetSharedMemoryDetailsPertainingToProcess(Process* process,
   }
 
   // if (shared_memory->pids_allowed_to_assign_memory_pages.Contains(
-     //     process->pid)) {
-    flags |= SMD_CAN_PROCESS_ASSIGN_PAGES;
- // }
+  //     process->pid)) {
+  flags |= SMD_CAN_PROCESS_ASSIGN_PAGES;
+  // }
 
   size_in_bytes = shared_memory->size_in_pages * PAGE_SIZE;
 }

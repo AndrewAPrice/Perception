@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "linked_list.h"
 #include "set.h"
 #include "types.h"
 
@@ -54,8 +55,28 @@ struct ThreadWaitingForSharedMemoryPage {
   size_t page;
 
   // Linked list structure of threads waiting in the shared memory.
-  ThreadWaitingForSharedMemoryPage* previous;
-  ThreadWaitingForSharedMemoryPage* next;
+  LinkedListNode node;
+};
+
+// Represents a block of shared memory mapped into a proces.
+struct SharedMemoryInProcess {
+  // The shared memory block we're talking about.
+  SharedMemory* shared_memory;
+
+  // The process we're in.
+  Process* process;
+
+  // The virtual address of this shared memory block.
+  size_t virtual_address;
+
+  // The next shared memory block in the process.
+  LinkedListNode node_in_process;
+
+  // Linked list in SharedMemory.
+  LinkedListNode node_in_shared_memory;
+
+  // The number of references to this shared memory block in this process.
+  size_t references;
 };
 
 // Represents a block of shared memory.
@@ -88,37 +109,16 @@ struct SharedMemory {
   size_t message_id_for_lazily_loaded_pages;
 
   // Linked list of shared memory.
-  SharedMemory* previous;
-  SharedMemory* next;
+  LinkedListNode all_shared_memories_node;
 
   // Linked list of threads waiting for pages to become available in this shared
   // memory.
-  ThreadWaitingForSharedMemoryPage* first_waiting_thread;
+  LinkedList<ThreadWaitingForSharedMemoryPage,
+             &ThreadWaitingForSharedMemoryPage::node>
+      waiting_threads;
 
   // Linked list of processes that have joined this shared memory.
-  SharedMemoryInProcess* first_process;
-};
-
-// Represents a block of shared memory mapped into a proces.
-struct SharedMemoryInProcess {
-  // The shared memory block we're talking about.
-  SharedMemory* shared_memory;
-
-  // The process we're in.
-  Process* process;
-
-  // The virtual address of this shared memory block.
-  size_t virtual_address;
-
-  // The next shared memory block in the process.
-  SharedMemoryInProcess* next_in_process;
-
-  // Linked list in SharedMemory.
-  SharedMemoryInProcess* previous_in_shared_memory;
-  SharedMemoryInProcess* next_in_shared_memory;
-
-  // The number of references to this shared memory block in this process.
-  size_t references;
+  LinkedList<SharedMemoryInProcess, &SharedMemoryInProcess::node_in_shared_memory> joined_processes;
 };
 
 // Initializes the internal structures for shared memory.
@@ -165,8 +165,8 @@ extern size_t GetPhysicalAddressOfPageInSharedMemory(
 // Grants permission for another process to allocate into this shared memory
 // block.
 extern void GrantPermissionToAllocateIntoSharedMemory(Process* grantor,
-                                                        size_t shared_memory_id,
-                                                        size_t grantee_pid);
+                                                      size_t shared_memory_id,
+                                                      size_t grantee_pid);
 
 // Can this process write to this shared memory?
 extern bool CanProcessWriteToSharedMemory(Process* process,

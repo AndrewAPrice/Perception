@@ -65,7 +65,6 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->message_to_fire_on_interrupt = nullptr;
   proc->first_service = nullptr;
   proc->last_service = nullptr;
-  proc->shared_memory = nullptr;
   proc->timer_event = nullptr;
 
   // Threads.
@@ -170,8 +169,8 @@ void DestroyProcess(Process *process) {
   if (process->timer_event != nullptr) CancelAllTimerEventsForProcess(process);
 
   // Release any shared memory mapped into this process.
-  while (process->shared_memory != nullptr)
-    UnmapSharedMemoryFromProcess(process, process->shared_memory);
+  while (!process->joined_shared_memories.IsEmpty())
+    UnmapSharedMemoryFromProcess(process->joined_shared_memories.FirstItem());
 
   // Free the address space.
   FreeAddressSpace(&process->virtual_address_space);

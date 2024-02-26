@@ -2,6 +2,7 @@
 
 #include "linked_list.h"
 #include "messages.h"
+#include "shared_memory.h"
 #include "types.h"
 #include "virtual_allocator.h"
 
@@ -97,7 +98,7 @@ struct Process {
   Service* last_service;
 
   // Linked list of shared memory mapped into this process.
-  SharedMemoryInProcess* shared_memory;
+  LinkedList<SharedMemoryInProcess, &SharedMemoryInProcess::node_in_process> joined_shared_memories;
 
   // Linked list of timer events that are scheduled for this process.
   TimerEvent* timer_event;

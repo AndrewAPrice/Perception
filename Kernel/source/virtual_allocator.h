@@ -68,7 +68,8 @@ extern bool InitializeVirtualAddressSpace(
 // memory space. Only one page at a time can be allocated this way. The index
 // is ignored but is used to match the function definition of
 // `TemporarilyMapPhysicalMemory`.
-extern void *TemporarilyMapPhysicalMemoryPreVirtualMemory(size_t addr, size_t index);
+extern void *TemporarilyMapPhysicalMemoryPreVirtualMemory(size_t addr,
+                                                          size_t index);
 
 // Temporarily maps physical memory (page aligned) into virtual memory so we can
 // fiddle with it. index is from 0 to 511 - mapping a different address to the
@@ -77,26 +78,25 @@ extern void *TemporarilyMapPhysicalMemory(size_t addr, size_t index);
 
 // Finds a range of free physical pages in memory - returns the first address or
 // OUT_OF_MEMORY if it can't find a fit.
-extern size_t FindAndReserveFreePageRange(
-    VirtualAddressSpace *address_space, size_t pages);
+extern size_t FindAndReserveFreePageRange(VirtualAddressSpace *address_space,
+                                          size_t pages);
 
 // Maps a physical page to a virtual page. Make sure the address range has
 // already been reserved. Returns if it was successful.
-extern bool MapPhysicalPageToVirtualPage(
-    VirtualAddressSpace *address_space, size_t virtualaddr,
-    size_t physicaladdr, bool own, bool can_write,
-    bool throw_exception_on_access);
+extern bool MapPhysicalPageToVirtualPage(VirtualAddressSpace *address_space,
+                                         size_t virtualaddr,
+                                         size_t physicaladdr, bool own,
+                                         bool can_write,
+                                         bool throw_exception_on_access);
 
 extern size_t AllocateVirtualMemoryInAddressSpace(
     VirtualAddressSpace *address_space, size_t pages);
 
 extern size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
-    VirtualAddressSpace *address_space, size_t pages,
-    size_t max_base_address);
+    VirtualAddressSpace *address_space, size_t pages, size_t max_base_address);
 
 extern void ReleaseVirtualMemoryInAddressSpace(
-    VirtualAddressSpace *address_space, size_t addr, size_t pages,
-    bool free);
+    VirtualAddressSpace *address_space, size_t addr, size_t pages, bool free);
 
 extern size_t MapPhysicalMemoryInAddressSpace(
     VirtualAddressSpace *address_space, size_t addr, size_t pages);
@@ -136,7 +136,6 @@ extern SharedMemoryInProcess *MapSharedMemoryIntoProcess(
 // Unmaps shared memory from a process and releases the SharedMemoryInProcess
 // object.
 extern void UnmapSharedMemoryFromProcess(
-    Process *process,
     SharedMemoryInProcess *shared_memory_in_process);
 
 // Sets the access rights of a memory page, if the process owns the page. The
