@@ -6,10 +6,10 @@
 #else
 
 // Copies `count` bytes from `src` to `dest`.
-extern void memcpy(char *dest, const char *src, size_t count);
+extern "C" void memcpy(char *dest, const char *src, size_t count);
 
 // Sets `count` bytes in `dest` to `val`.
-extern void memset(char *dest, char val, size_t count);
+extern "C" void memset(char *dest, char val, size_t count);
 #endif
 
 // Copies a string.

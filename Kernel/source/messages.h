@@ -1,5 +1,6 @@
 #pragma once
 
+#include "linked_list.h"
 #include "types.h"
 
 struct Message {
@@ -16,7 +17,8 @@ struct Message {
   size_t param4;  // Passed in r8.
   size_t param5;  // Passed in r9.
 
-  Message* next_message;  // The next queued message for a process.
+  // The node in a queue of messages for a process.
+  LinkedListNode node;
 };
 
 struct Process;

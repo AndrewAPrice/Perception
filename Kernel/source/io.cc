@@ -3,7 +3,7 @@
 #ifdef __TEST__
 #include <stdio.h>
 #else
-void memcpy(char *dest, const char *src, size_t count) {
+extern "C" void memcpy(char *dest, const char *src, size_t count) {
   while (count > 0) {
     *dest = *src;
     dest++;
@@ -12,7 +12,7 @@ void memcpy(char *dest, const char *src, size_t count) {
   }
 }
 
-void memset(char *dest, char val, size_t count) {
+extern "C" void memset(char *dest, char val, size_t count) {
   while (count > 0) {
     *dest = val;
     dest++;

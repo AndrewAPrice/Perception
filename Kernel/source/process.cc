@@ -40,6 +40,7 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
     // Out of memory.
     return (Process *)ERROR;
   }
+  new (proc) Process();
   proc->is_driver = is_driver;
   proc->can_create_processes = can_create_processes;
 
@@ -59,14 +60,9 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->parent = nullptr;
   proc->child_processes = nullptr;
   proc->next_child_process_in_parent = nullptr;
-  proc->next_message = nullptr;
-  proc->last_message = nullptr;
   proc->messages_queued = 0;
   proc->thread_sleeping_for_message = nullptr;
   proc->message_to_fire_on_interrupt = nullptr;
-  proc->processes_to_notify_when_i_die = nullptr;
-  proc->processes_i_want_to_be_notified_of_when_they_die = nullptr;
-  proc->services_i_want_to_be_notified_of_when_they_appear = nullptr;
   proc->first_service = nullptr;
   proc->last_service = nullptr;
   proc->shared_memory = nullptr;
@@ -101,33 +97,9 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
 // linked lists.
 void ReleaseNotification(ProcessToNotifyOnExit *notification) {
   // Remove from target.
-  if (notification->previous_in_target == nullptr) {
-    notification->target->processes_to_notify_when_i_die =
-        notification->next_in_target;
-  } else {
-    notification->previous_in_target->next_in_target =
-        notification->next_in_target;
-  }
-
-  if (notification->next_in_target != nullptr) {
-    notification->next_in_target->previous_in_target =
-        notification->previous_in_target;
-  }
-
-  // Remove from notifyee.
-  if (notification->previous_in_notifyee == nullptr) {
-    notification->notifyee->processes_i_want_to_be_notified_of_when_they_die =
-        notification->next_in_notifyee;
-  } else {
-    notification->previous_in_notifyee->next_in_notifyee =
-        notification->next_in_notifyee;
-  }
-
-  if (notification->next_in_notifyee != nullptr) {
-    notification->next_in_notifyee->previous_in_notifyee =
-        notification->previous_in_notifyee;
-  }
-
+  notification->target->processes_to_notify_when_i_die.Remove(notification);
+  notification->target->processes_i_want_to_be_notified_of_when_they_die.Remove(
+      notification);
   ObjectPool<ProcessToNotifyOnExit>::Release(notification);
 }
 
@@ -205,18 +177,19 @@ void DestroyProcess(Process *process) {
   FreeAddressSpace(&process->virtual_address_space);
 
   // Free all notifications I was waiting on for processes to die.
-  while (process->processes_i_want_to_be_notified_of_when_they_die != nullptr) {
-    ReleaseNotification(
-        process->processes_i_want_to_be_notified_of_when_they_die);
+  while (auto *notification =
+             process->processes_i_want_to_be_notified_of_when_they_die
+                 .FirstItem()) {
+    ReleaseNotification(notification);
   }
 
   // Notify the processes that were wanting to know when this process died.
-  while (process->processes_to_notify_when_i_die != nullptr) {
-    SendKernelMessageToProcess(
-        process->processes_to_notify_when_i_die->notifyee,
-        process->processes_to_notify_when_i_die->event_id, process->pid, 0, 0,
-        0, 0);
-    ReleaseNotification(process->processes_to_notify_when_i_die);
+  while (auto *notification =
+             process->processes_i_want_to_be_notified_of_when_they_die
+                 .FirstItem()) {
+    SendKernelMessageToProcess(notification->notifyee, notification->event_id,
+                               process->pid, 0, 0, 0, 0);
+    ReleaseNotification(notification);
   }
 
   // Remove from linked list.
@@ -246,14 +219,9 @@ extern void NotifyProcessOnDeath(Process *target, Process *notifyee,
   notification->notifyee = notifyee;
   notification->event_id = event_id;
 
-  notification->previous_in_target = nullptr;
-  notification->next_in_target = target->processes_to_notify_when_i_die;
-  target->processes_to_notify_when_i_die = notification;
-
-  notification->previous_in_notifyee = nullptr;
-  notification->next_in_notifyee =
-      notifyee->processes_i_want_to_be_notified_of_when_they_die;
-  notifyee->processes_i_want_to_be_notified_of_when_they_die = notification;
+  target->processes_to_notify_when_i_die.AddBack(notification);
+  notifyee->processes_i_want_to_be_notified_of_when_they_die.AddBack(
+      notification);
 }
 
 // Returns a process with the provided pid, returns nullptr if it doesn't

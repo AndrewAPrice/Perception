@@ -76,20 +76,8 @@ void SendMessageToProcess(Message* message, Process* receiver) {
     return;
   }
 
-  if (receiver->last_message == nullptr) {
-    // No messages are queued, this is the only one.
-    receiver->next_message = message;
-    receiver->last_message = message;
-    receiver->messages_queued = 1;
-  } else {
-    // Add it to the end of the list of queued messages.
-    receiver->last_message->next_message = message;
-    receiver->last_message = message;
-    receiver->messages_queued++;
-  }
-
-  // We're the last element on the list.
-  message->next_message = nullptr;
+  receiver->queued_messages.AddBack(message);
+  receiver->messages_queued++;
 }
 
 // Can this process receive an message?
@@ -236,20 +224,9 @@ void SendMessageFromThreadSyscall(Thread* sender_thread) {
 // Gets the next message queued for a process. Returns nullptr if there are no
 // messages queued.
 Message* GetNextQueuedMessage(Process* receiver) {
-  if (receiver->next_message == nullptr) {
-    // No messages are queued.
-    return nullptr;
-  }
-
-  // Grab the message at the front of the list.
-  Message* message = receiver->next_message;
-  receiver->next_message = message->next_message;
-
-  if (receiver->next_message == nullptr) {
-    // We removed the last item from the list.
-    receiver->last_message = nullptr;
-  }
-
+  Message* message = receiver->queued_messages.PopFront();
+  // Check that a message is queued.
+  if (message == nullptr) return nullptr;
   receiver->messages_queued--;
   return message;
 }
@@ -275,7 +252,7 @@ bool SleepThreadUntilMessage(Thread* thread) {
   }
 
   // Check if there is an message queued.
-  if (thread->process->next_message != nullptr) {
+  if (!thread->process->queued_messages.IsEmpty()) {
     LoadNextMessageIntoThread(thread);
     return false;
   }

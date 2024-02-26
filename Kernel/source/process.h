@@ -1,14 +1,9 @@
 #pragma once
 
+#include "linked_list.h"
+#include "messages.h"
 #include "types.h"
 #include "virtual_allocator.h"
-
-/*
-reg128 {
-        size_t low;
-        size_t high;
-};
-typedef size_t reg64;*/
 
 #define PROCESS_NAME_WORDS 11
 #define PROCESS_NAME_LENGTH (PROCESS_NAME_WORDS * 8)
@@ -32,13 +27,11 @@ struct ProcessToNotifyOnExit {
   // The ID of the notification message to send to notifyee.
   size_t event_id;
 
-  // Linked list of notification messages within the targer process.
-  ProcessToNotifyOnExit* previous_in_target;
-  ProcessToNotifyOnExit* next_in_target;
+  // Linked list of notification messages within the target process.
+  LinkedListNode target_node;
 
   // Linked list of notification messages within the notifyee process.
-  ProcessToNotifyOnExit* previous_in_notifyee;
-  ProcessToNotifyOnExit* next_in_notifyee;
+  LinkedListNode notifyee_node;
 };
 
 struct Process {
@@ -68,10 +61,9 @@ struct Process {
   // The number of allocated pages.
   size_t allocated_pages;  // The number of allocated pages.
 
-  // Linked list of messages waiting send to this process, waiting to be
-  // consumed.
-  Message* next_message;
-  Message* last_message;
+  // Queued messages sent to this process, waiting to be consumed.
+  LinkedList<Message, &Message::node> queued_messages;
+
   // Number of messages queued.
   size_t messages_queued;
   // Linked queue of threads that are currently sleeping and waiting for a
@@ -91,9 +83,9 @@ struct Process {
   Process* previous;
 
   // Linked lists of processes to notify when I die.
-  ProcessToNotifyOnExit* processes_to_notify_when_i_die;
+  LinkedList<ProcessToNotifyOnExit, &ProcessToNotifyOnExit::target_node> processes_to_notify_when_i_die;
   // Linked lists of processes I want to be notified of when they die.
-  ProcessToNotifyOnExit* processes_i_want_to_be_notified_of_when_they_die;
+  LinkedList<ProcessToNotifyOnExit, &ProcessToNotifyOnExit::notifyee_node> processes_i_want_to_be_notified_of_when_they_die;
   // Linked list of services I want to be notified of when they appear.
   ProcessToNotifyWhenServiceAppears*
       services_i_want_to_be_notified_of_when_they_appear;
