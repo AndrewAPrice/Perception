@@ -20,7 +20,6 @@ namespace {
 multiboot_info MultibootInfo;
 #endif
 
-
 // Physical memory is divided into 4kb pages. We keep a linked stack of them
 // that we can pop a page off of and push a page onto. This pointer points to
 // the top of the stack (next free page), and the first thing in that page will
@@ -37,15 +36,18 @@ size_t next_free_page_address;
 // the values are sure not to cross the 2MB page boundaries (which they
 // shouldn't).
 uint32 SafeReadUint8(uint8 *value) {
-  return *(uint8 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value);
+  return *(uint8 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value,
+                                                                0);
 }
 uint32 SafeReadUint32(uint32 *value) {
-  return *(uint32 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value);
+  return *(uint32 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value,
+                                                                 0);
 }
 
 // 64-bit equivalent to SafeReadUint32.
 uint64 SafeReadUint64(uint64 *value) {
-  return *(uint64 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value);
+  return *(uint64 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value,
+                                                                 0);
 }
 
 // Calculates the start of the free memory at boot.
@@ -54,14 +56,11 @@ void CalculateStartOfFreeMemoryAtBoot() {
 
   // Loop through each of the tags in the multiboot.
   multiboot_tag *tag;
-  for (tag = (multiboot_tag *)(size_t)(SafeReadUint32(
-                                                  &MultibootInfo.addr) +
-                                              8);
+  for (tag = (multiboot_tag *)(size_t)(SafeReadUint32(&MultibootInfo.addr) + 8);
        SafeReadUint32(&tag->type) != MULTIBOOT_TAG_TYPE_END;
        tag =
            (multiboot_tag *)((size_t)tag +
-                                    (size_t)((SafeReadUint32(&tag->size) + 7) &
-                                             ~7))) {
+                             (size_t)((SafeReadUint32(&tag->size) + 7) & ~7))) {
     // Make sure we're enough to fit in this tag.
     size_t tag_end = (size_t)tag + SafeReadUint32(&tag->size);
     if (tag_end > start_of_free_memory_at_boot) {
@@ -69,8 +68,7 @@ void CalculateStartOfFreeMemoryAtBoot() {
     }
 
     if (SafeReadUint32(&tag->type) == MULTIBOOT_TAG_TYPE_MODULE) {
-      multiboot_tag_module *module_tag =
-          (multiboot_tag_module *)tag;
+      multiboot_tag_module *module_tag = (multiboot_tag_module *)tag;
       uint32 mod_end = SafeReadUint32(&module_tag->mod_end);
 
       // If this is a multiboot module, make sure we're enough to fit
@@ -118,8 +116,7 @@ void InitializePhysicalAllocator() {
        SafeReadUint32(&tag->type) != MULTIBOOT_TAG_TYPE_END;
        tag =
            (multiboot_tag *)((size_t)tag +
-                                    (size_t)((SafeReadUint32(&tag->size) + 7) &
-                                             ~7))) {
+                             (size_t)((SafeReadUint32(&tag->size) + 7) & ~7))) {
     uint32 size = SafeReadUint32(&tag->size);
     // Skip empty tags.
     if (size == 0) return;
@@ -133,8 +130,8 @@ void InitializePhysicalAllocator() {
       multiboot_mmap_entry *mmap;
       for (mmap = mmap_tag->entries; (size_t)mmap < (size_t)tag + size;
            mmap = (multiboot_mmap_entry *)((size_t)mmap +
-                                                  (size_t)SafeReadUint32(
-                                                      &mmap_tag->entry_size))) {
+                                           (size_t)SafeReadUint32(
+                                               &mmap_tag->entry_size))) {
         uint64 len = SafeReadUint64(&mmap->len);
         total_system_memory += len;
 
@@ -162,7 +159,7 @@ void InitializePhysicalAllocator() {
             // Map this physical memory, so can write the previous stack page to
             // it.
             size_t *bp = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(
-                page_addr);
+                page_addr, 0);
 
             // Write the previous stack head to the start of this page.
             *bp = next_free_page_address;
@@ -206,7 +203,7 @@ size_t GetPhysicalPagePreVirtualMemory() {
 
   // Pop it from the stack by mapping the page to physical memory so we can grab
   // the pointer to the next free page.
-  size_t *bp = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(addr);
+  size_t *bp = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(addr, 0);
   next_free_page_address = *bp;
 
   free_pages--;

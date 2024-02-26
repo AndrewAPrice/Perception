@@ -8,6 +8,7 @@
 // Some information on different PML levels: http://wiki.osdev.org/Page_Tables
 
 #include "aa_tree.h"
+#include "linked_list.h"
 #include "types.h"
 
 struct Process;
@@ -26,7 +27,7 @@ struct FreeMemoryRange {
   size_t pages;
 
   // Position in the linked list of free memory ranges.
-  FreeMemoryRange *previous, *next;
+  LinkedListNode node;
 
   // Node in the tree of free address spaces by start address.
   AATreeNode node_by_address;
@@ -41,7 +42,7 @@ struct VirtualAddressSpace {
   size_t pml4;
 
   // Linked list of free memory ranges.
-  FreeMemoryRange *free_memory_ranges;
+  LinkedList<FreeMemoryRange, &FreeMemoryRange::node> free_memory_ranges;
 
   // Tree of free chunks by start address.
   AATree free_chunks_by_address;
@@ -64,8 +65,10 @@ extern bool InitializeVirtualAddressSpace(
 
 // Maps a physical page so that we can access it with before the virtual
 // allocator has been initialized. Returns a pointer to the page in virtual
-// memory space. Only one page at a time can be allocated this way.
-extern void *TemporarilyMapPhysicalMemoryPreVirtualMemory(size_t addr);
+// memory space. Only one page at a time can be allocated this way. The index
+// is ignored but is used to match the function definition of
+// `TemporarilyMapPhysicalMemory`.
+extern void *TemporarilyMapPhysicalMemoryPreVirtualMemory(size_t addr, size_t index);
 
 // Temporarily maps physical memory (page aligned) into virtual memory so we can
 // fiddle with it. index is from 0 to 511 - mapping a different address to the
