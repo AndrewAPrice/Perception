@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "linked_list.h"
 #include "types.h"
 
 struct Process;
@@ -34,8 +35,7 @@ struct Service {
   char name[SERVICE_NAME_LENGTH];
 
   // Linked list of registered services in this process.
-  Service* previous_service_in_process;
-  Service* next_service_in_process;
+  LinkedListNode node_in_process;
 };
 
 // Represents a process to notify when a service appears.
@@ -50,12 +50,10 @@ struct ProcessToNotifyWhenServiceAppears {
   size_t message_id;
 
   // Linked list in the global list of notifications.
-  ProcessToNotifyWhenServiceAppears* previous_notification;
-  ProcessToNotifyWhenServiceAppears* next_notification;
+  LinkedListNode node_in_all_notifiations;
 
   // Linked list in the process.
-  ProcessToNotifyWhenServiceAppears* previous_notification_in_process;
-  ProcessToNotifyWhenServiceAppears* next_notification_in_process;
+  LinkedListNode node_in_process;
 };
 
 // Initializes the internal structures for tracking services.

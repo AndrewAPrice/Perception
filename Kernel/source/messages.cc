@@ -45,39 +45,29 @@ bool IsPagingMessage(size_t metadata) { return (metadata & 1) == 1; }
 
 // Sends an message to a process.
 void SendMessageToProcess(Message* message, Process* receiver) {
-  if (receiver->thread_sleeping_for_message != nullptr) {
-    // There is a thread sleeping for messages.
+  Thread* waiting_thread = receiver->threads_sleeping_for_message.PopFront();
+  if (waiting_thread == nullptr) {
+    // There are no threads waiting for a message, so queue this message.
+    receiver->queued_messages.AddBack(message);
+    receiver->messages_queued++;
+  } else {
+    // Sanity checks.
     if (receiver->messages_queued != 0) {
-      // This should never happen.
       print
           << "A thread is sleeping for messages even though there are messages "
              "queued.\n";
     }
-    // Wake the thread that is sleeping.
-    Thread* thread_to_wake = receiver->thread_sleeping_for_message;
-    receiver->thread_sleeping_for_message =
-        thread_to_wake->next_thread_sleeping_for_messages;
-
-    if (!thread_to_wake->thread_is_waiting_for_message) {
-      // This should never happen.
+    if (!waiting_thread->thread_is_waiting_for_message)
       print << "thread_is_waiting_for_message == false\n";
-    }
-    if (thread_to_wake->awake) {
-      // This should never happen.
+    if (waiting_thread->awake)
       print << "Thread waiting for message isn't even asleep.\n";
-    }
 
-    LoadMessageIntoThread(message, thread_to_wake);
+    LoadMessageIntoThread(message, waiting_thread);
 
     // Wake up the thread.
-    thread_to_wake->thread_is_waiting_for_message = false;
-    ScheduleThread(thread_to_wake);
-
-    return;
+    waiting_thread->thread_is_waiting_for_message = false;
+    ScheduleThread(waiting_thread);
   }
-
-  receiver->queued_messages.AddBack(message);
-  receiver->messages_queued++;
 }
 
 // Can this process receive an message?
@@ -92,16 +82,11 @@ bool CanProcessReceiveMessage(Process* receiver) {
 void SendKernelMessageToProcess(Process* receiver_process, size_t event_id,
                                 size_t param1, size_t param2, size_t param3,
                                 size_t param4, size_t param5) {
-  if (!CanProcessReceiveMessage(receiver_process)) {
-    // The receiver's queue is full.
-    return;
-  }
+  // Check that the receiver's queue is not full.
+  if (!CanProcessReceiveMessage(receiver_process)) return;
 
   Message* message = ObjectPool<Message>::Allocate();
-  if (message == nullptr) {
-    // Out of memory.
-    return;
-  }
+  if (message == nullptr) return;
 
   // Creates the message from the parameters.
   message->message_id = event_id;
@@ -258,9 +243,7 @@ bool SleepThreadUntilMessage(Thread* thread) {
   }
 
   // Add to the stack of threads that are sleeping for an message.
-  thread->next_thread_sleeping_for_messages =
-      thread->process->thread_sleeping_for_message;
-  thread->process->thread_sleeping_for_message = thread;
+  thread->process->threads_sleeping_for_message.AddBack(thread);
   thread->thread_is_waiting_for_message = true;
 
   // Unschedule this thread.

@@ -2,6 +2,7 @@
 
 #include "interrupts.h"
 #include "liballoc.h"
+#include "linked_list.h"
 #include "process.h"
 #include "registers.h"
 #include "text_terminal.h"
@@ -18,8 +19,7 @@ Registers *currently_executing_thread_regs;
 namespace {
 
 // Linked list of awake threads we can cycle through.
-Thread *first_awake_thread;
-Thread *last_awake_thread;
+LinkedList<Thread, &Thread::node_in_scheduler> awake_threads;
 
 // The idle registers to return to when no thread is awake. (This points us to
 // the while(true) {hlt} in kmain.)
@@ -28,8 +28,7 @@ Registers *idle_regs;
 }  // namespace
 
 void InitializeScheduler() {
-  first_awake_thread = nullptr;
-  last_awake_thread = nullptr;
+  new (&awake_threads) LinkedList<Thread, &Thread::node_in_scheduler>();
   running_thread = nullptr;
   currently_executing_thread_regs = (Registers *)malloc(sizeof(Registers));
   if (!currently_executing_thread_regs) {
@@ -56,16 +55,16 @@ void ScheduleNextThread() {
     }
 
     // Move to the next awake thread.
-    next = running_thread->next_awake;
+    next = awake_threads.NextItem(running_thread);
     if (!next) {
       // We reached the end of the line. Switch back to the first awake thread.
-      next = first_awake_thread;
+      next = awake_threads.FirstItem();
     }
 
   } else {
     // We were in the kernel's idle thread. Attempt to switch to the first awake
     // thread.
-    next = first_awake_thread;
+    next = awake_threads.FirstItem();
   }
 
   if (!next) {
@@ -93,55 +92,29 @@ void ScheduleNextThread() {
 }
 
 void ScheduleThread(Thread *thread) {
-  // lock_interrupts();
-  if (thread->awake) {
-    //	unlock_interrupts();
-    return;
-  }
-
+  if (thread->awake) return;
   thread->awake = true;
-
-  thread->next_awake = 0;
-  thread->previous_awake = last_awake_thread;
-
-  if (last_awake_thread) {
-    last_awake_thread->next_awake = thread;
-    last_awake_thread = thread;
-  } else {
-    first_awake_thread = thread;
-    last_awake_thread = thread;
-  }
-  // unlock_interrupts();
+  awake_threads.AddBack(thread);
 }
 
 void UnscheduleThread(Thread *thread) {
-  if (!thread->awake) {
-    return;
-  }
-
+  if (!thread->awake) return;
+  // Attempt to schedule the next thread first. It's important to do this before
+  // the awake thread is unscheduled otherwise it would jump back to the first
+  // scheduled thread, which would give the earlier scheduled threads greater
+  // priority.
+  if (thread == running_thread) ScheduleNextThread();
+  awake_threads.Remove(thread);
   thread->awake = false;
-
-  if (thread->next_awake) {
-    thread->next_awake->previous_awake = thread->previous_awake;
-  } else {
-    last_awake_thread = thread->previous_awake;
-  }
-
-  if (thread->previous_awake) {
-    thread->previous_awake->next_awake = thread->next_awake;
-  } else {
-    first_awake_thread = thread->next_awake;
-  }
-
-  if (thread == running_thread) {
-    ScheduleNextThread();
-  }
+  // It is possible that there were no other threads and this thread was
+  // re-scheduled. If so, attempt to reschedule another thread.
+  if (thread == running_thread) ScheduleNextThread();
 }
 
 // Schedules a thread if we are currently halted - such as an interrupt
 // woke up a thread.
 void ScheduleThreadIfWeAreHalted() {
-  if (running_thread == nullptr && first_awake_thread != nullptr) {
+  if (running_thread == nullptr && !awake_threads.IsEmpty()) {
     // No thread was running, but there is a thread waiting to run.
     ScheduleNextThread();
   }

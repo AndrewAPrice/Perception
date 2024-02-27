@@ -1,5 +1,6 @@
 #pragma once
 
+#include "linked_list.h"
 #include "registers.h"
 #include "types.h"
 
@@ -38,15 +39,13 @@ struct Thread {
   size_t stack;
 
   // A linked list of threads in the process.
-  Thread *next;
-  Thread *previous;
+  LinkedListNode node_in_process;
 
   // Is this thread awake?
   bool awake : 1;
 
   // A linked list of awake threads, used by the scheduler.
-  Thread *next_awake;
-  Thread *previous_awake;
+  LinkedListNode node_in_scheduler;
 
   // The number of time slices this thread has ran for. This might not be so
   // accurate as to how much processing time a thread has had because partial
@@ -55,7 +54,7 @@ struct Thread {
   size_t time_slices;
 
   // The linked queue of threads in the process that are waiting for messages.
-  Thread *next_thread_sleeping_for_messages;
+  LinkedListNode node_sleeping_for_messages;
   bool thread_is_waiting_for_message : 1;
 
   // Set if this thread is waiting for shared memory.

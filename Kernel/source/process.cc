@@ -60,13 +60,9 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->child_processes = nullptr;
   proc->next_child_process_in_parent = nullptr;
   proc->messages_queued = 0;
-  proc->thread_sleeping_for_message = nullptr;
-  proc->first_service = nullptr;
-  proc->last_service = nullptr;
   proc->timer_event = nullptr;
 
   // Threads.
-  proc->threads = 0;
   proc->thread_count = 0;
 
   // Profiling.
@@ -144,12 +140,12 @@ void DestroyProcess(Process *process) {
 
   UnregisterAllMessagesToForOnInterruptForProcess(process);
 
-  while (process->services_i_want_to_be_notified_of_when_they_appear != nullptr)
+  while (!process->services_i_want_to_be_notified_of_when_they_appear.IsEmpty())
     StopNotifyingProcessWhenServiceAppears(
-        process->services_i_want_to_be_notified_of_when_they_appear);
+        process->services_i_want_to_be_notified_of_when_they_appear.FirstItem());
 
-  while (process->first_service != nullptr)
-    UnregisterService(process->first_service);
+  while (!process->services.IsEmpty())
+    UnregisterService(process->services.FirstItem());
 
   if (process->timer_event != nullptr) CancelAllTimerEventsForProcess(process);
 

@@ -83,23 +83,15 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param) {
 
   // The thread isn't initially awake until we schedule it.
   thread->awake = false;
-  thread->next_awake = nullptr;
-  thread->previous_awake = nullptr;
 
   // The thread hasn't ran for any time slices yet.
   thread->time_slices = 0;
 
   // The thread isn't sleeping waiting for messages.
   thread->thread_is_waiting_for_message = false;
-  thread->next_thread_sleeping_for_messages = nullptr;
 
   // Add this to the linked list of threads in the process.
-  thread->previous = 0;
-  if (process->threads) {
-    process->threads->previous = thread;
-  }
-  thread->next = process->threads;
-  process->threads = thread;
+  process->threads.AddBack(thread);
 
   // Increment the process's thread cont.
   process->thread_count++;
@@ -130,34 +122,11 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
 
   // If this thread is waiting for a message, remove it from the process's
   // queue of threads waiting for messages.
-  if (thread->thread_is_waiting_for_message) {
-    Thread* previous = nullptr;
-    Thread* current = process->thread_sleeping_for_message;
-
-    while (current != nullptr) {
-      Thread* next = current->next_thread_sleeping_for_messages;
-      if (current == thread) {
-        // We have found us in the list.
-        if (previous == nullptr) {
-          process->thread_sleeping_for_message = next;
-        } else {
-          previous->next_thread_sleeping_for_messages = next;
-        }
-      }
-      current = next;
-    }
-    thread->next_thread_sleeping_for_messages = nullptr;
-  }
+  if (thread->thread_is_waiting_for_message)
+    process->threads_sleeping_for_message.Remove(thread);
 
   // Remove this thread from the process's linked list of threads.
-  if (thread->next != 0) {
-    thread->next->previous = thread->previous;
-  }
-  if (thread->previous != 0) {
-    thread->previous->next = thread->next;
-  } else {
-    process->threads = thread->next;
-  }
+  process->threads.Remove(thread);
 
   // The thread has a virtual address that should be cleared.
   if (thread->address_to_clear_on_termination) {
@@ -193,21 +162,15 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
 
 // Destroys all threads for a process.
 void DestroyThreadsForProcess(Process* process, bool process_being_destroyed) {
-  while (process->threads) {
-    DestroyThread(process->threads, process_being_destroyed);
-  }
+  while (Thread* thread = process->threads.FirstItem())
+    DestroyThread(thread, process_being_destroyed);
 }
 
 // Returns a thread with the provided tid in process, return 0 if it doesn't
 // exist.
 Thread* GetThreadFromTid(Process* process, size_t tid) {
-  Thread* thread = process->threads;
-  while (thread != 0) {
-    if (thread->id == tid) {
-      return thread;
-    }
-    thread = thread->next;
-  }
+  for (Thread* thread : process->threads)
+    if (thread->id == tid) return thread;
   return 0;
 }
 

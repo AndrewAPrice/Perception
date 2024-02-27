@@ -3,7 +3,9 @@
 #include "interrupts.h"
 #include "linked_list.h"
 #include "messages.h"
+#include "service.h"
 #include "shared_memory.h"
+#include "thread.h"
 #include "types.h"
 #include "virtual_allocator.h"
 
@@ -16,7 +18,6 @@ struct Process;
 struct ProcessToNotifyWhenServiceAppears;
 struct Service;
 struct SharedMemoryInProcess;
-struct Thread;
 struct TimerEvent;
 
 struct ProcessToNotifyOnExit {
@@ -70,14 +71,14 @@ struct Process {
   size_t messages_queued;
   // Linked queue of threads that are currently sleeping and waiting for a
   // message.
-  Thread* thread_sleeping_for_message;
+  LinkedList<Thread, &Thread::node_sleeping_for_messages> threads_sleeping_for_message;
 
   // Linked list of messages to fire on an interrupt.
   LinkedList<MessageToFireOnInterrupt, &MessageToFireOnInterrupt::node_in_process> messages_to_fire_on_interrupt;
 
   // Linked list of threads.
-  Thread* threads;
-  // Number of threads this process has..
+  LinkedList<Thread, &Thread::node_in_process> threads;
+  // Number of threads this process has.
   unsigned short thread_count;
 
   // Linked list of processes.
@@ -88,14 +89,13 @@ struct Process {
   // Linked lists of processes I want to be notified of when they die.
   LinkedList<ProcessToNotifyOnExit, &ProcessToNotifyOnExit::notifyee_node> processes_i_want_to_be_notified_of_when_they_die;
   // Linked list of services I want to be notified of when they appear.
-  ProcessToNotifyWhenServiceAppears*
+  LinkedList<ProcessToNotifyWhenServiceAppears, &ProcessToNotifyWhenServiceAppears::node_in_process>
       services_i_want_to_be_notified_of_when_they_appear;
 
   // Linked list of services in this process. System calls that scan for
   // services expect that services are added to the back of the list, and we
   // must iterate them from front to back.
-  Service* first_service;
-  Service* last_service;
+  LinkedList<Service, &Service::node_in_process> services;
 
   // Linked list of shared memory mapped into this process.
   LinkedList<SharedMemoryInProcess, &SharedMemoryInProcess::node_in_process> joined_shared_memories;

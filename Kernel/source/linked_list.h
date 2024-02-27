@@ -50,6 +50,38 @@ class LinkedList {
     last_node_ = node;
   }
 
+  void InsertBefore(C* next_item, C* item) {
+    if (next_item == nullptr)
+      return AddBack(item);
+
+    auto* next_node = ItemToNode(next_item);
+    if (next_node == first_node_)
+      return AddFront(item);
+    
+    auto* item_node = ItemToNode(item);
+    item_node->previous = next_node->previous;
+    item_node->next = next_node->next;
+
+    next_node->previous->next = item_node;
+    next_node->previous = item_node;
+  }
+
+  void InsertAfter(C* previous_item, C* item) {
+    if (previous_item == nullptr)
+      return AddFront(item);
+    
+    auto* previous_node = ItemToNode(previous_item);
+    if (previous_node == last_node_)
+      return AddBack(item);
+
+    auto* item_node = ItemToNode(item);
+    item_node->previous = previous_node;
+    item_node->next = previous_node->next;
+
+    previous_node->next->previous = item_node;
+    previous_node->next = item_node;
+  }
+
   void Remove(C* item) {
     auto* node = ItemToNode(item);
 
