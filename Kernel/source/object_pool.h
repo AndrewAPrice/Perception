@@ -17,7 +17,7 @@
 #include "io.h"
 #include "liballoc.h"
 
-class ObjectPoolInitializer;
+class ObjectPoolHelper;
 
 // An item on the object pool.
 struct ObjectPoolItem {
@@ -29,7 +29,7 @@ struct ObjectPoolItem {
 // https://en.wikipedia.org/wiki/Object_pool_pattern
 template <class T>
 class ObjectPool {
-  friend ObjectPoolInitializer;
+  friend ObjectPoolHelper;
 
  public:
   // Returns an object, preferably from the pool.
@@ -53,6 +53,10 @@ class ObjectPool {
     next_item_ = item;
   }
 
+ private:
+  // The next item on the object pool.
+  static ObjectPoolItem* next_item_;
+
   // Frees all the objects in the pool.
   static void FreeObjectsInPool() {
     while (next_item_ != nullptr) {
@@ -61,10 +65,6 @@ class ObjectPool {
       next_item_ = next;
     }
   }
-
- private:
-  // The next item on the object pool.
-  static ObjectPoolItem* next_item_;
 };
 
 template <class T>
