@@ -13,7 +13,7 @@
 #include "virtual_allocator.h"
 
 // A list of classes for which there are object pools for.
-#define POOLED_CLASS                                                         \
+#define POOLED_CLASSES                                                       \
   FreeMemoryRange, Message, MessageToFireOnInterrupt, ProcessToNotifyOnExit, \
       ProcessToNotifyWhenServiceAppears, Service, SharedMemory,              \
       SharedMemoryInProcess, TimerEvent, Thread,                             \
@@ -50,8 +50,8 @@ class ObjectPoolHelper {
 
 // Initialize the object pools.
 void InitializeObjectPools() {
-  ObjectPoolHelper::InitializeAllPools<POOLED_CLASS>();
+  ObjectPoolHelper::InitializeAllPools<POOLED_CLASSES>();
 }
 
 // Clean up object pools to gain some memory back.
-void CleanUpObjectPools() { ObjectPoolHelper::CleanUpAllPools<POOLED_CLASS>(); }
+void CleanUpObjectPools() { ObjectPoolHelper::CleanUpAllPools<POOLED_CLASSES>(); }
