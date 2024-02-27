@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "linked_list.h"
 #include "types.h"
 
 struct Process;
@@ -32,10 +33,8 @@ struct TimerEvent {
 
   // Linked list, ordered by timerstamp_to_trigger, of all
   // scheduled TimerEvents.
-  TimerEvent* previous_scheduled_timer_event;
-  TimerEvent* next_scheduled_timer_event;
+  LinkedListNode node_in_all_timer_events;
 
   // Linked list in the process.
-  TimerEvent* previous_timer_event_in_process;
-  TimerEvent* next_timer_event_in_process;
+  LinkedListNode node_in_process;
 };

@@ -60,7 +60,6 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->child_processes = nullptr;
   proc->next_child_process_in_parent = nullptr;
   proc->messages_queued = 0;
-  proc->timer_event = nullptr;
 
   // Threads.
   proc->thread_count = 0;
@@ -147,7 +146,7 @@ void DestroyProcess(Process *process) {
   while (!process->services.IsEmpty())
     UnregisterService(process->services.FirstItem());
 
-  if (process->timer_event != nullptr) CancelAllTimerEventsForProcess(process);
+  CancelAllTimerEventsForProcess(process);
 
   // Release any shared memory mapped into this process.
   while (!process->joined_shared_memories.IsEmpty())

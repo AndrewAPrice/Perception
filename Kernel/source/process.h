@@ -5,6 +5,7 @@
 #include "messages.h"
 #include "service.h"
 #include "shared_memory.h"
+#include "timer_event.h"
 #include "thread.h"
 #include "types.h"
 #include "virtual_allocator.h"
@@ -101,7 +102,7 @@ struct Process {
   LinkedList<SharedMemoryInProcess, &SharedMemoryInProcess::node_in_process> joined_shared_memories;
 
   // Linked list of timer events that are scheduled for this process.
-  TimerEvent* timer_event;
+  LinkedList<TimerEvent, &TimerEvent::node_in_process> timer_events;
 
   // Whether this process has enabled profiling. This is actually a count
   // because the calls to enable profiling are nested.
