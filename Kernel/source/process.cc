@@ -61,7 +61,6 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->next_child_process_in_parent = nullptr;
   proc->messages_queued = 0;
   proc->thread_sleeping_for_message = nullptr;
-  proc->message_to_fire_on_interrupt = nullptr;
   proc->first_service = nullptr;
   proc->last_service = nullptr;
   proc->timer_event = nullptr;
@@ -143,8 +142,7 @@ void DestroyProcess(Process *process) {
   // Destroy all threads.
   DestroyThreadsForProcess(process, true);
 
-  if (process->message_to_fire_on_interrupt != nullptr)
-    UnregisterAllMessagesToForOnInterruptForProcess(process);
+  UnregisterAllMessagesToForOnInterruptForProcess(process);
 
   while (process->services_i_want_to_be_notified_of_when_they_appear != nullptr)
     StopNotifyingProcessWhenServiceAppears(

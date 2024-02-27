@@ -1,5 +1,6 @@
 #pragma once
 
+#include "interrupts.h"
 #include "linked_list.h"
 #include "messages.h"
 #include "shared_memory.h"
@@ -72,7 +73,7 @@ struct Process {
   Thread* thread_sleeping_for_message;
 
   // Linked list of messages to fire on an interrupt.
-  MessageToFireOnInterrupt* message_to_fire_on_interrupt;
+  LinkedList<MessageToFireOnInterrupt, &MessageToFireOnInterrupt::node_in_process> messages_to_fire_on_interrupt;
 
   // Linked list of threads.
   Thread* threads;

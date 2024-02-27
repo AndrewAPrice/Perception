@@ -31,9 +31,9 @@
 namespace {
 
 // A list of messages pointers to our IRQ handlers.
-struct MessageToFireOnInterrupt* messages_to_fire_on_interrupt[16] = {
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+LinkedList<MessageToFireOnInterrupt,
+           &MessageToFireOnInterrupt::node_in_interrupt>
+    messages_to_fire_on_interrupt[16];
 
 // Remaps hardware interrupts 0->15 to 32->47 on the Interrupt Descriptor Table
 // to not overlap with CPU exceptions.
@@ -93,6 +93,12 @@ void InitializeInterrupts() {
   InitializeIdt();
   AllocateInterruptStack();
 
+  for (int i = 0; i < 16; i++) {
+    new (&messages_to_fire_on_interrupt[i])
+        LinkedList<MessageToFireOnInterrupt,
+                   &MessageToFireOnInterrupt::node_in_interrupt>();
+  }
+
   // There are two sets of interrupts - CPU exceptions and hardware signals.
   // We'll register handler for both.
   RegisterExceptionInterrupts();
@@ -115,14 +121,9 @@ void RegisterMessageToSendOnInterrupt(size_t interrupt_number, Process* process,
   message->message_id = message_id;
   message->interrupt_number = (uint8)interrupt_number;
 
-  // Add to the linked list of messages for this interrupt.
-  message->next_message_for_interrupt =
-      messages_to_fire_on_interrupt[interrupt_number];
-  messages_to_fire_on_interrupt[interrupt_number] = message;
-
-  // Add to the linked list of messages for this process.
-  message->next_message_for_process = process->message_to_fire_on_interrupt;
-  process->message_to_fire_on_interrupt = message;
+  // Add to the linked list of messages for this interrupt and process.
+  messages_to_fire_on_interrupt[interrupt_number].AddBack(message);
+  process->messages_to_fire_on_interrupt.AddBack(message);
 }
 
 // Unregisters a message to send to a process upon receiving an interrupt.
@@ -136,74 +137,23 @@ void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
   interrupt_number &= 0xF;
 
   // Remove all matching messages from the interrupt's list.
-  MessageToFireOnInterrupt* previous = nullptr;
-  MessageToFireOnInterrupt* current =
-      messages_to_fire_on_interrupt[interrupt_number];
-  while (current != nullptr) {
-    MessageToFireOnInterrupt* next = current->next_message_for_interrupt;
-    if (current->process == process && current->message_id == message_id) {
-      // We found the message!
-      if (previous == nullptr) {
-        messages_to_fire_on_interrupt[interrupt_number] = next;
-      } else {
-        previous->next_message_for_interrupt = next;
-      }
-    } else {
-      previous = current;
+  for (MessageToFireOnInterrupt* message :
+       messages_to_fire_on_interrupt[interrupt_number]) {
+    if (message->process == process && message->message_id == message_id) {
+      // Found the message.
+      messages_to_fire_on_interrupt[interrupt_number].Remove(message);
+      message->process->messages_to_fire_on_interrupt.Remove(message);
+      free(message);
     }
-    current = next;
-  }
-
-  // Remove (and release) all matching messages from the process's list.
-  previous = nullptr;
-  current = process->message_to_fire_on_interrupt;
-  while (current != nullptr) {
-    MessageToFireOnInterrupt* next = current->next_message_for_process;
-    if (current->interrupt_number == interrupt_number &&
-        current->message_id == message_id) {
-      // We found the message!
-      if (previous == nullptr) {
-        process->message_to_fire_on_interrupt = next;
-      } else {
-        previous->next_message_for_process = next;
-      }
-      free(current);
-    } else {
-      previous = current;
-    }
-
-    current = next;
   }
 }
 
 // Unregisters all messages for a process.
 void UnregisterAllMessagesToForOnInterruptForProcess(Process* process) {
-  while (process->message_to_fire_on_interrupt != nullptr) {
-    // Remove this message from the process's list.
-    MessageToFireOnInterrupt* message = process->message_to_fire_on_interrupt;
-    process->message_to_fire_on_interrupt = message->next_message_for_process;
-
+  while (auto* message = process->messages_to_fire_on_interrupt.PopFront()) {
     // Remove this message for the interrupt's list.
     int interrupt_number = message->interrupt_number & 0xF;
-    MessageToFireOnInterrupt* previous = nullptr;
-    MessageToFireOnInterrupt* current =
-        messages_to_fire_on_interrupt[interrupt_number];
-
-    while (current != nullptr) {
-      MessageToFireOnInterrupt* next = current->next_message_for_interrupt;
-      if (current == message) {
-        // We found the message!
-        if (previous == nullptr) {
-          messages_to_fire_on_interrupt[interrupt_number] = next;
-        } else {
-          previous->next_message_for_interrupt = next;
-        }
-      } else {
-        previous = current;
-      }
-      current = next;
-    }
-
+    messages_to_fire_on_interrupt[interrupt_number].Remove(message);
     free(message);
   }
 }
@@ -215,19 +165,15 @@ extern "C" void CommonHardwareInterruptHandler(int interrupt_number) {
     TimerHandler();
   } else {
     // Send messages to any processes listening for this interrupt.
-    MessageToFireOnInterrupt* message =
-        messages_to_fire_on_interrupt[interrupt_number];
-    while (message != nullptr) {
+    for (MessageToFireOnInterrupt* message :
+         messages_to_fire_on_interrupt[interrupt_number]) {
       SendKernelMessageToProcess(message->process, message->message_id, 0, 0, 0,
                                  0, 0);
-      message = message->next_message_for_interrupt;
     }
 
     // If the IDT entry that was invoked was greater than 40 (IRQ 8-15) we need
     // to send an EOI to the slave controller.
-    if (interrupt_number >= 8) {
-      outportb(0xA0, 0x20);
-    }
+    if (interrupt_number >= 8) outportb(0xA0, 0x20);
   }
 
   // Send an EOI to the master interrupt controllerr.

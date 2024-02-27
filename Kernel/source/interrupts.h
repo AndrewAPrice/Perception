@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "linked_list.h"
 #include "types.h"
 
 // The number of interrupts.
@@ -37,6 +38,10 @@ struct MessageToFireOnInterrupt {
 
   // Next message for this process.
   MessageToFireOnInterrupt* next_message_for_process;
+
+  // Node in the linked list.
+  LinkedListNode node_in_interrupt;
+  LinkedListNode node_in_process;
 };
 
 // The top of the interrupt's stack.
