@@ -108,15 +108,12 @@ void InitializeInterrupts() {
 // Registers a message to send to a process upon receiving an interrupt.
 void RegisterMessageToSendOnInterrupt(size_t interrupt_number, Process* process,
                                       size_t message_id) {
-  if (!process->is_driver) {
-    // Only drivers can listen to interrupts.
-    return;
-  }
-
+  // Only drivers can listen to interrupts.
+  if (!process->is_driver) return;
   interrupt_number &= 0xF;
 
   MessageToFireOnInterrupt* message =
-      (MessageToFireOnInterrupt*)malloc(sizeof(MessageToFireOnInterrupt));
+      ObjectPool<MessageToFireOnInterrupt>::Allocate();
   message->process = process;
   message->message_id = message_id;
   message->interrupt_number = (uint8)interrupt_number;
@@ -129,11 +126,8 @@ void RegisterMessageToSendOnInterrupt(size_t interrupt_number, Process* process,
 // Unregisters a message to send to a process upon receiving an interrupt.
 void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
                                         Process* process, size_t message_id) {
-  if (!process->is_driver) {
-    // Only drivers can listen to interrupts.
-    return;
-  }
-
+  // Only drivers can listen to interrupts.
+  if (!process->is_driver) return;
   interrupt_number &= 0xF;
 
   // Remove all matching messages from the interrupt's list.
@@ -143,7 +137,7 @@ void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
       // Found the message.
       messages_to_fire_on_interrupt[interrupt_number].Remove(message);
       message->process->messages_to_fire_on_interrupt.Remove(message);
-      free(message);
+      ObjectPool<MessageToFireOnInterrupt>::Release(message);
     }
   }
 }
@@ -154,7 +148,7 @@ void UnregisterAllMessagesToForOnInterruptForProcess(Process* process) {
     // Remove this message for the interrupt's list.
     int interrupt_number = message->interrupt_number & 0xF;
     messages_to_fire_on_interrupt[interrupt_number].Remove(message);
-    free(message);
+    ObjectPool<MessageToFireOnInterrupt>::Release(message);
   }
 }
 

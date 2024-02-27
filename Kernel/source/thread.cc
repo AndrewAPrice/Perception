@@ -2,6 +2,7 @@
 
 #include "io.h"
 #include "liballoc.h"
+#include "object_pool.h"
 #include "physical_allocator.h"
 #include "process.h"
 #include "registers.h"
@@ -19,10 +20,38 @@ namespace {
 
 size_t next_thread_id;
 
+// Initializes the registers for a thread.
+void InitializeRegisters(const Process& process, size_t entry_point,
+                         size_t param, Thread& thread) {
+  Registers& registers = thread.registers;
+  // We'll pass a parameter into 'rdi' (this can be used as a function
+  // argument.)
+  registers.rdi = param;
+
+  // Sets the instruction pointer to our entry point.
+  registers.rip = entry_point;
+
+  // Sets the stack pointer and stack base to the top of our stack. (Stacks grow
+  // down!)
+  registers.rbp = registers.rsp = thread.stack + PAGE_SIZE * STACK_PAGES;
+
+  // Sets our code and stack segment selectors (the segments are defined in
+  // Gdt64 in boot.asm)
+  registers.cs =
+      0x20 | 3;  // '| 3' means ring 3. This is a user code, not kernel code.
+  registers.ss = 0x18 | 3;  // Likewise with user data, not kernel data.
+
+  // Sets up the processor's flags.
+  registers.rflags =
+      ((process.is_driver) ? ((1 << 12) | (1 << 13))
+                           : 0) |  // Sets the IOPL bits for drivers.
+      (1 << 9) |                   // Interrupts are enabled.
+      (1 << 21);                   // The thread can use CPUID.
+}
+
 }  // namespace
 
 extern void save_fpu_registers(size_t regs_addr);
-
 
 // Initialize threads.
 void InitializeThreads() {
@@ -31,12 +60,9 @@ void InitializeThreads() {
 }
 
 // Createss a thread.
-Thread* CreateThread(Process* process, size_t entry_point,
-                            size_t param) {
-  Thread* thread = (Thread*)malloc(sizeof(Thread));
-  if (thread == nullptr) {
-    return nullptr;
-  }
+Thread* CreateThread(Process* process, size_t entry_point, size_t param) {
+  Thread* thread = ObjectPool<Thread>::Allocate();
+  if (thread == nullptr) return nullptr;
 
   thread->process = process;
 
@@ -50,51 +76,10 @@ Thread* CreateThread(Process* process, size_t entry_point,
   thread->stack = AllocateVirtualMemoryInAddressSpace(
       &thread->process->virtual_address_space, STACK_PAGES);
 
-  // Sets up the registers that our process will start with.
-  Registers* regs = (Registers*)malloc(sizeof(Registers));
-  thread->registers = regs;
-
-  // Initialize our general purpose registers to 0.
-  regs->r15 = 0;
-  regs->r14 = 0;
-  regs->r13 = 0;
-  regs->r12 = 0;
-  regs->r11 = 0;
-  regs->r10 = 0;
-  regs->r9 = 0;
-  regs->r8 = 0;
-  regs->rsi = 0;
-  regs->rdx = 0;
-  regs->rcx = 0;
-  regs->rbx = 0;
-  regs->rax = 0;
-
-  // We'll pass a parameter into 'rdi' (this can be used as a function
-  // argument.)
-  regs->rdi = param;
-
-  // Sets the instruction pointer to our entry point.
-  regs->rip = entry_point;
-
-  // Sets the stack pointer and stack base to the top of our stack. (Stacks grow
-  // down!)
-  regs->rbp = regs->rsp = thread->stack + PAGE_SIZE * STACK_PAGES;
-
-  // Sets our code and stack segment selectors (the segments are defined in
-  // Gdt64 in boot.asm)
-  regs->cs =
-      0x20 | 3;  // '| 3' means ring 3. This is a user code, not kernel code.
-  regs->ss = 0x18 | 3;  // Likewise with user data, not kernel data.
+  InitializeRegisters(*process, entry_point, param, *thread);
 
   // No thread segment.
-  thread->thread_segment_offset = (size_t)nullptr;
-
-  // Sets up the processor's flags.
-  regs->rflags =
-      ((process->is_driver) ? ((1 << 12) | (1 << 13))
-                            : 0) |  // Sets the IOPL bits for drivers.
-      (1 << 9) |                    // Interrupts are enabled.
-      (1 << 21);                    // The thread can use CPUID.
+  thread->thread_segment_offset = (size_t) nullptr;
 
   // The thread isn't initially awake until we schedule it.
   thread->awake = false;
@@ -194,7 +179,7 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
   }
 
   // Free the thread object.
-  free(thread);
+  ObjectPool<Thread>::Release(thread);
 
   // Decrease the thread count.
   process->thread_count--;
@@ -207,8 +192,7 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
 }
 
 // Destroys all threads for a process.
-void DestroyThreadsForProcess(Process* process,
-                              bool process_being_destroyed) {
+void DestroyThreadsForProcess(Process* process, bool process_being_destroyed) {
   while (process->threads) {
     DestroyThread(process->threads, process_being_destroyed);
   }

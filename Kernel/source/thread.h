@@ -1,8 +1,9 @@
 #pragma once
+
+#include "registers.h"
 #include "types.h"
 
 struct Process;
-struct Registers;
 struct ThreadSleepingForSharedMemoryPage;
 struct ThreadWaitingForSharedMemoryPage;
 
@@ -18,7 +19,7 @@ struct Thread {
   // The current state of the registers. Unless this thread is actually running,
   // in which case the registers are actually in the CPU registers until the
   // next interrupt or syscall.
-  Registers *registers;
+  Registers registers;
 
   // Storage for the FPU registers. Must be 16 byte aligned (our malloc
   // implementation will give us a 16 byte aligned Thread struct.) For

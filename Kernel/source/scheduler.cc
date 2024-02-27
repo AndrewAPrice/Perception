@@ -89,7 +89,7 @@ void ScheduleNextThread() {
   }
   LoadThreadSegment(running_thread);
 
-  currently_executing_thread_regs = running_thread->registers;
+  currently_executing_thread_regs = &running_thread->registers;
 }
 
 void ScheduleThread(Thread *thread) {

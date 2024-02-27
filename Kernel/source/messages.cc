@@ -27,15 +27,15 @@ namespace {
 // Loads an message in to the thread.
 void LoadMessageIntoThread(Message* message, Thread* thread) {
   // Set the thread's registers to contain this message.
-  Registers* registers = thread->registers;
-  registers->rax = message->message_id;
-  registers->rbx = message->sender_pid;
-  registers->rdx = message->metadata;
-  registers->rsi = message->param1;
-  registers->r8 = message->param2;
-  registers->r9 = message->param3;
-  registers->r10 = message->param4;
-  registers->r12 = message->param5;
+  Registers& registers = thread->registers;
+  registers.rax = message->message_id;
+  registers.rbx = message->sender_pid;
+  registers.rdx = message->metadata;
+  registers.rsi = message->param1;
+  registers.r8 = message->param2;
+  registers.r9 = message->param3;
+  registers.r10 = message->param4;
+  registers.r12 = message->param5;
 
   ObjectPool<Message>::Release(message);
 }
@@ -121,39 +121,39 @@ void SendKernelMessageToProcess(Process* receiver_process, size_t event_id,
 // syscall.
 void SendMessageFromThreadSyscall(Thread* sender_thread) {
   Process* sender_process = sender_thread->process;
-  Registers* registers = sender_thread->registers;
+  Registers& registers = sender_thread->registers;
 
   // Find the receiver process, which maybe ourselves.
-  Process* receiver_process = (registers->rbx == sender_process->pid)
+  Process* receiver_process = (registers.rbx == sender_process->pid)
                                   ? sender_process
-                                  : GetProcessFromPid(registers->rbx);
+                                  : GetProcessFromPid(registers.rbx);
 
   if (receiver_process == nullptr) {
     // Error, process doesn't exist.
-    registers->rax = MS_PROCESS_DOESNT_EXIST;
+    registers.rax = MS_PROCESS_DOESNT_EXIST;
     return;
   }
 
   if (!CanProcessReceiveMessage(receiver_process)) {
     // Error, the receiver's queue is full.
-    registers->rax = MS_RECEIVERS_QUEUE_IS_FULL;
+    registers.rax = MS_RECEIVERS_QUEUE_IS_FULL;
     return;
   }
 
   Message* message = ObjectPool<Message>::Allocate();
   if (message == nullptr) {
     // Error, out of memory.
-    registers->rax = MS_OUT_OF_MEMORY;
+    registers.rax = MS_OUT_OF_MEMORY;
     return;
   }
 
   // Reads the message from the registers.
-  message->message_id = registers->rax;
+  message->message_id = registers.rax;
   message->sender_pid = sender_process->pid;
-  message->metadata = registers->rdx;
-  message->param1 = registers->rsi;
-  message->param2 = registers->r8;
-  message->param3 = registers->r9;
+  message->metadata = registers.rdx;
+  message->param1 = registers.rsi;
+  message->param2 = registers.r8;
+  message->param3 = registers.r9;
   if (IsPagingMessage(message->metadata) &&
       receiver_process != sender_process) {
     // Transfer memory pages.
@@ -161,8 +161,8 @@ void SendMessageFromThreadSyscall(Thread* sender_thread) {
     // r12/param 5 = Size of the message in pages.
 
     // Figure out where to move the memory from and to.
-    size_t size_in_pages = registers->r12;
-    size_t source_virtual_address = registers->r10;
+    size_t size_in_pages = registers.r12;
+    size_t source_virtual_address = registers.r10;
     size_t destination_virtual_address = FindAndReserveFreePageRange(
         &receiver_process->virtual_address_space, size_in_pages);
 
@@ -171,7 +171,7 @@ void SendMessageFromThreadSyscall(Thread* sender_thread) {
       ReleaseVirtualMemoryInAddressSpace(&sender_process->virtual_address_space,
                                          source_virtual_address, size_in_pages,
                                          true);
-      registers->rax = MS_OUT_OF_MEMORY;
+      registers.rax = MS_OUT_OF_MEMORY;
       ObjectPool<Message>::Release(message);
       return;
     }
@@ -192,7 +192,7 @@ void SendMessageFromThreadSyscall(Thread* sender_thread) {
         ReleaseVirtualMemoryInAddressSpace(
             &receiver_process->virtual_address_space,
             destination_virtual_address, size_in_pages, true);
-        registers->rax = MS_OUT_OF_MEMORY;
+        registers.rax = MS_OUT_OF_MEMORY;
         ObjectPool<Message>::Release(message);
         return;
       }
@@ -212,12 +212,12 @@ void SendMessageFromThreadSyscall(Thread* sender_thread) {
     message->param4 = destination_virtual_address;
     message->param5 = size_in_pages;
   } else {
-    message->param4 = registers->r10;
-    message->param5 = registers->r12;
+    message->param4 = registers.r10;
+    message->param5 = registers.r12;
   }
 
   // Send the message to the receiver.
-  registers->rax = MS_SUCCESS;
+  registers.rax = MS_SUCCESS;
   SendMessageToProcess(message, receiver_process);
 }
 
@@ -236,7 +236,7 @@ void LoadNextMessageIntoThread(Thread* thread) {
   Message* message = GetNextQueuedMessage(thread->process);
   if (message == nullptr) {
     // There is no message queued.
-    thread->registers->rax = ID_FOR_NO_EVENTS;
+    thread->registers.rax = ID_FOR_NO_EVENTS;
   } else {
     // We have an message to load.
     LoadMessageIntoThread(message, thread);
