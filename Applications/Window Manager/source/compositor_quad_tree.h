@@ -82,5 +82,10 @@ class CompositorQuadTree : public ::perception::QuadTree<Rectangle> {
   void CreateSubRectanglesForEachBackgroundPartThatPokesOut(
       Rectangle* background, Rectangle* foreground);
 
+  // Creates a subrectangle that's part of the background.
+  void CreateSubRectangle(Rectangle& background, int min_x, int min_y,
+                          int max_x, int max_y,
+                          bool draw_into_wm_texture = false);
+
   ::perception::ObjectPool<Rectangle> rectangle_pool_;
 };

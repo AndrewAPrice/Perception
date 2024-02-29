@@ -40,9 +40,7 @@ void CompositorQuadTree::AddOccludingRectangle(Rectangle* rect) {
 // texture.
 void CompositorQuadTree::DrawAreaToWindowManagerTexture(int min_x, int min_y,
                                                         int max_x, int max_y) {
-  if (max_x - min_x <= 0 || max_y - min_y <= 0) {
-    return;
-  }
+  if (max_x <= min_x || max_y <= min_y) return;
 
   Rectangle* rect = rectangle_pool_.Allocate();
   rect->min_x = min_x;
@@ -64,16 +62,12 @@ void CompositorQuadTree::DrawAreaToWindowManagerTexture(int min_x, int min_y,
     // Add the part of the rectangle that is fully enclosed in our
     // region that we want to draw into the window manager's
     // texture.
-    Rectangle* new_part = rectangle_pool_.Allocate();
-    new_part->SubRectangleOf(*overlapping_rect,
-                             std::max(overlapping_rect->min_x, rect->min_x),
-                             std::max(overlapping_rect->min_y, rect->min_y),
-                             std::min(overlapping_rect->max_x, rect->max_x),
-                             std::min(overlapping_rect->max_y, rect->max_y));
-    new_part->draw_into_wm_texture = true;
-    new_part->node = nullptr;
-    Add(new_part);
-
+    CreateSubRectangle(*overlapping_rect,
+                       std::max(overlapping_rect->min_x, rect->min_x),
+                       std::max(overlapping_rect->min_y, rect->min_y),
+                       std::min(overlapping_rect->max_x, rect->max_x),
+                       std::min(overlapping_rect->max_y, rect->max_y),
+                       /*draw_into_wm_texture=*/true);
     // Remove the old rectangle.
     Remove(overlapping_rect);
   });
@@ -96,43 +90,42 @@ void CompositorQuadTree::CreateSubRectanglesForEachBackgroundPartThatPokesOut(
   // #####
   // %%i**
   // @@@@@
+
+  // Top
   if (background->min_y < foreground->min_y) {
-    // Some of the top peaks out.
-    Rectangle* new_part = rectangle_pool_.Allocate();
-    new_part->node = nullptr;
-    new_part->SubRectangleOf(*background, background->min_x, background->min_y,
-                             background->max_x, foreground->min_y);
-    Add(new_part);
+    CreateSubRectangle(*background, background->min_x, background->min_y,
+                       background->max_x, foreground->min_y);
   }
 
+  // Bottom
   if (background->max_y > foreground->max_y) {
-    // Some of the bottom peaks out.
-    Rectangle* new_part = rectangle_pool_.Allocate();
-    new_part->node = nullptr;
-    new_part->SubRectangleOf(*background, background->min_x, foreground->max_y,
-                             background->max_x, background->max_y);
-    Add(new_part);
+    CreateSubRectangle(*background, background->min_x, foreground->max_y,
+                       background->max_x, background->max_y);
   }
 
+  // Left
   if (background->min_x < foreground->min_x) {
-    // Some of the left peaks out.
-    Rectangle* new_part = rectangle_pool_.Allocate();
-    new_part->node = nullptr;
-    new_part->SubRectangleOf(*background, background->min_x,
-                             std::max(background->min_y, foreground->min_y),
-                             foreground->min_x,
-                             std::min(background->max_y, foreground->max_y));
-    Add(new_part);
+    CreateSubRectangle(*background, background->min_x,
+                       std::max(background->min_y, foreground->min_y),
+                       foreground->min_x,
+                       std::min(background->max_y, foreground->max_y));
   }
 
+  // Right
   if (background->max_x > foreground->max_x) {
-    // Some of the right peaks out.
-    Rectangle* new_part = rectangle_pool_.Allocate();
-    new_part->node = nullptr;
-    new_part->SubRectangleOf(*background, foreground->max_x,
-                             std::max(background->min_y, foreground->min_y),
-                             background->max_x,
-                             std::min(background->max_y, foreground->max_y));
-    Add(new_part);
+    CreateSubRectangle(*background, foreground->max_x,
+                       std::max(background->min_y, foreground->min_y),
+                       background->max_x,
+                       std::min(background->max_y, foreground->max_y));
   }
+}
+
+void CompositorQuadTree::CreateSubRectangle(Rectangle& background, int min_x,
+                                            int min_y, int max_x, int max_y,
+                                            bool draw_into_wm_texture) {
+  Rectangle* new_part = rectangle_pool_.Allocate();
+  new_part->node = nullptr;
+  new_part->SubRectangleOf(background, min_x, min_y, max_x, max_y);
+  new_part->draw_into_wm_texture = draw_into_wm_texture;
+  Add(new_part);
 }
