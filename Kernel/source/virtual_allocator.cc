@@ -133,24 +133,6 @@ size_t FreeMemoryRangeSizeFromAATreeNode(AATreeNode *node) {
   return FreeMemoryRangeFromNodeBySize(node)->pages;
 }
 
-void VerifyAddressSpaceStructuresAreAllTheSameSize(
-    VirtualAddressSpace *address_space) {
-  int nodes_in_address_tree =
-      CountNodesInAATree(&address_space->free_chunks_by_address);
-  int nodes_in_size_tree =
-      CountNodesInAATree(&address_space->free_chunks_by_size);
-  int nodes_in_linked_list = 0;
-  for (auto *fmr : address_space->free_memory_ranges) nodes_in_linked_list++;
-
-  if (nodes_in_address_tree != nodes_in_size_tree ||
-      nodes_in_address_tree != nodes_in_linked_list) {
-    print << "Nodes in address tree: " << NumberFormat::Decimal
-          << nodes_in_address_tree
-          << " != Nodes in size tree: " << nodes_in_size_tree
-          << " != Nodes in linked list: " << nodes_in_linked_list << '\n';
-  }
-}
-
 void PrintFreeAddressRanges(VirtualAddressSpace *address_space) {
   print << "Free address ranges:\n" << NumberFormat::Hexidecimal;
   for (auto *fmr : address_space->free_memory_ranges) {
@@ -167,7 +149,6 @@ void AddFreeMemoryRangeToVirtualAddressSpace(VirtualAddressSpace *address_space,
   InsertNodeIntoAATree(&address_space->free_chunks_by_size, &fmr->node_by_size,
                        FreeMemoryRangeSizeFromAATreeNode);
   address_space->free_memory_ranges.AddFront(fmr);
-  VerifyAddressSpaceStructuresAreAllTheSameSize(address_space);
 }
 
 void RemoveFreeMemoryRangeFromVirtualAddressSpace(
@@ -178,7 +159,6 @@ void RemoveFreeMemoryRangeFromVirtualAddressSpace(
   RemoveNodeFromAATree(&address_space->free_chunks_by_size, &fmr->node_by_size,
                        FreeMemoryRangeSizeFromAATreeNode);
   address_space->free_memory_ranges.Remove(fmr);
-  VerifyAddressSpaceStructuresAreAllTheSameSize(address_space);
 }
 
 // Creates a page table entry creation with relevant flags.
