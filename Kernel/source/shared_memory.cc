@@ -311,9 +311,8 @@ void LeaveSharedMemory(Process* process, size_t shared_memory_id) {
       // Found the shared memory block.
       shared_memory_in_process->references--;
 
-      // TODO: This is broken.
-      // if (shared_memory_in_process->references == 0)
-      //  UnmapSharedMemoryFromProcess(shared_memory_in_process);
+      if (shared_memory_in_process->references == 0)
+        UnmapSharedMemoryFromProcess(shared_memory_in_process);
       return;
     }
   }
