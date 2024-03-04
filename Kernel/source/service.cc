@@ -198,7 +198,6 @@ void NotifyProcessWhenServiceAppears(char* service_name, Process* process,
   auto notification = ObjectPool<ProcessToNotifyWhenServiceAppears>::Allocate();
   if (notification == nullptr) return;  // Out of memory.
 
-  // Conthe object.
   notification->process = process;
   notification->message_id = message_id;
   for (int i = 0; i < SERVICE_NAME_WORDS; i++)
@@ -257,9 +256,9 @@ void StopNotifyingProcessWhenServiceAppears(
 
 // Registers that a process wants to be notified when a service disappears.
 void NotifyProcessWhenServiceDisappears(Process* process,
-                                       size_t service_process_id,
-                                       size_t service_message_id,
-                                       size_t message_id) {
+                                        size_t service_process_id,
+                                        size_t service_message_id,
+                                        size_t message_id) {
   auto* service =
       FindServiceByProcessAndMid(service_process_id, service_message_id);
 
@@ -284,16 +283,11 @@ void NotifyProcessWhenServiceDisappears(Process* process,
 // Unregisters that a process wants to be notified when a service disappears.
 void StopNotifyingProcessWhenServiceDisappears(Process* process,
                                                size_t message_id) {
-  ProcessToNotifyWhenServiceDisappears* notification = nullptr;
-  for (auto n :
+  for (auto notification :
        process->services_i_want_to_be_notified_of_when_they_disappear) {
-    if (n->message_id == message_id) {
-      notification = n;
-      break;
-    }
+    if (notification->message_id == message_id)
+      return StopNotifyingProcessWhenServiceDisappears(notification);
   }
-
-  if (notification) StopNotifyingProcessWhenServiceDisappears(notification);
 }
 
 // Unregisters that a process wants to be notified when a service disappears.
