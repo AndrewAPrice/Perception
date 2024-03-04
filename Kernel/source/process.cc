@@ -125,9 +125,8 @@ bool RemoveChildProcessOfParent(Process *parent, Process *child) {
 // Destroys a process.
 void DestroyProcess(Process *process) {
   // Destroy child processes that haven't started.
-  while (process->child_processes != nullptr) {
+  while (process->child_processes != nullptr)
     DestroyProcess(process->child_processes);
-  }
 
   NotifyProfilerThatProcessExited(process);
 
@@ -201,14 +200,11 @@ void NotifyProcessOnDeath(Process *target, Process *notifyee, size_t event_id) {
 
 void StopNotifyingProcessOnDeath(Process *notifyee, size_t event_id) {
   // Find the notification.
-  ProcessToNotifyOnExit *notification = nullptr;
-  for (auto n : notifyee->processes_i_want_to_be_notified_of_when_they_die) {
-    if (n->event_id == event_id) {
-      notification = n;
-      break;
-    }
+  for (auto notification :
+       notifyee->processes_i_want_to_be_notified_of_when_they_die) {
+    if (notification->event_id == event_id)
+      return ReleaseNotification(notification);
   }
-  if (notification != nullptr) ReleaseNotification(notification);
 }
 
 // Returns a process with the provided pid, returns nullptr if it doesn't
