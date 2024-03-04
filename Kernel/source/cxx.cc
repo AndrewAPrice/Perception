@@ -14,9 +14,26 @@
 
 // Methods used implicitly by C++.
 
+#include "text_terminal.h"
+
+namespace std {
+
+void terminate() {
+  print << "std::terminate() called in kernel.\n";
+  asm("hlt");
+}
+
+}  // namespace std
+
 // Registers a destructor to be called on exit.
 extern "C" int __cxa_atexit(void (*destructor)(void *), void *arg,
                             void *__dso_handle) {
   // The kernel never exits like a normal program (the computer powers off), so
   // there's nothing to do here.
+}
+
+// Begins catching an exception.
+extern "C" void* __cxa_begin_catch(void* exceptionObject) {
+  print << "C++ exception called in the terminal.\n";
+  std::terminate();
 }
