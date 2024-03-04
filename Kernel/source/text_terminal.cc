@@ -19,13 +19,13 @@ static const char *kHexidecimalCharset = "0123456789ABCDEF";
 
 // Initialize the serial output.
 void InitializeSerialOutput() {
-  outportb(kPort + 1, 0x00);  // Disable all interrupts
-  outportb(kPort + 3, 0x80);  // Enable DLAB (set baud rate divisor)
-  outportb(kPort + 0, 0x03);  // Set divisor to 3 (lo byte) 38400 baud
-  outportb(kPort + 1, 0x00);  //                  (hi byte)
-  outportb(kPort + 3, 0x03);  // 8 bits, no parity, one stop bit
-  outportb(kPort + 2, 0xC7);  // Enable FIFO, clear them, with 14-byte threshold
-  outportb(kPort + 4, 0x0B);  // IRQs enabled, RTS/DSR set
+  WriteIOByte(kPort + 1, 0x00);  // Disable all interrupts
+  WriteIOByte(kPort + 3, 0x80);  // Enable DLAB (set baud rate divisor)
+  WriteIOByte(kPort + 0, 0x03);  // Set divisor to 3 (lo byte) 38400 baud
+  WriteIOByte(kPort + 1, 0x00);  //                  (hi byte)
+  WriteIOByte(kPort + 3, 0x03);  // 8 bits, no parity, one stop bit
+  WriteIOByte(kPort + 2, 0xC7);  // Enable FIFO, clear them, with 14-byte threshold
+  WriteIOByte(kPort + 4, 0x0B);  // IRQs enabled, RTS/DSR set
 }
 
 }  // namespace
@@ -37,8 +37,8 @@ Printer& Printer::operator << (char c) {
 #ifdef __TEST__
   printf("%c", c);
 #else
-  while ((inportb(kPort + 5) & 0x20) == 0);
-  outportb(kPort, c);
+  while ((ReadIOByte(kPort + 5) & 0x20) == 0);
+  WriteIOByte(kPort, c);
 #endif
   return *this;
 }

@@ -185,7 +185,7 @@ void SetThreadSegment(Thread* thread, size_t address) {
 
 // Load's a thread segment.
 void LoadThreadSegment(Thread* thread) {
-  wrmsr(FSBASE_MSR, thread->thread_segment_offset);
+  WriteModelSpecificRegister(FSBASE_MSR, thread->thread_segment_offset);
 }
 
 #ifdef __TEST__

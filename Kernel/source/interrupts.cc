@@ -38,16 +38,16 @@ LinkedList<MessageToFireOnInterrupt,
 // Remaps hardware interrupts 0->15 to 32->47 on the Interrupt Descriptor Table
 // to not overlap with CPU exceptions.
 void RemapIrqsToNotOverlapWithCpuExceptions() {
-  outportb(0x20, 0x11);
-  outportb(0xA0, 0x11);
-  outportb(0x21, 0x20);
-  outportb(0xA1, 0x28);
-  outportb(0x21, 0x04);
-  outportb(0xA1, 0x02);
-  outportb(0x21, 0x01);
-  outportb(0xA1, 0x01);
-  outportb(0x21, 0x0);
-  outportb(0xA1, 0x0);
+  WriteIOByte(0x20, 0x11);
+  WriteIOByte(0xA0, 0x11);
+  WriteIOByte(0x21, 0x20);
+  WriteIOByte(0xA1, 0x28);
+  WriteIOByte(0x21, 0x04);
+  WriteIOByte(0xA1, 0x02);
+  WriteIOByte(0x21, 0x01);
+  WriteIOByte(0xA1, 0x01);
+  WriteIOByte(0x21, 0x0);
+  WriteIOByte(0xA1, 0x0);
 }
 
 // Registers the 16 hardware interrupt handlers.
@@ -167,11 +167,11 @@ extern "C" void CommonHardwareInterruptHandler(int interrupt_number) {
 
     // If the IDT entry that was invoked was greater than 40 (IRQ 8-15) we need
     // to send an EOI to the slave controller.
-    if (interrupt_number >= 8) outportb(0xA0, 0x20);
+    if (interrupt_number >= 8) WriteIOByte(0xA0, 0x20);
   }
 
   // Send an EOI to the master interrupt controllerr.
-  outportb(0x20, 0x20);
+  WriteIOByte(0x20, 0x20);
 
   // Interrupt could have awoken a thread when the system was currently halted.
   // If so, let's jump straight into it upon return.

@@ -43,10 +43,10 @@ namespace {
 
 void InitializeSystemCalls() {
 #ifndef __TEST__
-  wrmsr(STAR, KERNEL_SEGMENT_BASE | USER_SEGMENT_BASE);
-  wrmsr(LSTAR, (size_t)syscall_entry);
+  WriteModelSpecificRegister(STAR, KERNEL_SEGMENT_BASE | USER_SEGMENT_BASE);
+  WriteModelSpecificRegister(LSTAR, (size_t)syscall_entry);
   // Disable interrupts duing syscalls.
-  wrmsr(IA32_FMASK, INTERRUPT_MASK);
+  WriteModelSpecificRegister(IA32_FMASK, INTERRUPT_MASK);
 //  SetInterruptHandler(0x80, (size_t)syscall_isr, 0x08, 0x8E);
 #endif
 }
