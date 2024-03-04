@@ -33,12 +33,6 @@ struct MessageToFireOnInterrupt {
   // The interrupt number.
   uint8 interrupt_number;
 
-  // Next message to fire for this interrupt.
-  MessageToFireOnInterrupt* next_message_for_interrupt;
-
-  // Next message for this process.
-  MessageToFireOnInterrupt* next_message_for_process;
-
   // Node in the linked list.
   LinkedListNode node_in_interrupt;
   LinkedListNode node_in_process;
