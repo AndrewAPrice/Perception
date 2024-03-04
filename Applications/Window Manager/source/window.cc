@@ -70,8 +70,7 @@ Window* Window::CreateDialog(std::string_view title, int width, int height,
                              ::permebuf::perception::Window window_listener,
                              KeyboardListener keyboard_listener,
                              MouseListener mouse_listener) {
-  if (window_listener.GetProcessId() == 0 ||
-      windows_by_service.count(window_listener) > 0) {
+  if (!window_listener || windows_by_service.count(window_listener) > 0) {
     // Window already exists or a window listener wasn't specified.
     return nullptr;
   }
@@ -146,13 +145,13 @@ Window* Window::CreateWindow(
   window->fill_color_ = background_color;
   window->keyboard_listener_ = keyboard_listener;
   window->mouse_listener_ = mouse_listener;
-  window->CommonInit();
 
   Frame::AddWindowToLastFocusedFrame(*window);
 
   // Set the window listener after we add the window to the frame, so we
   // don't issue a resize message during creation.
   window->window_listener_ = window_listener;
+  window->CommonInit();
 
   // Focus on it.
   focused_window = window;
