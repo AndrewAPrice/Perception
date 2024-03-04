@@ -1017,7 +1017,7 @@ void UnmapSharedMemoryFromProcess(
   ReleaseVirtualMemoryInAddressSpace(
       &process->virtual_address_space,
       shared_memory_in_process->virtual_address,
-      shared_memory_in_process->shared_memory->size_in_pages, false);
+      shared_memory->size_in_pages, false);
 
   process->joined_shared_memories.Remove(shared_memory_in_process);
   shared_memory->joined_processes.Remove(shared_memory_in_process);
