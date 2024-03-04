@@ -424,7 +424,7 @@ MessageId NotifyWhenServiceDisappears(
   volatile register size_t syscall_num asm("rdi") = 37;
   volatile register size_t process_id_r asm("rax") = (size_t)process_id;
   volatile register size_t message_id_r asm("rbx") = (size_t)message_id;
-  volatile register size_t notification_message_id_r asm("rdx") = message_id;
+  volatile register size_t notification_message_id_r asm("rdx") = notification_message_id;
 
   __asm__ __volatile__("syscall\n" ::"r"(syscall_num), "r"(process_id_r),
                        "r"(message_id_r), "r"(notification_message_id_r)
