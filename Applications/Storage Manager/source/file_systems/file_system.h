@@ -68,6 +68,8 @@ class FileSystem {
 
   size_t GetOptionalOperationSize() const { return optimal_operation_size_; }
 
+  void NotifyOnDisappearance(const std::function<void()>& on_disappearance);
+
  protected:
   // Storage device.
   ::permebuf::perception::devices::StorageDevice storage_device_;

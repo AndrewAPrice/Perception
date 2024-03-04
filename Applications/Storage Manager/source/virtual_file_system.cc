@@ -69,6 +69,15 @@ std::string GetMountNameForFileSystem(FileSystem& file_system) {
   }
 }
 
+void UnmountFileSystem(const std::string mount_name) {
+  auto itr = mounted_file_systems.find(mount_name);
+  if (itr == mounted_file_systems.end()) return;
+  std::cout << "Unmounting " << itr->second->GetFileSystemType() << " on "
+            << itr->second->GetDeviceName() << " as /" << mount_name << "/"
+            << std::endl;
+  mounted_file_systems.erase(itr);
+}
+
 Status ExtractMountPointAndPath(std::string_view path,
                                 std::string_view& mount_point,
                                 std::string_view& path_on_mount_point) {
@@ -136,6 +145,7 @@ void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
   std::cout << "Mounting " << file_system->GetFileSystemType() << " on "
             << file_system->GetDeviceName() << " as /" << mount_name << "/"
             << std::endl;
+  auto* fs = file_system.get();
   mounted_file_systems[mount_name] = std::move(file_system);
   if (first_mounted_file_system.empty()) {
     first_mounted_file_system = mount_name;
@@ -145,6 +155,7 @@ void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
       fiber->WakeUp();
     fibers_waiting_for_first_file_system.clear();
   }
+  fs->NotifyOnDisappearance([mount_name]() { UnmountFileSystem(mount_name); });
 }
 
 StatusOr<File*> OpenFile(std::string_view path, size_t& size_in_bytes,

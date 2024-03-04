@@ -27,13 +27,19 @@ FileSystem::FileSystem(StorageDevice storage_device)
   device_name_ = std::string(*(*status_or_device_details)->GetName());
   storage_type_ = (*status_or_device_details)->GetType();
   is_writable_ = (*status_or_device_details)->GetIsWritable();
-  optimal_operation_size_ = (*status_or_device_details)->GetOptimalOperationSize();
+  optimal_operation_size_ =
+      (*status_or_device_details)->GetOptimalOperationSize();
 }
 
 std::unique_ptr<FileSystem> InitializeStorageDevice(
     ::permebuf::perception::devices::StorageDevice storage_device) {
   // Try each known file system to see which one we can initialize.
   return InitializeIso9960ForStorageDevice(storage_device);
+}
+
+void FileSystem::NotifyOnDisappearance(
+    const std::function<void()>& on_disappearance) {
+  storage_device_.NotifyOnDisappearance(on_disappearance);
 }
 
 }  // namespace file_systems
