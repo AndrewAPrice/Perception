@@ -95,7 +95,16 @@ void UnregisterServiceByMessageId(Process* process, size_t message_id) {
 
 // Unregisters a service, and notifies anybody listening.
 void UnregisterService(Service* service) {
-  // TODO: Notify everyone listening for this service to die.
+  while (!service->processes_to_notify_on_disappear.IsEmpty()) {
+    auto* notification = service->processes_to_notify_on_disappear.PopFront();
+    SendKernelMessageToProcess(notification->process, notification->message_id,
+                               0, 0, 0, 0, 0);
+
+    service->processes_to_notify_on_disappear.Remove(notification);
+    notification->process->services_i_want_to_be_notified_of_when_they_disappear
+        .Remove(notification);
+    ObjectPool<ProcessToNotifyWhenServiceDisappears>::Release(notification);
+  }
   service->process->services.Remove(service);
   ObjectPool<Service>::Release(service);
 }
@@ -240,7 +249,58 @@ void StopNotifyingProcessWhenServiceAppears(
   // Remove from global linked list.
   processes_to_be_notified_when_a_service_appears.Remove(notification);
   // Remove from process's linked list.
-  notification->process->services_i_want_to_be_notified_of_when_they_appear.Remove(notification);
+  notification->process->services_i_want_to_be_notified_of_when_they_appear
+      .Remove(notification);
   // Release this notification.
   ObjectPool<ProcessToNotifyWhenServiceAppears>::Release(notification);
+}
+
+// Registers that a process wants to be notified when a service disappears.
+void NotifyProcessWhenServiceDisappears(Process* process,
+                                       size_t service_process_id,
+                                       size_t service_message_id,
+                                       size_t message_id) {
+  auto* service =
+      FindServiceByProcessAndMid(service_process_id, service_message_id);
+
+  if (service) {
+    auto notification =
+        ObjectPool<ProcessToNotifyWhenServiceDisappears>::Allocate();
+    if (notification == nullptr) return;  // Out of memory.
+
+    notification->process = process;
+    notification->service = service;
+    notification->message_id = message_id;
+
+    process->services_i_want_to_be_notified_of_when_they_disappear.AddBack(
+        notification);
+    service->processes_to_notify_on_disappear.AddBack(notification);
+  } else {
+    // The service doesn't exist so send the message immediately.
+    SendKernelMessageToProcess(process, message_id, 0, 0, 0, 0, 0);
+  }
+}
+
+// Unregisters that a process wants to be notified when a service disappears.
+void StopNotifyingProcessWhenServiceDisappears(Process* process,
+                                               size_t message_id) {
+  ProcessToNotifyWhenServiceDisappears* notification = nullptr;
+  for (auto n :
+       process->services_i_want_to_be_notified_of_when_they_disappear) {
+    if (n->message_id == message_id) {
+      notification = n;
+      break;
+    }
+  }
+
+  if (notification) StopNotifyingProcessWhenServiceDisappears(notification);
+}
+
+// Unregisters that a process wants to be notified when a service disappears.
+void StopNotifyingProcessWhenServiceDisappears(
+    ProcessToNotifyWhenServiceDisappears* notification) {
+  notification->service->processes_to_notify_on_disappear.Remove(notification);
+  notification->process->services_i_want_to_be_notified_of_when_they_disappear
+      .Remove(notification);
+  ObjectPool<ProcessToNotifyWhenServiceDisappears>::Release(notification);
 }

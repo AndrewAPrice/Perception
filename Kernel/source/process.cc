@@ -141,7 +141,14 @@ void DestroyProcess(Process *process) {
 
   while (!process->services_i_want_to_be_notified_of_when_they_appear.IsEmpty())
     StopNotifyingProcessWhenServiceAppears(
-        process->services_i_want_to_be_notified_of_when_they_appear.FirstItem());
+        process->services_i_want_to_be_notified_of_when_they_appear
+            .FirstItem());
+
+  while (
+      !process->services_i_want_to_be_notified_of_when_they_disappear.IsEmpty())
+    StopNotifyingProcessWhenServiceDisappears(
+        process->services_i_want_to_be_notified_of_when_they_disappear
+            .FirstItem());
 
   while (!process->services.IsEmpty())
     UnregisterService(process->services.FirstItem());
@@ -179,8 +186,7 @@ void DestroyProcess(Process *process) {
 }
 
 // Registers that a process wants to be notified if another process dies.
-extern void NotifyProcessOnDeath(Process *target, Process *notifyee,
-                                 size_t event_id) {
+void NotifyProcessOnDeath(Process *target, Process *notifyee, size_t event_id) {
   auto notification = ObjectPool<ProcessToNotifyOnExit>::Allocate();
   if (notification == nullptr) return;
 
@@ -191,6 +197,18 @@ extern void NotifyProcessOnDeath(Process *target, Process *notifyee,
   target->processes_to_notify_when_i_die.AddBack(notification);
   notifyee->processes_i_want_to_be_notified_of_when_they_die.AddBack(
       notification);
+}
+
+void StopNotifyingProcessOnDeath(Process *notifyee, size_t event_id) {
+  // Find the notification.
+  ProcessToNotifyOnExit *notification = nullptr;
+  for (auto n : notifyee->processes_i_want_to_be_notified_of_when_they_die) {
+    if (n->event_id == event_id) {
+      notification = n;
+      break;
+    }
+  }
+  if (notification != nullptr) ReleaseNotification(notification);
 }
 
 // Returns a process with the provided pid, returns nullptr if it doesn't
@@ -330,8 +348,7 @@ void DestroyChildProcess(Process *parent, Process *child) {
 }
 
 Process *GetNextProcess(Process *process) {
-  if (process == nullptr)
-    return all_processes.FirstItem();
+  if (process == nullptr) return all_processes.FirstItem();
 
   return all_processes.NextItem(process);
 }

@@ -92,6 +92,9 @@ struct Process {
   // Linked list of services I want to be notified of when they appear.
   LinkedList<ProcessToNotifyWhenServiceAppears, &ProcessToNotifyWhenServiceAppears::node_in_process>
       services_i_want_to_be_notified_of_when_they_appear;
+  // Linked list of services I want to be notified of when they disappear.
+  LinkedList<ProcessToNotifyWhenServiceDisappears, &ProcessToNotifyWhenServiceDisappears::node_in_process>
+  services_i_want_to_be_notified_of_when_they_disappear;
 
   // Linked list of services in this process. System calls that scan for
   // services expect that services are added to the back of the list, and we
@@ -126,6 +129,9 @@ extern void DestroyProcess(Process* process);
 // Registers that a process wants to be notified if another process dies.
 extern void NotifyProcessOnDeath(Process* target, Process* notifyee,
                                  size_t event_id);
+
+// Unregisters that a process wants to be notified if another process dies.
+extern void StopNotifyingProcessOnDeath(Process* notifyee, size_t event_id);
 
 // Returns a process with the provided pid, returns nullptr if it doesn't exist.
 extern Process* GetProcessFromPid(size_t pid);

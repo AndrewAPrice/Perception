@@ -396,11 +396,10 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
-    /*
-      case Syscall::StopNotifyingWhenProcessDisappears:
-      print << "Implement Syscall::StopNotifyingWhenProcessDisappears\n";
+    case Syscall::StopNotifyingWhenProcessDisappears:
+      StopNotifyingProcessOnDeath(running_thread->process,
+                                  currently_executing_thread_regs->rax);
       break;
-  */
     case Syscall::CreateProcess: {
       // Extract the name from the input registers.
       size_t process_name[PROCESS_NAME_WORDS];
@@ -561,14 +560,18 @@ extern "C" void SyscallHandler(int syscall_number) {
       StopNotifyingProcessWhenServiceAppearsByMessageId(
           running_thread->process, currently_executing_thread_regs->rbp);
       break;
-    /*
     case Syscall::NotifyWhenServiceDisappears:
-      print << "Implement Syscall::NotifyWhenServiceDisappears\n";
+      NotifyProcessWhenServiceDisappears(
+          running_thread->process,
+          /*service_process_id=*/currently_executing_thread_regs->rax,
+          /*service_message_id=*/currently_executing_thread_regs->rbx,
+          /*message_id=*/currently_executing_thread_regs->rdx);
       break;
     case Syscall::StopNotifyingWhenServiceDisappears:
-      print << "Implement Syscall::StopNotifyingWhenServiceDisappears\n";
+      StopNotifyingProcessWhenServiceDisappears(
+          running_thread->process,
+          /*message_id=*/currently_executing_thread_regs->rax);
       break;
-    */
     case Syscall::SendMessage:
       SendMessageFromThreadSyscall(running_thread);
       break;

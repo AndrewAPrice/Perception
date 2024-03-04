@@ -16,7 +16,8 @@
 // A list of classes for which there are object pools for.
 #define POOLED_CLASSES                                                       \
   FreeMemoryRange, Message, MessageToFireOnInterrupt, ProcessToNotifyOnExit, \
-      ProcessToNotifyWhenServiceAppears, SetNode, Service, SharedMemory,     \
+      ProcessToNotifyWhenServiceAppears,                                     \
+      ProcessToNotifyWhenServiceDisappears, SetNode, Service, SharedMemory, \
       SharedMemoryInProcess, TimerEvent, Thread,                             \
       ThreadWaitingForSharedMemoryPage
 

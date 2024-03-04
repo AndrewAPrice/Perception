@@ -18,25 +18,11 @@
 #include "types.h"
 
 struct Process;
+struct Service;
 
 // Maximum length of a service.
 #define SERVICE_NAME_WORDS 10
 #define SERVICE_NAME_LENGTH (SERVICE_NAME_WORDS * 8)
-
-// Represents a registered service.
-struct Service {
-  // The process this service belongs to.
-  Process* process;
-
-  // Message ID to use for communicating to this service.
-  size_t message_id;
-
-  // The name of the service.
-  char name[SERVICE_NAME_LENGTH];
-
-  // Linked list of registered services in this process.
-  LinkedListNode node_in_process;
-};
 
 // Represents a process to notify when a service appears.
 struct ProcessToNotifyWhenServiceAppears {
@@ -54,6 +40,44 @@ struct ProcessToNotifyWhenServiceAppears {
 
   // Linked list in the process.
   LinkedListNode node_in_process;
+};
+
+// Represents a process to nofy when a service disappears.
+struct ProcessToNotifyWhenServiceDisappears {
+  // The process to notify.
+  Process* process;
+
+  // The service that we're watching..
+  Service* service;
+
+  // The message ID to send a message to when this process appears.
+  size_t message_id;
+
+  // Linked list in the process.
+  LinkedListNode node_in_process;
+
+  // Linked list in the service.
+  LinkedListNode node_in_service;
+};
+
+// Represents a registered service.
+struct Service {
+  // The process this service belongs to.
+  Process* process;
+
+  // Message ID to use for communicating to this service.
+  size_t message_id;
+
+  // The name of the service.
+  char name[SERVICE_NAME_LENGTH];
+
+  // Linked list of registered services in this process.
+  LinkedListNode node_in_process;
+
+  // Linked list of processes to notify when this disappears.
+  LinkedList<ProcessToNotifyWhenServiceDisappears,
+             &ProcessToNotifyWhenServiceDisappears::node_in_service>
+      processes_to_notify_on_disappear;
 };
 
 // Initializes the internal structures for tracking services.
@@ -94,3 +118,17 @@ void StopNotifyingProcessWhenServiceAppearsByMessageId(Process* process,
 // Registers that we no longer want to be notified when a service appears.
 void StopNotifyingProcessWhenServiceAppears(
     ProcessToNotifyWhenServiceAppears* notification);
+
+// Registers that a process wants to be notified when a service disappears.
+void NotifyProcessWhenServiceDisappears(Process* process,
+                                        size_t service_process_id,
+                                        size_t service_message_id,
+                                        size_t message_id);
+
+// Unregisters that a process wants to be notified when a service disappears.
+void StopNotifyingProcessWhenServiceDisappears(Process* process,
+                                               size_t message_id);
+
+// Unregisters that a process wants to be notified when a service disappears.
+void StopNotifyingProcessWhenServiceDisappears(
+    ProcessToNotifyWhenServiceDisappears* notification);
