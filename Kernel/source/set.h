@@ -15,91 +15,63 @@
 #pragma once
 
 #include "aa_tree.h"
+#include "linked_list.h"
 #include "object_pool.h"
+
+// A node in the set.
+struct SetNode {
+  // Value of this node.
+  size_t value;
+
+  // This node in the AATree.
+  AATreeNode aa_tree_node;
+
+  // This node in the linked list of all nodes.
+  LinkedListNode linked_list_node;
+};
 
 // A set of values.
 template <class T>
 class Set {
  public:
-  Set() { InitializeAATree(&tree_); }
+  Set() {}
 
   ~Set() {
-    while (first_node_ != nullptr) {
-      Node* next = first_node_->next;
-      ObjectPool<Node>::Release(first_node_);
-      first_node_ = next;
-    }
+    while (!nodes_.IsEmpty()) ObjectPool<SetNode>::Release(nodes_.PopFront());
   }
 
   // Inserts a value into the set. Does nothing if the value is already
   // inserted.
   void Insert(T value) {
-    AATreeNode* aa_node = SearchForNodeEqualToValue(
-        &tree_, static_cast<size_t>(value), Set<T>::ValueFunction);
-    if (aa_node == nullptr) return;
+    if (tree_.SearchForItemEqualToValue(static_cast<size_t>(value)) != nullptr)
+      return;  // Already inserted.
 
-    Node* node = ObjectPool<Node>::Allocate();
-    node->value = value;
-    node->next = first_node_;
-    node->previous = nullptr;
-    if (first_node_ != nullptr) first_node_->previous = node;
-    InsertNodeIntoAATree(&tree_, &node->node, Set<T>::ValueFunction);
+    SetNode* node = ObjectPool<SetNode>::Allocate();
+    node->value = static_cast<size_t>(value);
+    nodes_.AddBack(node);
+    tree_.Insert(node);
   }
 
   // Removes a value from the set. Does nothing if the value is not in the set.
-  void Erase(T value) {
-    AATreeNode* aa_node = SearchForNodeEqualToValue(
-        &tree_, static_cast<size_t>(value), Set<T>::ValueFunction);
-    if (aa_node == nullptr) return;
+  void Remove(T value) {
+    SetNode* node = tree_.SearchForItemEqualToValue(static_cast<size_t>(value));
+    if (node == nullptr) return;
 
-    Node* node = NodeFromAATreeNode(aa_node);
-    if (node->previous == nullptr) {
-      first_node_ = node->next;
-    } else {
-      node->previous->next = node->next;
-    }
-    if (node->next != nullptr) node->next->previous = node->previous;
-
-    RemoveNodeFromAATree(&tree_, aa_node, Set<T>::ValueFunction);
-    ObjectPool<Node>::Release(node);
+    nodes_.Remove(value);
+    tree_.Remove(node);
+    ObjectPool<SetNode>::Release(node);
   }
 
   // Returns if a value is in a set.
   bool Contains(T value) {
-    return SearchForNodeEqualToValue(&tree_, static_cast<size_t>(value),
-                                     Set<T>::ValueFunction) != nullptr;
+    return tree_.SearchForItemEqualToValue(static_cast<size_t>(value)) !=
+           nullptr;
   }
 
  private:
-  // A node in the set.
-  struct Node {
-    // Value of this node.
-    T value;
+  // Tree of nodes keyed by their value.
+  AATree<SetNode, &SetNode::aa_tree_node, &SetNode::value> tree_;
 
-    // This node in the AATree.
-    AATreeNode node;
-
-    // The next node.
-    Node* next;
-
-    // The previous node.
-    Node* previous;
-  };
-
-  // The root of the AATree.
-  AATree tree_;
-
-  // Linked list of nodes.
-  Node* first_node_;
-
-  // Returns the outer Node from an AATreeNode.
-  static Node* NodeFromAATreeNode(AATreeNode* aa_node) {
-    size_t node_offset = (size_t) & ((Node*)0)->node;
-    return (Node*)((size_t)aa_node - node_offset);
-  }
-
-  // Returns the value for an AATreeNode.
-  static size_t ValueFunction(AATreeNode* aa_node) {
-    return static_cast<size_t>(NodeFromAATreeNode(aa_node)->value);
-  }
+  // All nodes.
+  LinkedList<SetNode, &SetNode::linked_list_node> nodes_;
 };

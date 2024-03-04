@@ -51,13 +51,11 @@ class LinkedList {
   }
 
   void InsertBefore(C* next_item, C* item) {
-    if (next_item == nullptr)
-      return AddBack(item);
+    if (next_item == nullptr) return AddBack(item);
 
     auto* next_node = ItemToNode(next_item);
-    if (next_node == first_node_)
-      return AddFront(item);
-    
+    if (next_node == first_node_) return AddFront(item);
+
     auto* item_node = ItemToNode(item);
     item_node->previous = next_node->previous;
     item_node->next = next_node->next;
@@ -67,12 +65,10 @@ class LinkedList {
   }
 
   void InsertAfter(C* previous_item, C* item) {
-    if (previous_item == nullptr)
-      return AddFront(item);
-    
+    if (previous_item == nullptr) return AddFront(item);
+
     auto* previous_node = ItemToNode(previous_item);
-    if (previous_node == last_node_)
-      return AddBack(item);
+    if (previous_node == last_node_) return AddBack(item);
 
     auto* item_node = ItemToNode(item);
     item_node->previous = previous_node;
@@ -154,22 +150,16 @@ class LinkedList {
       return item_ == other.item_;
     }
 
-    bool operator!=(const Iterator& other) const {
-      return !(*this == other);
-    }
+    bool operator!=(const Iterator& other) const { return !(*this == other); }
 
    private:
     LinkedList* list_;
     C* item_;
   };
 
-  Iterator begin() {
-    return Iterator(this, FirstItem());
-  }
+  Iterator begin() { return Iterator(this, FirstItem()); }
 
-  Iterator end() {
-    return Iterator(this, nullptr);
-  }
+  Iterator end() { return Iterator(this, nullptr); }
 
  private:
   void InsertAsOnlyNode(LinkedListNode* node) {

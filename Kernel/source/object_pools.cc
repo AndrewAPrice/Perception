@@ -7,6 +7,7 @@
 #include "object_pool.h"
 #include "process.h"
 #include "service.h"
+#include "set.h"
 #include "shared_memory.h"
 #include "thread.h"
 #include "timer_event.h"
@@ -15,7 +16,7 @@
 // A list of classes for which there are object pools for.
 #define POOLED_CLASSES                                                       \
   FreeMemoryRange, Message, MessageToFireOnInterrupt, ProcessToNotifyOnExit, \
-      ProcessToNotifyWhenServiceAppears, Service, SharedMemory,              \
+      ProcessToNotifyWhenServiceAppears, SetNode, Service, SharedMemory,     \
       SharedMemoryInProcess, TimerEvent, Thread,                             \
       ThreadWaitingForSharedMemoryPage
 
@@ -54,4 +55,6 @@ void InitializeObjectPools() {
 }
 
 // Clean up object pools to gain some memory back.
-void CleanUpObjectPools() { ObjectPoolHelper::CleanUpAllPools<POOLED_CLASSES>(); }
+void CleanUpObjectPools() {
+  ObjectPoolHelper::CleanUpAllPools<POOLED_CLASSES>();
+}

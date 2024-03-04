@@ -110,29 +110,6 @@ FreeMemoryRange statically_allocated_free_memory_ranges
 void MarkAddressRangeAsFree(VirtualAddressSpace *address_space, size_t address,
                             size_t pages);
 
-// Returns the FreeMemoryRange from a pointer to a `node_by_address` field.
-FreeMemoryRange *FreeMemoryRangeFromNodeByAddress(AATreeNode *node) {
-  size_t node_offset = (size_t) & ((FreeMemoryRange *)0)->node_by_address;
-  return (FreeMemoryRange *)((size_t)node - node_offset);
-}
-
-// Returns the start address from a pointer to a `node_by_address` field.
-size_t FreeMemoryRangeAddressFromAATreeNode(AATreeNode *node) {
-  return FreeMemoryRangeFromNodeByAddress(node)->start_address;
-}
-
-// Returns the FreeMemoryRange from a pointer to a `node_by_size` field.
-FreeMemoryRange *FreeMemoryRangeFromNodeBySize(AATreeNode *node) {
-  size_t node_offset = (size_t) & ((FreeMemoryRange *)0)->node_by_size;
-
-  return (FreeMemoryRange *)((size_t)node - node_offset);
-}
-
-// Returns the size from a pointer to a `node_by_size` field.
-size_t FreeMemoryRangeSizeFromAATreeNode(AATreeNode *node) {
-  return FreeMemoryRangeFromNodeBySize(node)->pages;
-}
-
 void PrintFreeAddressRanges(VirtualAddressSpace *address_space) {
   print << "Free address ranges:\n" << NumberFormat::Hexidecimal;
   for (auto *fmr : address_space->free_memory_ranges) {
@@ -143,21 +120,15 @@ void PrintFreeAddressRanges(VirtualAddressSpace *address_space) {
 
 void AddFreeMemoryRangeToVirtualAddressSpace(VirtualAddressSpace *address_space,
                                              FreeMemoryRange *fmr) {
-  InsertNodeIntoAATree(&address_space->free_chunks_by_address,
-                       &fmr->node_by_address,
-                       FreeMemoryRangeAddressFromAATreeNode);
-  InsertNodeIntoAATree(&address_space->free_chunks_by_size, &fmr->node_by_size,
-                       FreeMemoryRangeSizeFromAATreeNode);
+  address_space->free_chunks_by_address.Insert(fmr);
+  address_space->free_chunks_by_size.Insert(fmr);
   address_space->free_memory_ranges.AddFront(fmr);
 }
 
 void RemoveFreeMemoryRangeFromVirtualAddressSpace(
     VirtualAddressSpace *address_space, FreeMemoryRange *fmr) {
-  RemoveNodeFromAATree(&address_space->free_chunks_by_address,
-                       &fmr->node_by_address,
-                       FreeMemoryRangeAddressFromAATreeNode);
-  RemoveNodeFromAATree(&address_space->free_chunks_by_size, &fmr->node_by_size,
-                       FreeMemoryRangeSizeFromAATreeNode);
+  address_space->free_chunks_by_address.Remove(fmr);
+  address_space->free_chunks_by_size.Remove(fmr);
   address_space->free_memory_ranges.Remove(fmr);
 }
 
@@ -319,13 +290,11 @@ void MarkAddressRangeAsFree(VirtualAddressSpace *address_space, size_t address,
   // after.
 
   // Search for a block right before.
-  FreeMemoryRange *block_before = nullptr;
-  AATreeNode *node_before = SearchForNodeLessThanOrEqualToValue(
-      &address_space->free_chunks_by_address, address,
-      FreeMemoryRangeAddressFromAATreeNode);
+  FreeMemoryRange *block_before =
+      address_space->free_chunks_by_address.SearchForItemLessThanOrEqualToValue(
+          address);
 
-  if (node_before != nullptr) {
-    block_before = FreeMemoryRangeFromNodeByAddress(node_before);
+  if (block_before != nullptr) {
     if (block_before->start_address == address) {
       print << "Error: block_before->start_address == address\n";
       return;
@@ -340,8 +309,8 @@ void MarkAddressRangeAsFree(VirtualAddressSpace *address_space, size_t address,
             << block_before->start_address << " -> "
             << (block_before->start_address + (block_before->pages * PAGE_SIZE))
             << '\n';
-      PrintAATree(&address_space->free_chunks_by_address,
-                  FreeMemoryRangeAddressFromAATreeNode);
+
+      address_space->free_chunks_by_address.PrintAATree();
       return;
     }
 
@@ -353,12 +322,9 @@ void MarkAddressRangeAsFree(VirtualAddressSpace *address_space, size_t address,
   }
 
   // Search for a block right after.
-  FreeMemoryRange *block_after = nullptr;
-  AATreeNode *node_after = SearchForNodeEqualToValue(
-      &address_space->free_chunks_by_address, address + (pages * PAGE_SIZE),
-      FreeMemoryRangeAddressFromAATreeNode);
-  if (node_after != nullptr)
-    block_after = FreeMemoryRangeFromNodeByAddress(node_after);
+  FreeMemoryRange *block_after =
+      address_space->free_chunks_by_address.SearchForItemEqualToValue(
+          address + (pages * PAGE_SIZE));
 
   if (block_before != nullptr) {
     RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_before);
@@ -443,8 +409,6 @@ void InitializeVirtualAllocator() {
   size_t kernel_pml4 = GetPhysicalPagePreVirtualMemory();
   new (&kernel_address_space) VirtualAddressSpace();
   kernel_address_space.pml4 = kernel_pml4;
-  InitializeAATree(&kernel_address_space.free_chunks_by_address);
-  InitializeAATree(&kernel_address_space.free_chunks_by_size);
 
   // Clear the PML4.
   size_t *ptr =
@@ -546,8 +510,6 @@ bool InitializeVirtualAddressSpace(VirtualAddressSpace *virtual_address_space) {
   new (virtual_address_space) VirtualAddressSpace();
   virtual_address_space->pml4 = CreateUserSpacePML4();
   if (virtual_address_space->pml4 == OUT_OF_MEMORY) return false;
-  InitializeAATree(&virtual_address_space->free_chunks_by_address);
-  InitializeAATree(&virtual_address_space->free_chunks_by_size);
 
   // Set up what memory ranges are free. x86-64 processors use 48-bit canonical
   // addresses, split into lower-half and higher-half memory.
@@ -634,16 +596,12 @@ size_t FindAndReserveFreePageRange(VirtualAddressSpace *address_space,
 
   // Find a free chunk of memory in the virutal address space that is either
   // equal to or greater than what we need.
-  AATreeNode *node = SearchForNodeGreaterThanOrEqualToValue(
-      &address_space->free_chunks_by_size, pages,
-      FreeMemoryRangeSizeFromAATreeNode);
-  if (node == 0) {
-    // Virtual address space is full.
-    return OUT_OF_MEMORY;
-  }
-  FreeMemoryRange *fmr = FreeMemoryRangeFromNodeBySize(node);
-  RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, fmr);
+  FreeMemoryRange *fmr =
+      address_space->free_chunks_by_size.SearchForItemGreaterThanOrEqualToValue(
+          pages);
+  if (fmr == nullptr) return OUT_OF_MEMORY;  // Virtual address space is full.
 
+  RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, fmr);
   if (fmr->pages == pages) {
     // This is exactly the size we need! We can use this whole block.
     size_t address = fmr->start_address;
@@ -700,14 +658,12 @@ size_t GetPhysicalAddress(VirtualAddressSpace *address_space,
 
 bool MarkVirtualAddressAsUsed(VirtualAddressSpace *address_space,
                               size_t address) {
-  AATreeNode *node_before = SearchForNodeLessThanOrEqualToValue(
-      &address_space->free_chunks_by_address, address,
-      FreeMemoryRangeAddressFromAATreeNode);
+  FreeMemoryRange *block_before =
+      address_space->free_chunks_by_address.SearchForItemLessThanOrEqualToValue(
+          address);
 
   // Check if memory is already occupied.
-  if (node_before == nullptr) return false;
-
-  FreeMemoryRange *block_before = FreeMemoryRangeFromNodeByAddress(node_before);
+  if (block_before == nullptr) return false;
 
   // Check if memory is already occupied.
   if (block_before->start_address + (block_before->pages * PAGE_SIZE) <=
@@ -1014,10 +970,9 @@ void UnmapSharedMemoryFromProcess(
   auto *shared_memory = shared_memory_in_process->shared_memory;
 
   // Unmap the virtual pages.
-  ReleaseVirtualMemoryInAddressSpace(
-      &process->virtual_address_space,
-      shared_memory_in_process->virtual_address,
-      shared_memory->size_in_pages, false);
+  ReleaseVirtualMemoryInAddressSpace(&process->virtual_address_space,
+                                     shared_memory_in_process->virtual_address,
+                                     shared_memory->size_in_pages, false);
 
   process->joined_shared_memories.Remove(shared_memory_in_process);
   shared_memory->joined_processes.Remove(shared_memory_in_process);

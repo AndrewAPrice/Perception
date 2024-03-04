@@ -45,10 +45,14 @@ struct VirtualAddressSpace {
   LinkedList<FreeMemoryRange, &FreeMemoryRange::node> free_memory_ranges;
 
   // Tree of free chunks by start address.
-  AATree free_chunks_by_address;
+  AATree<FreeMemoryRange, &FreeMemoryRange::node_by_address,
+         &FreeMemoryRange::start_address>
+      free_chunks_by_address;
 
   // Tree of free chunks by size.
-  AATree free_chunks_by_size;
+  AATree<FreeMemoryRange, &FreeMemoryRange::node_by_size,
+         &FreeMemoryRange::pages>
+      free_chunks_by_size;
 };
 
 // The kernel's virtual address space.
