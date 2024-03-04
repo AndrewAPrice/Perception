@@ -39,7 +39,7 @@ int window_manager_texture_id;
 SharedMemory window_manager_texture_buffer;
 
 bool screen_is_drawing;
-bool waiting_on_screen_to_finish_drawing;
+Fiber* fiber_waiting_on_screen_to_finish_drawing;
 
 }  // namespace
 
@@ -72,8 +72,8 @@ void InitializeScreen() {
       std::move(create_texture_response.GetPixelBuffer());
   window_manager_texture_buffer.Join();
 
+  fiber_waiting_on_screen_to_finish_drawing = nullptr;
   screen_is_drawing = false;
-  waiting_on_screen_to_finish_drawing = false;
 }
 
 ::permebuf::perception::devices::GraphicsDriver& GetGraphicsDriver() {
@@ -92,7 +92,13 @@ uint32* GetWindowManagerTextureData() {
 
 void SleepUntilWeAreReadyToStartDrawing() {
   if (screen_is_drawing) {
-    waiting_on_screen_to_finish_drawing = true;
+    if (fiber_waiting_on_screen_to_finish_drawing != nullptr) {
+      std::cout << "Multiple fibers shouldn't be queued for the screen to "
+                   "finish drawing."
+                << std::endl;
+    }
+    fiber_waiting_on_screen_to_finish_drawing =
+        perception::GetCurrentlyExecutingFiber();
     Sleep();
   }
 }
@@ -104,14 +110,12 @@ void RunDrawCommands(
   // Send the draw calls.
   screen_is_drawing = true;
 
-  auto main_fiber = perception::GetCurrentlyExecutingFiber();
   graphics_driver.CallRunCommandsAndWait(
       std::move(commands),
-      [main_fiber](StatusOr<GraphicsDriver::EmptyResponse> response) {
+      [](StatusOr<GraphicsDriver::EmptyResponse> response) {
         screen_is_drawing = false;
-        if (waiting_on_screen_to_finish_drawing) {
-          waiting_on_screen_to_finish_drawing = false;
-          main_fiber->WakeUp();
-        }
+        Fiber* waiting_fiber = fiber_waiting_on_screen_to_finish_drawing;
+        fiber_waiting_on_screen_to_finish_drawing = nullptr;
+        if (waiting_fiber) waiting_fiber->WakeUp();
       });
 }
