@@ -43,7 +43,7 @@ struct Process {
   size_t pid;
 
   // Name of the process.
-  char name[PROCESS_NAME_LENGTH];
+  char name[PROCESS_NAME_LENGTH + 1];
 
   // Is this a process a driver? Drivers have permission to do IO.
   bool is_driver;

@@ -14,6 +14,7 @@
 
 #include "exceptions.h"
 
+#include "core_dump.h"
 #include "exceptions.asm.h"
 #include "idt.h"
 #include "interrupts.asm.h"
@@ -27,6 +28,46 @@
 #include "text_terminal.h"
 #include "thread.h"
 #include "virtual_allocator.h"
+
+namespace {
+
+// On an exception, print a core dump instead of anything else.
+constexpr bool kCoreDumpOnException = true;
+
+void PrintException(bool in_kernel, int exception_no, size_t cr2,
+                    size_t error_code) {
+  if (kCoreDumpOnException) {
+    Process* process = in_kernel ? nullptr : running_thread->process;
+    Thread* thread = in_kernel ? nullptr : running_thread;
+    PrintCoreDump(process, thread, exception_no, cr2, error_code);
+  }
+  Exception exception = static_cast<Exception>(exception_no);
+  // Output the exception that occured.
+  if (exception_no < 32) {
+    print << "\nException occured: " << GetExceptionName(exception) << " ("
+          << NumberFormat::Decimal << exception_no << ')';
+  } else {
+    // This should never trigger, because we haven't registered ourselves
+    // for interrupts >= 32.
+    print << "\nUnknown exception: " << NumberFormat::Decimal << exception_no;
+  }
+
+  if (in_kernel) {
+    print << " in kernel";
+  } else {
+    Process* process = running_thread->process;
+    print << " by PID " << process->pid << " (" << process->name << ") in TID "
+          << running_thread->id;
+  }
+
+  if (exception == Exception::PageFault) {
+    print << " for trying to access " << NumberFormat::Hexidecimal << cr2;
+  }
+  print << " with error code: " << NumberFormat::Decimal << error_code << '\n';
+  PrintRegistersAndStackTrace();
+}
+
+}  // namespace
 
 // Register the CPU exception interrupts.
 void RegisterExceptionInterrupts() {
@@ -120,32 +161,10 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
       JumpIntoThread();  // Doesn't return.
   }
 
-  // Output the exception that occured.
-  if (exception_no < 32) {
-    print << "\nException occured: " << GetExceptionName(exception)
-          << " (" << NumberFormat::Decimal << exception_no << ')';
-  } else {
-    // This should never trigger, because we haven't registered ourselves
-    // for interrupts >= 32.
-    print << "\nUnknown exception: " << NumberFormat::Decimal << exception_no;
-  }
-
   bool in_kernel = currently_executing_thread_regs == nullptr ||
+                   running_thread == nullptr ||
                    IsKernelAddress(currently_executing_thread_regs->rip);
-
-  if (in_kernel) {
-    print << " in kernel";
-  } else {
-    Process* process = running_thread->process;
-    print << " by PID " << process->pid << " (" << process->name << ") in TID "
-          << running_thread->id;
-  }
-
-  if (exception == Exception::PageFault) {
-    print << " for trying to access " << NumberFormat::Hexidecimal << cr2;
-  }
-  print << " with error code: " << NumberFormat::Decimal << error_code << '\n';
-  PrintRegistersAndStackTrace();
+  PrintException(in_kernel, exception_no, cr2, error_code);
 
   if (in_kernel) {
 #ifndef __TEST__

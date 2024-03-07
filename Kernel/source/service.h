@@ -69,7 +69,7 @@ struct Service {
   size_t message_id;
 
   // The name of the service.
-  char name[SERVICE_NAME_LENGTH];
+  char name[SERVICE_NAME_LENGTH + 1];
 
   // Linked list of registered services in this process.
   LinkedListNode node_in_process;

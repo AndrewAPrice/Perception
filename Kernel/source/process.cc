@@ -44,7 +44,7 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->can_create_processes = can_create_processes;
 
   // Assign a name and process ID.
-  memset((char *)proc->name, 0, PROCESS_NAME_LENGTH);  // Clear the name.
+  memset((char *)proc->name, 0, PROCESS_NAME_LENGTH + 1);  // Clear the name.
   last_assigned_pid++;
   proc->pid = last_assigned_pid;
 

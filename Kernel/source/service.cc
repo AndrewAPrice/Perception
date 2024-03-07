@@ -50,6 +50,7 @@ void RegisterService(char* service_name, Process* process, size_t message_id) {
   service->message_id = message_id;
   for (int i = 0; i < SERVICE_NAME_WORDS; i++)
     ((size_t*)service->name)[i] = ((size_t*)service_name)[i];
+  service->name[SERVICE_NAME_LENGTH - 1] = '\0';
 
   // Add to the linked list of services in the process.
   if (process->services.IsEmpty()) {
