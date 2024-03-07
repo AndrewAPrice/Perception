@@ -14,16 +14,21 @@
 
 const process = require('process');
 const child_process = require('child_process');
-const {build} = require('./build');
-const {buildImage} = require('./build_image');
-const {buildSettings} = require('./build_commands');
-const {escapePath} = require('./utils');
-const {PackageType} = require('./package_type');
-const {getToolPath, getOutputPath} = require('./config');
-const {runDeferredCommands} = require('./deferred_commands');
+const { build } = require('./build');
+const { buildImage } = require('./build_image');
+const { buildSettings } = require('./build_commands');
+const { escapePath } = require('./utils');
+const { PackageType } = require('./package_type');
+const { getToolPath, getOutputPath } = require('./config');
+const { runDeferredCommands } = require('./deferred_commands');
+const { monitorProcess } = require('./monitor');
 
-const EMULATOR_COMMAND = getToolPath('qemu') + ' -boot d -cdrom ' +
-    escapePath(getOutputPath()) + ' -m 512 -serial stdio';
+const EMULATOR_COMMAND = getToolPath('qemu');
+
+const EMULATOR_ARGS = [
+  '-boot', 'd', '-cdrom',
+  getOutputPath(),
+  '-m', '512', '-serial', 'stdio'];
 
 // For debugging the kernel, it's useful to add '-no-reboot -d int,cpu_reset'.
 
@@ -36,16 +41,16 @@ async function run(package) {
   if (buildSettings.os == 'Perception') {
     if (package != '') {
       console.log(
-          '\'build run\' builds everything into a disk image. If you\'re trying to run a particular application locally, please pass --local.');
+        '\'build run\' builds everything into a disk image. If you\'re trying to run a particular application locally, please pass --local.');
       process.exit(-1);
     }
     if (await buildImage()) {
-      child_process.execSync(EMULATOR_COMMAND, {stdio: 'inherit'});
+      await monitorProcess(child_process.spawn(EMULATOR_COMMAND, EMULATOR_ARGS));
     }
   } else {
     if (package == '') {
       console.log(
-          'When passing --local to \'build run\', you need to add the name of the application you want to run.');
+        'When passing --local to \'build run\', you need to add the name of the application you want to run.');
       process.exit(-1);
     }
     if (!(await build(PackageType.APPLICATION, package))) {
@@ -66,5 +71,5 @@ async function run(package) {
 }
 
 module.exports = {
-  run : run
+  run: run
 };

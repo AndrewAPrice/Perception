@@ -101,6 +101,19 @@ function getPackageBuildDirectory(packageType, packageName) {
     getBuildPackageDirectorySuffix(packageType, packageName);
 }
 
+function getPackageBinary(packageType, packageName) {
+  switch (packageType) {
+    case PackageType.APPLICATION:
+      break;
+    case PackageType.LIBRARY:
+      return libraryBinaryPath(packageType, packageName);
+    case PackageType.KERNEL:
+      packageName = 'kernel';
+      break;
+  }
+  return getPackageBuildDirectory(packageType, packageName) + packageName + '.app';
+}
+
 function getAllApplications() {
   if (!allApplications) scanForApplications();
   return allApplications;
@@ -112,6 +125,7 @@ function getAllLibraries() {
 }
 
 module.exports = {
+  getPackageBinary: getPackageBinary,
   getPackageDirectory: getPackageDirectory,
   getPackageBuildDirectory: getPackageBuildDirectory,
   getAllApplications: getAllApplications,

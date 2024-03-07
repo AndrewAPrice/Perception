@@ -21,7 +21,7 @@ const { forgetFileLastModifiedTimestamp, getFileLastModifiedTimestamp } =
   require('./file_timestamps');
 const { getBuildCommand, getLinkerCommand, buildPrefix, buildSettings } =
   require('./build_commands');
-const { getPackageDirectory, getPackageBuildDirectory } =
+const { getPackageBinary, getPackageDirectory, getPackageBuildDirectory } =
   require('./package_directory');
 const { transpilePermebufToCppForPackage } = require('./permebufs');
 const { getMetadata, getStandaloneLibraryMetadata } = require('./metadata');
@@ -192,8 +192,7 @@ async function link(
   } else if (packageType == PackageType.APPLICATION) {
     if (buildSettings.test) return true;
     // Link application.
-    const binaryPath = getPackageBuildDirectory(packageType, packageName) +
-      packageName + '.app';
+    const binaryPath = getPackageBinary(packageType, packageName);
     const librariesToLink = [];
 
     forEachIfDefined(metadata.libraries, library => {
@@ -248,8 +247,7 @@ async function link(
     return true;
   } else if (packageType == PackageType.KERNEL) {
     // Link kernel.
-    const binaryPath =
-      getPackageBuildDirectory(packageType, packageName) + 'kernel.app';
+    const binaryPath = getPackageBinary(packageType, packageName);
     if (!anythingChanged && fs.existsSync(binaryPath)) {
       return true;
     }
