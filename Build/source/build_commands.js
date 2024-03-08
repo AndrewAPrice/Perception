@@ -59,12 +59,12 @@ function generateBuildCommand(language, cParams, inputFile, outputFile) {
         '-mno-red-zone -c -MD -MF ${deps}' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
   } else if (language == 'Kernel C++') {
     return getToolPath('gcc') + ' -mcmodel=kernel ' +
-      '-ffreestanding -fno-builtin  -c -std=c++20 ' +
+      '-ffreestanding -fno-builtin  -c -std=c++20  -mno-sse ' +
       '-MD -MF ${deps}  -O3 -isystem ' + escapePath(getKernelDirectory() + '/source')
       + ' ' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
   }  else if (language == 'Kernel C') {
     return getToolPath('gcc') + ' -mcmodel=kernel ' +
-      '-ffreestanding -fno-builtin  -c ' +
+      '-ffreestanding -fno-builtin  -mno-sse -c ' +
       '-MD -MF ${deps}  -O3 -isystem ' + escapePath(getKernelDirectory() + '/source')
       + ' ' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
   } else if (language == 'Intel ASM') {
