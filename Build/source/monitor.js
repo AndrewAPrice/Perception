@@ -34,6 +34,8 @@ const kCoreDumpStep_ReadFile = 3;
 // Number of core dumps this run.
 let coreDumpsThisRun = 0;
 
+const ERASE_LINE = '\033[2K\r';
+
 function getNextCoreDumpPath() {
     // Create the directory this program is in.
     const coreDumpDirectory = getTempDirectory() + kCoreDumpsSubDirectory
@@ -52,10 +54,13 @@ async function monitorProcess(emulatorProcess) {
         let buffer = '';
         let readingCoreDump = false;
         let step = 0;
+        let totalBytes = 0;
         let remainingBytes = 0;
         let coreDumpProcess = '';
         let coreDumpPath = '';
         let coreDumpStream = null;
+        let update_percentage_every_x_bytes = 0;
+        let bytes_until_percentage_updated = 0;
 
         const handleCommand = () => {
             switch (buffer) {
@@ -77,29 +82,38 @@ async function monitorProcess(emulatorProcess) {
         const startCoreDumpForProcess = () => {
             if (buffer.length > 0) {
                 process.stdout.write(buffer);
-                coreDumpProcess = getPackageBinary(PackageType.APPLICATION, 'kernel');
+                coreDumpProcess = getPackageBinary(PackageType.APPLICATION, buffer);
             } else {
                 process.stdout.write('kernel');
                 coreDumpProcess = getPackageBinary(PackageType.KERNEL, 'kernel');
             }
 
             coreDumpPath = getNextCoreDumpPath();
-            coreDumpStream = fs.createWriteStream(coreDumpPath, {"encoding": "binary"});
+            coreDumpStream = fs.createWriteStream(coreDumpPath, { "encoding": "binary" });
             step = kCoreDumpStep_ReadFileLength;
             buffer = '';
         };
 
         const coreDumpSize = (size) => {
-            process.stdout.write(" ( " + size + ' bytes)..');
-            console.log();
+            process.stdout.write(" ( " + size + ' bytes)..\n');
+            last_percentage = 0;
+            process.stdout.write("0%");
         };
 
         const writeByteToCoreDump = (byte) => {
             coreDumpStream.write(byte);
+            bytes_until_percentage_updated--;
+            if (bytes_until_percentage_updated == 0) {
+                const percentage = Math.round(((totalBytes - remainingBytes) / totalBytes) * 100);
+                process.stdout.write(ERASE_LINE);
+                process.stdout.write(`${percentage}%`);
+                bytes_until_percentage_updated = update_percentage_every_x_bytes;
+            }
         }
 
         const endCoreDumpForProcess = () => {
             coreDumpStream.end();
+            process.stdout.write(ERASE_LINE);
             console.log("Core dump for " + coreDumpProcess + " is at " + coreDumpPath);
             buffer = '';
             readingCoreDump = false;
@@ -163,6 +177,9 @@ async function monitorProcess(emulatorProcess) {
                                     endCoreDumpForProcess();
                                 } else {
                                     step = kCoreDumpStep_ReadFile;
+                                    totalBytes = remainingBytes;
+                                    update_percentage_every_x_bytes = Math.max(1, Math.round(totalBytes / 100));
+                                    bytes_until_percentage_updated = update_percentage_every_x_bytes;
                                 }
                             } else {
                                 buffer += char;
@@ -171,8 +188,10 @@ async function monitorProcess(emulatorProcess) {
                         case kCoreDumpStep_ReadFile:
                             writeByteToCoreDump(char);
                             remainingBytes--;
-                            if (remainingBytes == 0)
+                            if (remainingBytes == 0) {
+                                // Remove the percentage.
                                 endCoreDumpForProcess();
+                            }
                             break;
                         default:
                             handlingSpecialOutput = false;
