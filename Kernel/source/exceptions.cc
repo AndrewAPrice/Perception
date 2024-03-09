@@ -36,10 +36,9 @@ constexpr bool kCoreDumpOnException = true;
 
 void PrintException(bool in_kernel, int exception_no, size_t cr2,
                     size_t error_code) {
-  if (kCoreDumpOnException) {
-    Process* process = in_kernel ? nullptr : running_thread->process;
-    Thread* thread = in_kernel ? nullptr : running_thread;
-    PrintCoreDump(process, thread, exception_no, cr2, error_code);
+  if (kCoreDumpOnException && !in_kernel) {
+    PrintCoreDump(running_thread->process, running_thread, exception_no, cr2,
+                  error_code);
   }
   Exception exception = static_cast<Exception>(exception_no);
   // Output the exception that occured.

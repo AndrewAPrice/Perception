@@ -1028,6 +1028,12 @@ void SetMemoryAccessRights(VirtualAddressSpace *address_space, size_t address,
   FlushVirtualPage(address);
 }
 
-extern bool IsKernelAddress(size_t address) {
+bool IsKernelAddress(size_t address) {
   return address >= VIRTUAL_MEMORY_OFFSET;
+}
+
+void GetUserspaceVirtualMemoryHole(size_t &hole_start_address,
+                                   size_t &hole_end_address) {
+  hole_start_address = kMaxLowerHalfUserSpaceAddress + 1;
+  hole_end_address = kMinHigherHalfUserSpaceAddress - 1;
 }

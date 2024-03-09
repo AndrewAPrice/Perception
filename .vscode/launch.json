@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "custom",
+            "name": "Open a core dump",
+            "initCommands": [
+                "target create \"${input:binaryFileName}\" -c \"${input:coreFileName}\""
+            ]
+        }
+    ],
+    "inputs": [
+      {
+        "id": "coreFileName",
+        "type": "promptString",
+        "description": "Enter core file path"
+      },
+      {
+        "id": "binaryFileName",
+        "type": "promptString",
+        "description": "Enter binary file path"
+      }
+    ] 
+}

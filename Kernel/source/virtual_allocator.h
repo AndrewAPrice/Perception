@@ -151,3 +151,8 @@ extern void SetMemoryAccessRights(VirtualAddressSpace *address_space,
 
 // Returns whether the provided address lives within kernel space.
 extern bool IsKernelAddress(size_t address);
+
+// Returns the non-canonical hole in virtual memory. Start and end addresses are
+// inclusive.
+extern void GetUserspaceVirtualMemoryHole(size_t &hole_start_address,
+                                          size_t &hole_end_address);
