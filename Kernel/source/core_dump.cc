@@ -25,8 +25,14 @@
 
 namespace {
 
+// The non-printable escape code that the monitor picks up that something
+// special is about to happen.
 constexpr char kMonitorEscapeCode = '\xFF';
-constexpr char kCoreDumpSequence[] = "CoreDump";
+
+// The sequence sent to the monitor to say a core dump is happening.
+constexpr char kCoreDumpMonitorSequence[] = "CoreDump";
+
+// The name of the PT_NOTE notes.
 constexpr char kCoreDumpNoteName[] = "CORE";
 constexpr int kCoreDumpNoteNameCharacters = 5;  // Includes null terminator.
 constexpr int kCoreDumpNoteNameMaxCharacters = 8;
@@ -86,11 +92,6 @@ template <typename TCallbackFunc>
 void OnEachMemoryChunkInVirtualAddressSpace(
     VirtualAddressSpace *virtual_address_space,
     TCallbackFunc &&on_each_memory_chunk) {
-  /*  if (virtual_address_space == &kernel_address_space) {
-      CountMemoryAndChunksInVirtualAddressSpaceAndRange(
-          virtual_address_space, VIRTUAL_MEMORY_OFFSET, 0xFFFFFFFFFFFFFFFF,
-          on_each_memory_chunk);
-    } else { */
   // User space memory has a 'hole' of non-canonical addresses in the middle.
   size_t hole_start, hole_end;
   GetUserspaceVirtualMemoryHole(hole_start, hole_end);
@@ -101,7 +102,6 @@ void OnEachMemoryChunkInVirtualAddressSpace(
   CountMemoryAndChunksInVirtualAddressSpaceAndRange(
       virtual_address_space, hole_end + 1, VIRTUAL_MEMORY_OFFSET - 1,
       on_each_memory_chunk);
-  // }
 }
 
 size_t CoreDumpSize(Process *process, size_t threads, size_t memory_chunks,
@@ -370,7 +370,8 @@ void PrintCoreDump(Process *process, Thread *target_thread, int exception_no,
           any_page_unaligned_chunks = true;
           return;
         }
-        print << NumberFormat::Hexidecimal << start_address << " -> " << end_address << "\n";
+        print << NumberFormat::Hexidecimal << start_address << " -> "
+              << end_address << "\n";
         memory_size += size;
         memory_chunks++;
       });
@@ -381,16 +382,11 @@ void PrintCoreDump(Process *process, Thread *target_thread, int exception_no,
   }
 
   // Let the monitor know that a core dump is being output.
-  print << kMonitorEscapeCode << kCoreDumpSequence << kMonitorEscapeCode
+  print << kMonitorEscapeCode << kCoreDumpMonitorSequence << kMonitorEscapeCode
         << NumberFormat::DecimalWithoutCommas;
   // Print the length of the process name, followed by the name of the
   // process.
-  if (process == nullptr) {
-    print << "0" << kMonitorEscapeCode;
-  } else {
-    print << (size_t)strlen(process->name) << kMonitorEscapeCode
-          << process->name;
-  }
+  print << (size_t)strlen(process->name) << kMonitorEscapeCode << process->name;
   print << CoreDumpSize(process, threads, memory_chunks, memory_size)
         << kMonitorEscapeCode;
   PrintCoreDumpContents(virtual_address_space, process, target_thread,
