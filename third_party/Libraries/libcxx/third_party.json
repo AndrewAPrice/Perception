@@ -14,6 +14,11 @@
     "operations": [
         {
             "operation": "copy",
+            "source": "${git}/libcxx/vendor/llvm/default_assertion_handler.in",
+            "destination": "public/__assertion_handler"
+        },
+        {
+            "operation": "copy",
             "source": "${git}/libcxx/include",
             "destination": "public",
             "recursive": true
