@@ -1,0 +1,33 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/llvm/llvm-project.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "readFilesInDirectory",
+            "path": "${git}/compiler-rt/lib/builtins/x86_64",
+            "placeholder": "builtins-x86_64-files",
+            "extensions": [".s"],
+            "fullPath": true,
+            "replacements": [
+                ["${git}/compiler-rt/lib/builtins/x86_64", "${@}/source/builtins/"],
+                [".s", ".c"]
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/compiler-rt/lib/builtins",
+            "destination": "source/builtins",
+            "exclude": ["${-x86_64-files}"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/compiler-rt/lib/builtins/x86_64",
+            "destination": "source/builtins/x86_64"
+        }
+    ]
+}

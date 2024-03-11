@@ -14,7 +14,7 @@
 
 #include "perception/ui/resize_method.h"
 
-#include <math.h>
+#include <algorithm>
 
 namespace perception {
 namespace ui {

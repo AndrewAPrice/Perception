@@ -14,9 +14,9 @@
 
 const process = require('process');
 const fs = require('fs');
-const {forEachIfDefined} = require('./utils');
-const {getPackageDirectory} = require('./package_directory');
-const {PackageType} = require('./package_type');
+const { forEachIfDefined } = require('./utils');
+const { getPackageDirectory } = require('./package_directory');
+const { PackageType } = require('./package_type');
 
 const standaloneApplicationMetadatas = {};
 const combinedApplicationMetadatas = {};
@@ -28,10 +28,10 @@ function loadStandaloneMetadata(name, packageType) {
 
   if (!fs.existsSync(packageDirectory + 'metadata.json')) {
     throw Error(
-        'No metadata file exists for ' +
-        (packageType == PackageType.APPLICATION ? 'application' : 'library') +
-        ' "' + name + '". Expected the file to be at: ' + packageDirectory +
-        'metadata.json');
+      'No metadata file exists for ' +
+      (packageType == PackageType.APPLICATION ? 'application' : 'library') +
+      ' "' + name + '". Expected the file to be at: ' + packageDirectory +
+      'metadata.json');
   }
   let metadata = {};
   try {
@@ -42,28 +42,34 @@ function loadStandaloneMetadata(name, packageType) {
   }
   if (!metadata.public_include) {
     if (packageType == PackageType.APPLICATION ||
-        !fs.existsSync(packageDirectory + 'public')) {
+      !fs.existsSync(packageDirectory + 'public')) {
       metadata.public_include = [];
     } else {
       metadata.public_include = ['public'];
     }
   }
 
+  if (packageType == PackageType.APPLICATION) {
+    // All applications should include the LLVM compiler instrinsics.
+    metadata.dependencies.push('LLVM Compiler-RT');
+  }
+
   if (fs.existsSync(packageDirectory + 'permebuf') &&
-      fs.lstatSync(packageDirectory + 'permebuf').isDirectory()) {
+    fs.lstatSync(packageDirectory + 'permebuf').isDirectory()) {
     metadata.public_include.push('generated/include');
     metadata.has_permebufs = true;
   }
   metadata.package_directory = packageDirectory;
   metadata.metadata_updated =
-      fs.lstatSync(packageDirectory + 'metadata.json').mtimeMs;
+    fs.lstatSync(packageDirectory + 'metadata.json').mtimeMs;
   return metadata;
 }
 
 function getStandaloneApplicationMetadata(name) {
   if (!standaloneApplicationMetadatas[name]) {
     standaloneApplicationMetadatas[name] =
-        loadStandaloneMetadata(name, PackageType.APPLICATION);
+      loadStandaloneMetadata(name, PackageType.APPLICATION);
+    standaloneApplicationMetadatas[name].depndencies
   }
 
   return standaloneApplicationMetadatas[name];
@@ -72,7 +78,7 @@ function getStandaloneApplicationMetadata(name) {
 function getStandaloneLibraryMetadata(name) {
   if (!standaloneLibraryMetadatas[name]) {
     standaloneLibraryMetadatas[name] =
-        loadStandaloneMetadata(name, PackageType.LIBRARY);
+      loadStandaloneMetadata(name, PackageType.LIBRARY);
   }
 
   return standaloneLibraryMetadatas[name];
@@ -99,8 +105,8 @@ function constructCombinedMetadata(metadata, name, packageType, isLocal) {
     skip_local: metadata.skip_local ? true : false,
     metadata_updated: metadata.metadata_updated,
     output_warnings: metadata.output_warnings != undefined ?
-        metdata.ouput_warnings :
-        !metadata.third_party
+      metdata.ouput_warnings :
+      !metadata.third_party
   };
 
   forEachIfDefined(metadata.public_include, publicInclude => {
@@ -178,11 +184,11 @@ function constructCombinedMetadata(metadata, name, packageType, isLocal) {
   // Add the prioritized includes.
   Object.keys(prioritizedIncludesToAdd).sort().forEach(includePriority => {
     prioritizedIncludesToAdd[includePriority].forEach(
-        include => combinedMetadata.public_include.push(include));
+      include => combinedMetadata.public_include.push(include));
   });
   // Add the unprioritized includes.
   unprioritizedIncludesToAdd.forEach(
-      include => combinedMetadata.public_include.push(include));
+    include => combinedMetadata.public_include.push(include));
 
   return combinedMetadata;
 }
@@ -190,8 +196,8 @@ function constructCombinedMetadata(metadata, name, packageType, isLocal) {
 function getApplicationMetadata(name, isLocal) {
   if (!combinedApplicationMetadatas[name]) {
     combinedApplicationMetadatas[name] = constructCombinedMetadata(
-        getStandaloneApplicationMetadata(name), name, PackageType.APPLICATION,
-        isLocal);
+      getStandaloneApplicationMetadata(name), name, PackageType.APPLICATION,
+      isLocal);
   }
   return combinedApplicationMetadatas[name];
 }
@@ -199,7 +205,7 @@ function getApplicationMetadata(name, isLocal) {
 function getLibraryMetadata(name, isLocal) {
   if (!combinedLibraryMetadatas[name]) {
     combinedLibraryMetadatas[name] = constructCombinedMetadata(
-        getStandaloneLibraryMetadata(name), name, PackageType.LIBRARY, isLocal);
+      getStandaloneLibraryMetadata(name), name, PackageType.LIBRARY, isLocal);
   }
   return combinedLibraryMetadatas[name];
 }
@@ -216,8 +222,8 @@ function getMetadata(name, packageType, isLocal) {
 }
 
 module.exports = {
-  getStandaloneApplicationMetadata : getStandaloneApplicationMetadata,
-  getStandaloneLibraryMetadata : getStandaloneLibraryMetadata,
-  getApplicationMetadata : getApplicationMetadata,
-  getLibraryMetadata : getLibraryMetadata, getMetadata, getMetadata
+  getStandaloneApplicationMetadata: getStandaloneApplicationMetadata,
+  getStandaloneLibraryMetadata: getStandaloneLibraryMetadata,
+  getApplicationMetadata: getApplicationMetadata,
+  getLibraryMetadata: getLibraryMetadata, getMetadata, getMetadata
 };

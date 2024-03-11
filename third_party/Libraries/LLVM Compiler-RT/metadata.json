@@ -1,0 +1,9 @@
+{
+	"dependencies":[
+		"libclang compiler headers",
+        "libcxx",
+		"musl"
+	],
+	"skip_local": true,
+	"third_party": true
+}
