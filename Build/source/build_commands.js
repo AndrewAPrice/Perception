@@ -43,12 +43,12 @@ function generateBuildCommand(language, cParams, inputFile, outputFile) {
   if (language == 'C++') {
     let command = '';
     if (isLocalBuild)
-      return getToolPath('local-gcc') + ' -c -std=c++20 -MD -MF ${deps}' +
+      return getToolPath('local-gcc') + ' -c -std=c++23 -MD -MF ${deps}' +
         cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
     else
       return getToolPath('gcc') +
         ' -fverbose-asm -m64 -ffreestanding -nostdlibinc ' +
-        '-nostdinc++ -mno-red-zone -c -std=c++20 -MD -MF ${deps}' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
+        '-nostdinc++ -mno-red-zone -c -std=c++23 -MD -MF ${deps}' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
   } else if (language == 'C') {
     if (isLocalBuild)
       return getToolPath('local-gcc') + ' -c -std=c17 -MD -MF ${deps}' +
@@ -59,7 +59,7 @@ function generateBuildCommand(language, cParams, inputFile, outputFile) {
         '-mno-red-zone -c -MD -MF ${deps}' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
   } else if (language == 'Kernel C++') {
     return getToolPath('gcc') + ' -mcmodel=kernel ' +
-      '-ffreestanding -fno-builtin  -c -std=c++20  -mno-sse ' +
+      '-ffreestanding -fno-builtin  -c -std=c++23  -mno-sse ' +
       '-MD -MF ${deps}  -O3 -isystem ' + escapePath(getKernelDirectory() + '/source')
       + ' ' + cParams + ' -o ' + escapePath(outputFile) + ' ' + escapePath(inputFile);
   }  else if (language == 'Kernel C') {
@@ -120,13 +120,12 @@ function getLinkerCommand(packageType, outputFile, inputFiles) {
     case PackageType.APPLICATION: {
       let extras = '  ';
       if (buildSettings.build == 'optimized') {
-        extras += ' -O3 -g -s';
+        extras += ' -O3 -g -s --gc-sections';
       } else {
         extras += ' -g ';
       }
       if (buildSettings.os == 'Perception')
         return getToolPath('ld') + extras + ' -nostdlib ' +
-          ' --gc-sections' +
           '  -z max-page-size=1 -o ' +
           outputFile + ' --start-group ' + inputFiles +
           ' --end-group';
