@@ -415,15 +415,9 @@ std::weak_ptr<Widget> Widget::GetWidgetWithId(size_t id) {
 }
 
 Widget* Widget::SetImageEffect(std::shared_ptr<ImageEffect> image_effect) {
-    std::cout << "(O)" << std::flush;
   if (image_effect_ == image_effect) return this;
-
-    std::cout << "(P)" << std::flush;
   image_effect_ = image_effect;
-
-    std::cout << "(Q)" << std::flush;
   InvalidateRender();
-    std::cout << "(R)" << std::flush;
   return this;
 }
 
