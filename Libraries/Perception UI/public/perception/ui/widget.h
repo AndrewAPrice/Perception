@@ -17,6 +17,7 @@
 #include <list>
 #include <memory>
 
+#include "perception/ui/image_effect.h"
 #include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
 #include "yoga/Yoga.h"
 
@@ -157,6 +158,9 @@ class Widget : public std::enable_shared_from_this<Widget> {
   size_t GetId() const;
   static std::weak_ptr<Widget> GetWidgetWithId(size_t id);
 
+  Widget* SetImageEffect(std::shared_ptr<ImageEffect> image_effect);
+  std::shared_ptr<ImageEffect> GetImageEffect();
+
   // The below functions are not intended for end users unless
   // you are building widgets.
   virtual void Draw(DrawContext& draw_context);
@@ -188,6 +192,7 @@ class Widget : public std::enable_shared_from_this<Widget> {
   std::weak_ptr<Widget> parent_;
   std::list<std::shared_ptr<Widget>> children_;
   size_t id_;
+  std::shared_ptr<ImageEffect> image_effect_;
 
   YGNode* yoga_node_;
   bool layout_dirtied_;

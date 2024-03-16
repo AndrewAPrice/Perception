@@ -19,7 +19,8 @@ class SkFont;
 namespace perception {
 namespace ui {
 
-SkFont* GetUiFont();
+SkFont* GetBook12UiFont();
+SkFont* GetBold12UiFont();
 
 }
 }

@@ -22,6 +22,7 @@
 #include "perception/draw.h"
 #include "perception/font.h"
 #include "perception/ui/draw_context.h"
+#include "perception/ui/font.h"
 #include "perception/ui/theme.h"
 
 using ::permebuf::perception::devices::MouseButton;
@@ -29,12 +30,20 @@ using ::permebuf::perception::devices::MouseButton;
 namespace perception {
 namespace ui {
 
+constexpr uint32 kUnpushedBackgroundColor = SkColorSetARGB(0, 0, 0, 0);
+constexpr uint32 kHoverBackgroundColor = SkColorSetARGB(0xFF, 0xD9, 0xD9, 0xD9);
+constexpr uint32 kPushedBackgroundColor =
+    SkColorSetARGB(0xFF, 0xFF, 0xFF, 0xFF);
+constexpr uint32 kTextColor = SkColorSetARGB(0xFF, 0, 0, 0);
+constexpr float kBorderRadius = 8.0f;
+
 std::shared_ptr<Button> Button::Create() {
   std::shared_ptr<Button> button(new Button());
 
   auto label = std::make_shared<Label>();
   label->SetTextAlignment(TextAlignment::MiddleCenter)
-      ->SetColor(kButtonTextColor)
+      ->SetColor(kTextColor)
+      ->SetFont(GetBold12UiFont())
       ->SetFlexGrow(1.0);
   button->label_ = label;
   button->AddChild(label);
@@ -64,17 +73,68 @@ std::string_view Button::GetLabel() {
   return "";
 }
 
+// Sets the text color of the button. Does nothing if this is a custom button.
+Button* Button::SetTextColor(uint32 color) {
+  if (label_) label_->SetColor(color);
+
+  return this;
+}
+
+// Returns the text color of the button. Returns a transparency if this is a
+// custom button.
+uint32 Button::GetTextColor() {
+  if (label_) return label_->GetColor();
+
+  return 0;
+}
+
+// Sets the background color of the button.
+Button* Button::SetUnpushedBackgroundColor(uint32 color) {
+  unpushed_background_color_ = color;
+  ApplyBackgroundColor();
+  return this;
+}
+
+// Returns the background color of the button.
+uint32 Button::GetUnpushedBackgroundColor() {
+  return unpushed_background_color_;
+}
+
+// Sets the background color when hovered over.
+Button* Button::SetBackgroundHoverColor(uint32 color) {
+  background_hover_color_ = color;
+  ApplyBackgroundColor();
+  return this;
+}
+
+// Returns the background color when hovered over.
+uint32 Button::GetBackgroundHoverColor(uint32 color) {
+  return background_hover_color_;
+}
+
+// Sets the background color when pushed.
+Button* Button::SetBackgroundPushedColor(uint32 color) {
+  background_pushed_color_ = color;
+  ApplyBackgroundColor();
+  return this;
+}
+
+// Returns the background color when pushed.
+uint32 Button::GetBackgroundPushedColor(uint32 color) {
+  return background_pushed_color_;
+}
+
 void Button::OnMouseEnter() {
   if (!is_mouse_hovering_) {
     is_mouse_hovering_ = true;
-    SetBackgroundColor(kButtonBackgroundHoverColor);
+    ApplyBackgroundColor();
   }
 }
 
 void Button::OnMouseLeave() {
   is_mouse_hovering_ = false;
   is_pushed_down_ = false;
-  SetBackgroundColor(kButtonBackgroundColor);
+  ApplyBackgroundColor();
 }
 
 void Button::OnMouseButtonDown(float x, float y, MouseButton button) {
@@ -83,7 +143,7 @@ void Button::OnMouseButtonDown(float x, float y, MouseButton button) {
   if (is_pushed_down_) return;
 
   is_pushed_down_ = true;
-  SetBackgroundColor(kButtonBackgroundPushedColor);
+  ApplyBackgroundColor();
 }
 
 void Button::OnMouseButtonUp(float x, float y, MouseButton button) {
@@ -92,8 +152,7 @@ void Button::OnMouseButtonUp(float x, float y, MouseButton button) {
   if (!is_pushed_down_) return;
 
   is_pushed_down_ = false;
-  SetBackgroundColor(is_mouse_hovering_ ? kButtonBackgroundHoverColor : kButtonBackgroundColor);
-
+  ApplyBackgroundColor();
   if (on_click_handler_) on_click_handler_();
 }
 
@@ -116,14 +175,28 @@ bool Button::GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
   return true;
 }
 
-Button::Button() : is_pushed_down_(false), is_mouse_hovering_(false) {
+Button::Button()
+    : is_pushed_down_(false),
+      is_mouse_hovering_(false),
+      unpushed_background_color_(kUnpushedBackgroundColor),
+      background_hover_color_(kHoverBackgroundColor),
+      background_pushed_color_(kPushedBackgroundColor) {
   SetMinWidth(32.0f);
   SetMinHeight(32.0f);
-  SetMargin(YGEdgeAll, kMarginAroundWidgets);
-  SetBackgroundColor(kButtonBackgroundColor);
-  SetBorderWidth(1.0f);
-  SetBorderColor(kButtonOutlineColor);
-  SetBorderRadius(kButtonCornerRadius);
+  //SetMargin(YGEdgeAll, kMarginAroundWidgets);
+  SetBorderWidth(0.0f);
+  SetBorderRadius(kBorderRadius);
+  ApplyBackgroundColor();
+}
+
+void Button::ApplyBackgroundColor() {
+  if (is_pushed_down_) {
+    SetBackgroundColor(background_pushed_color_);
+  } else if (is_mouse_hovering_) {
+    SetBackgroundColor(background_hover_color_);
+  } else {
+    SetBackgroundColor(unpushed_background_color_);
+  }
 }
 
 }  // namespace ui

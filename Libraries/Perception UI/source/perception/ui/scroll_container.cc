@@ -20,6 +20,7 @@
 #include "include/core/SkColor.h"
 #include "include/core/SkPaint.h"
 #include "perception/ui/draw_context.h"
+#include "perception/ui/image_effect.h"
 #include "perception/ui/theme.h"
 
 using ::permebuf::perception::devices::MouseButton;
@@ -39,6 +40,9 @@ std::shared_ptr<ScrollContainer> ScrollContainer::Create(
     bool show_horizontal_scroll_bar) {
   std::shared_ptr<ScrollContainer> scroll_container(new ScrollContainer(
       content, show_vertical_scroll_bar, show_horizontal_scroll_bar));
+
+  scroll_container->SetOverlayImageEffect(
+      ImageEffect::InnerShadowOnly(0xFF000000, 0.25f, 0, 2.0f, 0));
 
   std::weak_ptr<ScrollContainer> weak_container = scroll_container;
   content->InvalidateParentRenderHandler([weak_container]() {
@@ -125,6 +129,17 @@ bool ScrollContainer::IsShowingVerticalScrollBar() const {
   return show_vertical_scroll_bar_;
 }
 
+ScrollContainer* ScrollContainer::SetOverlayImageEffect(
+    std::shared_ptr<ImageEffect> overlay_image_effect) {
+  if (overlay_image_effect_ == overlay_image_effect) return;
+  overlay_image_effect_ = overlay_image_effect;
+  InvalidateRender();
+}
+
+std::shared_ptr<ImageEffect> ScrollContainer::GetOverlayImageEffect() {
+  return overlay_image_effect_;
+}
+
 std::shared_ptr<Widget> ScrollContainer::GetInnerContainer() {
   return inner_container_;
 }
@@ -151,6 +166,23 @@ ScrollContainer::ScrollContainer(std::shared_ptr<ParentlessWidget> content,
 void ScrollContainer::Draw(DrawContext& draw_context) {
   // Draw the container.
   Container::Draw(draw_context);
+
+  // Draw inner shadow over content but behind scroll bars.
+  if (overlay_image_effect_) {
+    SkPaint p;
+
+    float x = GetLeft() + draw_context.offset_x;
+    float y = GetTop() + draw_context.offset_y;
+    float width = GetCalculatedWidth();
+    float height = GetCalculatedHeight();
+
+    p.setAntiAlias(true);
+    p.setImageFilter(overlay_image_effect_->GetSkiaImageFilter());
+    p.setColor(0xFFFFFFFF);
+    p.setStyle(SkPaint::kFill_Style);
+    draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
+                                            border_radius_, border_radius_, p);
+  }
 
   if (!show_horizontal_scroll_bar_ && !show_vertical_scroll_bar_) return;
   MaybeUpdateScrollBars();

@@ -27,7 +27,8 @@ namespace perception {
 namespace ui {
 namespace {
 
-std::unique_ptr<SkFont> ui_font;
+std::unique_ptr<SkFont> book_12_ui_font;
+std::unique_ptr<SkFont> bold_12_ui_font;
 
 SkFontMgr *GetFontManager() {
   static sk_sp<SkFontMgr> font_manager = SkFontMgr_New_FCI(
@@ -37,16 +38,29 @@ SkFontMgr *GetFontManager() {
 
 }
 
-SkFont* GetUiFont() {
-  if (!ui_font) {
-    ui_font = std::make_unique<SkFont>(
+SkFont* GetBook12UiFont() {
+  if (!book_12_ui_font) {
+    book_12_ui_font = std::make_unique<SkFont>(
         GetFontManager()->legacyMakeTypeface(
             "DejaVuSans",
             SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
                         SkFontStyle::kUpright_Slant)),
-        10);
+        12);
   }
-  return ui_font.get();
+  return book_12_ui_font.get();
+}
+
+SkFont* GetBold12UiFont() {
+  if (!bold_12_ui_font) {
+    bold_12_ui_font = std::make_unique<SkFont>(
+        GetFontManager()->legacyMakeTypeface(
+            "DejaVuSans",
+            SkFontStyle(SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width,
+                        SkFontStyle::kUpright_Slant)),
+        12);
+
+  }
+  return bold_12_ui_font.get();
 }
 
 }  // namespace ui

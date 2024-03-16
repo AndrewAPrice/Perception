@@ -14,8 +14,6 @@
 
 #include "perception/ui/scroll_bar.h"
 
-#include <iostream>
-
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
 #include "include/core/SkPaint.h"
@@ -26,9 +24,19 @@ using ::permebuf::perception::devices::MouseButton;
 
 namespace perception {
 namespace ui {
+namespace {
+
+constexpr uint32 kScrollBarUnselectedColor = 0xFFDCDCDC;
+constexpr uint32 kScrollBarHoverColor = 0xFFD9D9D9;
+constexpr uint32 kScrollBarDraggingColor = 0xFFFFFFFF;
+
+}  // namespace
 
 std::shared_ptr<ScrollBar> ScrollBar::Create() {
-  return std::shared_ptr<ScrollBar>(new ScrollBar());
+  auto scroll_bar = std::shared_ptr<ScrollBar>(new ScrollBar());
+  scroll_bar->SetImageEffect(
+      ImageEffect::DropShadow(0xFF000000, 0.25f, 0, 2.0f, 0));
+  return scroll_bar;
 }
 
 ScrollBar::~ScrollBar() {}
@@ -259,15 +267,6 @@ void ScrollBar::SetDirectionInternal(Direction direction) {
 }
 
 void ScrollBar::Draw(DrawContext& draw_context) {
-  uint32 track_background_color = is_mouse_hovering_over_track_
-                                      ? kScrollBarTrackBackgroundHoverColor
-                                      : kScrollBarTrackBackgroundColor;
-  uint32 track_outline_color = kScrollBarTrackOutlineColor;
-  uint32 fab_background_color = is_mouse_hovering_over_fab_
-                                    ? kScrollBarFabBackgroundHoverColor
-                                    : kScrollBarFabBackgroundColor;
-  uint32 fab_outline_color = kScrollBarFabOutlineColor;
-
   float x = GetLeft() + draw_context.offset_x;
   float y = GetTop() + draw_context.offset_y;
 
@@ -278,36 +277,11 @@ void ScrollBar::Draw(DrawContext& draw_context) {
   SkPaint p;
   p.setAntiAlias(true);
 
-  // Draw track background.
-  p.setColor(track_background_color);
-  p.setStyle(SkPaint::kFill_Style);
-  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
-                                          kScrollBarBorderRadius,
-                                          kScrollBarBorderRadius, p);
-
-  // Draw the track outline.
-  p.setColor(track_outline_color);
-  p.setStyle(SkPaint::kStroke_Style);
-  p.setStrokeWidth(1);
-  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
-                                          kButtonCornerRadius,
-                                          kButtonCornerRadius, p);
+  // Draw the fab
   OffsetTrackToFabCoordinates(x, y, width, height);
-
-  // Draw the fab background.
-  p.setColor(fab_background_color);
-  p.setStyle(SkPaint::kFill_Style);
-  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
-                                          kScrollBarBorderRadius,
-                                          kScrollBarBorderRadius, p);
-
-  // Draw the fab outline.
-  p.setColor(fab_outline_color);
-  p.setStyle(SkPaint::kStroke_Style);
-  p.setStrokeWidth(1);
-  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
-                                          kButtonCornerRadius,
-                                          kButtonCornerRadius, p);
+  if (image_effect_) p.setImageFilter(image_effect_->GetSkiaImageFilter());
+  p.setColor(GetFabColor());
+  draw_context.skia_canvas->drawRect({x, y, x + width, y + height}, p);
 
   draw_context.skia_canvas->restore();
 
@@ -330,6 +304,12 @@ void ScrollBar::OffsetTrackToFabCoordinates(float& x, float& y, float& width,
     x += offset * width;
     width *= size;
   }
+}
+
+uint32 ScrollBar::GetFabColor() {
+  if (is_dragging_) return kScrollBarDraggingColor;
+  if (is_mouse_hovering_over_fab_) return kScrollBarHoverColor;
+  return kScrollBarUnselectedColor;
 }
 
 }  // namespace ui

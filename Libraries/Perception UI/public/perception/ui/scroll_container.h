@@ -20,6 +20,7 @@
 #include <string_view>
 
 #include "perception/ui/container.h"
+#include "perception/ui/image_effect.h"
 #include "perception/ui/label.h"
 #include "perception/ui/parentless_widget.h"
 #include "perception/ui/scroll_bar.h"
@@ -52,6 +53,9 @@ class ScrollContainer : public Container {
   bool IsShowingHorizontalScrollBar() const;
   bool IsShowingVerticalScrollBar() const;
 
+  ScrollContainer* SetOverlayImageEffect(std::shared_ptr<ImageEffect> overlay_image_effect);
+  std::shared_ptr<ImageEffect> GetOverlayImageEffect();
+
   std::shared_ptr<Widget> GetInnerContainer();
 
  private:
@@ -72,6 +76,7 @@ class ScrollContainer : public Container {
   std::shared_ptr<Widget> inner_container_;
   std::shared_ptr<ScrollBar> vertical_scroll_bar_;
   std::shared_ptr<ScrollBar> horizontal_scroll_bar_;
+  std::shared_ptr<ImageEffect> overlay_image_effect_;
 
   double scroll_x_;
   double scroll_y_;

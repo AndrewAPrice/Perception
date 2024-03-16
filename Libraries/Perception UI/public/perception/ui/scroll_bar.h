@@ -71,6 +71,7 @@ class ScrollBar : public Widget {
   virtual void Draw(DrawContext& draw_context) override;
 
   void OffsetTrackToFabCoordinates(float &x, float &y, float &width, float &height);
+  uint32 GetFabColor();
 
   Direction direction_;
 

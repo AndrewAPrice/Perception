@@ -46,6 +46,27 @@ class Button : public Container {
   // button.
   std::string_view GetLabel();
 
+  // Sets the text color of the button. Does nothing if this is a custom button.
+  Button* SetTextColor(uint32 color);
+  // Returns the text color of the button. Returns a transparency if this is a
+  // custom button.
+  uint32 GetTextColor();
+
+  // Sets the background color of the button.
+  Button* SetUnpushedBackgroundColor(uint32 color);
+  // Returns the background color of the button.
+  uint32 GetUnpushedBackgroundColor();
+
+  // Sets the background color when hovered over.
+  Button* SetBackgroundHoverColor(uint32 color);
+  // Returns the background color when hovered over.
+  uint32 GetBackgroundHoverColor(uint32 color);
+
+  // Sets the background color when pushed.
+  Button* SetBackgroundPushedColor(uint32 color);
+  // Returns the background color when pushed.
+  uint32 GetBackgroundPushedColor(uint32 color);
+
   virtual bool GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
                            float& x_in_selected_widget,
                            float& y_in_selected_widget) override;
@@ -61,12 +82,17 @@ class Button : public Container {
 
  protected:
   Button();
+  void ApplyBackgroundColor();
 
   std::shared_ptr<Label> label_;
 
   std::function<void()> on_click_handler_;
   bool is_pushed_down_;
   bool is_mouse_hovering_;
+
+  uint32 unpushed_background_color_;
+  uint32 background_hover_color_;
+  uint32 background_pushed_color_;
 };
 
 }  // namespace ui

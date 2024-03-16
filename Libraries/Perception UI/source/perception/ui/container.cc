@@ -26,6 +26,8 @@
 namespace perception {
 namespace ui {
 
+  // shadows: https://skia.googlesource.com/skia/+/2e551697dc56/modules/skottie/src/effects/ShadowStyles.cpp?autodive=0%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F
+
 std::shared_ptr<Container> Container::Create() {
   std::shared_ptr<Container> container(new Container());
   container->SetPadding(YGEdgeAll, kContainerPadding);
@@ -39,30 +41,35 @@ std::shared_ptr<Container> Container::Create() {
 Container::~Container() {}
 
 Container* Container::SetBorderColor(uint32 color) {
+  if (border_color_ == color) return this;
   border_color_ = color;
   InvalidateRender();
   return this;
 }
 
 Container* Container::SetBorderWidth(float width) {
+  if (border_width_ == width) return this;
   border_width_ = width;
   InvalidateRender();
   return this;
 }
 
 Container* Container::SetBorderRadius(float radius) {
+  if (border_radius_ == radius) return this;
   border_radius_ = radius;
   InvalidateRender();
   return this;
 }
 
 Container* Container::SetBackgroundColor(uint32 color) {
+  if (background_color_ == color) return this;
   background_color_ = color;
   InvalidateRender();
   return this;
 }
 
 Container* Container::SetClipContents(bool clip_contents) {
+  if (clip_contents_ == clip_contents) return this;
   clip_contents_ = clip_contents;
   InvalidateRender();
   return this;
@@ -86,6 +93,8 @@ void Container::Draw(DrawContext& draw_context) {
   // draw_context.skia_canvas->save();
   SkPaint p;
   p.setAntiAlias(true);
+
+  if (image_effect_) p.setImageFilter(image_effect_->GetSkiaImageFilter());
 
   float x = GetLeft() + draw_context.offset_x;
   float y = GetTop() + draw_context.offset_y;
@@ -112,7 +121,7 @@ void Container::Draw(DrawContext& draw_context) {
 
   if (clip_contents_) draw_context.skia_canvas->restore();
 
-  if (border_color_) {
+  if (border_color_ && border_width_ > 0) {
     // Draw the outline.
     p.setColor(border_color_);
     p.setStyle(SkPaint::kStroke_Style);

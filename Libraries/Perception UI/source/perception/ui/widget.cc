@@ -414,6 +414,21 @@ std::weak_ptr<Widget> Widget::GetWidgetWithId(size_t id) {
   return widgets_by_id_[id];
 }
 
+Widget* Widget::SetImageEffect(std::shared_ptr<ImageEffect> image_effect) {
+    std::cout << "(O)" << std::flush;
+  if (image_effect_ == image_effect) return this;
+
+    std::cout << "(P)" << std::flush;
+  image_effect_ = image_effect;
+
+    std::cout << "(Q)" << std::flush;
+  InvalidateRender();
+    std::cout << "(R)" << std::flush;
+  return this;
+}
+
+std::shared_ptr<ImageEffect> Widget::GetImageEffect() { return image_effect_; }
+
 void Widget::Draw(DrawContext& draw_context) {
   float old_offset_x = draw_context.offset_x;
   float old_offset_y = draw_context.offset_y;

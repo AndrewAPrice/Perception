@@ -34,7 +34,7 @@ uint32 kButtonBackgroundHoverColor = HSVColor(0.0f, 0.0f, 0.925f);
 uint32 kButtonBackgroundPushedColor = HSVColor(0.0f, 0.0f, 0.9f);
 uint32 kButtonOutlineColor = HSVColor(0.0f, 0.0f, 0.80f);
 uint32 kButtonTextColor = kLabelTextColor;
-float kButtonCornerRadius = 8.0f;
+float kButtonCornerRadius = 0.0f;
 
 uint32 kTextBoxBackgroundColor = kButtonBackgroundColor;
 uint32 kTextBoxOutlineColor = kButtonOutlineColor;

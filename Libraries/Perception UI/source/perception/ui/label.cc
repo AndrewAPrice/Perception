@@ -38,6 +38,19 @@ Label::Label()
 
 Label::~Label() {}
 
+Label* Label::SetFont(SkFont* font) {
+  if (font_ == font) return this;
+
+  font_ = font;
+  InvalidateRender();
+  return this;
+}
+
+SkFont* Label::GetFont() {
+  AssignDefaultFontIfUnassigned();
+  return font_;
+}
+
 Label* Label::SetLabel(std::string_view label) {
   if (label_ == label) return this;
 
@@ -68,6 +81,8 @@ Label* Label::SetColor(uint32_t color) {
   return this;
 }
 
+uint32 Label::GetColor() { return color_; }
+
 void Label::Draw(DrawContext& draw_context) {
   float left_padding = GetComputedPadding(YGEdgeLeft);
   float top_padding = GetComputedPadding(YGEdgeTop);
@@ -79,8 +94,9 @@ void Label::Draw(DrawContext& draw_context) {
   float x = GetLeft() + draw_context.offset_x + left_padding;
   float y = GetTop() + draw_context.offset_y + top_padding;
 
+  AssignDefaultFontIfUnassigned();
   if (realign_text_) {
-    CalculateTextAlignment(label_, width, height, text_alignment_, *GetUiFont(),
+    CalculateTextAlignment(label_, width, height, text_alignment_, *font_,
                            text_x_, text_y_);
     realign_text_ = false;
   }
@@ -92,27 +108,35 @@ void Label::Draw(DrawContext& draw_context) {
   paint.setColor(color_);
 
   draw_context.skia_canvas->drawString(SkString(label_), x + text_x_,
-                                       y + text_y_, *GetUiFont(), paint);
+                                       y + text_y_, *font_, paint);
 }
 
 YGSize Label::Measure(const YGNode* node, float width, YGMeasureMode width_mode,
                       float height, YGMeasureMode height_mode) {
   Label* label = (Label*)YGNodeGetContext(node);
   YGSize size;
+  if (label->label_.length() == 0) {
+    size.width = 0.0f;
+    size.height = 0.0f;
+    return size;
+  }
 
   bool measuredString = false;
   SkRect stringBounds;
-#define maybeMeasureString()                                                  \
-  if (!measuredString) {                                                      \
-    (void)GetUiFont()->measureText(&label->label_[0], label->label_.length(), \
-                                   SkTextEncoding::kUTF8, &stringBounds);     \
-    measuredString = true;                                                    \
-  }
+  SkFont* font = label->GetFont();
+
+  auto maybe_measure_string = [&]() {
+    if (measuredString) return;
+    (void)font->measureText(&label->label_[0], label->label_.length(),
+                            SkTextEncoding::kUTF8, &stringBounds);
+    measuredString = true;
+  };
 
   if (width_mode == YGMeasureModeExactly) {
     size.width = width;
   } else {
-    maybeMeasureString() size.width = stringBounds.width();
+    maybe_measure_string();
+    size.width = stringBounds.width();
     if (width_mode == YGMeasureModeAtMost) {
       size.width = std::min(width, size.width);
     }
@@ -120,7 +144,8 @@ YGSize Label::Measure(const YGNode* node, float width, YGMeasureMode width_mode,
   if (height_mode == YGMeasureModeExactly) {
     size.height = height;
   } else {
-    maybeMeasureString() size.height = stringBounds.height();
+    maybe_measure_string();
+    size.height = stringBounds.height();
     if (height_mode == YGMeasureModeAtMost) {
       size.height = std::min(height, size.height);
     }
@@ -135,6 +160,10 @@ YGSize Label::Measure(const YGNode* node, float width, YGMeasureMode width_mode,
 void Label::LayoutDirtied(const YGNode* node) {
   Label* label = (Label*)YGNodeGetContext(node);
   label->realign_text_ = true;
+}
+
+void Label::AssignDefaultFontIfUnassigned() {
+  if (font_ == nullptr) font_ = GetBook12UiFont();
 }
 
 }  // namespace ui
