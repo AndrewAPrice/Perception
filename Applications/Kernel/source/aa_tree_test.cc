@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Commented out until build system supports tests.
+#if 0
 #include "aa_tree.h"
 
 #include <assert.h>
@@ -157,3 +159,4 @@ int main() {
 
   return 0;
 }
+#endif

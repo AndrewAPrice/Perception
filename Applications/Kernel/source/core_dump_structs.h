@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../third_party/Libraries/elf/public/elf.h"
+#include "../../../third_party/Libraries/elf/public/elf.h"
 
 typedef long clock_t;
 typedef int pid_t;

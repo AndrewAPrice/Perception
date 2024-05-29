@@ -19,7 +19,11 @@
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/ui/button.h"
+#include "perception/ui/container.h"
+#include "perception/ui/image_effect.h"
 #include "perception/ui/label.h"
+#include "perception/ui/parentless_widget.h"
+#include "perception/ui/scroll_container.h"
 #include "perception/ui/text_alignment.h"
 #include "perception/ui/text_box.h"
 #include "perception/ui/ui_window.h"
@@ -27,8 +31,12 @@
 using ::perception::HandOverControl;
 using ::perception::TerminateProcess;
 using ::perception::ui::Button;
+using ::perception::ui::Container;
 using ::perception::ui::kFillParent;
+using ::perception::ui::ImageEffect;
 using ::perception::ui::Label;
+using ::perception::ui::ParentlessWidget;
+using ::perception::ui::ScrollContainer;
 using ::perception::ui::TextAlignment;
 using ::perception::ui::TextBox;
 using ::perception::ui::UiWindow;
@@ -37,6 +45,10 @@ using ::perception::ui::Widget;
 namespace {
 
 constexpr size_t kTopLevelWidgetId = 1;
+constexpr uint32 kButtonPanelBackgroundColor =
+    SkColorSetARGB(0xFF, 0xC7, 0xC7, 0xC7);
+constexpr uint32 kTerminalBackgroundColor =
+    SkColorSetARGB(0xFF, 0xF7, 0xF7, 0xF7);
 
 enum Operation { NOTHING = 0, ADD = 1, SUBTRACT = 2, DIVIDE = 3, MULTIPLY = 4 };
 Operation operation = NOTHING;
@@ -47,6 +59,7 @@ bool decimal_pressed = false;
 double decimal_multiplier = 0.1;
 
 std::shared_ptr<TextBox> display;
+std::shared_ptr<Widget> terminal_content;
 
 void UpdateDisplay() {
   // std::to_string converts the number to fixed decimal places, which doesn't
@@ -93,6 +106,8 @@ void PressDecimal() {
 
 void PressEquals() {
   switch (operation) {
+    default:
+      return;
     case ADD:
       current_number = last_number + current_number;
       break;
@@ -134,13 +149,15 @@ std::shared_ptr<Widget> CreateButton(std::string_view label,
   return Button::Create()
       ->SetLabel(label)
       ->OnClick(on_click_handler)
+      ->SetMargin(YGEdgeHorizontal, 5.0f)
       ->ToSharedPtr();
 }
 
 }  // namespace
 
-int main (int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
   auto window = std::make_shared<UiWindow>("Calculator");
+
   display = std::static_pointer_cast<TextBox>(
       TextBox::Create()
           ->SetTextAlignment(TextAlignment::BottomRight)
@@ -148,19 +165,50 @@ int main (int argc, char *argv[]) {
           ->SetFlexGrow(1.0)
           ->ToSharedPtr());
 
-  window->OnResize([](float width, float height) {
-    bool is_landscape = width > height;
-    if (auto top_level_widget = Widget::GetWidgetWithId(kTopLevelWidgetId).lock()) {
-      top_level_widget->SetFlexDirection(
-          is_landscape ? YGFlexDirectionRowReverse : YGFlexDirectionColumn);
-    }
-  });
+  terminal_content = std::make_shared<Widget>()
+                         ->SetFlexDirection(YGFlexDirectionColumn)
+                         ->ToSharedPtr();
+  /*for (int i = 0; i < 80; i++) {
+    terminal_content->AddChild(
+        std::make_shared<Label>()->SetLabel("Hello")->ToSharedPtr());
+  }*/
+
+  auto terminal_container =
+      ScrollContainer::Create(ParentlessWidget::Create(terminal_content),
+                              /*show_vertical_scroll_bar=*/true,
+                              /*show_horizontal_scroll_bar=*/false)
+
+          ->SetBackgroundColor(kTerminalBackgroundColor)
+          ->SetBorderWidth(0.0f)
+          ->SetBorderRadius(0.0f)
+          ->SetFlexGrow(1.0)
+          ->SetAlignSelf(YGAlignStretch)
+          ->SetMargin(YGEdgeAll, 0.0f)
+          ->ToSharedPtr();
+  /*
+    window->OnResize([](float width, float height) {
+      bool is_landscape = width > height;
+      if (auto top_level_widget =
+              Widget::GetWidgetWithId(kTopLevelWidgetId).lock()) {
+        top_level_widget->SetFlexDirection(
+            is_landscape ? YGFlexDirectionRowReverse : YGFlexDirectionColumn);
+      }
+    });*/
 
   auto button_panel =
-      std::make_shared<Widget>()
+      Container::Create()
+          ->SetBackgroundColor(kButtonPanelBackgroundColor)
+          ->SetBorderWidth(0.0f)
+          ->SetBorderRadius(0.0f)
+          ->SetWidth(194.0f)
+          ->SetAlignSelf(YGAlignStretch)
+          ->SetMargin(YGEdgeAll, 0.0f)
+          ->SetAlignContent(YGAlignCenter)
+          ->SetJustifyContent(YGJustifyCenter)
           ->AddChildren(
               {std::make_shared<Widget>()
                    ->SetFlexDirection(YGFlexDirectionRow)
+                   ->SetMargin(YGEdgeVertical, 5.0f)
                    ->AddChildren(
                        {CreateButton("C", PressClear),
                         CreateButton("+-", PressFlipSign),
@@ -169,6 +217,7 @@ int main (int argc, char *argv[]) {
                    ->ToSharedPtr(),
                std::make_shared<Widget>()
                    ->SetFlexDirection(YGFlexDirectionRow)
+                   ->SetMargin(YGEdgeVertical, 5.0f)
                    ->AddChildren(
                        {CreateButton("7", std::bind(PressNumber, 7)),
                         CreateButton("8", std::bind(PressNumber, 8)),
@@ -177,6 +226,7 @@ int main (int argc, char *argv[]) {
                    ->ToSharedPtr(),
                std::make_shared<Widget>()
                    ->SetFlexDirection(YGFlexDirectionRow)
+                   ->SetMargin(YGEdgeVertical, 5.0f)
                    ->AddChildren(
                        {CreateButton("4", std::bind(PressNumber, 4)),
                         CreateButton("5", std::bind(PressNumber, 5)),
@@ -191,6 +241,7 @@ int main (int argc, char *argv[]) {
                             ->AddChildren(
                                 {std::make_shared<Widget>()
                                      ->SetFlexDirection(YGFlexDirectionRow)
+                                     ->SetMargin(YGEdgeVertical, 5.0f)
                                      ->AddChildren(
                                          {CreateButton(
                                               "1", std::bind(PressNumber, 1)),
@@ -201,25 +252,27 @@ int main (int argc, char *argv[]) {
                                      ->ToSharedPtr(),
                                  std::make_shared<Widget>()
                                      ->SetFlexDirection(YGFlexDirectionRow)
+                                     ->SetMargin(YGEdgeVertical, 5.0f)
                                      ->AddChildren(
                                          {CreateButton(
                                               "0", std::bind(PressNumber, 0))
-                                              ->SetWidth(72)
+                                              ->SetWidth(74)
                                               ->ToSharedPtr(),
                                           CreateButton(".", PressDecimal)})
                                      ->ToSharedPtr()})
                             ->ToSharedPtr(),
                         CreateButton("=", std::bind(PressEquals))
-                            ->SetHeight(72)
+                            ->SetHeight(74)
+                            ->SetMargin(YGEdgeVertical, 5.0f)
                             ->ToSharedPtr()})
                    ->ToSharedPtr()})
           ->ToSharedPtr();
 
   window->OnClose([]() { TerminateProcess(); })
       ->SetId(kTopLevelWidgetId)
-      ->SetAlignItems(YGAlignCenter)
-      ->SetFlexDirection(YGFlexDirectionColumn)
-      ->AddChildren({display, button_panel});
+      ->SetFlexDirection(YGFlexDirectionRow)
+      ->SetPadding(YGEdgeAll, 0.0f)
+      ->AddChildren({button_panel, terminal_container});
   window->Create();
 
   HandOverControl();
