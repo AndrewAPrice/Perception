@@ -14,7 +14,7 @@
 
 #include "elf_loader.h"
 
-#include "../../third_party/Libraries/elf/public/elf.h"
+#include "../../../third_party/Libraries/elf/public/elf.h"
 #include "io.h"
 #include "physical_allocator.h"
 #include "process.h"

@@ -14,7 +14,7 @@
 
 #include "framebuffer.h"
 
-#include "../../third_party/multiboot2.h"
+#include "../../../third_party/multiboot2.h"
 #include "text_terminal.h"
 #include "virtual_allocator.h"
 

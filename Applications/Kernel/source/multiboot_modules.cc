@@ -14,7 +14,7 @@
 
 #include "multiboot_modules.h"
 
-#include "../../third_party/multiboot2.h"
+#include "../../../third_party/multiboot2.h"
 #include "elf_loader.h"
 #include "text_terminal.h"
 #include "virtual_allocator.h"

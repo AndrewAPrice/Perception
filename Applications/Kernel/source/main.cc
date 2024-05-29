@@ -1,4 +1,4 @@
-#include "../../third_party/multiboot2.h"
+#include "../../../third_party/multiboot2.h"
 #include "framebuffer.h"
 #include "interrupts.h"
 #include "io.h"
