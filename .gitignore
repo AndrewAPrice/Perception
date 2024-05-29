@@ -1,3 +1,6 @@
+# REBS tempory directory.
+.build
+
 # The built ISO image.
 Perception.iso
 

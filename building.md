@@ -32,6 +32,7 @@ Otherwise, you can will have to [build GRUB 2 from source] (https://www.gnu.org/
 If you have [Homebrew](https://brew.sh/), you can install everything you need with:
 
 ```
+brew tap nativeos/i386-elf-toolchain
 brew install node git nasm qemu llvm x86_64-elf-binutils i386-elf-grub xorriso
 echo 'export PATH="/usr/local/brew/opt/llvm/bin:$PATH"' >> ~/.bash_profile
 ```
