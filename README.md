@@ -2,7 +2,7 @@
 
 Perception is a hobby operating system. It is a [x86-64](https://en.wikipedia.org/wiki/X86-64) operating system built around a [microkernel](https://en.wikipedia.org/wiki/Microkernel).
 
-[The kernel](Kernel/README.md) is written in C++. I use [a custom build system](Build/README.md). I provide a C++ runtime for libraries, services, drivers, and programs. I created an [interface descriptor language](https://en.wikipedia.org/wiki/Interface_description_language) known as [Permebuf](Build/Permebuf.md).
+[The kernel](Applications/Kernel/README.md) is written in C++. I use [a custom build system](Build/README.md). I provide a C++ runtime for libraries, services, drivers, and programs. I created an [interface descriptor language](https://en.wikipedia.org/wiki/Interface_description_language) known as [Permebuf](Build/Permebuf.md).
 
 ## Features
 Very few right now.
@@ -17,11 +17,10 @@ Very few right now.
 See [building.md](building.md). Perception has only been tested in [QEMU](https://www.qemu.org/). Has a graphical interface and also outputs debugging text via COM1.
 
 ## Directory Structure
-- Applications - User programs.
+- Applications - Applications (user programs, the kernel, drivers).
 - Build - The build system.
 - Dump - Code from an old version that will be useful at some point in the future.
 - fs - The root file system that is turned into a disk image.
-- Kernel - The kernel sources.
 - Libraries - The libraries for building user programs.
 - third_party - 3rd party code I didn't write. They have different licensing.
 
