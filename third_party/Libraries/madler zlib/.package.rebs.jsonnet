@@ -7,7 +7,7 @@
 		"_LARGEFILE64_SOURCE",
 		"Z_HAVE_UNISTD_H"
     ],
-    sources: [
+    source_directories: [
         "source",
     ],
 }

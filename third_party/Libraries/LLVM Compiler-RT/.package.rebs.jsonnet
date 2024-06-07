@@ -1,6 +1,6 @@
 {
     package_type: "library",
-    sources: [
+    source_directories: [
         "source"
     ],
 }

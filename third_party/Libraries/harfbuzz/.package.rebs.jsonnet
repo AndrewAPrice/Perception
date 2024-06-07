@@ -7,7 +7,7 @@
 		"HAVE_FREETYPE",
 		"HAVE_ICU"
     ],
-    sources: [
+    source_directories: [
         "source",
     ],
     dependencies +: [

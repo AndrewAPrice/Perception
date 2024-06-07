@@ -6,7 +6,7 @@
         "Nano SVG",
         "richgel999 fpng"
     ],
-    sources: [
+    source_directories: [
         "source"
     ],
 }

@@ -3,7 +3,7 @@
         "perception",
         "Perception UI"
     ],
-    sources: [
+    source_directories: [
         "source"
     ],
 }

@@ -11,7 +11,16 @@
         "HAVE_FCNTL_H",
         "NDEBUG"
     ],
-    sources: [
+    files_to_ignore: [
+        "source/gzip/zutil.c",
+        "source/gzip/inffast.c",
+        "source/gzip/inflate.c",
+        "source/gzip/inftrees.c",
+        "source/gzip/adler32.c",
+        "source/gzip/crc32.c",
+        "source/lzw/ftzopen.c"
+    ],
+    source_directories: [
         "source",
     ],
     dependencies +: [

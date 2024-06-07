@@ -2,7 +2,7 @@
     dependencies+: [
         "perception"
     ],
-    sources: [
+    source_directories: [
         "source"
     ],
 }

@@ -6,7 +6,7 @@
     defines: [
 		"FPNG_NO_SSE"
     ],
-    sources: [
+    source_directories: [
         "source"
     ],
     dependencies+: [

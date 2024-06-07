@@ -3,7 +3,7 @@
     public_include_directories: [
         "public",
     ],
-    sources: [
+    source_directories: [
         "source",
     ],
     dependencies +: [

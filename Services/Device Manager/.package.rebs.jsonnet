@@ -3,7 +3,7 @@
         "perception",
         "Perception Driver"
     ],
-    sources: [
+    source_directories: [
         "source"
     ],
 }

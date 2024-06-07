@@ -3,7 +3,7 @@
     public_include_directories: [
         "public/yoga",
     ],
-    sources: [
+    source_directories: [
         "source",
     ],
 }

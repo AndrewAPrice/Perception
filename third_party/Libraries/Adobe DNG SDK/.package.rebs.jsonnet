@@ -6,7 +6,7 @@
     defines: [
         "qLinux"
     ],
-    sources: [
+    source_directories: [
         "source",
     ],
     dependencies +: [

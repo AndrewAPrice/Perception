@@ -11,7 +11,7 @@
 		"U_COMMON_IMPLEMENTATION",
 		"ICU_DATA_DIR=\"\\\"/Libraries/unicode-org icu/assets/\\\"\""
     ],
-    sources: [
+    source_directories: [
         "source"
     ],
     dependencies+: [

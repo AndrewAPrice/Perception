@@ -12,7 +12,7 @@
 		"source/include",
 		"source/internal"
     ],
-    sources: [
+    source_directories: [
         "source"
     ],
 	defines: [

@@ -6,7 +6,7 @@
     defines: [
 		"XML_GE"
     ],
-    sources: [
+    source_directories: [
         "source",
     ],
 }

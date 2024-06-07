@@ -4,7 +4,7 @@
         "generated/include",
         "public",
     ],
-    sources: [
+    source_directories: [
         "generated",
         "source",
     ],

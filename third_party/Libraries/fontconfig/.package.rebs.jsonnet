@@ -12,7 +12,7 @@
 		"FC_TEMPLATEDIR=\"\\\"/Libraries/fontconfig/assets/templates\\\"\"",
 		"__linux__"
     ],
-    sources: [
+    source_directories: [
         "source",
     ],
     dependencies +: [

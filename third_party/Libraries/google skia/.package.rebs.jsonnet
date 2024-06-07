@@ -15,9 +15,13 @@
      	"SK_UNICODE_AVAILABLE",
 		"SK_UNICODE_ICU_IMPLEMENTATION",
 		"SKCMS_DISABLE_HSW",
-		"SKCMS_DISABLE_SKX"
+		"SKCMS_DISABLE_SKX",
+        "SK_BUILD_FOR_UNIX"
     ],
-    sources: [
+    include_directories: [
+        "source",
+    ],
+    source_directories: [
         "source",
     ],
     dependencies +: [

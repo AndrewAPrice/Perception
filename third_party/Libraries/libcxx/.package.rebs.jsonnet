@@ -6,7 +6,7 @@
     public_include_directories: [
         "public",
     ],
-    sources: [
+    source_directories: [
         "source"
     ],
     include_priority: 1,
