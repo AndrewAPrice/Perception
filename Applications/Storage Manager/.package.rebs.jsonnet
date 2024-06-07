@@ -1,0 +1,8 @@
+{
+    dependencies+: [
+        "perception"
+    ],
+    sources: [
+        "source"
+    ],
+}

@@ -89,6 +89,8 @@ sk_sp<SkImageFilter> CreateShadowImageFilter(bool inner_shadow, bool only,
   }
   sk_sp<SkImageFilter> source;
   if (inner_shadow) {
+    // Return only the shadow.
+    if (only) return f;
     // Inner shadows draw on top of, and are masked with, the source.
     f = SkImageFilters::Blend(SkBlendMode::kDstIn, std::move(f));
     std::swap(source, f);

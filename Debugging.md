@@ -51,3 +51,7 @@ set $rsp = *(unsigned long long *)($rsp + 24)
 Now you're at the point where the exception occured in userland. You can use normal gdb commands to inspect the source code. For example, you can print a backtrace with:
 
 `bt`
+
+## Inspecting core dumps in VSCode
+
+Install the `CodeLLDB` extension in Visual Studio Code.

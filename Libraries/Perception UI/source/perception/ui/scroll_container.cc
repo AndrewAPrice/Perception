@@ -131,9 +131,10 @@ bool ScrollContainer::IsShowingVerticalScrollBar() const {
 
 ScrollContainer* ScrollContainer::SetOverlayImageEffect(
     std::shared_ptr<ImageEffect> overlay_image_effect) {
-  if (overlay_image_effect_ == overlay_image_effect) return;
+  if (overlay_image_effect_ == overlay_image_effect) return this;
   overlay_image_effect_ = overlay_image_effect;
   InvalidateRender();
+  return this;
 }
 
 std::shared_ptr<ImageEffect> ScrollContainer::GetOverlayImageEffect() {

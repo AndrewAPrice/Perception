@@ -22,8 +22,7 @@
         if optimization_level == "optimized" then " -s "
         else " -g ",
     "linker_command": 
-      linker + linker_optimizations + " -T Applications/Kernel/source/linker.ld -o ${out} ${in}",
-    "output_extension": "app",
+      linker + linker_optimizations + " -z max-page-size=4096 -T Applications/Kernel/source/linker.ld -o ${out} ${in}",
     "include_directories": [
         "source"
     ]
