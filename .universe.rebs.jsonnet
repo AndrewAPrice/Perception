@@ -40,8 +40,10 @@
     "default_arch": "x86-64",
     "package_directories": [
         "Applications",
+        "Drivers",
         "Libraries",
         "third_party/Libraries"
+        "Services",
     ],
     "dependencies": [
       "musl",
