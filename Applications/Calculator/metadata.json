@@ -1,7 +1,0 @@
-{"dependencies":[
-	"facebook yoga",
-	"perception",
-	"Perception UI",
-	"libcxx",
-	"musl"
-]}

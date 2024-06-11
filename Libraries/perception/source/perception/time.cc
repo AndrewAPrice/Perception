@@ -14,6 +14,10 @@
 
 #include "perception/time.h"
 
+#ifndef PERCEPTION
+#include <iostream>
+#endif
+
 #include "perception/messages.h"
 #include "perception/scheduler.h"
 

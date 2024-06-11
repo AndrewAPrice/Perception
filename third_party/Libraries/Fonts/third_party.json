@@ -10,7 +10,7 @@
         {
             "operation": "copy",
             "source": "${zip}/dejavu-fonts-ttf-2.37/ttf",
-            "destination": "assets",
+            "destination": "assets/assets",
             "extensions": [".ttf"]
         }
     ]

@@ -1,7 +1,0 @@
-{
-	"dependencies":[
-		"harfbuzz",
-		"unicode-org icu"
-	],
-	"third_party": true
-}

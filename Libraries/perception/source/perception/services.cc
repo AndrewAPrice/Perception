@@ -21,7 +21,7 @@ namespace {
 constexpr int kMaxServiceNameLength = 80;
 }
 
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
 // We can't pass RBP in and out of inline assembly in debug builds, so we'll
 // use these variables to temporarily store and overwrite RBP.
 extern "C" {
@@ -39,7 +39,7 @@ void RegisterService(perception::MessageId message_id, std::string_view name) {
   memcpy(service_name_words, &name[0], name.size());
 
   volatile register size_t syscall asm("rdi") = 32;
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
   // TODO: Mutex for debug builds.
   _perception_services__syscall_rbp = (size_t)message_id;
 #else
@@ -56,7 +56,7 @@ void RegisterService(perception::MessageId message_id, std::string_view name) {
   volatile register size_t name_9 asm("r13") = service_name_words[8];
   volatile register size_t name_10 asm("r14") = service_name_words[9];
 
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
   __asm__ __volatile__(R"(
     mov %%rbp, _perception_services__temp_rbp
     mov _perception_services__syscall_rbp, %%rbp
@@ -99,7 +99,7 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
   memcpy(service_name_words, &name[0], name.size());
 
   volatile register size_t syscall asm("rdi") = 34;
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
   // TODO: Mutex for debug builds.
   _perception_services__syscall_rbp = 0;
 #else
@@ -119,12 +119,12 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
 
   // We only care about the first service.
   volatile register size_t number_of_services asm("rdi");
-#ifndef debug_BUILD_
+#ifdef optimized_BUILD_
   volatile register size_t pid_1 asm("rbp");
 #endif
   volatile register size_t message_id_1 asm("rax");
 
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
   __asm__ __volatile__(R"(
     mov %%rbp, _perception_services__temp_rbp
     mov _perception_services__syscall_rbp, %%rbp
@@ -178,7 +178,7 @@ void ForEachInstanceOfService(
   while (true) {
     // Fetch this page of results.
     volatile register size_t syscall asm("rdi") = 34;
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
     // TODO: Mutex for debug builds.
     _perception_services__syscall_rbp = (size_t)starting_pid;
 #else
@@ -197,7 +197,7 @@ void ForEachInstanceOfService(
     volatile register size_t name_10 asm("r15") = service_name_words[9];
 
     volatile register size_t number_of_services_r asm("rdi");
-#ifndef debug_BUILD_
+#ifdef optimized_BUILD_
     volatile register size_t pid_1_r asm("rbp");
 #endif
     volatile register size_t message_id_1_r asm("rax");
@@ -212,7 +212,7 @@ void ForEachInstanceOfService(
     volatile register size_t pid_6_r asm("r14");
     volatile register size_t message_id_6_r asm("r15");
 
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
     __asm__ __volatile__(
         R"(
       mov %%rbp, _perception_services__temp_rbp
@@ -348,7 +348,7 @@ MessageId NotifyOnEachNewServiceInstance(
   memcpy(service_name_words, &name[0], name.size());
 
   volatile register size_t syscall asm("rdi") = 35;
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
   // TODO: Mutex for debug builds.
   _perception_services__syscall_rbp = message_id;
 #else
@@ -365,7 +365,7 @@ MessageId NotifyOnEachNewServiceInstance(
   volatile register size_t name_9 asm("r13") = service_name_words[8];
   volatile register size_t name_10 asm("r14") = service_name_words[9];
 
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
   __asm__ __volatile__(R"(
     mov %%rbp, _perception_services__temp_rbp
     mov _perception_services__syscall_rbp, %%rbp

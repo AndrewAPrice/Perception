@@ -1,8 +1,11 @@
 {
-    dependencies+: [
-        "perception"
-    ],
-    source_directories: [
-        "source"
-    ],
+  dependencies+: [
+    'perception',
+  ],
+  include_directories: [
+    'source',
+  ],
+  source_directories: [
+    'source',
+  ],
 }

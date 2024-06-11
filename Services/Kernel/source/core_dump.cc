@@ -23,6 +23,9 @@
 #include "thread.h"
 #include "virtual_allocator.h"
 
+// #define SUPPORTS_CORE_DUMPING
+
+#ifdef SUPPORTS_CORE_DUMPING
 namespace {
 
 // The non-printable escape code that the monitor picks up that something
@@ -393,3 +396,10 @@ void PrintCoreDump(Process *process, Thread *target_thread, int exception_no,
                         exception_no, cr2, error_code, threads, memory_chunks,
                         memory_size);
 }
+#else  // SUPPORTS_CORE_DUMPING
+
+void PrintCoreDump(Process *process, Thread *target_thread, int exception_no,
+                   size_t cr2, size_t error_code) {
+}
+
+#endif  // SUPPORTS_CORE_DUMPING

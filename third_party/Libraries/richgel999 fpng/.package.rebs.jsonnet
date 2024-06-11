@@ -4,12 +4,9 @@
         "public",
     ],
     defines: [
-		"FPNG_NO_SSE"
+  		"FPNG_NO_SSE"
     ],
     source_directories: [
         "source"
-    ],
-    dependencies+: [
-		"libclang compiler headers"
     ],
 }

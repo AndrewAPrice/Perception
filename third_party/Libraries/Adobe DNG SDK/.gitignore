@@ -1,8 +1,0 @@
-# All third party files.
-public/
-
-# All third party files.
-source/
-
-# A list of third party files in public/ and source/.
-third_party_files.json

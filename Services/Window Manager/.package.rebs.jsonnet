@@ -1,8 +1,8 @@
 {
-    dependencies+: [
-        "perception"
-    ],
-    source_directories: [
-        "source"
-    ],
+  dependencies+: [
+    'perception',
+  ],
+  source_directories: [
+    'source',
+  ],
 }

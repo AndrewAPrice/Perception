@@ -1,6 +1,0 @@
-{"dependencies":[
-	"libcxx",
-	"musl",
-	"perception",
-	"Perception Driver"
-]}

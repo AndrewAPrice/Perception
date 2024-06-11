@@ -1,9 +1,9 @@
 {
-    dependencies+: [
-        "perception",
-        "Perception Driver"
-    ],
-    source_directories: [
-        "source"
-    ],
+  dependencies+: [
+    'perception',
+    'Perception Driver',
+  ],
+  source_directories: [
+    'source',
+  ],
 }

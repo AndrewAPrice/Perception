@@ -44,7 +44,7 @@ ProcessId InvokeSyscallToGetProcessId() {
 
 }  // namespace
 
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
 // We can't pass RBP in and out of inline assembly in debug builds, so we'll
 // use these variables to temporarily store and overwrite RBP.
 extern "C" {
@@ -90,7 +90,7 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
   memcpy(process_name, &name[0], name.size());
 
   volatile register size_t syscall asm("rdi") = 22;
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
   // TODO: Mutex for debug builds.
   _perception_processes__syscall_rbp = 0;
 #else
@@ -110,7 +110,7 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
 
   // We only care about the first PID.
   volatile register size_t number_of_processes asm("rdi");
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
   __asm__ __volatile__(R"(
 		mov %%rbp, _perception_processes__temp_rbp
 		mov _perception_processes__syscall_rbp, %%rbp
@@ -161,7 +161,7 @@ void ForEachProcessWithName(
   while (true) {
     // Fetch this page of results.
     volatile register size_t syscall asm("rdi") = 22;
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
     // TODO: Mutex. for debug builds.
     _perception_processes__syscall_rbp = 0;
 #else
@@ -180,7 +180,7 @@ void ForEachProcessWithName(
     volatile register size_t name_11 asm("r15") = process_name[10];
 
     volatile register size_t number_of_processes_r asm("rdi");
-#ifndef debug_BUILD_
+#ifdef optimized_BUILD_
     volatile register size_t pid_1_r asm("rbp");
 #endif
     volatile register size_t pid_2_r asm("rax");
@@ -195,7 +195,7 @@ void ForEachProcessWithName(
     volatile register size_t pid_11_r asm("r14");
     volatile register size_t pid_12_r asm("r15");
 
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
     __asm__ __volatile__(R"(
 		mov %%rbp, _perception_processes__temp_rbp
 		mov _perception_processes__syscall_rbp, %%rbp
@@ -405,7 +405,7 @@ bool CreateChildProcess(std::string_view name, size_t bitfield,
   memcpy(process_name, &name[0], name.size());
 
   volatile register size_t syscall asm("rdi") = 51;
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
   // TODO: Mutex for debug builds.
   _perception_processes__syscall_rbp = bitfield;
 #else
@@ -424,7 +424,7 @@ bool CreateChildProcess(std::string_view name, size_t bitfield,
   volatile register size_t name_11 asm("r15") = process_name[10];
 
   volatile register size_t pid_r asm("rax");
-#ifdef debug_BUILD_
+#ifndef optimized_BUILD_
   __asm__ __volatile__(R"(
 		mov %%rbp, _perception_processes__temp_rbp
 		mov _perception_processes__syscall_rbp, %%rbp

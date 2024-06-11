@@ -1,0 +1,1 @@
+Thie File System subdirectory contains the contents of what gets copied to the bootable GRUB disk image.

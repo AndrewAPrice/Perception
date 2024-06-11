@@ -1,9 +1,0 @@
-{
-	"dependencies": [
-		"libcxx",
-		"fontconfig",
-		"Fonts",
-		"musl",
-		"perception"
-	]
-}

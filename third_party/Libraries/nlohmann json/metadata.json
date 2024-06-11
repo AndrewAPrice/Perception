@@ -1,7 +1,0 @@
-{
-	"dependencies":[
-		"libcxx",
-		"musl"
-	],
-	"third_party": true
-}
