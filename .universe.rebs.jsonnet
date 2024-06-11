@@ -10,10 +10,10 @@
       else if optimization_level == 'debug' then
         ' -g -Og'
       else
-        '',
+        ' -g -O2 ',
     local c_command_prefix = cpp_compiler + c_optimizations +
-                             ' -c --target=x86_64-unknown-none-elf -fdata-sections -ffunction-sections -nostdinc -ffreestanding -fno-builtin ',
-    local cpp_command = c_command_prefix + ' -std=c++23 ${cdefines} ${cincludes} -MD -MF ${deps file} -o ${out} ${in}',
+                             ' -c --target=x86_64-unknown-none-elf -fdata-sections -ffunction-sections -nostdinc -ffreestanding -fno-builtin -mno-red-zone',
+    local cpp_command = c_command_prefix + ' -std=c++23 -nostdinc++ ${cdefines} ${cincludes} -MD -MF ${deps file} -o ${out} ${in}',
     cpp: cpp_command,
     cc: cpp_command,
     c: c_command_prefix +
