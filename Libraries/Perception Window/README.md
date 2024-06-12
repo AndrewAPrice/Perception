@@ -1,0 +1,1 @@
+A library for creating windows. Typically, GUI applications would use Perception UI.
