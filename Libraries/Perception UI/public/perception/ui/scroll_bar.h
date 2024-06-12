@@ -21,6 +21,7 @@
 
 #include "perception/ui/label.h"
 #include "perception/ui/widget.h"
+#include "perception/window/mouse_button.h"
 
 namespace perception {
 namespace ui {
@@ -58,10 +59,10 @@ class ScrollBar : public Widget {
   virtual void OnMouseLeave() override;
   virtual void OnMouseButtonDown(
       float x, float y,
-      ::permebuf::perception::devices::MouseButton button) override;
+      window::MouseButton button) override;
   virtual void OnMouseButtonUp(
       float x, float y,
-      ::permebuf::perception::devices::MouseButton button) override;
+      window::MouseButton button) override;
 
  private:
   ScrollBar();

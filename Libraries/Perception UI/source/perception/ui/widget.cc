@@ -17,6 +17,9 @@
 #include <map>
 
 #include "perception/ui/draw_context.h"
+#include "perception/window/mouse_button.h"
+
+using ::perception::window::MouseButton;
 
 namespace perception {
 namespace ui {
@@ -461,10 +464,8 @@ bool Widget::GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
 void Widget::OnMouseEnter() {}
 void Widget::OnMouseLeave() {}
 void Widget::OnMouseMove(float x, float y) {}
-void Widget::OnMouseButtonDown(
-    float x, float y, ::permebuf::perception::devices::MouseButton button) {}
-void Widget::OnMouseButtonUp(
-    float x, float y, ::permebuf::perception::devices::MouseButton button) {}
+void Widget::OnMouseButtonDown(float x, float y, MouseButton button) {}
+void Widget::OnMouseButtonUp(float x, float y, MouseButton button) {}
 
 void Widget::InvalidateRender() {
   if (auto parent = parent_.lock()) {

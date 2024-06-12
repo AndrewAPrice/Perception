@@ -15,34 +15,22 @@
 #pragma once
 
 #include <memory>
-#include <string_view>
 #include <mutex>
+#include <string_view>
 
-#include "perception/ui/widget.h"
-#include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
-#include "permebuf/Libraries/perception/devices/keyboard_driver.permebuf.h"
-#include "permebuf/Libraries/perception/devices/keyboard_listener.permebuf.h"
-#include "permebuf/Libraries/perception/devices/mouse_driver.permebuf.h"
-#include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
-#include "permebuf/Libraries/perception/window.permebuf.h"
-#include "permebuf/Libraries/perception/window_manager.permebuf.h"
-
-#include "include/core/SkSurface.h"
 #include "include/core/SkRefCnt.h"
+#include "include/core/SkSurface.h"
+#include "perception/ui/widget.h"
+#include "perception/window/window.h"
+#include "perception/window/window_delegate.h"
 
 namespace perception {
-
-class SharedMemory;
 
 namespace ui {
 
 struct DrawContext;
 
-class UiWindow
-    : protected ::permebuf::perception::devices::MouseListener::Server,
-      protected ::permebuf::perception::devices::KeyboardListener::Server,
-      protected ::permebuf::perception::Window::Server,
-      public Widget {
+class UiWindow : public window::WindowDelegate, public Widget {
  public:
   UiWindow(std::string_view title, bool dialog = false);
   virtual ~UiWindow();
@@ -57,68 +45,21 @@ class UiWindow
   UiWindow* Create();
 
   bool GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
-                           float& x_in_selected_widget,
-                           float& y_in_selected_widget) override;
- protected:
-  void HandleOnMouseMove(
-      ProcessId,
-      const ::permebuf::perception::devices::MouseListener::OnMouseMoveMessage&
-          message) override;
-  void HandleOnMouseScroll(
-      ProcessId, const ::permebuf::perception::devices::MouseListener::
-                     OnMouseScrollMessage& message) override;
-  void HandleOnMouseButton(
-      ProcessId, const ::permebuf::perception::devices::MouseListener::
-                     OnMouseButtonMessage& message) override;
-  void HandleOnMouseClick(
-      ProcessId,
-      const ::permebuf::perception::devices::MouseListener::OnMouseClickMessage&
-          message) override;
-  void HandleOnMouseEnter(
-      ProcessId,
-      const ::permebuf::perception::devices::MouseListener::OnMouseEnterMessage&
-          message) override;
-  void HandleOnMouseLeave(
-      ProcessId,
-      const ::permebuf::perception::devices::MouseListener::OnMouseLeaveMessage&
-          message);
-  void HandleOnMouseHover(
-      ProcessId,
-      const ::permebuf::perception::devices::MouseListener::OnMouseHoverMessage&
-          message);
-  void HandleOnMouseTakenCaptive(
-      ProcessId, const ::permebuf::perception::devices::MouseListener::
-                     OnMouseTakenCaptiveMessage& message);
-  void HandleOnMouseReleased(
-      ProcessId, const ::permebuf::perception::devices::MouseListener::
-                     OnMouseReleasedMessage& message);
-  void HandleOnKeyDown(
-      ProcessId,
-      const ::permebuf::perception::devices::KeyboardListener::OnKeyDownMessage&
-          message) override;
-  void HandleOnKeyUp(
-      ProcessId,
-      const ::permebuf::perception::devices::KeyboardListener::OnKeyUpMessage&
-          message) override;
-  void HandleOnKeyboardTakenCaptive(
-      ProcessId, const ::permebuf::perception::devices::KeyboardListener::
-                     OnKeyboardTakenCaptiveMessage& message) override;
-  void HandleOnKeyboardReleased(
-      ProcessId, const ::permebuf::perception::devices::KeyboardListener::
-                     OnKeyboardReleasedMessage& message) override;
-  void HandleSetSize(
-      ProcessId,
-      const ::permebuf::perception::Window::SetSizeMessage& message) override;
-  void HandleClosed(
-      ProcessId,
-      const ::permebuf::perception::Window::ClosedMessage& message) override;
-  void HandleGainedFocus(
-      ProcessId,
-      const ::permebuf::perception::Window::GainedFocusMessage& message)
-      override;
-  void HandleLostFocus(
-      ProcessId,
-      const ::permebuf::perception::Window::LostFocusMessage& message) override;
+                   float& x_in_selected_widget,
+                   float& y_in_selected_widget) override;
+
+  virtual void WindowDraw(const window::WindowDrawBuffer& buffer,
+                          window::Rectangle& invalidated_area) override;
+
+  virtual void WindowClosed() override;
+
+  virtual void WindowResized() override;
+
+  virtual void MouseClicked(const window::MouseClickEvent& event) override;
+
+  virtual void MouseLeft() override;
+
+  virtual void MouseHovered(const window::MouseHoverEvent& event) override;
 
   virtual void InvalidateRender() override;
 
@@ -127,6 +68,8 @@ class UiWindow
   bool created_;
   bool is_dialog_;
 
+  std::shared_ptr<window::Window> base_window_;
+
   std::string title_;
   uint32 background_color_;
   std::function<void()> on_close_handler_;
@@ -134,11 +77,7 @@ class UiWindow
 
   std::weak_ptr<Widget> widget_mouse_is_over_;
 
-  bool rebuild_texture_;
-  int texture_id_;
-  int frontbuffer_texture_id_;
-  SharedMemory texture_shared_memory_;
-  SharedMemory frontbuffer_shared_memory_;
+  void* pixel_data_;
   int buffer_width_;
   int buffer_height_;
 
@@ -148,7 +87,6 @@ class UiWindow
 
   void MaybeUpdateLayout();
   void SwitchToMouseOverWidget(std::shared_ptr<Widget> widget);
-  void ReleaseTextures();
 };
 
 }  // namespace ui

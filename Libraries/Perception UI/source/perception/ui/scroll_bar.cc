@@ -19,8 +19,9 @@
 #include "include/core/SkPaint.h"
 #include "perception/ui/draw_context.h"
 #include "perception/ui/theme.h"
+#include "perception/window/mouse_button.h"
 
-using ::permebuf::perception::devices::MouseButton;
+using ::perception::window::MouseButton;
 
 namespace perception {
 namespace ui {

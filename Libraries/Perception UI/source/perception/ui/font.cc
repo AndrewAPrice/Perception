@@ -41,7 +41,7 @@ SkFontMgr *GetFontManager() {
 SkFont* GetBook12UiFont() {
   if (!book_12_ui_font) {
     book_12_ui_font = std::make_unique<SkFont>(
-        GetFontManager()->legacyMakeTypeface(
+        GetFontManager()->matchFamilyStyle(
             "DejaVuSans",
             SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
                         SkFontStyle::kUpright_Slant)),
@@ -53,7 +53,7 @@ SkFont* GetBook12UiFont() {
 SkFont* GetBold12UiFont() {
   if (!bold_12_ui_font) {
     bold_12_ui_font = std::make_unique<SkFont>(
-        GetFontManager()->legacyMakeTypeface(
+        GetFontManager()->matchFamilyStyle(
             "DejaVuSans",
             SkFontStyle(SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width,
                         SkFontStyle::kUpright_Slant)),

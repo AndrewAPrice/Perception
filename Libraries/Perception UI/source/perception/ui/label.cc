@@ -14,6 +14,8 @@
 
 #include "perception/ui/label.h"
 
+#include <iostream>
+
 #include "include/core/SkCanvas.h"
 #include "include/core/SkFont.h"
 #include "include/core/SkRect.h"
@@ -154,6 +156,8 @@ YGSize Label::Measure(const YGNode* node, float width, YGMeasureMode width_mode,
 #undef maybeMeasureString
 
   label->realign_text_ = true;
+
+  std::cout << "measure end"<< std::endl;
   return size;
 }
 

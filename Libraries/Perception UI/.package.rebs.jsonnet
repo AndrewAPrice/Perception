@@ -10,5 +10,6 @@
     'facebook yoga',
     'google skia',
     'perception',
+    'Perception Window',
   ],
 }

@@ -22,6 +22,7 @@
 #include "perception/ui/container.h"
 #include "perception/ui/label.h"
 #include "perception/ui/widget.h"
+#include "perception/window/mouse_button.h"
 
 namespace perception {
 namespace ui {
@@ -73,12 +74,10 @@ class Button : public Container {
 
   virtual void OnMouseEnter() override;
   virtual void OnMouseLeave() override;
-  virtual void OnMouseButtonDown(
-      float x, float y,
-      ::permebuf::perception::devices::MouseButton button) override;
-  virtual void OnMouseButtonUp(
-      float x, float y,
-      ::permebuf::perception::devices::MouseButton button) override;
+  virtual void OnMouseButtonDown(float x, float y,
+                                 window::MouseButton button) override;
+  virtual void OnMouseButtonUp(float x, float y,
+                               window::MouseButton button) override;
 
  protected:
   Button();

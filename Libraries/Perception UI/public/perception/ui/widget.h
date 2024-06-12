@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "perception/ui/image_effect.h"
+#include "perception/window/mouse_button.h"
 #include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
 #include "yoga/Yoga.h"
 
@@ -179,10 +180,8 @@ class Widget : public std::enable_shared_from_this<Widget> {
   virtual void OnMouseEnter();
   virtual void OnMouseLeave();
   virtual void OnMouseMove(float x, float y);
-  virtual void OnMouseButtonDown(
-      float x, float y, ::permebuf::perception::devices::MouseButton button);
-  virtual void OnMouseButtonUp(
-      float x, float y, ::permebuf::perception::devices::MouseButton button);
+  virtual void OnMouseButtonDown(float x, float y, window::MouseButton button);
+  virtual void OnMouseButtonUp(float x, float y, window::MouseButton button);
 
   YGNode* GetYogaNode();
 
