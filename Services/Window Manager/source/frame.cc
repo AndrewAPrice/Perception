@@ -662,8 +662,7 @@ void Frame::AddWindowToLastFocusedFrame(Window& window) {
   last_focused_frame->AddWindow(window);
 }
 
-void Frame::MouseEvent(int screen_x, int screen_y,
-                       ::permebuf::perception::devices::MouseButton button,
+void Frame::MouseEvent(int screen_x, int screen_y, MouseButton button,
                        bool is_button_down) {
   if (is_split_frame_) {
     // Split frame, see what we clicked.
