@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#if 0
 #include "tabs.h"
 
 #include <string_view>
@@ -20,12 +20,12 @@
 #include "applications_tab.h"
 #include "perception/ui/label.h"
 #include "perception/ui/text_alignment.h"
-#include "perception/ui/widget.h"
+#include "perception/ui/node.h"
 #include "processes_tab.h"
 
 using ::perception::ui::Label;
 using ::perception::ui::TextAlignment;
-using ::perception::ui::Widget;
+using ::perception::ui::Node;
 
 std::string_view GetTabLabel(Tab tab) {
   switch (tab) {
@@ -57,3 +57,4 @@ std::shared_ptr<Widget> GetOrConstructTabContents(Tab tab) {
           ->ToSharedPtr();
   }
 }
+#endif

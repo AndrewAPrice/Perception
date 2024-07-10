@@ -24,7 +24,7 @@
 #include "perception/ui/label.h"
 #include "perception/ui/parentless_widget.h"
 #include "perception/ui/scroll_bar.h"
-#include "perception/ui/widget.h"
+#include "perception/ui/node.h"
 
 namespace perception {
 namespace ui {

@@ -16,10 +16,10 @@
 
 #include <memory>
 
-#include "perception/ui/widget.h"
+#include "perception/ui/node.h"
 
 // Gets or constructs the side panel of the launcher.
-std::shared_ptr<::perception::ui::Widget> GetOrConstructSidePanel();
+std::shared_ptr<::perception::ui::Node> GetOrConstructSidePanel();
 
 
 

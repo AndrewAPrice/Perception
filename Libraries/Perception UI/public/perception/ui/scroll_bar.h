@@ -20,7 +20,7 @@
 #include <string_view>
 
 #include "perception/ui/label.h"
-#include "perception/ui/widget.h"
+#include "perception/ui/node.h"
 #include "perception/window/mouse_button.h"
 
 namespace perception {

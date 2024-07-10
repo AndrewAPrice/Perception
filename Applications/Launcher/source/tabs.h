@@ -18,10 +18,10 @@
 #include <string_view>
 #include <vector>
 
-#include "perception/ui/widget.h"
+#include "perception/ui/node.h"
 
 // Gets or constructs the side panel of the launcher.
-std::shared_ptr<::perception::ui::Widget> GetOrConstructSidePanel();
+std::shared_ptr<::perception::ui::Node> GetOrConstructSidePanel();
 
 // The different tabs of the launcher.
 enum class Tab {
@@ -37,5 +37,5 @@ std::string_view GetTabLabel(Tab tab);
 std::vector<Tab> GetSidePanelTabsToShow();
 
 // Gets or constructs the the contents for a tab.
-std::shared_ptr<::perception::ui::Widget> GetOrConstructTabContents(Tab tab);
+std::shared_ptr<::perception::ui::Node> GetOrConstructTabContents(Tab tab);
 

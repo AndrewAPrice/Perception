@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#if 0
 #include "perception/ui/scroll_bar.h"
 
 #include "include/core/SkCanvas.h"
@@ -315,3 +315,4 @@ uint32 ScrollBar::GetFabColor() {
 
 }  // namespace ui
 }  // namespace perception
+#endif

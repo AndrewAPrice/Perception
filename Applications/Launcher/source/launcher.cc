@@ -24,6 +24,6 @@ using LauncherService = ::permebuf::perception::Launcher;
 void Launcher::HandleShowLauncher(
     ::perception::ProcessId sender,
     const ::LauncherService::ShowLauncherMessage& message) {
-  ScanForApplications();
-  ShowLauncherWindow();
+//  ScanForApplications();
+//  ShowLauncherWindow();
 }

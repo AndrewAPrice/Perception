@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#if 0
 #include "side_panel.h"
 
 #include <memory>
@@ -19,12 +19,12 @@
 #include "launcher_window.h"
 #include "perception/ui/button.h"
 #include "perception/ui/container.h"
-#include "perception/ui/widget.h"
+#include "perception/ui/node.h"
 #include "tabs.h"
 
 using ::perception::ui::Button;
 using ::perception::ui::Container;
-using ::perception::ui::Widget;
+using ::perception::ui::Node;
 
 namespace {
 
@@ -32,6 +32,7 @@ namespace {
 std::shared_ptr<Widget> side_panel;
 
 }
+
 
 // Gets or constructs the side panel of the launcher.
 std::shared_ptr<Widget> GetOrConstructSidePanel() {
@@ -54,3 +55,4 @@ std::shared_ptr<Widget> GetOrConstructSidePanel() {
   }
   return side_panel;
 }
+#endif

@@ -18,6 +18,7 @@
 #include <memory>
 #include <optional>
 
+#if 0
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/ui/label.h"
@@ -25,7 +26,6 @@
 #include "perception/ui/ui_window.h"
 #include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
 #include "side_panel.h"
-
 using ::perception::Defer;
 using ::perception::TerminateProcess;
 using ::perception::ui::kFillParent;
@@ -76,3 +76,4 @@ void ShowLauncherWindow() {
 
   launcher_window->Create();
 }
+#endif

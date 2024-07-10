@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#if 0
 #include "processes_tab.h"
 
 #include <iostream>
@@ -30,7 +30,7 @@
 #include "perception/ui/scroll_container.h"
 #include "perception/ui/text_alignment.h"
 #include "perception/ui/ui_window.h"
-#include "perception/ui/widget.h"
+#include "perception/ui/node.h"
 #include "tabs.h"
 
 using ::perception::ForEachProcess;
@@ -48,7 +48,7 @@ using ::perception::ui::ScrollBar;
 using ::perception::ui::ScrollContainer;
 using ::perception::ui::TextAlignment;
 using ::perception::ui::UiWindow;
-using ::perception::ui::Widget;
+using ::perception::ui::Node;
 
 namespace {
 
@@ -175,3 +175,5 @@ std::shared_ptr<Widget> GetOrConstructProcessesTab() {
 
   return processes_tab;
 }
+
+#endif

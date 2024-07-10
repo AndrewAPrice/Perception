@@ -16,7 +16,7 @@
 
 #include <memory>
 
-#include "perception/ui/widget.h"
+#include "perception/ui/node.h"
 
 // Gets or constructs the applications tab of the launcher.
-std::shared_ptr<::perception::ui::Widget> GetOrConstructApplicationsTab();
+std::shared_ptr<::perception::ui::Node> GetOrConstructApplicationsTab();
