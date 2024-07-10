@@ -20,6 +20,9 @@
 #include "perception/draw.h"
 #include "perception/scheduler.h"
 #include "perception/ui/draw_context.h"
+#include "perception/ui/layout.h"
+#include "perception/ui/node.h"
+#include "perception/ui/point.h"
 #include "perception/ui/theme.h"
 #include "perception/window/keyboard_key_event.h"
 #include "perception/window/mouse_button_event.h"
@@ -32,134 +35,136 @@
 #include "perception/window/window_delegate.h"
 #include "perception/window/window_draw_buffer.h"
 
+using ::perception::window::MouseButton;
+
 namespace perception {
 namespace ui {
 
-UiWindow::UiWindow(std::string_view title, bool dialog)
-    : title_(title),
-      created_(false),
-      is_dialog_(dialog),
+UiWindow::UiWindow()
+    : created_(false),
       background_color_(kBackgroundWindowColor),
       invalidated_(false),
       buffer_width_(0),
       buffer_height_(0) {
   SkGraphics::Init();  // See if this isn't needed.
-  SetWidthAuto();
-  SetHeightAuto();
-  SetPadding(YGEdgeAll, kMarginAroundWidgets);
 }
 
 UiWindow::~UiWindow() {}
 
-UiWindow* UiWindow::SetBackgroundColor(uint32 background_color) {
+void UiWindow::SetNode(std::weak_ptr<Node> node) {
   std::scoped_lock lock(window_mutex_);
-  if (background_color_ == background_color) return this;
+  node_ = node;
+  if (node_.expired()) return;
+  auto strong_node = node_.lock();
+  strong_node->OnInvalidate(std::bind_front(&UiWindow::InvalidateRender, this));
+  InvalidateRender();
+}
+
+void UiWindow::SetBackgroundColor(uint32 background_color) {
+  std::scoped_lock lock(window_mutex_);
+  if (background_color_ == background_color) return;
 
   background_color_ = background_color;
   InvalidateRender();
-  return this;
 }
 
-UiWindow* UiWindow::OnClose(std::function<void()> on_close_handler) {
-  std::scoped_lock lock(window_mutex_);
-  on_close_handler_ = on_close_handler;
-  return this;
+void UiWindow::OnClose(std::function<void()> on_close_handler) {
+  on_close_functions_.push_back(on_close_handler);
 }
 
-UiWindow* UiWindow::OnResize(
-    std::function<void(float, float)> on_resize_handler) {
-  std::scoped_lock lock(window_mutex_);
-  on_resize_handler_ = on_resize_handler;
-  return this;
+void UiWindow::OnResize(std::function<void()> on_resize_handler) {
+  on_resize_functions_.push_back(on_resize_handler);
+}
+
+void UiWindow::SetTitle(std::string_view title) {
+  if (title_ == title) return;
+  title_ = title;
+
+  if (created_) base_window_->SetTitle(title);
+}
+
+void UiWindow::SetIsDialog(bool is_dialog) {
+  if (created_) return;
+  is_dialog_ = is_dialog;
 }
 
 void UiWindow::WindowClosed() {
   std::scoped_lock lock(window_mutex_);
-  if (on_close_handler_) on_close_handler_();
+  for (auto& handler : on_close_functions_) handler();
 }
 
 void UiWindow::WindowResized() {
   std::scoped_lock lock(window_mutex_);
+  if (node_.expired()) return;
+
+  auto node = node_.lock();
+
   buffer_width_ = base_window_->GetWidth();
   buffer_height_ = base_window_->GetHeight();
-  SetWidth((float)buffer_width_);
-  SetHeight((float)buffer_height_);
+
+  Layout layout = node->GetLayout();
+  layout.SetWidth((float)buffer_width_);
+  layout.SetHeight((float)buffer_height_);
   skia_surface_.reset();
-  if (on_resize_handler_)
-    on_resize_handler_((float)buffer_width_, (float)buffer_height_);
+
+  for (auto& handler : on_resize_functions_) handler();
   InvalidateRender();
 }
 
 void UiWindow::MouseClicked(const window::MouseClickEvent& event) {
   std::scoped_lock lock(window_mutex_);
-  std::shared_ptr<Widget> widget;
-  float x_in_selected_widget, y_in_selected_widget;
-  float x = (float)event.x;
-  float y = (float)event.y;
 
-  (void)GetWidgetAt(x, y, widget, x_in_selected_widget, y_in_selected_widget);
+  Point point{.x = (float)event.x, .y = (float)event.y};
+  MouseButton button = event.button;
 
-  SwitchToMouseOverWidget(widget);
-
-  // Tell the widget the mouse has moved.
-  if (widget) {
-    if (event.was_pressed_down) {
-      widget->OnMouseButtonDown(x_in_selected_widget, y_in_selected_widget,
-                                event.button);
-    } else {
-      widget->OnMouseButtonUp(x_in_selected_widget, y_in_selected_widget,
-                              event.button);
-    }
+  if (event.was_pressed_down) {
+    HandleMouseEvent(point,
+                     [this, button](Node& node, const Point& point_in_node) {
+                       node.MouseButtonDown(point_in_node, button);
+                     });
+  } else {
+    HandleMouseEvent(point,
+                     [this, button](Node& node, const Point& point_in_node) {
+                       node.MouseButtonUp(point_in_node, button);
+                     });
   }
 }
 
 void UiWindow::MouseLeft() {
   std::scoped_lock lock(window_mutex_);
-  if (auto widget = widget_mouse_is_over_.lock()) {
-    widget->OnMouseLeave();
+
+  for (std::weak_ptr<Node> node : nodes_to_notify_when_mouse_leaves_) {
+    if (!node.expired()) node.lock()->MouseLeave();
   }
-  widget_mouse_is_over_.reset();
+  nodes_to_notify_when_mouse_leaves_.clear();
 }
 
 void UiWindow::MouseHovered(const window::MouseHoverEvent& event) {
   std::scoped_lock lock(window_mutex_);
-  std::shared_ptr<Widget> widget;
-  float x_in_selected_widget, y_in_selected_widget;
-  float x = (float)event.x;
-  float y = (float)event.y;
-
-  (void)GetWidgetAt(x, y, widget, x_in_selected_widget, y_in_selected_widget);
-
-  SwitchToMouseOverWidget(widget);
-
-  // Tell the widget the mouse has moved.
-  if (widget) {
-    widget->OnMouseMove(x_in_selected_widget, y_in_selected_widget);
-  }
+  Point point{.x = (float)event.x, .y = (float)event.y};
+  HandleMouseEvent(point, [this](Node& node, const Point& point_in_node) {
+    node.MouseHover(point_in_node);
+  });
 }
 
 void UiWindow::Draw() {
-  std::cout << "Draw lock" << std::endl;
+  if (!created_) Create();
+
   std::scoped_lock lock(window_mutex_);
 
-  std::cout << "Draw now have lock" << std::endl;
-  if (!invalidated_ || !created_) {
-    std::cout << "early return!" << std::endl;
-    invalidated_ = false;
-    return;
-  }
+  if (!invalidated_) return;
   base_window_->Present();
   invalidated_ = false;
 }
 
-void Create() {}
-
-bool UiWindow::GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
-                           float& x_in_selected_widget,
-                           float& y_in_selected_widget) {
-  MaybeUpdateLayout();
-  return Widget::GetWidgetAt(x, y, widget, x_in_selected_widget,
-                             y_in_selected_widget);
+void UiWindow::GetNodesAt(
+    const Point& point,
+    const std::function<void(Node& node, const Point& point_in_node)>&
+        on_hit_node) {
+  if (node_.expired()) return;
+  auto node = node_.lock();
+  node->GetLayout().CalculateIfDirty(buffer_width_, buffer_height_);
+  (void)node->GetNodesAt(point, on_hit_node);
 }
 
 void UiWindow::InvalidateRender() {
@@ -167,38 +172,20 @@ void UiWindow::InvalidateRender() {
     return;
   }
 
-  DeferAfterEvents([this]() { Draw(); });
-
   invalidated_ = true;
-}
 
-void UiWindow::MaybeUpdateLayout() {
-  if (YGNodeIsDirty(yoga_node_)) {
-    YGNodeCalculateLayout(yoga_node_, (float)buffer_width_,
-                          (float)buffer_height_, YGDirectionLTR);
-  }
-}
-
-void UiWindow::SwitchToMouseOverWidget(std::shared_ptr<Widget> widget) {
-  auto old_widget = widget_mouse_is_over_.lock();
-  if (widget == old_widget) return;
-
-  // The widget we are over has changed.
-  if (old_widget) old_widget->OnMouseLeave();
-
-  if (widget) {
-    // We have a new widget.
-    widget->OnMouseEnter();
-    widget_mouse_is_over_ = widget;
-  } else {
-    // There is no new widget.
-    widget_mouse_is_over_.reset();
-  }
+  // auto weak_this = weak_from_this();
+  auto self = shared_from_this();
+  DeferAfterEvents([self]() {
+    // if (!weak_this.expired()) weak_this.lock()->Draw();
+    self->Draw();
+  });
 }
 
 void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
                           window::Rectangle& invalidated_area) {
-  std::cout << "WindowDraw" << std::endl;
+  if (node_.expired()) return;
+  auto node = node_.lock();
   if (!skia_surface_ || buffer_width_ != buffer.width ||
       buffer_height_ != buffer.height || buffer.pixel_data != pixel_data_) {
     buffer_width_ = buffer.width;
@@ -219,8 +206,12 @@ void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
   draw_context.skia_canvas = skia_surface_->getCanvas();
   draw_context.buffer_width = buffer_width_;
   draw_context.buffer_height = buffer_height_;
-  draw_context.offset_x = 0.0f;
-  draw_context.offset_y = 0.0f;
+
+  float width = (float)buffer_width_;
+  float height = (float)buffer_height_;
+  draw_context.area = {.origin = {.x = 0.0f, .y = 0.0f},
+                       .size = {.width = width, .height = height}};
+  draw_context.clipping_bounds = draw_context.area;
 
   if (background_color_) {
     FillRectangle(0, 0, buffer_width_, buffer_height_, background_color_,
@@ -228,49 +219,46 @@ void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
                   draw_context.buffer_height);
   }
 
-  MaybeUpdateLayout();
-
-  std::cout << "Invalidated area: " << invalidated_area.min_x << "," <<
-    invalidated_area.min_y << "," << invalidated_area.max_x << "," <<
-    invalidated_area.max_y << std::endl;
-
-  Widget::Draw(draw_context);
+  node->GetLayout().CalculateIfDirty(buffer_width_, buffer_height_);
+  node->Draw(draw_context);
 }
 
-UiWindow* UiWindow::Create() {
+void UiWindow::Create() {
   std::scoped_lock lock(window_mutex_);
-  if (created_) return this;
+  if (created_) return;
 
-  window::Window::CreationOptions options{
-      .title = title_,
-      .is_resizable = !is_dialog_,
-      .is_dialog = is_dialog_,
-      .is_double_buffered = true
-  };
+  if (node_.expired()) return;
+  auto strong_node = node_.lock();
+
+  window::Window::CreationOptions options{.title = title_,
+                                          .is_resizable = !is_dialog_,
+                                          .is_dialog = is_dialog_,
+                                          .is_double_buffered = true};
+
+  Layout layout = strong_node->GetLayout();
 
   if (is_dialog_) {
     // Measure how big our dialog is.
 
     // If a dimension is 'auto', it fills to take the entire size passed in, but
     // if we pass in YGUndefined, it'll fill to wrap the content.
-    auto width = GetWidth();
-    auto height = GetHeight();
-    YGNodeCalculateLayout(
-        yoga_node_,
-        width.unit == YGUnitAuto || width.value <= 0 ? YGUndefined
-                                                     : width.value,
-        height.unit == YGUnitAuto || height.value <= 0 ? YGUndefined
-                                                       : height.value,
-        YGDirectionLTR);
-    options.prefered_width = GetCalculatedWidthWithMargin();
-    options.prefered_height = GetCalculatedHeightWithMargin();
+    auto width = layout.GetWidth();
+    auto height = layout.GetHeight();
+    layout.Calculate(width.unit == YGUnitAuto || width.value <= 0 ? YGUndefined
+                                                                  : width.value,
+                     height.unit == YGUnitAuto || height.value <= 0
+                         ? YGUndefined
+                         : height.value);
+    options.prefered_width = layout.GetCalculatedWidthWithMargin();
+    options.prefered_height = layout.GetCalculatedHeightWithMargin();
   }
 
   base_window_ = window::Window::CreateWindow(options);
   if (base_window_) {
-    // Can't cast directly from Widget -> WindowDelegate;
-    auto this_as_window = std::static_pointer_cast<UiWindow>(shared_from_this());
-    auto this_as_delegate = std::static_pointer_cast<window::WindowDelegate>(this_as_window);
+    auto this_as_window = shared_from_this();
+    auto this_as_delegate =
+        std::static_pointer_cast<window::WindowDelegate>(this_as_window);
+
     base_window_->SetDelegate(this_as_delegate);
     buffer_width_ = base_window_->GetWidth();
     buffer_height_ = base_window_->GetHeight();
@@ -278,21 +266,37 @@ UiWindow* UiWindow::Create() {
     buffer_width_ = 0;
     buffer_height_ = 0;
   }
-  std::cout << "Buffer width: " << buffer_width_
-            << " - height: " << buffer_height_ << std::endl;
+  for (auto& handler : on_resize_functions_) handler();
 
-  if (on_resize_handler_)
-    on_resize_handler_((float)buffer_width_, (float)buffer_height_);
-
-  if (buffer_width_ != GetCalculatedWidthWithMargin() ||
-      buffer_height_ != GetCalculatedHeightWithMargin()) {
-    YGNodeCalculateLayout(yoga_node_, (float)buffer_width_,
-                          (float)buffer_height_, YGDirectionLTR);
+  if (buffer_width_ != layout.GetCalculatedWidthWithMargin() ||
+      buffer_height_ != layout.GetCalculatedHeightWithMargin()) {
+    layout.Calculate((float)buffer_width_, (float)buffer_height_);
   }
 
   InvalidateRender();
   created_ = true;
-  return this;
+}
+
+void UiWindow::HandleMouseEvent(
+    const Point& point,
+    const std::function<void(Node& node, const Point& point_in_node)>&
+        on_each_node) {
+  std::set<std::weak_ptr<Node>, NodeWeakPtrComparator>
+      new_nodes_to_notify_when_mouse_leaves;
+
+  GetNodesAt(point, [&new_nodes_to_notify_when_mouse_leaves, &on_each_node,
+                     this](Node& node, const Point& point_in_node) {
+    on_each_node(node, point_in_node);
+    if (node.DoesHandleMouseLeaveEvents())
+      new_nodes_to_notify_when_mouse_leaves.insert(node.ToSharedPtr());
+  });
+
+  for (std::weak_ptr<Node> node : nodes_to_notify_when_mouse_leaves_) {
+    if (new_nodes_to_notify_when_mouse_leaves.count(node) == 0) {
+      if (!node.expired()) node.lock()->MouseLeave();
+    }
+  }
+  nodes_to_notify_when_mouse_leaves_ = new_nodes_to_notify_when_mouse_leaves;
 }
 
 }  // namespace ui

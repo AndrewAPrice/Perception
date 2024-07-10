@@ -24,6 +24,8 @@ namespace perception {
 
 namespace ui {
 
+struct Size;
+
 enum class ResizeMethod {
   // Show the item in the original size. (This size can scale with the UI.)
   Original = 0,
@@ -31,24 +33,21 @@ enum class ResizeMethod {
   // Show the item in the original, pixel perfect, size.
   PixelPerfect = 1,
 
-  // Stretch the item to fit the container perfectly, not preserving aspect ratio.
+  // Stretch the item to fit the container perfectly, not preserving aspect
+  // ratio.
   Stretch = 2,
 
-  // Resize the item to fully cover the container while preserving the aspect ratio.
+  // Resize the item to fully cover the container while preserving the aspect
+  // ratio.
   Cover = 3,
 
-  // Resize the item to it's fully contained within the container while preserving the aspect ratio.
+  // Resize the item to it's fully contained within the container while
+  // preserving the aspect ratio.
   Contain = 4
 };
 
-void CalculateResize(ResizeMethod method,
-  float item_width,
-  float item_height,
-  float container_width,
-  float container_height,
-  float display_scale,
-  float& output_width,
-  float& output_height);
+Size CalculateResize(ResizeMethod method, const Size& item_size,
+                     const Size& display_size, float display_scale);
 
 }  // namespace ui
 }  // namespace perception

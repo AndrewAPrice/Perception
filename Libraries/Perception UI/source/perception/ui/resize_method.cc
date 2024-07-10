@@ -16,43 +16,36 @@
 
 #include <algorithm>
 
+#include "perception/ui/size.h"
+
 namespace perception {
 namespace ui {
 
-void CalculateResize(ResizeMethod method, float item_width, float item_height,
-                     float container_width, float container_height,
-                     float display_scale, float &output_width,
-                     float &output_height) {
+Size CalculateResize(ResizeMethod method, const Size& item_size,
+                     const Size& container_size, float display_scale) {
   switch (method) {
     case ResizeMethod::Original:
-      output_width = item_width * display_scale;
-      output_height = item_height * display_scale;
-      break;
+      return {.width = item_size.width * display_scale,
+              .height = item_size.height * display_scale};
     case ResizeMethod::PixelPerfect:
-      output_width = item_width;
-      output_height = item_height;
-      break;
+      return item_size;
     case ResizeMethod::Stretch:
-      output_width = container_width;
-      output_height = container_height;
-      break;
+      return container_size;
     case ResizeMethod::Cover:
     case ResizeMethod::Contain: {
-      if (item_height == 0.0f || item_width == 0.0f) {
-        output_width = output_height = 0.0f;
-        break;
+      if (item_size.width == 0.0f || item_size.height == 0.0f) {
+        return {.width = 0.0f, .height = 0.0f};
       }
 
-      float width_ratio = container_width / item_width;
-      float height_ratio = container_height / item_height;
+      float width_ratio = container_size.width / item_size.width;
+      float height_ratio = container_size.height / item_size.height;
 
       float scale_amount = method == ResizeMethod::Cover
                                ? std::max(width_ratio, height_ratio)
                                : std::min(width_ratio, height_ratio);
 
-      output_width = item_width * scale_amount;
-      output_height = item_height * scale_amount;
-      break;
+      return {.width = item_size.width * scale_amount,
+              .height = item_size.height * scale_amount};
     }
   }
 }

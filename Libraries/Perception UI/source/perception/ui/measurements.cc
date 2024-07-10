@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,38 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "perception/ui/measurements.h"
 
-#include "perception/ui/rectangle.h"
-#include "types.h"
+#include <algorithm>
 
-class SkCanvas;
+#include "yoga/Yoga.h"
 
 namespace perception {
 namespace ui {
 
-struct DrawContext {
-  // The raw, low level buffer.
-  uint32* buffer;
+float CalculateMeasuredLength(YGMeasureMode mode, float requested_length,
+                             float calculated_length) {
 
-  // The width of the buffer, in pixels.
-  int buffer_width;
-
-  // The height of the buffer, in pixels.
-  int buffer_height;
-
-  // The clipping boundaries. Anything outside of these boundaries isn't
-  // guaranteed to be shown on screen.
-  Rectangle clipping_bounds;
-
-  // The area to draw into.
-  Rectangle area;
-
-  // The Skia canvas.
-  SkCanvas* skia_canvas;
-
-  // The window being drawn into.
-};
+  if (mode == YGMeasureModeExactly) return requested_length;
+  if (mode == YGMeasureModeAtMost)
+    return std::min(requested_length, calculated_length);
+  return calculated_length;
+}
 
 }  // namespace ui
 }  // namespace perception

@@ -23,18 +23,16 @@
 namespace perception {
 namespace ui {
 
+struct Size;
+
 class Image {
  public:
   virtual ~Image();
   static std::shared_ptr<Image> LoadImage(std::string_view path);
 
-  virtual SkImage* GetSkImage(float width, float height,
-                              bool& matches_dimensions) {
-    return nullptr;
-  }
-  virtual SkSVGDOM* GetSkSVGDOM(float width, float height) { return nullptr; }
-  virtual void GetSize(float container_width, float container_height,
-                       float& width, float& height) = 0;
+  virtual SkImage* GetSkImage(const Size& size, bool& matches_dimensions) = 0;
+  virtual SkSVGDOM* GetSkSVGDOM(const Size& size) = 0;
+  virtual Size GetSize(const Size& container_size) = 0;
 };
 
 }  // namespace ui

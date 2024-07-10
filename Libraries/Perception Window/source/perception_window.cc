@@ -69,6 +69,10 @@ class PerceptionWindow : public Window,
     delegate_ = delegate;
   }
 
+  void SetTitle(std::string_view title) override {
+    std::cout << "PerceptionWindow::SetTitle is not implemented." << std::endl;
+  }
+
   int GetWidth() override { return width_; }
 
   int GetHeight() override { return height_; }
@@ -127,12 +131,8 @@ class PerceptionWindow : public Window,
     buffer.pixel_data = *texture_shared_memory_;
     Rectangle invalidated_area{
         .min_x = 0, .min_y = 0, .max_x = width_, .max_y = height_};
-    if (auto delegate = delegate_.lock()) {
-      delegate->WindowDraw(buffer, invalidated_area);
-    } else {
-      // Nothing to draw.
-      return;
-    }
+    if (!delegate_.expired())
+      delegate_.lock()->WindowDraw(buffer, invalidated_area);
 
     if (is_double_buffered_) {
       // TODO: Copy only what's in invalidated_rect.
@@ -140,8 +140,6 @@ class PerceptionWindow : public Window,
       memcpy(*frontbuffer_shared_memory_, *texture_shared_memory_,
              width_ * height_ * 4);
     }
-
-    std::cout << "Sending to window" << std::endl;
 
     // Tell the window manager there is new data to draw.
     WindowManager::InvalidateWindowMessage message;
@@ -158,25 +156,26 @@ class PerceptionWindow : public Window,
       ProcessId,
       const ::permebuf::perception::devices::MouseListener::OnMouseMoveMessage&
           message) override {
-    if (auto delegate = delegate_.lock()) {
-      delegate->MouseMoved(MouseMoveEvent{.delta_x = message.GetDeltaX(),
-                                          .delta_y = message.GetDeltaY()});
+    if (!delegate_.expired()) {
+      delegate_.lock()->MouseMoved(MouseMoveEvent{
+          .delta_x = message.GetDeltaX(), .delta_y = message.GetDeltaY()});
     }
   }
 
   void HandleOnMouseScroll(
       ProcessId, const ::permebuf::perception::devices::MouseListener::
                      OnMouseScrollMessage& message) override {
-    if (auto delegate = delegate_.lock()) {
-      delegate->MouseScrolled(MouseScrollEvent{.delta = message.GetDelta()});
+    if (!delegate_.expired()) {
+      delegate_.lock()->MouseScrolled(
+          MouseScrollEvent{.delta = message.GetDelta()});
     }
   }
 
   void HandleOnMouseButton(
       ProcessId, const ::permebuf::perception::devices::MouseListener::
                      OnMouseButtonMessage& message) override {
-    if (auto delegate = delegate_.lock()) {
-      delegate->MouseButtonChanged(MouseButtonEvent{
+    if (!delegate_.expired()) {
+      delegate_.lock()->MouseButtonChanged(MouseButtonEvent{
           .button = static_cast<MouseButton>(message.GetButton()),
           .is_pressed_down = message.GetIsPressedDown()});
     }
@@ -186,8 +185,8 @@ class PerceptionWindow : public Window,
       ProcessId,
       const ::permebuf::perception::devices::MouseListener::OnMouseClickMessage&
           message) override {
-    if (auto delegate = delegate_.lock()) {
-      delegate->MouseClicked(MouseClickEvent{
+    if (!delegate_.expired()) {
+      delegate_.lock()->MouseClicked(MouseClickEvent{
           .button = static_cast<MouseButton>(message.GetButton()),
           .x = message.GetX(),
           .y = message.GetY(),
@@ -199,26 +198,22 @@ class PerceptionWindow : public Window,
       ProcessId,
       const ::permebuf::perception::devices::MouseListener::OnMouseEnterMessage&
           message) override {
-    if (auto delegate = delegate_.lock()) {
-      delegate->MouseEntered();
-    }
+    if (!delegate_.expired()) delegate_.lock()->MouseEntered();
   }
 
   void HandleOnMouseLeave(
       ProcessId,
       const ::permebuf::perception::devices::MouseListener::OnMouseLeaveMessage&
           message) override {
-    if (auto delegate = delegate_.lock()) {
-      delegate->MouseLeft();
-    }
+    if (!delegate_.expired()) delegate_.lock()->MouseLeft();
   }
 
   void HandleOnMouseHover(
       ProcessId,
       const ::permebuf::perception::devices::MouseListener::OnMouseHoverMessage&
           message) override {
-    if (auto delegate = delegate_.lock()) {
-      delegate->MouseHovered(
+    if (!delegate_.expired()) {
+      delegate_.lock()->MouseHovered(
           MouseHoverEvent{.x = message.GetX(), .y = message.GetY()});
     }
   }
@@ -227,14 +222,14 @@ class PerceptionWindow : public Window,
       ProcessId, const ::permebuf::perception::devices::MouseListener::
                      OnMouseTakenCaptiveMessage& message) override {
     is_mouse_captive_ = true;
-    if (auto delegate = delegate_.lock()) delegate->MouseCaptivityChanged();
+    if (!delegate_.expired()) delegate_.lock()->MouseCaptivityChanged();
   }
 
   void HandleOnMouseReleased(
       ProcessId, const ::permebuf::perception::devices::MouseListener::
                      OnMouseReleasedMessage& message) override {
     is_mouse_captive_ = false;
-    if (auto delegate = delegate_.lock()) delegate->MouseCaptivityChanged();
+    if (!delegate_.expired()) delegate_.lock()->MouseCaptivityChanged();
   }
 
   // KeyboardListener::Server
@@ -242,32 +237,30 @@ class PerceptionWindow : public Window,
       ProcessId,
       const ::permebuf::perception::devices::KeyboardListener::OnKeyDownMessage&
           message) override {
-    if (auto delegate = delegate_.lock()) {
-      delegate->KeyPressed(KeyboardKeyEvent{.key = message.GetKey()});
-    }
+    if (!delegate_.expired())
+      delegate_.lock()->KeyPressed(KeyboardKeyEvent{.key = message.GetKey()});
   }
 
   void HandleOnKeyUp(
       ProcessId,
       const ::permebuf::perception::devices::KeyboardListener::OnKeyUpMessage&
           message) override {
-    if (auto delegate = delegate_.lock()) {
-      delegate->KeyReleased(KeyboardKeyEvent{.key = message.GetKey()});
-    }
+    if (!delegate_.expired())
+      delegate_.lock()->KeyReleased(KeyboardKeyEvent{.key = message.GetKey()});
   }
 
   void HandleOnKeyboardTakenCaptive(
       ProcessId, const ::permebuf::perception::devices::KeyboardListener::
                      OnKeyboardTakenCaptiveMessage& message) override {
     is_keyboard_captive_ = true;
-    if (auto delegate = delegate_.lock()) delegate->KeyboardCaptivityChanged();
+    if (!delegate_.expired()) delegate_.lock()->KeyboardCaptivityChanged();
   }
 
   void HandleOnKeyboardReleased(
       ProcessId, const ::permebuf::perception::devices::KeyboardListener::
                      OnKeyboardReleasedMessage& message) override {
     is_keyboard_captive_ = false;
-    if (auto delegate = delegate_.lock()) delegate->KeyboardCaptivityChanged();
+    if (!delegate_.expired()) delegate_.lock()->KeyboardCaptivityChanged();
   }
   // Window::Server
   void HandleSetSize(
@@ -276,14 +269,14 @@ class PerceptionWindow : public Window,
     width_ = message.GetWidth();
     height_ = message.GetHeight();
     rebuild_texture_ = true;
-    if (auto delegate = delegate_.lock()) delegate->WindowResized();
+    if (!delegate_.expired()) delegate_.lock()->WindowResized();
   }
 
   void HandleClosed(
       ProcessId,
       const ::permebuf::perception::Window::ClosedMessage& message) override {
     created_ = false;
-    if (auto delegate = delegate_.lock()) delegate->WindowClosed();
+    if (!delegate_.expired()) delegate_.lock()->WindowClosed();
   }
 
   void HandleGainedFocus(
@@ -291,14 +284,14 @@ class PerceptionWindow : public Window,
       const ::permebuf::perception::Window::GainedFocusMessage& message)
       override {
     is_focused_ = true;
-    if (auto delegate = delegate_.lock()) delegate->WindowFocusChanged();
+    if (!delegate_.expired()) delegate_.lock()->WindowFocusChanged();
   }
 
   void HandleLostFocus(ProcessId,
                        const ::permebuf::perception::Window::LostFocusMessage&
                            message) override {
     is_focused_ = false;
-    if (auto delegate = delegate_.lock()) delegate->WindowFocusChanged();
+    if (!delegate_.expired()) delegate_.lock()->WindowFocusChanged();
   }
 
  private:

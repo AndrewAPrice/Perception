@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "perception/ui/font.h"
 
 #include <memory>
@@ -36,7 +35,7 @@ SkFontMgr *GetFontManager() {
   return font_manager.get();
 }
 
-}
+}  // namespace
 
 SkFont* GetBook12UiFont() {
   if (!book_12_ui_font) {

@@ -20,29 +20,38 @@
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/time.h"
+#include "perception/ui/builders/image_view.h"
+#include "perception/ui/builders/node.h"
+#include "perception/ui/builders/window.h"
 #include "perception/ui/image.h"
-#include "perception/ui/image_view.h"
+#include "perception/ui/node.h"
 #include "perception/ui/resize_method.h"
 #include "perception/ui/text_alignment.h"
-#include "perception/ui/ui_window.h"
 
 using ::perception::HandOverControl;
 using ::perception::SleepForDuration;
 using ::perception::TerminateProcess;
-using ::perception::ui::Image;
-using ::perception::ui::ImageView;
-using ::perception::ui::kFillParent;
+using ::perception::ui::builders::AlignContent;
+using ::perception::ui::builders::Image;
+using ::perception::ui::builders::ImageAlignment;
+using ::perception::ui::builders::ImageResizeMethod;
+using ::perception::ui::builders::ImageView;
+using ::perception::ui::builders::JustifyContent;
+using ::perception::ui::builders::OnWindowClose;
+using ::perception::ui::builders::Window;
+using ::perception::ui::builders::WindowTitle;
+using ::perception::ui::Node;
 using ::perception::ui::ResizeMethod;
 using ::perception::ui::TextAlignment;
-using ::perception::ui::UiWindow;
 
 namespace {
 
 int opened_instances = 0;
-std::vector<std::shared_ptr<UiWindow>> open_windows;
+std::vector<std::shared_ptr<Node>> open_windows;
 
 void OpenImage(std::string_view path) {
-  std::shared_ptr<Image> image = Image::LoadImage(path);
+  std::shared_ptr<::perception::ui::Image> image =
+      ::perception::ui::Image::LoadImage(path);
   if (!image) {
     std::cout << "Couldn't load " << path << std::endl;
     return;
@@ -50,28 +59,20 @@ void OpenImage(std::string_view path) {
 
   opened_instances++;
 
-  auto window = std::make_shared<UiWindow>(path);
-  window->SetJustifyContent(YGJustifyCenter)
-      ->SetAlignContent(YGAlignCenter)
-      ->SetPadding(YGEdgeAll, 0.0f)
-      ->SetMargin(YGEdgeAll, 0.0f)
-      ->AddChild(std::make_shared<ImageView>()
-                     ->SetAlignment(TextAlignment::MiddleCenter)
-                     ->SetResizeMethod(ResizeMethod::Contain)
-                     ->SetImage(image)
-                     ->SetMargin(YGEdgeAll, 0.0f)
-                     ->ToSharedPtr());
-  window->Create();
-  window->OnClose([]() {
-    opened_instances--;
-    if (opened_instances == 0) TerminateProcess();
-  });
+  auto window =
+      Window(WindowTitle(path), JustifyContent(YGJustifyCenter),
+             AlignContent(YGAlignCenter), OnWindowClose([]() {
+               opened_instances--;
+               if (opened_instances == 0) TerminateProcess();
+             }),
+             ImageView(ImageAlignment(TextAlignment::MiddleCenter),
+                       ImageResizeMethod(ResizeMethod::Contain), Image(image)));
   open_windows.push_back(window);
 }
 
 }  // namespace
 
-int main (int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
   SleepForDuration(std::chrono::seconds(2));
 
   OpenImage("/Optical 1/Sample Images/1546182636.svg");

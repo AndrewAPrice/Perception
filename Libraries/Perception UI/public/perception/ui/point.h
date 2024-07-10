@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,35 +14,26 @@
 
 #pragma once
 
-#include "perception/ui/rectangle.h"
-#include "types.h"
-
-class SkCanvas;
-
 namespace perception {
 namespace ui {
 
-struct DrawContext {
-  // The raw, low level buffer.
-  uint32* buffer;
+struct Size;
 
-  // The width of the buffer, in pixels.
-  int buffer_width;
+struct Point {
+  float x;
+  float y;
 
-  // The height of the buffer, in pixels.
-  int buffer_height;
+  bool operator==(const Point& other) const;
 
-  // The clipping boundaries. Anything outside of these boundaries isn't
-  // guaranteed to be shown on screen.
-  Rectangle clipping_bounds;
+  Point operator+(const Point& other) const;
 
-  // The area to draw into.
-  Rectangle area;
+  Point& operator+=(const Point& other);
 
-  // The Skia canvas.
-  SkCanvas* skia_canvas;
+  Point operator-(const Point& other) const;
 
-  // The window being drawn into.
+  Point& operator-=(const Point& other);
+
+  Size ToSize() const;
 };
 
 }  // namespace ui

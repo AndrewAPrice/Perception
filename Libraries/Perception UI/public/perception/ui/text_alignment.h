@@ -21,8 +21,10 @@
 class SkFont;
 
 namespace perception {
-
 namespace ui {
+
+struct Point;
+struct Size;
 
 enum class TextAlignment {
   TopLeft = 0,
@@ -36,13 +38,11 @@ enum class TextAlignment {
   BottomRight = 8
 };
 
-void CalculateTextAlignment(std::string_view text, float width, float height,
-                            TextAlignment alignment, SkFont& font, float& x,
-                            float& y);
+Point CalculateTextAlignment(std::string_view text, const Size& container_size,
+                             TextAlignment alignment, SkFont& font);
 
-void CalculateAlignment(float item_width, float item_height,
-                        float container_width, float container_height,
-                        TextAlignment alignment, float& x, float& y);
+Point CalculateAlignment(const Size& item_size, const Size& container_size,
+                         TextAlignment alignment);
 
 }  // namespace ui
 }  // namespace perception

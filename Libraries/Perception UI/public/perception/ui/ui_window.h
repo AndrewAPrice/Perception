@@ -14,13 +14,15 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string_view>
 
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSurface.h"
-#include "perception/ui/widget.h"
+#include "perception/ui/node.h"
 #include "perception/window/window.h"
 #include "perception/window/window_delegate.h"
 
@@ -29,24 +31,27 @@ namespace perception {
 namespace ui {
 
 struct DrawContext;
+struct Point;
 
-class UiWindow : public window::WindowDelegate, public Widget {
+class UiWindow : public window::WindowDelegate,
+                 public std::enable_shared_from_this<UiWindow> {
  public:
-  UiWindow(std::string_view title, bool dialog = false);
+  UiWindow();
   virtual ~UiWindow();
 
-  UiWindow* SetRoot(std::shared_ptr<Widget> root);
-  UiWindow* SetBackgroundColor(uint32 background_color);
-  std::shared_ptr<Widget> GetRoot();
-  UiWindow* OnClose(std::function<void()> on_close_handler);
-  UiWindow* OnResize(std::function<void(float, float)> on_resize_handler);
+  void SetNode(std::weak_ptr<Node> node);
+  void SetBackgroundColor(uint32 background_color);
+  void OnClose(std::function<void()> on_close_handler);
+  void SetTitle(std::string_view title);
+  void SetIsDialog(bool is_dialog);
+  void OnResize(std::function<void()> on_resize_handler);
+  void FocusOnNode();
 
   void Draw();
-  UiWindow* Create();
-
-  bool GetWidgetAt(float x, float y, std::shared_ptr<Widget>& widget,
-                   float& x_in_selected_widget,
-                   float& y_in_selected_widget) override;
+  void GetNodesAt(
+      const Point& point,
+      const std::function<void(Node& node, const Point& point_in_node)>&
+          on_hit_node);
 
   virtual void WindowDraw(const window::WindowDrawBuffer& buffer,
                           window::Rectangle& invalidated_area) override;
@@ -61,21 +66,33 @@ class UiWindow : public window::WindowDelegate, public Widget {
 
   virtual void MouseHovered(const window::MouseHoverEvent& event) override;
 
-  virtual void InvalidateRender() override;
+  void InvalidateRender();
 
  private:
+  struct NodeWeakPtrComparator {
+    bool operator()(const std::weak_ptr<Node>& a,
+                    const std::weak_ptr<Node>& b) const {
+      if (a.expired() || b.expired()) return b.owner_before(a);
+
+      return a.lock() < b.lock();
+    }
+  };
+
   bool invalidated_;
   bool created_;
   bool is_dialog_;
 
+  void Create();
+
   std::shared_ptr<window::Window> base_window_;
+  std::weak_ptr<Node> node_;
 
   std::string title_;
   uint32 background_color_;
-  std::function<void()> on_close_handler_;
-  std::function<void(float, float)> on_resize_handler_;
+  std::vector<std::function<void()>> on_close_functions_;
+  std::vector<std::function<void()>> on_resize_functions_;
 
-  std::weak_ptr<Widget> widget_mouse_is_over_;
+  std::weak_ptr<Node> node_mouse_is_over_;
 
   void* pixel_data_;
   int buffer_width_;
@@ -85,8 +102,13 @@ class UiWindow : public window::WindowDelegate, public Widget {
 
   std::mutex window_mutex_;
 
-  void MaybeUpdateLayout();
-  void SwitchToMouseOverWidget(std::shared_ptr<Widget> widget);
+  std::set<std::weak_ptr<Node>, NodeWeakPtrComparator>
+      nodes_to_notify_when_mouse_leaves_;
+
+  void HandleMouseEvent(
+      const Point& point,
+      const std::function<void(Node& node, const Point& point_in_node)>&
+          on_each_node);
 };
 
 }  // namespace ui

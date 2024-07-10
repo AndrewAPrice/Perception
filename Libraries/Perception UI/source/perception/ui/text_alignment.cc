@@ -18,13 +18,14 @@
 #include "include/core/SkFontMetrics.h"
 #include "include/core/SkFontTypes.h"
 #include "include/core/SkRect.h"
+#include "perception/ui/point.h"
+#include "perception/ui/size.h"
 
 namespace perception {
 namespace ui {
 
-void CalculateTextAlignment(std::string_view text, float width, float height,
-                            TextAlignment alignment, SkFont& font, float& x,
-                            float& y) {
+Point CalculateTextAlignment(std::string_view text, const Size& container_size,
+                             TextAlignment alignment, SkFont& font) {
   SkRect bounds;
   (void)font.measureText(&text[0], text.length(), SkTextEncoding::kUTF8,
                          &bounds);
@@ -32,32 +33,34 @@ void CalculateTextAlignment(std::string_view text, float width, float height,
   SkFontMetrics font_metrics;
   float line_height = font.getMetrics(&font_metrics);
 
-  CalculateAlignment(bounds.width(), font_metrics.fDescent - font_metrics.fAscent,
-    width, height, alignment, x, y);
+  Size item_size = {.width = bounds.width(),
+                    .height = font_metrics.fDescent - font_metrics.fAscent};
+
+  Point point = CalculateAlignment(item_size, container_size, alignment);
 
   // Skia draws text from the baseline.
-  y -= font_metrics.fAscent;
+  point.y -= font_metrics.fAscent;
+  return point;
 }
 
-void CalculateAlignment(float item_width, float item_height,
-  float container_width, float container_height,
-  TextAlignment alignment,
-  float& x, float& y) {
+Point CalculateAlignment(const Size& item_size, const Size& container_size,
+                         TextAlignment alignment) {
+  Point position;
   switch (alignment) {
     case TextAlignment::TopLeft:
     case TextAlignment::TopCenter:
     case TextAlignment::TopRight:
-      y = 0;
+      position.y = 0;
       break;
     case TextAlignment::MiddleLeft:
     case TextAlignment::MiddleCenter:
     case TextAlignment::MiddleRight:
-      y = container_height / 2.0f - item_height / 2.0f;
+      position.y = container_size.height / 2.0f - item_size.height / 2.0f;
       break;
     case TextAlignment::BottomLeft:
     case TextAlignment::BottomCenter:
     case TextAlignment::BottomRight:
-      y = item_height - container_height;
+      position.y = container_size.height - item_size.height;
       break;
   }
 
@@ -65,20 +68,20 @@ void CalculateAlignment(float item_width, float item_height,
     case TextAlignment::TopLeft:
     case TextAlignment::MiddleLeft:
     case TextAlignment::BottomLeft:
-      x = 0;
+      position.x = 0;
       break;
     case TextAlignment::TopCenter:
     case TextAlignment::MiddleCenter:
     case TextAlignment::BottomCenter:
-      x = container_width / 2.0f - item_width / 2.0f;
+      position.x = container_size.width / 2.0f - item_size.width / 2.0f;
       break;
     case TextAlignment::TopRight:
     case TextAlignment::MiddleRight:
     case TextAlignment::BottomRight:
-      x = container_width - item_width;
+      position.x = container_size.width - item_size.width;
       break;
   }
-
+  return position;
 }
 
 }  // namespace ui

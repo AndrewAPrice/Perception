@@ -63,6 +63,9 @@ class Window {
   // The delegate to send messages to.
   virtual void SetDelegate(std::weak_ptr<WindowDelegate> delegate) = 0;
 
+  // Sets the title of the window.
+  virtual void SetTitle(std::string_view title) = 0;
+
   // Returns the width of the window.
   virtual int GetWidth() = 0;
 

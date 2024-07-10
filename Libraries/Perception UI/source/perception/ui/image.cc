@@ -23,6 +23,7 @@
 #include "include/core/SkStream.h"
 #include "modules/svg/include/SkSVGRenderContext.h"
 #include "modules/svg/include/SkSVGSVG.h"
+#include "perception/ui/size.h"
 
 namespace perception {
 namespace ui {
@@ -33,17 +34,18 @@ class RasterImage : public Image {
   RasterImage(sk_sp<SkImage> image) : sk_image_(image) {}
   virtual ~RasterImage() {}
 
-  SkImage* GetSkImage(float width, float height,
-                      bool& matches_dimensions) override {
-    matches_dimensions = std::abs(width - sk_image_->width()) < 1.0f &&
-                         std::abs(height - sk_image_->height()) < 1.0f;
+  SkImage* GetSkImage(const Size& size, bool& matches_dimensions) override {
+    matches_dimensions =
+        std::abs(size.width - (float)sk_image_->width()) < 1.0f &&
+        std::abs(size.height - (float)sk_image_->height()) < 1.0f;
     return sk_image_.get();
   }
 
-  void GetSize(float container_width, float container_height, float& width,
-               float& height) override {
-    width = sk_image_->width();
-    height = sk_image_->height();
+  virtual SkSVGDOM* GetSkSVGDOM(const Size& size) override { return nullptr; }
+
+  Size GetSize(const Size& container_size) override {
+    return {.width = (float)sk_image_->width(),
+            .height = (float)sk_image_->height()};
   }
 
  private:
@@ -53,32 +55,32 @@ class RasterImage : public Image {
 class SVGImage : public Image {
  public:
   SVGImage(sk_sp<SkSVGDOM> svg_dom)
-      : sk_svg_dom_(svg_dom), last_width_(-1), last_height_(-1) {}
+      : sk_svg_dom_(svg_dom), last_size_{.width = -1, .height = -1} {}
   virtual ~SVGImage() {}
 
-  virtual SkSVGDOM* GetSkSVGDOM(float width, float height) {
-    if (std::abs(width - last_width_) >= 1.0f ||
-        std::abs(height - last_height_) >= 1.0f) {
-      sk_svg_dom_->setContainerSize(SkSize::Make(width, height));
-      last_width_ = width;
-      last_height_ = height;
+  SkImage* GetSkImage(const Size& size, bool& matches_dimensions) override {
+    return nullptr;
+  }
+
+  virtual SkSVGDOM* GetSkSVGDOM(const Size& size) override {
+    if (size != last_size_) {
+      sk_svg_dom_->setContainerSize(SkSize::Make(size.width, size.height));
+      last_size_ = size;
     }
 
     return sk_svg_dom_.get();
   }
 
-  void GetSize(float container_width, float container_height, float& width,
-               float& height) override {
-    auto size = sk_svg_dom_->getRoot()->intrinsicSize(
-        SkSVGLengthContext(SkSize::Make(container_width, container_height)));
-    width = (int)(size.width());
-    height = (int)(size.height());
+  Size GetSize(const Size& container_size) override {
+    auto size = sk_svg_dom_->getRoot()->intrinsicSize(SkSVGLengthContext(
+        SkSize::Make(container_size.width, container_size.height)));
+    return {.width = size.width(), .height = size.height()};
   }
 
  private:
   sk_sp<SkSVGDOM> sk_svg_dom_;
 
-  int last_width_, last_height_;
+  Size last_size_;
 };
 
 }  // namespace
@@ -99,13 +101,18 @@ std::shared_ptr<Image> Image::LoadImage(std::string_view path) {
     auto sk_svg_dom =
         SkSVGDOM::Builder().setResourceProvider(std::move(rp)).make(*sk_stream);
 
-    if (sk_svg_dom) return std::make_shared<SVGImage>(sk_svg_dom);
+    if (sk_svg_dom) {
+      return std::static_pointer_cast<Image>(
+          std::make_shared<SVGImage>(sk_svg_dom));
+    }
   } else {
     auto sk_data = SkData::MakeFromFileName(std::string(path).c_str());
     if (!sk_data) return nullptr;
 
     auto sk_image = SkImages::DeferredFromEncodedData(sk_data, std::nullopt);
-    if (sk_image) return std::make_shared<RasterImage>(sk_image);
+    if (sk_image)
+      return std::static_pointer_cast<Image>(
+          std::make_shared<RasterImage>(sk_image));
   }
 
   return nullptr;
