@@ -23,21 +23,11 @@
 #include "perception/ui/draw_context.h"
 #include "perception/ui/font.h"
 #include "perception/ui/theme.h"
+#include "perception/ui/measurements.h"
 
 namespace perception {
 namespace ui {
 namespace components {
-namespace {
-
-float CalculateMeasuredLength(YGMeasureMode mode, float requested_length,
-                              float calculated_length) {
-  if (mode == YGMeasureModeExactly) return requested_length;
-  if (mode == YGMeasureModeAtMost)
-    return std::min(requested_length, calculated_length);
-  return calculated_length;
-}
-
-}  // namespace
 
 Label::Label()
     : color_(kLabelTextColor),
