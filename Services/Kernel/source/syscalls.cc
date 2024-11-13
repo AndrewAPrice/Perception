@@ -104,6 +104,8 @@ const char *GetSystemCallName(Syscall syscall) {
       return "StartExecutionProcess";
     case Syscall::DestroyChildProcess:
       return "DestroyChildProcess";
+    case Syscall::GetMultibootModule:
+      return "GetMultibootModule";
     case Syscall::RegisterService:
       return "RegisterService";
     case Syscall::UnregisterService:

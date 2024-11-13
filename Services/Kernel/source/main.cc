@@ -49,7 +49,8 @@ extern "C" void kmain() {
   // Loads the multiboot modules, then frees the memory used by them.
   LoadMultibootModules();
   MaybeLoadFramebuffer();
-  DoneWithMultibootMemory();
+  if (!HasRemainingUnloadedMultibootModules())
+    DoneWithMultibootMemory();
 
   asm("sti");
   for (;;) {

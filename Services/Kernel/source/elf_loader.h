@@ -16,5 +16,8 @@
 
 #include "types.h"
 
-// Loads an ELF process from memory.
-extern void LoadElfProcess(size_t memory_start, size_t memory_end, char* name);
+struct Process;
+
+// Loads an ELF process from memory. Returns false if this is a module that
+// should be handled by a process later.
+extern bool LoadElfProcess(size_t memory_start, size_t memory_end, char *name);

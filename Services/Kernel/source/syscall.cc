@@ -5,6 +5,7 @@
 #include "interrupts.h"
 #include "io.h"
 #include "messages.h"
+#include "multiboot_modules.h"
 #include "physical_allocator.h"
 #include "process.h"
 #include "profiling.h"
@@ -442,6 +443,26 @@ extern "C" void SyscallHandler(int syscall_number) {
       Process *child_process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
       DestroyChildProcess(running_thread->process, child_process);
+      break;
+    }
+    case Syscall::GetMultibootModule: {
+      size_t module_name[MODULE_NAME_WORDS];
+
+      LoadNextMultibootModuleIntoProcess(
+          running_thread->process,
+          /*address_and_flags=*/currently_executing_thread_regs->rdi,
+          /*size=*/currently_executing_thread_regs->rbp, (char *)module_name);
+      currently_executing_thread_regs->rax = ((size_t *)module_name)[0];
+      currently_executing_thread_regs->rbx = ((size_t *)module_name)[1];
+      currently_executing_thread_regs->rdx = ((size_t *)module_name)[2];
+      currently_executing_thread_regs->rsi = ((size_t *)module_name)[3];
+      currently_executing_thread_regs->r8 = ((size_t *)module_name)[4];
+      currently_executing_thread_regs->r9 = ((size_t *)module_name)[5];
+      currently_executing_thread_regs->r10 = ((size_t *)module_name)[6];
+      currently_executing_thread_regs->r12 = ((size_t *)module_name)[7];
+      currently_executing_thread_regs->r13 = ((size_t *)module_name)[8];
+      currently_executing_thread_regs->r14 = ((size_t *)module_name)[9];
+      currently_executing_thread_regs->r15 = ((size_t *)module_name)[10];
       break;
     }
     case Syscall::RegisterService: {

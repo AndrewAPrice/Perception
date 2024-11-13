@@ -472,6 +472,29 @@ Destroys a process in the `creating` state.
 * `rdi` - 54
 * `rax` - PID of the child process.
 
+## Get a multiboot module.
+Returns information about a multiboot module that was not handled by the kernel and moves the data of the module into the caller's virtual memory. Subsequent calls will return a different module until there are no more modules remaining.
+
+### Input
+* `rdi` - 60
+
+### Output
+* `rdi` - The offset in the process's memory where the multiboot module starts. This address is aligned to the nearest 4 kilobytes, so the lower for 16 bits make up a bit field:
+ - Bit 0: This process should have the permissions of a driver.
+ - Bit 1: This process should be able to launch other processes.
+* `rbp` - The size of the multiboot module.
+* `rax` - Process name, char 0-7.
+* `rbx` - Process name, char 8-15.
+* `rdx` - Process name, char 16-23.
+* `rsi` - Process name, char 24-31.
+* `r8` - Process name, char 32-39.
+* `r9` - Process name, char 40-47.
+* `r10` - Process name, char 48-55.
+* `r12` - Process name, char 56-63.
+* `r13` - Process name, char 64-71.
+* `r14` - Process name, char 72-79.
+* `r15` - Process name, char 80-87.
+
 # Services
 
 ## Register service

@@ -156,3 +156,10 @@ extern bool IsKernelAddress(size_t address);
 // inclusive.
 extern void GetUserspaceVirtualMemoryHole(size_t &hole_start_address,
                                           size_t &hole_end_address);
+
+// Calculates the number of pages required to fit this particular number of bytes.
+extern size_t PagesThatContainBytes(size_t bytes);
+
+// Copies data from the module into the process's memory.
+extern bool CopyKernelMemoryIntoProcess(size_t from_start, size_t to_start, size_t to_end,
+                    Process* process);

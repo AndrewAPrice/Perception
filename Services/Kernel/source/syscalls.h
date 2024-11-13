@@ -15,7 +15,7 @@
 #pragma once
 
 // The total number of system calls.
-#define NUMBER_OF_SYSCALLS 60
+#define NUMBER_OF_SYSCALLS 61
 
 // The canonical list of system calls, mapped to the system call number.
 enum class Syscall {
@@ -64,6 +64,7 @@ enum class Syscall {
   SetChildProcessMemoryPage = 52,
   StartExecutionProcess = 53,
   DestroyChildProcess = 54,
+  GetMultibootModule = 60,
   // Services,
   RegisterService = 32,
   UnregisterService = 33,

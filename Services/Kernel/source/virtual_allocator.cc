@@ -1037,3 +1037,45 @@ void GetUserspaceVirtualMemoryHole(size_t &hole_start_address,
   hole_start_address = kMaxLowerHalfUserSpaceAddress + 1;
   hole_end_address = kMinHigherHalfUserSpaceAddress - 1;
 }
+
+size_t PagesThatContainBytes(size_t bytes) {
+  return (bytes + PAGE_SIZE - 1) / PAGE_SIZE;
+}
+
+bool CopyKernelMemoryIntoProcess(size_t from_start, size_t to_start,
+                                 size_t to_end, Process *process) {
+  VirtualAddressSpace *address_space = &process->virtual_address_space;
+
+  // The process's memory is mapped into pages. We'll copy page by page.
+  size_t to_first_page = to_start & ~(PAGE_SIZE - 1);  // Round down.
+  size_t to_last_page =
+      (to_end + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);  // Round up.
+
+  size_t to_page = to_first_page;
+  for (; to_page < to_last_page; to_page += PAGE_SIZE) {
+    size_t physical_page_address =
+        GetOrCreateVirtualPage(address_space, to_page);
+    if (physical_page_address == OUT_OF_MEMORY) {
+      // We ran out of memory trying to allocate the virtual page.
+      return false;
+    }
+
+    size_t temp_addr =
+        (size_t)TemporarilyMapPhysicalMemory(physical_page_address, 5);
+
+    // Indices where to start/finish copying within the page.
+    size_t offset_in_page_to_start_copying_at =
+        to_start > to_page ? to_start - to_page : 0;
+    size_t offset_in_page_to_finish_copying_at =
+        to_page + PAGE_SIZE > to_end ? to_end - to_page : PAGE_SIZE;
+    size_t copy_length = offset_in_page_to_finish_copying_at -
+                         offset_in_page_to_start_copying_at;
+
+    memcpy((char *)(temp_addr + offset_in_page_to_start_copying_at),
+           (char *)(from_start), copy_length);
+
+    from_start += copy_length;
+  }
+
+  return true;
+}
