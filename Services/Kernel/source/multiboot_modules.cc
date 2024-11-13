@@ -199,8 +199,8 @@ void LoadNextMultibootModuleIntoProcess(Process *process,
   // or a module.
   multiboot_tag *tag = next_multiboot_module_to_pass_to_process;
   for (; tag->type != MULTIBOOT_TAG_TYPE_END &&
-           tag->type != MULTIBOOT_TAG_TYPE_MODULE;
-         tag = NextMultibootTag(tag)) {
+         tag->type != MULTIBOOT_TAG_TYPE_MODULE;
+       tag = NextMultibootTag(tag)) {
   }
 
   if (tag == MULTIBOOT_TAG_TYPE_END) {
