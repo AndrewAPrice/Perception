@@ -15,7 +15,7 @@
 #include "device_manager.h"
 #include "driver_loader.h"
 #include "pci.h"
-#include "perception/framebuffer.h"
+#include "perception/multiboot.h"
 #include "perception/scheduler.h"
 #include "types.h"
 
@@ -42,7 +42,7 @@ void LoadVideoDriver() {
 
 }  // namespace
 
-int main (int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
   InitializePci();
 
   AddDriverToLoad("PS2 Keyboard and Mouse");
