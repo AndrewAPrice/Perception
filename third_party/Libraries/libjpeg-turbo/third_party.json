@@ -43,7 +43,9 @@
                     "jidctred",
                     "jquant1",
                     "jquant2",
-                    "jutils"
+                    "jutils",
+                    "rdppm",
+                    "wrppm"
                 ],
                 "16_bit_files_to_duplicate": [
                     "jcapistd",
@@ -62,7 +64,9 @@
                     "jdsample",
                     "jquant1",
                     "jquant2",
-                    "jutils"
+                    "jutils",
+                    "rdppm",
+                    "wrppm"
                 ],
                 "12_bit_sources": "${git}/${12_bit_files_to_duplicate}.c",
                 "12_bit_destinations": "${@}/source/${12_bit_files_to_duplicate}_12.c",

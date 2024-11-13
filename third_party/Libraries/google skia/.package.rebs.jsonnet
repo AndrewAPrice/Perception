@@ -29,6 +29,7 @@
     'harfbuzz',
     'libexpat',
     'libjpeg-turbo',
+    'richgel999 fpng',
     'unicode-org icu',
   ],
 }

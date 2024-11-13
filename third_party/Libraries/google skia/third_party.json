@@ -135,8 +135,6 @@
             "exclude": [
                 "source/src/codec/SkIcoCodec.cpp",
                 "source/src/codec/SkIcoCodec.h",
-                "source/src/codec/SkPngCodec.cpp",
-                "source/src/codec/SkPngCodec.h",
                 "source/src/codec/SkRawCodec.cpp",
                 "source/src/codec/SkRawCodec.h",
                 "source/src/codec/SkWuffsCodec.cpp",

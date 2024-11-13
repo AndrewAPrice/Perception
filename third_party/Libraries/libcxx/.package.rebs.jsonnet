@@ -12,6 +12,9 @@
   source_directories: [
     'source',
   ],
+  files_to_ignore: [
+    'source/cxa_noexception.cpp'
+  ],
   include_priority: 1,
   defines+: [
     '_LIBCPP_BUILDING_LIBRARY',
