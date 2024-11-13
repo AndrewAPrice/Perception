@@ -14,6 +14,9 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+
 #include "types.h"
 
 namespace perception {
@@ -21,5 +24,31 @@ namespace perception {
 // Gets the details of the framebuffer set up by the bootloader.
 void GetMultibootFramebufferDetails(size_t& physical_address, uint32& width,
                                     uint32& height, uint32& pitch, uint8& bpp);
+
+// Details about a multiboot module.
+struct MultibootModule {
+  // The name of this module.
+  std::string name;
+
+  // A pointer to the data for this module..
+  void* data;
+
+  // The size of this module's data, in bytes.
+  size_t size;
+
+  // A bit field of flags for this module.
+  size_t flags;
+
+  // Whether this module is a driver.
+  bool IsDriver() { return flags & 1; }
+
+  // Whether this module can launch processes.
+  bool CanLaunchProcesses() { return flags & 2; }
+};
+
+// Returns a multiboot module from the kernel. Only the first process that calls
+// this function can make subsequent calls to it. The memory from the module is
+// mapped into the process.
+std::unique_ptr<MultibootModule> GetMultibootModule();
 
 }  // namespace perception
