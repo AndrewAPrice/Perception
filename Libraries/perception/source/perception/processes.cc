@@ -44,20 +44,9 @@ ProcessId InvokeSyscallToGetProcessId() {
 
 }  // namespace
 
-#ifndef optimized_BUILD_
-// We can't pass RBP in and out of inline assembly in debug builds, so we'll
-// use these variables to temporarily store and overwrite RBP.
-extern "C" {
-size_t _perception_processes__temp_rbp;
-size_t _perception_processes__syscall_rbp;
-}
-#endif
-
 ProcessId GetProcessId() {
 #ifdef PERCEPTION
-  // static ProcessId process_id = InvokeSyscallToGetProcessId();
   return InvokeSyscallToGetProcessId();
-  ;
 #else
   return 0;
 #endif
@@ -91,10 +80,11 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
 
   volatile register size_t syscall asm("rdi") = 22;
 #ifndef optimized_BUILD_
-  // TODO: Mutex for debug builds.
-  _perception_processes__syscall_rbp = 0;
+  volatile register size_t min_pid asm("r11") = 0;
+  volatile register size_t pid_1 asm("r11");
 #else
   volatile register size_t min_pid asm("rbp") = 0;
+  volatile register size_t pid_1 asm("rbp");
 #endif
   volatile register size_t name_1 asm("rax") = process_name[0];
   volatile register size_t name_2 asm("rbx") = process_name[1];
@@ -110,31 +100,28 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
 
   // We only care about the first PID.
   volatile register size_t number_of_processes asm("rdi");
+  __asm__ __volatile__(
 #ifndef optimized_BUILD_
-  __asm__ __volatile__(R"(
-		mov %%rbp, _perception_processes__temp_rbp
-		mov _perception_processes__syscall_rbp, %%rbp
-		syscall
-		mov %%rbp, _perception_processes__syscall_rbp
-		mov _perception_processes__temp_rbp, %%rbp
+      R"(
+    push %%rbp
+    mov %%r11, %%rbp
+    syscall
+    mov %%rbp, %%r11
+    pop %%rbp
 	)"
-                       : "=r"(number_of_processes)
-                       : "r"(syscall), "r"(name_1), "r"(name_2), "r"(name_3),
-                         "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7),
-                         "r"(name_8), "r"(name_9), "r"(name_10), "r"(name_11)
-                       : "rcx", "r11", "memory");
-  size_t pid_1 = _perception_processes__syscall_rbp;
 #else
-  volatile register size_t pid_1 asm("rbp");
-
   __asm__ __volatile__("syscall\n"
-                       : "=r"(number_of_processes), "=r"(pid_1)
-                       : "r"(syscall), "r"(min_pid), "r"(name_1), "r"(name_2),
-                         "r"(name_3), "r"(name_4), "r"(name_5), "r"(name_6),
-                         "r"(name_7), "r"(name_8), "r"(name_9), "r"(name_10),
-                         "r"(name_11)
-                       : "rcx", "r11");
 #endif
+      : "=r"(number_of_processes), "=r"(pid_1)
+      : "r"(syscall), "r"(min_pid), "r"(name_1), "r"(name_2), "r"(name_3),
+        "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8),
+        "r"(name_9), "r"(name_10), "r"(name_11)
+      : "rcx"
+#ifdef optimized_BUILD_
+        ,
+        "r11"
+#endif
+  );
 
   if (number_of_processes == 0) return false;
 
@@ -162,8 +149,7 @@ void ForEachProcessWithName(
     // Fetch this page of results.
     volatile register size_t syscall asm("rdi") = 22;
 #ifndef optimized_BUILD_
-    // TODO: Mutex. for debug builds.
-    _perception_processes__syscall_rbp = 0;
+    volatile register size_t starting_pid asm("r11") = 0;
 #else
     volatile register size_t starting_pid asm("rbp") = 0;
 #endif
@@ -180,7 +166,10 @@ void ForEachProcessWithName(
     volatile register size_t name_11 asm("r15") = process_name[10];
 
     volatile register size_t number_of_processes_r asm("rdi");
-#ifdef optimized_BUILD_
+
+#ifndef optimized_BUILD_
+    volatile register size_t pid_1_r asm("r11");
+#else
     volatile register size_t pid_1_r asm("rbp");
 #endif
     volatile register size_t pid_2_r asm("rax");
@@ -195,27 +184,18 @@ void ForEachProcessWithName(
     volatile register size_t pid_11_r asm("r14");
     volatile register size_t pid_12_r asm("r15");
 
-#ifndef optimized_BUILD_
-    __asm__ __volatile__(R"(
-		mov %%rbp, _perception_processes__temp_rbp
-		mov _perception_processes__syscall_rbp, %%rbp
-		syscall
-		mov %%rbp, _perception_processes__syscall_rbp
-		mov _perception_processes__temp_rbp, %%rbp
-			)"
-                         : "=r"(number_of_processes_r), "=r"(pid_2_r),
-                           "=r"(pid_3_r), "=r"(pid_4_r), "=r"(pid_5_r),
-                           "=r"(pid_6_r), "=r"(pid_7_r), "=r"(pid_8_r),
-                           "=r"(pid_9_r), "=r"(pid_10_r), "=r"(pid_11_r),
-                           "=r"(pid_12_r)
-                         : "r"(syscall), "r"(name_1), "r"(name_2), "r"(name_3),
-                           "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7),
-                           "r"(name_8), "r"(name_9), "r"(name_10), "r"(name_11)
-                         : "rcx", "r11", "memory");
-    size_t pid_1_r = _perception_processes__syscall_rbp;
-#else
     __asm__ __volatile__(
+#ifndef optimized_BUILD_
+        R"(
+    push %%rbp
+    mov %%r11, %%rbp
+    syscall
+    mov %%rbp, %%r11
+    pop %%rbp
+			)"
+#else
         "syscall\n"
+#endif
         : "=r"(number_of_processes_r), "=r"(pid_1_r), "=r"(pid_2_r),
           "=r"(pid_3_r), "=r"(pid_4_r), "=r"(pid_5_r), "=r"(pid_6_r),
           "=r"(pid_7_r), "=r"(pid_8_r), "=r"(pid_9_r), "=r"(pid_10_r),
@@ -223,8 +203,12 @@ void ForEachProcessWithName(
         : "r"(syscall), "r"(starting_pid), "r"(name_1), "r"(name_2),
           "r"(name_3), "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7),
           "r"(name_8), "r"(name_9), "r"(name_10), "r"(name_11)
-        : "rcx", "r11");
+        : "rcx"
+#ifdef optimized_BUILD_
+          ,
+          "r11"
 #endif
+    );
 
     size_t number_of_processes = number_of_processes_r;
     size_t pid_1 = pid_1_r;
@@ -406,10 +390,9 @@ bool CreateChildProcess(std::string_view name, size_t bitfield,
 
   volatile register size_t syscall asm("rdi") = 51;
 #ifndef optimized_BUILD_
-  // TODO: Mutex for debug builds.
-  _perception_processes__syscall_rbp = bitfield;
+  volatile register size_t bitfield_r asm("r11") = bitfield;
 #else
-  volatile register size_t min_pid asm("rbp") = bitfield;
+  volatile register size_t bitfield_r asm("rbp") = bitfield;
 #endif
   volatile register size_t name_1 asm("rax") = process_name[0];
   volatile register size_t name_2 asm("rbx") = process_name[1];
@@ -424,27 +407,27 @@ bool CreateChildProcess(std::string_view name, size_t bitfield,
   volatile register size_t name_11 asm("r15") = process_name[10];
 
   volatile register size_t pid_r asm("rax");
+  __asm__ __volatile__(
 #ifndef optimized_BUILD_
-  __asm__ __volatile__(R"(
-		mov %%rbp, _perception_processes__temp_rbp
-		mov _perception_processes__syscall_rbp, %%rbp
-		syscall
-		mov _perception_processes__temp_rbp, %%rbp
+      R"(
+    push %%rbp
+    mov %%r11, %%rbp
+    syscall
+    pop %%rbp
 	)"
-                       : "=r"(pid_r)
-                       : "r"(syscall), "r"(name_1), "r"(name_2), "r"(name_3),
-                         "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7),
-                         "r"(name_8), "r"(name_9), "r"(name_10), "r"(name_11)
-                       : "rcx", "r11", "memory");
 #else
-  __asm__ __volatile__("syscall\n"
-                       : "=r"(pid_r)
-                       : "r"(syscall), "r"(bitfield), "r"(name_1), "r"(name_2),
-                         "r"(name_3), "r"(name_4), "r"(name_5), "r"(name_6),
-                         "r"(name_7), "r"(name_8), "r"(name_9), "r"(name_10),
-                         "r"(name_11)
-                       : "rcx", "r11");
+      "syscall\n"
 #endif
+      : "=r"(pid_r)
+      : "r"(syscall), "r"(bitfield_r), "r"(name_1), "r"(name_2), "r"(name_3),
+        "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8),
+        "r"(name_9), "r"(name_10), "r"(name_11)
+      : "rcx"
+#ifdef optimized_BUILD_
+        ,
+        "r11"
+#endif
+  );
 
   if (pid_r == 0) return false;
 
