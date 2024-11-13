@@ -16,9 +16,9 @@
 #include <map>
 #include <set>
 
-#include "perception/framebuffer.h"
 #include "perception/memory.h"
 #include "perception/messages.h"
+#include "perception/multiboot.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/shared_memory.h"
