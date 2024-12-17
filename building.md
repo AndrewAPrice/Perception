@@ -33,7 +33,7 @@ If you have [Homebrew](https://brew.sh/), you can install everything you need wi
 
 ```
 brew tap nativeos/i386-elf-toolchain
-brew install node git nasm qemu llvm x86_64-elf-binutils i386-elf-grub xorriso
+brew install node git nasm qemu llvm x86_64-elf-binutils i386-elf-grub xorriso lld
 echo 'export PATH="/usr/local/brew/opt/llvm/bin:$PATH"' >> ~/.bash_profile
 ```
 
