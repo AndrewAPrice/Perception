@@ -19,6 +19,8 @@
 
 #include "permebuf/Libraries/perception/loader.permebuf.h"
 
+// Implementation of the LoaderService that listens for requests to load
+// executables.
 class LoaderServer : public ::permebuf::perception::LoaderService::Server {
  public:
   StatusOr<::permebuf::perception::LoaderService::LaunchApplicationResponse>

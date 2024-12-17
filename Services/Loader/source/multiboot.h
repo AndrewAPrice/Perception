@@ -20,8 +20,11 @@
 
 using ::perception::MultibootModule;
 
-// Loads an ELF executables and libraries from the multiboot modules.
+// Loads the executables and libraries from the multiboot modules.
 void LoadMultibootModules();
+
+// Returns whether the multiboot modules are currently being loaded.
+bool IsLoadingMultibootModules();
 
 // Returns a multiboot module with the given name. Returns nullptr if no module
 // is found. Also only returns a module once, subsequent calls for `name` will

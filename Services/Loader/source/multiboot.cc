@@ -35,6 +35,11 @@ namespace {
 std::map<std::string, std::unique_ptr<MultibootModule>>
     multiboot_modules_by_name;
 
+// Whether the multiboot modules are currently being loaded.
+bool is_loading_multiboot_modules;
+
+// Parses the multiboot modules from the kernel into
+// `multiboot_modules_by_name`.
 void ParseMultibootModules() {
   while (true) {
     auto multiboot_module = GetMultibootModule();
@@ -50,6 +55,8 @@ void ParseMultibootModules() {
 }  // namespace
 
 void LoadMultibootModules() {
+  is_loading_multiboot_modules = true;
+
   ParseMultibootModules();
 
   // Collect a list of program names to load. Do this seperately first then
@@ -81,26 +88,28 @@ void LoadMultibootModules() {
   // Load the multiboot programs.
   auto pid = GetProcessId();
   for (const std::string& program_to_load : programs_to_load)
-    (void)LoadElfProgram(pid, program_to_load);
+    (void)LoadProgram(pid, program_to_load);
 
   // Decrease the held references to the multiboot modules.
-  std::vector<std::string> mulitboot_files_with_references;
+  std::vector<std::string> mulitboot_files_without_references;
   for (auto& multiboot_elf_file : multiboot_elf_files) {
     DecrementElfFile(multiboot_elf_file);
     if (!multiboot_elf_file->AreThereStillReferences())
-      mulitboot_files_with_references.push_back(
+      mulitboot_files_without_references.push_back(
           multiboot_elf_file->File().Name());
   }
 
-  if (mulitboot_files_with_references.size() > 0) {
+  if (mulitboot_files_without_references.size() > 0) {
     std::cout
         << "The following multiboot modules aren't referenced by a running "
            "application, so you can remove them from your grub.cfg:"
         << std::endl;
-    for (const auto& file : mulitboot_files_with_references)
+    for (const auto& file : mulitboot_files_without_references)
       std::cout << " * " << file << std::endl;
     std::cout << std::endl;
   }
+
+  is_loading_multiboot_modules = false;
 }
 
 std::unique_ptr<::perception::MultibootModule> GetMultibootModule(
@@ -112,3 +121,5 @@ std::unique_ptr<::perception::MultibootModule> GetMultibootModule(
   multiboot_modules_by_name.erase(itr);
   return multiboot_module;
 }
+
+bool IsLoadingMultibootModules() { return is_loading_multiboot_modules; }

@@ -20,6 +20,8 @@ namespace perception {
 class MemorySpan;
 }
 
+// Returns whether an ELF header is valid.
 bool IsValidElfHeader(const Elf64_Ehdr& header);
 
+// Returns whether a MemorySpan points to an ELF file with a valid header.
 bool IsValidElfFile(const ::perception::MemorySpan& file);

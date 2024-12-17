@@ -21,8 +21,12 @@
 using ::perception::HandOverControl;
 
 int main(int argc, char *argv[]) {
+  // Load the multiboot modules first.
   LoadMultibootModules();
+
+  // Create the loader server that listens to requests to launch executables.
   auto loader_server = std::make_unique<LoaderServer>();
+
   HandOverControl();
   return 0;
 }

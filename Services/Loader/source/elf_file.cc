@@ -20,6 +20,7 @@
 
 #include "elf.h"
 #include "elf_header.h"
+#include "init_fini_functions.h"
 #include "memory.h"
 #include "perception/memory.h"
 #include "perception/memory_span.h"
@@ -27,28 +28,6 @@
 using ::perception::kPageSize;
 using ::perception::MemorySpan;
 using ::perception::Status;
-
-namespace {
-
-void MaybeAddSectionHeaderArrayToArrays(
-    std::optional<const Elf64_Shdr*> array_section_header, size_t offset,
-    std::vector<std::pair<size_t, size_t>>& arrays) {
-  if (array_section_header) {
-    arrays.push_back({(*array_section_header)->sh_addr + offset,
-                      (*array_section_header)->sh_size / sizeof(size_t)});
-  }
-}
-
-void MaybeAddSectionHeaderFunctionToCodeArray(
-    std::optional<const Elf64_Shdr*> function_section_header, size_t offset,
-    std::vector<std::pair<size_t, size_t>>& array) {
-  if (function_section_header) {
-    array.push_back({(*function_section_header)->sh_addr + offset,
-                     (*function_section_header)->sh_size});
-  }
-}
-
-}  // namespace
 
 ElfFile::ElfFile(std::unique_ptr<class File> file)
     : file_(std::move(file)), instances_(0) {
@@ -85,8 +64,8 @@ ElfFile::ElfFile(std::unique_ptr<class File> file)
   }
 
   FindInterestingSections();
-  if (!CalculateLowestAndHighestVirtualAddresses()) return;
-  if (!LoadSharedMemorySegments()) return;
+  CalculateHighestVirtualAddresses();
+  if (!CreateSharedMemorySegments()) return;
 
   is_valid_ = true;
 }
@@ -134,11 +113,7 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
     ::perception::ProcessId child_pid, size_t offset,
     std::map<size_t, void*>& child_memory_pages,
     std::map<std::string, size_t>& symbols_to_addresses,
-    std::vector<std::pair<size_t, size_t>>& preinit_arrays,
-    std::vector<std::pair<size_t, size_t>>& init_functions,
-    std::vector<std::pair<size_t, size_t>>& init_arrays,
-    std::vector<std::pair<size_t, size_t>>& fini_functions,
-    std::vector<std::pair<size_t, size_t>>& fini_arrays) {
+    InitFiniFunctions& init_fini_functions) {
   // Load shared memory segments.
   for (const auto& address_and_shared_memory : read_only_segments_) {
     size_t address = address_and_shared_memory.first + offset;
@@ -213,16 +188,7 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
     }
   }
 
-  MaybeAddSectionHeaderArrayToArrays(preinit_array_section_header_, offset,
-                                     preinit_arrays);
-  MaybeAddSectionHeaderArrayToArrays(init_array_section_header_, offset,
-                                     init_arrays);
-  MaybeAddSectionHeaderArrayToArrays(fini_array_section_header_, offset,
-                                     fini_arrays);
-  MaybeAddSectionHeaderFunctionToCodeArray(init_section_header_, offset,
-                                           init_functions);
-  MaybeAddSectionHeaderFunctionToCodeArray(fini_section_header_, offset,
-                                           fini_functions);
+  AddToInitFiniFunctions(offset, init_fini_functions);
 
   // Return the highest virtual memory address.
   return highest_virtual_address_ + offset;
@@ -358,12 +324,6 @@ const char* ElfFile::DynamicString(int index) {
   return &((const char*)*dynamic_string_table_)[index];
 }
 
-const char* ElfFile::String(int index) {
-  if (!string_table_) return nullptr;
-  if (index >= string_table_.Length()) return nullptr;
-  return &((const char*)*string_table_)[index];
-}
-
 void ElfFile::FindInterestingSections() {
   for (const auto& section_header : SectionHeaders()) {
     /* std::cout << "Section in " << File().Name()
@@ -393,9 +353,6 @@ void ElfFile::FindInterestingSections() {
     } else if (!strcmp(section_name, ".dynsym")) {
       dynsym_section_header_ = &section_header;
       //     std::cout << "Find DYNSYM!\n";
-    } else if (!strcmp(section_name, ".strtab")) {
-      string_table_ = memory_span_.SubSpan(section_header.sh_offset,
-                                           section_header.sh_size);
     } else if (!strcmp(section_name, ".dynstr")) {
       dynamic_string_table_ = memory_span_.SubSpan(section_header.sh_offset,
                                                    section_header.sh_size);
@@ -421,30 +378,23 @@ void ElfFile::FindInterestingSections() {
   }
 }
 
-bool ElfFile::CalculateLowestAndHighestVirtualAddresses() {
-  lowest_virtual_address_ = 0xFFFFFFFFFFFFFFFF;
+void ElfFile::CalculateHighestVirtualAddresses() {
   highest_virtual_address_ = 0;
 
   for (const auto& segment_header : ProgramSegmentHeaders()) {
     if (segment_header.p_type != PT_LOAD)
       continue;  // Segment doesn't get loaded.
-    lowest_virtual_address_ =
-        std::min(segment_header.p_vaddr, lowest_virtual_address_);
     highest_virtual_address_ =
         std::max(segment_header.p_vaddr + segment_header.p_memsz,
                  highest_virtual_address_);
   }
 
-  // Round lowest down to the nearest page.
-  lowest_virtual_address_ = lowest_virtual_address_ & ~(kPageSize - 1);
   // Round highest up.
   highest_virtual_address_ =
       (highest_virtual_address_ + kPageSize - 1) & ~(kPageSize - 1);
-
-  return lowest_virtual_address_ < highest_virtual_address_;
 }
 
-bool ElfFile::LoadSharedMemorySegments() {
+bool ElfFile::CreateSharedMemorySegments() {
   // These are readonly memory pages to assign to each child. This must be
   // cleaned up in all return paths.
   std::map<size_t, void*> child_memory_pages;
@@ -493,6 +443,21 @@ bool ElfFile::LoadSharedMemorySegments() {
       ConvertMapOfPagesIntoReadOnlySharedMemoryBlocks(child_memory_pages);
 
   return true;
+}
+
+void ElfFile::AddToInitFiniFunctions(size_t offset,
+                                     InitFiniFunctions& init_fini_functions) {
+  init_fini_functions.AddArraySection(preinit_array_section_header_,
+                                      InitFiniFunctions::PreInitArray, offset);
+  init_fini_functions.AddArraySection(init_array_section_header_,
+                                      InitFiniFunctions::InitArray, offset);
+  init_fini_functions.AddArraySection(fini_array_section_header_,
+                                      InitFiniFunctions::FiniArray, offset);
+
+  init_fini_functions.AddFunctionSection(init_section_header_,
+                                         InitFiniFunctions::Init, offset);
+  init_fini_functions.AddFunctionSection(fini_section_header_,
+                                         InitFiniFunctions::Fini, offset);
 }
 
 std::vector<const Elf64_Shdr*> ElfFile::GetRelocationSectionHeaders() {

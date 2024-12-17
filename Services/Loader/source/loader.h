@@ -16,9 +16,10 @@
 
 #include <string>
 
-#include "types.h"
 #include "status.h"
+#include "types.h"
 
-StatusOr<
-::perception::ProcessId> LoadElfProgram(::perception::ProcessId creator,
-  std::string_view name);
+// Loads an program with a given name or path. Returns the Process ID of the
+// newly created process on success.
+StatusOr< ::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
+                                               std::string_view name);

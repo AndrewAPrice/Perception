@@ -23,8 +23,8 @@ StatusOr<LoaderService::LaunchApplicationResponse>
 LoaderServer::HandleLaunchApplication(
     ProcessId sender,
     Permebuf<LoaderService::LaunchApplicationRequest> request) {
-      std::cout << "Requested to load " << *request->GetName() << std::endl;
-  ASSIGN_OR_RETURN(auto child_pid, LoadElfProgram(sender, *request->GetName()));
+  std::cout << "Requested to load " << *request->GetName() << std::endl;
+  ASSIGN_OR_RETURN(auto child_pid, LoadProgram(sender, *request->GetName()));
 
   LoaderService::LaunchApplicationResponse response;
   response.SetProcessId(child_pid);

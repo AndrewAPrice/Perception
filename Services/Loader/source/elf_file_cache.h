@@ -17,6 +17,13 @@
 
 #include "elf_file.h"
 
+// Attempts to get an ELF file. Checks if it is already in memory (such as a
+// shared library used by a currently running application) first, otherwise
+// attempts to load it from. Can return an empty shared_ptr if there is no file
+// could be found or loaded. This also automatically increments a reference count
+// to the ELF file, so it must be passed back to `DecrementElfFile`.
 std::shared_ptr<ElfFile> LoadOrIncrementElfFile(const std::string& name);
 
+// Decrements a reference count to an Elf file, removing it from the cache if it
+// reaches 0.
 void DecrementElfFile(std::shared_ptr<ElfFile> elf_file);

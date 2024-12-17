@@ -20,12 +20,22 @@
 #include "perception/memory_span.h"
 #include "status.h"
 
+// Represents a file.
 class File {
-    public:
-        virtual ~File() {}
-        virtual const ::perception::MemorySpan MemorySpan() const = 0;
-        virtual const std::string& Name() const = 0;
-        virtual const std::string& Path() const = 0;
+ public:
+  virtual ~File() {}
+
+  // Returns a memory span representing the data in the file.
+  virtual const ::perception::MemorySpan MemorySpan() const = 0;
+
+  // Returns the name of executable or library that this file belongs to.
+  virtual const std::string& Name() const = 0;
+
+  // Returns the path of this file.
+  virtual const std::string& Path() const = 0;
 };
 
-std::unique_ptr<File> GetExecutableFile(std::string_view name);
+// Attempts to load a file, returning a unique instance of that file, or an
+// empty pointer if the file can't be loaded. Files are not cached or recycled.
+// This powers the functions in elf_file_cache.h.
+std::unique_ptr<File> LoadFile(std::string_view name);

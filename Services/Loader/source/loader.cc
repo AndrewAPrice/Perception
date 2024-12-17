@@ -24,6 +24,7 @@
 #include "elf_file_cache.h"
 #include "elf_header.h"
 #include "file.h"
+#include "init_fini_functions.h"
 #include "memory.h"
 #include "multiboot.h"
 #include "perception/memory.h"
@@ -45,6 +46,8 @@ using ::perception::Status;
 
 namespace {
 
+// Loads all of the dependencies for an executable, returning an array
+// containing the executable and all depedendecies.
 std::optional<std::vector<std::shared_ptr<ElfFile>>> LoadDependencies(
     std::shared_ptr<ElfFile> executable_file) {
   std::set<std::string> loaded_dependencies;
@@ -61,6 +64,7 @@ std::optional<std::vector<std::shared_ptr<ElfFile>>> LoadDependencies(
   });
 
   std::vector<std::shared_ptr<ElfFile>> loaded_elf_files;
+  loaded_elf_files.push_back(executable_file);
 
   while (!dependencies_to_load.empty()) {
     std::string name = dependencies_to_load.front();
@@ -90,129 +94,10 @@ std::optional<std::vector<std::shared_ptr<ElfFile>>> LoadDependencies(
   return loaded_elf_files;
 }
 
-void CreateInitAndFiniArrays(
-    const std::vector<std::pair<size_t, size_t>>& preinit_arrays,
-    const std::vector<std::pair<size_t, size_t>> init_functions,
-    const std::vector<std::pair<size_t, size_t>>& init_arrays,
-    const std::vector<std::pair<size_t, size_t>>& fini_functions,
-    const std::vector<std::pair<size_t, size_t>>& fini_arrays,
-    size_t start_address, std::map<size_t, void*>& child_memory_pages,
-    std::map<std::string, size_t>& symbols_to_addresses) {
-  // Create the first page.
-  size_t write_address = start_address;
-  size_t write_page_index = 0xFFFFFFFFFFFFFFFF,
-         read_page_index = 0xFFFFFFFFFFFFFFFF;
-  char *write_page = nullptr, *read_page = nullptr;
-
-  int last_size = sizeof(size_t);
-
-  auto switch_to_page = [&](size_t address, size_t& page_index, char*& page_ptr,
-                            bool allocate_if_missing) {
-    size_t new_page_index = address / kPageSize;
-    if (page_index != new_page_index) {
-      page_index = new_page_index;
-
-      size_t page_start_addr = page_index * kPageSize;
-      auto itr = child_memory_pages.find(page_start_addr);
-      if (itr == child_memory_pages.end()) {
-        if (allocate_if_missing) {
-          page_ptr = (char*)AllocateMemoryPages(1);
-          child_memory_pages[page_start_addr] = page_ptr;
-        } else {
-          page_ptr = nullptr;
-        }
-      } else {
-        page_ptr = (char*)itr->second;
-      }
-    }
-  };
-
-  // Function to write a value.
-  auto write_value = [&](size_t value, int size) {
-    if (size > last_size) {
-      // Can't grow size, otherwise it's no longer page aligned.
-      return;
-    } else {
-      last_size = size;
-    }
-    switch_to_page(write_address, write_page_index, write_page,
-                   /*allocate_if_missing=*/true);
-
-    size_t index_in_page = write_address % kPageSize;
-
-    if (size == 8) {
-      *(size_t*)&write_page[index_in_page] = value;
-    } else if (size == 1) {
-      std::cout << " 0x" << std::hex << (size_t)value << ' ';
-      *(unsigned char*)&write_page[index_in_page] = (unsigned char)value;
-    } else {
-      // Uknown size.
-    }
-
-    write_address += size;
-  };
-
-  auto read_byte = [&](size_t address) -> unsigned char {
-    switch_to_page(address, read_page_index, read_page,
-                   /*allocate_if_missing=*/false);
-    if (read_page == nullptr) return 0;
-    size_t index_in_page = address % kPageSize;
-    return *(unsigned char*)&read_page[index_in_page];
-  };
-
-  // Function to write an array.
-  auto write_array_of_arrays =
-      [&](const std::vector<std::pair<size_t, size_t>>& arrays) {
-        write_value(arrays.size(), sizeof(size_t));
-        for (const auto& pair : arrays) {
-          write_value(pair.first, sizeof(size_t));
-          write_value(pair.second, sizeof(size_t));
-        }
-      };
-
-  auto write_appended_functions =
-      [&](const std::vector<std::pair<size_t, size_t>>& functions) {
-        write_value(functions.size(), sizeof(size_t));
-        for (auto function : functions)
-          write_value(function.first, sizeof(size_t));
-        /**
-        std::cout << "Writing function at " << std::hex << write_address
-                  << std::endl;
-        for (auto function : functions) {
-          // std::cout << "function length at " << std::hex << write_address <<
-          // std::endl;
-          for (auto [address, length] = function; length > 0;
-               length--, address++) {
-            std::cout << std::hex << " " << address << ":";
-            write_value((size_t)read_byte(address), 1);
-          }
-        }
-
-        // Write a near return.
-        write_value(0xC3, 1);
-        */
-      };
-
-  symbols_to_addresses["__preinit_array_of_arrays"] = write_address;
-  write_array_of_arrays(preinit_arrays);
-
-  symbols_to_addresses["__init_array_of_arrays"] = write_address;
-  write_array_of_arrays(init_arrays);
-
-  symbols_to_addresses["__fini_array_of_arrays"] = write_address;
-  write_array_of_arrays(fini_arrays);
-
-  symbols_to_addresses["__init_functions"] = write_address;
-  write_appended_functions(init_functions);
-
-  symbols_to_addresses["__fini_functions"] = write_address;
-  write_appended_functions(fini_functions);
-}
-
 }  // namespace
 
-StatusOr<::perception::ProcessId> LoadElfProgram(
-    ::perception::ProcessId creator, std::string_view name) {
+StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
+                                              std::string_view name) {
   auto elf_file = LoadOrIncrementElfFile(std::string(name));
   if (!elf_file) {
     std::cout << "Cannot find ELF file for " << name << std::endl;
@@ -232,13 +117,12 @@ StatusOr<::perception::ProcessId> LoadElfProgram(
   if (!opt_dependencies) {
     std::cout << "Cannot load dependencies of executable file: "
               << elf_file->File().Path() << std::endl;
-    cleanup();
+    // elf_file is cleaned up in LoadDependencies.
     return Status::FILE_NOT_FOUND;
   }
 
   auto dependencies = std::move(*opt_dependencies);
   cleanup = [&]() {
-    DecrementElfFile(elf_file);
     for (auto& dependency : dependencies) DecrementElfFile(dependency);
   };
 
@@ -269,37 +153,22 @@ StatusOr<::perception::ProcessId> LoadElfProgram(
       ReleaseMemoryPages(address_and_page.second, 1);
 
     DestroyChildProcess(child_pid);
-    DecrementElfFile(elf_file);
     for (auto& dependency : dependencies) DecrementElfFile(dependency);
   };
 
-  std::vector<std::pair<size_t, size_t>> preinit_arrays, init_arrays,
-      fini_arrays;
-  std::vector<std::pair<size_t, size_t>> init_functions, fini_functions;
+  InitFiniFunctions init_fini_functions;
 
-  // Load in the main executable.
-  auto status_or_next_free_address =
-      elf_file->LoadIntoAddressSpaceAndReturnNextFreeAddress(
-          child_pid, /*offset=*/0, child_memory_pages, symbols_to_addresses,
-          preinit_arrays, init_functions, init_arrays, fini_functions,
-          fini_arrays);
-  if (!status_or_next_free_address.Ok()) {
-    cleanup();
-    return Status::INTERNAL_ERROR;
-  }
-
-  // Load in the shared libraries.
-  size_t next_free_address = *status_or_next_free_address;
+  // Load in each ELF file.
+  size_t next_free_address = 0;
   bool something_went_wrong = false;
-  std::vector<size_t> load_addresses_of_libraries;
-  load_addresses_of_libraries.reserve(dependencies.size());
+  std::vector<size_t> load_addresses_of_elf_files;
+  load_addresses_of_elf_files.reserve(dependencies.size());
   for (auto dependency : dependencies) {
-    load_addresses_of_libraries.push_back(next_free_address);
-    status_or_next_free_address =
+    load_addresses_of_elf_files.push_back(next_free_address);
+    auto status_or_next_free_address =
         dependency->LoadIntoAddressSpaceAndReturnNextFreeAddress(
             child_pid, next_free_address, child_memory_pages,
-            symbols_to_addresses, preinit_arrays, init_functions, init_arrays,
-            fini_functions, fini_arrays);
+            symbols_to_addresses, init_fini_functions);
 
     if (!status_or_next_free_address.Ok()) {
       something_went_wrong = true;
@@ -314,22 +183,13 @@ StatusOr<::perception::ProcessId> LoadElfProgram(
   }
 
   // Create the init and fini arrays.
-  CreateInitAndFiniArrays(preinit_arrays, init_functions, init_arrays,
-                          fini_functions, fini_arrays, next_free_address,
-                          child_memory_pages, symbols_to_addresses);
+  init_fini_functions.PopulateInMemory(next_free_address, child_memory_pages,
+                                       symbols_to_addresses);
 
-  // Fix up the main executable.
-  if (elf_file->FixUpRelocations(child_memory_pages, /*offset=*/0,
-                                 symbols_to_addresses,
-                                 /*module_id=*/0) != Status::OK) {
-    cleanup();
-    return Status::INTERNAL_ERROR;
-  }
-
-  // Fix up the shared libraries.
+  // Fix up the ELF files.
   for (int i = 0; i < dependencies.size(); i++) {
     if (dependencies[i]->FixUpRelocations(
-            child_memory_pages, load_addresses_of_libraries[i],
+            child_memory_pages, load_addresses_of_elf_files[i],
             symbols_to_addresses, /*module_id=*/i + 1) != Status::OK) {
       something_went_wrong = true;
       break;
@@ -352,7 +212,6 @@ StatusOr<::perception::ProcessId> LoadElfProgram(
   StartExecutingChildProcess(child_pid, elf_file->EntryAddress(/*offset=*/0),
                              /*params=*/0);
 
-  DecrementElfFile(elf_file);
   for (auto& dependency : dependencies) DecrementElfFile(dependency);
   return Status::OK;
 }

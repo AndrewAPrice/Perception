@@ -32,8 +32,8 @@ using ::permebuf::perception::StorageManager;
 
 namespace {
 
-bool found_an_instance_of_the_storage_manager = false;
-
+// Extracts the name of an application from a path.
+// e.g. "/Applications/Calculator/Calculator.app" -> "Calculator"
 std::string_view ExtractApplicationNameFromPath(std::string_view path) {
   // Remove the directories from the path name.
   auto slash_index = path.find_last_of('/');
@@ -47,6 +47,8 @@ std::string_view ExtractApplicationNameFromPath(std::string_view path) {
   return path;
 }
 
+// Trims a library name.
+// e.g. "libabc.so" -> "abc"
 std::string_view GetTrimmedLibraryName(std::string_view library_name) {
   // Trim off the starting "lib" and ending ".so".
   if (library_name.size() >= 6 && library_name.substr(0, 3) == "lib" &&
@@ -56,7 +58,8 @@ std::string_view GetTrimmedLibraryName(std::string_view library_name) {
   return library_name;
 }
 
-std::optional<std::string> GetPathToApplication(std::string_view name_sv) {
+// Returns a path to a file.
+std::optional<std::string> GetPathToFile(std::string_view name_sv) {
   if (name_sv.size() == 0) return std::nullopt;
 
   std::string name = std::string(name_sv);
@@ -88,6 +91,7 @@ std::optional<std::string> GetPathToApplication(std::string_view name_sv) {
   return std::nullopt;
 }
 
+// Represents a file loaded from disk.
 class DiskFile : public File {
  public:
   DiskFile(MemoryMappedFile memory_mapped_file, SharedMemory shared_memory,
@@ -111,13 +115,23 @@ class DiskFile : public File {
   virtual const std::string& Path() const override { return path_; }
 
  private:
+  // The underlying memory mapped file.
   MemoryMappedFile memory_mapped_file_;
+
+  // The shared memory block.
   SharedMemory shared_memory_;
+
+  // The memory span wrapping the data in this file.
   class MemorySpan memory_span_;
+
+  // The name of the file.
   std::string name_;
+
+  // The path to the file.
   std::string path_;
 };
 
+// Represents a file loaded from a multiboot module.
 class MultibootFile : public File {
  public:
   MultibootFile(std::unique_ptr<MultibootModule> module, std::string name)
@@ -138,11 +152,18 @@ class MultibootFile : public File {
   virtual const std::string& Path() const override { return path_; }
 
  private:
+  // The multiboot module that is this file.
   std::unique_ptr<MultibootModule> module_;
+
+  // The name of the file.
   std::string name_;
+
+  // The synthetic path to the file.
   std::string path_;
 };
 
+// Attempts to load a file from a multiboot module. Returns an empty pointer
+// if the file cannot be loaded.
 std::unique_ptr<File> LoadContentsFromMultibootModule(std::string_view name) {
   auto module = GetMultibootModule(name);
   if (!module) return nullptr;
@@ -150,8 +171,20 @@ std::unique_ptr<File> LoadContentsFromMultibootModule(std::string_view name) {
   return std::make_unique<MultibootFile>(std::move(module), std::string(name));
 }
 
+// Attempts to load a file from a disk. Returns an empty pointer if the file
+// cannot be loaded.
 std::unique_ptr<File> LoadContentsFromDisk(std::string_view name) {
-  auto opt_path = GetPathToApplication(name);
+  if (IsLoadingMultibootModules()) {
+    // The dependences for the multiboot modules must be passed in as other
+    // multiboot modules and not loaded from disk, otherwise the system can get
+    // into a deadlock waiting for a StorageManager.
+    std::cout << "Unable to load \"" << name
+              << "\". This should be passed in as a multiboot module."
+              << std::endl;
+    return nullptr;
+  }
+
+  auto opt_path = GetPathToFile(name);
   if (!opt_path) return nullptr;
 
   std::string_view path = *opt_path;
@@ -162,7 +195,7 @@ std::unique_ptr<File> LoadContentsFromDisk(std::string_view name) {
     name = ExtractApplicationNameFromPath(path);
   }
 
-  // Open the ELf as a memory mapped file.
+  // Open the file as a memory mapped file.
   Permebuf<StorageManager::OpenMemoryMappedFileRequest> request;
   request->SetPath(path);
 
@@ -180,19 +213,10 @@ std::unique_ptr<File> LoadContentsFromDisk(std::string_view name) {
 
 }  // namespace
 
-std::unique_ptr<File> GetExecutableFile(std::string_view name) {
+std::unique_ptr<File> LoadFile(std::string_view name) {
   auto file = LoadContentsFromMultibootModule(name);
   if (file) return file;
 
-  if (!found_an_instance_of_the_storage_manager) {
-    found_an_instance_of_the_storage_manager =
-        StorageManager::FindFirstInstance().has_value();
-    if (!found_an_instance_of_the_storage_manager) {
-      std::cout << "Cannot find \"" << name
-                << "\" to load and there is no storage manager." << std::endl;
-      return nullptr;
-    }
-  }
   file = LoadContentsFromDisk(name);
   if (file) return file;
 
