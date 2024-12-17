@@ -18,6 +18,8 @@
 [extern __libc_start_main]
 [extern __cxa_finalize]
 
+default rel
+
 envp:
 	; TODO - let the caller/kernel pass something in during start up.
 	DQ 0
@@ -28,15 +30,17 @@ envp:
 ; This is the entrypoint where programs begin running.
 _start:
 	; Call the C entry point.
-	mov rdi, _main
+	lea rdi, [_main wrt ..plt]
 	mov rsi, 0 ; argc
-	mov rdx, envp ; argv
-	call __libc_start_main
+	lea rdx, [envp] ; argv
+	call __libc_start_main wrt ..plt
 
 	; Call registered destructors.
 	mov rdi, 0
-	call __cxa_finalize
+	call __cxa_finalize wrt ..plt
 
 	; Terminate the process if main returns.
 	mov rdi, 6
 	syscall
+
+_dynamic_resolver:
