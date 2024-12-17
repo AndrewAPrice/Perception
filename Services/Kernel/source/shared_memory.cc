@@ -302,6 +302,34 @@ SharedMemoryInProcess* JoinSharedMemory(Process* process,
   return MapSharedMemoryIntoProcess(process, shared_memory);
 }
 
+bool JoinChildProcessInSharedMemory(Process* parent, Process* child,
+                                    size_t shared_memory_id,
+                                    size_t starting_address) {
+  if (!IsProcessAChildOfParent(parent, child)) return false;
+
+  SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
+  if (shared_memory == nullptr) {
+    // No shared memory with this ID exists.
+    return false;
+  }
+
+  if (!IsPageAlignedAddress(starting_address)) {
+    print << "JoinChildProcessInSharedMemory called with non page aligned "
+             "address: "
+          << NumberFormat::Hexidecimal << starting_address << '\n';
+    starting_address = RoundDownToPageAlignedAddress(starting_address);
+  }
+
+  if (!ReserveAddressRange(&child->virtual_address_space, starting_address,
+                           shared_memory->size_in_pages)) {
+    // Can't reserve this address range. It is likely occupied.
+    return false;
+  }
+
+  return MapSharedMemoryIntoProcessAtAddress(child, shared_memory,
+                                             starting_address) != nullptr;
+}
+
 // Leaves a shared memory block, but doesn't unmap it if there are still other
 // referenes to the shared memory block in the process.
 void LeaveSharedMemory(Process* process, size_t shared_memory_id) {

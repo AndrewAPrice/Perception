@@ -250,6 +250,18 @@ Joins a shared memory block.
 * `rbx` - The address of the shared memory block.
 * `rdx` - The flags the shared memory was created with.
 
+## Join child process in shared memory
+Makes a child process join a shared memory block at the given address. The receiving process must be created by the calling process and in the `creating` state. If any of the pages are already occupied in the child process, nothing is set.
+
+### Input
+* `rdi` - 61
+* `rax` - PID of the child process.
+* `rbx` - The ID of the shared memory block.
+* `rdx` - The address to map the shared memory block at.
+
+### Output
+* `rax` - Whether the child process joined the shared memory block.
+
 ## Leave shared memory.
 Leaves a shared memory block. If there are no more references to the shared memory block then the memory is released from the system.
 

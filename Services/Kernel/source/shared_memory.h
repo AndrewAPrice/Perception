@@ -118,7 +118,9 @@ struct SharedMemory {
       waiting_threads;
 
   // Linked list of processes that have joined this shared memory.
-  LinkedList<SharedMemoryInProcess, &SharedMemoryInProcess::node_in_shared_memory> joined_processes;
+  LinkedList<SharedMemoryInProcess,
+             &SharedMemoryInProcess::node_in_shared_memory>
+      joined_processes;
 };
 
 // Initializes the internal structures for shared memory.
@@ -137,6 +139,14 @@ extern void ReleaseSharedMemoryBlock(SharedMemory* shared_memory);
 // per process.
 extern SharedMemoryInProcess* JoinSharedMemory(Process* process,
                                                size_t shared_memory_id);
+
+// Makes a child process join a shared memory block at the given address. The
+// receiving process must be created by the calling process and in the
+// `creating` state. If any of the pages are already occupied in the child
+// process, nothing is set.
+extern bool JoinChildProcessInSharedMemory(Process* parent, Process* child,
+                                           size_t shared_memory_id,
+                                           size_t starting_address);
 
 // Leaves a shared memory block, but doesn't unmap it if there are still other
 // referenes to the shared memory block in the process.

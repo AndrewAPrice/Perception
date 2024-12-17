@@ -68,6 +68,8 @@ const char *GetSystemCallName(Syscall syscall) {
       return "CreateSharedMemory";
     case Syscall::JoinSharedMemory:
       return "JoinSharedMemory";
+    case Syscall::JoinChildProcessInSharedMemory:
+      return "JoinChildProcessInSharedMemory";
     case Syscall::LeaveSharedMemory:
       return "LeaveSharedMemory";
     case Syscall::GetSharedMemoryDetails:
