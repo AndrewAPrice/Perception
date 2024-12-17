@@ -282,6 +282,25 @@ bool SharedMemory::Join() {
   return size_in_bytes_ > 0;
 }
 
+bool SharedMemory::JoinChildProcess(ProcessId child_pid, size_t address) {
+#if PERCEPTION
+  volatile register size_t syscall_num asm("rdi") = 61;
+  volatile register size_t child_pid_r asm("rax") = child_pid;
+  volatile register size_t shared_memory_id_r asm("rbx") = shared_memory_id_;
+  volatile register size_t address_r asm("rdx") = address;
+
+  volatile register size_t success_r asm("rax");
+  __asm__ __volatile__("syscall\n"
+                       : "=r"(success_r)
+                       : "r"(syscall_num), "r"(child_pid_r),
+                         "r"(shared_memory_id_r), "r"(address_r)
+                       : "rcx", "r11");
+  return success_r != 0;
+#else
+  return false;
+#endif
+}
+
 bool SharedMemory::CanJoinersWrite() {
   (void)Join();
   return (flags_ & kJoinersCanWrite) != 0;
@@ -426,11 +445,9 @@ void* SharedMemory::operator[](size_t offset) {
 // Returns a pointer to a specific offset in the shared memory, or nullptr if
 // the shared memory is invalid, or there is not enough space to fit the size in
 // after this offset.
-void* SharedMemory::GetRangeAtOffset(size_t offset, size_t size) {
+MemorySpan SharedMemory::ToSpan() {
   (void)Join();
-  if (ptr_ == nullptr) return nullptr;
-  if (offset + size >= size_in_bytes_) return nullptr;
-  return (void*)((size_t)ptr_ + offset);
+  return MemorySpan(ptr_, size_in_bytes_);
 }
 
 // Calls the passed in function if the shared memory is valid, passing in a

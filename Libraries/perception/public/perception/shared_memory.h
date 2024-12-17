@@ -18,6 +18,7 @@
 #include <memory>
 #include <optional>
 
+#include "memory_span.h"
 #include "types.h"
 
 namespace perception {
@@ -89,6 +90,12 @@ class SharedMemory {
   // just want to hold onto the shared memory.
   bool Join();
 
+  // Attempts to join the shared memory in a child process, mapped into a
+  // specific address. The receiving process must be created by the calling
+  // process and in the `creating` state. If any of the pages are already
+  // occupied in the child process, nothing is set.
+  bool JoinChildProcess(ProcessId child_pid, size_t address);
+
   // Can joiners (not the creator) write to this shared memory buffer?
   bool CanJoinersWrite();
 
@@ -98,7 +105,8 @@ class SharedMemory {
   // Is this shared memory lazily allocated?
   bool IsLazilyAllocated();
 
-  // Gets details about this shared memory buffer as it pertains to this process.
+  // Gets details about this shared memory buffer as it pertains to this
+  // process.
   SharedMemoryDetails GetDetails();
 
   // Is this particular page allocated?
@@ -143,10 +151,8 @@ class SharedMemory {
   // the shared memory is invalid.
   void* operator[](size_t offset);
 
-  // Returns a pointer to a specific offset in the shared memory, or nullptr if
-  // the shared memory is invalid, or there is not enough space to fit the size
-  // in after this offset.
-  void* GetRangeAtOffset(size_t offset, size_t size);
+  // Converts the shared memory to a span.
+  MemorySpan ToSpan();
 
   // Calls the passed in function if the shared memory is valid, passing in a
   // pointer to the data and the size of the shared memory.
