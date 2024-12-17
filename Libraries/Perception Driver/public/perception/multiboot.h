@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 
+#include "perception/memory_span.h"
 #include "types.h"
 
 namespace perception {
@@ -30,11 +31,8 @@ struct MultibootModule {
   // The name of this module.
   std::string name;
 
-  // A pointer to the data for this module..
-  void* data;
-
-  // The size of this module's data, in bytes.
-  size_t size;
+  // The data for this module.
+  MemorySpan data;
 
   // A bit field of flags for this module.
   size_t flags;

@@ -14,6 +14,8 @@
 
 #include "perception/multiboot.h"
 
+#include "perception/memory_span.h"
+
 namespace perception {
 
 // Maximum module name length.
@@ -97,8 +99,8 @@ std::unique_ptr<MultibootModule> GetMultibootModule() {
 
   auto multiboot_module = std::make_unique<MultibootModule>();
   multiboot_module->flags = address_and_flags & (4096 - 1);
-  multiboot_module->data = (void*)(address_and_flags ^ multiboot_module->flags);
-  multiboot_module->size = size;
+  multiboot_module->data =
+      MemorySpan((void*)(address_and_flags ^ multiboot_module->flags), size);
 
   // Add an extra byte for the null terminator.
   char module_name[kMaximumModuleNameLength + 1];
