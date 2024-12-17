@@ -31,14 +31,14 @@
     else ' -g ',
   linker_command:
     if package_type == 'application' then
-      linker + application_linker_optimizations + ' -nostdlib -z max-page-size=1 -o ${out} ${in} -L ${shared_library_path} ${shared_libraries}'
+      linker + application_linker_optimizations + ' -nostdlib -z max-page-size=4096 -o ${out} ${in} -L ${shared_library_path} ${shared_libraries}'
     else if package_type == 'library' then
       linker + ' -strip-all -shared -o ${out} ${in}'
     else
       '',
   static_linker_command:
     if package_type == 'application' then
-      linker + application_linker_optimizations + ' -nostdlib -z max-page-size=1 -o ${out} ${in}'
+      linker + application_linker_optimizations + ' -nostdlib -z max-page-size=4096 -o ${out} ${in}'
     else if package_type == 'library' then
       archiver + ' rcs ${out} ${in}'
     else
@@ -86,6 +86,7 @@
     'libcxx',
     'LLVM Compiler-RT',
     'musl',
+    'Perception Core',
   ],
   local iso_path = '${temp directory}/image.iso',
   local fs_path = '${temp directory}/fs/',
