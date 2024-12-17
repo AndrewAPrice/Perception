@@ -1,7 +1,6 @@
 #include "process.h"
 
 #include "interrupts.h"
-#include "io.h"
 #include "liballoc.h"
 #include "linked_list.h"
 #include "messages.h"
@@ -10,6 +9,7 @@
 #include "profiling.h"
 #include "scheduler.h"
 #include "service.h"
+#include "string.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "timer.h"

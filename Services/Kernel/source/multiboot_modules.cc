@@ -16,7 +16,7 @@
 
 #include "../../../third_party/multiboot2.h"
 #include "elf_loader.h"
-#include "io.h"
+#include "string.h"
 #include "physical_allocator.h"
 #include "process.h"
 #include "text_terminal.h"

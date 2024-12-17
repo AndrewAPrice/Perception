@@ -15,11 +15,11 @@
 #include "elf_loader.h"
 
 #include "../../../third_party/Libraries/elf/public/elf.h"
-#include "io.h"
 #include "multiboot_modules.h"
 #include "physical_allocator.h"
 #include "process.h"
 #include "scheduler.h"
+#include "string.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "virtual_allocator.h"

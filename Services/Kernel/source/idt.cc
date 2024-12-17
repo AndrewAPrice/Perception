@@ -1,6 +1,6 @@
 #include "idt.h"
 
-#include "io.h"
+#include "memory.h"
 #include "physical_allocator.h"
 #include "text_terminal.h"
 #include "virtual_allocator.h"

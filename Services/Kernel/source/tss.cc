@@ -15,11 +15,10 @@
 #include "tss.h"
 
 #include "boot.asm.h"
-#include "io.h"
 #include "liballoc.h"
+#include "memory.h"
 #include "physical_allocator.h"
 #include "virtual_allocator.h"
-
 
 namespace {
 

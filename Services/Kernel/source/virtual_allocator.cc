@@ -1167,9 +1167,3 @@ bool CopyKernelMemoryIntoProcess(size_t from_start, size_t to_start,
 
   return true;
 }
-
-bool IsPageAlignedAddress(size_t address) { return (address % PAGE_SIZE) == 0; }
-
-size_t RoundDownToPageAlignedAddress(size_t address) {
-  return address - (address % PAGE_SIZE);
-}

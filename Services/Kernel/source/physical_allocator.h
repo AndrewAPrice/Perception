@@ -43,3 +43,9 @@ extern size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address);
 
 // Frees a physical page.
 extern void FreePhysicalPage(size_t addr);
+
+// Returns whether an address is the start of a memory page.
+extern bool IsPageAlignedAddress(size_t address);
+
+// Rounds an address down to the start of the page that it's in.
+extern size_t RoundDownToPageAlignedAddress(size_t address);

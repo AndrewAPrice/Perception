@@ -196,9 +196,3 @@ extern size_t PagesThatContainBytes(size_t bytes);
 // Copies data from the module into the process's memory.
 extern bool CopyKernelMemoryIntoProcess(size_t from_start, size_t to_start,
                                         size_t to_end, Process *process);
-
-// Returns whether an address is the start of a memory page.
-extern bool IsPageAlignedAddress(size_t address);
-
-// Rounds an address down to the start of the page that it's in.
-extern size_t RoundDownToPageAlignedAddress(size_t address);

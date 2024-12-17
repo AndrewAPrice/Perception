@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include "io.h"
 #include "liballoc.h"
+#include "memory.h"
 
 class ObjectPoolHelper;
 
