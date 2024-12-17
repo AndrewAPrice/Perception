@@ -239,6 +239,16 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
+    case Syscall::JoinChildProcessInSharedMemory: {
+      Process *child_process =
+          GetProcessFromPid(currently_executing_thread_regs->rax);
+      currently_executing_thread_regs->rax =
+          (bool)JoinChildProcessInSharedMemory(
+              running_thread->process, child_process,
+              currently_executing_thread_regs->rbx,
+              currently_executing_thread_regs->rdx);
+      break;
+    }
     case Syscall::LeaveSharedMemory:
       LeaveSharedMemory(running_thread->process,
                         currently_executing_thread_regs->rax);
