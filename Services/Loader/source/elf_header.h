@@ -12,19 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
+#pragma once
 
-#include "loader_server.h"
-#include "multiboot.h"
-#include "perception/scheduler.h"
+#include "elf.h"
 
-using ::perception::HandOverControl;
-
-int main(int argc, char *argv[]) {
-  LoadMultibootModules();
-  std::cout << "Creating loader server" << std::endl;
-  std::cout << "Hand over control" << std::endl;
-  auto loader_server = std::make_unique<LoaderServer>();
-  HandOverControl();
-  return 0;
+namespace perception {
+class MemorySpan;
 }
+
+bool IsValidElfHeader(const Elf64_Ehdr& header);
+
+bool IsValidElfFile(const ::perception::MemorySpan& file);

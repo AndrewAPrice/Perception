@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
+#pragma once
 
-#include "loader_server.h"
-#include "multiboot.h"
-#include "perception/scheduler.h"
+#include <functional>
+#include <string>
 
-using ::perception::HandOverControl;
+#include "permebuf/Libraries/perception/loader.permebuf.h"
 
-int main(int argc, char *argv[]) {
-  LoadMultibootModules();
-  std::cout << "Creating loader server" << std::endl;
-  std::cout << "Hand over control" << std::endl;
-  auto loader_server = std::make_unique<LoaderServer>();
-  HandOverControl();
-  return 0;
-}
+class LoaderServer : public ::permebuf::perception::LoaderService::Server {
+ public:
+  StatusOr<::permebuf::perception::LoaderService::LaunchApplicationResponse>
+  HandleLaunchApplication(
+      ::perception::ProcessId sender,
+      Permebuf<::permebuf::perception::LoaderService::LaunchApplicationRequest>
+          request) override;
+};

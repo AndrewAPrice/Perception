@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
+#pragma once
 
-#include "loader_server.h"
-#include "multiboot.h"
-#include "perception/scheduler.h"
+#include <string_view>
 
-using ::perception::HandOverControl;
+#include "perception/multiboot.h"
 
-int main(int argc, char *argv[]) {
-  LoadMultibootModules();
-  std::cout << "Creating loader server" << std::endl;
-  std::cout << "Hand over control" << std::endl;
-  auto loader_server = std::make_unique<LoaderServer>();
-  HandOverControl();
-  return 0;
-}
+using ::perception::MultibootModule;
+
+// Loads an ELF executables and libraries from the multiboot modules.
+void LoadMultibootModules();
+
+// Returns a multiboot module with the given name. Returns nullptr if no module
+// is found. Also only returns a module once, subsequent calls for `name` will
+// return nullptr.
+std::unique_ptr<::perception::MultibootModule> GetMultibootModule(
+    std::string_view name);

@@ -12,12 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "loader_server.h"
 
-#include <string_view>
+#include "loader.h"
 
-#include "perception/processes.h"
-#include "status.h"
+using ::perception::ProcessId;
+using LoaderService = ::permebuf::perception::LoaderService;
 
-StatusOr<size_t> LoadElfAndGetEntryAddress(::perception::ProcessId child_pid,
-                                           std::string_view path);
+StatusOr<LoaderService::LaunchApplicationResponse>
+LoaderServer::HandleLaunchApplication(
+    ProcessId sender,
+    Permebuf<LoaderService::LaunchApplicationRequest> request) {
+      std::cout << "Requested to load " << *request->GetName() << std::endl;
+  ASSIGN_OR_RETURN(auto child_pid, LoadElfProgram(sender, *request->GetName()));
+
+  LoaderService::LaunchApplicationResponse response;
+  response.SetProcessId(child_pid);
+  return response;
+}

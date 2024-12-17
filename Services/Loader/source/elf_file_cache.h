@@ -12,19 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
+#include <memory>
+#include <string>
 
-#include "loader_server.h"
-#include "multiboot.h"
-#include "perception/scheduler.h"
+#include "elf_file.h"
 
-using ::perception::HandOverControl;
+std::shared_ptr<ElfFile> LoadOrIncrementElfFile(const std::string& name);
 
-int main(int argc, char *argv[]) {
-  LoadMultibootModules();
-  std::cout << "Creating loader server" << std::endl;
-  std::cout << "Hand over control" << std::endl;
-  auto loader_server = std::make_unique<LoaderServer>();
-  HandOverControl();
-  return 0;
-}
+void DecrementElfFile(std::shared_ptr<ElfFile> elf_file);
