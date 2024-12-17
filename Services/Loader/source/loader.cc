@@ -31,6 +31,7 @@
 #include "perception/memory_span.h"
 #include "perception/multiboot.h"
 #include "perception/processes.h"
+#include "process.h"
 #include "status.h"
 
 using ::perception::AllocateMemoryPages;
@@ -204,8 +205,8 @@ StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
   // Send the memory pages to the child.
   SendMemoryPagesToChild(child_pid, child_memory_pages);
 
-  // TODO: Increment all dependencies, and listen for when the process exits to
-  // decrement them.
+  // Remember these dependencies so they stay in memory while the program runs.
+  RecordChildPidAndDependencies(child_pid, dependencies);
 
   // Creates a thread in the a child process. The child process will begin
   // executing and will no longer terminate if the creator terminates.
