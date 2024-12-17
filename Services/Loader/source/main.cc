@@ -22,8 +22,6 @@ using ::perception::HandOverControl;
 
 int main(int argc, char *argv[]) {
   LoadMultibootModules();
-  std::cout << "Creating loader server" << std::endl;
-  std::cout << "Hand over control" << std::endl;
   auto loader_server = std::make_unique<LoaderServer>();
   HandOverControl();
   return 0;
