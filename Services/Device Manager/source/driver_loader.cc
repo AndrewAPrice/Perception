@@ -43,8 +43,7 @@ void LoadAllRemainingDrivers() {
     Permebuf<LoaderService::LaunchApplicationRequest> request;
     request->SetName(driver_name);
 
-    (void)LoaderService::FindFirstInstance()->CallLaunchApplication(
-        std::move(request));
+    (void)LoaderService::Get().CallLaunchApplication(std::move(request));
   }
   drivers_to_load.clear();
 }
