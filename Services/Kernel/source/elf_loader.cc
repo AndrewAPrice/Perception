@@ -64,7 +64,7 @@ size_t GetNumberOfSegments(const Elf64_Ehdr* header, size_t memory_start,
   if (header->e_phnum == PN_XNUM) {
     // The number of program headers is too large to fit into e_phnum. Instead,
     // it's found in the field sh_info of section 0.
-    Elf64_Shdr* section_header = (Elf64_Shdr*)(memory_start + header->e_shnum);
+    Elf64_Shdr* section_header = (Elf64_Shdr*)(memory_start + header->e_shoff);
     if ((size_t)section_header + sizeof(Elf64_Shdr) > memory_end) {
       print << "ELF not big enough for section.\n";
       return 0;
