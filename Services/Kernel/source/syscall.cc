@@ -399,7 +399,6 @@ extern "C" void SyscallHandler(int syscall_number) {
         // doesn't exist. It's possible that is just died, so whatever
         // the case, the safest thing to do here is to imemdiately send
         // an event.
-        print << "Syscall::NotifyWhenProcessDisappears";
         SendKernelMessageToProcess(running_thread->process, event_id,
                                    target_pid, 0, 0, 0, 0);
       } else {

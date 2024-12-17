@@ -170,8 +170,7 @@ void DestroyProcess(Process *process) {
 
   // Notify the processes that were wanting to know when this process died.
   while (auto *notification =
-             process->processes_i_want_to_be_notified_of_when_they_die
-                 .FirstItem()) {
+             process->processes_to_notify_when_i_die.FirstItem()) {
     SendKernelMessageToProcess(notification->notifyee, notification->event_id,
                                process->pid, 0, 0, 0, 0);
     ReleaseNotification(notification);
