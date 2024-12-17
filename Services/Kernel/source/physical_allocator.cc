@@ -30,14 +30,11 @@ size_t next_free_page_address;
 // boot.asm only associates the maps the first 8MB of physical memory into
 // virtual memory. The multiboot structure can be quite huge (especially if
 // there are multi-boot modules passed in to the bootloader), and so the
-// multiboot data might extend past this 8MB boundary. The SafeReadUint8/
+// multiboot data might extend past this 8MB boundary. The
 // SafeReadUint32/SafeReadUint64 functions make sure the physical memory is
 // temporarily mapped into virtual memory before reading it. This only works if
 // the values are sure not to cross the 2MB page boundaries (which they
 // shouldn't).
-uint32 SafeReadUint8(uint8 *value) {
-  return *(uint8 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value,
-                                                                0);
 }
 uint32 SafeReadUint32(uint32 *value) {
   return *(uint32 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value,
