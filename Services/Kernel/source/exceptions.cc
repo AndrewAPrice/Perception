@@ -64,6 +64,13 @@ void PrintException(bool in_kernel, int exception_no, size_t cr2,
   }
   print << " with error code: " << NumberFormat::Decimal << error_code << '\n';
   PrintRegistersAndStackTrace();
+  if (exception == Exception::PageFault) {
+    // Print the free address ranges to help debug what's happening.
+    VirtualAddressSpace& address_space =
+        in_kernel ? kernel_address_space
+                  : running_thread->process->virtual_address_space;
+    PrintFreeAddressRanges(address_space);
+  }
 }
 
 }  // namespace
