@@ -105,21 +105,18 @@ constexpr int kStaticallyAllocatedFreeMemoryRangesCount = 2;
 FreeMemoryRange statically_allocated_free_memory_ranges
     [kStaticallyAllocatedFreeMemoryRangesCount];
 
-// Marks an address range as being free in the address space, starting at the
-// address and spanning the provided number of pages.
-void MarkAddressRangeAsFree(VirtualAddressSpace *address_space, size_t address,
-                            size_t pages);
-
-void PrintFreeAddressRanges(VirtualAddressSpace *address_space) {
-  print << "Free address ranges:\n" << NumberFormat::Hexidecimal;
-  for (auto *fmr : address_space->free_memory_ranges) {
-    print << ' ' << fmr->start_address << "->"
-          << (fmr->start_address + PAGE_SIZE * fmr->pages) << '\n';
-  }
-}
-
 void AddFreeMemoryRangeToVirtualAddressSpace(VirtualAddressSpace *address_space,
                                              FreeMemoryRange *fmr) {
+  if (!IsPageAlignedAddress(fmr->start_address)) {
+    print << "AddFreeMemoryRangeToVirtualAddressSpace called with non page "
+             "aligned "
+             "address: "
+          << NumberFormat::Hexidecimal << fmr->start_address << '\n';
+  }
+
+  // print << "Adding " << NumberFormat::Hexidecimal << fmr->start_address <<
+  // "->"
+  //      << (fmr->start_address + fmr->pages * PAGE_SIZE) << "\n";
   address_space->free_chunks_by_address.Insert(fmr);
   address_space->free_chunks_by_size.Insert(fmr);
   address_space->free_memory_ranges.AddFront(fmr);
@@ -127,6 +124,8 @@ void AddFreeMemoryRangeToVirtualAddressSpace(VirtualAddressSpace *address_space,
 
 void RemoveFreeMemoryRangeFromVirtualAddressSpace(
     VirtualAddressSpace *address_space, FreeMemoryRange *fmr) {
+  // print << "Removing " << NumberFormat::Hexidecimal << fmr->start_address
+  //      << "->" << (fmr->start_address + fmr->pages * PAGE_SIZE) << "\n";
   address_space->free_chunks_by_address.Remove(fmr);
   address_space->free_chunks_by_size.Remove(fmr);
   address_space->free_memory_ranges.Remove(fmr);
@@ -189,8 +188,8 @@ inline bool MapPhysicalPageToVirtualPageImpl(
       // at the second to last level (PML2).
       size_t &entry = tables[level][index];
       if (entry != 0) {
-        print << "Attempting to map page table to a location where there's "
-                 "already a page table..\n";
+        // print << "Attempting to map page table to a location where there's "
+        //         "already a page table..\n";
         return false;
       }
       entry = CreatePageTableEntry(physicaladdr, /*is_writable=*/true,
@@ -252,7 +251,7 @@ inline bool MapPhysicalPageToVirtualPageImpl(
     return false;
   }
 
-  // Write the new entry in the in ePML1.
+  // Write the new entry in the PML1.
   entry = throw_exception_on_access
               ? kDudPageEntry
               : CreatePageTableEntry(physicaladdr, can_write,
@@ -284,10 +283,20 @@ void MapKernelMemoryPreVirtualMemory(size_t virtualaddr, size_t physicaladdr,
   }
 }
 
+}  // namespace
+
+void PrintFreeAddressRanges(VirtualAddressSpace &address_space) {
+  print << "Free address ranges:\n" << NumberFormat::Hexidecimal;
+  for (auto *fmr : address_space.free_memory_ranges) {
+    print << ' ' << fmr->start_address << "->"
+          << (fmr->start_address + PAGE_SIZE * fmr->pages) << '\n';
+  }
+}
+
 void MarkAddressRangeAsFree(VirtualAddressSpace *address_space, size_t address,
                             size_t pages) {
-  // See if this address range can be merged into a memory block before or
-  // after.
+  // print << "MarkAddressRangeAsFree: " << NumberFormat::Hexidecimal << address
+  //      << " -> " << (address + pages * PAGE_SIZE) << "\n";
 
   // Search for a block right before.
   FreeMemoryRange *block_before =
@@ -304,7 +313,7 @@ void MarkAddressRangeAsFree(VirtualAddressSpace *address_space, size_t address,
       print << "Error: block_before->start_address + (block_before->pages * "
                "PAGE_SIZE) > address\n Trying to free address "
             << NumberFormat::Hexidecimal << address << ' ';
-      PrintFreeAddressRanges(address_space);
+      PrintFreeAddressRanges(*address_space);
       print << "Before block: " << NumberFormat::Hexidecimal
             << block_before->start_address << " -> "
             << (block_before->start_address + (block_before->pages * PAGE_SIZE))
@@ -392,8 +401,6 @@ inline void ScanAndFreePagesInLevel(size_t table_address, int level) {
   }
 }
 
-}  // namespace
-
 // The kernel's virtual address space.
 VirtualAddressSpace kernel_address_space;
 
@@ -471,12 +478,9 @@ void InitializeVirtualAllocator() {
 
 // Reclaim the PML4, PDPT, PD set up at boot time.
 #ifndef __TEST__
-  UnmapVirtualPage(&kernel_address_space, (size_t)&Pml4 + VIRTUAL_MEMORY_OFFSET,
-                   true);
-  UnmapVirtualPage(&kernel_address_space, (size_t)&Pdpt + VIRTUAL_MEMORY_OFFSET,
-                   true);
-  UnmapVirtualPage(&kernel_address_space, (size_t)&Pd + VIRTUAL_MEMORY_OFFSET,
-                   true);
+  UnmapVirtualPage(&kernel_address_space, (size_t)&Pml4 + VIRTUAL_MEMORY_OFFSET);
+  UnmapVirtualPage(&kernel_address_space, (size_t)&Pdpt + VIRTUAL_MEMORY_OFFSET);
+  UnmapVirtualPage(&kernel_address_space, (size_t)&Pd + VIRTUAL_MEMORY_OFFSET);
 #endif
 
   if (before_temp_memory < temp_memory_start) {
@@ -601,6 +605,10 @@ size_t FindAndReserveFreePageRange(VirtualAddressSpace *address_space,
           pages);
   if (fmr == nullptr) return OUT_OF_MEMORY;  // Virtual address space is full.
 
+  // print << "FindAndReserveFreePageRange at " << NumberFormat::Hexidecimal
+  //      << fmr->start_address << " -> "
+  //      << (fmr->start_address + fmr->pages * PAGE_SIZE) << "\n";
+
   RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, fmr);
   if (fmr->pages == pages) {
     // This is exactly the size we need! We can use this whole block.
@@ -619,6 +627,70 @@ size_t FindAndReserveFreePageRange(VirtualAddressSpace *address_space,
     AddFreeMemoryRangeToVirtualAddressSpace(address_space, fmr);
     return address;
   }
+}
+
+bool ReserveAddressRange(VirtualAddressSpace *address_space, size_t address,
+                         size_t pages) {
+  if (pages == 0) {
+    // Too many or not enough entries.
+    return OUT_OF_MEMORY;
+  }
+  FreeMemoryRange *fmr =
+      address_space->free_chunks_by_address.SearchForItemLessThanOrEqualToValue(
+          address);
+  if (fmr == nullptr) {
+    return false;  // No free memory blocks in the area of interest.
+  }
+
+  size_t additional_pages_before = (address - fmr->start_address) / PAGE_SIZE;
+  if (fmr->pages < additional_pages_before + pages) {
+    return false;  // Free memory block can't fit in this address range.
+  }
+
+  RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, fmr);
+
+  if (fmr->start_address && fmr->pages == pages) {
+    // This is exactly the size and location that is being requested.
+    ObjectPool<FreeMemoryRange>::Release(fmr);
+    return true;
+  }
+
+  size_t additional_pages_after =
+      fmr->pages - (additional_pages_before + pages);
+
+  // Allocate the FreeMemoryRanges to add back. Recycle `fmr` for one of them.
+  FreeMemoryRange *fmr_before;
+  FreeMemoryRange *fmr_after;
+  if (additional_pages_before > 0 && additional_pages_after > 0) {
+    fmr_before = fmr;
+    fmr_after = ObjectPool<FreeMemoryRange>::Allocate();
+    if (fmr_after == nullptr) {
+      // Out of memory to allocate a new FreeMemoryRange object.
+      AddFreeMemoryRangeToVirtualAddressSpace(address_space, fmr);
+      return false;
+    }
+  } else if (additional_pages_before > 0) {
+    fmr_before = fmr;
+    fmr_after = nullptr;
+  } else {
+    fmr_before = nullptr;
+    fmr_after = fmr;
+  }
+
+  // Add back the pages before.
+  if (additional_pages_before > 0) {
+    // As fmr_before = fmr, fmr_before->address is already set.
+    fmr_before->pages = additional_pages_before;
+    AddFreeMemoryRangeToVirtualAddressSpace(address_space, fmr_before);
+  }
+
+  // Add back the pages after.
+  if (additional_pages_after > 0) {
+    fmr_after->start_address = address + pages * PAGE_SIZE;
+    fmr_after->pages = additional_pages_after;
+    AddFreeMemoryRangeToVirtualAddressSpace(address_space, fmr_after);
+  }
+  return true;
 }
 
 // Maps a physical page to a virtual page. Returns if it was successful.
@@ -670,11 +742,14 @@ bool MarkVirtualAddressAsUsed(VirtualAddressSpace *address_space,
       address)
     return false;
 
+  // print << "Marking " << NumberFormat::Hexidecimal << address << " as
+  // used.\n";
+
   RemoveFreeMemoryRangeFromVirtualAddressSpace(address_space, block_before);
 
   if (block_before->start_address == address) {
     if (block_before->pages == 1) {
-      // Exactly the size we need.
+      // Exactly the size needed.
       ObjectPool<FreeMemoryRange>::Release(block_before);
     } else {
       // Bump up this free memory range and re-add it.
@@ -774,9 +849,7 @@ size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
 
     if (!success) {
       for (; start < addr; start += PAGE_SIZE)
-        UnmapVirtualPage(address_space, start, true);
-      // Mark the rest as free.
-      MarkAddressRangeAsFree(address_space, addr, pages - i);
+        UnmapVirtualPage(address_space, start);
       return 0;
     }
   }
@@ -785,10 +858,18 @@ size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
 }
 
 void ReleaseVirtualMemoryInAddressSpace(VirtualAddressSpace *address_space,
-                                        size_t addr, size_t pages, bool free) {
+                                        size_t addr, size_t pages,
+                                        ReleaseMemoryFlags flags) {
+  if (!IsPageAlignedAddress(addr)) {
+    print << "ReleaseVirtualMemoryInAddressSpace called with non page aligned "
+             " address: "
+          << NumberFormat::Hexidecimal << addr << '\n';
+    addr = RoundDownToPageAlignedAddress(addr);
+  }
+
   size_t i = 0;
   for (; i < pages; i++, addr += PAGE_SIZE)
-    UnmapVirtualPage(address_space, addr, free);
+    UnmapVirtualPage(address_space, addr, flags);
 }
 
 size_t MapPhysicalMemoryInAddressSpace(VirtualAddressSpace *address_space,
@@ -808,7 +889,7 @@ size_t MapPhysicalMemoryInAddressSpace(VirtualAddressSpace *address_space,
 // Unmaps a virtual page - free specifies if that page should be returned to
 // the physical memory manager.
 void UnmapVirtualPage(VirtualAddressSpace *address_space, size_t virtualaddr,
-                      bool free) {
+                      ReleaseMemoryFlags flags) {
   if (!IsAddressInCorrectSpace(address_space, virtualaddr)) return;
 
   // The physical addresses of the tables at each level.
@@ -842,7 +923,8 @@ void UnmapVirtualPage(VirtualAddressSpace *address_space, size_t virtualaddr,
   // Free the page if requested and if it's owned. This is optional because
   // shared memory and memory mapped IO can be unmapped without freeing the
   // physical pages.
-  if (free && (entry & PageTableEntryBits::kIsOwned) != 0)
+  if (!(flags & ReleaseMemoryFlags::DoNotFreeMemory) &&
+      (entry & PageTableEntryBits::kIsOwned) != 0)
     FreePhysicalPage(entry & ~(PAGE_SIZE - 1));
 
   // Remove this entry for the deepest page table.
@@ -883,7 +965,6 @@ void FreeAddressSpace(VirtualAddressSpace *address_space) {
   FreePhysicalPage(address_space->pml4);
 
   // Walk through the link of FreeMemoryRange objects and release them.
-
   while (auto fmr = address_space->free_memory_ranges.PopFront())
     ObjectPool<FreeMemoryRange>::Release(fmr);
 }
@@ -917,6 +998,12 @@ SharedMemoryInProcess *MapSharedMemoryIntoProcess(Process *process,
     return nullptr;
   }
 
+  return MapSharedMemoryIntoProcessAtAddress(process, shared_memory,
+                                             virtual_address);
+}
+
+SharedMemoryInProcess *MapSharedMemoryIntoProcessAtAddress(
+    Process *process, SharedMemory *shared_memory, size_t virtual_address) {
   auto shared_memory_in_process = ObjectPool<SharedMemoryInProcess>::Allocate();
   if (shared_memory_in_process == nullptr) {
     // Out of memory.
@@ -972,7 +1059,8 @@ void UnmapSharedMemoryFromProcess(
   // Unmap the virtual pages.
   ReleaseVirtualMemoryInAddressSpace(&process->virtual_address_space,
                                      shared_memory_in_process->virtual_address,
-                                     shared_memory->size_in_pages, false);
+                                     shared_memory->size_in_pages,
+                                     ReleaseMemoryFlags::DoNotFreeMemory);
 
   process->joined_shared_memories.Remove(shared_memory_in_process);
   shared_memory->joined_processes.Remove(shared_memory_in_process);
@@ -1078,4 +1166,10 @@ bool CopyKernelMemoryIntoProcess(size_t from_start, size_t to_start,
   }
 
   return true;
+}
+
+bool IsPageAlignedAddress(size_t address) { return (address % PAGE_SIZE) == 0; }
+
+size_t RoundDownToPageAlignedAddress(size_t address) {
+  return address - (address % PAGE_SIZE);
 }

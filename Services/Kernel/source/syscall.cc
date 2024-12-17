@@ -170,7 +170,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       ReleaseVirtualMemoryInAddressSpace(
           &running_thread->process->virtual_address_space,
           currently_executing_thread_regs->rax,
-          currently_executing_thread_regs->rbx, true);
+          currently_executing_thread_regs->rbx);
       break;
     case Syscall::MapPhysicalMemory:
       // Only drivers can map physical memory.

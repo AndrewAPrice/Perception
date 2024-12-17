@@ -79,7 +79,7 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param) {
   InitializeRegisters(*process, entry_point, param, *thread);
 
   // No thread segment.
-  thread->thread_segment_offset = (size_t) nullptr;
+  thread->thread_segment_offset = (size_t)nullptr;
 
   // The thread isn't initially awake until we schedule it.
   thread->awake = false;
@@ -113,10 +113,8 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
   }
 
   // Free the thread's stack.
-  for (int i = 0; i < STACK_PAGES; i++, thread->stack += PAGE_SIZE) {
-    UnmapVirtualPage(&thread->process->virtual_address_space, thread->stack,
-                     true);
-  }
+  for (int i = 0; i < STACK_PAGES; i++, thread->stack += PAGE_SIZE)
+    UnmapVirtualPage(&thread->process->virtual_address_space, thread->stack);
 
   Process* process = thread->process;
 

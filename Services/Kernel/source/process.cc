@@ -277,8 +277,6 @@ Process *CreateChildProcess(Process *parent, char *name, size_t bitfield) {
   return child_process;
 }
 
-// Returns if a process is a child of a parent. Also returns false if the child
-// is nullptr.
 bool IsProcessAChildOfParent(Process *parent, Process *child) {
   if (child == nullptr) return false;
   Process *proc = parent->child_processes;
@@ -303,11 +301,33 @@ void SetChildProcessMemoryPage(Process *parent, Process *child,
     return;  // Page doesn't exist.
   }
 
+  if (!IsPageAlignedAddress(source_address)) {
+    print << "SetChildProcessMemoryPage called with non page aligned "
+             "source address: "
+          << NumberFormat::Hexidecimal << source_address << '\n';
+    source_address = RoundDownToPageAlignedAddress(source_address);
+  }
+
   // Unmap the physical page from the parent.
-  UnmapVirtualPage(&parent->virtual_address_space, source_address, false);
+  UnmapVirtualPage(&parent->virtual_address_space, source_address,
+                   ReleaseMemoryFlags::DoNotFreeMemory);
 
   if (!IsProcessAChildOfParent(parent, child)) {
     // This isn't a child process. Release the memory for this page.
+    FreePhysicalPage(page_physical_address);
+    return;
+  }
+
+  if (!IsPageAlignedAddress(destination_address)) {
+    print << "SetChildProcessMemoryPage called with non page aligned "
+             "destination address: "
+          << NumberFormat::Hexidecimal << destination_address << '\n';
+    destination_address = RoundDownToPageAlignedAddress(destination_address);
+  }
+
+  if (!ReserveAddressRange(&child->virtual_address_space, destination_address,
+                           1)) {
+    // There's no free memory at this address. Release the memory for this page.
     FreePhysicalPage(page_physical_address);
     return;
   }

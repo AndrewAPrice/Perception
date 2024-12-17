@@ -51,8 +51,8 @@ void* liballoc_alloc(size_t pages) {
  * \return 0 if the memory was successfully freed.
  */
 int liballoc_free(void* addr, size_t pages) {
-  ReleaseVirtualMemoryInAddressSpace(&kernel_address_space, (size_t)addr, pages,
-                                     true);
+  ReleaseVirtualMemoryInAddressSpace(&kernel_address_space, (size_t)addr,
+                                     pages);
   return 0;
 }
 

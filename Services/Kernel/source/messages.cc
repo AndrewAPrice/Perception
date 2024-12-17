@@ -148,14 +148,20 @@ void SendMessageFromThreadSyscall(Thread* sender_thread) {
     // Figure out where to move the memory from and to.
     size_t size_in_pages = registers.r12;
     size_t source_virtual_address = registers.r10;
+    if (!IsPageAlignedAddress(source_virtual_address)) {
+      print << "SendMessageFromThreadSyscall called with non page aligned "
+               "address: "
+            << NumberFormat::Hexidecimal << source_virtual_address << '\n';
+      source_virtual_address =
+          RoundDownToPageAlignedAddress(source_virtual_address);
+    }
     size_t destination_virtual_address = FindAndReserveFreePageRange(
         &receiver_process->virtual_address_space, size_in_pages);
 
     if (destination_virtual_address == OUT_OF_MEMORY) {
       // Out of memory - release message and all source pages.
       ReleaseVirtualMemoryInAddressSpace(&sender_process->virtual_address_space,
-                                         source_virtual_address, size_in_pages,
-                                         true);
+                                         source_virtual_address, size_in_pages);
       registers.rax = MS_OUT_OF_MEMORY;
       ObjectPool<Message>::Release(message);
       return;
@@ -173,10 +179,10 @@ void SendMessageFromThreadSyscall(Thread* sender_thread) {
         // source and destination pages.
         ReleaseVirtualMemoryInAddressSpace(
             &sender_process->virtual_address_space, source_virtual_address,
-            size_in_pages, true);
+            size_in_pages);
         ReleaseVirtualMemoryInAddressSpace(
             &receiver_process->virtual_address_space,
-            destination_virtual_address, size_in_pages, true);
+            destination_virtual_address, size_in_pages);
         registers.rax = MS_OUT_OF_MEMORY;
         ObjectPool<Message>::Release(message);
         return;
@@ -184,7 +190,8 @@ void SendMessageFromThreadSyscall(Thread* sender_thread) {
 
       // Unmap the physical page from the old process.
       UnmapVirtualPage(&sender_process->virtual_address_space,
-                       source_virtual_address + page * PAGE_SIZE, false);
+                       source_virtual_address + page * PAGE_SIZE,
+                       ReleaseMemoryFlags::DoNotFreeMemory);
 
       // Map the physical page to the new process.
       MapPhysicalPageToVirtualPage(

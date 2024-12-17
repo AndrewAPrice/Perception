@@ -185,8 +185,13 @@ void DoneWithMultibootMemory() {
                                               // PAGE_SIZE - 1) & ~(PAGE_SIZE -
                                               // 1); // Round up.
 
+  if (!IsPageAlignedAddress(start) || !IsPageAlignedAddress(end)) {
+    print << "DoneWithMultibootMemory not page aligned: "
+          << NumberFormat::Hexidecimal << start << " -> " << end << '\n';
+  }
+
   for (size_t page = start; page < end; page += PAGE_SIZE)
-    UnmapVirtualPage(&kernel_address_space, page + VIRTUAL_MEMORY_OFFSET, true);
+    UnmapVirtualPage(&kernel_address_space, page + VIRTUAL_MEMORY_OFFSET);
 }
 
 // Grabs the next physical page (at boot time before the virtual memory

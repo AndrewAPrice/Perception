@@ -8,6 +8,7 @@
 // Some information on different PML levels: http://wiki.osdev.org/Page_Tables
 
 #include "aa_tree.h"
+#include "enum.h"
 #include "linked_list.h"
 #include "types.h"
 
@@ -85,6 +86,11 @@ extern void *TemporarilyMapPhysicalMemory(size_t addr, size_t index);
 extern size_t FindAndReserveFreePageRange(VirtualAddressSpace *address_space,
                                           size_t pages);
 
+// Reserves a range of address page in a virtual address space, only if all the
+// pages within this range are currently free.
+extern bool ReserveAddressRange(VirtualAddressSpace *address_space,
+                                size_t address, size_t pages);
+
 // Maps a physical page to a virtual page. Make sure the address range has
 // already been reserved. Returns if it was successful.
 extern bool MapPhysicalPageToVirtualPage(VirtualAddressSpace *address_space,
@@ -99,16 +105,33 @@ extern size_t AllocateVirtualMemoryInAddressSpace(
 extern size_t AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
     VirtualAddressSpace *address_space, size_t pages, size_t max_base_address);
 
-extern void ReleaseVirtualMemoryInAddressSpace(
-    VirtualAddressSpace *address_space, size_t addr, size_t pages, bool free);
+// Flags for releasing memory.
+enum class ReleaseMemoryFlags {
+  None = 0,
+  // Do not free the underlying memory pages.
+  DoNotFreeMemory = 1
+};
+ENUM_BINARY_OPERATORS(ReleaseMemoryFlags);
 
+// Releases virtual memory in address space.
+extern void ReleaseVirtualMemoryInAddressSpace(
+    VirtualAddressSpace *address_space, size_t addr, size_t pages,
+    ReleaseMemoryFlags flags = ReleaseMemoryFlags::None);
+
+// Maps phyical memory into an address space. Returns the virtual address of
+// where it is mapped.
 extern size_t MapPhysicalMemoryInAddressSpace(
     VirtualAddressSpace *address_space, size_t addr, size_t pages);
+
+// Marks an address range as being free in the address space, starting at the
+// address and spanning the provided number of pages.
+extern void MarkAddressRangeAsFree(VirtualAddressSpace *address_space,
+                                   size_t address, size_t pages);
 
 // Unmaps a virtual page - free specifies if that page should be returned to the
 // physical memory manager.
 extern void UnmapVirtualPage(VirtualAddressSpace *address_space,
-                             size_t virtualaddr, bool free);
+                             size_t virtualaddr, ReleaseMemoryFlags flags = ReleaseMemoryFlags::None);
 
 // Return the physical address mapped at a virtual address, returning
 // OUT_OF_MEMORY if is not mapped.
@@ -137,6 +160,15 @@ extern void FlushVirtualPage(size_t addr);
 extern SharedMemoryInProcess *MapSharedMemoryIntoProcess(
     Process *process, SharedMemory *shared_memory);
 
+extern void PrintFreeAddressRanges(VirtualAddressSpace &address_space);
+
+// Maps shared memory into a process's virtual address space starting at the
+// given virtual address. Returns nullptr if there was an issue. Make sure
+// FindAndReserveFreePageRange or ReserveAddressRange was called for the address
+// range before calling this.
+extern SharedMemoryInProcess *MapSharedMemoryIntoProcessAtAddress(
+    Process *process, SharedMemory *shared_memory, size_t virtual_address);
+
 // Unmaps shared memory from a process and releases the SharedMemoryInProcess
 // object.
 extern void UnmapSharedMemoryFromProcess(
@@ -157,9 +189,16 @@ extern bool IsKernelAddress(size_t address);
 extern void GetUserspaceVirtualMemoryHole(size_t &hole_start_address,
                                           size_t &hole_end_address);
 
-// Calculates the number of pages required to fit this particular number of bytes.
+// Calculates the number of pages required to fit this particular number of
+// bytes.
 extern size_t PagesThatContainBytes(size_t bytes);
 
 // Copies data from the module into the process's memory.
-extern bool CopyKernelMemoryIntoProcess(size_t from_start, size_t to_start, size_t to_end,
-                    Process* process);
+extern bool CopyKernelMemoryIntoProcess(size_t from_start, size_t to_start,
+                                        size_t to_end, Process *process);
+
+// Returns whether an address is the start of a memory page.
+extern bool IsPageAlignedAddress(size_t address);
+
+// Rounds an address down to the start of the page that it's in.
+extern size_t RoundDownToPageAlignedAddress(size_t address);

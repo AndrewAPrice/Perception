@@ -178,11 +178,8 @@ void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory, size_t page,
       Process* process = shared_memory_in_process->process;
       size_t virtual_address =
           shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
-      ReleaseVirtualMemoryInAddressSpace(
-          &process->virtual_address_space, virtual_address, 1,
-          // Although this process doesn't own the memory, if by some bug they
-          // do, free it.
-          true);
+      ReleaseVirtualMemoryInAddressSpace(&process->virtual_address_space,
+                                         virtual_address, 1);
     }
   }
 
@@ -356,7 +353,8 @@ void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
     return;  // This page doesn't exist or we don't own it. We can't move
              // it.
   ReleaseVirtualMemoryInAddressSpace(&process->virtual_address_space,
-                                     page_address, 1, false);
+                                     page_address, 1,
+                                     ReleaseMemoryFlags::DoNotFreeMemory);
 
   // If we fail at any point we need to return the physical address.
 

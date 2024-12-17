@@ -100,7 +100,8 @@ void LoadMultibootModuleIntoProcess(Process *process, multiboot_tag_module *tag,
 
   // Copy the multiboot module into the process's virtual memory.
   CopyKernelMemoryIntoProcess(tag->mod_start + VIRTUAL_MEMORY_OFFSET,
-                              address_and_flags, size, process);
+                              address_and_flags, address_and_flags + size,
+                              process);
 
   // Attach the flags into the start address.
   if (is_driver) address_and_flags |= 1;

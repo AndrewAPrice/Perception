@@ -5,8 +5,8 @@
 #include "messages.h"
 #include "service.h"
 #include "shared_memory.h"
-#include "timer_event.h"
 #include "thread.h"
+#include "timer_event.h"
 #include "types.h"
 #include "virtual_allocator.h"
 
@@ -72,10 +72,13 @@ struct Process {
   size_t messages_queued;
   // Linked queue of threads that are currently sleeping and waiting for a
   // message.
-  LinkedList<Thread, &Thread::node_sleeping_for_messages> threads_sleeping_for_message;
+  LinkedList<Thread, &Thread::node_sleeping_for_messages>
+      threads_sleeping_for_message;
 
   // Linked list of messages to fire on an interrupt.
-  LinkedList<MessageToFireOnInterrupt, &MessageToFireOnInterrupt::node_in_process> messages_to_fire_on_interrupt;
+  LinkedList<MessageToFireOnInterrupt,
+             &MessageToFireOnInterrupt::node_in_process>
+      messages_to_fire_on_interrupt;
 
   // Linked list of threads.
   LinkedList<Thread, &Thread::node_in_process> threads;
@@ -86,15 +89,19 @@ struct Process {
   LinkedListNode node_in_all_processes;
 
   // Linked lists of processes to notify when I die.
-  LinkedList<ProcessToNotifyOnExit, &ProcessToNotifyOnExit::target_node> processes_to_notify_when_i_die;
+  LinkedList<ProcessToNotifyOnExit, &ProcessToNotifyOnExit::target_node>
+      processes_to_notify_when_i_die;
   // Linked lists of processes I want to be notified of when they die.
-  LinkedList<ProcessToNotifyOnExit, &ProcessToNotifyOnExit::notifyee_node> processes_i_want_to_be_notified_of_when_they_die;
+  LinkedList<ProcessToNotifyOnExit, &ProcessToNotifyOnExit::notifyee_node>
+      processes_i_want_to_be_notified_of_when_they_die;
   // Linked list of services I want to be notified of when they appear.
-  LinkedList<ProcessToNotifyWhenServiceAppears, &ProcessToNotifyWhenServiceAppears::node_in_process>
+  LinkedList<ProcessToNotifyWhenServiceAppears,
+             &ProcessToNotifyWhenServiceAppears::node_in_process>
       services_i_want_to_be_notified_of_when_they_appear;
   // Linked list of services I want to be notified of when they disappear.
-  LinkedList<ProcessToNotifyWhenServiceDisappears, &ProcessToNotifyWhenServiceDisappears::node_in_process>
-  services_i_want_to_be_notified_of_when_they_disappear;
+  LinkedList<ProcessToNotifyWhenServiceDisappears,
+             &ProcessToNotifyWhenServiceDisappears::node_in_process>
+      services_i_want_to_be_notified_of_when_they_disappear;
 
   // Linked list of services in this process. System calls that scan for
   // services expect that services are added to the back of the list, and we
@@ -102,7 +109,8 @@ struct Process {
   LinkedList<Service, &Service::node_in_process> services;
 
   // Linked list of shared memory mapped into this process.
-  LinkedList<SharedMemoryInProcess, &SharedMemoryInProcess::node_in_process> joined_shared_memories;
+  LinkedList<SharedMemoryInProcess, &SharedMemoryInProcess::node_in_process>
+      joined_shared_memories;
 
   // Linked list of timer events that are scheduled for this process.
   LinkedList<TimerEvent, &TimerEvent::node_in_process> timer_events;
@@ -168,6 +176,10 @@ extern void StartExecutingChildProcess(Process* parent, Process* child,
 // Destroys a process in the `creating` state.
 extern void DestroyChildProcess(Process* parent, Process* child);
 
-// Returns the next process in the system when iterating through all running processes.
-extern Process *GetNextProcess(Process *process);
+// Returns the next process in the system when iterating through all running
+// processes.
+extern Process* GetNextProcess(Process* process);
 
+// Returns if a process is a child of a parent. Also returns false if the child
+// is nullptr.
+extern bool IsProcessAChildOfParent(Process* parent, Process* child);
