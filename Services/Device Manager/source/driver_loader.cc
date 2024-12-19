@@ -21,7 +21,7 @@
 #include "perception/processes.h"
 #include "permebuf/Libraries/perception/loader.permebuf.h"
 
-using ::perception::GetFirstProcessWithName;
+using ::perception::DoesProcessExist;
 using ::perception::ProcessId;
 using LoaderService = ::permebuf::perception::LoaderService;
 
@@ -37,8 +37,7 @@ void AddDriverToLoad(std::string_view driver_name) {
 
 void LoadAllRemainingDrivers() {
   for (const auto& driver_name : drivers_to_load) {
-    ProcessId pid;
-    if (GetFirstProcessWithName(driver_name, pid)) continue;
+    if (DoesProcessExist(driver_name)) continue;
 
     Permebuf<LoaderService::LaunchApplicationRequest> request;
     request->SetName(driver_name);
