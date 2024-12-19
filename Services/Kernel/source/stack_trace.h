@@ -15,4 +15,4 @@
 #pragma once
 
 // Prints the registers and a stack trace of the currently running thread.
-extern void PrintRegistersAndStackTrace();
+void PrintRegistersAndStackTrace();

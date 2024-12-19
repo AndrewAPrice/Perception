@@ -42,7 +42,7 @@ enum class Exception {
 };
 
 // Register the CPU exception interrupts.
-extern void RegisterExceptionInterrupts();
+void RegisterExceptionInterrupts();
 
 // Returns the name for an exception.
 const char* GetExceptionName(Exception exception);

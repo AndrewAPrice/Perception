@@ -20,4 +20,4 @@ struct Process;
 
 // Loads an ELF process from memory. This is a very basic loader that only
 // supports statically linked binaries. Returns false if this can't be loaded.
-extern bool LoadElfProcess(size_t memory_start, size_t memory_end, char *name);
+bool LoadElfProcess(size_t memory_start, size_t memory_end, char *name);

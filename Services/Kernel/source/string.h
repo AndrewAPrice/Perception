@@ -20,16 +20,16 @@
 #include "types.h"
 
 // Copies a string.
-extern void CopyString(const char *source, size_t buffer_size, size_t strlen,
-                       char *dest);
+void CopyString(const char *source, size_t buffer_size, size_t strlen,
+                char *dest);
 
 #ifndef __TEST__
 // Compares two strings and returns if they're equal.
-extern bool strcmp(void *a, void *b, size_t count);
+bool strcmp(void *a, void *b, size_t count);
 
 // Measures the size of a string.
-extern size_t strlen(const char *str);
+size_t strlen(const char *str);
 #endif
 
 // Measures the size of a string with a maximum length.
-extern size_t strlen_s(const char *str, size_t max);
+size_t strlen_s(const char *str, size_t max);

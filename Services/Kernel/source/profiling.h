@@ -19,14 +19,14 @@
 class Process;
 
 // Initializes profiling.
-extern void InitializeProfiling();
+void InitializeProfiling();
 
 // Starts profiling the system, passing the process that requested it.
-extern void EnableProfiling(Process* process);
+void EnableProfiling(Process* process);
 
 // Finishes profiling and outputs the data, passing the process that requested
 // it.
-extern void DisableAndOutputProfiling(Process* process);
+void DisableAndOutputProfiling(Process* process);
 
 // Notifies profiler that a process has exited.
-extern void NotifyProfilerThatProcessExited(Process* process);
+void NotifyProfilerThatProcessExited(Process* process);

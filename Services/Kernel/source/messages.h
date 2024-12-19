@@ -26,18 +26,17 @@ struct Thread;
 
 // Sends a message from the kernel to a process. The message will be ignored on
 // an error.
-extern void SendKernelMessageToProcess(Process* receiver_process,
-                                       size_t event_id, size_t param1,
-                                       size_t param2, size_t param3,
-                                       size_t param4, size_t param5);
+void SendKernelMessageToProcess(Process* receiver_process, size_t event_id,
+                                size_t param1, size_t param2, size_t param3,
+                                size_t param4, size_t param5);
 
 // Sends an message from a thread. This is intended to be called from within a
 // syscall.
-extern void SendMessageFromThreadSyscall(Thread* sender_thread);
+void SendMessageFromThreadSyscall(Thread* sender_thread);
 
 // Loads the next queued message for the process into the thread.
-extern void LoadNextMessageIntoThread(Thread* thread);
+void LoadNextMessageIntoThread(Thread* thread);
 
 // Sleeps a thread until an message. Returns if the thread is now asleep, or
 // false if a message was loaded.
-extern bool SleepThreadUntilMessage(Thread* thread);
+bool SleepThreadUntilMessage(Thread* thread);

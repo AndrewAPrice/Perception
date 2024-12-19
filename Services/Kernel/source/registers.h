@@ -25,4 +25,4 @@ struct Registers {
 };
 
 // Prints the registers, for debugging.
-extern void PrintRegisters(Registers* regs);
+void PrintRegisters(Registers* regs);

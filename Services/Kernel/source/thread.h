@@ -66,25 +66,23 @@ struct Thread {
 };
 
 // Initialize threads.
-extern void InitializeThreads();
+void InitializeThreads();
 
 // Creates a thread for a process.
-extern Thread *CreateThread(Process *process, size_t entry_point,
-                                   size_t param);
+Thread *CreateThread(Process *process, size_t entry_point, size_t param);
 
 // Destroys a thread.
-extern void DestroyThread(Thread *thread, bool process_being_destroyed);
+void DestroyThread(Thread *thread, bool process_being_destroyed);
 
 // Destroys all threads for a process.
-extern void DestroyThreadsForProcess(Process *process,
-                                     bool process_being_destroyed);
+void DestroyThreadsForProcess(Process *process, bool process_being_destroyed);
 
 // Returns a thread with the provided tid in process, return 0 if it doesn't
 // exist.
-extern Thread *GetThreadFromTid(Process *process, size_t tid);
+Thread *GetThreadFromTid(Process *process, size_t tid);
 
 // Set the thread's segment offset (FS).
-extern void SetThreadSegment(Thread *thread, size_t address);
+void SetThreadSegment(Thread *thread, size_t address);
 
 // Load's a thread segment.
-extern void LoadThreadSegment(Thread *thread);
+void LoadThreadSegment(Thread *thread);

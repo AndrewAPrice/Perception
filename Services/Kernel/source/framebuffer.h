@@ -27,4 +27,4 @@
 void MaybeLoadFramebuffer();
 
 // Populates the registers with framebuffer details.
-extern void PopulateRegistersWithFramebufferDetails(Registers* regs);
+void PopulateRegistersWithFramebufferDetails(Registers* regs);

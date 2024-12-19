@@ -24,11 +24,11 @@ struct Process;
 // Parses the name of the multiboot module, which has the permissions of the
 // process before the title, e.g. "abc Some Program" is a process titled "Some
 // Program" with the permissions a, b, and c.
-extern bool ParseMultibootModuleName(char** name, size_t* name_length, bool* is_driver,
+bool ParseMultibootModuleName(char** name, size_t* name_length, bool* is_driver,
                               bool* can_create_processes);
 
 // Load the modules provided by the multiboot boot loader.
-extern void LoadMultibootModules();
+void LoadMultibootModules();
 
 // Attempts to load a multiboot module into a process. Each subsequential call
 // will load the next multiboot module into a process. When there are no more to
@@ -36,9 +36,9 @@ extern void LoadMultibootModules();
 // parameters. The lowest 16 bits of `address_and_flags` is a bit field.
 // The first process that a multiboot module loads into becomes the only process
 // that a multiboot module can be loaded into.
-extern void LoadNextMultibootModuleIntoProcess(Process* process,
-                                               size_t& address_and_flags,
-                                               size_t& size, char* name);
+void LoadNextMultibootModuleIntoProcess(Process* process,
+                                        size_t& address_and_flags, size_t& size,
+                                        char* name);
 
 // Whether there are still remaining unloaded multiboot modules.
-extern bool HasRemainingUnloadedMultibootModules();
+bool HasRemainingUnloadedMultibootModules();

@@ -21,5 +21,5 @@ class Thread;
 
 // Prints out a core dump for a process. The target thread is the thread that
 // crashed.
-extern void PrintCoreDump(Process *process, Thread *target_thread,
-                          int exception_no, size_t cr2, size_t error_code);
+void PrintCoreDump(Process *process, Thread *target_thread, int exception_no,
+                   size_t cr2, size_t error_code);

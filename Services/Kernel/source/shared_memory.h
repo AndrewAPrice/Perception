@@ -124,66 +124,65 @@ struct SharedMemory {
 };
 
 // Initializes the internal structures for shared memory.
-extern void InitializeSharedMemory();
+void InitializeSharedMemory();
 
 // Creates a shared memory block and map it into a procses.
-extern SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
+SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
     Process* process, size_t pages, size_t flags,
     size_t message_id_for_lazily_loaded_pages);
 
 // Releases a shared memory block. Please make sure that there are no
 // processes referencing the shared memory block before calling this.
-extern void ReleaseSharedMemoryBlock(SharedMemory* shared_memory);
+void ReleaseSharedMemoryBlock(SharedMemory* shared_memory);
 
 // Joins a shared memory block. Ensures that a shared memory is only mapped once
 // per process.
-extern SharedMemoryInProcess* JoinSharedMemory(Process* process,
-                                               size_t shared_memory_id);
+SharedMemoryInProcess* JoinSharedMemory(Process* process,
+                                        size_t shared_memory_id);
 
 // Makes a child process join a shared memory block at the given address. The
 // receiving process must be created by the calling process and in the
 // `creating` state. If any of the pages are already occupied in the child
 // process, nothing is set.
-extern bool JoinChildProcessInSharedMemory(Process* parent, Process* child,
-                                           size_t shared_memory_id,
-                                           size_t starting_address);
+bool JoinChildProcessInSharedMemory(Process* parent, Process* child,
+                                    size_t shared_memory_id,
+                                    size_t starting_address);
 
 // Leaves a shared memory block, but doesn't unmap it if there are still other
 // referenes to the shared memory block in the process.
-extern void LeaveSharedMemory(Process* process, size_t shared_memory_id);
+void LeaveSharedMemory(Process* process, size_t shared_memory_id);
 
 // Moves a page into a shared memory block. Only the creator of the shared
 // memory block can acall this.
-extern void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
-                                     size_t offset_in_buffer,
-                                     size_t page_address);
+void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
+                              size_t offset_in_buffer, size_t page_address);
 
 // Tries to handle a page fault if it's related to a lazily loaded shared
 // message. Returns if we were able to handle the exception.
-extern bool MaybeHandleSharedMessagePageFault(size_t address);
+bool MaybeHandleSharedMessagePageFault(size_t address);
 
 // Does the address exist in the shared memory block and is it allocated? Sets
 // the physical address of the memory page, if it exists.
-extern bool IsAddressAllocatedInSharedMemory(size_t shared_memory_id,
-                                             size_t offset_in_shared_memory);
+bool IsAddressAllocatedInSharedMemory(size_t shared_memory_id,
+                                      size_t offset_in_shared_memory);
 
 // Returns the physical address of a page in shared memory. Returns
 // OUT_OF_PHYSICAL_PAGES if it does not exist.
-extern size_t GetPhysicalAddressOfPageInSharedMemory(
-    size_t shared_memory_id, size_t offset_in_shared_memory);
+size_t GetPhysicalAddressOfPageInSharedMemory(size_t shared_memory_id,
+                                              size_t offset_in_shared_memory);
 
 // Grants permission for another process to allocate into this shared memory
 // block.
-extern void GrantPermissionToAllocateIntoSharedMemory(Process* grantor,
-                                                      size_t shared_memory_id,
-                                                      size_t grantee_pid);
+void GrantPermissionToAllocateIntoSharedMemory(Process* grantor,
+                                               size_t shared_memory_id,
+                                               size_t grantee_pid);
 
 // Can this process write to this shared memory?
-extern bool CanProcessWriteToSharedMemory(Process* process,
-                                          SharedMemory* shared_memory);
+bool CanProcessWriteToSharedMemory(Process* process,
+                                   SharedMemory* shared_memory);
 
 // Gets information about a shared memory buffer as it pertains to a processes.
-extern void GetSharedMemoryDetailsPertainingToProcess(Process* process,
-                                                      size_t shared_memory_id,
-                                                      size_t& flags,
-                                                      size_t& size_in_bytes);
+void GetSharedMemoryDetailsPertainingToProcess(Process* process,
+                                               size_t shared_memory_id,
+                                               size_t& flags,
+                                               size_t& size_in_bytes);

@@ -42,17 +42,15 @@ struct MessageToFireOnInterrupt {
 extern size_t interrupt_stack_top;
 
 // Initializes interrupts.
-extern void InitializeInterrupts();
+void InitializeInterrupts();
 
 // Registers a message to send to a process upon receiving an interrupt.
-extern void RegisterMessageToSendOnInterrupt(size_t interrupt_number,
-                                             Process* process,
-                                             size_t message_id);
+void RegisterMessageToSendOnInterrupt(size_t interrupt_number, Process* process,
+                                      size_t message_id);
 
 // Unregisters a message to send to a process upon receiving an interrupt.
-extern void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
-                                               Process* process,
-                                               size_t message_id);
+void UnregisterMessageToSendOnInterrupt(size_t interrupt_number,
+                                        Process* process, size_t message_id);
 
 // Unregisters all messages for a process.
-extern void UnregisterAllMessagesToForOnInterruptForProcess(Process* process);
+void UnregisterAllMessagesToForOnInterruptForProcess(Process* process);
