@@ -614,7 +614,7 @@ Also sends an event for all existing notifications with this name.
 ### Output
 Nothing.
 
-## Stop notyfing when service appears.
+## Stop notifying when service appears.
 
 ### Input
 * `rdi` - 36
