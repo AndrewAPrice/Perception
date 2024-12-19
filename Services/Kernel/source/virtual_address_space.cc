@@ -404,7 +404,7 @@ bool VirtualAddressSpace::MapPhysicalPageAt(size_t virtualaddr,
                                             bool can_write,
                                             bool throw_exception_on_access) {
   return MapPhysicalPageImpl(virtualaddr, physicaladdr,
-                             TemporarilyMapPhysicalMemory, GetPhysicalPage, own,
+                             TemporarilyMapPhysicalPages, GetPhysicalPage, own,
                              can_write, throw_exception_on_access,
                              /*assign_page_table=*/false);
 }
