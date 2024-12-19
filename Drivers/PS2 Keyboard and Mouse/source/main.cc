@@ -23,6 +23,7 @@
 #include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
 #include "permebuf/Libraries/perception/window_manager.permebuf.h"
 
+using ::perception::IsDuplicateInstanceOfProcess;
 using ::perception::ProcessId;
 using ::perception::Read8BitsFromPort;
 using ::perception::RegisterInterruptHandler;
@@ -287,6 +288,8 @@ void InitializePS2Controller() {
 }  // namespace
 
 int main (int argc, char *argv[]) {
+  if (IsDuplicateInstanceOfProcess()) return 0;
+
   mouse_driver = std::make_unique<PS2MouseDriver>();
   keyboard_driver = std::make_unique<PS2KeyboardDriver>();
   InitializePS2Controller();

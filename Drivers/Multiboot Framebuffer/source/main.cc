@@ -23,11 +23,13 @@
 #include "perception/scheduler.h"
 #include "perception/shared_memory.h"
 #include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
+#include "perception/processes.h"
 
 // #define DEBUG
 
 using ::perception::Fiber;
 using ::perception::GetMultibootFramebufferDetails;
+using ::perception::IsDuplicateInstanceOfProcess;
 using ::perception::kPageSize;
 using ::perception::MapPhysicalMemory;
 using ::perception::MessageId;
@@ -852,6 +854,8 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
 };
 
 int main (int argc, char *argv[]) {
+  if (IsDuplicateInstanceOfProcess()) return 0;
+
   size_t physical_address;
   uint32 width, height, pitch;
   uint8 bpp;

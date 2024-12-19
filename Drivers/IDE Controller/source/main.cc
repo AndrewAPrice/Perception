@@ -19,10 +19,14 @@
 #include "ide.h"
 #include "interrupts.h"
 #include "perception/scheduler.h"
+#include "perception/processes.h"
 
+using ::perception::IsDuplicateInstanceOfProcess;
 using ::perception::HandOverControl;
 
-int main (int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
+  if (IsDuplicateInstanceOfProcess()) return 0;
+
   InitializeInterrupts();
   InitializeIdeControllers();
 
