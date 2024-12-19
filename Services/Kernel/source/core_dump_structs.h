@@ -98,24 +98,24 @@ struct elf_prstatus {
 #define ELF_PRARGSZ 80
 
 struct elf_prpsinfo {
-	char pr_state;
-	char pr_sname;
-	char pr_zomb;
-	char pr_nice;
-	unsigned long int pr_flag;
-	unsigned int pr_uid;
-	unsigned int pr_gid;
-	int pr_pid, pr_ppid, pr_pgrp, pr_sid;
-	char pr_fname[16];
-	char pr_psargs[ELF_PRARGSZ];
+  char pr_state;
+  char pr_sname;
+  char pr_zomb;
+  char pr_nice;
+  unsigned long int pr_flag;
+  unsigned int pr_uid;
+  unsigned int pr_gid;
+  int pr_pid, pr_ppid, pr_pgrp, pr_sid;
+  char pr_fname[16];
+  char pr_psargs[ELF_PRARGSZ];
 };
 
 // Third party from lldb/source/Plugins/Process/Utility/RegisterContext_x86.h
 
-# define LLVM_PACKED(d) d __attribute__((packed))
-# define LLVM_PACKED_START _Pragma("pack(push, 1)")
-# define LLVM_PACKED_END   _Pragma("pack(pop)")
-#define LLVM_MARK_AS_BITMASK_ENUM(LargestValue)                                \
+#define LLVM_PACKED(d) d __attribute__((packed))
+#define LLVM_PACKED_START _Pragma("pack(push, 1)")
+#define LLVM_PACKED_END _Pragma("pack(pop)")
+#define LLVM_MARK_AS_BITMASK_ENUM(LargestValue) \
   LLVM_BITMASK_LARGEST_ENUMERATOR = LargestValue
 
 // Generic floating-point registers
@@ -163,8 +163,8 @@ struct FXSAVE {
   } ptr;
   uint32 mxcsr;      // MXCSR Register State
   uint32 mxcsrmask;  // MXCSR Mask
-  MMSReg stmm[8];      // 8*16 bytes for each FP-reg = 128 bytes
-  XMMReg xmm[16];      // 16*16 bytes for each XMM-reg = 256 bytes
+  MMSReg stmm[8];    // 8*16 bytes for each FP-reg = 128 bytes
+  XMMReg xmm[16];    // 16*16 bytes for each XMM-reg = 256 bytes
   uint8 padding1[48];
   uint64 xcr0;
   uint8 padding2[40];
@@ -190,7 +190,7 @@ struct MPXReg {
 
 struct MPXCsr {
   uint8 bytes[8];  // MPX 64 bit bndcfgu and bndstatus registers (collectively
-                     // BNDCSR state)
+                   // BNDCSR state)
 };
 
 struct MPX {
@@ -216,8 +216,8 @@ struct XSAVE_HDR {
 
   XFeature xstate_bv;  // OS enabled xstate mask to determine the extended
                        // states supported by the processor
-  XFeature xcomp_bv;  // Mask to indicate the format of the XSAVE area and of
-                      // the XRSTOR instruction
+  XFeature xcomp_bv;   // Mask to indicate the format of the XSAVE area and of
+                       // the XRSTOR instruction
   uint64 reserved1[1];
   uint64 reserved2[5];
 };
@@ -227,14 +227,14 @@ LLVM_PACKED_END
 // x86 extensions to FXSAVE (i.e. for AVX and MPX processors)
 LLVM_PACKED_START
 struct XSAVE {
-  FXSAVE i387;      // floating point registers typical in i387_fxsave_struct
-  XSAVE_HDR header; // The xsave_hdr_struct can be used to determine if the
-                    // following extensions are usable
-  YMMHReg ymmh[16]; // High 16 bytes of each of 16 YMM registers (the low bytes
-                    // are in FXSAVE.xmm for compatibility with SSE)
+  FXSAVE i387;       // floating point registers typical in i387_fxsave_struct
+  XSAVE_HDR header;  // The xsave_hdr_struct can be used to determine if the
+                     // following extensions are usable
+  YMMHReg ymmh[16];  // High 16 bytes of each of 16 YMM registers (the low bytes
+                     // are in FXSAVE.xmm for compatibility with SSE)
   uint64 reserved3[16];
-  MPXReg mpxr[4];   // MPX BNDREG state, containing 128-bit bound registers
-  MPXCsr mpxc[2];   // MPX BNDCSR state, containing 64-bit BNDCFGU and
-                    // BNDSTATUS registers
+  MPXReg mpxr[4];  // MPX BNDREG state, containing 128-bit bound registers
+  MPXCsr mpxc[2];  // MPX BNDCSR state, containing 64-bit BNDCFGU and
+                   // BNDSTATUS registers
 };
 LLVM_PACKED_END
