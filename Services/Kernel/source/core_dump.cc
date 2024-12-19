@@ -54,8 +54,8 @@ constexpr size_t kCoreDumpSizePerThread =
     + (sizeof(Elf64_Nhdr) + kCoreDumpNoteNameMaxCharacters) * 2;
 constexpr size_t kCoreDumpSizePerMemoryChunk = sizeof(Elf64_Phdr);  // PT_LOAD
 
-VirtualAddressSpace *VirtualAddressSpaceForProcess(Process *process) {
-  return &process->virtual_address_space;
+VirtualAddressSpace &VirtualAddressSpaceForProcess(Process *process) {
+  return process->virtual_address_space;
 }
 
 size_t NumberOfThreadsInProcess(Process *process) {
@@ -64,11 +64,11 @@ size_t NumberOfThreadsInProcess(Process *process) {
 
 template <typename TCallbackFunc>
 void CountMemoryAndChunksInVirtualAddressSpaceAndRange(
-    VirtualAddressSpace *virtual_address_space, size_t start_address,
+    VirtualAddressSpace &virtual_address_space, size_t start_address,
     size_t end_address, TCallbackFunc &&on_each_memory_chunk) {
   size_t addr = start_address;
 
-  auto *fmr = virtual_address_space->free_chunks_by_address
+  auto *fmr = virtual_address_space.free_chunks_by_address
                   .SearchForItemGreaterThanOrEqualToValue(addr);
 
   while (true) {
@@ -85,7 +85,7 @@ void CountMemoryAndChunksInVirtualAddressSpaceAndRange(
         on_each_memory_chunk(addr, fmr->start_address - 1);
       }
       addr = fmr->start_address + fmr->pages * PAGE_SIZE;
-      fmr = virtual_address_space->free_chunks_by_address
+      fmr = virtual_address_space.free_chunks_by_address
                 .SearchForItemGreaterThanOrEqualToValue(addr);
     }
   }
@@ -93,11 +93,11 @@ void CountMemoryAndChunksInVirtualAddressSpaceAndRange(
 
 template <typename TCallbackFunc>
 void OnEachMemoryChunkInVirtualAddressSpace(
-    VirtualAddressSpace *virtual_address_space,
+    VirtualAddressSpace &virtual_address_space,
     TCallbackFunc &&on_each_memory_chunk) {
   // User space memory has a 'hole' of non-canonical addresses in the middle.
   size_t hole_start, hole_end;
-  GetUserspaceVirtualMemoryHole(hole_start, hole_end);
+  GetUserspaceVirtualMemoryHole(hole_start, hole_end, true);
 
   CountMemoryAndChunksInVirtualAddressSpaceAndRange(
       virtual_address_space, 0, hole_start - 1, on_each_memory_chunk);
@@ -321,7 +321,7 @@ void PrintPTNotes(Process *process, Thread *target_thread, int exception_no,
   }
 }
 
-void PrintMemory(VirtualAddressSpace *virtual_address_space) {
+void PrintMemory(VirtualAddressSpace &virtual_address_space) {
   OnEachMemoryChunkInVirtualAddressSpace(
       virtual_address_space, [&](size_t start_address, size_t end_address) {
         size_t size = end_address - start_address + 1;
@@ -335,14 +335,14 @@ void PrintMemory(VirtualAddressSpace *virtual_address_space) {
           if (physical_addr == OUT_OF_MEMORY) {
             for (int i = 0; i < PAGE_SIZE; i++) print << '\0';
           } else {
-            char *c = (char *)TemporarilyMapPhysicalMemory(physical_addr, 6);
+            char *c = (char *)TemporarilyMapPhysicalPages(physical_addr, 6);
             for (int i = 0; i < PAGE_SIZE; i++) print << c[i];
           }
         }
       });
 }
 
-void PrintCoreDumpContents(VirtualAddressSpace *virtual_address_space,
+void PrintCoreDumpContents(VirtualAddressSpace &virtual_address_space,
                            Process *process, Thread *target_thread,
                            int exception_no, size_t cr2, size_t error_code,
                            size_t threads, size_t memory_chunks,
@@ -359,7 +359,7 @@ void PrintCoreDumpContents(VirtualAddressSpace *virtual_address_space,
 void PrintCoreDump(Process *process, Thread *target_thread, int exception_no,
                    size_t cr2, size_t error_code) {
   bool any_page_unaligned_chunks = false;
-  auto *virtual_address_space = VirtualAddressSpaceForProcess(process);
+  auto &virtual_address_space = VirtualAddressSpaceForProcess(process);
   size_t threads = NumberOfThreadsInProcess(process);
   size_t memory_chunks = 0, memory_size = 0;
   OnEachMemoryChunkInVirtualAddressSpace(
@@ -399,7 +399,6 @@ void PrintCoreDump(Process *process, Thread *target_thread, int exception_no,
 #else  // SUPPORTS_CORE_DUMPING
 
 void PrintCoreDump(Process *process, Thread *target_thread, int exception_no,
-                   size_t cr2, size_t error_code) {
-}
+                   size_t cr2, size_t error_code) {}
 
 #endif  // SUPPORTS_CORE_DUMPING

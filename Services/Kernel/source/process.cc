@@ -13,6 +13,7 @@
 #include "text_terminal.h"
 #include "thread.h"
 #include "timer.h"
+#include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
 namespace {
@@ -35,10 +36,8 @@ void InitializeProcesses() {
 Process *CreateProcess(bool is_driver, bool can_create_processes) {
   // Create a memory space for it.
   Process *proc = (Process *)malloc(sizeof(Process));
-  if (proc == 0) {
-    // Out of memory.
-    return (Process *)ERROR;
-  }
+  if (proc == nullptr) return nullptr;  // Out of memory.
+
   new (proc) Process();
   proc->is_driver = is_driver;
   proc->can_create_processes = can_create_processes;
@@ -49,9 +48,9 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->pid = last_assigned_pid;
 
   // Allocate an address space.
-  if (!InitializeVirtualAddressSpace(&proc->virtual_address_space)) {
+  if (!proc->virtual_address_space.InitializeUserSpace()) {
     free(proc);
-    return (Process *)ERROR;
+    return nullptr;
   }
   proc->allocated_pages = 0;
 
@@ -159,7 +158,7 @@ void DestroyProcess(Process *process) {
     UnmapSharedMemoryFromProcess(process->joined_shared_memories.FirstItem());
 
   // Free the address space.
-  FreeAddressSpace(&process->virtual_address_space);
+  process->virtual_address_space.~VirtualAddressSpace();
 
   // Free all notifications I was waiting on for processes to die.
   while (auto *notification =
@@ -261,7 +260,7 @@ Process *CreateChildProcess(Process *parent, char *name, size_t bitfield) {
   Process *child_process =
       CreateProcess(/*is_driver=*/bitfield & (1 << 0),
                     /*can_create_processes=*/bitfield & (1 << 2));
-  if (child_process == (Process *)ERROR) {
+  if (child_process == nullptr) {
     print << "Out of memory to create a new process: " << name << '\n';
     return nullptr;
   }
@@ -294,8 +293,9 @@ void SetChildProcessMemoryPage(Process *parent, Process *child,
                                size_t destination_address) {
   // Get the physical address from the parent.
   size_t page_physical_address =
-      GetPhysicalAddress(&parent->virtual_address_space, source_address,
-                         /*ignore_unowned_pages=*/true);
+      parent->virtual_address_space.GetPhysicalAddress(
+          source_address,
+          /*ignore_unowned_pages=*/true);
   if (page_physical_address == OUT_OF_MEMORY) {
     return;  // Page doesn't exist.
   }
@@ -308,8 +308,7 @@ void SetChildProcessMemoryPage(Process *parent, Process *child,
   }
 
   // Unmap the physical page from the parent.
-  UnmapVirtualPage(&parent->virtual_address_space, source_address,
-                   ReleaseMemoryFlags::DoNotFreeMemory);
+  parent->virtual_address_space.ReleasePages(source_address, 1);
 
   if (!IsProcessAChildOfParent(parent, child)) {
     // This isn't a child process. Release the memory for this page.
@@ -324,17 +323,17 @@ void SetChildProcessMemoryPage(Process *parent, Process *child,
     destination_address = RoundDownToPageAlignedAddress(destination_address);
   }
 
-  if (!ReserveAddressRange(&child->virtual_address_space, destination_address,
-                           1)) {
+  if (!child->virtual_address_space.ReserveAddressRange(destination_address,
+                                                        1)) {
     // There's no free memory at this address. Release the memory for this page.
     FreePhysicalPage(page_physical_address);
     return;
   }
 
   // Map the physical page to the new process.
-  MapPhysicalPageToVirtualPage(&child->virtual_address_space,
-                               destination_address, page_physical_address,
-                               /*own=*/true, true, false);
+  child->virtual_address_space.MapPhysicalPageAt(destination_address,
+                                                 page_physical_address,
+                                                 /*own=*/true, true, false);
 }
 
 // Creates a thread in the a process that is currently in the `creating` state.

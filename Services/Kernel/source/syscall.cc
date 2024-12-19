@@ -19,6 +19,7 @@
 #include "text_terminal.h"
 #include "thread.h"
 #include "timer.h"
+#include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
 // Uncomment for debug printing.
@@ -145,40 +146,38 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     case Syscall::AllocateMemoryPages:
       currently_executing_thread_regs->rax =
-          AllocateVirtualMemoryInAddressSpace(
-              &running_thread->process->virtual_address_space,
+          running_thread->process->virtual_address_space.AllocatePages(
               currently_executing_thread_regs->rax);
       break;
     case Syscall::AllocateMemoryPagesBelowPhysicalBase:
       if (running_thread->process->is_driver) {
         size_t first_physical_address = 0;
         currently_executing_thread_regs->rax =
-            AllocateVirtualMemoryInAddressSpaceBelowMaxBaseAddress(
-                &running_thread->process->virtual_address_space,
-                currently_executing_thread_regs->rax,
-                currently_executing_thread_regs->rbx);
+            running_thread->process->virtual_address_space
+                .AllocatePagesBelowMaxBaseAddress(
+                    currently_executing_thread_regs->rax,
+                    currently_executing_thread_regs->rbx);
         currently_executing_thread_regs->rbx =
-            GetPhysicalAddress(&running_thread->process->virtual_address_space,
-                               currently_executing_thread_regs->rax,
-                               /*ignore_unowned_pages=*/false);
+            running_thread->process->virtual_address_space.GetPhysicalAddress(
+                currently_executing_thread_regs->rax,
+                /*ignore_unowned_pages=*/false);
       } else {
         currently_executing_thread_regs->rax = OUT_OF_MEMORY;
         currently_executing_thread_regs->rbx = 0;
       }
       break;
     case Syscall::ReleaseMemoryPages:
-      ReleaseVirtualMemoryInAddressSpace(
-          &running_thread->process->virtual_address_space,
+      running_thread->process->virtual_address_space.FreePages(
           currently_executing_thread_regs->rax,
           currently_executing_thread_regs->rbx);
       break;
     case Syscall::MapPhysicalMemory:
       // Only drivers can map physical memory.
       if (running_thread->process->is_driver) {
-        currently_executing_thread_regs->rax = MapPhysicalMemoryInAddressSpace(
-            &running_thread->process->virtual_address_space,
-            currently_executing_thread_regs->rax,
-            currently_executing_thread_regs->rbx);
+        currently_executing_thread_regs->rax =
+            running_thread->process->virtual_address_space.MapPhysicalPages(
+                currently_executing_thread_regs->rax,
+                currently_executing_thread_regs->rbx);
       } else {
         currently_executing_thread_regs->rax = OUT_OF_MEMORY;
       }
@@ -186,9 +185,9 @@ extern "C" void SyscallHandler(int syscall_number) {
     case Syscall::GetPhysicalAddressOfVirtualAddress:
       if (running_thread->process->is_driver) {
         currently_executing_thread_regs->rax =
-            GetPhysicalAddress(&running_thread->process->virtual_address_space,
-                               currently_executing_thread_regs->rax,
-                               /*ignore_unowned_pages=*/false);
+            running_thread->process->virtual_address_space.GetPhysicalAddress(
+                currently_executing_thread_regs->rax,
+                /*ignore_unowned_pages=*/false);
       } else {
         currently_executing_thread_regs->rax = 0;
       }
@@ -295,8 +294,8 @@ extern "C" void SyscallHandler(int syscall_number) {
       size_t rights = currently_executing_thread_regs->rdx;
 
       for (; address < max_address; address += PAGE_SIZE) {
-        SetMemoryAccessRights(&running_thread->process->virtual_address_space,
-                              address, rights);
+        running_thread->process->virtual_address_space.SetMemoryAccessRights(
+            address, rights);
       }
       break;
     }

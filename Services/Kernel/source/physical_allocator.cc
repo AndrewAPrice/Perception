@@ -5,6 +5,7 @@
 #include "object_pool.h"
 #include "object_pools.h"
 #include "text_terminal.h"
+#include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
 // Start of the free memory on boot.
@@ -35,7 +36,6 @@ size_t next_free_page_address;
 // temporarily mapped into virtual memory before reading it. This only works if
 // the values are sure not to cross the 2MB page boundaries (which they
 // shouldn't).
-}
 uint32 SafeReadUint32(uint32 *value) {
   return *(uint32 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value,
                                                                  0);
@@ -188,7 +188,7 @@ void DoneWithMultibootMemory() {
   }
 
   for (size_t page = start; page < end; page += PAGE_SIZE)
-    UnmapVirtualPage(&kernel_address_space, page + VIRTUAL_MEMORY_OFFSET);
+    KernelAddressSpace().FreePages(page + VIRTUAL_MEMORY_OFFSET, 1);
 }
 
 // Grabs the next physical page (at boot time before the virtual memory
@@ -241,7 +241,7 @@ size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
 
     // Pop it from the stack by mapping the page to physical memory so we can
     // grab the pointer to the next free page.
-    bp = (size_t *)TemporarilyMapPhysicalMemory(addr, 5);
+    bp = (size_t *)TemporarilyMapPhysicalPages(addr, 5);
     next_free_page_address = *bp;
   } else {
     // Keep walking the stack of free pages until we find one that's below the
@@ -254,7 +254,7 @@ size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
     do {
       // Walk to the next page.
       previous_addr = addr;
-      previous_bp = (size_t *)TemporarilyMapPhysicalMemory(addr, 5);
+      previous_bp = (size_t *)TemporarilyMapPhysicalPages(addr, 5);
       addr = *previous_bp;
 
       if (addr == OUT_OF_PHYSICAL_PAGES) {
@@ -263,7 +263,7 @@ size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
       }
     } while (addr <= max_base_address);
 
-    bp = (size_t *)TemporarilyMapPhysicalMemory(addr, 6);
+    bp = (size_t *)TemporarilyMapPhysicalPages(addr, 6);
 
     // Update the previous page to skip over this page.
     *previous_bp = *bp;
@@ -282,7 +282,7 @@ void FreePhysicalPage(size_t addr) {
   // Push this page onto the linked stack.
 
   // Map this physical memory, so can write the previous stack page to it.
-  size_t *bp = (size_t *)TemporarilyMapPhysicalMemory(addr, 5);
+  size_t *bp = (size_t *)TemporarilyMapPhysicalPages(addr, 5);
   // Write the previous stack head to the start of this page.
   *bp = next_free_page_address;
 

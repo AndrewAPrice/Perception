@@ -101,9 +101,8 @@ void MapSharedMemoryPageInEachProcess(SharedMemory* shared_memory,
     bool can_write = CanProcessWriteToSharedMemory(process, shared_memory);
     size_t virtual_address =
         shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
-    MapPhysicalPageToVirtualPage(&process->virtual_address_space,
-                                 virtual_address, physical_address, false,
-                                 can_write, false);
+    process->virtual_address_space.MapPhysicalPageAt(
+        virtual_address, physical_address, false, can_write, false);
   }
 
   // Wake up each thread that was waiting for this page.
@@ -178,8 +177,7 @@ void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory, size_t page,
       Process* process = shared_memory_in_process->process;
       size_t virtual_address =
           shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
-      ReleaseVirtualMemoryInAddressSpace(&process->virtual_address_space,
-                                         virtual_address, 1);
+      process->virtual_address_space.ReleasePages(virtual_address, 1);
     }
   }
 
@@ -317,8 +315,8 @@ bool JoinChildProcessInSharedMemory(Process* parent, Process* child,
     starting_address = RoundDownToPageAlignedAddress(starting_address);
   }
 
-  if (!ReserveAddressRange(&child->virtual_address_space, starting_address,
-                           shared_memory->size_in_pages)) {
+  if (!child->virtual_address_space.ReserveAddressRange(
+          starting_address, shared_memory->size_in_pages)) {
     // Can't reserve this address range. It is likely occupied.
     return false;
   }
@@ -348,13 +346,11 @@ void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
   if (process == nullptr) return;
 
   size_t physical_address =
-      GetPhysicalAddress(&process->virtual_address_space, page_address, true);
+      process->virtual_address_space.GetPhysicalAddress(page_address, true);
   if (physical_address == OUT_OF_MEMORY)
     return;  // This page doesn't exist or we don't own it. We can't move
              // it.
-  ReleaseVirtualMemoryInAddressSpace(&process->virtual_address_space,
-                                     page_address, 1,
-                                     ReleaseMemoryFlags::DoNotFreeMemory);
+  process->virtual_address_space.ReleasePages(page_address, 1);
 
   // If we fail at any point we need to return the physical address.
 

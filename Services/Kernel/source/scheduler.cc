@@ -7,6 +7,7 @@
 #include "registers.h"
 #include "text_terminal.h"
 #include "thread.h"
+#include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
 // The currently executing thread. This can be nullptr if all threads are
@@ -71,7 +72,7 @@ void ScheduleNextThread() {
     // If there's no next thread, we'll return to the kernel's idle thread.
     running_thread = 0;
     currently_executing_thread_regs = idle_regs;
-    SwitchToAddressSpace(&kernel_address_space);
+    KernelAddressSpace().SwitchToAddressSpace();
     return;
   }
 
@@ -79,7 +80,7 @@ void ScheduleNextThread() {
   running_thread = next;
   running_thread->time_slices++;
 
-  SwitchToAddressSpace(&running_thread->process->virtual_address_space);
+  running_thread->process->virtual_address_space.SwitchToAddressSpace();
 
   if (running_thread->uses_fpu_registers) {
 #ifndef __TEST__

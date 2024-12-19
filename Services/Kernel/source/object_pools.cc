@@ -11,14 +11,14 @@
 #include "shared_memory.h"
 #include "thread.h"
 #include "timer_event.h"
-#include "virtual_allocator.h"
+#include "virtual_address_space.h"
 
 // A list of classes for which there are object pools for.
-#define POOLED_CLASSES                                                       \
-  FreeMemoryRange, Message, MessageToFireOnInterrupt, ProcessToNotifyOnExit, \
-      ProcessToNotifyWhenServiceAppears,                                     \
+#define POOLED_CLASSES                                                      \
+  VirtualAddressSpace::FreeMemoryRange, Message, MessageToFireOnInterrupt,  \
+      ProcessToNotifyOnExit, ProcessToNotifyWhenServiceAppears,             \
       ProcessToNotifyWhenServiceDisappears, SetNode, Service, SharedMemory, \
-      SharedMemoryInProcess, TimerEvent, Thread,                             \
+      SharedMemoryInProcess, TimerEvent, Thread,                            \
       ThreadWaitingForSharedMemoryPage
 
 // Initializer that can touch the private members of ObjectPool.

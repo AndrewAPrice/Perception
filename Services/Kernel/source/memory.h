@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #pragma once
 
 #include "types.h"
@@ -20,7 +19,7 @@
 
 #else
 
-#include "text_terminal.h"
+class Process;
 
 // Copies `count` bytes from `src` to `dest`.
 extern "C" void memcpy(char *dest, const char *src, size_t count);
@@ -34,3 +33,14 @@ template <class T>
 void Clear(T &object) {
   memset((char *)&object, 0, sizeof(T));
 }
+
+// Returns whether the provided address lives within kernel space.
+bool IsKernelAddress(size_t address);
+
+// Copies data from the module into the process's memory.
+bool CopyKernelMemoryIntoProcess(size_t from_start, size_t to_start,
+                                 size_t to_end, Process *process);
+
+// Calculates the number of pages required to fit this particular number of
+// bytes.
+size_t PagesThatContainBytes(size_t bytes);

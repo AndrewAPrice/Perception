@@ -19,7 +19,6 @@ void WriteIOByte(unsigned short _port, unsigned char _data) {
 #endif
 }
 
-
 void WriteModelSpecificRegister(uint64 msr, uint64 value) {
 #ifdef __TEST__
   printf("WriteModelSpecificRegister called in test.\n");

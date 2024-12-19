@@ -26,6 +26,7 @@
 #include "text_terminal.h"
 #include "timer.h"
 #include "tss.h"
+#include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
 namespace {
@@ -76,8 +77,7 @@ void RegisterInterruptHandlers() {
 
 // Allocates a stack to use for interrupts.
 void AllocateInterruptStack() {
-  size_t virtual_addr =
-      AllocateVirtualMemoryInAddressSpace(&kernel_address_space, 1);
+  size_t virtual_addr = KernelAddressSpace().AllocatePages(1);
   interrupt_stack_top = virtual_addr + PAGE_SIZE;
 
   SetInterruptStack(virtual_addr);

@@ -27,6 +27,7 @@
 #include "stack_trace.h"
 #include "text_terminal.h"
 #include "thread.h"
+#include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
 namespace {
@@ -67,9 +68,9 @@ void PrintException(bool in_kernel, int exception_no, size_t cr2,
   if (exception == Exception::PageFault) {
     // Print the free address ranges to help debug what's happening.
     VirtualAddressSpace& address_space =
-        in_kernel ? kernel_address_space
+        in_kernel ? KernelAddressSpace()
                   : running_thread->process->virtual_address_space;
-    PrintFreeAddressRanges(address_space);
+    address_space.PrintFreeAddressRanges();
   }
 }
 

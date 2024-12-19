@@ -16,10 +16,11 @@
 
 #include "../../../third_party/multiboot2.h"
 #include "elf_loader.h"
-#include "string.h"
 #include "physical_allocator.h"
 #include "process.h"
+#include "string.h"
 #include "text_terminal.h"
+#include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
 namespace {
@@ -89,8 +90,7 @@ void LoadMultibootModuleIntoProcess(Process *process, multiboot_tag_module *tag,
   // module into.
   size = tag->mod_end - tag->mod_start;
   size_t pages = PagesThatContainBytes(size);
-  address_and_flags = AllocateVirtualMemoryInAddressSpace(
-      &process->virtual_address_space, pages);
+  address_and_flags = process->virtual_address_space.AllocatePages(pages);
   if (address_and_flags == 0) {
     print << "Out of memory, can't pass module " << name << " to "
           << process->name << ".\n";

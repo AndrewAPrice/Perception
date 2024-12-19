@@ -22,6 +22,7 @@
 #include "string.h"
 #include "text_terminal.h"
 #include "thread.h"
+#include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
 namespace {
@@ -102,7 +103,7 @@ bool RequiresDynamicLinking(const Elf64_Ehdr* header, size_t memory_start,
 // Touches memory, to make sure it is available, but doesn't copy anything
 // into it.
 bool LoadMemory(size_t to_start, size_t to_end, Process* process) {
-  VirtualAddressSpace* address_space = &process->virtual_address_space;
+  VirtualAddressSpace& address_space = process->virtual_address_space;
 
   size_t to_first_page = to_start & ~(PAGE_SIZE - 1);  // Round down.
   size_t to_last_page =
@@ -111,13 +112,13 @@ bool LoadMemory(size_t to_start, size_t to_end, Process* process) {
   size_t to_page = to_first_page;
   for (; to_page < to_last_page; to_page += PAGE_SIZE) {
     size_t physical_page_address =
-        GetOrCreateVirtualPage(address_space, to_page);
+        address_space.GetOrCreateVirtualPage(to_page);
     if (physical_page_address == OUT_OF_MEMORY) {
       // We ran out of memory trying to allocate the virtual page.
       return false;
     }
     size_t temp_addr =
-        (size_t)TemporarilyMapPhysicalMemory(physical_page_address, 5);
+        (size_t)TemporarilyMapPhysicalPages(physical_page_address, 5);
     // Indices where to start/finish clearing within the page.
     size_t offset_in_page_to_start_copying_at =
         to_start > to_page ? to_start - to_page : 0;
@@ -172,7 +173,8 @@ bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
       size_t to_address = segment_header->p_vaddr;
       size_t to_end = to_address + from_size;
       // Copy the data from the file into memory.
-      if (!CopyKernelMemoryIntoProcess(from_start, to_address, to_end, process)) {
+      if (!CopyKernelMemoryIntoProcess(from_start, to_address, to_end,
+                                       process)) {
         return false;
       }
     }
@@ -202,7 +204,8 @@ bool LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
   bool is_driver = false;
   bool can_create_processes = false;
 
-  if (!ParseMultibootModuleName(&name, &name_length, &is_driver, &can_create_processes)) {
+  if (!ParseMultibootModuleName(&name, &name_length, &is_driver,
+                                &can_create_processes)) {
     print << "Can't load module \"" << original_name
           << "\" because the name is not in the correct format.\n";
     // Even though the module didn't do anything, it can't be loaded later

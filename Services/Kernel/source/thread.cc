@@ -8,6 +8,7 @@
 #include "registers.h"
 #include "scheduler.h"
 #include "text_terminal.h"
+#include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
 namespace {
@@ -73,8 +74,8 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param) {
 
   // Sets up the stack by:
   // 1) Finds a free page in the process's virtual address space.
-  thread->stack = AllocateVirtualMemoryInAddressSpace(
-      &thread->process->virtual_address_space, STACK_PAGES);
+  thread->stack =
+      thread->process->virtual_address_space.AllocatePages(STACK_PAGES);
 
   InitializeRegisters(*process, entry_point, param, *thread);
 
@@ -114,7 +115,7 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
 
   // Free the thread's stack.
   for (int i = 0; i < STACK_PAGES; i++, thread->stack += PAGE_SIZE)
-    UnmapVirtualPage(&thread->process->virtual_address_space, thread->stack);
+    thread->process->virtual_address_space.FreePages(thread->stack, 1);
 
   Process* process = thread->process;
 
@@ -134,13 +135,14 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
     size_t page = thread->address_to_clear_on_termination - offset_in_page;
 
     // Get the physical page.
-    size_t physical_page = GetPhysicalAddress(
-        &thread->process->virtual_address_space, offset_in_page,
-        /*ignore_unowned_pages=*/false);
+    size_t physical_page =
+        thread->process->virtual_address_space.GetPhysicalAddress(
+            offset_in_page,
+            /*ignore_unowned_pages=*/false);
     if (physical_page != OUT_OF_MEMORY) {
       // If this virtual page was actually assigned to a physical address, set
       // our memory location to 0.
-      *(uint64*)((size_t)TemporarilyMapPhysicalMemory(physical_page, 1) +
+      *(uint64*)((size_t)TemporarilyMapPhysicalPages(physical_page, 1) +
                  offset_in_page) = 0;
     }
   }

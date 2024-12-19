@@ -20,6 +20,7 @@
 #include "scheduler.h"
 #include "text_terminal.h"
 #include "thread.h"
+#include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
 namespace {
@@ -29,8 +30,8 @@ constexpr int kStackTraceDepth = 100;
 
 // Prints a stack trace for the currently running process.
 void PrintStackTrace() {
-  VirtualAddressSpace* address_space =
-      &running_thread->process->virtual_address_space;
+  VirtualAddressSpace& address_space =
+      running_thread->process->virtual_address_space;
   size_t rbp = currently_executing_thread_regs->rbp;
   size_t rip = currently_executing_thread_regs->rip;
 
@@ -48,25 +49,25 @@ void PrintStackTrace() {
     size_t rip_address = rbp + 8;
     // Map the page into memory.
     size_t physical_page_addr =
-        GetPhysicalAddress(address_space, rip_address, false);
+        address_space.GetPhysicalAddress(rip_address, false);
     if (physical_page_addr == OUT_OF_MEMORY) {
       // Doesn't point to valid memory.
       return;
     }
     size_t* memory =
-        (size_t*)TemporarilyMapPhysicalMemory(physical_page_addr, 4);
+        (size_t*)TemporarilyMapPhysicalPages(physical_page_addr, 4);
     // Read the new RIP value.
     rip = memory[(rip_address & (PAGE_SIZE - 1)) >> 3];
     print << " ^ " << rip << " Stack base: " << rbp << '\n';
 
     // Now read new next RBP.
     // Map the page into memory.
-    physical_page_addr = GetPhysicalAddress(address_space, rbp, false);
+    physical_page_addr = address_space.GetPhysicalAddress(rbp, false);
     if (physical_page_addr == OUT_OF_MEMORY) {
       // Doesn't point to valid memory.
       return;
     }
-    memory = (size_t*)TemporarilyMapPhysicalMemory(physical_page_addr, 4);
+    memory = (size_t*)TemporarilyMapPhysicalPages(physical_page_addr, 4);
     // Read the new RBP value.
     rbp = memory[(rbp & (PAGE_SIZE - 1)) >> 3];
   }

@@ -1,6 +1,7 @@
 #ifndef __TEST__
 #include "physical_allocator.h"
 #include "text_terminal.h"
+#include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
 extern "C" {
@@ -38,8 +39,7 @@ int liballoc_unlock() {
  * \return A pointer to the allocated memory.
  */
 void* liballoc_alloc(size_t pages) {
-  return (void*)AllocateVirtualMemoryInAddressSpace(&kernel_address_space,
-                                                    pages);
+  return (void*)KernelAddressSpace().AllocatePages(pages);
 }
 
 /** This frees previously allocated memory. The void* parameter passed
@@ -51,8 +51,7 @@ void* liballoc_alloc(size_t pages) {
  * \return 0 if the memory was successfully freed.
  */
 int liballoc_free(void* addr, size_t pages) {
-  ReleaseVirtualMemoryInAddressSpace(&kernel_address_space, (size_t)addr,
-                                     pages);
+  KernelAddressSpace().FreePages((size_t)addr, pages);
   return 0;
 }
 
