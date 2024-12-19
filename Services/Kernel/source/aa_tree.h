@@ -37,7 +37,7 @@ struct AATreeNode {
 };
 
 // An AA tree, which is a self balancing binary tree.
-template <class C, AATreeNode C::*node_member, size_t C::*value_member>
+template <class C, AATreeNode C::* node_member, size_t C::* value_member>
 struct AATree {
  public:
   AATree() : root_(nullptr) {}
@@ -422,7 +422,7 @@ struct AATree {
   }
 
   static size_t OffsetOfNodeInItem() {
-    return (size_t) & (static_cast<C*>(0)->*node_member);
+    return (size_t)&(static_cast<C*>(0)->*node_member);
   }
 
   static size_t ValueOfNode(AATreeNode* node) {
