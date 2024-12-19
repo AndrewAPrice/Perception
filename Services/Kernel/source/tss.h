@@ -17,7 +17,7 @@
 #include "types.h"
 
 // Initializes the task segment structure.
-extern void InitializeTss();
+void InitializeTss();
 
 // Sets the stack to use for interrupts.
-extern void SetInterruptStack(size_t interrupt_stack_start_virtual_addr);
+void SetInterruptStack(size_t interrupt_stack_start_virtual_addr);
