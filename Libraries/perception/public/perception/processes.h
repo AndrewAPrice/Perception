@@ -55,6 +55,9 @@ std::string GetProcessName(ProcessId pid);
 // Returns true if the process exists.
 bool DoesProcessExist(ProcessId pid);
 
+// Returns true if the process exists.
+bool DoesProcessExist(std::string_view name);
+
 // Registers that we want to be notified with a message upon the given process
 // terminating. The handler is automatically unregistered upon terminating
 // (it's safe to accidentally call StopNotifyingUponProcessTermination if the
@@ -88,5 +91,8 @@ void StartExecutingChildProcess(ProcessId& child_pid, size_t entry_address,
 
 // Destroys a child process that hasn't began executing.
 void DestroyChildProcess(ProcessId& child_pid);
+
+// Returns whether there is another already running instance of this process.
+bool IsDuplicateInstanceOfProcess();
 
 }  // namespace perception

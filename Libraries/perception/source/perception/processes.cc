@@ -15,13 +15,13 @@
 #include "perception/processes.h"
 
 #include <functional>
+#include <iostream>
 
 #include "perception/messages.h"
 #ifndef PERCEPTION
 #include <sched.h>
 #include <stdlib.h>
 
-#include <iostream>
 #include <sstream>
 #include <thread>
 #endif
@@ -330,6 +330,11 @@ bool DoesProcessExist(ProcessId pid) {
 #endif
 }
 
+bool DoesProcessExist(std::string_view name) {
+  ProcessId pid;
+  return GetFirstProcessWithName(name, pid);
+}
+
 // Registers that we want to be notified with a message upon the given process
 // terminating. The handler is automatically unregistered upon terminating
 // (it's safe to accidentally call StopNotifyingUponProcessTermination if the
@@ -474,6 +479,16 @@ void StartExecutingChildProcess(ProcessId& child_pid, size_t entry_address,
                          "r"(params_r)
                        : "rcx", "r11");
 #endif
+}
+
+bool IsDuplicateInstanceOfProcess() {
+  ProcessId first_pid;
+  if (!GetFirstProcessWithName(GetProcessName(), first_pid)) {
+    std::cout << "Unable to find myself with GetFirstProcessWithName"
+              << std::endl;
+    return false;
+  }
+  return first_pid != GetProcessId();
 }
 
 // Destroys a child process that hasn't began executing.
