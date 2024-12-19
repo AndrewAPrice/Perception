@@ -222,7 +222,6 @@ bool SkFontConfigInterfaceDirect::matchFamilyName(const char familyName[],
 SkStreamAsset* SkFontConfigInterfaceDirect::openStream(
     const FontIdentity& identity) {
   if (identity.fIsBuffer) {
-    std::cout << "Font is a buffer of size " << identity.fBuffer->GetSize() << std::endl;
     return new SkMemoryStream(**identity.fBuffer, identity.fBuffer->GetSize());
 
   } else {
