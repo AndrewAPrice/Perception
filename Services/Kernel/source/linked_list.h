@@ -19,7 +19,7 @@ struct LinkedListNode {
   LinkedListNode *previous, *next;
 };
 
-template <class C, LinkedListNode C::*node_member>
+template <class C, LinkedListNode C::* node_member>
 class LinkedList {
  public:
   LinkedList() : first_node_(nullptr), last_node_(nullptr) {}
@@ -176,7 +176,7 @@ class LinkedList {
   }
 
   size_t OffsetOfNodeInItem() {
-    return (size_t) & (static_cast<C*>(0)->*node_member);
+    return (size_t)&(static_cast<C*>(0)->*node_member);
   }
 
   LinkedListNode *first_node_, *last_node_;
