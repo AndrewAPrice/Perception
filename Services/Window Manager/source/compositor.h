@@ -16,7 +16,8 @@
 
 #include "types.h"
 
-constexpr uint32 kBackgroundColor = (0xFF << 24) + (78 << 16) + (152 << 8) + 0xFF;
+constexpr uint32 kBackgroundColor =
+    (0xFF << 24) + (78 << 16) + (152 << 8) + 0xFF;
 
 #define WINDOW_TITLE_HEIGHT 12
 #define WINDOW_BORDER_COLOUR 0xFF000000

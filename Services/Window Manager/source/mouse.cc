@@ -28,6 +28,7 @@ using ::permebuf::perception::devices::GraphicsDriver;
 using ::permebuf::perception::devices::MouseButton;
 using ::permebuf::perception::devices::MouseDriver;
 using ::permebuf::perception::devices::MouseListener;
+
 namespace {
 
 int mouse_x;
