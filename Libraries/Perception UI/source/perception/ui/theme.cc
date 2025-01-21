@@ -24,6 +24,8 @@ inline uint32 HSVColor(float h, float s, float v) {
   return SkHSVToColor(colors);
 }
 
+uint32 kWidgetSpacing = 8.0f;
+
 uint32 kBackgroundWindowColor = HSVColor(0.0f, 0.0f, 0.95f);
 float kMarginAroundWidgets = 4.0f;
 

@@ -36,6 +36,22 @@ struct Point;
 class UiWindow : public window::WindowDelegate,
                  public std::enable_shared_from_this<UiWindow> {
  public:
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> BasicWindow(std::string_view title,
+                                           Modifiers... modifiers) {
+    return Node::Empty([title](UiWindow& window) { window.SetTitle(title); },
+                       [](Layout& layout) { layout.SetMargin(YGEdgeAll, 8.f); },
+                       modifiers...);
+  }
+
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> Dialog(std::string_view title,
+                                      Modifiers... modifiers) {
+    return BasicWindow(
+        title, [](UiWindow& window) { window.SetIsDialog(true); },
+        modifiers...);
+  }
+
   UiWindow();
   virtual ~UiWindow();
 

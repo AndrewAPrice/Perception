@@ -197,6 +197,14 @@ float Layout::GetComputedPadding(YGEdge edge) {
   return YGNodeLayoutGetPadding(yoga_node_, edge);
 }
 
+void Layout::SetGap(float gap, YGGutter gutter) {
+  YGNodeStyleSetGap(yoga_node_, gutter, gap);
+}
+
+float Layout::GetGap(YGEdge edge, YGGutter gutter) {
+  return YGNodeStyleGetGap(yoga_node_, gutter);
+}
+
 void Layout::SetBorder(YGEdge edge, float border) {
   YGNodeStyleSetBorder(yoga_node_, edge, border);
 }

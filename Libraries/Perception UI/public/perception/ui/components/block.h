@@ -32,6 +32,14 @@ namespace components {
 // the screen. It can have a border, be filled, can clip its contents, etc.
 class Block {
  public:
+  // Creates a block that is a solid color.
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> SolidColor(uint32 color,
+                                          Modifiers... modifiers) {
+    return Node::Empty([&color](Block& block) { block.SetBorderColor(color); },
+                       modifiers...);
+  }
+
   Block();
   void SetNode(std::weak_ptr<Node> node);
 
@@ -57,7 +65,7 @@ class Block {
   void Draw(const DrawContext& draw_context);
   void DrawPostChildren(const DrawContext& draw_context);
   bool HitTest(const Point& point, const Size& size);
-  bool HitTestAlongDimension(float value, float length, float &relative);
+  bool HitTestAlongDimension(float value, float length, float& relative);
 
   void SetNeedsDraw();
   void SetNeedsDrawPostChildren();
@@ -74,7 +82,6 @@ class Block {
   uint32 fill_color_;
   bool clip_contents_;
   std::shared_ptr<ImageEffect> image_effect_;
-
 };
 
 }  // namespace components

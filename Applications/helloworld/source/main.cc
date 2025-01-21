@@ -19,17 +19,14 @@
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/time.h"
-#include "perception/ui/builders/window.h"
+#include "perception/ui/ui_window.h"
 
 using ::perception::Fiber;
 using ::perception::GetProcessId;
 using ::perception::MessageId;
 using ::perception::ProcessId;
 using ::perception::Sleep;
-using ::perception::ui::builders::IsDialog;
-using ::perception::ui::builders::Window;
-using ::perception::ui::builders::WindowTitle;
-using ::perception::ui::builders::WindowBackgroundColor;
+using ::perception::ui::UiWindow;
 
 using ::perception::AfterDuration;
 using ::perception::AfterTimeSinceKernelStarted;
@@ -37,14 +34,28 @@ using ::perception::GetTimeSinceKernelStarted;
 using ::perception::SleepForDuration;
 using ::perception::SleepUntilTimeSinceKernelStarted;
 
-int main (int argc, char *argv[]) {
-  auto a = Window(WindowTitle("Raspberry"), WindowBackgroundColor(0x0ed321ff));
-  auto b = Window(WindowTitle("Blueberry"), WindowBackgroundColor(0xc5c20dff));
-  auto c = Window(WindowTitle("Blackberry"), WindowBackgroundColor(0xa5214eff));
-  auto d = Window(WindowTitle("Strawberry"), WindowBackgroundColor(0x90bdee));
-  auto e = Window(WindowTitle("Boysenberry"), WindowBackgroundColor(0x25993fff));
-  auto f = Window(WindowTitle("Popup Dialog"), WindowBackgroundColor(0x65e979ff), IsDialog());
-  auto g = Window(WindowTitle("Another Dialog"), WindowBackgroundColor(0x7c169aff), IsDialog());
+int main(int argc, char *argv[]) {
+  auto a = UiWindow::BasicWindow("Raspberry", [](UiWindow &window) {
+    window.SetBackgroundColor(0x0ed321ff);
+  });
+  auto b = UiWindow::BasicWindow("Blueberry", [](UiWindow &window) {
+    window.SetBackgroundColor(0xc5c20dff);
+  });
+  auto c = UiWindow::BasicWindow("Blackberry", [](UiWindow &window) {
+    window.SetBackgroundColor(0xa5214eff);
+  });
+  auto d = UiWindow::BasicWindow("Strawberry", [](UiWindow &window) {
+    window.SetBackgroundColor(0x90bdee);
+  });
+  auto e = UiWindow::BasicWindow("Boysenberry", [](UiWindow &window) {
+    window.SetBackgroundColor(0x25993fff);
+  });
+  auto f = UiWindow::Dialog("Popup Dialog", [](UiWindow &window) {
+    window.SetBackgroundColor(0x65e979ff);
+  });
+  auto g = UiWindow::Dialog("Another Dialog", [](UiWindow &window) {
+    window.SetBackgroundColor(0x7c169aff);
+  });
 
   std::cout << "Kernel time: " << GetTimeSinceKernelStarted().count()
             << std::endl;

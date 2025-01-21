@@ -20,29 +20,22 @@
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/time.h"
-#include "perception/ui/builders/image_view.h"
-#include "perception/ui/builders/node.h"
-#include "perception/ui/builders/window.h"
+#include "perception/ui/components/image_view.h"
 #include "perception/ui/image.h"
 #include "perception/ui/node.h"
 #include "perception/ui/resize_method.h"
 #include "perception/ui/text_alignment.h"
+#include "perception/ui/ui_window.h"
 
 using ::perception::HandOverControl;
 using ::perception::SleepForDuration;
 using ::perception::TerminateProcess;
-using ::perception::ui::builders::AlignContent;
-using ::perception::ui::builders::Image;
-using ::perception::ui::builders::ImageAlignment;
-using ::perception::ui::builders::ImageResizeMethod;
-using ::perception::ui::builders::ImageView;
-using ::perception::ui::builders::JustifyContent;
-using ::perception::ui::builders::OnWindowClose;
-using ::perception::ui::builders::Window;
-using ::perception::ui::builders::WindowTitle;
+using ::perception::ui::Layout;
 using ::perception::ui::Node;
 using ::perception::ui::ResizeMethod;
 using ::perception::ui::TextAlignment;
+using ::perception::ui::UiWindow;
+using ::perception::ui::components::ImageView;
 
 namespace {
 
@@ -59,22 +52,28 @@ void OpenImage(std::string_view path) {
 
   opened_instances++;
 
-  auto window =
-      Window(WindowTitle(path), JustifyContent(YGJustifyCenter),
-             AlignContent(YGAlignCenter), OnWindowClose([]() {
-               opened_instances--;
-               if (opened_instances == 0) TerminateProcess();
-             }),
-             ImageView(ImageAlignment(TextAlignment::MiddleCenter),
-                       ImageResizeMethod(ResizeMethod::Contain), Image(image)));
+  auto window = UiWindow::BasicWindow(
+      path,
+      [](Layout& layout) {
+        layout.SetJustifyContent(YGJustifyCenter);
+        layout.SetAlignContent(YGAlignCenter);
+      },
+      [](UiWindow& window) {
+        window.OnClose([]() {
+          opened_instances--;
+          if (opened_instances == 0) TerminateProcess();
+        });
+      },
+      ImageView::BasicImage(image, [](ImageView& image_view) {
+        image_view.SetAlignment(TextAlignment::MiddleCenter);
+        image_view.SetResizeMethod(ResizeMethod::Contain);
+      }));
   open_windows.push_back(window);
 }
 
 }  // namespace
 
-int main(int argc, char *argv[]) {
-  SleepForDuration(std::chrono::seconds(2));
-
+int main(int argc, char* argv[]) {
   OpenImage("/Optical 1/Sample Images/1546182636.svg");
   OpenImage("/Optical 1/Sample Images/1530779823.svg");
   OpenImage("/Optical 1/Sample Images/luca-bravo-O453M2Liufs-unsplash.jpg");

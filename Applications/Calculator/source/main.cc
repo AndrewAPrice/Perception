@@ -18,38 +18,24 @@
 
 #include "perception/processes.h"
 #include "perception/scheduler.h"
-#include "perception/ui/builders/block.h"
-#include "perception/ui/builders/button.h"
-#include "perception/ui/builders/label.h"
-#include "perception/ui/builders/node.h"
-#include "perception/ui/builders/window.h"
+#include "perception/ui/components/block.h"
+#include "perception/ui/components/button.h"
+#include "perception/ui/components/container.h"
+#include "perception/ui/components/label.h"
+#include "perception/ui/layout.h"
 #include "perception/ui/node.h"
+#include "perception/ui/ui_window.h"
 
 using ::perception::HandOverControl;
 using ::perception::TerminateProcess;
+using ::perception::ui::Layout;
+using ::perception::ui::Node;
 using ::perception::ui::TextAlignment;
-using ::perception::ui::builders::AlignContent;
-using ::perception::ui::builders::AlignSelf;
-using ::perception::ui::builders::AlignText;
-using ::perception::ui::builders::Block;
-using ::perception::ui::builders::BorderRadius;
-using ::perception::ui::builders::BorderWidth;
-using ::perception::ui::builders::FillColor;
-using ::perception::ui::builders::FlexDirection;
-using ::perception::ui::builders::FlexGrow;
-using ::perception::ui::builders::Height;
-using ::perception::ui::builders::JustifyContent;
-using ::perception::ui::builders::Label;
-using ::perception::ui::builders::Margin;
-using ::perception::ui::builders::Node;
-using ::perception::ui::builders::OnPush;
-using ::perception::ui::builders::OnWindowClose;
-using ::perception::ui::builders::Padding;
-using ::perception::ui::builders::StandardButton;
-using ::perception::ui::builders::Text;
-using ::perception::ui::builders::Width;
-using ::perception::ui::builders::Window;
-using ::perception::ui::builders::WindowTitle;
+using ::perception::ui::UiWindow;
+using ::perception::ui::components::Block;
+using ::perception::ui::components::Button;
+using ::perception::ui::components::Container;
+using ::perception::ui::components::Label;
 
 namespace {
 
@@ -152,19 +138,16 @@ void PressClear() {
   UpdateDisplay();
 }
 
-template <typename... Modifiers>
-std::shared_ptr<perception::ui::Node> CalculatorButton(
-    std::string_view label, std::function<void()> on_click_handler,
-    Modifiers... modifier) {
-  return StandardButton(Label(Text(label)), OnPush(on_click_handler),
-                        Margin(YGEdgeHorizontal, 5.0f), modifier...);
-}
-
 }  // namespace
 
 int main(int argc, char* argv[]) {
-  auto display_node = Label(AlignText(TextAlignment::MiddleCenter),
-                            AlignSelf(YGAlignStretch), FlexGrow(1.0));
+  auto display_node = Label::BasicLabel(
+      "",
+      [](Label& label) { label.SetTextAlignment(TextAlignment::MiddleCenter); },
+      [](Layout& layout) {
+        layout.SetAlignSelf(YGAlignStretch);
+        layout.SetFlexGrow(1.0);
+      });
   display = display_node->Get<perception::ui::components::Label>();
 
   //  terminal_content = Node(FlexDirection(YGFlexDirectionColumn));
@@ -179,10 +162,14 @@ int main(int argc, char* argv[]) {
                      BorderRadius(0.0f), FlexGrow(1.0),
                      AlignSelf(YGAlignStretch), Margin(YGEdgeAll, 0.0f));*/
 
-  auto terminal_container =
-      Block(FillColor(kTerminalBackgroundColor), BorderWidth(0.0f),
-            BorderRadius(0.0f), FlexGrow(1.0f), AlignSelf(YGAlignStretch),
-            Margin(YGEdgeAll, 0.0f), display_node);
+  auto terminal_container = Block::SolidColor(
+      kTerminalBackgroundColor,
+      [](Layout& layout) {
+        layout.SetFlexGrow(1.0f);
+        layout.SetAlignSelf(YGAlignStretch);
+        layout.SetMargin(YGEdgeAll, 0.f);
+      },
+      display_node);
   /*
     window->OnResize([](float width, float height) {
       bool is_landscape = width > height;
@@ -193,49 +180,53 @@ int main(int argc, char* argv[]) {
       }
     });*/
 
-  auto button_panel = Block(
-      FillColor(kButtonPanelBackgroundColor), BorderWidth(0.0f),
-      BorderRadius(0.0f), Width(194.0f), AlignSelf(YGAlignStretch),
-      Margin(YGEdgeAll, 0.0f), AlignContent(YGAlignCenter),
-      JustifyContent(YGJustifyCenter),
-      Node(FlexDirection(YGFlexDirectionRow), Margin(YGEdgeVertical, 5.0f),
-           JustifyContent(YGJustifyCenter), CalculatorButton("C", PressClear),
-           CalculatorButton("+-", PressFlipSign),
-           CalculatorButton("/", std::bind(PressOperator, DIVIDE)),
-           CalculatorButton("x", std::bind(PressOperator, MULTIPLY))),
-      Node(FlexDirection(YGFlexDirectionRow), Margin(YGEdgeVertical, 5.0f),
-           JustifyContent(YGJustifyCenter),
-           CalculatorButton("7", std::bind(PressNumber, 7)),
-           CalculatorButton("8", std::bind(PressNumber, 8)),
-           CalculatorButton("9", std::bind(PressNumber, 9)),
-           CalculatorButton("-", std::bind(PressOperator, SUBTRACT))),
-      Node(FlexDirection(YGFlexDirectionRow), Margin(YGEdgeVertical, 5.0f),
-           JustifyContent(YGJustifyCenter),
-           CalculatorButton("4", std::bind(PressNumber, 4)),
-           CalculatorButton("5", std::bind(PressNumber, 5)),
-           CalculatorButton("6", std::bind(PressNumber, 6)),
-           CalculatorButton("+", std::bind(PressOperator, ADD))),
-      Node(
-          FlexDirection(YGFlexDirectionRow), JustifyContent(YGJustifyCenter),
-          Node(FlexDirection(YGFlexDirectionColumn),
-               Node(FlexDirection(YGFlexDirectionRow),
-                    Margin(YGEdgeVertical, 5.0f),
-                    JustifyContent(YGJustifyCenter),
-                    CalculatorButton("1", std::bind(PressNumber, 1)),
-                    CalculatorButton("2", std::bind(PressNumber, 2)),
-                    CalculatorButton("3", std::bind(PressNumber, 3))),
-               Node(FlexDirection(YGFlexDirectionRow),
-                    JustifyContent(YGJustifyCenter),
-                    Margin(YGEdgeVertical, 5.0f),
-                    CalculatorButton("0", std::bind(PressNumber, 0), Width(58)),
-                    CalculatorButton(".", PressDecimal))),
-          CalculatorButton("=", std::bind(PressEquals), Height(58),
-                           Margin(YGEdgeVertical, 5.0f))));
+  auto button_panel = Block::SolidColor(
+      kButtonPanelBackgroundColor,
+      [](Layout& layout) {
+        layout.SetWidth(194.0f);
+        layout.SetAlignSelf(YGAlignStretch);
+        layout.SetAlignContent(YGAlignCenter);
+        layout.SetJustifyContent(YGJustifyCenter);
+      },
+      Container::VerticalContainer(
+          [](Layout& layout) {
+            layout.SetAlignSelf(YGAlignCenter);
+            layout.SetWidthAuto();
+          },
+          Container::HorizontalContainer(
+              Button::TextButton("C", PressClear),
+              Button::TextButton("+-", PressFlipSign),
+              Button::TextButton("/", std::bind(PressOperator, DIVIDE)),
+              Button::TextButton("x", std::bind(PressOperator, MULTIPLY))),
+          Container::HorizontalContainer(
+              Button::TextButton("7", std::bind(PressNumber, 7)),
+              Button::TextButton("8", std::bind(PressNumber, 8)),
+              Button::TextButton("9", std::bind(PressNumber, 9)),
+              Button::TextButton("-", std::bind(PressOperator, SUBTRACT))),
+          Container::HorizontalContainer(
+              Button::TextButton("4", std::bind(PressNumber, 4)),
+              Button::TextButton("5", std::bind(PressNumber, 5)),
+              Button::TextButton("6", std::bind(PressNumber, 6)),
+              Button::TextButton("+", std::bind(PressOperator, ADD))),
+          Container::HorizontalContainer(
+              Container::VerticalContainer(
+                  Container::HorizontalContainer(
+                      Button::TextButton("1", std::bind(PressNumber, 1)),
+                      Button::TextButton("2", std::bind(PressNumber, 2)),
+                      Button::TextButton("3", std::bind(PressNumber, 3))),
+                  Container::HorizontalContainer(
+                      Button::TextButton(
+                          "0", std::bind(PressNumber, 0),
+                          [](Layout& layout) { layout.SetWidth(58); }),
+                      Button::TextButton(".", PressDecimal))),
+              Button::TextButton("=", std::bind(PressEquals)))));
 
-  auto window = Window(
-      WindowTitle("Calculator"), OnWindowClose([]() { TerminateProcess(); }),
-      FlexGrow(1.0), FlexDirection(YGFlexDirectionRow),
-      Padding(YGEdgeAll, 0.0f), button_panel, terminal_container);
+  auto window = UiWindow::BasicWindow(
+      "Calculator",
+      [](UiWindow& window) { window.OnClose([]() { TerminateProcess(); }); },
+      Container::HorizontalContainer(
+          [](Layout& layout) { layout.SetFlexGrow(1.0); }, button_panel,
+          terminal_container));
 
   HandOverControl();
   return 0;

@@ -17,10 +17,10 @@
 #include <string>
 
 #include "include/core/SkFont.h"
+#include "perception/ui/node.h"
 #include "perception/ui/point.h"
 #include "perception/ui/size.h"
 #include "perception/ui/text_alignment.h"
-#include "perception/ui/node.h"
 #include "yoga/Yoga.h"
 
 namespace perception {
@@ -33,6 +33,13 @@ namespace components {
 // A label draws a piece of text.
 class Label {
  public:
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> BasicLabel(std::string_view text,
+                                          Modifiers... modifiers) {
+    return Node::Empty([text](Label& label) { label.SetText(text); },
+                       modifiers...);
+  }
+
   Label();
 
   void SetNode(std::weak_ptr<Node> node);

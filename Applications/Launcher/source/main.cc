@@ -18,38 +18,33 @@
 
 #include "launcher.h"
 #include "perception/scheduler.h"
-#include "perception/ui/builders/label.h"
-#include "perception/ui/builders/node.h"
-#include "perception/ui/builders/window.h"
+#include "perception/ui/components/label.h"
+#include "perception/ui/layout.h"
+#include "perception/ui/node.h"
 #include "perception/ui/ui_window.h"
 
 using ::perception::HandOverControl;
+using ::perception::ui::Layout;
 using ::perception::ui::TextAlignment;
-using ::perception::ui::builders::AlignContent;
-using ::perception::ui::builders::AlignText;
-using ::perception::ui::builders::Height;
-using ::perception::ui::builders::IsDialog;
-using ::perception::ui::builders::JustifyContent;
-using ::perception::ui::builders::Label;
-using ::perception::ui::builders::Node;
-using ::perception::ui::builders::Text;
-using ::perception::ui::builders::Width;
-using ::perception::ui::builders::Window;
-using ::perception::ui::builders::WindowBackgroundColor;
-using ::perception::ui::builders::WindowTitle;
+using ::perception::ui::UiWindow;
+using ::perception::ui::components::Label;
 
-int main(int argc, char *argv[]) {
-  auto window = Window(WindowTitle("Welcome!"), IsDialog(),
-    Label(
-      JustifyContent(YGJustifyCenter),
-      AlignContent(YGAlignCenter),
-      Width(640),
-      Height(480),
-      Text("Welcome to Perception. Press the ESCAPE key to open the launcher."),
-      AlignText(TextAlignment::MiddleCenter)
-    ));
- 
-  //auto launcher = std::make_unique<Launcher>();
+int main(int argc, char* argv[]) {
+  auto window = UiWindow::Dialog(
+      "Welcome!",
+      Label::BasicLabel(
+          "Welcome to Perception. Press the ESCAPE key to open the launcher.",
+          [](Layout& layout) {
+            layout.SetJustifyContent(YGJustifyCenter);
+            layout.SetAlignContent(YGAlignCenter);
+            layout.SetWidth(640);
+            layout.SetHeight(480);
+          },
+          [](Label& label) {
+            label.SetTextAlignment(TextAlignment::MiddleCenter);
+          }));
+
+  // auto launcher = std::make_unique<Launcher>();
   HandOverControl();
   return 0;
 }

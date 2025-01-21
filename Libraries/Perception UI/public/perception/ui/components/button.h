@@ -20,6 +20,7 @@
 #include <string_view>
 
 #include "perception/ui/components/block.h"
+#include "perception/ui/components/label.h"
 #include "perception/ui/node.h"
 #include "perception/window/mouse_button.h"
 
@@ -31,6 +32,35 @@ namespace components {
 
 class Button {
  public:
+  // Creates a basic button. There's nothing inside the button, so the
+  // caller can add their own child nodes to display custom content inside
+  // the button.
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> BasicButton(std::function<void()> on_push,
+                                           Modifiers... modifiers) {
+    return Node::Empty(
+        [](Layout& layout) {
+          layout.SetMinWidth(24.0f);
+          layout.SetMinHeight(24.0f);
+          layout.SetAlignItems(YGAlignCenter);
+          layout.SetJustifyContent(YGJustifyCenter);
+        },
+        [](Block& block) {
+          block.SetBorderRadius(4.0f);
+          block.SetBorderWidth(1.0f);
+          block.SetBorderColor(0xFF000000);
+        },
+        [&on_push](Button& button) { button.OnPush(on_push); }, modifiers...);
+  }
+
+  // Creates a text button.
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> TextButton(std::string_view text,
+                                          std::function<void()> on_push,
+                                          Modifiers... modifiers) {
+    return BasicButton(on_push, Label::BasicLabel(text), modifiers...);
+  }
+
   Button();
   void SetNode(std::weak_ptr<Node> node);
 
@@ -46,24 +76,23 @@ class Button {
   void OnPush(std::function<void()> on_push);
 
  private:
-    uint32 idle_color_;
-    uint32 hover_color_;
-    uint32 pushed_color_;
+  uint32 idle_color_;
+  uint32 hover_color_;
+  uint32 pushed_color_;
 
-    bool is_hovering_;
-    bool is_pushed_;
-    std::vector<std::function<void()>> on_push_;
-    
-    std::weak_ptr<components::Block> block_;
+  bool is_hovering_;
+  bool is_pushed_;
+  std::vector<std::function<void()>> on_push_;
 
-    void UpdateFillColor();
-    uint32 GetFillColor();
+  std::weak_ptr<components::Block> block_;
 
-    void MouseHover(const Point& point);
-    void MouseLeave();
-    void MouseButtonDown(const Point& point, window::MouseButton button);
-    void MouseButtonUp(const Point& point, window::MouseButton button);
+  void UpdateFillColor();
+  uint32 GetFillColor();
 
+  void MouseHover(const Point& point);
+  void MouseLeave();
+  void MouseButtonDown(const Point& point, window::MouseButton button);
+  void MouseButtonUp(const Point& point, window::MouseButton button);
 };
 
 }  // namespace components

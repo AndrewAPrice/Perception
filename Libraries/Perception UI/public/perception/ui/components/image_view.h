@@ -17,11 +17,11 @@
 #include <string>
 
 #include "perception/ui/image.h"
+#include "perception/ui/node.h"
 #include "perception/ui/point.h"
+#include "perception/ui/resize_method.h"
 #include "perception/ui/size.h"
 #include "perception/ui/text_alignment.h"
-#include "perception/ui/resize_method.h"
-#include "perception/ui/node.h"
 #include "yoga/Yoga.h"
 
 namespace perception {
@@ -34,6 +34,15 @@ namespace components {
 // An image displays an image.
 class ImageView {
  public:
+  // Creates a basic ImageView that displays an image.
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> BasicImage(std::shared_ptr<Image> image,
+                                          Modifiers... modifiers) {
+    return Node::Empty(
+        [image](ImageView& image_view) { image_view.SetImage(image); },
+        modifiers...);
+  }
+
   ImageView();
 
   void SetNode(std::weak_ptr<Node> node);

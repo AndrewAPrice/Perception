@@ -30,7 +30,8 @@ class Layout {
 
   void MarkDirty();
 
-  // Whether this widget should be considered the reference baseline among siblings.
+  // Whether this widget should be considered the reference baseline among
+  // siblings.
   void SetIsReferenceBaseline(int is_reference_baseline);
   bool IsReferenceBaseline();
 
@@ -96,6 +97,9 @@ class Layout {
   void SetPaddingPercent(YGEdge edge, float padding);
   YGValue GetPadding(YGEdge edge);
   float GetComputedPadding(YGEdge edge);
+
+  void SetGap(float gap, YGGutter gutter = YGGutterAll);
+  float GetGap(YGEdge edge, YGGutter gutter);
 
   void SetBorder(YGEdge edge, float border);
   float GetBorder(YGEdge edge);

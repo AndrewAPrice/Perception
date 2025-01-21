@@ -46,6 +46,14 @@ class Node : public std::enable_shared_from_this<Node> {
   Node();
   ~Node();
 
+  // Creates an empty node.
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> Empty(Modifiers... modifiers) {
+    auto node = std::make_shared<Node>();
+    node->Apply(modifiers...);
+    return std::move(node);
+  }
+
   std::shared_ptr<Node> ToSharedPtr();
   // Returns the parent of this node.
   std::weak_ptr<Node> GetParent();
@@ -211,6 +219,12 @@ class Node : public std::enable_shared_from_this<Node> {
 
   Size GetSize();
 
+  template <typename... Modifiers>
+  void Apply(Modifiers... modifiers) {
+    ([this](auto&& modifier) { ApplySingleModifier(modifier); }(modifiers),
+     ...);
+  }
+
  private:
   std::weak_ptr<Node> parent_;
   std::list<std::shared_ptr<Node>> children_;
@@ -247,29 +261,40 @@ class Node : public std::enable_shared_from_this<Node> {
   static YGSize Measure(const YGNode* node, float width,
                         YGMeasureMode width_mode, float height,
                         YGMeasureMode height_mode);
-};
 
-template <typename T>
-concept IsSharedPtr = requires(T t) {
-  {
-    *t
-  } -> std::same_as<typename T::element_type&>;  // Dereference and check type
-  { t.get() } -> std::same_as<typename T::element_type*>;  // Get raw pointer
-  { t.use_count() } -> std::convertible_to<long>;  // Check reference count
-};
+  // Templated struct for matching against the first argument type.
+  template <typename T>
+  struct FirstArgument;
 
-template <class NodeType, typename... Modifiers>
-void ApplyModifiersToNode(NodeType& node, Modifiers... modifiers) {
-  (
-      [&node](auto&& modifier) {
-        if constexpr (IsSharedPtr<std::decay_t<decltype(modifier)>>) {
-          node.AddChild(modifier);
-        } else {
-          modifier.Apply(node);
-        }
-      }(modifiers),
-      ...);
-}
+  // Templated struct for matching against the first argument type.
+  template <typename Ret, typename Arg, typename... Args>
+  struct FirstArgument<std::function<Ret(Arg, Args...)>> {
+    using type = Arg;
+  };
+
+  // Applies a single modifier that matches a node. In this case, it adds the
+  // node as a child.
+  void ApplySingleModifier(std::shared_ptr<Node> node) { AddChild(node); }
+
+  // Applies a single modifier that should match a function that takes a
+  // constant reference to a `Node`, `Layout`, or component. This is called if
+  // the parameter doesn't match against the previous `ApplySingleModifier`s.
+  template <typename F>
+  void ApplySingleModifier(F&& function) {
+    // Get the type of the first parameter without the reference.
+    using ParameterType = std::remove_reference_t<
+        typename FirstArgument<decltype(std::function{function})>::type>;
+
+    if constexpr (std::is_same_v<ParameterType, Node>) {
+      std::invoke(function, *this);
+    } else if constexpr (std::is_same_v<ParameterType, Layout>) {
+      auto layout = GetLayout();
+      std::invoke(function, layout);
+    } else {
+      std::invoke(function, *GetOrAdd<ParameterType>());
+    }
+  }
+};
 
 }  // namespace ui
 }  // namespace perception

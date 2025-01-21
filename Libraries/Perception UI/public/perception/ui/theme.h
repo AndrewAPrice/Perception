@@ -17,6 +17,8 @@
 namespace perception {
 namespace ui {
 
+extern uint32 kWidgetSpacing;
+
 extern uint32 kBackgroundWindowColor;
 extern float kMarginAroundWidgets;
 
