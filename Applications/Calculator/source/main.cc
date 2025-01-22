@@ -52,8 +52,8 @@ bool any_number = false;
 bool decimal_pressed = false;
 double decimal_multiplier = 0.1;
 
-std::shared_ptr<perception::ui::components::Label> display;
-std::shared_ptr<perception::ui::Node> terminal_content;
+std::shared_ptr<Label> display;
+std::shared_ptr<Node> terminal_content;
 
 void UpdateDisplay() {
   // std::to_string converts the number to fixed decimal places, which doesn't
@@ -141,14 +141,6 @@ void PressClear() {
 }  // namespace
 
 int main(int argc, char* argv[]) {
-  auto display_node = Label::BasicLabel(
-      "",
-      [](Label& label) { label.SetTextAlignment(TextAlignment::MiddleCenter); },
-      [](Layout& layout) {
-        layout.SetAlignSelf(YGAlignStretch);
-        layout.SetFlexGrow(1.0);
-      });
-  display = display_node->Get<perception::ui::components::Label>();
 
   //  terminal_content = Node(FlexDirection(YGFlexDirectionColumn));
   /*for (int i = 0; i < 80; i++) {
@@ -169,7 +161,16 @@ int main(int argc, char* argv[]) {
         layout.SetAlignSelf(YGAlignStretch);
         layout.SetMargin(YGEdgeAll, 0.f);
       },
-      display_node);
+      Label::BasicLabel(
+          "",
+          [](Label& label) {
+            label.SetTextAlignment(TextAlignment::MiddleCenter);
+          },
+          [](Layout& layout) {
+            layout.SetAlignSelf(YGAlignStretch);
+            layout.SetFlexGrow(1.0);
+          },
+          &display));
   /*
     window->OnResize([](float width, float height) {
       bool is_landscape = width > height;

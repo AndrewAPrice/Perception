@@ -276,6 +276,25 @@ class Node : public std::enable_shared_from_this<Node> {
   // node as a child.
   void ApplySingleModifier(std::shared_ptr<Node> node) { AddChild(node); }
 
+  // Applies a single modifier that matches a pointer to a node pointer. In this
+  // case, it stores the current node in the pointer.
+  void ApplySingleModifier(std::shared_ptr<Node>* node_ptr) {
+    *node_ptr = this->shared_from_this();
+  }
+
+  // Applies a single modifier that matches a layout pointer.
+  void ApplySingleModifier(std::shared_ptr<Layout>* layout_ptr) {
+    // Not supported.
+    layout_ptr->reset();
+  }
+
+  // Applies a single modifier that matches a component pointer. In this case,
+  // it stores the component instance in the pointer.
+  template <typename C>
+  void ApplySingleModifier(std::shared_ptr<C>* component_ptr) {
+    *component_ptr = GetOrAdd<C>();
+  }
+
   // Applies a single modifier that should match a function that takes a
   // constant reference to a `Node`, `Layout`, or component. This is called if
   // the parameter doesn't match against the previous `ApplySingleModifier`s.
