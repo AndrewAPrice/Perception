@@ -1,7 +1,7 @@
 # The Perception UI library.
 
 ## Introduction
-Everything is a treae of [`Node`](public/perception/ui/node.h). The entire GUI that is shown on the screen is a hierarchy of nodes. Inheritence is not used, as composition is prefered.
+Everything is a tree of [`Node`](public/perception/ui/node.h). The entire GUI that is shown on the screen is a hierarchy of nodes. Inheritence is not used, as composition is prefered.
 
 Each node has a [`Layout`](public/perception/ui/layout.h). Nodes are layed out according to the [CSS Flexible Box Layout](https://en.wikipedia.org/wiki/CSS_Flexible_Box_Layout) model (which under the hood utilizes [Facebook Yoga](https://www.yogalayout.dev/)).
 
