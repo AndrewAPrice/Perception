@@ -21,11 +21,11 @@
 #include "perception/scheduler.h"
 #include "perception/time.h"
 #include "perception/ui/components/image_view.h"
+#include "perception/ui/components/ui_window.h"
 #include "perception/ui/image.h"
 #include "perception/ui/node.h"
 #include "perception/ui/resize_method.h"
 #include "perception/ui/text_alignment.h"
-#include "perception/ui/ui_window.h"
 
 using ::perception::HandOverControl;
 using ::perception::SleepForDuration;
@@ -34,8 +34,8 @@ using ::perception::ui::Layout;
 using ::perception::ui::Node;
 using ::perception::ui::ResizeMethod;
 using ::perception::ui::TextAlignment;
-using ::perception::ui::UiWindow;
 using ::perception::ui::components::ImageView;
+using ::perception::ui::components::UiWindow;
 
 namespace {
 
@@ -52,7 +52,7 @@ void OpenImage(std::string_view path) {
 
   opened_instances++;
 
-  auto window = UiWindow::BasicWindow(
+  auto window = UiWindow::ResizableWindow(
       path,
       [](Layout& layout) {
         layout.SetJustifyContent(YGJustifyCenter);

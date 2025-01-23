@@ -22,20 +22,20 @@
 #include "perception/ui/components/button.h"
 #include "perception/ui/components/container.h"
 #include "perception/ui/components/label.h"
+#include "perception/ui/components/ui_window.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
-#include "perception/ui/ui_window.h"
 
 using ::perception::HandOverControl;
 using ::perception::TerminateProcess;
 using ::perception::ui::Layout;
 using ::perception::ui::Node;
 using ::perception::ui::TextAlignment;
-using ::perception::ui::UiWindow;
 using ::perception::ui::components::Block;
 using ::perception::ui::components::Button;
 using ::perception::ui::components::Container;
 using ::perception::ui::components::Label;
+using ::perception::ui::components::UiWindow;
 
 namespace {
 
@@ -141,7 +141,6 @@ void PressClear() {
 }  // namespace
 
 int main(int argc, char* argv[]) {
-
   //  terminal_content = Node(FlexDirection(YGFlexDirectionColumn));
   /*for (int i = 0; i < 80; i++) {
     terminal_content->AddChild(
@@ -222,7 +221,7 @@ int main(int argc, char* argv[]) {
                       Button::TextButton(".", PressDecimal))),
               Button::TextButton("=", std::bind(PressEquals)))));
 
-  auto window = UiWindow::BasicWindow(
+  auto window = UiWindow::ResizableWindow(
       "Calculator",
       [](UiWindow& window) { window.OnClose([]() { TerminateProcess(); }); },
       Container::HorizontalContainer(

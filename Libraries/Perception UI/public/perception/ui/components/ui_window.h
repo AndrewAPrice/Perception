@@ -27,17 +27,18 @@
 #include "perception/window/window_delegate.h"
 
 namespace perception {
-
 namespace ui {
 
 struct DrawContext;
 struct Point;
 
+namespace components {
+
 class UiWindow : public window::WindowDelegate,
                  public std::enable_shared_from_this<UiWindow> {
  public:
   template <typename... Modifiers>
-  static std::shared_ptr<Node> BasicWindow(std::string_view title,
+  static std::shared_ptr<Node> ResizableWindow(std::string_view title,
                                            Modifiers... modifiers) {
     return Node::Empty([title](UiWindow& window) { window.SetTitle(title); },
                        [](Layout& layout) { layout.SetMargin(YGEdgeAll, 8.f); },
@@ -47,7 +48,7 @@ class UiWindow : public window::WindowDelegate,
   template <typename... Modifiers>
   static std::shared_ptr<Node> Dialog(std::string_view title,
                                       Modifiers... modifiers) {
-    return BasicWindow(
+    return ResizableWindow(
         title, [](UiWindow& window) { window.SetIsDialog(true); },
         modifiers...);
   }
@@ -127,5 +128,6 @@ class UiWindow : public window::WindowDelegate,
           on_each_node);
 };
 
+}  // namespace components
 }  // namespace ui
 }  // namespace perception

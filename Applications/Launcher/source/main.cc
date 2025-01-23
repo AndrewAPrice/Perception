@@ -19,15 +19,15 @@
 #include "launcher.h"
 #include "perception/scheduler.h"
 #include "perception/ui/components/label.h"
+#include "perception/ui/components/ui_window.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
-#include "perception/ui/ui_window.h"
 
 using ::perception::HandOverControl;
 using ::perception::ui::Layout;
 using ::perception::ui::TextAlignment;
-using ::perception::ui::UiWindow;
 using ::perception::ui::components::Label;
+using ::perception::ui::components::UiWindow;
 
 int main(int argc, char* argv[]) {
   auto window = UiWindow::Dialog(

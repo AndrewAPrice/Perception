@@ -19,14 +19,14 @@
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/time.h"
-#include "perception/ui/ui_window.h"
+#include "perception/ui/components/ui_window.h"
 
 using ::perception::Fiber;
 using ::perception::GetProcessId;
 using ::perception::MessageId;
 using ::perception::ProcessId;
 using ::perception::Sleep;
-using ::perception::ui::UiWindow;
+using ::perception::ui::components::UiWindow;
 
 using ::perception::AfterDuration;
 using ::perception::AfterTimeSinceKernelStarted;
@@ -35,19 +35,19 @@ using ::perception::SleepForDuration;
 using ::perception::SleepUntilTimeSinceKernelStarted;
 
 int main(int argc, char *argv[]) {
-  auto a = UiWindow::BasicWindow("Raspberry", [](UiWindow &window) {
+  auto a = UiWindow::ResizableWindow("Raspberry", [](UiWindow &window) {
     window.SetBackgroundColor(0x0ed321ff);
   });
-  auto b = UiWindow::BasicWindow("Blueberry", [](UiWindow &window) {
+  auto b = UiWindow::ResizableWindow("Blueberry", [](UiWindow &window) {
     window.SetBackgroundColor(0xc5c20dff);
   });
-  auto c = UiWindow::BasicWindow("Blackberry", [](UiWindow &window) {
+  auto c = UiWindow::ResizableWindow("Blackberry", [](UiWindow &window) {
     window.SetBackgroundColor(0xa5214eff);
   });
-  auto d = UiWindow::BasicWindow("Strawberry", [](UiWindow &window) {
+  auto d = UiWindow::ResizableWindow("Strawberry", [](UiWindow &window) {
     window.SetBackgroundColor(0x90bdee);
   });
-  auto e = UiWindow::BasicWindow("Boysenberry", [](UiWindow &window) {
+  auto e = UiWindow::ResizableWindow("Boysenberry", [](UiWindow &window) {
     window.SetBackgroundColor(0x25993fff);
   });
   auto f = UiWindow::Dialog("Popup Dialog", [](UiWindow &window) {

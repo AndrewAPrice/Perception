@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "perception/ui/ui_window.h"
+#include "perception/ui/components/ui_window.h"
 
 #include "include/core/SkColorSpace.h"
 #include "include/core/SkGraphics.h"
@@ -39,6 +39,7 @@ using ::perception::window::MouseButton;
 
 namespace perception {
 namespace ui {
+namespace components {
 
 UiWindow::UiWindow()
     : created_(false),
@@ -299,5 +300,6 @@ void UiWindow::HandleMouseEvent(
   nodes_to_notify_when_mouse_leaves_ = new_nodes_to_notify_when_mouse_leaves;
 }
 
+}  // namespace components
 }  // namespace ui
 }  // namespace perception
