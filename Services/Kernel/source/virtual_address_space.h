@@ -53,7 +53,7 @@ class VirtualAddressSpace {
   size_t AllocatePages(size_t pages);
 
   size_t AllocatePagesBelowMaxBaseAddress(size_t pages,
-                                           size_t max_base_address);
+                                          size_t max_base_address);
 
   // Releases virtual memory in the address space, but does not free the
   // underlying physical pages.
@@ -69,7 +69,7 @@ class VirtualAddressSpace {
   // Maps a physical page to a virtual page. Make sure the address range has
   // already been reserved. Returns if it was successful.
   bool MapPhysicalPageAt(size_t virtualaddr, size_t physicaladdr, bool own,
-                       bool can_write, bool throw_exception_on_access);
+                         bool can_write, bool throw_exception_on_access);
 
   // Marks an address range as being free in the address space, starting at the
   // address and spanning the provided number of pages.
