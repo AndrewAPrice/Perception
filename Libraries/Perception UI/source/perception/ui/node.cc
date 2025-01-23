@@ -14,6 +14,7 @@
 
 #include "perception/ui/node.h"
 
+#include <iostream>
 #include <map>
 
 #include "perception/ui/draw_context.h"
@@ -116,6 +117,11 @@ void Node::SetMeasureFunction(
     std::function<Size(float width, YGMeasureMode width_mode, float height,
                        YGMeasureMode height_mode)>
         measure_function) {
+  if (measure_function_) {
+    std::cerr << "There are multiple measure functions set on the same node."
+              << std::endl;
+  }
+
   if (!measure_function_ && measure_function) {
     YGNodeSetMeasureFunc(yoga_node_, &Node::Measure);
   } else if (measure_function_ && !measure_function) {
@@ -130,6 +136,10 @@ void Node::Remeasure() { GetLayout().MarkDirty(); }
 void Node::SetHitTestFunction(
     std::function<bool(const Point& point, const Size& size)>
         hit_test_function) {
+  if (hit_test_function_) {
+    std::cerr << "There are multiple hit test functions set on the same node."
+              << std::endl;
+  }
   hit_test_function_ = hit_test_function;
 }
 
