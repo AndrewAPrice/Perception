@@ -159,7 +159,7 @@ function FancyButton(text, on_click_handler, args...):
 In an imperative framework, new widgest are typically created by extending an existing widget. For example:
 
 ```
-class FancyButton()
+class FancyButton extends Button:
     FancyButton():
         SetSize(128x32)
     
@@ -571,4 +571,6 @@ Button::TextButton(text, [&text]() {
 });
 ```
 
-It's workable and only a little messy. We'd have to store every property in `Node`, `Layout`, and every component as an `Observee<T>`. I also worry about it becoming inefficient under the hood, as there would be many layers in indirection that get called when a variable changes, and many allocated objects (the observables, the lambdas inside the components to register to listen to changes). Perhaps one day I will pursue this approach, but for now I'm happy with my UI library being 2/3rds declarative.
+It's workable and only a little messy. We'd have to store every property in `Node`, `Layout`, and every component as an `Observee<T>`. I also worry about it becoming inefficient under the hood, as there would be many layers in indirection that get called when a variable changes, and many allocated objects (the observables, the lambdas inside the components to register to listen to changes)
+
+Perhaps one day I will pursue property binding, but for now I'm happy with my UI library being 2/3rds declarative.
