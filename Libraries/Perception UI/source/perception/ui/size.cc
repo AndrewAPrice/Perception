@@ -25,5 +25,9 @@ bool Size::operator==(const Size& other) const {
 
 Point Size::ToPoint() const { return {.x = width, .y = height}; }
 
+float& Size::operator[](int index) { return dimensions[index]; }
+
+const float& Size::operator[](int index) const { return dimensions[index]; }
+
 }  // namespace ui
 }  // namespace perception

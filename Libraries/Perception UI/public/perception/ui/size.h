@@ -20,11 +20,20 @@ namespace ui {
 struct Point;
 
 struct Size {
-  float width;
-  float height;
+  union {
+    struct {
+      float width;
+      float height;
+    };
+    float dimensions[2];
+  };
 
   bool operator==(const Size& other) const;
   Point ToPoint() const;
+
+  float& operator[](int index);
+
+  const float& operator[](int index) const;
 };
 
 }  // namespace ui
