@@ -45,5 +45,9 @@ Point& Point::operator-=(const Point& other) {
 
 Size Point::ToSize() const { return {.width = x, .height = y}; }
 
+float& Point::operator[](int index) { return dimensions[index]; }
+
+const float& Point::operator[](int index) const { return dimensions[index]; }
+
 }  // namespace ui
 }  // namespace perception
