@@ -255,6 +255,15 @@ float Layout::GetCalculatedHeightWithMargin() {
          GetComputedPadding(YGEdgeBottom);
 }
 
+Size Layout::GetCalculatedSize() {
+  return Size{.width = GetCalculatedWidth(), .height = GetCalculatedHeight()};
+}
+
+Size Layout::GetCalculatedSizeWithMargin() {
+  return Size{.width = GetCalculatedWidthWithMargin(),
+              .height = GetCalculatedHeightWithMargin()};
+}
+
 void Layout::SetMinWidth(float min_width) {
   YGNodeStyleSetMinWidth(yoga_node_, min_width);
 }

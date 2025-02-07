@@ -15,6 +15,8 @@
 
 #include "yoga/Yoga.h"
 
+#include "perception/ui/size.h"
+
 namespace perception {
 namespace ui {
 
@@ -118,6 +120,9 @@ class Layout {
   YGValue GetHeight();
   float GetCalculatedHeight();
   float GetCalculatedHeightWithMargin();
+
+  Size GetCalculatedSize();
+  Size GetCalculatedSizeWithMargin();
 
   void SetMinWidth(float min_width);
   void SetMinWidthPercent(float min_height);
