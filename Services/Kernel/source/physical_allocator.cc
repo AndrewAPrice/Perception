@@ -115,8 +115,16 @@ void InitializePhysicalAllocator() {
            (multiboot_tag *)((size_t)tag +
                              (size_t)((SafeReadUint32(&tag->size) + 7) & ~7))) {
     uint32 size = SafeReadUint32(&tag->size);
-    // Skip empty tags.
-    if (size == 0) return;
+    // If a tag has size 0 (invalid) and is not the END tag, it implies a
+    // corrupted multiboot structure or an issue with SafeReadUint32.
+    // Continuing to parse with size 0 would lead to an infinite loop in tag
+    // advancement.
+    if (size == 0 && SafeReadUint32(&tag->type) != MULTIBOOT_TAG_TYPE_END) {
+      print << "Error: Multiboot tag with size 0 encountered at "
+            << NumberFormat::Hexidecimal << (size_t)tag
+            << ". Stopping multiboot parse.\n";
+      break;
+    }
 
     uint16 type = SafeReadUint32(&tag->type);
     if (type == MULTIBOOT_TAG_TYPE_MMAP) {
@@ -261,7 +269,8 @@ size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
         // We've reached the end of the stack.
         return OUT_OF_PHYSICAL_PAGES;
       }
-    } while (addr <= max_base_address);
+    } while (addr > max_base_address);
+    // Loop while current addr is too high.
 
     bp = (size_t *)TemporarilyMapPhysicalPages(addr, 6);
 
