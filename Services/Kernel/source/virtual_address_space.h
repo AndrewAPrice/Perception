@@ -98,6 +98,9 @@ class VirtualAddressSpace {
 
   static VirtualAddressSpace &CurrentAddressSpace();
 
+  // Whether this is the kernel's address space.
+  bool IsKernelAddressSpace();
+
   // Represents a free range of a virtual address space.
   struct FreeMemoryRange {
     // The start address of this free range.

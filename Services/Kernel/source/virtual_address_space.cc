@@ -71,33 +71,52 @@ constexpr int kDeepestPageTableLevel = kNumPageTableLevels - 1;
 //                     #### #### #@@@ @@@@ @@!! !!!! !!!+ ++++ ++++ ^^^^ ^^^^
 //                     ^^^^ pml4       pml3       pml2       pml1   Single page
 
-// The most significant bit in the top most page table.
+// The most significant bit used for indexing the top-most page table (PML4).
 constexpr int kMostSignificantAddressBitInTopMostPageTable = 39;
 
 // The number of address bits per page table level.
 constexpr int kAddressBitsPerPageTableLevel = 9;
 
-inline void ScanAndFreePagesInLevel(size_t table_address, int level) {
-  bool is_shallowest_level = level == 0;
-  bool is_deepest_level = level == kDeepestPageTableLevel;
-  size_t *table = (size_t *)TemporarilyMapPhysicalPages(table_address, level);
+// Helper function for the destructor to recursively free pages and page tables.
+// table_physical_address: The physical address of the current page table to
+// scan. level: The current page table level (0 for PML4, 1 for PDPT, etc.).
+inline void ScanAndFreePagesInLevel(size_t table_physical_address, int level) {
+  // Temporarily map the current page table to access its entries.
+  // The 'level' argument to TemporarilyMapPhysicalPages is an index for the
+  // temporary mapping slot.
+  size_t *current_table_virtual =
+      (size_t *)TemporarilyMapPhysicalPages(table_physical_address, level);
 
-  // On the shallowest level, skip the last entry as it maps into kernel memory.
-  size_t max_entry =
-      is_shallowest_level ? kPageTableEntries - 1 : kPageTableEntries;
-  for (int i = 0; i < max_entry; i++) {
-    size_t entry = table[i];
-    if (is_shallowest_level) {
-      if (entry &
-          (PageTableEntryBits::kIsPresent | PageTableEntryBits::kIsOwned)) {
-        // Free the found page.
-        FreePhysicalPage(entry & ~(PAGE_SIZE - 1));
+  size_t max_entry_index = kPageTableEntries;
+  if (level == 0) {
+    // The PML4's last entry maps kernel space. Do not touch it.
+    max_entry_index = kPageTableEntries - 1;
+  }
+
+  for (size_t i = 0; i < max_entry_index; i++) {
+    size_t entry = current_table_virtual[i];
+    if ((entry & PageTableEntryBits::kIsPresent) == 0) {
+      // If the entry is not present, there's nothing here to free.
+      continue;
+    }
+
+    // Extract the physical address from the entry.
+    size_t pointed_physical_address = entry & ~(PAGE_SIZE - 1);
+
+    if (level < kDeepestPageTableLevel) {
+      // This entry points to a next-level page table.
+      // Recursively call to free the contents of that next-level table.
+      ScanAndFreePagesInLevel(pointed_physical_address, level + 1);
+      // After the deeper table's contents are handled, free the physical page
+      // of this next-level table itself.
+      FreePhysicalPage(pointed_physical_address);
+    } else {
+      // This is the deepest level (e.g., Page Table), so entries point to data
+      // pages. Only free the data page if it's marked as owned by this address
+      // space.
+      if (entry & PageTableEntryBits::kIsOwned) {
+        FreePhysicalPage(pointed_physical_address);
       }
-    } else if (entry) {
-      // Scan one level deeper then free this page.
-      size_t physical_address = entry & ~(PAGE_SIZE - 1);
-      ScanAndFreePagesInLevel(physical_address, level + 1);
-      FreePhysicalPage(physical_address);
     }
   }
 }
@@ -125,6 +144,10 @@ int CalculateIndexForAddressInPageTable(int page_table_level,
 }  // namespace
 
 VirtualAddressSpace::~VirtualAddressSpace() {
+  if (IsKernelAddressSpace()) {
+    print << "Cannot free kernel address space.\n";
+    return;
+  }
   // Switch to kernel space so the address space being freed isn't active.
   if (current_address_space == this)
     KernelAddressSpace().SwitchToAddressSpace();
@@ -286,7 +309,7 @@ bool VirtualAddressSpace::ReserveAddressRange(size_t address, size_t pages) {
 
   RemoveFreeMemoryRange(fmr);
 
-  if (fmr->start_address && fmr->pages == pages) {
+  if (fmr->start_address == address && fmr->pages == pages) {
     // This is exactly the size and location that is being requested.
     ObjectPool<FreeMemoryRange>::Release(fmr);
     return true;
@@ -583,6 +606,10 @@ VirtualAddressSpace &VirtualAddressSpace::CurrentAddressSpace() {
   return *current_address_space;
 }
 
+bool VirtualAddressSpace::IsKernelAddressSpace() {
+  return this == &KernelAddressSpace();
+}
+
 bool VirtualAddressSpace::CreateUserSpacePML4() {
   pml4_ = GetPhysicalPage();
   if (pml4_ == OUT_OF_PHYSICAL_PAGES) {
@@ -725,9 +752,6 @@ bool VirtualAddressSpace::MapPhysicalPageImpl(
             // Erase it in the parent table.
             int index_in_parent = CalculateIndexForAddressInPageTable(
                 level_to_deallocate - 1, virtualaddr);
-            tables[level_to_deallocate - 1] =
-                (size_t *)temporarily_map_physical_memory(
-                    new_table_physicaladdr, level_to_deallocate - 1);
             tables[level_to_deallocate - 1][index_in_parent] = 0;
           }
         }
