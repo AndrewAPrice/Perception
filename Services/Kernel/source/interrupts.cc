@@ -31,7 +31,7 @@
 
 namespace {
 
-// A list of messages pointers to our IRQ handlers.
+// A list of messages pointers to the IRQ handlers.
 LinkedList<MessageToFireOnInterrupt,
            &MessageToFireOnInterrupt::node_in_interrupt>
     messages_to_fire_on_interrupt[16];
@@ -99,8 +99,7 @@ void InitializeInterrupts() {
                    &MessageToFireOnInterrupt::node_in_interrupt>();
   }
 
-  // There are two sets of interrupts - CPU exceptions and hardware signals.
-  // We'll register handler for both.
+  // There are two sets of interrupts - CPU exceptions and hardware signals. Handlers will be registered for both.
   RegisterExceptionInterrupts();
   RegisterInterruptHandlers();
 }
@@ -165,15 +164,15 @@ extern "C" void CommonHardwareInterruptHandler(int interrupt_number) {
                                  0, 0);
     }
 
-    // If the IDT entry that was invoked was greater than 40 (IRQ 8-15) we need
-    // to send an EOI to the slave controller.
+    // If the IDT entry that was invoked was greater than 40 (IRQ 8-15) an EOI
+    // needs to be sent to the slave controller.
     if (interrupt_number >= 8) WriteIOByte(0xA0, 0x20);
   }
 
-  // Send an EOI to the master interrupt controllerr.
+  // Send an EOI to the master interrupt controller.
   WriteIOByte(0x20, 0x20);
 
   // Interrupt could have awoken a thread when the system was currently halted.
-  // If so, let's jump straight into it upon return.
+  // If so, jump straight into it upon return.
   ScheduleThreadIfWeAreHalted();
 }

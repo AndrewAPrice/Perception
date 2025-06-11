@@ -25,19 +25,18 @@ size_t next_thread_id;
 void InitializeRegisters(const Process& process, size_t entry_point,
                          size_t param, Thread& thread) {
   Registers& registers = thread.registers;
-  // We'll pass a parameter into 'rdi' (this can be used as a function
-  // argument.)
+  // A parameter will be passed into 'rdi' (this can be used as a function argument.)
   registers.rdi = param;
 
-  // Sets the instruction pointer to our entry point.
+  // Sets the instruction pointer to the entry point.
   registers.rip = entry_point;
 
   // Sets the stack pointer and stack base to the top of our stack. (Stacks grow
-  // down!)
+  // Sets the stack pointer and stack base to the top of the stack. (Stacks grow down!)
   registers.rbp = registers.rsp = thread.stack + PAGE_SIZE * STACK_PAGES;
 
   // Sets our code and stack segment selectors (the segments are defined in
-  // Gdt64 in boot.asm)
+  // Sets the code and stack segment selectors (the segments are defined in Gdt64 in boot.asm)
   registers.cs =
       0x20 | 3;  // '| 3' means ring 3. This is a user code, not kernel code.
   registers.ss = 0x18 | 3;  // Likewise with user data, not kernel data.
@@ -140,8 +139,8 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
             offset_in_page,
             /*ignore_unowned_pages=*/false);
     if (physical_page != OUT_OF_MEMORY) {
-      // If this virtual page was actually assigned to a physical address, set
-      // our memory location to 0.
+      // If this virtual page was actually assigned to a physical address,
+      // set the memory location to 0.
       *(uint64*)((size_t)TemporarilyMapPhysicalPages(physical_page, 1) +
                  offset_in_page) = 0;
     }
@@ -153,8 +152,8 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
   // Decrease the thread count.
   process->thread_count--;
 
-  // If no more threads are running (and we're not in the middle of destroying
-  // it already), we can destroy it.
+  // If no more threads are running (and not in the middle of destroying
+  // it already), destroy it.
   if (process->thread_count == 0 && !process_being_destroyed) {
     DestroyProcess(process);
   }

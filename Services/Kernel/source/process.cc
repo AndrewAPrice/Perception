@@ -160,7 +160,7 @@ void DestroyProcess(Process *process) {
   // Free the address space.
   process->virtual_address_space.~VirtualAddressSpace();
 
-  // Free all notifications I was waiting on for processes to die.
+  // Free all notifications being waited on for processes to die.
   while (auto *notification =
              process->processes_i_want_to_be_notified_of_when_they_die
                  .FirstItem()) {

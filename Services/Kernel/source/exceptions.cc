@@ -47,8 +47,8 @@ void PrintException(bool in_kernel, int exception_no, size_t cr2,
     print << "\nException occured: " << GetExceptionName(exception) << " ("
           << NumberFormat::Decimal << exception_no << ')';
   } else {
-    // This should never trigger, because we haven't registered ourselves
-    // for interrupts >= 32.
+    // This should never trigger, because interrupts >= 32 haven't been
+    // registered.
     print << "\nUnknown exception: " << NumberFormat::Decimal << exception_no;
   }
 

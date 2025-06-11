@@ -20,7 +20,7 @@
 
 namespace {
 
-// Frame buffer details we saved from the multiboot header.
+// Frame buffer details saved from the multiboot header.
 size_t framebuffer_address;
 uint32 framebuffer_width;
 uint32 framebuffer_height;
@@ -41,7 +41,7 @@ void SetFramebufferDetails(size_t address, uint32 width, uint32 height,
 
 // Maybe load the framebuffer from the multiboot header.
 void MaybeLoadFramebuffer() {
-  // Initialize to empty values, in case we don't find a framebuffer in the
+  // Initialize to empty values, in case a framebuffer isn't found in the
   // multiboot header.
   framebuffer_address = 0;
   framebuffer_width = 0;
@@ -49,7 +49,7 @@ void MaybeLoadFramebuffer() {
   framebuffer_pitch = 0;
   framebuffer_bits_per_pixel = 0;
 
-  // We are now in higher half memory, so we have to add VIRTUAL_MEMORY_OFFSET.
+  // Now in higher half memory, so VIRTUAL_MEMORY_OFFSET must be added.
   multiboot_info *higher_half_multiboot_info =
       (multiboot_info *)((size_t)&MultibootInfo + VIRTUAL_MEMORY_OFFSET);
 

@@ -58,9 +58,8 @@ void RegisterService(char* service_name, Process* process, size_t message_id) {
   } else {
     // FindNextServiceByPidAndMidWithName depends on the services being
     // sorted in order of their message id. There could exist a scenario
-    // (such as a race condition) where services get registered out of
-    // order. We'll walk backwards from the end to find where to insert
-    // us.
+    // (such as a race condition) where services get registered out of order.
+    // Walk backwards from the end to find where to insert it.
     Service* previous_service = process->services.LastItem();
     while (previous_service != nullptr &&
            service->message_id < previous_service->message_id) {
@@ -125,29 +124,28 @@ Service* FindServiceByProcessAndMid(size_t pid, size_t message_id) {
 Service* FindNextServiceByPidAndMidWithName(char* service_name, size_t min_pid,
                                             size_t min_message_id) {
   Process* process = GetProcessOrNextFromPid(min_pid);
-
-  // We only care about starting from this mid if we are continuing
+  // Starting from this mid is only relevant if
   // from the same process.
   if (process->pid != min_pid) min_message_id = 0;
 
-  // We'll return if we find the next process, otherwise keep
-  // looping and scanning the next processes for services.
+  // Return if the next process is found, otherwise keep looping and
+  // scanning the next processes for services.
   while (process != nullptr) {
     // Keep looping through services in this process.
     for (Service* service : process->services) {
-      // Does this message meet our min message id threshold
-      // and also have the same service name that we're looking
-      // for?
+      // Does this message meet the min message id threshold and also
+      // have the same service name that is being looked for?
       if (service->message_id >= min_message_id &&
           (service_name[0] == 0 ||
            DoServiceNamesMatch(service_name, service->name))) {
-        // We found a service we're looking for!
+        // A service being looked for was found!
         return service;
       }
     }
 
     // Jump to the next process, and reset the min mid we care
     // about.
+    // Jump to the next process, and reset the min mid that is cared about.
     process = GetNextProcess(process);
     min_message_id = 0;
   }
@@ -159,7 +157,7 @@ Service* FindNextServiceByPidAndMidWithName(char* service_name, size_t min_pid,
 // Returns the next service, or nullptr if there are no more services.
 Service* FindNextServiceWithName(char* service_name,
                                  Service* previous_service) {
-  // We're out of services.
+  // Out of services.
   if (previous_service == nullptr) return nullptr;
 
   // Remember the process we're starting from.
@@ -173,11 +171,10 @@ Service* FindNextServiceWithName(char* service_name,
   while (process != nullptr) {
     // While we still have in this process.
     while (service != nullptr) {
-      // Does this service have the same name that we're
-      // looking for?
+      // Does this service have the same name that is being looked for?
       if (service_name[0] == 0 ||
           DoServiceNamesMatch(service_name, service->name)) {
-        // We found a service we're looking for!
+        // A service being looked for was found!
         return service;
       }
       // Jump to the next service.
@@ -227,8 +224,8 @@ void NotifyProcessWhenServiceAppears(char* service_name, Process* process,
 // Registers that we no longer want to be notified when a service appears.
 void StopNotifyingProcessWhenServiceAppearsByMessageId(Process* process,
                                                        size_t message_id) {
-  // There might be multiple notification with the same message ID,
-  // so we will unregister them all.
+  // There might be multiple notifications with the same message ID,
+  // so unregister them all.
   for (auto* notification =
            process->services_i_want_to_be_notified_of_when_they_appear
                .FirstItem();

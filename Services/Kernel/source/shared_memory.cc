@@ -68,8 +68,8 @@ SharedMemory* CreateSharedMemoryBlock(
   all_shared_memories.AddBack(shared_memory);
 
   if ((flags & SM_LAZILY_ALLOCATED) == 0) {
-    // We're not lazily allocated, so we should allocate all of
-    // the pages now.
+    // Not lazily allocated, so all pages should be
+    // allocated now.
     for (size_t page = 0; page < pages; page++) {
       size_t physical_page = GetPhysicalPage();
       if (physical_page == OUT_OF_PHYSICAL_PAGES) {
@@ -195,8 +195,8 @@ bool HandleSharedMessagePageFault(Process* process, SharedMemory* shared_memory,
 
   // Should we create the page?
   if (creator == nullptr || process == creator) {
-    // Either the creator no longer exists, or we are the creator. We'll create
-    // the page.
+    // Either the creator no longer exists, or this is the creator. The page
+    // will be created.
     size_t physical_address = GetPhysicalPage();
     if (physical_address == OUT_OF_PHYSICAL_PAGES)
       return false;  // Out of memory.
@@ -204,7 +204,7 @@ bool HandleSharedMessagePageFault(Process* process, SharedMemory* shared_memory,
     MapPhysicalPageInSharedMemory(shared_memory, page, physical_address);
 
   } else {
-    // We are not the creator. We'll message the creator and sleep this thread.
+    // Not the creator. Message the creator and sleep this thread.
     SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(shared_memory,
                                                               page, creator);
   }

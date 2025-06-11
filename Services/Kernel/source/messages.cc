@@ -228,7 +228,7 @@ void LoadNextMessageIntoThread(Thread* thread) {
     // There is no message queued.
     thread->registers.rax = ID_FOR_NO_EVENTS;
   } else {
-    // We have an message to load.
+    // There is a message to load.
     LoadMessageIntoThread(message, thread);
   }
 }

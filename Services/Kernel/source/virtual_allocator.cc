@@ -7,7 +7,7 @@
 #include "text_terminal.h"
 #include "virtual_address_space.h"
 
-// Our paging structures made at boot time, these can be freed after the virtual
+// Paging structures made at boot time, these can be freed after the virtual
 // allocator has been initialized.
 #ifdef __TEST__
 size_t Pml4[512];
@@ -29,8 +29,7 @@ constexpr size_t kMinHigherHalfUserSpaceAddress = 0xFFFF800000000000;
 
 // Page table entries:
 
-// Pointer to a page table that we use when we want to temporarily map physical
-// memory.
+// Pointer to a page table used when temporarily mapping physical memory.
 size_t *temp_memory_page_table;
 // Start address of what the temporary page table refers to.
 size_t temp_memory_start;
@@ -51,8 +50,8 @@ VirtualAddressSpace kernel_address_space;
 
 // Initializes the virtual allocator.
 void InitializeVirtualAllocator() {
-  // We entered long mode with a temporary setup, now it's time to build a real
-  // paging system for us.
+  // Long mode was entered with a temporary setup, now it's time to build a
+  // real paging system.
 
   // Add the statically allocated free memory ranges.
   for (int i = 0; i < kStaticallyAllocatedFreeMemoryRangesCount; i++)
@@ -86,32 +85,32 @@ void FlushVirtualPage(size_t addr) {
 
 // Maps a physical page so that we can access it - use this before the virtual
 // allocator has been initialized.
-void *TemporarilyMapPhysicalMemoryPreVirtualMemory(size_t addr, size_t index) {
-  // Round this down to the nearest 2MB as we use 2MB pages before we setup the
-  // virtual allocator.
+void *TemporarilyMapPhysicalMemoryPreVirtualMemory(
+    size_t addr, size_t index) {  // Round this down to the nearest 2MB as 2MB
+                                  // pages are used before the
+  // virtual allocator is set up.
   size_t addr_start = addr & ~(2 * 1024 * 1024 - 1);
   size_t addr_offset = addr - addr_start;
   size_t entry = addr_start | 0x83;
 
-  // Check if it different to what is currently loaded.
-  if (Pd[511] != entry) {
-    // Map this to the last page of our page directory we set up at boot time.
-    Pd[511] = entry;
-
-    // Flush our page table cache.
-    FlushVirtualPage(addr_start);
-  }
-
   // The virtual address of the temp page: 1GB - 2MB.
   size_t temp_page_boot = 1022 * 1024 * 1024;
+  size_t virtual_address = temp_page_boot + addr_offset;
+
+  // Check if it different to what is currently loaded.
+  if (Pd[511] != entry) {
+    // Map this to the last page of the page directory set up at boot time.
+    Pd[511] = entry;  // Flush the page table cache.
+    FlushVirtualPage(addr_start);
+  }
 
   // Return a pointer to the virtual address of the requested physical memory.
   return (void *)(temp_page_boot + addr_offset);
 }
 
-// Temporarily maps physical memory (page aligned) into virtual memory so we can
-// fiddle with it. index is from 0 to 511 - mapping a different address to the
-// same index unmaps the previous page mapped there.
+// Temporarily maps physical memory (page aligned) into virtual memory so it
+// can be fiddled with. index is from 0 to 511 - mapping a different address to
+// the same index unmaps the previous page mapped there.
 void *TemporarilyMapPhysicalPages(size_t addr, size_t index) {
   size_t entry = addr | 0x3;
 
@@ -119,9 +118,9 @@ void *TemporarilyMapPhysicalPages(size_t addr, size_t index) {
 
   // Check if it's not already mapped.
   if (temp_memory_page_table[index] != entry) {
-    // Map this page into our temporary page table.
+    // Map this page into the temporary page table.
     temp_memory_page_table[index] = entry;
-    // Flush our page table cache.
+    // Flush the page table cache.
     FlushVirtualPage(temp_addr);
   }
 
@@ -164,7 +163,7 @@ SharedMemoryInProcess *MapSharedMemoryIntoProcessAtAddress(
   shared_memory_in_process->virtual_address = virtual_address;
   shared_memory_in_process->references = 1;
 
-  // Add the shared memory to our process's linked list.
+  // Add the shared memory to the process's linked list.
   process->joined_shared_memories.AddBack(shared_memory_in_process);
 
   // Add the process to the shared memory.
@@ -195,8 +194,8 @@ SharedMemoryInProcess *MapSharedMemoryIntoProcessAtAddress(
 // object.
 void UnmapSharedMemoryFromProcess(
     SharedMemoryInProcess *shared_memory_in_process) {
-  // TODO: Wake any threads waiting for this page. (They'll page fault, but
-  // what else can we do?)
+  // TODO: Wake any threads waiting for this page. (They'll page fault, but what
+  // else can be done?)
   auto *process = shared_memory_in_process->process;
   auto *shared_memory = shared_memory_in_process->shared_memory;
 
@@ -205,19 +204,19 @@ void UnmapSharedMemoryFromProcess(
       shared_memory_in_process->virtual_address, shared_memory->size_in_pages);
 
   process->joined_shared_memories.Remove(shared_memory_in_process);
-  shared_memory->joined_processes.Remove(shared_memory_in_process);
+  shared_memory->joined_processes.Remove(shared_meRmory_in_process);
 
   // Decrement the references to this shared memory block.
   shared_memory->processes_referencing_this_block--;
   if (shared_memory->processes_referencing_this_block == 0) {
-    // There are no more refernces to this shared memory block, so we can
-    // release the memory.
+    // There are no more references to this shared memory block, so the memory
+    // can be released.
     ReleaseSharedMemoryBlock(shared_memory);
   } else if (process->pid == shared_memory->creator_pid &&
              (shared_memory->flags & SM_LAZILY_ALLOCATED) != 0) {
-    // We are unmapping lazily allocated shared memory from the creator.
-    // We'll create the pages of any threads that are sleeping because they're
-    // waiting for pages to be created.
+    // Unmapping lazily allocated shared memory from the creator. Create the
+    // pages of any threads that are sleeping because they're waiting for pages
+    // to be created.
     // TODO
   }
 

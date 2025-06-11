@@ -22,7 +22,7 @@ namespace {
 // Linked list of awake threads we can cycle through.
 LinkedList<Thread, &Thread::node_in_scheduler> awake_threads;
 
-// The idle registers to return to when no thread is awake. (This points us to
+// The idle registers to return to when no thread is awake. (This points to
 // the while(true) {hlt} in kmain.)
 Registers *idle_regs;
 
@@ -48,28 +48,26 @@ void ScheduleNextThread() {
   Thread *next;
 
   if (running_thread) {
-    // We were currently executing a thread.
+    // A thread was currently executing.
     if (running_thread->uses_fpu_registers) {
 #ifndef __TEST__
       asm volatile("fxsave %0" ::"m"(*running_thread->fpu_registers));
 #endif
     }
-
     // Move to the next awake thread.
     next = awake_threads.NextItem(running_thread);
     if (!next) {
-      // We reached the end of the line. Switch back to the first awake thread.
+      // The end of the line was reached. Switch back to the first awake thread.
       next = awake_threads.FirstItem();
     }
-
   } else {
-    // We were in the kernel's idle thread. Attempt to switch to the first awake
-    // thread.
+    // The kernel's idle thread was active. Attempt to switch to the first
+    // awake thread.
     next = awake_threads.FirstItem();
   }
 
   if (!next) {
-    // If there's no next thread, we'll return to the kernel's idle thread.
+    // If there's no next thread, return to the kernel's idle thread.
     running_thread = 0;
     currently_executing_thread_regs = idle_regs;
     KernelAddressSpace().SwitchToAddressSpace();
@@ -112,7 +110,7 @@ void UnscheduleThread(Thread *thread) {
   if (thread == running_thread) ScheduleNextThread();
 }
 
-// Schedules a thread if we are currently halted - such as an interrupt
+// Schedules a thread if currently halted - such as an interrupt
 // woke up a thread.
 void ScheduleThreadIfWeAreHalted() {
   if (running_thread == nullptr && !awake_threads.IsEmpty()) {

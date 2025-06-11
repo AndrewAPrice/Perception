@@ -8,19 +8,19 @@ extern "C" {
 
 /** This function is supposed to lock the memory data structures. It
  * could be as simple as disabling interrupts or acquiring a spinlock.
- * It's up to you to decide.
+ * It's up to the implementer to decide.
  *
  * \return 0 if the lock was acquired successfully. Anything else is
  * failure.
  */
 int liballoc_lock() {
-  // This might become an issue if we have kernel threads. But for now, all
+  // This might become an issue if there are kernel threads. But for now, all
   // kernel code should be from inside a syscall.
   return 0;
 }
 
 /** This function unlocks what was previously locked by the liballoc_lock
- * function.  If it disabled interrupts, it enables interrupts. If it
+ * function. If it disabled interrupts, it enables interrupts. If it
  * had acquiried a spinlock, it releases the spinlock. etc.
  *
  * \return 0 if the lock was successfully released.

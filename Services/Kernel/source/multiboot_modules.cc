@@ -150,7 +150,7 @@ bool ParseMultibootModuleName(char **name, size_t *name_length, bool *is_driver,
 }
 
 void LoadMultibootModules() {
-  // We are now in higher half memory, so we have to add VIRTUAL_MEMORY_OFFSET.
+  // Now in higher half memory, so VIRTUAL_MEMORY_OFFSET must be added.
   multiboot_info *higher_half_multiboot_info =
       (multiboot_info *)((size_t)&MultibootInfo + VIRTUAL_MEMORY_OFFSET);
 
@@ -176,10 +176,9 @@ void LoadMultibootModules() {
       if (LoadElfProcess(module_tag->mod_start + VIRTUAL_MEMORY_OFFSET,
                          module_tag->mod_end + VIRTUAL_MEMORY_OFFSET,
                          module_tag->cmdline)) {
-        tag->type = kLoadedMultibootTagType;
       } else {
-        // This multiboot module can't be loaded, so count is as one that needs
-        // to load later.
+        // This multiboot module can't be loaded, so count it as one that needs
+        // to be loaded later.
         multiboot_modules_to_pass_to_process++;
       }
     }

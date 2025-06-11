@@ -65,7 +65,6 @@ extern "C" void SyscallHandler(int syscall_number) {
       print << (char)currently_executing_thread_regs->rax;
       break;
     case Syscall::PrintRegistersAndStack: {
-      Process *process = running_thread->process;
       print << "Dump requested by PID " << NumberFormat::Decimal
             << running_thread->process->pid << " ("
             << running_thread->process->name << ") in TID "
@@ -74,8 +73,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     }
     case Syscall::CreateThread: {
-      Thread *new_thread = CreateThread(running_thread->process,
-                                        currently_executing_thread_regs->rax,
+      Thread *new_thread = CreateThread(running_thread->process, currently_executing_thread_regs->rax,
                                         currently_executing_thread_regs->rbx);
       if (new_thread == 0) {
         currently_executing_thread_regs->rax = 0;
@@ -322,8 +320,8 @@ extern "C" void SyscallHandler(int syscall_number) {
       process_name[10] = currently_executing_thread_regs->r15;
 
       // Loop over all processes starting from the provided PID
-      // until we run out of processes. We will keep track of
-      // the pids of the first 12 that we find.
+      // until processes run out. Keep track of the pids of the
+      // first 12 found.
       size_t pids[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
       size_t processes_found = 0;
       Process *process =
@@ -381,10 +379,10 @@ extern "C" void SyscallHandler(int syscall_number) {
 
       Process *target = GetProcessFromPid(currently_executing_thread_regs->rax);
       if (target == nullptr) {
-        // The target process we want to be notified of when it dies
-        // doesn't exist. It's possible that is just died, so whatever
-        // the case, the safest thing to do here is to imemdiately send
-        // an event.
+        // The target process to be notified of when it dies doesn't
+        // exist. It's possible that it just died, so whatever the
+        // case, the safest thing to do here is to immediately send an
+        // event.
         SendKernelMessageToProcess(running_thread->process, event_id,
                                    target_pid, 0, 0, 0, 0);
       } else {
@@ -500,9 +498,8 @@ extern "C" void SyscallHandler(int syscall_number) {
       size_t min_sid = currently_executing_thread_regs->rax;
 
       // Loop over all processes starting from the provided PID
-      // and services starting from the provided SID until we
-      // run out of processes. We will keep track of the pids and
-      // sids of the first 6 that we find.
+      // and services starting from the provided SID until processes
+      // run out. The pids and sids of the first 6 found will be tracked.
       size_t pids[6] = {0, 0, 0, 0, 0, 0};
       size_t sids[6] = {0, 0, 0, 0, 0, 0};
       size_t services_found = 0;
@@ -596,7 +593,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     case Syscall::SleepForMessage:
       if (SleepThreadUntilMessage(running_thread)) {
-        // The thread is now asleep. We need to schedule a new thread.
+        // The thread is now asleep. A new thread needs to be scheduled.
         ScheduleNextThread();
         JumpIntoThread();  // Doesn't return.
       }

@@ -20,14 +20,12 @@ namespace {
 #ifdef __TEST__
 multiboot_info MultibootInfo;
 #endif
-
-// Physical memory is divided into 4kb pages. We keep a linked stack of them
-// that we can pop a page off of and push a page onto. This pointer points to
+// Physical memory is divided into 4kb pages. A linked stack of them is kept,
+// allowing pages to be popped off and pushed onto it. This pointer points to
 // the top of the stack (next free page), and the first thing in that page will
 // be a pointer to the next page.
 size_t next_free_page_address;
-
-// Before virtual memory is set up, the temporary paging system we set up in
+// Before virtual memory is set up, the temporary paging system set up in
 // boot.asm only associates the maps the first 8MB of physical memory into
 // virtual memory. The multiboot structure can be quite huge (especially if
 // there are multi-boot modules passed in to the bootloader), and so the
@@ -58,14 +56,14 @@ void CalculateStartOfFreeMemoryAtBoot() {
        tag =
            (multiboot_tag *)((size_t)tag +
                              (size_t)((SafeReadUint32(&tag->size) + 7) & ~7))) {
-    // Make sure we're enough to fit in this tag.
+    // Make sure there's enough space for this tag.
     size_t tag_end = (size_t)tag + SafeReadUint32(&tag->size);
     if (tag_end > start_of_free_memory_at_boot) {
       start_of_free_memory_at_boot = tag_end;
     }
 
     if (SafeReadUint32(&tag->type) == MULTIBOOT_TAG_TYPE_MODULE) {
-      multiboot_tag_module *module_tag = (multiboot_tag_module *)tag;
+      auto *module_tag = (multiboot_tag_module *)tag;
       uint32 mod_end = SafeReadUint32(&module_tag->mod_end);
 
       // If this is a multiboot module, make sure we're enough to fit
@@ -99,8 +97,8 @@ void InitializePhysicalAllocator() {
   free_pages = 0;
   CalculateStartOfFreeMemoryAtBoot();
 
-  // Initialize the stack to OUT_OF_PHYSICAL_PAGES, then we will push pages onto
-  // the stack As
+  // Initialize the stack to OUT_OF_PHYSICAL_PAGES, then pages will be pushed
+  // onto the stack As
   next_free_page_address = OUT_OF_PHYSICAL_PAGES;
 
   // The multiboot bootloader (GRUB) already did the hard work of asking the
@@ -155,7 +153,7 @@ void InitializePhysicalAllocator() {
           start = (start + PAGE_SIZE - 1) &
                   ~(PAGE_SIZE - 1);  // Round up to page size.
 
-          // Now we will divide this memory up into pages and iterate through
+          // Now divide this memory up into pages and iterate through
           // them.
           size_t page_addr;
           for (page_addr = start; page_addr < end; page_addr += PAGE_SIZE) {
@@ -179,7 +177,7 @@ void InitializePhysicalAllocator() {
   }
 }
 
-// Indicates that we are done with the multiboot memory and that it can be
+// Indicates that the multiboot memory is no longer needed and can be
 // released.
 void DoneWithMultibootMemory() {
   // Frees the memory pages between the end of kernel memory
@@ -207,12 +205,10 @@ size_t GetPhysicalPagePreVirtualMemory() {
     // No more free pages.
     return OUT_OF_PHYSICAL_PAGES;
   }
-
   // Take the top page from the stack.
   size_t addr = next_free_page_address;
-
-  // Pop it from the stack by mapping the page to physical memory so we can grab
-  // the pointer to the next free page.
+  // Pop it from the stack by mapping the page to physical memory so the
+  // pointer to the next free page can be grabbed.
   size_t *bp = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(addr, 0);
   next_free_page_address = *bp;
 
@@ -221,8 +217,8 @@ size_t GetPhysicalPagePreVirtualMemory() {
   return addr;
 }
 
-// Grabs the next physical page, returns OUT_OF_PHYSICAL_PAGES if there are no
-// more physical pages.
+// Grabs the next physical page, returns OUT_OF_PHYSICAL_PAGES if there are
+// no more physical pages.
 size_t GetPhysicalPage() {
   return GetPhysicalPageAtOrBelowAddress(0xFFFFFFFFFFFFFFFF);
 }
@@ -244,21 +240,19 @@ size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
   size_t *bp;
 
   if (addr <= max_base_address) {
-    // The first address was sufficient. This should be the most common use case
-    // except for drivers that a low physical memor address for DMA.
+    // The first address was sufficient. This should be the most common use case,
+    // except for drivers that need a low physical memory address for DMA.
 
-    // Pop it from the stack by mapping the page to physical memory so we can
-    // grab the pointer to the next free page.
+    // Pop it from the stack by mapping the page to physical memory so the
+    // pointer to the next free page can be grabbed.
     bp = (size_t *)TemporarilyMapPhysicalPages(addr, 5);
     next_free_page_address = *bp;
   } else {
-    // Keep walking the stack of free pages until we find one that's below the
-    // max base address.
-
-    // We need to remember the previous address so we can update the pointer in
-    // the stack to skip over the page we took out.
+    // Keep walking the stack of free pages until one is found that's below the
+    // max base address. The previous address needs to be remembered so the
+    // pointer in the stack can be updated to skip over the page taken out.
     size_t previous_addr;
-    size_t *previous_bp;
+    size_t *previous_bp = nullptr;
     do {
       // Walk to the next page.
       previous_addr = addr;
@@ -266,7 +260,7 @@ size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
       addr = *previous_bp;
 
       if (addr == OUT_OF_PHYSICAL_PAGES) {
-        // We've reached the end of the stack.
+        // The end of the stack has been reached.
         return OUT_OF_PHYSICAL_PAGES;
       }
     } while (addr > max_base_address);
@@ -278,7 +272,7 @@ size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
     *previous_bp = *bp;
   }
 
-  // Clear out the page, so we don't leak anything from another process.
+  // Clear out the page, so nothing is leaked from another process.
   memset((char *)bp, 0, PAGE_SIZE);
 
   free_pages--;
@@ -290,7 +284,7 @@ size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
 void FreePhysicalPage(size_t addr) {
   // Push this page onto the linked stack.
 
-  // Map this physical memory, so can write the previous stack page to it.
+  // Map this physical memory, so the previous stack page can be written to it.
   size_t *bp = (size_t *)TemporarilyMapPhysicalPages(addr, 5);
   // Write the previous stack head to the start of this page.
   *bp = next_free_page_address;

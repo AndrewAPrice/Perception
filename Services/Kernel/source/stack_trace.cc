@@ -40,8 +40,8 @@ void PrintStackTrace() {
   // Walk up the call stack.
   for (int i = 0; i < kStackTraceDepth; i++) {
     if ((rbp & 7) != 0) {
-      // RBP is not aligned, we'll avoid reading the memory address
-      // that RBP points to as it could jump across pages boundaries.
+      // RBP is not aligned, avoid reading the memory address
+      // that RBP points to as it could jump across page boundaries.
       return;
     }
 

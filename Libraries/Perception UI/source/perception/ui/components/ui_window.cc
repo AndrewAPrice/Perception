@@ -201,7 +201,7 @@ void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
         SkSurfaces::WrapPixels(image_info, pixel_data_, buffer_width_ * 4);
   }
 
-  // Set up our DrawContext to draw into back buffer.
+  // Set up the DrawContext to draw into back buffer.
   DrawContext draw_context;
   draw_context.buffer = static_cast<uint32*>(pixel_data_);
   draw_context.skia_canvas = skia_surface_->getCanvas();
@@ -239,10 +239,10 @@ void UiWindow::Create() {
   Layout layout = strong_node->GetLayout();
 
   if (is_dialog_) {
-    // Measure how big our dialog is.
+    // Measure how big the dialog is.
 
     // If a dimension is 'auto', it fills to take the entire size passed in, but
-    // if we pass in YGUndefined, it'll fill to wrap the content.
+    // if YGUndefined is passed in, it'll fill to wrap the content.
     auto width = layout.GetWidth();
     auto height = layout.GetHeight();
     layout.Calculate(width.unit == YGUnitAuto || width.value <= 0 ? YGUndefined

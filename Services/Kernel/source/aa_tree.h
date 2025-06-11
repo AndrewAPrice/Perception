@@ -73,14 +73,13 @@ struct AATree {
 #endif
     auto node = ItemToNode(item);
     if (node->previous != nullptr) {
-      // Multiple nodes have the same value, and we're not at the front of the
-      // linked list. So just remove us from the linked list and need to update
-      // the tree structure.
+      // Multiple nodes have the same value, and this is not at the front of the
+      // linked list. So just remove it from the linked list and the tree structure doesn't need to be updated.
       node->previous->next = node->next;
       if (node->next != nullptr) node->next->previous = node->previous;
     } else if (node->next != nullptr) {
-      // Multiple nodes have the same value but we're at the front of the linked
-      // list. Swap the next item in the linked list for us.
+      // Multiple nodes have the same value but this is at the front of the linked
+      // list. Swap the next item in the linked list for this one.
       AATreeNode* next = node->next;
       next->previous = nullptr;
       next->left = node->left;
@@ -89,7 +88,7 @@ struct AATree {
       if (next->right != nullptr) next->right->parent = next;
       next->parent = node->parent;
       if (next->parent == nullptr) {
-        // We're the root node.
+        // This is the root node.
         root_ = next;
       } else {
         AATreeNode* parent = next->parent;
@@ -100,7 +99,7 @@ struct AATree {
         }
       }
     } else {
-      // We're the only node with this value, so remove us from the tree.
+      // This is the only node with this value, so remove it from the tree.
       root_ = RemoveNodeWithValueFromBelowAANode(root_, ValueOfNode(node));
       if (root_ != nullptr) root_->parent = nullptr;
     }
@@ -136,7 +135,7 @@ struct AATree {
  private:
   AATreeNode* SearchForNodeLessThanOrEqualToValue(size_t value) {
     // Try to find an exact match, and if one doesn't exist, return the the
-    // heighest valued node we found along the way that was below the value.
+    // highest valued node found along the way that was below the value.
 
     // The backup node if we don't find one.
     size_t highest_suitable_node_value = 0;
@@ -151,7 +150,7 @@ struct AATree {
       if (current_value < value &&
           (current_value > highest_suitable_node_value ||
            highest_suitable_node == nullptr)) {
-        // This is the largest node we've found so far that's less than the
+        // This is the largest node found so far that's less than the
         // target value.
         highest_suitable_node_value = current_value;
         highest_suitable_node = current_node;
@@ -160,7 +159,7 @@ struct AATree {
       if (value < current_value) {
         current_node = current_node->left;
       } else {
-        // We're looking for a higher valued node.
+        // Looking for a higher valued node.
         current_node = current_node->right;
       }
     }
@@ -171,7 +170,7 @@ struct AATree {
 
   AATreeNode* SearchForNodeGreaterThanOrEqualToValue(size_t value) {
     // Try to find an exact match, and if one doesn't exist, return the the
-    // smallest node we found along the way that was below the value.
+    // smallest node found along the way that was below the value.
 
     // The backup node if we don't find one.
     size_t lowest_suitable_node_value = 0;
@@ -189,14 +188,14 @@ struct AATree {
       if (current_value > value &&
           (current_value < lowest_suitable_node_value ||
            lowest_suitable_node == nullptr)) {
-        // This is the largest node we've found so far that's less than the
+        // This is the largest node found so far that's less than the
         // target value.
         lowest_suitable_node_value = current_value;
         lowest_suitable_node = current_node;
       }
 
       if (value < current_value) {
-        // We're looking for a lower valued node.
+        // Looking for a lower valued node.
         current_node = current_node->left;
       } else {
         current_node = current_node->right;
@@ -216,7 +215,7 @@ struct AATree {
       if (current_value == value) {
         return current_node;  // Exact match.
       } else if (value < current_value) {
-        // We're looking for a lower valued node.
+        // Looking for a lower valued node.
         current_node = current_node->left;
       } else {
         current_node = current_node->right;
@@ -261,7 +260,7 @@ struct AATree {
   static AATreeNode* MaybeSplitAANode(AATreeNode* node) {
     if (node->right != nullptr && node->right->right != nullptr &&
         node->level == node->right->right->level) {
-      // We have two horiziontal right links. Make the middle node the new
+      // There are two horizontal right links. Make the middle node the new
       // parent.
 
       AATreeNode* new_parent = node->right;

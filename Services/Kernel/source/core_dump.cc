@@ -134,8 +134,8 @@ void PrintElfHeader(size_t threads, size_t memory_chunks, size_t memory_size) {
   header.e_ident[EI_CLASS] = ELFCLASS64;
   header.e_ident[EI_DATA] = ELFDATA2LSB;
   header.e_ident[EI_VERSION] = EV_CURRENT;
-  // It's not that Perception is GNU, but it's that we conform to the format
-  // that debuggers can handle.
+  // It's not that Perception is GNU, but it conforms to the format that
+  // debuggers can handle.
   header.e_ident[EI_OSABI] = ELFOSABI_GNU;
   header.e_type = ET_CORE;
   header.e_machine = EM_X86_64;

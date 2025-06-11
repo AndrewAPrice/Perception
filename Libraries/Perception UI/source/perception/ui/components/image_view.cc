@@ -111,7 +111,7 @@ void ImageView::Draw(const DrawContext& draw_context) {
   }
 
   if (image) {
-    // This is a raster iamge.
+    // This is a raster image.
     SkPaint paint;
     paint.setAntiAlias(true);
 
