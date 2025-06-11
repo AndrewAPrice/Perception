@@ -176,6 +176,7 @@ void LoadMultibootModules() {
       if (LoadElfProcess(module_tag->mod_start + VIRTUAL_MEMORY_OFFSET,
                          module_tag->mod_end + VIRTUAL_MEMORY_OFFSET,
                          module_tag->cmdline)) {
+        tag->type = kLoadedMultibootTagType;
       } else {
         // This multiboot module can't be loaded, so count it as one that needs
         // to be loaded later.
