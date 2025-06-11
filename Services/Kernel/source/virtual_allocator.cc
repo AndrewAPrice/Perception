@@ -204,7 +204,7 @@ void UnmapSharedMemoryFromProcess(
       shared_memory_in_process->virtual_address, shared_memory->size_in_pages);
 
   process->joined_shared_memories.Remove(shared_memory_in_process);
-  shared_memory->joined_processes.Remove(shared_meRmory_in_process);
+  shared_memory->joined_processes.Remove(shared_memory_in_process);
 
   // Decrement the references to this shared memory block.
   shared_memory->processes_referencing_this_block--;
