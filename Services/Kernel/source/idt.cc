@@ -72,10 +72,3 @@ void SetIdtEntry(unsigned char num, size_t handler_address, unsigned short sel,
   idt[num].zero = 0;
 }
 
-// Marks the interrupt handler as entered. This is already called for you for
-// interrupt handlers registered with InstallHardwareInterruptHandler.
-void MarkInterruptHandlerAsEntered() { in_interrupt = true; }
-
-// Marks the interrupt handler as left. This is already called for you for
-// interrupt handlers registered with InstallHardwareInterruptHandler.
-void MarkInterruptHandlerAsLeft() { in_interrupt = false; }

@@ -22,9 +22,6 @@
 #include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
-// Uncomment for debug printing.
-// #define DEBUG
-
 namespace {
 
 // MSR that contains the kernel's SYSCALL entrypoint.
@@ -54,16 +51,6 @@ void InitializeSystemCalls() {
 }
 
 extern "C" void SyscallHandler(int syscall_number) {
-#ifdef DEBUG
-  print << "Entering syscall " << GetSystemCallName(syscall_number) << " ("
-        << NumberFormat::Decimal << syscall_number;
-  if (running_thread) {
-    print << ") from " << running_thread->process->name << " ("
-          << running_thread->process->pid;
-  }
-  print << ")\n";
-  PrintRegisters(currently_executing_thread_regs);
-#endif
   switch (static_cast<Syscall>(syscall_number)) {
     default:
       print << "Syscall " << GetSystemCallName(syscall_number) << " ("
@@ -650,7 +637,4 @@ extern "C" void SyscallHandler(int syscall_number) {
       DisableAndOutputProfiling(running_thread->process);
       break;
   }
-#ifdef DEBUG
-  print << "Leaving syscall " << GetSystemCallName(syscall_number) << '\n';
-#endif
 }

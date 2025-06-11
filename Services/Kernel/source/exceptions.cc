@@ -183,7 +183,4 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
     DestroyProcess(running_thread->process);
     JumpIntoThread();  // Doesn't return.
   }
-
-  /*MarkInterruptHandlerAsLeft();*/
-  // return r;
 }

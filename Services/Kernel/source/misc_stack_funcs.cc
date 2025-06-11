@@ -16,9 +16,6 @@
 #include "types.h"
 
 #ifndef __TEST__
-// 32-bit:
-// #define STACK_CHK_GUARD 0xe2dee396
-// 64-bit:
 #define STACK_CHK_GUARD 0x595e9fbd94fda766
 
 uint64 __stack_chk_guard = STACK_CHK_GUARD;
