@@ -114,7 +114,7 @@ bool LoadMemory(size_t to_start, size_t to_end, Process* process) {
     size_t physical_page_address =
         address_space.GetOrCreateVirtualPage(to_page);
     if (physical_page_address == OUT_OF_MEMORY) {
-      // We ran out of memory trying to allocate the virtual page.
+      // Ran out of memory trying to allocate the virtual page.
       return false;
     }
     size_t temp_addr =

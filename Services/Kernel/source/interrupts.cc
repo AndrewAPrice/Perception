@@ -173,6 +173,6 @@ extern "C" void CommonHardwareInterruptHandler(int interrupt_number) {
   WriteIOByte(0x20, 0x20);
 
   // Interrupt could have awoken a thread when the system was currently halted.
-  // If so, jump straight into it upon return.
+  // If so, jump straight into the thread upon return.
   ScheduleThreadIfWeAreHalted();
 }
