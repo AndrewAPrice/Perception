@@ -74,6 +74,9 @@ SharedMemory* CreateSharedMemoryBlock(
       size_t physical_page = GetPhysicalPage();
       if (physical_page == OUT_OF_PHYSICAL_PAGES) {
         // Out of memory.
+        for (size_t p = 0; p < page; p++)
+          FreePhysicalPage(shared_memory->physical_pages[p]);
+        free(shared_memory->physical_pages);
         ObjectPool<SharedMemory>::Release(shared_memory);
         return nullptr;
       }
@@ -97,6 +100,10 @@ void MapSharedMemoryPageInEachProcess(SharedMemory* shared_memory,
   size_t offset_of_page_in_bytes = page * PAGE_SIZE;
 
   for (auto* shared_memory_in_process : shared_memory->joined_processes) {
+    if (page >= shared_memory_in_process->mapped_pages)
+      continue;  // Beyond the end of how much of this shared memory was mapped
+                 // into this process.
+
     Process* process = shared_memory_in_process->process;
     bool can_write = CanProcessWriteToSharedMemory(process, shared_memory);
     size_t virtual_address =
@@ -170,7 +177,7 @@ void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory, size_t page,
   if (old_page != OUT_OF_PHYSICAL_PAGES) {
     FreePhysicalPage(old_page);  // Unallocate the existing physical page.
 
-    // Unmap it in each process so we don't get an error trying to overwrite an
+    // Unmap it in each process to not get an error trying to overwrite an
     // existing page table entry.
     size_t offset_of_page_in_bytes = page * PAGE_SIZE;
     for (auto* shared_memory_in_process : shared_memory->joined_processes) {
@@ -193,7 +200,7 @@ bool HandleSharedMessagePageFault(Process* process, SharedMemory* shared_memory,
                                   size_t page) {
   Process* creator = GetProcessFromPid(shared_memory->creator_pid);
 
-  // Should we create the page?
+  // Can this process create the page?
   if (creator == nullptr || process == creator) {
     // Either the creator no longer exists, or this is the creator. The page
     // will be created.
@@ -273,17 +280,56 @@ void ReleaseSharedMemoryBlock(SharedMemory* shared_memory) {
   ObjectPool<SharedMemory>::Release(shared_memory);
 }
 
+SharedMemoryInProcess* FindSharedMemoryInProcess(Process* process,
+                                                 size_t shared_memory_id) {
+  // Find the shared memory.
+  for (auto* shared_memory_in_process : process->joined_shared_memories) {
+    if (shared_memory_in_process->shared_memory->id == shared_memory_id) {
+      return shared_memory_in_process;
+    }
+  }
+
+  return nullptr;
+}
+
+// Rejoins a shared memory block in a process.
+SharedMemoryInProcess* RejoinSharedMemory(
+    SharedMemoryInProcess* shared_memory_in_process) {
+  auto shared_memory = shared_memory_in_process->shared_memory;
+  auto process = shared_memory_in_process->process;
+
+  // Temporarily increment count so if this is the only process touching the
+  // shared memory, it doesn't leave.
+  shared_memory->processes_referencing_this_block++;
+
+  // Unmap the shared memory.
+  UnmapSharedMemoryFromProcess(shared_memory_in_process);
+
+  // Remap the shared memory.
+  shared_memory_in_process = MapSharedMemoryIntoProcess(process, shared_memory);
+
+  // Decrease the count back to the true level.
+  shared_memory->processes_referencing_this_block--;
+
+  return shared_memory_in_process;
+}
+
 // Joins a shared memory block. Ensures that a shared memory is only mapped once
 // per process. Returns the virtual address of the shared memory block or 0.
 SharedMemoryInProcess* JoinSharedMemory(Process* process,
                                         size_t shared_memory_id) {
   // See if this shared memory is already mapped into this process.
-  for (auto* shared_memory_in_process : process->joined_shared_memories) {
-    if (shared_memory_in_process->shared_memory->id == shared_memory_id) {
-      // This shared memory is already mapped into the process.
-      shared_memory_in_process->references++;
-      return shared_memory_in_process;
+  auto* shared_memory_in_process =
+      FindSharedMemoryInProcess(process, shared_memory_id);
+  if (shared_memory_in_process != nullptr) {
+    // This shared memory is already mapped into the process.
+    SharedMemory* shared_memory = shared_memory_in_process->shared_memory;
+    if (shared_memory_in_process->mapped_pages !=
+        shared_memory->size_in_pages) {
+      // The shared memory has grown, so rejoin it.
+      return RejoinSharedMemory(shared_memory_in_process);
     }
+    return shared_memory_in_process;
   }
 
   // The shared memory is not mapped to the process, so we'll try to find it.
@@ -328,17 +374,13 @@ bool JoinChildProcessInSharedMemory(Process* parent, Process* child,
 // Leaves a shared memory block, but doesn't unmap it if there are still other
 // referenes to the shared memory block in the process.
 void LeaveSharedMemory(Process* process, size_t shared_memory_id) {
-  // Find the shared memory.
-  for (auto* shared_memory_in_process : process->joined_shared_memories) {
-    if (shared_memory_in_process->shared_memory->id == shared_memory_id) {
-      // Found the shared memory block.
-      shared_memory_in_process->references--;
+  auto* shared_memory_in_process =
+      FindSharedMemoryInProcess(process, shared_memory_id);
+  if (shared_memory_in_process == nullptr) return;
+  // Found the shared memory block.
+  // shared_memory_in_process->references--;
 
-      if (shared_memory_in_process->references == 0)
-        UnmapSharedMemoryFromProcess(shared_memory_in_process);
-      return;
-    }
-  }
+  UnmapSharedMemoryFromProcess(shared_memory_in_process);
 }
 
 void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
@@ -348,12 +390,11 @@ void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
   size_t physical_address =
       process->virtual_address_space.GetPhysicalAddress(page_address, true);
   if (physical_address == OUT_OF_MEMORY)
-    return;  // This page doesn't exist or we don't own it. We can't move
-             // it.
+    return;  // This page doesn't exist or the calling process doesn't own it.
+
   process->virtual_address_space.ReleasePages(page_address, 1);
 
-  // If we fail at any point we need to return the physical address.
-
+  // If this method fails at any point, the physical page needs to be freed.
   SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
   if (shared_memory == nullptr) {
     // Unknown shared memory ID.
@@ -368,7 +409,7 @@ void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
   // return;
   //}
 
-  // Work out where we are moving this page in the shared memory.
+  // Work out where the page is moving to in shared memory.
   size_t page = offset_in_buffer / PAGE_SIZE;
   if (page >= shared_memory->size_in_pages) {
     // Beyond the end of the shared memory.
@@ -492,4 +533,66 @@ void GetSharedMemoryDetailsPertainingToProcess(Process* process,
   // }
 
   size_in_bytes = shared_memory->size_in_pages * PAGE_SIZE;
+}
+
+SharedMemoryInProcess* GrowSharedMemory(Process* process,
+                                        size_t shared_memory_id, size_t pages) {
+  auto* shared_memory_in_process =
+      FindSharedMemoryInProcess(process, shared_memory_id);
+  if (shared_memory_in_process == nullptr) return nullptr;
+
+  auto* shared_memory = shared_memory_in_process->shared_memory;
+  size_t current_size_in_pages = shared_memory->size_in_pages;
+
+  if (pages <= current_size_in_pages) {
+    // Shared memory is already large enough. Check if this process needs to
+    // rejoin the same shared memory block.
+    if (current_size_in_pages != shared_memory_in_process->mapped_pages) {
+      return RejoinSharedMemory(shared_memory_in_process);
+    }
+    return shared_memory_in_process;
+  }
+
+  // Check that the calling process can write to shared memory.
+  if (((shared_memory->flags & SM_JOINERS_CAN_WRITE) == 0) &&
+      shared_memory->creator_pid != process->pid) {
+    // Cannot write to the shared memory.
+    return shared_memory_in_process;
+  }
+
+  // Resize.
+  size_t* newer_physical_pages = (size_t*)malloc(sizeof(size_t) * pages);
+  if (newer_physical_pages == nullptr) return shared_memory_in_process;  // OOM.
+
+  // Copy over the existing physical pages.
+  for (size_t page = 0; page < current_size_in_pages; page++)
+    newer_physical_pages[page] = shared_memory->physical_pages[page];
+
+  // Populate the newer physical pages.
+  if ((shared_memory->flags & SM_LAZILY_ALLOCATED) == 0) {
+    // Set new physical pages.
+    for (size_t page = current_size_in_pages; page < pages; page++) {
+      size_t physical_page = GetPhysicalPage();
+      if (physical_page == OUT_OF_PHYSICAL_PAGES) {
+        // Out of memory.
+        for (size_t p = current_size_in_pages; p < page; p++)
+          FreePhysicalPage(newer_physical_pages[p]);
+        free(newer_physical_pages);
+        return shared_memory_in_process;
+      }
+
+      newer_physical_pages[page] = physical_page;
+    }
+  } else {
+    // Lazily allocate the newer pages.
+    for (size_t page = current_size_in_pages; page < pages; page++)
+      newer_physical_pages[page] = OUT_OF_PHYSICAL_PAGES;
+  }
+
+  free(shared_memory->physical_pages);
+  shared_memory->physical_pages = newer_physical_pages;
+  shared_memory->size_in_pages = pages;
+
+  // Rejoin into the larger shared memory.
+  return RejoinSharedMemory(shared_memory_in_process);
 }

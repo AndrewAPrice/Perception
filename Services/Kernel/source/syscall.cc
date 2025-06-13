@@ -73,7 +73,8 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     }
     case Syscall::CreateThread: {
-      Thread *new_thread = CreateThread(running_thread->process, currently_executing_thread_regs->rax,
+      Thread *new_thread = CreateThread(running_thread->process,
+                                        currently_executing_thread_regs->rax,
                                         currently_executing_thread_regs->rbx);
       if (new_thread == 0) {
         currently_executing_thread_regs->rax = 0;
@@ -215,8 +216,7 @@ extern "C" void SyscallHandler(int syscall_number) {
         currently_executing_thread_regs->rdx = 0;
       } else {
         // Joined the shared memory block.
-        currently_executing_thread_regs->rax =
-            shared_memory->shared_memory->size_in_pages;
+        currently_executing_thread_regs->rax = shared_memory->mapped_pages;
         currently_executing_thread_regs->rbx = shared_memory->virtual_address;
         currently_executing_thread_regs->rdx =
             shared_memory->shared_memory->flags;
@@ -271,7 +271,24 @@ extern "C" void SyscallHandler(int syscall_number) {
       } else {
         currently_executing_thread_regs->rax = OUT_OF_MEMORY;
       }
-      return;
+      break;
+    case Syscall::GrowSharedMemory: {
+      SharedMemoryInProcess *shared_memory = GrowSharedMemory(
+          running_thread->process, currently_executing_thread_regs->rax,
+          currently_executing_thread_regs->rbx);
+
+      if (shared_memory == nullptr) {
+        // Could not grow the shared memory block.
+        currently_executing_thread_regs->rax = 0;
+        currently_executing_thread_regs->rbx = 0;
+      } else {
+        // Grew the shared memory block.
+        currently_executing_thread_regs->rax =
+            shared_memory->shared_memory->size_in_pages;
+        currently_executing_thread_regs->rbx = shared_memory->virtual_address;
+      }
+      break;
+    }
     case Syscall::SetMemoryAccessRights: {
       size_t address = currently_executing_thread_regs->rax;
       size_t num_pages = currently_executing_thread_regs->rbx;

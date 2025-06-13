@@ -69,14 +69,16 @@ struct SharedMemoryInProcess {
   // The virtual address of this shared memory block.
   size_t virtual_address;
 
+  // The number of pages mapped into the process from the shared memory block.
+  // This may be smaller than the shared memory's size as it may have grown
+  // after this block was mapped into a process.
+  size_t mapped_pages;
+
   // The next shared memory block in the process.
   LinkedListNode node_in_process;
 
   // Linked list in SharedMemory.
   LinkedListNode node_in_shared_memory;
-
-  // The number of references to this shared memory block in this process.
-  size_t references;
 };
 
 // Represents a block of shared memory.
@@ -186,3 +188,7 @@ void GetSharedMemoryDetailsPertainingToProcess(Process* process,
                                                size_t shared_memory_id,
                                                size_t& flags,
                                                size_t& size_in_bytes);
+
+// Attempts to grow the size of a shared memory block.
+SharedMemoryInProcess* GrowSharedMemory(Process* process,
+                                        size_t shared_memory_id, size_t pages);

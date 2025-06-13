@@ -121,6 +121,46 @@ void JoinSharedMemory(size_t id, void*& ptr, size_t& size_in_pages,
 #endif
 }
 
+void GrowSharedMemory(size_t id, size_t new_size_in_pages, void*& ptr,
+                      size_t& size_in_pages) {
+#if PERCEPTION
+  volatile register size_t syscall_num asm("rdi") = 62;
+  volatile register size_t id_r asm("rax") = id;
+  volatile register size_t new_size_r asm("rbx") = size_in_pages;
+  volatile register size_t size_r asm("rax");
+  volatile register size_t address_r asm("rbx");
+
+  __asm__ __volatile__("syscall\n"
+                       : "=r"(size_r), "=r"(address_r)
+                       : "r"(syscall_num), "r"(id_r), "r"(new_size_r)
+                       : "rcx", "r11");
+  ptr = (void*)address_r;
+  size_in_pages = size_r;
+#else
+  // Find the shared memory block.
+  auto shared_memory_block_itr = shared_memory_blocks.find(id);
+  if (shared_memory_block_itr == shared_memory_blocks.end()) {
+    // Can't find this memory block.
+    ptr = nullptr;
+    size_in_pages = 0;
+    return;
+  }
+
+  auto& shared_memory_block = shared_memory_block_itr->second;
+
+  void* new_data =
+      realloc(shared_memory_block.data, new_size_in_pages * kPageSize);
+  if (new_ptr != nullptr) {
+    free(shared_memory_block.data);
+    shared_memory_block.data = new_data;
+    shared_memory_block.size_in_pages = new_size_in_pages;
+  }
+
+  ptr = shared_memory_block.data;
+  size_in_pages = shared_memory_block.size_in_pages;
+#endif
+}
+
 // Performs the system call to release a region of shared memory.
 void ReleaseSharedMemory(size_t id) {
 #if PERCEPTION
@@ -280,6 +320,20 @@ bool SharedMemory::Join() {
   size_in_bytes_ = size_in_pages * kPageSize;
 
   return size_in_bytes_ > 0;
+}
+
+bool SharedMemory::Grow(size_t size_in_bytes) {
+  if (!Join()) return false;  // Can't join the shared memory.
+
+  if (size_in_bytes_ >= size_in_bytes) {
+    // Already big enough. Although nothing happened, this returns `true`
+    // because the shared memory buffer is large enough to fit the neccessary
+    // size in it.
+    return true;
+  }
+
+  // Return whether the resize was successful (it was big enough).
+  return size_in_bytes_ >= size_in_bytes;
 }
 
 bool SharedMemory::JoinChildProcess(ProcessId child_pid, size_t address) {

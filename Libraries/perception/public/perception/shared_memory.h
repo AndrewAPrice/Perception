@@ -90,6 +90,13 @@ class SharedMemory {
   // just want to hold onto the shared memory.
   bool Join();
 
+  // Attempts to grow the shared memory. This does nothing if the shared memory
+  // is already equal to or larger than the given size. The calling process must
+  // have write access to grow the memory buffer. Also, for any other process to
+  // now have access to the new area, they must call `Join()` (the caller does
+  // not have to do this).
+  bool Grow(size_t size_in_bytes);
+
   // Attempts to join the shared memory in a child process, mapped into a
   // specific address. The receiving process must be created by the calling
   // process and in the `creating` state. If any of the pages are already

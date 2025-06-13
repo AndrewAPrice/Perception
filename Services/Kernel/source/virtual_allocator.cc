@@ -161,7 +161,7 @@ SharedMemoryInProcess *MapSharedMemoryIntoProcessAtAddress(
   shared_memory_in_process->shared_memory = shared_memory;
   shared_memory_in_process->process = process;
   shared_memory_in_process->virtual_address = virtual_address;
-  shared_memory_in_process->references = 1;
+  shared_memory_in_process->mapped_pages = shared_memory->size_in_pages;
 
   // Add the shared memory to the process's linked list.
   process->joined_shared_memories.AddBack(shared_memory_in_process);
@@ -201,7 +201,8 @@ void UnmapSharedMemoryFromProcess(
 
   // Unmap the virtual pages.
   process->virtual_address_space.ReleasePages(
-      shared_memory_in_process->virtual_address, shared_memory->size_in_pages);
+      shared_memory_in_process->virtual_address,
+      shared_memory_in_process->mapped_pages);
 
   process->joined_shared_memories.Remove(shared_memory_in_process);
   shared_memory->joined_processes.Remove(shared_memory_in_process);

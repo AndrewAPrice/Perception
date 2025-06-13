@@ -82,6 +82,8 @@ const char *GetSystemCallName(Syscall syscall) {
       return "IsSharedMemoryPageAllocated";
     case Syscall::GetSharedMemoryPagePhysicalAddress:
       return "GetSharedMemoryPagePhysicalAddress";
+    case Syscall::GrowSharedMemory:
+      return "GrowSharedMemory";
     case Syscall::SetMemoryAccessRights:
       return "SetMemoryAccessRights";
     case Syscall::GetThisProcessId:
