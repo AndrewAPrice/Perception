@@ -323,6 +323,20 @@ Returns the physical address of shared memory page. Only drives may call this fu
 ### Output
 * `rax` - The physical adress of a shared memory page. If it's not allocated, this is 1.
 
+## Grow shared memory
+Grows a block of shared memory to be at least the provided number of pages large. Only processes that are allowed to write into the shared memory are allowed to call this. Also, shared memory can only grow - nothing will happen if the requested number of pages is not greater than the current size of the shared memory block. All other processes will have to join the shared memory again if they want to access the additional size.
+
+### Input
+* `rdi` - 62
+* `rax` - The ID of the shared memory block.
+* `rbx` - The minimum size of the shared memory block, in pages.
+
+### Output
+* `rax` - The new size of the shared memory, in pages.
+* `rbx` - The new address of the shared memory block.
+
+### Output
+
 ## Set memory access rights
 Sets the access rights for a page of memory. This only applies to memory that the process owns.
 
