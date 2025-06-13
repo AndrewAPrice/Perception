@@ -518,10 +518,14 @@ PermebufListOfNumbers<T> PermebufListOfNumbers<T>::Allocate(
 template <class O>
 ::perception::Status PermebufService::SendMiniMessage(size_t function_id,
                                                       const O& request) const {
-  size_t a, b, c, d;
-  request.Serialize(a, b, c, d);
-  return ::perception::ToStatus(::perception::SendRawMessage(
-      process_id_, message_id_, function_id << 3, 0, a, b, c, d));
+  ::perception::MessageData message_data;
+  message_data.message_id = message_id_;
+  message_data.metadata = function_id << 3;
+  message_data.param1 = 0;
+  request.Serialize(message_data.param2, message_data.param3,
+                    message_data.param4, message_data.param5);
+  return ::perception::ToStatus(
+      ::perception::SendRawMessage(process_id_, message_data));
 }
 
 template <class O>
@@ -532,9 +536,16 @@ template <class O>
   size_t size_in_bytes;
   request.ReleaseMemory(&memory_address, &number_of_pages, &size_in_bytes);
 
-  auto status = ::perception::SendRawMessage(
-      process_id_, message_id_, (function_id << 3) | 1, 0, 0, size_in_bytes,
-      (size_t)memory_address, number_of_pages);
+  ::perception::MessageData message_data;
+  message_data.message_id = message_id_;
+  message_data.metadata = (function_id << 3) | 1;
+  message_data.param1 = 0;
+  message_data.param2 = 0;
+  message_data.param3 = size_in_bytes;
+  message_data.param4 = (size_t)memory_address;
+  message_data.param3 = number_of_pages;
+
+  auto status = ::perception::SendRawMessage(process_id_, message_data);
   if (status != ::perception::MessageStatus::SUCCESS) {
     ::perception::ReleaseMemoryPages(memory_address, number_of_pages);
   }
@@ -544,16 +555,17 @@ template <class O>
 template <class O, class I>
 StatusOr<I> PermebufService::SendMiniMessageAndWaitForMiniMessage(
     size_t function_id, const O& request) const {
-  // Send the message.
-  size_t a, b, c, d;
-  request.Serialize(a, b, c, d);
-
   ::perception::MessageId message_id_of_response =
       ::perception::GenerateUniqueMessageId();
 
-  auto send_status =
-      ::perception::SendRawMessage(process_id_, message_id_, function_id << 3,
-                                   message_id_of_response, a, b, c, d);
+  ::perception::MessageData message_data;
+  message_data.message_id = message_id_;
+  message_data.metadata = function_id << 3;
+  message_data.param1 = message_id_of_response;
+  request.Serialize(message_data.param2, message_data.param3,
+                    message_data.param4, message_data.param5);
+
+  auto send_status = ::perception::SendRawMessage(process_id_, message_data);
 
   if (send_status != ::perception::MessageStatus::SUCCESS)
     // Something went wrong while sending it out.
@@ -561,36 +573,39 @@ StatusOr<I> PermebufService::SendMiniMessageAndWaitForMiniMessage(
 
   // Sleep until we get a response.
   ::perception::ProcessId pid;
-  size_t metadata, response_status;
   do {
-    ::perception::SleepUntilMessage(message_id_of_response, pid, metadata,
-                                    response_status, a, b, c, d);
+    ::perception::SleepUntilMessage(message_id_of_response, pid, message_data);
   } while (pid != process_id_);
 
-  if (response_status != 0) {
+  if (message_data.param1 != 0) {
     // Bad response from the server.
-    return static_cast<::perception::Status>(response_status);
+    return static_cast<::perception::Status>(message_data.param1);
   }
 
   // Return the response.
   I response;
-  response.Deserialize(a, b, c, d);
+  response.Deserialize(message_data.param2, message_data.param3,
+                       message_data.param4, message_data.param5);
   return response;
 }
 
 template <class O, class I>
 StatusOr<Permebuf<I>> PermebufService::SendMiniMessageAndWaitForMessage(
     size_t function_id, const O& request) const {
-  // Send the message.
-  size_t a, b, c, d;
-  request.Serialize(a, b, c, d);
-
   ::perception::MessageId message_id_of_response =
       ::perception::GenerateUniqueMessageId();
 
-  auto send_status =
-      ::perception::SendRawMessage(process_id_, message_id_, function_id << 3,
-                                   message_id_of_response, a, b, c, d);
+  ::perception::MessageData message_data;
+  message_data.message_id = message_id_;
+  message_data.metadata = function_id << 3;
+  message_data.param1 = message_id_of_response;
+
+  // Send the message.
+  size_t a, b, c, d;
+  request.Serialize(message_data.param2, message_data.param3,
+                    message_data.param4, message_data.param5);
+
+  auto send_status = ::perception::SendRawMessage(process_id_, message_data);
 
   if (send_status != ::perception::MessageStatus::SUCCESS) {
     // Something went wrong while sending it out.
@@ -598,52 +613,56 @@ StatusOr<Permebuf<I>> PermebufService::SendMiniMessageAndWaitForMessage(
   }
 
   ::perception::ProcessId pid;
-  size_t metadata, response_status, param2, param3, param4, param5;
   do {
-    ::perception::SleepUntilRawMessage(message_id_of_response, pid, metadata,
-                                       response_status, param2, param3, param4,
-                                       param5);
+    ::perception::SleepUntilRawMessage(message_id_of_response, pid,
+                                       message_data);
     if (pid != process_id_) {
       // Not the process we care about.
-      if ((metadata & 1) == 1) {
+      if ((message_data.metadata & 1) == 1) {
         // This other process sent us memory we don't care about.
-        ::perception::ReleaseMemoryPages((void*)param4, param5);
+        ::perception::ReleaseMemoryPages((void*)message_data.param4,
+                                         message_data.param5);
       }
     }
   } while (pid != process_id_);
 
-  if (response_status != 0) {
+  if (message_data.param1 != 0) {
     // Bad response from the server.
-    if ((metadata & 1) == 1) {
+    if ((message_data.metadata & 1) == 1) {
       // This other process sent us memory we don't care about.
-      ::perception::ReleaseMemoryPages((void*)param4, param5);
+      ::perception::ReleaseMemoryPages((void*)message_data.param4,
+                                       message_data.param5);
     }
-    return static_cast<::perception::Status>(response_status);
+    return static_cast<::perception::Status>(message_data.param1);
   }
 
-  if ((metadata & 1) != 1) {
+  if ((message_data.metadata & 1) != 1) {
     // We expected memory pages.
     return ::perception::Status::INTERNAL_ERROR;
   }
 
   // Return the response.
-  return Permebuf<I>((void*)param4, param3);
+  return Permebuf<I>((void*)message_data.param4, message_data.param3);
 }
 
 template <class O, class I>
 void PermebufService::SendMiniMessageAndNotifyOnMiniMessage(
     size_t function_id, const O& request,
     const std::function<void(StatusOr<I>)>& on_response) const {
-  // Send the message.
-  size_t a, b, c, d;
-  request.Serialize(a, b, c, d);
-
   ::perception::MessageId message_id_of_response =
       ::perception::GenerateUniqueMessageId();
 
-  auto send_status =
-      ::perception::SendRawMessage(process_id_, message_id_, function_id << 3,
-                                   message_id_of_response, a, b, c, d);
+  ::perception::MessageData message_data;
+  message_data.message_id = message_id_;
+  message_data.metadata = function_id << 3;
+  message_data.param1 = message_id_of_response;
+
+  // Send the message.
+  size_t a, b, c, d;
+  request.Serialize(message_data.param2, message_data.param3,
+                    message_data.param4, message_data.param5);
+
+  auto send_status = ::perception::SendRawMessage(process_id_, message_data);
 
   if (send_status != ::perception::MessageStatus::SUCCESS) {
     // Something went wrong while sending it out.
@@ -656,22 +675,24 @@ void PermebufService::SendMiniMessageAndNotifyOnMiniMessage(
   ::perception::RegisterMessageHandler(
       message_id_of_response,
       [expected_sender = process_id_, message_id_of_response, on_response](
-          ::perception::ProcessId sender, size_t response_status, size_t a,
-          size_t b, size_t c, size_t d) {
+          ::perception::ProcessId sender,
+          const ::perception::MessageData& message_data) {
         if (sender != expected_sender)
           // Not the process we care about.
           return;
 
         ::perception::UnregisterMessageHandler(message_id_of_response);
 
-        if (response_status != 0) {
+        if (message_data.param1 != 0) {
           // Bad response from the server.
-          return on_response(static_cast<::perception::Status>(response_status));
+          return on_response(
+              static_cast<::perception::Status>(message_data.param1));
         }
 
         // Return the response.
         I response;
-        response.Deserialize(a, b, c, d);
+        response.Deserialize(message_data.param2, message_data.param3,
+                             message_data.param4, message_data.param5);
         on_response(response);
       });
 }
@@ -697,9 +718,16 @@ StatusOr<I> PermebufService::SendMessageAndWaitForMiniMessage(
   ::perception::MessageId message_id_of_response =
       ::perception::GenerateUniqueMessageId();
 
-  auto status = ::perception::SendRawMessage(
-      process_id_, message_id_, (function_id << 3) | 1, message_id_of_response,
-      0, size_in_bytes, (size_t)memory_address, number_of_pages);
+  ::perception::MessageData message_data;
+  message_data.message_id = message_id_;
+  message_data.metadata = (function_id << 3) | 1,
+  message_data.param1 = message_id_of_response;
+  message_data.param2 = 0;
+  message_data.param3 = size_in_bytes;
+  message_data.param4 = (size_t)memory_address;
+  message_data.param5 = number_of_pages;
+
+  auto status = ::perception::SendRawMessage(process_id_, message_data);
   if (status != ::perception::MessageStatus::SUCCESS) {
     // Something went wrong while sending the message.
     ::perception::ReleaseMemoryPages(memory_address, number_of_pages);
@@ -708,20 +736,19 @@ StatusOr<I> PermebufService::SendMessageAndWaitForMiniMessage(
 
   // Sleep until we get a response.
   ::perception::ProcessId pid;
-  size_t metadata, response_status, a, b, c, d;
   do {
-    ::perception::SleepUntilMessage(message_id_of_response, pid, metadata,
-                                    response_status, a, b, c, d);
+    ::perception::SleepUntilMessage(message_id_of_response, pid, message_data);
   } while (pid != process_id_);
 
-  if (response_status != 0) {
+  if (message_data.param1 != 0) {
     // Bad response from the server.
-    return static_cast<::perception::Status>(response_status);
+    return static_cast<::perception::Status>(message_data.param1);
   }
 
   // Return the response.
   I response;
-  response.Deserialize(a, b, c, d);
+  response.Deserialize(message_data.param2, message_data.param3,
+                       message_data.param4, message_data.param5);
   return response;
 }
 
@@ -737,9 +764,16 @@ StatusOr<Permebuf<I>> PermebufService::SendMessageAndWaitForMessage(
   ::perception::MessageId message_id_of_response =
       ::perception::GenerateUniqueMessageId();
 
-  auto status = ::perception::SendRawMessage(
-      process_id_, message_id_, (function_id << 3) | 1, message_id_of_response,
-      0, size_in_bytes, (size_t)memory_address, number_of_pages);
+  ::perception::MessageData message_data;
+  message_data.message_id = message_id_;
+  message_data.metadata = (function_id << 3) | 1;
+  message_data.param1 = message_id_of_response;
+  message_data.param2 = 0;
+  message_data.param3 = size_in_bytes;
+  message_data.param4 = (size_t)memory_address;
+  message_data.param5 = number_of_pages;
+
+  auto status = ::perception::SendRawMessage(process_id_, message_data);
   if (status != ::perception::MessageStatus::SUCCESS) {
     // Something went wrong while sending the message.
     ::perception::ReleaseMemoryPages(memory_address, number_of_pages);
@@ -747,36 +781,36 @@ StatusOr<Permebuf<I>> PermebufService::SendMessageAndWaitForMessage(
   }
 
   ::perception::ProcessId pid;
-  size_t metadata, response_status, param2, param3, param4, param5;
   do {
-    ::perception::SleepUntilRawMessage(message_id_of_response, pid, metadata,
-                                       response_status, param2, param3, param4,
-                                       param5);
+    ::perception::SleepUntilRawMessage(message_id_of_response, pid,
+                                       message_data);
     if (pid != process_id_) {
       // Not the process we care about.
-      if ((metadata & 1) == 1) {
+      if ((message_data.metadata & 1) == 1) {
         // This other process sent us memory we don't care about.
-        ::perception::ReleaseMemoryPages((void*)param4, param5);
+        ::perception::ReleaseMemoryPages((void*)message_data.param4,
+                                         message_data.param5);
       }
     }
   } while (pid != process_id_);
 
-  if (response_status != 0) {
+  if (message_data.param1 != 0) {
     // Bad response from the server.
-    if ((metadata & 1) == 1) {
+    if ((message_data.metadata & 1) == 1) {
       // This other process sent us memory we don't care about.
-      ::perception::ReleaseMemoryPages((void*)param4, param5);
+      ::perception::ReleaseMemoryPages((void*)message_data.param4,
+                                       message_data.param5);
     }
-    return static_cast<::perception::Status>(response_status);
+    return static_cast<::perception::Status>(message_data.param1);
   }
 
-  if ((metadata & 1) != 1) {
+  if ((message_data.metadata & 1) != 1) {
     // We expected memory pages.
     return ::perception::Status::INTERNAL_ERROR;
   }
 
   // Return the response.
-  return Permebuf<I>((void*)param4, param3);
+  return Permebuf<I>((void*)message_data.param4, message_data.param3);
 }
 
 template <class O, class I>
@@ -792,9 +826,16 @@ void PermebufService::SendMessageAndNotifyOnMiniMessage(
   ::perception::MessageId message_id_of_response =
       ::perception::GenerateUniqueMessageId();
 
-  auto send_status = ::perception::SendRawMessage(
-      process_id_, message_id_, (function_id << 3) | 1, message_id_of_response,
-      0, size_in_bytes, (size_t)memory_address, number_of_pages);
+  ::perception::MessageData message_data;
+  message_data.message_id = message_id_;
+  message_data.metadata = (function_id << 3) | 1;
+  message_data.param1 = message_id_of_response;
+  message_data.param2 = 0;
+  message_data.param3 = size_in_bytes;
+  message_data.param4 = (size_t)memory_address;
+  message_data.param5 = number_of_pages;
+
+  auto send_status = ::perception::SendRawMessage(process_id_, message_data);
   if (send_status != ::perception::MessageStatus::SUCCESS) {
     // Something went wrong while sending the message.
     ::perception::ReleaseMemoryPages(memory_address, number_of_pages);
@@ -807,23 +848,24 @@ void PermebufService::SendMessageAndNotifyOnMiniMessage(
   ::perception::RegisterMessageHandler(
       message_id_of_response,
       [expected_sender = process_id_, message_id_of_response, on_response](
-          ::perception::ProcessId sender, size_t response_status, size_t a,
-          size_t b, size_t c, size_t d) {
+          ::perception::ProcessId sender,
+          const ::perception::MessageData& message_data) {
         if (sender != expected_sender)
           // Not the process we care about.
           return;
 
         ::perception::UnregisterMessageHandler(message_id_of_response);
 
-        if (response_status != 0) {
+        if (message_data.param1 != 0) {
           // Bad response from the server.
           return on_response(
-              static_cast<::perception::Status>(response_status));
+              static_cast<::perception::Status>(message_data.param1));
         }
 
         // Return the response.
         I response;
-        response.Deserialize(a, b, c, d);
+        response.Deserialize(message_data.param2, message_data.param3,
+                             message_data.param4, message_data.param5);
         on_response(response);
       });
 }
@@ -838,75 +880,84 @@ void PermebufService::SendMessageAndNotifyOnMessage(
 
 template <class I>
 bool PermebufServer::ProcessMiniMessage(
-    ::perception::ProcessId sender, size_t metadata, size_t param1,
-    size_t param2, size_t param3, size_t param4, size_t param5,
+    ::perception::ProcessId sender,
+    const ::perception::MessageData& message_data,
     const std::function<void(::perception::ProcessId, const I&)>& handler) {
-  if ((metadata & 0b111) != 0) return false;
+  if ((message_data.metadata & 0b111) != 0) return false;
   I request;
-  request.Deserialize(param2, param3, param4, param5);
+  request.Deserialize(message_data.param2, message_data.param3,
+                      message_data.param4, message_data.param5);
   handler(sender, request);
   return true;
 }
 
 template <class I, class O>
 bool PermebufServer::ProcessMiniMessageForMiniMessage(
-    ::perception::ProcessId sender, size_t metadata, size_t param1,
-    size_t param2, size_t param3, size_t param4, size_t param5,
+    ::perception::ProcessId sender,
+    const ::perception::MessageData& message_data,
     const std::function<StatusOr<O>(::perception::ProcessId, const I&)>&
         handler) {
-  if ((metadata & 0b111) != 0) return false;
+  if ((message_data.metadata & 0b111) != 0) return false;
   I request;
-  request.Deserialize(param2, param3, param4, param5);
-  ReplyWithStatusOrMiniMessage(sender, param1, handler(sender, request));
+  request.Deserialize(message_data.param2, message_data.param3,
+                      message_data.param4, message_data.param5);
+  ReplyWithStatusOrMiniMessage(sender, message_data.param1,
+                               handler(sender, request));
   return true;
 }
 
 template <class I, class O>
 bool PermebufServer::ProcessMiniMessageForMessage(
-    ::perception::ProcessId sender, size_t metadata, size_t param1,
-    size_t param2, size_t param3, size_t param4, size_t param5,
+    ::perception::ProcessId sender,
+    const ::perception::MessageData& message_data,
     const std::function<StatusOr<Permebuf<O>>(::perception::ProcessId,
                                               const I&)>& handler) {
-  if ((metadata & 0b111) != 0) return false;
+  if ((message_data.metadata & 0b111) != 0) return false;
   I request;
-  request.Deserialize(param2, param3, param4, param5);
-  ReplyWithStatusOrMessage(sender, param1, handler(sender, request));
+  request.Deserialize(message_data.param2, message_data.param3,
+                      message_data.param4, message_data.param5);
+  ReplyWithStatusOrMessage(sender, message_data.param1,
+                           handler(sender, request));
   return true;
 }
 
 template <class I>
 bool PermebufServer::ProcessMessage(
-    ::perception::ProcessId sender, size_t metadata, size_t param1,
-    size_t param2, size_t param3, size_t param4, size_t param5,
+    ::perception::ProcessId sender,
+    const ::perception::MessageData& message_data,
     const std::function<void(::perception::ProcessId, Permebuf<I>)>& handler) {
-  if ((metadata & 0b111) != 1) return false;
-  handler(sender, Permebuf<I>((void*)param4, param3));
+  if ((message_data.metadata & 0b111) != 1) return false;
+  handler(sender, Permebuf<I>((void*)message_data.param4, message_data.param3));
   return true;
 }
 
 template <class I, class O>
 bool PermebufServer::ProcessMessageForMiniMessage(
-    ::perception::ProcessId sender, size_t metadata, size_t param1,
-    size_t param2, size_t param3, size_t param4, size_t param5,
+    ::perception::ProcessId sender,
+    const ::perception::MessageData& message_data,
     const std::function<StatusOr<O>(::perception::ProcessId, Permebuf<I>)>&
         handler) {
-  if ((metadata & 0b111) != 1) return false;
+  if ((message_data.metadata & 0b111) != 1) return false;
 
   ReplyWithStatusOrMiniMessage(
-      sender, param1, handler(sender, Permebuf<I>((void*)param4, param3)));
+      sender, message_data.param1,
+      handler(sender,
+              Permebuf<I>((void*)message_data.param4, message_data.param3)));
   return true;
 }
 
 template <class I, class O>
 bool PermebufServer::ProcessMessageForMessage(
-    ::perception::ProcessId sender, size_t metadata, size_t param1,
-    size_t param2, size_t param3, size_t param4, size_t param5,
+    ::perception::ProcessId sender,
+    const ::perception::MessageData& message_data,
     const std::function<StatusOr<Permebuf<O>>(::perception::ProcessId,
                                               Permebuf<I>)>& handler) {
-  if ((metadata & 0b111) != 1) return false;
+  if ((message_data.metadata & 0b111) != 1) return false;
 
-  ReplyWithStatusOrMessage(sender, param1,
-                           handler(sender, Permebuf<I>((void*)param4, param3)));
+  ReplyWithStatusOrMessage(
+      sender, message_data.param1,
+      handler(sender,
+              Permebuf<I>((void*)message_data.param4, message_data.param3)));
   return true;
 }
 
@@ -920,10 +971,16 @@ void PermebufServer::ReplyWithStatusOrMessage(
     size_t size_in_bytes;
     status_or_message->ReleaseMemory(&memory_address, &number_of_pages,
                                      &size_in_bytes);
-    if (::perception::SendRawMessage(process, response_channel, /*metadata=*/1,
-                                     (size_t)::perception::Status::OK, 0,
-                                     size_in_bytes, (size_t)memory_address,
-                                     number_of_pages) !=
+
+    ::perception::MessageData message_data;
+    message_data.message_id = response_channel;
+    message_data.metadata = 1;
+    message_data.param1 = (size_t)::perception::Status::OK;
+    message_data.param2 = 0;
+    message_data.param3 = size_in_bytes;
+    message_data.param4 = (size_t)memory_address;
+    message_data.param5 = number_of_pages;
+    if (::perception::SendRawMessage(process, message_data) !=
         ::perception::MessageStatus::SUCCESS) {
       ::perception::ReleaseMemoryPages(memory_address, number_of_pages);
     } else {
@@ -940,10 +997,13 @@ void PermebufServer::ReplyWithStatusOrMiniMessage(
     ::perception::ProcessId process, ::perception::MessageId response_channel,
     StatusOr<O> status_or_mini_message) {
   if (status_or_mini_message) {
-    size_t a, b, c, d;
-    status_or_mini_message->Serialize(a, b, c, d);
-    ::perception::SendMessage(process, response_channel,
-                              (size_t)::perception::Status::OK, a, b, c, d);
+    ::perception::MessageData message_data;
+    message_data.message_id = response_channel;
+    message_data.metadata = 0;
+    message_data.param1 = (size_t)::perception::Status::OK;
+    status_or_mini_message->Serialize(message_data.param2, message_data.param3,
+                                      message_data.param4, message_data.param5);
+    ::perception::SendMessage(process, message_data);
   } else {
     ReplyWithStatus(process, response_channel, status_or_mini_message.Status());
   }

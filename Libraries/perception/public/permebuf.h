@@ -20,6 +20,7 @@
 #include <functional>
 #include <string_view>
 
+#include "perception/messages.h"
 #include "status.h"
 #include "types.h"
 
@@ -543,54 +544,53 @@ class PermebufServer {
 
   template <class I>
   bool ProcessMiniMessage(
-      ::perception::ProcessId sender, size_t metadata, size_t param1,
-      size_t param2, size_t param3, size_t param4, size_t param5,
+      ::perception::ProcessId sender,
+      const ::perception::MessageData& message_data,
       const std::function<void(::perception::ProcessId, const I&)>& handler);
 
   template <class I, class O>
   bool ProcessMiniMessageForMiniMessage(
-      ::perception::ProcessId sender, size_t metadata, size_t param1,
-      size_t param2, size_t param3, size_t param4, size_t param5,
+      ::perception::ProcessId sender,
+      const ::perception::MessageData& message_data,
       const std::function<StatusOr<O>(::perception::ProcessId, const I&)>&
           handler);
 
   template <class I, class O>
   bool ProcessMiniMessageForMessage(
-      ::perception::ProcessId sender, size_t metadata, size_t param1,
-      size_t param2, size_t param3, size_t param4, size_t param5,
+      ::perception::ProcessId sender,
+      const ::perception::MessageData& message_data,
       const std::function<StatusOr<Permebuf<O>>(::perception::ProcessId,
                                                 const I&)>& handler);
 
   template <class I>
   bool ProcessMessage(
-      ::perception::ProcessId sender, size_t metadata, size_t param1,
-      size_t param2, size_t param3, size_t param4, size_t param5,
+      ::perception::ProcessId sender,
+      const ::perception::MessageData& message_data,
       const std::function<void(::perception::ProcessId, Permebuf<I>)>& handler);
 
   template <class I, class O>
   bool ProcessMessageForMiniMessage(
-      ::perception::ProcessId sender, size_t metadata, size_t param1,
-      size_t param2, size_t param3, size_t param4, size_t param5,
+      ::perception::ProcessId sender,
+      const ::perception::MessageData& message_data,
       const std::function<StatusOr<O>(::perception::ProcessId, Permebuf<I>)>&
           handler);
 
   template <class I, class O>
   bool ProcessMessageForMessage(
-      ::perception::ProcessId sender, size_t metadata, size_t param1,
-      size_t param2, size_t param3, size_t param4, size_t param5,
+      ::perception::ProcessId sender,
+      const ::perception::MessageData& message_data,
       const std::function<StatusOr<Permebuf<O>>(::perception::ProcessId,
                                                 Permebuf<I>)>& handler);
 
  protected:
   size_t GetFunctionNumberFromMetadata(size_t metadata);
 
-  virtual bool DelegateMessage(::perception::ProcessId sender, size_t metadata,
-                               size_t param_1, size_t param_2, size_t param_3,
-                               size_t param_4, size_t param_5) = 0;
+  virtual bool DelegateMessage(
+      ::perception::ProcessId sender,
+      const ::perception::MessageData& message_data) = 0;
 
-  void MessageHandler(::perception::ProcessId sender, size_t metadata,
-                      size_t param_1, size_t param_2, size_t param_3,
-                      size_t param_4, size_t param_5);
+  void MessageHandler(::perception::ProcessId sender,
+                      const ::perception::MessageData& message_data);
 
   template <class O>
   void ReplyWithStatusOrMiniMessage(::perception::ProcessId process,

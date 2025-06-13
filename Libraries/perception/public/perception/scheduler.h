@@ -21,6 +21,7 @@
 namespace perception {
 
 class Fiber;
+struct MessageData;
 
 // Defers running a function.
 void Defer(const std::function<void()>& function);
@@ -49,7 +50,6 @@ class Scheduler {
   // Schedules a fiber to run.
   static void ScheduleFiber(Fiber* fiber);
 
-
   // Schedules a fiber to run after all otehr fibers and incoming events
   // have been handled.
   static void ScheduleFiberAfterEvents(Fiber* fiber);
@@ -58,10 +58,7 @@ class Scheduler {
   // Returns a fiber to handle the message, or nullptr if there's
   // nothing to do.
   static Fiber* GetFiberToHandleMessage(ProcessId senders_pid,
-                                        MessageId message_id, size_t metadata,
-                                        size_t param1, size_t param2,
-                                        size_t param3, size_t param4,
-                                        size_t param5);
+                                        const MessageData& message_data);
 };
 
 }  // namespace perception

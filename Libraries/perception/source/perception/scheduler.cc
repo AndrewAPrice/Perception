@@ -39,9 +39,8 @@ namespace {
     fiber_to_return_to_after_sleeping_when_were_out_of_work = nullptr;
 
 // Sleeps until a message. Returns true if a message was received.
-bool SleepThreadUntilMessage(ProcessId& senders_pid, MessageId& message_id,
-                             size_t& metadata, size_t& param1, size_t& param2,
-                             size_t& param3, size_t& param4, size_t& param5) {
+bool SleepThreadUntilMessage(ProcessId& senders_pid,
+                             MessageData& message_data) {
 #if PERCEPTION
   volatile register size_t syscall asm("rdi") = 19;
   volatile register size_t pid_r asm("rbx");
@@ -61,13 +60,13 @@ bool SleepThreadUntilMessage(ProcessId& senders_pid, MessageId& message_id,
                        : "rcx", "r11");
 
   senders_pid = pid_r;
-  message_id = message_id_r;
-  metadata = metadata_r;
-  param1 = param1_r;
-  param2 = param2_r;
-  param3 = param3_r;
-  param4 = param4_r;
-  param5 = param5_r;
+  message_data.message_id = message_id_r;
+  message_data.metadata = metadata_r;
+  message_data.param1 = param1_r;
+  message_data.param2 = param2_r;
+  message_data.param3 = param3_r;
+  message_data.param4 = param4_r;
+  message_data.param5 = param5_r;
 
   return message_id_r != 0xFFFFFFFFFFFFFFFF;
 #else
@@ -76,9 +75,7 @@ bool SleepThreadUntilMessage(ProcessId& senders_pid, MessageId& message_id,
 }
 
 // Polls for a message, returning false immediately if no message was received.
-bool PollForMessage(ProcessId& senders_pid, MessageId& message_id,
-                    size_t& metadata, size_t& param1, size_t& param2,
-                    size_t& param3, size_t& param4, size_t& param5) {
+bool PollForMessage(ProcessId& senders_pid, MessageData &message_data) {
 #if PERCEPTION
   // TODO: Handle metadata
   volatile register size_t syscall asm("rdi") = 18;
@@ -99,13 +96,13 @@ bool PollForMessage(ProcessId& senders_pid, MessageId& message_id,
                        : "rcx", "r11");
 
   senders_pid = pid_r;
-  message_id = message_id_r;
-  metadata = metadata_r;
-  param1 = param1_r;
-  param2 = param2_r;
-  param3 = param3_r;
-  param4 = param4_r;
-  param5 = param5_r;
+  message_data.message_id = message_id_r;
+  message_data.metadata = metadata_r;
+  message_data.param1 = param1_r;
+  message_data.param2 = param2_r;
+  message_data.param3 = param3_r;
+  message_data.param4 = param4_r;
+  message_data.param5 = param5_r;
 
   return message_id_r != 0xFFFFFFFFFFFFFFFF;
 #else
@@ -201,8 +198,7 @@ Fiber* Scheduler::GetNextFiberToRun() {
 
   // Check if there are any messages.
   ProcessId senders_pid;
-  MessageId message_id;
-  size_t metadata, param1, param2, param3, param4, param5;
+  MessageData message_data;
 
   if (fiber_to_return_to_when_were_out_of_work == nullptr &&
       first_late_scheduled_fiber == nullptr) {
@@ -216,29 +212,23 @@ Fiber* Scheduler::GetNextFiberToRun() {
     // Nothing is waiting for to finish, so we'll sleep for the next
     // message.
     while (true) {
-      if (!SleepThreadUntilMessage(senders_pid, message_id, metadata, param1,
-                                   param2, param3, param4, param5)) {
+      if (!SleepThreadUntilMessage(senders_pid, message_data)) {
         // The thread randomly woke without a message. This shouldn't
         // happen.
         continue;
       }
 
       // Get the fiber to handle this message.
-      Fiber* fiber =
-          GetFiberToHandleMessage(senders_pid, message_id, metadata, param1,
-                                  param2, param3, param4, param5);
+      Fiber* fiber = GetFiberToHandleMessage(senders_pid, message_data);
 
       // Is there a fiber to handle this message?
       if (fiber != nullptr) return fiber;
     }
   } else {
     // Keep looping while there are messages.
-    while (PollForMessage(senders_pid, message_id, metadata, param1, param2,
-                          param3, param4, param5)) {
+    while (PollForMessage(senders_pid, message_data)) {
       // Get the fiber to handle this message.
-      Fiber* fiber =
-          GetFiberToHandleMessage(senders_pid, message_id, metadata, param1,
-                                  param2, param3, param4, param5);
+      Fiber* fiber = GetFiberToHandleMessage(senders_pid, message_data);
 
       // Is there a fiber to handle this message?
       if (fiber != nullptr) return fiber;
@@ -303,25 +293,17 @@ void Scheduler::ScheduleFiberAfterEvents(Fiber* fiber) {
 // Returns a fiber to handle the message, or nullptr if there's
 // nothing to do.
 Fiber* Scheduler::GetFiberToHandleMessage(ProcessId senders_pid,
-                                          MessageId message_id, size_t metadata,
-                                          size_t param1, size_t param2,
-                                          size_t param3, size_t param4,
-                                          size_t param5) {
-  MessageHandler* handler = GetMessageHandler(message_id);
+                                          const MessageData& message_data) {
+  MessageHandler* handler = GetMessageHandler(message_data.message_id);
   if (handler == nullptr) {
     // Message handler not defined.
-    DealWithUnhandledMessage(senders_pid, metadata, param1, param4, param5);
+    DealWithUnhandledMessage(senders_pid, message_data);
     return nullptr;
   }
 
   // Store these values that the fiber will read when it wakes up.
   handler->senders_pid = senders_pid;
-  handler->metadata = metadata;
-  handler->param1 = param1;
-  handler->param2 = param2;
-  handler->param3 = param3;
-  handler->param4 = param4;
-  handler->param5 = param5;
+  handler->message_data = message_data;
 
   if (handler->fiber_to_wake_up) {
     // We have a sleeping fiber to wake up.

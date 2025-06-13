@@ -765,7 +765,7 @@ PermebufBase::PermebufBase(void* start_of_memory, size_t size)
   uint8_t metadata_byte = *static_cast<uint8_t*>(start_of_memory_);
   address_size_ = static_cast<PermebufAddressSize>(metadata_byte & 0b11);
 
-  if ((size_t)start_of_memory_ & (PAGE_SIZE - 1) != 0) {
+  if (((size_t)start_of_memory_ & (PAGE_SIZE - 1)) != 0) {
     std::cout << "Permebuf start_of_memory isn't page aligned." << std::endl;
   }
 }
@@ -917,11 +917,9 @@ bool PermebufService::operator==(const PermebufServer& other) const {
 PermebufServer::PermebufServer(std::string_view service_name) {
   message_id_ = GenerateUniqueMessageId();
   RegisterRawMessageHandler(
-      message_id_,
-      [this](::perception::ProcessId sender, size_t metadata, size_t param_1,
-             size_t param_2, size_t param_3, size_t param_4, size_t param_5) {
-        this->MessageHandler(sender, metadata, param_1, param_2, param_3,
-                             param_4, param_5);
+      message_id_, [this](::perception::ProcessId sender,
+                          const ::perception::MessageData& message_data) {
+        this->MessageHandler(sender, message_data);
       });
   RegisterService(message_id_, service_name);
 }
@@ -953,19 +951,19 @@ size_t PermebufServer::GetFunctionNumberFromMetadata(size_t metadata) {
   return metadata >> 3;
 }
 
-void PermebufServer::MessageHandler(::perception::ProcessId sender,
-                                    size_t metadata, size_t param_1,
-                                    size_t param_2, size_t param_3,
-                                    size_t param_4, size_t param_5) {
-  if (!DelegateMessage(sender, metadata, param_1, param_2, param_3, param_4,
-                       param_5)) {
-    ::perception::DealWithUnhandledMessage(sender, metadata, param_1, param_4,
-                                           param_5);
+void PermebufServer::MessageHandler(
+    ::perception::ProcessId sender,
+    const ::perception::MessageData& message_data) {
+  if (!DelegateMessage(sender, message_data)) {
+    ::perception::DealWithUnhandledMessage(sender, message_data);
   }
 }
 
 void PermebufServer::ReplyWithStatus(::perception::ProcessId process,
                                      ::perception::MessageId response_channel,
                                      ::perception::Status status) {
-  ::perception::SendMessage(process, response_channel, (size_t)status);
+  ::perception::MessageData message_data;
+  message_data.message_id = response_channel;
+  message_data.param1 = (size_t)status;
+  ::perception::SendMessage(process, message_data);
 }

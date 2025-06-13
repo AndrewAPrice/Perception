@@ -95,10 +95,9 @@ void SleepForDuration(std::chrono::microseconds time) {
   SendMessageInMicrosecondsFromNow(time.count(), message_id);
 
   ProcessId pid;
-  size_t metadata, param1, param2, param3, param4, param5;
+  MessageData message_data;
   do {
-    SleepUntilMessage(message_id, pid, metadata, param1, param2, param3, param4,
-                      param5);
+    SleepUntilMessage(message_id, pid, message_data);
 
     // Keep sleeping if the message wasn't from the kernel.
   } while (pid != 0);
@@ -112,10 +111,9 @@ void SleepUntilTimeSinceKernelStarted(std::chrono::microseconds time) {
   SendMessageAtMicrosecondsSinceKernelStart(time.count(), message_id);
 
   ProcessId pid;
-  size_t metadata, param1, param2, param3, param4, param5;
+  MessageData message_data;
   do {
-    SleepUntilMessage(message_id, pid, metadata, param1, param2, param3, param4,
-                      param5);
+    SleepUntilMessage(message_id, pid, message_data);
 
     // Keep sleeping if the message wasn't from the kernel.
   } while (pid != 0);
@@ -130,8 +128,7 @@ void AfterDuration(std::chrono::microseconds time,
 
   ::perception::RegisterMessageHandler(
       message_id,
-      [message_id, on_duration](::perception::ProcessId sender, size_t, size_t,
-                                size_t, size_t, size_t) {
+      [message_id, on_duration](ProcessId sender, const MessageData&) {
         if (sender != 0)
           // Not from the kernel.
           return;
@@ -150,8 +147,7 @@ void AfterTimeSinceKernelStarted(std::chrono::microseconds time,
   SendMessageAtMicrosecondsSinceKernelStart(time.count(), message_id);
 
   ::perception::RegisterMessageHandler(
-      message_id, [message_id, at_time](::perception::ProcessId sender, size_t,
-                                        size_t, size_t, size_t, size_t) {
+      message_id, [message_id, at_time](ProcessId sender, const MessageData&) {
         if (sender != 0)
           // Not from the kernel.
           return;

@@ -60,36 +60,36 @@ bool WereMemoryPagesSentInMessage(size_t metadata) {
 
 // Deals with unhandled message, to make sure memory is released and RPCs are
 // responded to.
-void DealWithUnhandledMessage(ProcessId sender, size_t metadata, size_t param1,
-                              size_t param4, size_t param5) {
-  if (WereMemoryPagesSentInMessage(metadata)) {
+void DealWithUnhandledMessage(ProcessId sender,
+                              const MessageData& message_data) {
+  if (WereMemoryPagesSentInMessage(message_data.metadata)) {
     // Release the memory that was sent to us.
-    ReleaseMemoryPages((void*)param4, param5);
+    ReleaseMemoryPages((void*)message_data.param4, message_data.param5);
   }
 
-  if (((metadata >> 1) & 0b11) != 0) {
+  if (((message_data.metadata >> 1) & 0b11) != 0) {
     // This is an RPC that expects a response. We need to respond
     // to tell them this service or channel doesn't exist.
-    SendMessage(sender,
-                /*message_id=*/(::perception::MessageId)param1,
-                /*param_1=*/(size_t)Status::SERVICE_DOESNT_EXIST);
+    MessageData message_data;
+    message_data.message_id = message_data.param1;
+    message_data.param1 = (size_t)Status::SERVICE_DOESNT_EXIST;
+
+    SendMessage(sender, message_data);
   }
 }
 
 // Sends a message to a process.
-MessageStatus SendRawMessage(ProcessId pid, MessageId message_id,
-                             size_t metadata, size_t param1, size_t param2,
-                             size_t param3, size_t param4, size_t param5) {
+MessageStatus SendRawMessage(ProcessId pid, const MessageData& message_data) {
 #if PERCEPTION
   volatile register size_t syscall asm("rdi") = 17;
   volatile register size_t pid_r asm("rbx") = pid;
-  volatile register size_t message_id_r asm("rax") = message_id;
-  volatile register size_t metadata_r asm("rdx") = metadata;
-  volatile register size_t param1_r asm("rsi") = param1;
-  volatile register size_t param2_r asm("r8") = param2;
-  volatile register size_t param3_r asm("r9") = param3;
-  volatile register size_t param4_r asm("r10") = param4;
-  volatile register size_t param5_r asm("r12") = param5;
+  volatile register size_t message_id_r asm("rax") = message_data.message_id;
+  volatile register size_t metadata_r asm("rdx") = message_data.metadata;
+  volatile register size_t param1_r asm("rsi") = message_data.param1;
+  volatile register size_t param2_r asm("r8") = message_data.param2;
+  volatile register size_t param3_r asm("r9") = message_data.param3;
+  volatile register size_t param4_r asm("r10") = message_data.param4;
+  volatile register size_t param5_r asm("r12") = message_data.param5;
   volatile register size_t return_val asm("rax");
 
   __asm__ __volatile__("syscall\n"
@@ -104,53 +104,24 @@ MessageStatus SendRawMessage(ProcessId pid, MessageId message_id,
 #endif
 }
 
-MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1,
-                          size_t param2, size_t param3, size_t param4,
-                          size_t param5) {
-  return SendRawMessage(pid, message_id, 0, param1, param2, param3, param4,
-                        param5);
-}
-
-MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1,
-                          size_t param2, size_t param3, size_t param4) {
-  return SendRawMessage(pid, message_id, 0, param1, param2, param3, param4, 0);
-}
-
-MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1,
-                          size_t param2, size_t param3) {
-  return SendRawMessage(pid, message_id, 0, param1, param2, param3, 0, 0);
-}
-
-MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1,
-                          size_t param2) {
-  return SendRawMessage(pid, message_id, 0, param1, param2, 0, 0, 0);
-}
-
-MessageStatus SendMessage(ProcessId pid, MessageId message_id, size_t param1) {
-  return SendRawMessage(pid, message_id, 0, param1, 0, 0, 0, 0);
-}
-
-MessageStatus SendMessage(ProcessId pid, MessageId message_id) {
-  return SendRawMessage(pid, message_id, 0, 0, 0, 0, 0, 0);
+MessageStatus SendMessage(ProcessId pid, const MessageData& message_data) {
+  return SendRawMessage(pid, message_data);
 }
 
 // Registers the message handler to call when a specific message is received.
 void RegisterMessageHandler(
     MessageId message_id,
-    std::function<void(ProcessId, size_t, size_t, size_t, size_t, size_t)>
-        callback) {
+    std::function<void(ProcessId, const MessageData&)> callback) {
   RegisterRawMessageHandler(
-      message_id,
-      [callback = std::move(callback)](
-          ProcessId sender, size_t metadata, size_t param1, size_t param2,
-          size_t param3, size_t param4, size_t param5) {
-        if (metadata != 0) {
+      message_id, [callback = std::move(callback)](
+                      ProcessId sender, const MessageData& message_data) {
+        if (message_data.metadata != 0) {
           // This is an RPC, and not something a basic message handler should
           // deal with.
-          DealWithUnhandledMessage(sender, metadata, param1, param4, param5);
+          DealWithUnhandledMessage(sender, message_data);
           return;
         }
-        callback(sender, param1, param2, param3, param4, param5);
+        callback(sender, message_data);
       });
 }
 
@@ -159,9 +130,8 @@ void RegisterMessageHandler(
 // If you don't know what you're doing and don't handle memory pages that are
 // sent to you, this can lead to memory leaks.
 void RegisterRawMessageHandler(
-    MessageId message_id, std::function<void(ProcessId, size_t, size_t, size_t,
-                                             size_t, size_t, size_t)>
-                              callback) {
+    MessageId message_id,
+    std::function<void(ProcessId, const MessageData&)> callback) {
   // Erase already existing message handler.
   auto handlers_by_message_id_itr = handlers_by_message_id.find(message_id);
   if (handlers_by_message_id_itr != handlers_by_message_id.end())
@@ -185,21 +155,13 @@ void UnregisterMessageHandler(MessageId message_id) {
 // Sleeps the current fiber until we receive a message. Waiting for a message
 // with a handler assigned to it will override that handler.
 void SleepUntilMessage(MessageId message_id, ProcessId& sender,
-                       size_t& metadata, size_t& param1, size_t& param2,
-                       size_t& param3, size_t& param4, size_t& param5) {
-  SleepUntilRawMessage(message_id, sender, metadata, param1, param2, param3,
-                       param4, param5);
-  if (metadata != 0) {
+                       MessageData& message_data) {
+  SleepUntilRawMessage(message_id, sender, message_data);
+  if (message_data.metadata != 0) {
     // This is an RPC, and not something a basic message handler should
     // deal with.
-    DealWithUnhandledMessage(sender, metadata, param1, param4, param5);
-    sender = 0;
-    metadata = 0;
-    param1 = 0;
-    param2 = 0;
-    param3 = 0;
-    param4 = 0;
-    param5 = 0;
+    DealWithUnhandledMessage(sender, message_data);
+    message_data = {};
   }
 }
 
@@ -208,8 +170,7 @@ void SleepUntilMessage(MessageId message_id, ProcessId& sender,
 // what you're doing and don't handle memory pages that are sent to you, this
 // can lead to memory leaks.
 void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
-                          size_t& metadata, size_t& param1, size_t& param2,
-                          size_t& param3, size_t& param4, size_t& param5) {
+                          MessageData& message_data) {
   // Register the handler to wake us up.
   MessageHandler handler;
   handler.fiber_to_wake_up = GetCurrentlyExecutingFiber();
@@ -223,23 +184,12 @@ void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
   auto handler_itr = handlers_by_message_id.find(message_id);
   if (handler_itr == handlers_by_message_id.end()) {
     // This should never happen, but we'll have to return something.
-    sender = 0;
-    metadata = 0;
-    param1 = 0;
-    param2 = 0;
-    param3 = 0;
-    param4 = 0;
-    param5 = 0;
+    message_data = {};
     return;
   }
 
   sender = handler_itr->second.senders_pid;
-  metadata = handler_itr->second.metadata;
-  param1 = handler_itr->second.param1;
-  param2 = handler_itr->second.param2;
-  param3 = handler_itr->second.param3;
-  param4 = handler_itr->second.param4;
-  param5 = handler_itr->second.param5;
+  message_data = handler_itr->second.message_data;
 
   // We can stop listening now.
   handlers_by_message_id.erase(handler_itr);

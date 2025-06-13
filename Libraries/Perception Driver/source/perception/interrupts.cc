@@ -22,8 +22,7 @@ namespace perception {
 MessageId RegisterInterruptHandler(uint8 interrupt,
                                    std::function<void()> handler) {
   MessageId message_id = GenerateUniqueMessageId();
-  RegisterMessageHandler(message_id, [handler](ProcessId pid, size_t, size_t,
-                                               size_t, size_t, size_t) {
+  RegisterMessageHandler(message_id, [handler](ProcessId pid, const MessageData&) {
     if (pid == 0)  // Only messages from the kernel are interrupts.
       handler();
   });

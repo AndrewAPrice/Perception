@@ -343,14 +343,13 @@ MessageId NotifyUponProcessTermination(
     ProcessId pid, const std::function<void()>& on_termination) {
 #ifdef PERCEPTION
   MessageId message_id = GenerateUniqueMessageId();
-  RegisterMessageHandler(
-      message_id, [message_id, on_termination](ProcessId sender, size_t, size_t,
-                                               size_t, size_t, size_t) {
-        // We only believe the kernel.
-        if (sender != 0) return;
-        on_termination();
-        UnregisterMessageHandler(message_id);
-      });
+  RegisterMessageHandler(message_id, [message_id, on_termination](
+                                         ProcessId sender, const MessageData&) {
+    // We only believe the kernel.
+    if (sender != 0) return;
+    on_termination();
+    UnregisterMessageHandler(message_id);
+  });
 
   volatile register size_t syscall_num asm("rdi") = 30;
   volatile register size_t pid_r asm("rax") = pid;

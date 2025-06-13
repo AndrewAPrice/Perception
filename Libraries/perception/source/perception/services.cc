@@ -325,11 +325,12 @@ MessageId NotifyOnEachNewServiceInstance(
 
   MessageId message_id = GenerateUniqueMessageId();
   RegisterMessageHandler(
-      message_id, [on_each_service](ProcessId sender, size_t param_1,
-                                    size_t param_2, size_t, size_t, size_t) {
+      message_id,
+      [on_each_service](ProcessId sender, const MessageData& message_data) {
         // We only believe the kernel.
         if (sender != 0) return;
-        on_each_service((ProcessId)param_1, (MessageId)param_2);
+        on_each_service((ProcessId)message_data.param1,
+                        (MessageId)message_data.param2);
       });
 
   size_t service_name_words[kMaxServiceNameLength / 8];
@@ -403,15 +404,14 @@ MessageId NotifyWhenServiceDisappears(
     const std::function<void()>& on_disappearance) {
 #ifdef PERCEPTION
   MessageId notification_message_id = GenerateUniqueMessageId();
-  RegisterMessageHandler(
-      notification_message_id,
-      [notification_message_id, on_disappearance](
-          ProcessId sender, size_t, size_t, size_t, size_t, size_t) {
-        // We only believe the kernel.
-        if (sender != 0) return;
-        on_disappearance();
-        UnregisterMessageHandler(notification_message_id);
-      });
+  RegisterMessageHandler(notification_message_id,
+                         [notification_message_id, on_disappearance](
+                             ProcessId sender, const MessageData&) {
+                           // We only believe the kernel.
+                           if (sender != 0) return;
+                           on_disappearance();
+                           UnregisterMessageHandler(notification_message_id);
+                         });
 
   volatile register size_t syscall_num asm("rdi") = 37;
   volatile register size_t process_id_r asm("rax") = (size_t)process_id;

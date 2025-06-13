@@ -263,11 +263,11 @@ std::unique_ptr<SharedMemory> SharedMemory::FromSize(
     // If we're lazily allocated we need to set up the handler for page
     // requests.
     on_page_request_message_id = GenerateUniqueMessageId();
-    RegisterMessageHandler(on_page_request_message_id,
-                           [on_page_request](ProcessId, size_t a1, size_t,
-                                             size_t, size_t, size_t) {
-                             if (on_page_request) on_page_request(a1);
-                           });
+    RegisterMessageHandler(
+        on_page_request_message_id,
+        [on_page_request](ProcessId, const MessageData& message_data) {
+          if (on_page_request) on_page_request(message_data.param1);
+        });
   }
 
   size_t id = 0;

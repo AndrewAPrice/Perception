@@ -2094,8 +2094,7 @@ class ${thisService.cppClassName}_Server : public ::PermebufServer {
 
   protected:
     virtual bool DelegateMessage(::perception::ProcessId sender,
-    size_t metadata, size_t param_1, size_t param_2,
-    size_t param_3, size_t param_4, size_t param_5);
+    const ::perception::MessageData& message_data);
 
 `;
     let serverSourceCpp = `
@@ -2113,9 +2112,8 @@ std::string_view ${thisService.cppClassName}_Server::Name() {
     let serverDelegator = `
 bool ${thisService.cppClassName}_Server::DelegateMessage(
   ::perception::ProcessId sender,
-  size_t metadata, size_t param_1, size_t param_2,
-  size_t param_3, size_t param_4, size_t param_5) {
-  switch (GetFunctionNumberFromMetadata(metadata)) {`;
+  const ::perception::MessageData& message_data) {
+  switch (GetFunctionNumberFromMetadata(message_data.metadata)) {`;
 
     // Size of this message, in bytes.
     let sizeInBytes = 0;
@@ -2188,7 +2186,7 @@ bool ${thisService.cppClassName}_Server::DelegateMessage(
 `;
             serverDelegator +=
                 `return ProcessMiniMessage<${requestType.cppClassName}>(
-        sender, metadata, param_1, param_2, param_3, param_4, param_5,
+        sender, message_data,
         [this](::perception::ProcessId sender,
           const ${requestType.cppClassName}& request) {
             Handle${field.name}(sender, request);
@@ -2230,7 +2228,7 @@ void ${thisService.cppClassName}::Call${field.name}(
 `;
             serverDelegator += `return ProcessMiniMessageForMiniMessage<${
                 requestType.cppClassName}, ${responseType.cppClassName}>(
-        sender, metadata, param_1, param_2, param_3, param_4, param_5,
+        sender, message_data,
         [this](::perception::ProcessId sender,
           const ${requestType.cppClassName}& request) {
             return Handle${field.name}(sender, request);
@@ -2277,7 +2275,7 @@ void ${thisService.cppClassName}::Call${field.name}(
 `;
             serverDelegator += `return ProcessMiniMessageForMessage<${
                 requestType.cppClassName}, ${responseType.cppClassName}>(
-        sender, metadata, param_1, param_2, param_3, param_4, param_5,
+        sender, message_data,
         [this](::perception::ProcessId sender,
           const ${requestType.cppClassName}& request) {
             return Handle${field.name}(sender, request);
@@ -2320,7 +2318,7 @@ void ${thisService.cppClassName}::Call${field.name}(
 `;
             serverDelegator +=
                 `return ProcessMessage<${requestType.cppClassName}>(
-        sender, metadata, param_1, param_2, param_3, param_4, param_5,
+        sender, message_data,
         [this](::perception::ProcessId sender,
           Permebuf<${requestType.cppClassName}> request) {
             Handle${field.name}(sender, std::move(request));
@@ -2363,7 +2361,7 @@ void ${thisService.cppClassName}::Call${field.name}(
 `;
             serverDelegator += `return ProcessMessageForMiniMessage<${
                 requestType.cppClassName}, ${responseType.cppClassName}>(
-        sender, metadata, param_1, param_2, param_3, param_4, param_5,
+        sender, message_data,
         [this](::perception::ProcessId sender,
           Permebuf<${requestType.cppClassName}> request) {
             return Handle${field.name}(sender, std::move(request));
@@ -2409,7 +2407,7 @@ void ${thisService.cppClassName}::Call${field.name}(
 `;
             serverDelegator += `return ProcessMessageForMessage<${
                 requestType.cppClassName}, ${responseType.cppClassName}>(
-        sender, metadata, param_1, param_2, param_3, param_4, param_5,
+        sender, message_data,
         [this](::perception::ProcessId sender,
           Permebuf<${requestType.cppClassName}> request) {
             return Handle${field.name}(sender, std::move(request));

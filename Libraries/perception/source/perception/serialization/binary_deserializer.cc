@@ -13,6 +13,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include "perception/serialization/binary_deserializer.h"
+
 #include <types.h>
 
 #include <string>
@@ -21,7 +23,6 @@
 #include "perception/serialization/read_stream.h"
 #include "perception/serialization/serializable.h"
 #include "perception/serialization/serializer.h"
-#include "perception/shared_memory.h"
 
 namespace perception {
 namespace serialization {

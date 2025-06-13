@@ -164,10 +164,8 @@ void Fiber::CallRootFunction(Fiber* fiber) {
 
 // Calls the message handler for a fiber.
 void Fiber::CallMessageHandler(MessageHandler* message_handler) {
-  message_handler->handler_function(
-      message_handler->senders_pid, message_handler->metadata,
-      message_handler->param1, message_handler->param2, message_handler->param3,
-      message_handler->param4, message_handler->param5);
+  message_handler->handler_function(message_handler->senders_pid,
+                                    message_handler->message_data);
   TerminateFiber(GetCurrentlyExecutingFiber());
 }
 
