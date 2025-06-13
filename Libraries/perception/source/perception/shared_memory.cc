@@ -332,6 +332,12 @@ bool SharedMemory::Grow(size_t size_in_bytes) {
     return true;
   }
 
+  // Resize the shared memory.
+  size_t new_size_in_pages = (size_in_bytes + kPageSize - 1) / kPageSize;
+  size_t size_in_pages = 0;
+  GrowSharedMemory(shared_memory_id_, new_size_in_pages, ptr_, size_in_pages);
+  size_in_bytes_ = size_in_pages * kPageSize;
+
   // Return whether the resize was successful (it was big enough).
   return size_in_bytes_ >= size_in_bytes;
 }
