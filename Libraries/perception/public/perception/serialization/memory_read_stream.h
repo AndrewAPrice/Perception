@@ -60,7 +60,10 @@ void DeserializeFromByteVector(Serializable& object,
 
 // Deserializes a serializable from shared memory.
 void DeserializeFromSharedMemory(Serializable& object,
-                                 SharedMemory& shared_memory);
+                                 SharedMemory& shared_memory, size_t offset);
+
+// Deserializes a serializable to a default state.
+void DeserializeToEmpty(Serializable& object);
 
 }  // namespace serialization
 }  // namespace perception

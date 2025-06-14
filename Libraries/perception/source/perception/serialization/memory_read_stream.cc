@@ -91,8 +91,21 @@ void DeserializeFromByteVector(Serializable& object,
 }
 
 void DeserializeFromSharedMemory(Serializable& object,
-                                 SharedMemory& shared_memory) {
-  DeserializeFromMemory(object, *shared_memory, shared_memory.GetSize());
+                                 SharedMemory& shared_memory, size_t offset) {
+  void* ptr = *shared_memory;
+  size_t shared_memory_size = shared_memory.GetSize();
+  if (offset >= shared_memory_size) {
+    DeserializeFromMemory(object, nullptr, 0);
+    return;
+  }
+
+  ptr = (void*)((size_t)ptr + offset);
+  shared_memory_size -= offset;
+  DeserializeFromMemory(object, ptr, shared_memory_size);
+}
+
+void DeserializeToEmpty(Serializable& object) {
+  DeserializeFromMemory(object, nullptr, 0);
 }
 
 }  // namespace serialization
