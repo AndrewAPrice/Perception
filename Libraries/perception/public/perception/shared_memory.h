@@ -165,6 +165,8 @@ class SharedMemory {
   // pointer to the data and the size of the shared memory.
   void Apply(const std::function<void(void*, size_t)>& function);
 
+  std::mutex& Mutex() { return mutex_; }
+
  private:
   // The unique ID representhing this shared memory buffer on the system.
   size_t shared_memory_id_;
@@ -186,6 +188,9 @@ class SharedMemory {
   // The ID of messages coming for page requests. This is only set if we're the
   // creator of a lazily allocated memory buffer.
   size_t on_page_request_message_id_;
+
+  // Mutex for preventing the memory from moving around.
+  std::mutex mutex_;
 };
 
 }  // namespace perception

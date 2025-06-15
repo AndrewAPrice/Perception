@@ -207,6 +207,7 @@ SharedMemory::SharedMemory(size_t id)
       on_page_request_message_id_(0) {}
 
 SharedMemory::~SharedMemory() {
+  std::scoped_lock lock(mutex_);
   if (size_in_bytes_ != 0) ReleaseSharedMemory(shared_memory_id_);
   if (is_creator_of_lazily_allocated_buffer_)
     UnregisterMessageHandler(on_page_request_message_id_);
@@ -314,8 +315,8 @@ bool SharedMemory::Join() {
     // Invalid SharedMemory object.
     return false;
 
+  std::scoped_lock lock(mutex_);
   size_t size_in_pages = 0;
-
   JoinSharedMemory(shared_memory_id_, ptr_, size_in_pages, flags_);
   size_in_bytes_ = size_in_pages * kPageSize;
 
@@ -325,6 +326,7 @@ bool SharedMemory::Join() {
 bool SharedMemory::Grow(size_t size_in_bytes) {
   if (!Join()) return false;  // Can't join the shared memory.
 
+  std::scoped_lock lock(mutex_);
   if (size_in_bytes_ >= size_in_bytes) {
     // Already big enough. Although nothing happened, this returns `true`
     // because the shared memory buffer is large enough to fit the neccessary
