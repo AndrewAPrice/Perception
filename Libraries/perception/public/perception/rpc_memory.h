@@ -31,4 +31,7 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForSendingToProcess(
 std::shared_ptr<SharedMemory> GetMemoryBufferForReceivingFromProcess(
     ProcessId process_id, size_t shared_memory_id);
 
+void SetMemoryBufferAsReadyForSendingNextMessageToProcess(
+    SharedMemory& shared_memory);
+
 }  // namespace perception

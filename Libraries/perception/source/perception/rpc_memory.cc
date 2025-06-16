@@ -129,8 +129,10 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForReceivingFromProcess(
   if (itr == shared_memory_for_receiving_from_processes.end()) {
     MonitorForWhenProcessDies(process_id);
 
-    itr = shared_memory_for_receiving_from_processes.emplace(
-        process_id, std::map<size_t, std::shared_ptr<SharedMemory>>());
+    itr = shared_memory_for_receiving_from_processes
+              .emplace(process_id,
+                       std::map<size_t, std::shared_ptr<SharedMemory>>())
+              .first;
   }
 
   auto itr2 = itr->second.find(shared_memory_id);
@@ -141,6 +143,12 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForReceivingFromProcess(
   } else {
     return itr2->second;
   }
+}
+
+void SetMemoryBufferAsReadyForSendingNextMessageToProcess(
+    SharedMemory& shared_memory) {
+  std::scoped_lock lock(shared_memory.Mutex());
+  *(unsigned char*)*shared_memory = 0;
 }
 
 }  // namespace perception
