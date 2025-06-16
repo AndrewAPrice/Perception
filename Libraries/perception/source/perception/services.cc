@@ -15,6 +15,7 @@
 #include "perception/services.h"
 
 #include "perception/messages.h"
+#include "perception/service_client.h"
 
 namespace perception {
 namespace {
@@ -426,6 +427,14 @@ MessageId NotifyWhenServiceDisappears(
 #else
   return 0;
 #endif
+}
+
+MessageId NotifyWhenServiceDisappears(
+    const ServiceClient& service_client,
+    const std::function<void()>& on_disappearance) {
+  return NotifyWhenServiceDisappears(service_client.ServerProcessId(),
+                                     service_client.ServiceId(),
+                                     on_disappearance);
 }
 
 // No longer calls the handler when the service disappears.
