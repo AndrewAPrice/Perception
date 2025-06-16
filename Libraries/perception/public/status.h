@@ -37,6 +37,7 @@ enum class Status {
 template <class T>
 class StatusOr {
  public:
+  StatusOr() : status_(::perception::Status::UNIMPLEMENTED) {}
   StatusOr(T&& value)
       : status_(::perception::Status::OK), value_(std::move(value)) {}
   StatusOr(T& value) : status_(::perception::Status::OK), value_(value) {}
