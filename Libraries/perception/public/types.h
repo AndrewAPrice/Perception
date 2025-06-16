@@ -33,8 +33,8 @@ typedef signed char int8;
 namespace perception {
 
 // Identifier for distinguishing types of messages.
-typedef size_t MessageId;
+typedef uint64 MessageId;
 // Used to identify processes.
-typedef size_t ProcessId;
+typedef uint64 ProcessId;
 
 }  // namespace perception
