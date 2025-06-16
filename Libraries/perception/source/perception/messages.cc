@@ -72,6 +72,7 @@ void DealWithUnhandledMessage(ProcessId sender,
     // to tell them this service or channel doesn't exist.
     MessageData message_data;
     message_data.message_id = message_data.param1;
+    message_data.metadata = 0;
     message_data.param1 = (size_t)Status::SERVICE_DOESNT_EXIST;
 
     SendMessage(sender, message_data);
