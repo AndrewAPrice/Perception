@@ -964,6 +964,7 @@ void PermebufServer::ReplyWithStatus(::perception::ProcessId process,
                                      ::perception::Status status) {
   ::perception::MessageData message_data;
   message_data.message_id = response_channel;
+  message_data.metadata = 0;
   message_data.param1 = (size_t)status;
   ::perception::SendMessage(process, message_data);
 }
