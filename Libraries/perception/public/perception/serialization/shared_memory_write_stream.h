@@ -30,6 +30,33 @@ namespace serialization {
 
 class Serializable;
 
+class SharedMemoryWriteStream : public WriteStream {
+ public:
+  SharedMemoryWriteStream(SharedMemory* shared_memory, size_t offset);
+
+  virtual ~SharedMemoryWriteStream();
+
+  // Copies data into the stream.
+  virtual void CopyDataIntoStream(const void* data, size_t size) override;
+
+  // Copies data into the stream at a specific offset. This is isolated and does
+  // not change 'CurrentOffset'.
+  virtual void CopyDataIntoStream(const void* data, size_t size,
+                                  size_t offset) override;
+
+  // Skip forward the current offset.
+  virtual void SkipForward(size_t size) override;
+
+  // The current offset in the stream.
+  virtual size_t CurrentOffset() override;
+
+ private:
+  SharedMemory* shared_memory_;
+  void* data_;
+  size_t offset_;
+  size_t shared_memory_size_;
+};
+
 // Serializable to shared memory. Grows the shared memory if it's not large
 // enough.
 void SerializeToSharedMemory(Serializable& object, SharedMemory& shared_memory,
