@@ -42,7 +42,8 @@ namespace perception {
 //    param 5:
 //
 
-ServiceServer::ServiceServer(ServiceServerOptions options, std::string_view service_name)
+ServiceServer::ServiceServer(ServiceServerOptions options,
+                             std::string_view service_name)
     : options_(options) {
   message_id_ = GenerateUniqueMessageId();
   RegisterRawMessageHandler(
@@ -50,20 +51,16 @@ ServiceServer::ServiceServer(ServiceServerOptions options, std::string_view serv
                           const ::perception::MessageData& message_data) {
         this->HandleRequest(sender, message_data);
       });
-  if (options.is_public) {
-    RegisterService(message_id_, service_name);
-  }
+  RegisterService(message_id_, service_name);
 }
 
 ServiceServer::~ServiceServer() {
-  if (options_.is_public) {
-    UnregisterService(message_id_);
-  }
+  UnregisterService(message_id_);
   UnregisterMessageHandler(message_id_);
 }
 
 void ServiceServer::HandleUnknownRequest(ProcessId sender,
-                                     const MessageData& message) {
+                                         const MessageData& message) {
   HandleUnexpectedMessageInRequest(sender, message);
   if (message.param2 == SIZE_MAX) return;  // Dont care about a response.
 
@@ -81,11 +78,11 @@ ProcessId ServiceServer::ServerProcessId() const { GetProcessId(); }
 
 MessageId ServiceServer::ServiceId() const { return message_id_; }
 
-void ServiceServer::HandleUnexpectedMessageInRequest(ProcessId sender,
-                                                 const MessageData& message) {
-  if (message.param2 == SIZE_MAX) return;
+void ServiceServer::HandleUnexpectedMessageInRequest(
+    ProcessId sender, const MessageData& message) {
+  if (message.param3 == SIZE_MAX) return;
   auto shared_memory =
-      GetMemoryBufferForReceivingFromProcess(sender, message.param2);
+      GetMemoryBufferForReceivingFromProcess(sender, message.param3);
   SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
 }
 

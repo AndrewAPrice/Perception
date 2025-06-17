@@ -26,9 +26,7 @@
 
 namespace perception {
 
-struct ServiceServerOptions {
-  bool is_public;
-};
+struct ServiceServerOptions {};
 
 class ServiceServer {
  public:
@@ -65,7 +63,6 @@ class ServiceServer {
       (void)(service->*handler)(request);
       return;
     }
-
     auto response = (service->*handler)(request);
     SendBackResponse(response, sender, message);
   }

@@ -16,10 +16,10 @@
 
 #include <functional>
 
-#include "perception/service_client.h"
-#include "perception/service_server.h"
 #include "perception/scheduler.h"
 #include "perception/serialization/serializable.h"
+#include "perception/service_client.h"
+#include "perception/service_server.h"
 
 // The following macros are used for defining services and stubbing them out.
 // To define a service, use:
@@ -201,10 +201,10 @@
   };                                                                      \
                                                                           \
   class class_name##_Server : public class_name,                          \
-                              public ::perception::ServiceServer {            \
+                              public ::perception::ServiceServer {        \
    protected:                                                             \
-    class_name##_Server(::perception::ServiceServerOptions options = {})      \
-        : ServiceServer(options, class_name::FullyQualifiedName()) {}         \
+    class_name##_Server(::perception::ServiceServerOptions options = {})  \
+        : ServiceServer(options, class_name::FullyQualifiedName()) {}     \
                                                                           \
     virtual ~class_name##_Server() {}                                     \
                                                                           \
@@ -223,15 +223,19 @@
   };                                                                      \
                                                                           \
   class class_name##_Client : public class_name,                          \
-                              public ::perception::ServiceClient {            \
+                              public ::perception::ServiceClient {        \
    public:                                                                \
-    class_name##_Client() : ServiceClient(0, 0) {}                            \
+    class_name##_Client() : ServiceClient(0, 0) {}                        \
+                                                                          \
+    class_name##_Client(::perception::ProcessId process_id,               \
+                        ::perception::MessageId message_id)               \
+        : ServiceClient(process_id, message_id) {}                        \
                                                                           \
     class_name##_Client(const class_name##_Client& other)                 \
-        : ServiceClient(other.process_id_, other.message_id_) {}              \
+        : ServiceClient(other.process_id_, other.message_id_) {}          \
                                                                           \
     class_name##_Client(const class_name##_Server& other)                 \
-        : ServiceClient(other.ServerProcessId(), other.ServiceId()) {}        \
+        : ServiceClient(other.ServerProcessId(), other.ServiceId()) {}    \
                                                                           \
     virtual ~class_name##_Client() {}                                     \
                                                                           \

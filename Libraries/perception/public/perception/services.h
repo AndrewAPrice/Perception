@@ -117,7 +117,7 @@ static typename ServiceType::Client GetService() {
   if (singleton.IsValid()) return singleton;
 
   auto main_fiber = ::perception::GetCurrentlyExecutingFiber();
-  auto listening_message_id = NotifyOnEachNewInstance<ServiceType>(
+  auto listening_message_id = NotifyOnEachNewServiceInstance<ServiceType>(
       [main_fiber](typename ServiceType::Client instance) {
         if (!singleton.IsValid()) {
           singleton = instance;
@@ -128,7 +128,7 @@ static typename ServiceType::Client GetService() {
 
   StopNotifyingOnEachNewServiceInstance(listening_message_id);
 
-  (void)NotifyWhenServiceDisappears<ServiceType>(
+  (void)NotifyWhenServiceDisappears(
       singleton, []() {
         std::scoped_lock lock(mutex);
         singleton = typename ServiceType::Client();

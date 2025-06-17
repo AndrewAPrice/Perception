@@ -20,7 +20,8 @@
 namespace perception {
 
 ServiceClient::ServiceClient(ProcessId process_id, MessageId message_id)
-    : process_id_(process_id), message_id_(message_id) {}
+    : process_id_(process_id), message_id_(message_id) {
+}
 
 void ServiceClient::Serialize(serialization::Serializer& serializer) {
   serializer.Integer("Process ID", process_id_);
@@ -41,6 +42,30 @@ MessageId ServiceClient::NotifyOnDisappearence(
 
 void ServiceClient::StopNotifyingOnDisappearance(MessageId message_id) {
   ::perception::StopNotifyWhenServiceDisappears(message_id);
+}
+
+void ServiceClient::MaybeHandleUnexpectedMemoryInResponse(
+    ProcessId process_id, const MessageData& message) {
+  if (message.param2 == SIZE_MAX) return;
+
+  // If there is a message attached, but it's not needed, so clear the
+  // status bit.
+  auto shared_memory =
+      GetMemoryBufferForReceivingFromProcess(process_id, message.param2);
+  SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+}
+
+void ServiceClient::PrepareRequestMessage(size_t method_id,
+                                          MessageData& message) {
+  message.message_id = message_id_;
+  message.metadata = 0;
+  message.param1 = method_id;
+}
+
+void ServiceClient::PrepareRequestMessageWithoutParameters(
+    size_t method_id, MessageData& message) {
+  PrepareRequestMessage(method_id, message);
+  message.param3 = SIZE_MAX;
 }
 
 }  // namespace perception

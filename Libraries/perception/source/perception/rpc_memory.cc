@@ -15,6 +15,7 @@
 #include "perception/rpc_memory.h"
 
 #include <atomic>
+#include <iostream>
 #include <map>
 #include <mutex>
 #include <set>
@@ -83,7 +84,7 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForSendingToProcess(
     auto itr = shared_memory_for_sending_to_processes.find(process_id);
     if (itr == shared_memory_for_sending_to_processes.end()) {
       // Create new shared memory block.
-      shared_memory = SharedMemory::FromSize(1, 0);
+      shared_memory = SharedMemory::FromSize(1, SharedMemory::kJoinersCanWrite);
       shared_memory_for_sending_to_processes[process_id] = shared_memory;
       // Clear start of shared memory.
       *(unsigned char*)**shared_memory = 0;
@@ -105,7 +106,6 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForSendingToProcess(
       std::atomic<unsigned char>* atomic_status =
           reinterpret_cast<std::atomic<unsigned char>*>(shared_status_ptr);
 
-      unsigned char success = 0;
       unsigned char expected = 0;
       success = atomic_status->compare_exchange_weak(expected, 1);
     }
@@ -115,11 +115,17 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForSendingToProcess(
     // Also break if the process is no longer alive, otherwise this will forever
     // be looping.
     if (!IsProcessStillAlive(process_id)) break;
-
     Yield();
   }
-
   return shared_memory;
+}
+
+std::shared_ptr<SharedMemory>
+GetMemoryBufferForSendingToProcessRegardlessOfIfInUse(ProcessId process_id) {
+  std::scoped_lock lock(mutex_for_shared_memory_for_sending_to_processes);
+  auto itr = shared_memory_for_sending_to_processes.find(process_id);
+  if (itr == shared_memory_for_sending_to_processes.end()) return {};
+  return itr->second;
 }
 
 std::shared_ptr<SharedMemory> GetMemoryBufferForReceivingFromProcess(
@@ -148,7 +154,13 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForReceivingFromProcess(
 void SetMemoryBufferAsReadyForSendingNextMessageToProcess(
     SharedMemory& shared_memory) {
   std::scoped_lock lock(shared_memory.Mutex());
-  *(unsigned char*)*shared_memory = 0;
+  if (shared_memory.CanWrite()) {
+    *(unsigned char*)*shared_memory = 0;
+  } else {
+    std::cout << "Can't write to the shared memory sent to this process. The "
+                 "shared memory can't be reused for future messages."
+              << std::endl;
+  }
 }
 
 }  // namespace perception

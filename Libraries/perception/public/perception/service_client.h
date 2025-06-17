@@ -19,8 +19,12 @@
 #include <functional>
 
 #include "perception/messages.h"
+#include "perception/rpc_memory.h"
+#include "perception/serialization/memory_read_stream.h"
 #include "perception/serialization/serializable.h"
+#include "perception/serialization/shared_memory_write_stream.h"
 #include "perception/services.h"
+#include "status.h"
 
 namespace perception {
 
@@ -31,44 +35,94 @@ class ServiceClient : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 
   template <class ResponseType, class RequestType>
-  ResponseType SyncDispatch(RequestType& request_type, size_t method_id) {
-    ResponseType response;
-    return response;
+  ResponseType SyncDispatch(RequestType& request, size_t method_id) {
+    MessageData message;
+    PrepareRequestMessageWithParameter<RequestType>(request, method_id,
+                                                    message);
+    return SyncDispatch<ResponseType>(message);
   }
 
   template <class ResponseType, class RequestType>
   ResponseType SyncDispatch(size_t method_id) {
-    ResponseType response;
-    return response;
+    MessageData message;
+    PrepareRequestMessageWithoutParameters(method_id, message);
+    return SyncDispatch<ResponseType>(message);
   }
 
   template <class ResponseType, class RequestType>
-  void AsyncDispatch(RequestType& request_type, size_t method_id,
+  void AsyncDispatch(RequestType& request, size_t method_id,
                      std::function<void(ResponseType)> on_response) {
-    if (on_response) {
-      // Care about waiting for a response.
-    } else {
-      // Don't care about waiting for a response.
-    }
+    MessageData message;
+    PrepareRequestMessageWithParameter<RequestType>(request, method_id,
+                                                    message);
+    AsyncDispatch<ResponseType>(message, on_response);
   }
 
   template <class ResponseType, class RequestType>
   void AsyncDispatch(size_t method_id,
                      std::function<void(ResponseType)> on_response) {
     MessageData message;
-    message.message_id = message_id_;
-    // TODO: Clean up having to shift.
-    message.metadata = method_id << 3;
-    message.param2 = SIZE_MAX;
-    message.param3 = 0;
+    PrepareRequestMessageWithoutParameters(method_id, message);
+
+    AsyncDispatch<ResponseType>(message, on_response);
+  }
+
+  ProcessId ServerProcessId() const;
+
+  MessageId ServiceId() const;
+
+  bool IsValid() const;
+
+  MessageId NotifyOnDisappearence(
+      const std::function<void()>& on_disappearance);
+  void StopNotifyingOnDisappearance(MessageId message_id);
+
+ protected:
+  template <class ResponseType>
+  ResponseType SyncDispatch(MessageData& message) {
+    MessageId message_id_of_response = GenerateUniqueMessageId();
+    message.param2 = message_id_of_response;
+
+    auto send_status = SendMessage(process_id_, message);
+    if (send_status != MessageStatus::SUCCESS) {
+      if (message.param3 != SIZE_MAX) {
+        auto shared_memory =
+            GetMemoryBufferForSendingToProcessRegardlessOfIfInUse(process_id_);
+        if (shared_memory)
+          SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+      }
+
+      return ::perception::ToStatus(send_status);
+    }
+
+    // Sleep until there is a response.
+    ProcessId pid;
+    do {
+      SleepUntilMessage(message_id_of_response, pid, message);
+    } while (pid != process_id_);
+
+    return LoadResponseFromMessageData<ResponseType>(pid, message);
+  }
+
+  template <class ResponseType>
+  void AsyncDispatch(MessageData& message,
+                     std::function<void(ResponseType)> on_response) {
     if (on_response) {
       // Care about waiting for a response.
-      ::perception::MessageId message_id_of_response =
-          ::perception::GenerateUniqueMessageId();
-      message.param1 = message_id_of_response;
+      MessageId message_id_of_response = GenerateUniqueMessageId();
+      message.param2 = message_id_of_response;
 
       auto send_status = SendMessage(process_id_, message);
-      if (!send_status.IsOk()) {
+      if (send_status != MessageStatus::SUCCESS) {
+        if (message.param3 != SIZE_MAX) {
+          auto shared_memory =
+              GetMemoryBufferForSendingToProcessRegardlessOfIfInUse(
+                  process_id_);
+          if (shared_memory)
+            SetMemoryBufferAsReadyForSendingNextMessageToProcess(
+                *shared_memory);
+        }
+
         // Something went wrong while sending it out.
         Defer([on_response, send_status]() {
           on_response(ToStatus(send_status));
@@ -84,54 +138,63 @@ class ServiceClient : public serialization::Serializable {
 
             UnregisterMessageHandler(message_id_of_response);
 
-            if (message_data.param1 != 0) {
-              // Bad response from the server.
-              return on_response(ToStatus(message_data.param1));
-            }
-
-            // Return the response.
-            if constexpr (std::is_same_v<ResponseType, Status>) {
-              HandleUnexpectedMessageInResponse(sender, message);
-              // Just care about the status.
-              on_response(ToStatus(message_data.param1));
-            } else {
-              ResponseType response;
-
-              if (message.param3 == SIZE_MAX) {
-                // No attached message.
-                serialization::DeserializeToEmpty(*response);
-              } else {
-                auto shared_memory = GetMemoryBufferForReceivingFromProcess(
-                    sender, message.param3);
-                shared_memory->Grow(message.param4);
-                serialization::DeserializeFromSharedMemory(*response,
-                                                           *shared_memory, 1);
-                SetMemoryBufferAsReadyForSendingNextMessageToProcess(
-                    *shared_memory);
-              }
-              on_response(response);
-            }
+            ResponseType response =
+                LoadResponseFromMessageData<ResponseType>(sender, message);
+            on_response(response);
           });
     } else {
       // Don't care about waiting for a response.
-      message.param1 = SIZE_MAX;
+      message.param2 = SIZE_MAX;
       (void)SendMessage(process_id_, message);
     }
   }
 
-  ProcessId ServerProcessId() const;
+  template <class ResponseType>
+  static ResponseType LoadResponseFromMessageData(ProcessId process_id,
+                                                  const MessageData& message) {
+    ResponseType response;
+    auto status = static_cast<Status>(message.param1);
+    response = status;
+    if constexpr (std::is_same_v<ResponseType, Status>) {
+      // Just care about the status.
+      MaybeHandleUnexpectedMemoryInResponse(process_id, message);
+    } else {
+      if (status == Status::OK) {
+        if (message.param2 == SIZE_MAX) {
+          serialization::DeserializeToEmpty(*response);
+        } else {
+          auto shared_memory = GetMemoryBufferForReceivingFromProcess(
+              process_id, message.param2);
+          shared_memory->Grow(message.param3);
+          DeserializeFromSharedMemory(*response, *shared_memory, 1);
+          SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+        }
+      } else {
+        MaybeHandleUnexpectedMemoryInResponse(process_id, message);
+      }
+    }
+    return response;
+  }
 
-  MessageId ServiceId() const;
+  static void MaybeHandleUnexpectedMemoryInResponse(ProcessId process_id,
+                                                    const MessageData& message);
 
-  bool IsValid() const;
+  void PrepareRequestMessage(size_t method_id, MessageData& message);
 
-  MessageId NotifyOnDisappearence(
-      const std::function<void()>& on_disappearance);
-  void StopNotifyingOnDisappearance(MessageId message_id);
+  void PrepareRequestMessageWithoutParameters(size_t method_id,
+                                              MessageData& message);
 
- protected:
-  void HandleUnexpectedMessageInResponse(ProcessId sender,
-                                         const MessageData& message);
+  template <class RequestType>
+  void PrepareRequestMessageWithParameter(RequestType& request,
+                                          size_t method_id,
+                                          MessageData& message) {
+    PrepareRequestMessage(method_id, message);
+
+    auto shared_memory = GetMemoryBufferForSendingToProcess(process_id_);
+    serialization::SerializeToSharedMemory(request, *shared_memory, 1);
+    message.param3 = shared_memory->GetId();
+    message.param4 = shared_memory->GetSize();
+  }
 
   ProcessId process_id_;
   MessageId message_id_;
