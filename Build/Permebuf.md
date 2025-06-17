@@ -3,6 +3,8 @@ Permebufs are **Per**ception **me**mory **buf**ers.
 
 [Background story about Permebufs.](https://github.com/AndrewAPrice/Perception/blob/master/Ramblings/Permebufs.md)
 
+NOTE: Permebufs have been deprecated and replaced by the [serialization](../Libraries/perception/public/perception/serialization/README.md) and [services](../Libraries/perception/public/perception/Services.md) frameworks.
+
 Permebufs are a data interchange and storage format used throughout the Perception operating system.
 
 A permebuf consists of a root message, which may contain children, and the messages are defined in .permebuf files. These files live in a package's `Permebuf` subdirectory.

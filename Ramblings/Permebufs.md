@@ -1,5 +1,7 @@
 [Permebuf](https://github.com/AndrewAPrice/Perception/blob/master/Build/Permebuf.md) (Perception Memory Buffers) is the [interface description language](https://en.wikipedia.org/wiki/Interface_description_language) I built for Perception. [Here are some examples](https://github.com/AndrewAPrice/Perception/tree/master/Libraries/perception/permebuf) to get a feel for the language.
 
+NOTE: Permebufs have been deprecated and replaced by the [serialization](../Libraries/perception/public/perception/serialization/README.md) and [services](../Libraries/perception/public/perception/Services.md) frameworks.
+
 An operating system built around a microkernel involves making many calls between
 applications. There is code that lives in processes that we want other processes to
 be able to discover and call. It's important that we can define a common interface that multiple processes can use. For example,
