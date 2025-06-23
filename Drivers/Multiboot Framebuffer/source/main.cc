@@ -16,17 +16,16 @@
 #include <map>
 #include <set>
 
+#include "perception/devices/graphics_device.h"
 #include "perception/memory.h"
 #include "perception/messages.h"
 #include "perception/multiboot.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/shared_memory.h"
-#include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
-#include "perception/processes.h"
+#include "status.h"
 
-// #define DEBUG
-
+namespace graphics = ::perception::devices::graphics;
 using ::perception::Fiber;
 using ::perception::GetMultibootFramebufferDetails;
 using ::perception::IsDuplicateInstanceOfProcess;
@@ -36,9 +35,9 @@ using ::perception::MessageId;
 using ::perception::NotifyUponProcessTermination;
 using ::perception::ProcessId;
 using ::perception::SharedMemory;
+using ::perception::Status;
 using ::perception::StopNotifyingUponProcessTermination;
-using ::permebuf::perception::devices::GraphicsCommand;
-using ::permebuf::perception::devices::GraphicsDriver;
+using ::perception::devices::GraphicsDevice;
 
 // Beyer ditchering pattern.
 constexpr uint8 kDitheringTable[] = {
@@ -60,7 +59,7 @@ struct Texture {
   uint32 height;
 
   // The shared buffer.
-  std::unique_ptr<SharedMemory> shared_memory;
+  std::shared_ptr<SharedMemory> shared_memory;
 };
 
 struct ProcessInformation {
@@ -80,9 +79,9 @@ struct RenderState {
   Texture* destination_texture = nullptr;
 };
 
-class FramebufferGraphicsDriver : GraphicsDriver::Server {
+class FramebufferGraphicsDevice : GraphicsDevice::Server {
  public:
-  FramebufferGraphicsDriver(size_t physical_address_of_framebuffer,
+  FramebufferGraphicsDevice(size_t physical_address_of_framebuffer,
                             uint32 width, uint32 height, uint32 pitch,
                             uint8 bpp)
       : screen_width_(width),
@@ -103,39 +102,24 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
     textures_[0] = std::move(texture);
   }
 
-  void HandleRunCommands(
-      ProcessId sender,
-      Permebuf<GraphicsDriver::RunCommandsMessage> commands) override {
+  virtual Status RunCommands(const graphics::Commands& commands,
+                             ProcessId sender) override {
     RenderState render_state;
-
-#ifdef DEBUG
-    std::cout << "Start commands" << std::endl;
-#endif
     // Run each of the commands.
-    for (GraphicsCommand command : commands->GetCommands()) {
-      RunCommand(sender, command, render_state);
-    }
-#ifdef DEBUG
-    std::cout << "End commands" << std::endl;
-#endif
+    for (const auto& command : commands.commands)
+      RunCommand(command, sender, render_state);
+    return Status::OK;
   }
 
-  StatusOr<GraphicsDriver::EmptyResponse> HandleRunCommandsAndWait(
-      ProcessId sender,
-      Permebuf<GraphicsDriver::RunCommandsMessage> commands) override {
-    HandleRunCommands(sender, std::move(commands));
-    return GraphicsDriver::EmptyResponse();
-  }
-
-  StatusOr<GraphicsDriver::CreateTextureResponse> HandleCreateTexture(
-      ProcessId sender,
-      const GraphicsDriver::CreateTextureRequest& request) override {
+  virtual StatusOr<graphics::CreateTextureResponse> CreateTexture(
+      const graphics::CreateTextureRequest& request,
+      ProcessId sender) override {
     // Create the texture.
     uint32 texture_id = next_texture_id_++;
     Texture texture;
     texture.owner = sender;
-    texture.width = request.GetWidth();
-    texture.height = request.GetHeight();
+    texture.width = request.size.width;
+    texture.height = request.size.height;
     texture.shared_memory = SharedMemory::FromSize(
         texture.width * texture.height * 4, SharedMemory::kJoinersCanWrite);
 
@@ -157,36 +141,35 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
     }
 
     // Send it back to the client.
-    GraphicsDriver::CreateTextureResponse response;
-    response.SetTexture(texture_id);
-    response.SetPixelBuffer(*texture.shared_memory);
+    graphics::CreateTextureResponse response;
+    response.texture.id = texture_id;
+    response.pixel_buffer = texture.shared_memory;
 
     textures_[texture_id] = std::move(texture);
 
     return response;
   }
 
-  void HandleDestroyTexture(
-      ProcessId sender,
-      const GraphicsDriver::DestroyTextureMessage& request) override {
+  virtual Status DestroyTexture(const graphics::TextureReference& request,
+                                ProcessId sender) override {
     // Try to find the texture.
-    auto texture_itr = textures_.find(request.GetTexture());
+    auto texture_itr = textures_.find(request.id);
     if (texture_itr == textures_.end())
       // We couldn't find the texture.
-      return;
+      return Status::INVALID_ARGUMENT;
 
     if (texture_itr->second.owner != sender)
       // Only the owner can destroy a texture.
-      return;
+      return Status::NOT_ALLOWED;
 
     textures_.erase(texture_itr);
 
     auto process_information_itr = process_information_.find(sender);
     if (process_information_itr == process_information_.end())
       // We can't find this process. This shouldn't happen.
-      return;
+      return Status::INVALID_ARGUMENT;
 
-    process_information_itr->second.textures.erase(request.GetTexture());
+    process_information_itr->second.textures.erase(request.id);
     if (process_information_itr->second.textures.empty()) {
       // This process owns no more textures. We no longer care about
       // listening for it it disappears.
@@ -194,37 +177,36 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
           process_information_itr->second.on_process_disappear_listener);
       process_information_.erase(process_information_itr);
     }
+
+    return Status::OK;
   }
 
-  StatusOr<GraphicsDriver::GetTextureInformationResponse>
-  HandleGetTextureInformation(
-      ProcessId,
-      const GraphicsDriver::GetTextureInformationRequest& request) override {
-    GraphicsDriver::GetTextureInformationResponse response;
+  virtual StatusOr<graphics::TextureInformation> GetTextureInformation(
+      const graphics::TextureReference& request) override {
     // Try to find the texture.
-    auto texture_itr = textures_.find(request.GetTexture());
-    if (texture_itr != textures_.end()) {
-      // We found the texture. Respond with details about it.
-      response.SetOwner(texture_itr->second.owner);
-      response.SetWidth(texture_itr->second.width);
-      response.SetHeight(texture_itr->second.height);
-    }
+    auto texture_itr = textures_.find(request.id);
+    if (texture_itr == textures_.end()) return Status::INVALID_ARGUMENT;
+
+    // We found the texture. Respond with details about it.
+    graphics::TextureInformation response;
+    response.owner = texture_itr->second.owner;
+    response.size.width = texture_itr->second.width;
+    response.size.height = texture_itr->second.height;
     return response;
   }
 
-  void HandleSetProcessAllowedToDrawToScreen(
-      ProcessId,
-      const GraphicsDriver::SetProcessAllowedToDrawToScreenMessage& request)
+  virtual Status SetProcessAllowedToDrawToScreen(
+      const graphics::ProcessAllowedToDrawToScreenParameters& request)
       override {
     // TODO: Implement some kind of security.
-    process_allowed_to_write_to_the_screen_ = request.GetProcess();
+    process_allowed_to_write_to_the_screen_ = request.process;
+    return Status::OK;
   }
 
-  StatusOr<GraphicsDriver::GetScreenSizeResponse> HandleGetScreenSize(
-      ProcessId, const GraphicsDriver::GetScreenSizeRequest& request) override {
-    GraphicsDriver::GetScreenSizeResponse response;
-    response.SetWidth(screen_width_);
-    response.SetHeight(screen_height_);
+  virtual StatusOr<graphics::Size> GetScreenSize() override {
+    graphics::Size response;
+    response.width = screen_width_;
+    response.height = screen_height_;
     return response;
   }
 
@@ -257,39 +239,33 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
   ProcessId process_allowed_to_write_to_the_screen_;
 
   // Handles a graphics command
-  void RunCommand(ProcessId sender, const GraphicsCommand& graphics_command,
+  void RunCommand(const graphics::Command& graphics_command, ProcessId sender,
                   RenderState& render_state) {
-    switch (graphics_command.GetOption()) {
-      case GraphicsCommand::Options::SetDestinationTexture:
-#ifdef DEBUG
-        std::cout << "Set destination texture to "
-                  << graphics_command.GetSetDestinationTexture().GetTexture()
-                  << std::endl;
-#endif
-        SetDestinationTexture(
-            sender, graphics_command.GetSetDestinationTexture().GetTexture(),
-            render_state);
+    switch (graphics_command.type) {
+      case graphics::Command::Type::SET_DESTINATION_TEXTURE:
+        if (graphics_command.texture_reference) {
+          SetDestinationTexture(sender, graphics_command.texture_reference->id,
+                                render_state);
+        }
         break;
-      case GraphicsCommand::Options::SetSourceTexture:
-#ifdef DEBUG
-        std::cout << "Set source texture to "
-                  << graphics_command.GetSetSourceTexture().GetTexture()
-                  << std::endl;
-#endif
-        SetSourceTexture(graphics_command.GetSetSourceTexture().GetTexture(),
-                         render_state);
+      case graphics::Command::Type::SET_SOURCE_TEXTURE:
+        if (graphics_command.texture_reference) {
+          SetSourceTexture(graphics_command.texture_reference->id,
+                           render_state);
+        }
         break;
-      case GraphicsCommand::Options::FillRectangle: {
-        GraphicsCommand::FillRectangle command =
-            graphics_command.GetFillRectangle();
+      case graphics::Command::Type::FILL_RECTANGLE: {
+        if (graphics_command.fill_rectangle_parameters) {
+          const auto& parameters = *graphics_command.fill_rectangle_parameters;
 
-        FillRectangle(command.GetLeft(), command.GetTop(), command.GetRight(),
-                      command.GetBottom(), command.GetColor(), render_state);
+          FillRectangle(parameters.destination.left, parameters.destination.top,
+                        parameters.destination.left + parameters.size.width,
+                        parameters.destination.top + parameters.size.height,
+                        parameters.color, render_state);
+        }
         break;
       }
-      case GraphicsCommand::Options::CopyEntireTexture: {
-        GraphicsCommand::CopyEntireTexture command =
-            graphics_command.GetCopyEntireTexture();
+      case graphics::Command::Type::COPY_ENTIRE_TEXTURE: {
         BitBlt(sender, render_state,
                /*left_source=*/0,
                /*top_source=*/0,
@@ -300,9 +276,7 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
                /*alpha_blend=*/false);
         break;
       }
-      case GraphicsCommand::Options::CopyEntireTextureWithAlphaBlending: {
-        GraphicsCommand::CopyEntireTexture command =
-            graphics_command.GetCopyEntireTextureWithAlphaBlending();
+      case graphics::Command::Type::COPY_ENTIRE_TEXTURE_WITH_ALPHA_BLENDING: {
         BitBlt(sender, render_state,
                /*left_source=*/0,
                /*top_source=*/0,
@@ -313,49 +287,56 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
                /*alpha_blend=*/true);
         break;
       }
-      case GraphicsCommand::Options::CopyTextureToPosition: {
-        GraphicsCommand::CopyTextureToPosition command =
-            graphics_command.GetCopyTextureToPosition();
-        BitBlt(sender, render_state,
-               /*left_source=*/0,
-               /*top_source=*/0, command.GetLeftDestination(),
-               command.GetTopDestination(),
-               /*width=*/UINT_MAX,
-               /*height=*/UINT_MAX,
-               /*alpha_blend=*/false);
+      case graphics::Command::Type::COPY_TEXTURE_TO_POSITION: {
+        if (graphics_command.position) {
+          const auto& position = *graphics_command.position;
+          BitBlt(sender, render_state,
+                 /*left_source=*/0,
+                 /*top_source=*/0, position.left, position.top,
+                 /*width=*/UINT_MAX,
+                 /*height=*/UINT_MAX,
+                 /*alpha_blend=*/false);
+        }
         break;
       }
-      case GraphicsCommand::Options::CopyTextureToPositionWithAlphaBlending: {
-        GraphicsCommand::CopyTextureToPosition command =
-            graphics_command.GetCopyTextureToPositionWithAlphaBlending();
-        BitBlt(sender, render_state,
-               /*left_source=*/0,
-               /*top_source=*/0, command.GetLeftDestination(),
-               command.GetTopDestination(),
-               /*width=*/UINT_MAX,
-               /*height=*/UINT_MAX,
-               /*alpha_blend=*/true);
+      case graphics::Command::Type::
+          COPY_TEXTURE_TO_POSITION_WITH_ALPHA_BLENDING: {
+        if (graphics_command.position) {
+          const auto& position = *graphics_command.position;
+          BitBlt(sender, render_state,
+                 /*left_source=*/0,
+                 /*top_source=*/0, position.left, position.top,
+                 /*width=*/UINT_MAX,
+                 /*height=*/UINT_MAX,
+                 /*alpha_blend=*/true);
+        }
         break;
       }
-      case GraphicsCommand::Options::CopyPartOfATexture: {
-        GraphicsCommand::CopyPartOfATexture command =
-            graphics_command.GetCopyPartOfATexture();
+      case graphics::Command::Type::COPY_PART_OF_A_TEXTURE: {
+        if (graphics_command.copy_part_of_texture_parameters) {
+          const auto& parameters =
+              *graphics_command.copy_part_of_texture_parameters;
 
-        BitBlt(sender, render_state, command.GetLeftSource(),
-               command.GetTopSource(), command.GetLeftDestination(),
-               command.GetTopDestination(), command.GetWidth(),
-               command.GetHeight(),
-               /*alpha_blend=*/false);
+          BitBlt(sender, render_state, parameters.source.left,
+                 parameters.source.top, parameters.destination.left,
+                 parameters.destination.top, parameters.size.width,
+                 parameters.size.height,
+                 /*alpha_blend=*/false);
+        }
         break;
       }
-      case GraphicsCommand::Options::CopyPartOfATextureWithAlphaBlending: {
-        GraphicsCommand::CopyPartOfATexture command =
-            graphics_command.GetCopyPartOfATexture();
-        BitBlt(sender, render_state, command.GetLeftSource(),
-               command.GetTopSource(), command.GetLeftDestination(),
-               command.GetTopDestination(), command.GetWidth(),
-               command.GetHeight(),
-               /*alpha_blend=*/true);
+      case graphics::Command::Type::
+          COPY_PART_OF_A_TEXTURE_WITH_ALPHA_BLENDING: {
+        if (graphics_command.copy_part_of_texture_parameters) {
+          const auto& parameters =
+              *graphics_command.copy_part_of_texture_parameters;
+
+          BitBlt(sender, render_state, parameters.source.left,
+                 parameters.source.top, parameters.destination.left,
+                 parameters.destination.top, parameters.size.width,
+                 parameters.size.height,
+                 /*alpha_blend=*/true);
+        }
         break;
       }
     }
@@ -409,14 +390,6 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
                      uint32 left_destination, uint32 top_destination,
                      uint32 width_to_copy, uint32 height_to_copy,
                      bool alpha_blend) {
-#ifdef DEBUG
-    std::cout << "Copy texture " << command.GetLeftDestination() << ","
-              << command.GetTopDestination() << " -> "
-              << (command.GetWidth() + command.GetLeftDestination()) << ","
-              << (command.GetHeight() + command.GetTopDestination()) << " @ "
-              << command.GetLeftSource() << "," << command.GetTopSource()
-              << std::endl;
-#endif
     if (render_state.source_texture == nullptr ||
         render_state.destination_texture == nullptr) {
       // Nowhere to copy to/from.
@@ -646,12 +619,6 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
 
   void FillRectangle(uint32 left, uint32 top, uint32 right, uint32 bottom,
                      uint32 color, RenderState& render_state) {
-#ifdef DEBUG
-    std::cout << "Fill rectangle " << command.GetLeft() << ","
-              << command.GetTop() << " -> " << command.GetRight() << ","
-              << command.GetBottom() << " with " << std::hex
-              << command.GetColor() << std::dec << std::endl;
-#endif
     uint8* color_channels = (uint8*)&color;
     if (color_channels[3] == 0) {
       // Completely transparent, nothing to draw.
@@ -853,7 +820,7 @@ class FramebufferGraphicsDriver : GraphicsDriver::Server {
   }
 };
 
-int main (int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   if (IsDuplicateInstanceOfProcess()) return 0;
 
   size_t physical_address;
@@ -875,7 +842,7 @@ int main (int argc, char *argv[]) {
     return 0;
   }
 
-  FramebufferGraphicsDriver graphics_driver(physical_address, width, height,
+  FramebufferGraphicsDevice graphics_driver(physical_address, width, height,
                                             pitch, bpp);
   perception::HandOverControl();
   return 0;

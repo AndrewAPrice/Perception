@@ -20,6 +20,7 @@
 #include <optional>
 
 #include "memory_span.h"
+#include "perception/serialization/serializable.h"
 #include "types.h"
 
 namespace perception {
@@ -47,7 +48,7 @@ struct SharedMemoryDetails {
 // the first time you try to dereference it, or when you call Join(). The
 // counter is decreased when SharedMemory leaves scope. The memory is released
 // when the reference counter reaches zero.
-class SharedMemory {
+class SharedMemory : public serialization::Serializable {
  public:
   // Flags:
   // The shared memory buffer is lazily allocated.
@@ -75,7 +76,7 @@ class SharedMemory {
   // Creates a shared memory block of a specific size. The size is rounded up
   // to the nearest page size. Flags is a bitfield. if kLazilyAllocated is set,
   // on_page_request must be set.
-  static std::unique_ptr<SharedMemory> FromSize(
+  static std::shared_ptr<SharedMemory> FromSize(
       size_t size_in_bytes, size_t flags,
       std::function<void(size_t)> on_page_request = nullptr);
 
@@ -167,6 +168,8 @@ class SharedMemory {
   void Apply(const std::function<void(void*, size_t)>& function);
 
   std::mutex& Mutex() { return mutex_; }
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
 
  private:
   // The unique ID representhing this shared memory buffer on the system.

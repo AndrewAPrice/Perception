@@ -16,9 +16,10 @@
 
 #include <string>
 
+#include "perception/file.h"
+#include "perception/memory_mapped_file.h"
 #include "perception/shared_memory.h"
 #include "perception/shared_memory_pool.h"
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
 
 namespace perception {
 
@@ -35,7 +36,7 @@ struct FileDescriptor {
   } directory;
 
   struct File {
-    ::permebuf::perception::File file;
+    perception::File::Client file;
     std::string path;
     size_t size_in_bytes;
     size_t offset_in_file;
@@ -50,8 +51,8 @@ bool ReadAndIncrementFile(long id, void* buffer, long bytes);
 
 void CloseFile(long id);
 
-void* AddMemoryMappedFile(::permebuf::perception::MemoryMappedFile file,
-  std::unique_ptr<::perception::SharedMemory> buffer);
+void* AddMemoryMappedFile(::perception::MemoryMappedFile::Client file,
+                          std::shared_ptr<::perception::SharedMemory> buffer);
 
 bool MaybeCloseMemoryMappedFile(size_t start_address);
 

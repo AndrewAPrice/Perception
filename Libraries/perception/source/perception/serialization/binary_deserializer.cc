@@ -83,43 +83,7 @@ class BinaryDeserializer : public Serializer {
     current_field_index_++;
   }
 
-  virtual void Integer(std::string_view name, uint8& value) override {
-    uint64 value64;
-    Integer(name, value64);
-    value = static_cast<uint8>(value64);
-  }
-
-  virtual void Integer(std::string_view name, int8& value) override {
-    int64 value64;
-    Integer(name, value64);
-    value = static_cast<int8>(value64);
-  }
-
-  virtual void Integer(std::string_view name, uint16& value) override {
-    uint64 value64;
-    Integer(name, value64);
-    value = static_cast<uint16>(value64);
-  }
-
-  virtual void Integer(std::string_view name, int16& value) override {
-    int64 value64;
-    Integer(name, value64);
-    value = static_cast<int16>(value64);
-  }
-
-  virtual void Integer(std::string_view name, uint32& value) override {
-    uint64 value64;
-    Integer(name, value64);
-    value = static_cast<uint32>(value64);
-  }
-
-  virtual void Integer(std::string_view name, int32& value) override {
-    int64 value64;
-    Integer(name, value64);
-    value = static_cast<int32>(value64);
-  }
-
-  virtual void Integer(std::string_view name, uint64& value) override {
+  virtual void UnsignedInteger(std::string_view name, uint64& value) override {
     if (HasThisField()) {
       value = ReadVariableLengthInteger();
       next_field_index_in_stream_ = ReadVariableLengthInteger();
@@ -129,7 +93,7 @@ class BinaryDeserializer : public Serializer {
     current_field_index_++;
   }
 
-  virtual void Integer(std::string_view name, int64& value) override {
+  virtual void SignedInteger(std::string_view name, int64& value) override {
     if (HasThisField()) {
       value = ReadVariableLengthSignedInteger();
       next_field_index_in_stream_ = ReadVariableLengthInteger();

@@ -17,13 +17,10 @@
 #include <functional>
 #include <string>
 
-#include "permebuf/Libraries/perception/launcher.permebuf.h"
+#include "perception/launcher.h"
 
 // Implementation of the launcher service.
-class Launcher : public ::permebuf::perception::Launcher::Server {
+class Launcher : public ::perception::Launcher::Server {
  public:
-  virtual void HandleShowLauncher(
-      ::perception::ProcessId sender,
-      const ::permebuf::perception::Launcher::ShowLauncherMessage& message)
-      override;
+  virtual ::perception::Status ShowLauncher() override;
 };

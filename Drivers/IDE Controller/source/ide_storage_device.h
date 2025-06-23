@@ -14,24 +14,20 @@
 
 #pragma once
 
-#include "permebuf/Libraries/perception/devices/storage_device.permebuf.h"
+#include "perception/devices/storage_device.h"
 
 class IdeDevice;
 
-class IdeStorageDevice
-    : public ::permebuf::perception::devices::StorageDevice::Server {
+class IdeStorageDevice : public ::perception::devices::StorageDevice::Server {
  public:
-  typedef ::permebuf::perception::devices::StorageDevice SD;
-
   IdeStorageDevice(IdeDevice* device, bool supports_dma);
   virtual ~IdeStorageDevice();
 
-  StatusOr<Permebuf<SD::GetDeviceDetailsResponse>> HandleGetDeviceDetails(
-      ::perception::ProcessId sender,
-      const SD::GetDeviceDetailsRequest& request) override;
+  StatusOr<::perception::devices::StorageDeviceDetails> GetDeviceDetails()
+      override;
 
-  StatusOr<SD::ReadResponse> HandleRead(
-      ::perception::ProcessId sender, const SD::ReadRequest& request) override;
+  ::perception::Status Read(
+      const ::perception::devices::StorageDeviceReadRequest& request) override;
 
  private:
   IdeDevice* device_;

@@ -29,6 +29,7 @@
     'harfbuzz',
     'libexpat',
     'libjpeg-turbo',
+    'Perception UI',
     'richgel999 fpng',
     'unicode-org icu',
   ],

@@ -15,19 +15,21 @@
 #include "memory_mapped_file.h"
 
 #include "perception/memory.h"
+#include "perception/processes.h"
 #include "shared_memory_pool.h"
 #include "virtual_file_system.h"
 
 using ::perception::AllocateMemoryPages;
 using ::perception::Defer;
+using ::perception::GetProcessId;
+using ::perception::
+    GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest;
 using ::perception::kPageSize;
 using ::perception::ProcessId;
+using ::perception::ReadFileRequest;
+using ::perception::RequestWithFilePath;
 using ::perception::SharedMemory;
-using ReadFileRequest = ::permebuf::perception::File::ReadFileRequest;
-using GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest =
-    ::permebuf::perception::File::
-        GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest;
-using MMF = ::permebuf::perception::MemoryMappedFile;
+using ::perception::Status;
 
 namespace {
 
@@ -61,27 +63,28 @@ MemoryMappedFile::MemoryMappedFile(std::unique_ptr<File> file,
                                  running_operations_--;
                                  MaybeCloseIfUnlocked();
                                });
-    buffer_->GrantPermissionToLazilyAllocatePage(file_->GetProcessId());
+    buffer_->GrantPermissionToLazilyAllocatePage(GetProcessId());
 
     GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest
         grant_request;
-    grant_request.SetBuffer(*buffer_);
-    (void)file_->HandleGrantStorageDevicePermissionToAllocateSharedMemoryPages(
-        allowed_process_, grant_request);
+    grant_request.buffer = buffer_;
+    (void)file_->GrantStorageDevicePermissionToAllocateSharedMemoryPages(
+        grant_request, allowed_process_);
 
     buffer_->Join();
   }
 }
 
-void MemoryMappedFile::HandleCloseFile(ProcessId sender,
-                                       const MMF::CloseFileMessage&) {
-  if (sender != allowed_process_) return;
+Status MemoryMappedFile::Close(ProcessId sender) {
+  if (sender != allowed_process_) return Status::NOT_ALLOWED;
 
   if (running_operations_ == 0) {
     CloseFile();
   } else {
     close_after_all_operations_ = true;
   }
+
+  return Status::OK;
 }
 
 void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
@@ -97,16 +100,16 @@ void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
 
   // Read the page in from the file.
   ReadFileRequest request;
-  request.SetBufferToCopyInto(*buffer_);
-  request.SetOffsetInFile(offset_of_page);
-  request.SetOffsetInDestinationBuffer(offset_of_page);
+  request.buffer_to_copy_into = buffer_;
+  request.offset_in_file = offset_of_page;
+  request.offset_in_destination_buffer = offset_of_page;
   size_t remaining_bytes_in_file = length_of_file_ - offset_of_page;
   size_t bytes_to_copy =
       std::min(optimal_operation_size_, remaining_bytes_in_file);
-  request.SetBytesToCopy(bytes_to_copy);
+  request.bytes_to_copy = bytes_to_copy;
 
-  auto read_status = file_->HandleReadFile(allowed_process_, request);
-  if (!read_status.Ok()) {
+  auto read_status = file_->Read(request, allowed_process_);
+  if (read_status != Status::OK) {
     size_t first_page = offset_of_page;
     size_t last_page = first_page + (bytes_to_copy - 1) / kPageSize * kPageSize;
     for (size_t page = first_page; page <= last_page; page++) {
@@ -118,7 +121,7 @@ void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
   }
 }
 
-SharedMemory& MemoryMappedFile::GetBuffer() { return *buffer_; }
+std::shared_ptr<SharedMemory> MemoryMappedFile::GetBuffer() { return buffer_; }
 
 void MemoryMappedFile::MaybeCloseIfUnlocked() {
   if (close_after_all_operations_ && running_operations_ == 0) {

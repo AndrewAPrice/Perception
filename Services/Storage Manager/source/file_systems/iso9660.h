@@ -24,7 +24,8 @@ class Iso9660 : public FileSystem {
  public:
   Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
           std::unique_ptr<char[]> root_directory,
-          ::permebuf::perception::devices::StorageDevice storage_device);
+          ::perception::devices::StorageDevice::Client 
+        );
 
   virtual ~Iso9660() {}
 
@@ -45,16 +46,15 @@ class Iso9660 : public FileSystem {
   virtual bool ForEachEntryInDirectory(
       std::string_view path, size_t start_index, size_t count,
       const std::function<void(std::string_view,
-                               ::permebuf::perception::DirectoryEntryType,
-                               size_t)>& on_each_entry) override;
+                               ::perception::DirectoryEntry::Type, size_t)>&
+          on_each_entry) override;
 
   virtual void CheckFilePermissions(std::string_view path, bool& file_exists,
                                     bool& can_read, bool& can_write,
                                     bool& can_execute) override;
 
-  virtual StatusOr<
-      ::permebuf::perception::StorageManager::GetFileStatisticsResponse>
-  GetFileStatistics(std::string_view path) override;
+  virtual StatusOr<::perception::FileStatistics> GetFileStatistics(
+      std::string_view path) override;
 
  private:
   // Size of the volume, in logical blocks.
@@ -69,12 +69,12 @@ class Iso9660 : public FileSystem {
   void ForRawEachEntryInDirectory(
       std::string_view path,
       const std::function<bool(std::string_view,
-                               ::permebuf::perception::DirectoryEntryType,
-                               size_t, size_t)>& on_each_entry);
+                               ::perception::DirectoryEntry::Type, size_t,
+                               size_t)>& on_each_entry);
 };
 
 // Returns a FileSystem instance if this device is in the Iso 9660 format.
 std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
-    ::permebuf::perception::devices::StorageDevice storage_device);
+    ::perception::devices::StorageDevice::Client storage_device);
 
 }  // namespace file_systems

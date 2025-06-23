@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
+#include "perception/devices/mouse_listener.h"
 #include "types.h"
 
 class Window;
@@ -41,7 +41,7 @@ class Frame {
   static void AddWindowToLastFocusedFrame(Window& window);
 
   void MouseEvent(int screen_x, int screen_y,
-                  ::permebuf::perception::devices::MouseButton button,
+                  ::perception::devices::MouseButton button,
                   bool is_button_down);
 
   void Draw(int min_x, int min_y, int max_x, int max_y);

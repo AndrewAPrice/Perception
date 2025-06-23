@@ -14,6 +14,7 @@
 
 #include "perception/ui/components/image_view.h"
 
+#include <iostream>
 #include <memory>
 
 #include "include/core/SkCanvas.h"

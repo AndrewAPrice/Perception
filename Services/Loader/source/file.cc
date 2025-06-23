@@ -16,19 +16,23 @@
 
 #include <filesystem>
 #include <iostream>
+#include <memory>
 
 #include "multiboot.h"
 #include "perception/memory.h"
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
+#include "perception/memory_mapped_file.h"
+#include "perception/services.h"
+#include "perception/storage_manager.h"
 #include "status.h"
 
+using ::perception::GetService;
 using ::perception::kPageSize;
+using ::perception::MemoryMappedFile;
 using ::perception::MemorySpan;
 using ::perception::ReleaseMemoryPages;
 using ::perception::SharedMemory;
 using ::perception::Status;
-using ::permebuf::perception::MemoryMappedFile;
-using ::permebuf::perception::StorageManager;
+using ::perception::StorageManager;
 
 namespace {
 
@@ -94,18 +98,17 @@ std::optional<std::string> GetPathToFile(std::string_view name_sv) {
 // Represents a file loaded from disk.
 class DiskFile : public File {
  public:
-  DiskFile(MemoryMappedFile memory_mapped_file, SharedMemory shared_memory,
-           std::string name, std::string path)
+  DiskFile(MemoryMappedFile::Client memory_mapped_file,
+           std::shared_ptr<SharedMemory> shared_memory, std::string name,
+           std::string path)
       : memory_mapped_file_(memory_mapped_file),
-        shared_memory_(std::move(shared_memory)),
+        shared_memory_(shared_memory),
         name_(name),
         path_(path) {
-    memory_span_ = shared_memory_.ToSpan();
+    memory_span_ = shared_memory_->ToSpan();
   }
 
-  ~DiskFile() {
-    memory_mapped_file_.SendCloseFile(MemoryMappedFile::CloseFileMessage());
-  }
+  ~DiskFile() { memory_mapped_file_.Close({}); }
 
   virtual const ::perception::MemorySpan MemorySpan() const override {
     return memory_span_;
@@ -116,10 +119,10 @@ class DiskFile : public File {
 
  private:
   // The underlying memory mapped file.
-  MemoryMappedFile memory_mapped_file_;
+  MemoryMappedFile::Client memory_mapped_file_;
 
   // The shared memory block.
-  SharedMemory shared_memory_;
+  std::shared_ptr<SharedMemory> shared_memory_;
 
   // The memory span wrapping the data in this file.
   class MemorySpan memory_span_;
@@ -196,16 +199,13 @@ std::unique_ptr<File> LoadContentsFromDisk(std::string_view name) {
   }
 
   // Open the file as a memory mapped file.
-  Permebuf<StorageManager::OpenMemoryMappedFileRequest> request;
-  request->SetPath(path);
-
   auto status_or_response =
-      StorageManager::Get().CallOpenMemoryMappedFile(std::move(request));
+      GetService<StorageManager>().OpenMemoryMappedFile({path});
   if (!status_or_response.Ok()) return nullptr;
   auto response = std::move(*status_or_response);
 
-  MemoryMappedFile file = response.GetFile();
-  SharedMemory file_buffer = response.GetFileContents().Clone();
+  MemoryMappedFile::Client file = response.file;
+  std::shared_ptr<SharedMemory> file_buffer = response.file_contents;
 
   return std::make_unique<DiskFile>(file, std::move(file_buffer),
                                     std::string(name), std::string(path));

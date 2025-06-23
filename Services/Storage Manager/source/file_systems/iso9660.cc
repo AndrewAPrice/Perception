@@ -17,23 +17,21 @@
 #include <iostream>
 
 #include "perception/scheduler.h"
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
+#include "perception/storage_manager.h"
 #include "shared_memory_pool.h"
 #include "virtual_file_system.h"
 
 using ::perception::Defer;
+using ::perception::DirectoryEntry;
+using ::perception::FileStatistics;
+using ::perception::
+    GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest;
 using ::perception::ProcessId;
+using ::perception::ReadFileRequest;
 using ::perception::Status;
-using ::permebuf::perception::DirectoryEntryType;
-using PFile = ::permebuf::perception::File;
-using ::permebuf::perception::StorageManager;
-using ::permebuf::perception::devices::StorageDevice;
-using GrantStorageDevicePermissionToAllocateSharedMemoryPagesResponse =
-    ::permebuf::perception::File::
-        GrantStorageDevicePermissionToAllocateSharedMemoryPagesResponse;
-using GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest =
-    ::permebuf::perception::File::
-        GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest;
+using ::perception::StorageManager;
+using ::perception::devices::StorageDevice;
+using ::perception::devices::StorageDeviceReadRequest;
 
 namespace file_systems {
 namespace {
@@ -43,55 +41,50 @@ std::string kIso9660Name = "ISO 9660";
 
 class Iso9660File : public File {
  public:
-  Iso9660File(StorageDevice storage_device, size_t offset_on_device,
+  Iso9660File(StorageDevice::Client storage_device, size_t offset_on_device,
               size_t length_of_file, ProcessId allowed_process)
       : storage_device_(storage_device),
         offset_on_device_(offset_on_device),
         length_of_file_(length_of_file),
-        allowed_process_(allowed_process){};
+        allowed_process_(allowed_process) {};
 
-  virtual void HandleCloseFile(ProcessId sender,
-                               const PFile::CloseFileMessage &) override {
-    if (sender != allowed_process_) return;
-
-    Defer([sender, this]() { CloseFile(sender, this); });
-  }
-
-  virtual StatusOr<PFile::ReadFileResponse> HandleReadFile(
-      ProcessId sender, const PFile::ReadFileRequest &request) override {
+  virtual Status Close(ProcessId sender) override {
     if (sender != allowed_process_) return ::perception::Status::NOT_ALLOWED;
 
-    if (request.GetOffsetInFile() + request.GetBytesToCopy() >
-        length_of_file_) {
+    Defer([sender, this]() { CloseFile(sender, this); });
+    return ::perception::Status::OK;
+  }
+
+  virtual Status Read(const ReadFileRequest &request,
+                      ProcessId sender) override {
+    if (sender != allowed_process_) return ::perception::Status::NOT_ALLOWED;
+
+    if (request.offset_in_file + request.bytes_to_copy > length_of_file_) {
       return ::perception::Status::OVERFLOW;
     }
 
-    StorageDevice::ReadRequest read_request;
-    read_request.SetOffsetOnDevice(offset_on_device_ +
-                                   request.GetOffsetInFile());
-    read_request.SetOffsetInBuffer(request.GetOffsetInDestinationBuffer());
-    read_request.SetBytesToCopy(request.GetBytesToCopy());
-    read_request.SetBuffer(request.GetBufferToCopyInto());
+    StorageDeviceReadRequest read_request;
+    read_request.offset_on_device = offset_on_device_ + request.offset_in_file;
+    read_request.offset_in_buffer = request.offset_in_destination_buffer;
+    read_request.bytes_to_copy = request.bytes_to_copy;
+    read_request.buffer = request.buffer_to_copy_into;
 
-    RETURN_ON_ERROR(storage_device_.CallRead(read_request));
-
-    return PFile::ReadFileResponse();
+    return storage_device_.Read(read_request);
   }
 
-  StatusOr<GrantStorageDevicePermissionToAllocateSharedMemoryPagesResponse>
-  HandleGrantStorageDevicePermissionToAllocateSharedMemoryPages(
-      ::perception::ProcessId sender,
+  virtual Status GrantStorageDevicePermissionToAllocateSharedMemoryPages(
       const GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest
-          &request) override {
+          &request,
+      ::perception::ProcessId sender) override {
     if (sender != allowed_process_) return ::perception::Status::NOT_ALLOWED;
-    request.GetBuffer().GrantPermissionToLazilyAllocatePage(
-        storage_device_.GetProcessId());
+    request.buffer->GrantPermissionToLazilyAllocatePage(
+        storage_device_.ServerProcessId());
 
-    return GrantStorageDevicePermissionToAllocateSharedMemoryPagesResponse();
+    return Status::OK;
   }
 
  private:
-  ::permebuf::perception::devices::StorageDevice storage_device_;
+  StorageDevice::Client storage_device_;
   size_t offset_on_device_;
   size_t length_of_file_;
   ProcessId allowed_process_;
@@ -118,7 +111,7 @@ void SplitPath(std::string_view path, std::string_view &directory,
 
 Iso9660::Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
                  std::unique_ptr<char[]> root_directory,
-                 StorageDevice storage_device)
+                 StorageDevice::Client storage_device)
     : size_in_blocks_(size_in_blocks),
       logical_block_size_(logical_block_size),
       root_directory_(std::move(root_directory)),
@@ -133,7 +126,7 @@ StatusOr<std::unique_ptr<File>> Iso9660::OpenFile(std::string_view path,
 
   std::unique_ptr<File> file;
   ForRawEachEntryInDirectory(
-      directory, [&](std::string_view name, DirectoryEntryType type,
+      directory, [&](std::string_view name, DirectoryEntry::Type type,
                      size_t start_lba, size_t size) {
         if (name == file_name) {
           file = std::make_unique<Iso9660File>(
@@ -155,7 +148,7 @@ StatusOr<std::unique_ptr<File>> Iso9660::OpenFile(std::string_view path,
 size_t Iso9660::CountEntriesInDirectory(std::string_view path) {
   int number_of_entries = 0;
   ForRawEachEntryInDirectory(
-      path, [&](std::string_view, DirectoryEntryType, size_t, size_t) {
+      path, [&](std::string_view, DirectoryEntry::Type, size_t, size_t) {
         number_of_entries++;
         return false;
       });
@@ -164,12 +157,12 @@ size_t Iso9660::CountEntriesInDirectory(std::string_view path) {
 
 bool Iso9660::ForEachEntryInDirectory(
     std::string_view path, size_t start_index, size_t count,
-    const std::function<void(std::string_view, DirectoryEntryType, size_t)>
+    const std::function<void(std::string_view, DirectoryEntry::Type, size_t)>
         &on_each_entry) {
   int index = 0;
   bool more_entries_than_we_can_count = false;
   ForRawEachEntryInDirectory(path, [&](std::string_view name,
-                                       DirectoryEntryType type,
+                                       DirectoryEntry::Type type,
                                        size_t start_lba, size_t size) {
     if (count > 0 && index >= start_index + count) {
       more_entries_than_we_can_count = true;
@@ -202,34 +195,34 @@ void Iso9660::CheckFilePermissions(std::string_view path, bool &file_exists,
   SplitPath(path, directory, file_name);
 
   file_exists = false;
-  ForRawEachEntryInDirectory(directory,
-                             [&](std::string_view name, DirectoryEntryType type,
-                                 size_t start_lba, size_t size) {
-                               if (name == file_name) {
-                                 file_exists = true;
-                                 return true;
-                               }
-                               return false;
-                             });
+  ForRawEachEntryInDirectory(
+      directory, [&](std::string_view name, DirectoryEntry::Type type,
+                     size_t start_lba, size_t size) {
+        if (name == file_name) {
+          file_exists = true;
+          return true;
+        }
+        return false;
+      });
   can_read = file_exists;
   can_execute = file_exists;
 }
 
 void Iso9660::ForRawEachEntryInDirectory(
     std::string_view path,
-    const std::function<bool(std::string_view, DirectoryEntryType, size_t,
+    const std::function<bool(std::string_view, DirectoryEntry::Type, size_t,
                              size_t)> &on_each_entry) {
   auto pooled_shared_memory = kSharedMemoryPool.GetSharedMemory();
   char *buffer = (char *)**pooled_shared_memory->shared_memory;
 
-  StorageDevice::ReadRequest read_request;
-  read_request.SetOffsetOnDevice(0);
-  read_request.SetOffsetInBuffer(0);
-  read_request.SetBytesToCopy(kIso9660SectorSize);
-  read_request.SetBuffer(*pooled_shared_memory->shared_memory);
+  StorageDeviceReadRequest read_request;
+  read_request.offset_on_device = 0;
+  read_request.offset_in_buffer = 0;
+  read_request.bytes_to_copy = kIso9660SectorSize;
+  read_request.buffer = pooled_shared_memory->shared_memory;
 
-  size_t directory_lba = (size_t) * (uint32 *)&root_directory_[2];
-  size_t directory_length = (size_t) * (uint32 *)&root_directory_[10];
+  size_t directory_lba = (size_t)*(uint32 *)&root_directory_[2];
+  size_t directory_length = (size_t)*(uint32 *)&root_directory_[10];
   size_t offset = 0;
 
   // Keep scanning until we enter this directory.
@@ -256,9 +249,9 @@ void Iso9660::ForRawEachEntryInDirectory(
         // We need to read in the sector. Note that directory entries aren't
         // allowed to cross sector boundaries.
         size_t directory_start = directory_lba * logical_block_size_;
-        read_request.SetOffsetOnDevice(directory_start);
-        auto status_or_response = storage_device_.CallRead(read_request);
-        if (!status_or_response) {
+        read_request.offset_on_device = directory_start;
+        auto status = storage_device_.Read(read_request);
+        if (status != Status::OK) {
           // Error reading sector.
           kSharedMemoryPool.ReleaseSharedMemory(
               std::move(pooled_shared_memory));
@@ -273,8 +266,8 @@ void Iso9660::ForRawEachEntryInDirectory(
       }
 
       // Read this record's length.
-      size_t record_length = (size_t) * (uint8 *)&buffer[offset] +
-                             (size_t) * (uint8 *)&buffer[offset + 1];
+      size_t record_length = (size_t)*(uint8 *)&buffer[offset] +
+                             (size_t)*(uint8 *)&buffer[offset + 1];
       if (record_length <= 0) {
         // End of the sector. We should read the next sector.
         size_t remaining_in_sector = logical_block_size_ - offset;
@@ -305,7 +298,7 @@ void Iso9660::ForRawEachEntryInDirectory(
         char signature_1 = buffer[offset + susp_start];
         char signature_2 = buffer[offset + susp_start + 1];
         size_t extension_length =
-            (size_t) * (uint8 *)&buffer[offset + susp_start + 2];
+            (size_t)*(uint8 *)&buffer[offset + susp_start + 2];
         // We have enough space for Rock Ridge.
         if (signature_1 == 'N' && signature_2 == 'M') {
           // This is a Rock Ridge extension.
@@ -338,13 +331,13 @@ void Iso9660::ForRawEachEntryInDirectory(
         // Is this a directory?
         bool is_directory = (buffer[offset + 25] & (1 << 1)) == 2;
 
-        size_t entry_start_lba = (size_t) * (uint32 *)&buffer[offset + 2];
-        size_t entry_size = (size_t) * (uint32 *)&buffer[offset + 10];
+        size_t entry_start_lba = (size_t)*(uint32 *)&buffer[offset + 2];
+        size_t entry_size = (size_t)*(uint32 *)&buffer[offset + 10];
 
         if (folder_to_find.empty()) {
           if (on_each_entry(entry_name,
-                            is_directory ? DirectoryEntryType::Directory
-                                         : DirectoryEntryType::File,
+                            is_directory ? DirectoryEntry::Type::DIRECTORY
+                                         : DirectoryEntry::Type::FILE,
                             entry_start_lba, entry_size)) {
             kSharedMemoryPool.ReleaseSharedMemory(
                 std::move(pooled_shared_memory));
@@ -379,28 +372,27 @@ void Iso9660::ForRawEachEntryInDirectory(
 std::string_view Iso9660::GetFileSystemType() { return kIso9660Name; }
 
 std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
-    StorageDevice storage_device) {
-  auto status_or_device_details = storage_device.CallGetDeviceDetails(
-      StorageDevice::GetDeviceDetailsRequest());
-  std::string_view device_name = *(*status_or_device_details)->GetName();
+    StorageDevice::Client storage_device) {
+  auto status_or_device_details = storage_device.GetDeviceDetails();
+  std::string_view device_name = status_or_device_details->name;
 
   auto pooled_shared_memory = kSharedMemoryPool.GetSharedMemory();
   char *buffer = (char *)**pooled_shared_memory->shared_memory;
 
-  StorageDevice::ReadRequest read_request;
-  read_request.SetOffsetOnDevice(0);
-  read_request.SetOffsetInBuffer(0);
-  read_request.SetBytesToCopy(kIso9660SectorSize);
-  read_request.SetBuffer(*pooled_shared_memory->shared_memory);
+  StorageDeviceReadRequest read_request;
+  read_request.offset_on_device = 0;
+  read_request.offset_in_buffer = 0;
+  read_request.bytes_to_copy = kIso9660SectorSize;
+  read_request.buffer = pooled_shared_memory->shared_memory;
 
   // Start at sector 0x10 and keep looping until we run out of space,
   // stop finding volume descriptors, or find the primary volume descriptor.
   uint64 sector = 0x10;
   while (true) {
     // Read in this sector.
-    read_request.SetOffsetOnDevice(sector * kIso9660SectorSize);
-    auto status_or_response = storage_device.CallRead(read_request);
-    if (!status_or_response) {
+    read_request.offset_on_device = sector * kIso9660SectorSize;
+    auto status = storage_device.Read(read_request);
+    if (status != Status::OK) {
       // Probably ran past the end of the disk.
       kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
       return std::unique_ptr<FileSystem>();
@@ -457,10 +449,9 @@ std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
                   storage_device));
 }
 
-StatusOr<StorageManager::GetFileStatisticsResponse> Iso9660::GetFileStatistics(
-    std::string_view path) {
-  StorageManager::GetFileStatisticsResponse response;
-  response.SetOptimalOperationSize(optimal_operation_size_);
+StatusOr<FileStatistics> Iso9660::GetFileStatistics(std::string_view path) {
+  FileStatistics response;
+  response.optimal_operation_size = optimal_operation_size_;
 
   if (path.empty()) return response;
 
@@ -468,13 +459,12 @@ StatusOr<StorageManager::GetFileStatisticsResponse> Iso9660::GetFileStatistics(
   SplitPath(path, directory, file_name);
 
   ForRawEachEntryInDirectory(
-      directory, [&](std::string_view name, DirectoryEntryType type,
+      directory, [&](std::string_view name, DirectoryEntry::Type type,
                      size_t start_lba, size_t size) {
         if (name == file_name) {
-          response.SetExists(true);
-          response.SetIsFile(type == DirectoryEntryType::File);
-          response.SetIsDirectory(type == DirectoryEntryType::Directory);
-          response.SetSizeInBytes(size);
+          response.exists = true;
+          response.type = type;
+          response.size_in_bytes = size;
           return true;
         }
         return false;

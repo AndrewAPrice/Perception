@@ -1,7 +1,8 @@
 {
     dependencies+: [
         "perception",
-        "Perception Driver"
+        "Perception Driver",
+        "Perception Window"
     ],
     source_directories: [
         "source"

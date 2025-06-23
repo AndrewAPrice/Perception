@@ -20,6 +20,7 @@
 
 #include "perception/memory.h"
 #include "perception/messages.h"
+#include "perception/serialization/serializer.h"
 
 namespace perception {
 namespace {
@@ -249,7 +250,7 @@ SharedMemory& SharedMemory::operator=(SharedMemory&& other) {
 
 // Creates a shared memory block of a specific size. The size is rounded up
 // to the nearest page size.
-std::unique_ptr<SharedMemory> SharedMemory::FromSize(
+std::shared_ptr<SharedMemory> SharedMemory::FromSize(
     size_t size_in_bytes, size_t flags,
     std::function<void(size_t)> on_page_request) {
   size_t size_in_pages = (size_in_bytes + kPageSize - 1) / kPageSize;
@@ -284,7 +285,7 @@ std::unique_ptr<SharedMemory> SharedMemory::FromSize(
 
   // We've created and allocated a shared memory, so now let's wrap it in a
   // SharedMemory object.
-  auto shared_memory = std::make_unique<SharedMemory>(id);
+  auto shared_memory = std::make_shared<SharedMemory>(id);
   shared_memory->ptr_ = ptr;
   shared_memory->size_in_bytes_ = size_in_pages * kPageSize;
   shared_memory->flags_ = flags;
@@ -517,6 +518,25 @@ MemorySpan SharedMemory::ToSpan() {
 void SharedMemory::Apply(const std::function<void(void*, size_t)>& function) {
   (void)Join();
   if (size_in_bytes_ > 0) function(ptr_, size_in_bytes_);
+}
+
+void SharedMemory::Serialize(serialization::Serializer& serializer) {
+  if (serializer.IsDeserializing()) {
+    size_t id = 0;
+    serializer.Integer("Id", id);
+    if (id != shared_memory_id_) {
+      std::scoped_lock lock(mutex_);
+      if (size_in_bytes_ != 0) ReleaseSharedMemory(shared_memory_id_);
+      if (is_creator_of_lazily_allocated_buffer_)
+        UnregisterMessageHandler(on_page_request_message_id_);
+
+      shared_memory_id_ = id;
+      ptr_ = nullptr;
+      size_in_bytes_ = 0;
+    }
+  } else {
+    serializer.Integer("Id", shared_memory_id_);
+  }
 }
 
 }  // namespace perception

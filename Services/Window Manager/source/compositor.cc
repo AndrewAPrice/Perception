@@ -18,17 +18,17 @@
 #include "frame.h"
 #include "highlighter.h"
 #include "mouse.h"
+#include "perception/devices/graphics_device.h"
 #include "perception/draw.h"
 #include "perception/object_pool.h"
-#include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
 #include "screen.h"
 #include "types.h"
 #include "window.h"
 
+namespace graphics = ::perception::devices::graphics;
 using ::perception::DrawSprite1bitAlpha;
 using ::perception::FillRectangle;
-using ::permebuf::perception::devices::GraphicsCommand;
-using ::permebuf::perception::devices::GraphicsDriver;
+using ::perception::devices::GraphicsDevice;
 
 namespace {
 
@@ -87,25 +87,15 @@ void DrawScreen() {
   PrepHighlighterForDrawing(min_x, min_y, max_x, max_y);
   PrepMouseForDrawing(min_x, min_y, max_x, max_y);
 
-  // Draw the screen.
-  Permebuf<GraphicsDriver::RunCommandsMessage> commands;
-
   // There are 3 stages of commands that we want to construct:
   // (1) Draw any rectangles into the WM Texture.
   // (2) Draw mouse/highlighter into the WM Texture.
   // (3) Draw WM textures into framebuffer.
   // (4) Draw window textures into framebuffer.
 
-  PermebufListOfOneOfs<::permebuf::perception::devices::GraphicsCommand>
-      first_draw_into_wm_texture_command, last_draw_into_wm_texture_command;
-  bool has_commands_to_draw_into_wm_texture = false;
-  PermebufListOfOneOfs<::permebuf::perception::devices::GraphicsCommand>
-      first_draw_wm_texture_into_framebuffer_command,
-      last_draw_wm_texture_into_framebuffer_command;
-  bool has_commands_to_draw_wm_into_frame_buffer = false;
-  PermebufListOfOneOfs<::permebuf::perception::devices::GraphicsCommand>
-      first_draw_into_framebuffer_command, last_draw_into_framebuffer_command;
-  bool has_commands_to_draw_into_framebuffer = false;
+  std::vector<graphics::Command> draw_into_wm_texture_commands;
+  std::vector<graphics::Command> draw_wm_into_framebuffer_commands;
+  std::vector<graphics::Command> draw_into_framebuffer_commands;
 
   size_t texture_drawing_into_window_manager = 0;
   size_t texture_drawing_into_framebuffer = 0;
@@ -118,179 +108,157 @@ void DrawScreen() {
         // applied to the window manager texture.
 
         // Draw this rectangle into the window manager's texture.
-        if (has_commands_to_draw_into_wm_texture) {
-          last_draw_into_wm_texture_command =
-              last_draw_into_wm_texture_command.InsertAfter();
-        } else {
-          first_draw_into_wm_texture_command =
-              last_draw_into_wm_texture_command = commands.AllocateListOfOneOfs<
-                  ::permebuf::perception::devices::GraphicsCommand>();
-
-          has_commands_to_draw_into_wm_texture = true;
-        }
 
         if (rectangle->IsSolidColor()) {
           // Draw solid color into window manager texture.
-          auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
-          last_draw_into_wm_texture_command.Set(command_one_of);
-          auto command = command_one_of.MutableFillRectangle();
-          command.SetLeft(rectangle->min_x);
-          command.SetTop(rectangle->min_y);
-          command.SetRight(rectangle->max_x);
-          command.SetBottom(rectangle->max_y);
-          command.SetColor(rectangle->color);
+          auto& command = draw_into_wm_texture_commands.emplace_back();
+          command.type = graphics::Command::Type::FILL_RECTANGLE;
+
+          command.fill_rectangle_parameters =
+              std::make_shared<graphics::FillRectangleParameters>();
+          command.fill_rectangle_parameters->destination = {
+              static_cast<uint32>(rectangle->min_x),
+              static_cast<uint32>(rectangle->min_y)};
+          command.fill_rectangle_parameters->size = {
+              static_cast<uint32>(rectangle->max_x - rectangle->min_x),
+              static_cast<uint32>(rectangle->max_y - rectangle->min_y)};
+          command.fill_rectangle_parameters->color = rectangle->color;
         } else {
           // Copy texture into window manager's texture.
           if (rectangle->texture_id != texture_drawing_into_window_manager) {
             // Switch over to source texture.
+            auto& command = draw_into_wm_texture_commands.emplace_back();
+            command.type = graphics::Command::Type::SET_SOURCE_TEXTURE;
+            command.texture_reference =
+                std::make_shared<graphics::TextureReference>(
+                    GetWindowManagerTextureId());
             texture_drawing_into_window_manager = rectangle->texture_id;
-
-            auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
-            last_draw_into_wm_texture_command.Set(command_one_of);
-            command_one_of.MutableSetSourceTexture().SetTexture(
-                rectangle->texture_id);
-
-            last_draw_into_wm_texture_command =
-                last_draw_into_wm_texture_command.InsertAfter();
           }
 
-          auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
-          last_draw_into_wm_texture_command.Set(command_one_of);
-          auto command = command_one_of.MutableCopyPartOfATexture();
-          command.SetLeftSource(rectangle->texture_x);
-          command.SetTopSource(rectangle->texture_y);
-          command.SetLeftDestination(rectangle->min_x);
-          command.SetTopDestination(rectangle->min_y);
-          command.SetWidth(rectangle->max_x - rectangle->min_x);
-          command.SetHeight(rectangle->max_y - rectangle->min_y);
+          {
+            auto& command = draw_into_wm_texture_commands.emplace_back();
+            command.type = graphics::Command::Type::COPY_PART_OF_A_TEXTURE;
+            command.copy_part_of_texture_parameters =
+                std::make_shared<graphics::CopyPartOfTextureParameters>();
+            command.copy_part_of_texture_parameters->source = {
+                static_cast<uint32>(rectangle->texture_x),
+                static_cast<uint32>(rectangle->texture_y)};
+            command.copy_part_of_texture_parameters->destination = {
+                static_cast<uint32>(rectangle->min_x),
+                static_cast<uint32>(rectangle->min_y)};
+            command.copy_part_of_texture_parameters->size = {
+                static_cast<uint32>(rectangle->max_x - rectangle->min_x),
+                static_cast<uint32>(rectangle->max_y - rectangle->min_y)};
+          }
         }
       }
 
       // Now copy this area from the Window Manager's texture into the
       // framebuffer.
-      if (has_commands_to_draw_wm_into_frame_buffer) {
-        last_draw_wm_texture_into_framebuffer_command =
-            last_draw_wm_texture_into_framebuffer_command.InsertAfter();
-      } else {
-        first_draw_wm_texture_into_framebuffer_command =
-            last_draw_wm_texture_into_framebuffer_command =
-                commands.AllocateListOfOneOfs<
-                    ::permebuf::perception::devices::GraphicsCommand>();
-        has_commands_to_draw_wm_into_frame_buffer = true;
+      {
+        auto& command = draw_wm_into_framebuffer_commands.emplace_back();
+        command.type = graphics::Command::Type::COPY_PART_OF_A_TEXTURE;
+        command.copy_part_of_texture_parameters =
+            std::make_shared<graphics::CopyPartOfTextureParameters>();
+        command.copy_part_of_texture_parameters->source = {
+            static_cast<uint32>(rectangle->min_x),
+            static_cast<uint32>(rectangle->min_y)};
+        command.copy_part_of_texture_parameters->destination = {
+            static_cast<uint32>(rectangle->min_x),
+            static_cast<uint32>(rectangle->min_y)};
+        command.copy_part_of_texture_parameters->size = {
+            static_cast<uint32>(rectangle->max_x - rectangle->min_x),
+            static_cast<uint32>(rectangle->max_y - rectangle->min_y)};
       }
-
-      auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
-      last_draw_wm_texture_into_framebuffer_command.Set(command_one_of);
-      auto command = command_one_of.MutableCopyPartOfATexture();
-      command.SetLeftSource(rectangle->min_x);
-      command.SetTopSource(rectangle->min_y);
-      command.SetLeftDestination(rectangle->min_x);
-      command.SetTopDestination(rectangle->min_y);
-      command.SetWidth(rectangle->max_x - rectangle->min_x);
-      command.SetHeight(rectangle->max_y - rectangle->min_y);
     } else {
       // Draw this rectangle straight into the framebuffer.
-      if (has_commands_to_draw_into_framebuffer) {
-        last_draw_into_framebuffer_command =
-            last_draw_into_framebuffer_command.InsertAfter();
-      } else {
-        first_draw_into_framebuffer_command =
-            last_draw_into_framebuffer_command = commands.AllocateListOfOneOfs<
-                ::permebuf::perception::devices::GraphicsCommand>();
-        has_commands_to_draw_into_framebuffer = true;
-      }
-
       if (rectangle->IsSolidColor()) {
         // Draw solid color into framebuffer.
-        auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
-        last_draw_into_framebuffer_command.Set(command_one_of);
-        auto command = command_one_of.MutableFillRectangle();
-        command.SetLeft(rectangle->min_x);
-        command.SetTop(rectangle->min_y);
-        command.SetRight(rectangle->max_x);
-        command.SetBottom(rectangle->max_y);
-        command.SetColor(rectangle->color);
+        auto& command = draw_wm_into_framebuffer_commands.emplace_back();
+        command.type = graphics::Command::Type::FILL_RECTANGLE;
+
+        command.fill_rectangle_parameters =
+            std::make_shared<graphics::FillRectangleParameters>();
+        command.fill_rectangle_parameters->destination = {
+            static_cast<uint32>(rectangle->min_x),
+            static_cast<uint32>(rectangle->min_y)};
+        command.fill_rectangle_parameters->size = {
+            static_cast<uint32>(rectangle->max_x - rectangle->min_x),
+            static_cast<uint32>(rectangle->max_y - rectangle->min_y)};
+        command.fill_rectangle_parameters->color = rectangle->color;
       } else {
         // Copy texture into framebuffer.
         if (rectangle->texture_id != texture_drawing_into_framebuffer) {
           // Switch over the source texture.
+          auto& command = draw_into_framebuffer_commands.emplace_back();
+          command.type = graphics::Command::Type::SET_SOURCE_TEXTURE;
+          command.texture_reference =
+              std::make_shared<graphics::TextureReference>(
+                  GetWindowManagerTextureId());
           texture_drawing_into_framebuffer = rectangle->texture_id;
-
-          auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
-          last_draw_into_framebuffer_command.Set(command_one_of);
-          command_one_of.MutableSetSourceTexture().SetTexture(
-              rectangle->texture_id);
-
-          last_draw_into_framebuffer_command =
-              last_draw_into_framebuffer_command.InsertAfter();
         }
 
-        auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
-        last_draw_into_framebuffer_command.Set(command_one_of);
-        auto command = command_one_of.MutableCopyPartOfATexture();
-        command.SetLeftSource(rectangle->texture_x);
-        command.SetTopSource(rectangle->texture_y);
-        command.SetLeftDestination(rectangle->min_x);
-        command.SetTopDestination(rectangle->min_y);
-        command.SetWidth(rectangle->max_x - rectangle->min_x);
-        command.SetHeight(rectangle->max_y - rectangle->min_y);
+        {
+          auto& command = draw_into_framebuffer_commands.emplace_back();
+          command.type = graphics::Command::Type::COPY_PART_OF_A_TEXTURE;
+          command.copy_part_of_texture_parameters =
+              std::make_shared<graphics::CopyPartOfTextureParameters>();
+          command.copy_part_of_texture_parameters->source = {
+              static_cast<uint32>(rectangle->texture_x),
+              static_cast<uint32>(rectangle->texture_y)};
+          command.copy_part_of_texture_parameters->destination = {
+              static_cast<uint32>(rectangle->min_x),
+              static_cast<uint32>(rectangle->min_y)};
+          command.copy_part_of_texture_parameters->size = {
+              static_cast<uint32>(rectangle->max_x - rectangle->min_x),
+              static_cast<uint32>(rectangle->max_y - rectangle->min_y)};
+        }
       }
     }
   });
 
   // Merge all the draw commands together.
-  PermebufListOfOneOfs<::permebuf::perception::devices::GraphicsCommand>
-      last_draw_command;
-
-  if (has_commands_to_draw_into_wm_texture) {
+  graphics::Commands commands;
+  commands.commands.reserve(draw_into_wm_texture_commands.size() +
+                            draw_wm_into_framebuffer_commands.size() +
+                            draw_into_framebuffer_commands.size());
+  if (!draw_into_wm_texture_commands.empty()) {
     // We have things to draw into the window manager's texture.
 
     // Set destination to be the wm texture.
-    last_draw_command = commands->MutableCommands();
-    auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
-    last_draw_command.Set(command_one_of);
-    command_one_of.MutableSetDestinationTexture().SetTexture(
+    auto& command = commands.commands.emplace_back();
+    command.type = graphics::Command::Type::SET_DESTINATION_TEXTURE;
+    command.texture_reference = std::make_shared<graphics::TextureReference>(
         GetWindowManagerTextureId());
 
-    // Chain the commands onto the end.
-    last_draw_command.SetNext(first_draw_into_wm_texture_command);
-    last_draw_command = last_draw_into_wm_texture_command;
+    for (auto& c : draw_into_wm_texture_commands)
+      commands.commands.push_back(std::move(c));
   }
 
   // Draw some overlays.
-  DrawHighlighter(commands, last_draw_command, min_x, min_y, max_x, max_y);
-  DrawMouse(commands, last_draw_command, min_x, min_y, max_x, max_y);
+  DrawHighlighter(commands, min_x, min_y, max_x, max_y);
+  DrawMouse(commands, min_x, min_y, max_x, max_y);
 
-  // Set the destination to be the framebuffer.
-  if (last_draw_command.IsValid()) {
-    last_draw_command = last_draw_command.InsertAfter();
-  } else {
-    last_draw_command = commands->MutableCommands();
+  // Set destination to frame buffer.
+  {
+    auto& command = commands.commands.emplace_back();
+    command.type = graphics::Command::Type::SET_DESTINATION_TEXTURE;
+    command.texture_reference =
+        std::make_shared<graphics::TextureReference>(0);  // The screen.
   }
-  auto set_destination_to_framebuffer_command_one_of =
-      commands.AllocateOneOf<GraphicsCommand>();
-  last_draw_command.Set(set_destination_to_framebuffer_command_one_of);
-  set_destination_to_framebuffer_command_one_of.MutableSetDestinationTexture()
-      .SetTexture(0);  // The screen.
 
-  if (has_commands_to_draw_wm_into_frame_buffer) {
-    // Set the source to be the window manager's texture.
-    last_draw_command = last_draw_command.InsertAfter();
-    auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
-    last_draw_command.Set(command_one_of);
-    command_one_of.MutableSetSourceTexture().SetTexture(
+  if (!draw_wm_into_framebuffer_commands.empty()) {
+    auto& command = commands.commands.emplace_back();
+    command.type = graphics::Command::Type::SET_SOURCE_TEXTURE;
+    command.texture_reference = std::make_shared<graphics::TextureReference>(
         GetWindowManagerTextureId());
 
-    // Chain the commands onto the end.
-    last_draw_command.SetNext(first_draw_wm_texture_into_framebuffer_command);
-    last_draw_command = last_draw_wm_texture_into_framebuffer_command;
+    for (auto& c : draw_wm_into_framebuffer_commands)
+      commands.commands.push_back(std::move(c));
   }
 
-  if (has_commands_to_draw_into_framebuffer) {
-    // Chain the commands onto the end.
-    last_draw_command.SetNext(first_draw_into_framebuffer_command);
-    last_draw_command = last_draw_into_framebuffer_command;
-  }
+  for (auto& c : draw_into_framebuffer_commands)
+    commands.commands.push_back(std::move(c));
 
   RunDrawCommands(std::move(commands));
 

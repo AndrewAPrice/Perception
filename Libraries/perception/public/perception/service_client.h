@@ -35,7 +35,7 @@ class ServiceClient : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 
   template <class ResponseType, class RequestType>
-  ResponseType SyncDispatch(RequestType& request, size_t method_id) {
+  ResponseType SyncDispatch(const RequestType& request, size_t method_id) {
     MessageData message;
     PrepareRequestMessageWithParameter<RequestType>(request, method_id,
                                                     message);
@@ -50,7 +50,7 @@ class ServiceClient : public serialization::Serializable {
   }
 
   template <class ResponseType, class RequestType>
-  void AsyncDispatch(RequestType& request, size_t method_id,
+  void AsyncDispatch(const RequestType& request, size_t method_id,
                      std::function<void(ResponseType)> on_response) {
     MessageData message;
     PrepareRequestMessageWithParameter<RequestType>(request, method_id,
@@ -73,7 +73,9 @@ class ServiceClient : public serialization::Serializable {
 
   bool IsValid() const;
 
-  MessageId NotifyOnDisappearence(
+  operator bool() const { return IsValid(); }
+
+  MessageId NotifyOnDisappearance(
       const std::function<void()>& on_disappearance);
   void StopNotifyingOnDisappearance(MessageId message_id);
 
@@ -185,7 +187,7 @@ class ServiceClient : public serialization::Serializable {
                                               MessageData& message);
 
   template <class RequestType>
-  void PrepareRequestMessageWithParameter(RequestType& request,
+  void PrepareRequestMessageWithParameter(const RequestType& request,
                                           size_t method_id,
                                           MessageData& message) {
     PrepareRequestMessage(method_id, message);

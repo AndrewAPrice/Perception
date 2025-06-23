@@ -14,17 +14,15 @@
 
 #pragma once
 
-#include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
+#include "perception/devices/graphics_device.h"
 #include "types.h"
 
 void InitializeScreen();
-::permebuf::perception::devices::GraphicsDriver& GetGraphicsDriver();
+::perception::devices::GraphicsDevice::Client &GetGraphicsDevice();
 int GetScreenWidth();
 int GetScreenHeight();
 size_t GetWindowManagerTextureId();
 uint32* GetWindowManagerTextureData();
 void SleepUntilWeAreReadyToStartDrawing();
 void RunDrawCommands(
-    Permebuf<
-        ::permebuf::perception::devices::GraphicsDriver::RunCommandsMessage>
-        commands);
+    const ::perception::devices::graphics::Commands& commands);

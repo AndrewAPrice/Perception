@@ -23,15 +23,22 @@
 #include "include/private/base/SkTArray.h"
 #include "include/private/base/SkTDArray.h"
 #include "include/private/base/SkTemplates.h"
-#include "permebuf/Libraries/perception/font_manager.permebuf.h"
+#include "perception/services.h"
+#include "perception/ui/font_manager.h"
 #include "src/base/SkAutoMalloc.h"
 #include "src/base/SkBuffer.h"
 #include "src/ports/SkFontConfigInterface_direct.h"
 
+using ::perception::GetService;
 using ::perception::SharedMemory;
-using ::permebuf::perception::FontData;
-using ::permebuf::perception::FontManager;
-using FontStyle = ::permebuf::perception::FontStyle;
+using ::perception::ui::FontData;
+using ::perception::ui::FontFamilies;
+using ::perception::ui::FontFamily;
+using ::perception::ui::FontManager;
+using ::perception::ui::FontStyle;
+using ::perception::ui::FontStyles;
+using ::perception::ui::MatchFontRequest;
+using ::perception::ui::MatchFontResponse;
 using SkFS = SkFontStyle;
 
 namespace {
@@ -104,21 +111,20 @@ V GetOrDefault(const std::map<K, V>& m, const K key, const V default_value) {
   return it == m.end() ? default_value : it->second;
 }
 
-SkFontStyle SkFontStyleFromFontStyle(FontStyle font_style) {
+SkFontStyle SkFontStyleFromFontStyle(const FontStyle& font_style) {
   typedef SkFontStyle SkFS;
 
-  int weight =
-      (int)GetOrDefault(kFontWeightToSkiaWeight, font_style.GetWeight(),
-                        (int)SkFS::kNormal_Weight);
-  int width = (int)GetOrDefault(kFontWidthToSkiaWidth, font_style.GetWidth(),
+  int weight = (int)GetOrDefault(kFontWeightToSkiaWeight, font_style.weight,
+                                 (int)SkFS::kNormal_Weight);
+  int width = (int)GetOrDefault(kFontWidthToSkiaWidth, font_style.width,
                                 SkFS::kNormal_Width);
-  SkFS::Slant slant = GetOrDefault(kFontSlantToSkiaSlant, font_style.GetSlant(),
+  SkFS::Slant slant = GetOrDefault(kFontSlantToSkiaSlant, font_style.slant,
                                    SkFS::kUpright_Slant);
 
   return SkFontStyle(weight, width, slant);
 }
 
-void FontStyleFromSkFontStyle(SkFontStyle style, FontStyle font_style) {
+void FontStyleFromSkFontStyle(SkFontStyle style, FontStyle& font_style) {
   typedef SkFontStyle SkFS;
 
   static constexpr MapRanges weight_ranges[] = {
@@ -135,8 +141,8 @@ void FontStyleFromSkFontStyle(SkFontStyle style, FontStyle font_style) {
       {SkFS::kBlack_Weight, (SkScalar)FontStyle::Weight::BLACK},
       {SkFS::kExtraBlack_Weight, (SkScalar)FontStyle::Weight::EXTRABLACK},
   };
-  font_style.SetWeight((FontStyle::Weight)SkScalarRoundToInt(
-      map_ranges(style.weight(), weight_ranges, std::size(weight_ranges))));
+  font_style.weight = (FontStyle::Weight)SkScalarRoundToInt(
+      map_ranges(style.weight(), weight_ranges, std::size(weight_ranges)));
 
   static constexpr MapRanges width_ranges[] = {
       {SkFS::kUltraCondensed_Width, (SkScalar)FontStyle::Width::ULTRACONDENSED},
@@ -149,18 +155,18 @@ void FontStyleFromSkFontStyle(SkFontStyle style, FontStyle font_style) {
       {SkFS::kExtraExpanded_Width, (SkScalar)FontStyle::Width::EXTRAEXPANDED},
       {SkFS::kUltraExpanded_Width, (SkScalar)FontStyle::Width::ULTRAEXPANDED},
   };
-  font_style.SetWidth((FontStyle::Width)SkScalarRoundToInt(
-      map_ranges(style.width(), width_ranges, std::size(width_ranges))));
+  font_style.width = (FontStyle::Width)SkScalarRoundToInt(
+      map_ranges(style.width(), width_ranges, std::size(width_ranges)));
 
   switch (style.slant()) {
     case SkFS::kUpright_Slant:
-      font_style.SetSlant(FontStyle::Slant::UPRIGHT);
+      font_style.slant = FontStyle::Slant::UPRIGHT;
       break;
     case SkFS::kItalic_Slant:
-      font_style.SetSlant(FontStyle::Slant::ITALIC);
+      font_style.slant = FontStyle::Slant::ITALIC;
       break;
     case SkFS::kOblique_Slant:
-      font_style.SetSlant(FontStyle::Slant::OBLIQUE);
+      font_style.slant = FontStyle::Slant::OBLIQUE;
       break;
     default:
       SkASSERT(false);
@@ -183,38 +189,36 @@ bool SkFontConfigInterfaceDirect::matchFamilyName(const char familyName[],
                                                   SkFontStyle* outStyle) {
   SkString familyStr(familyName ? familyName : "");
 
-  Permebuf<FontManager::MatchFontRequest> request;
-  request->SetFamilyName(familyName);
-  FontStyleFromSkFontStyle(style, request->MutableStyle());
+  MatchFontRequest request;
+  request.family_name = familyName;
+  FontStyleFromSkFontStyle(style, request.style);
 
-  auto status_or_response =
-      FontManager::Get().CallMatchFont(std::move(request));
+  auto status_or_response = GetService<FontManager>().MatchFont(request);
   if (!status_or_response.Ok()) return false;
 
   if (outIdentity) {
-    outIdentity->fTTCIndex = ((*status_or_response)->GetFaceIndex());
-    auto font_data = (*status_or_response)->GetData();
-    switch (font_data.GetOption()) {
-      case FontData::Options::Path:
+    outIdentity->fTTCIndex = status_or_response->face_index;
+    auto font_data = status_or_response->data;
+    switch (font_data.type) {
+      case FontData::Type::FILE:
         outIdentity->fIsBuffer = false;
-        outIdentity->fString = SkString(*font_data.GetPath());
+        outIdentity->fString = SkString(font_data.path);
         break;
-      case FontData::Options::Buffer:
+      case FontData::Type::BUFFER:
         outIdentity->fIsBuffer = true;
-        outIdentity->fBuffer = std::make_shared<SharedMemory>(
-            font_data.GetBuffer().GetBuffer().Clone());
+        outIdentity->fBuffer = font_data.buffer;
         break;
       default:
         std::cout << "FontManager can't handle the FontData type "
-                  << (int)font_data.GetOption() << std::endl;
+                  << (int)font_data.type << std::endl;
         return false;
     }
   }
   if (outFamilyName) {
-    *outFamilyName = SkString(*(*status_or_response)->GetFamilyName());
+    *outFamilyName = SkString(status_or_response->family_name);
   }
   if (outStyle) {
-    *outStyle = SkFontStyleFromFontStyle((*status_or_response)->GetStyle());
+    *outStyle = SkFontStyleFromFontStyle(status_or_response->style);
   }
   return true;
 }

@@ -18,7 +18,7 @@
 #include <string_view>
 
 #include "file_systems/file_system.h"
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
+#include "perception/storage_manager.h"
 
 class File;
 class MemoryMappedFile;
@@ -44,8 +44,7 @@ void CloseMemoryMappedFile(::perception::ProcessId sender,
 bool ForEachEntryInDirectory(
     std::string_view directory, int offset, int count,
     const std::function<void(std::string_view,
-                             ::permebuf::perception::DirectoryEntryType,
-                             size_t)>& on_each_entry);
+                             ::perception::DirectoryEntry::Type, size_t)>&
+        on_each_entry);
 
-StatusOr<::permebuf::perception::StorageManager::GetFileStatisticsResponse>
-GetFileStatistics(std::string_view path);
+StatusOr<::perception::FileStatistics> GetFileStatistics(std::string_view path);

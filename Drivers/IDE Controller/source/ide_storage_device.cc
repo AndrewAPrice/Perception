@@ -15,6 +15,7 @@
 #include "ide_storage_device.h"
 
 #include <math.h>
+#include <iostream>
 
 #include "ata.h"
 #include "ide.h"
@@ -35,11 +36,14 @@ using ::perception::Read8BitsFromPort;
 using ::perception::ReleaseMemoryPages;
 using ::perception::SharedMemory;
 using ::perception::SleepForDuration;
+using ::perception::Status;
 using ::perception::Write16BitsToPort;
 using ::perception::Write32BitsToPort;
 using ::perception::Write8BitsToPort;
-using ::permebuf::perception::devices::StorageDevice;
-using ::permebuf::perception::devices::StorageType;
+using ::perception::devices::StorageDeviceDetails;
+using ::perception::devices::StorageDeviceReadRequest;
+using ::perception::devices::StorageDeviceType;
+using ::perception::devices::StorageDevice;
 
 namespace {
 
@@ -89,54 +93,49 @@ IdeStorageDevice::~IdeStorageDevice() {
   }
 }
 
-StatusOr<Permebuf<StorageDevice::GetDeviceDetailsResponse>>
-IdeStorageDevice::HandleGetDeviceDetails(
-    ::perception::ProcessId sender,
-    const StorageDevice::GetDeviceDetailsRequest& request) {
-  Permebuf<StorageDevice::GetDeviceDetailsResponse> response;
-  response->SetSizeInBytes(device_->size_in_bytes);
-  response->SetIsWritable(device_->is_writable);
-  response->SetType(StorageType::Optical);
-  response->SetName(device_->name);
-  response->SetOptimalOperationSize(kOptimalOperationSize);
-  return response;
+StatusOr<StorageDeviceDetails> IdeStorageDevice::GetDeviceDetails() {
+  StorageDeviceDetails details;
+  details.size_in_bytes = device_->size_in_bytes;
+  details.is_writable = device_->is_writable;
+  details.type = StorageDeviceType::OPTICAL;
+  details.name = device_->name;
+  details.optimal_operation_size = kOptimalOperationSize;
+  return details;
 }
 
-StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
-    ::perception::ProcessId sender, const StorageDevice::ReadRequest& request) {
-  SharedMemory destination_shared_memory = request.GetBuffer();
+Status IdeStorageDevice::Read(const StorageDeviceReadRequest& request) {
   // Right now, join the memory buffer, but in the future it'll be nice to be
   // able to write without joining the memory buffer, which means if being able
   // to lock it without joining.
-  if (!destination_shared_memory.Join()) {
+  if (!request.buffer->Join()) {
     return ::perception::Status::INVALID_ARGUMENT;
   }
 
-  auto details = destination_shared_memory.GetDetails();
+  auto details = request.buffer->GetDetails();
   if (!details.CanWrite && !details.CanAssignPages) {
     // Can't move the written data into this memory page.
     return ::perception::Status::INVALID_ARGUMENT;
   }
 
-  int64 bytes_to_copy = request.GetBytesToCopy();
-  int64 device_offset_start = request.GetOffsetOnDevice();
-  int64 buffer_offset = request.GetOffsetInBuffer();
+  int64 bytes_to_copy = request.bytes_to_copy;
+  int64 device_offset_start = request.offset_on_device;
+  int64 buffer_offset = request.offset_in_buffer;
 
-  uint8* destination_buffer = (uint8*)*destination_shared_memory;
+  uint8* destination_buffer = (uint8*)**request.buffer;
 
   if (bytes_to_copy == 0) {
     // Nothing to copy.
-    return StorageDevice::ReadResponse();
+    return Status::OK;
   }
 
   if (buffer_offset + bytes_to_copy > device_->size_in_bytes) {
     // Reading beyond end of the device.
-    return ::perception::Status::OVERFLOW;
+    return Status::OVERFLOW;
   }
 
-  if (buffer_offset + bytes_to_copy > destination_shared_memory.GetSize()) {
+  if (buffer_offset + bytes_to_copy > request.buffer->GetSize()) {
     // Writing beyond the end of the buffer.
-    return ::perception::Status::OVERFLOW;
+    return Status::OVERFLOW;
   }
 
   std::lock_guard<std::mutex> mutex(GetIdeMutex());
@@ -211,8 +210,8 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
           // The page index in the buffer has changed.
           if (assign_page) {
             // Assign the previous page that was worked on.
-            destination_shared_memory.AssignPage(
-                current_destination_page, current_page_in_buffer * kPageSize);
+            request.buffer->AssignPage(current_destination_page,
+                                       current_page_in_buffer * kPageSize);
           }
 
           current_page_in_buffer = buffer_page_index;
@@ -231,7 +230,7 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
             if (!will_fill_entire_memory) {
               // Does an old memory buffer exist?
               bool does_old_memory_exist =
-                  destination_shared_memory.IsPageAllocated(buffer_page_start);
+                  request.buffer->IsPageAllocated(buffer_page_start);
               size_t after_last_byte = offset_in_buffer_page + bytes_to_copy;
               if (does_old_memory_exist) {
                 // Copy the data around the region being read.
@@ -285,91 +284,93 @@ StatusOr<StorageDevice::ReadResponse> IdeStorageDevice::HandleRead(
 
     if (assign_page) {
       // Assign the page that was just written.
-      destination_shared_memory.AssignPage(current_destination_page,
-                                           current_page_in_buffer * kPageSize);
+      request.buffer->AssignPage(current_destination_page,
+                                 current_page_in_buffer * kPageSize);
     }
   }
 
-/*
-  for (size_t lba = start_lba; lba <= end_lba; lba++) {
-    bool copy_into_dma_scratch_page = true;
+  /*
+    for (size_t lba = start_lba; lba <= end_lba; lba++) {
+      bool copy_into_dma_scratch_page = true;
 
-    if (supports_dma_) {
-      copy_into_dma_scratch_page = true;
-      // Figure out if we can DMA directly into the destination buffer.
-      if (bytes_to_copy >= ATAPI_SECTOR_SIZE &&
-          IsRegionInTheSameMemoryPage(
-              &destination_buffer[buffer_offset],
-              &destination_buffer[buffer_offset + ATAPI_SECTOR_SIZE - 1])) {
-        // The destination region fits into the same memory page and we're
-        // reading a whole ATAPI sector. Therefore, we don't risk overriding
-        // data in the destination buffer and we don't risk copying across
-        // non-continguous physical address ranges.
+      if (supports_dma_) {
+        copy_into_dma_scratch_page = true;
+        // Figure out if we can DMA directly into the destination buffer.
+        if (bytes_to_copy >= ATAPI_SECTOR_SIZE &&
+            IsRegionInTheSameMemoryPage(
+                &destination_buffer[buffer_offset],
+                &destination_buffer[buffer_offset + ATAPI_SECTOR_SIZE - 1])) {
+          // The destination region fits into the same memory page and we're
+          // reading a whole ATAPI sector. Therefore, we don't risk overriding
+          // data in the destination buffer and we don't risk copying across
+          // non-continguous physical address ranges.
 
-        size_t physical_address_of_buffer = GetPhysicalAddressOfVirtualAddress(
-            (size_t)&destination_buffer[buffer_offset]);
-        if (physical_address_of_buffer <= kMaxDmaBufferAddress) {
-          // The destination buffer fits in 32-bit memory, so we can use DMA to
-          // write directly into it.
-          copy_into_dma_scratch_page = false;
-          // Set the destination to be the buffer.
-          *((uint32*)scratch_page_) = (uint32)physical_address_of_buffer;
+          size_t physical_address_of_buffer =
+    GetPhysicalAddressOfVirtualAddress(
+              (size_t)&destination_buffer[buffer_offset]);
+          if (physical_address_of_buffer <= kMaxDmaBufferAddress) {
+            // The destination buffer fits in 32-bit memory, so we can use DMA
+    to
+            // write directly into it.
+            copy_into_dma_scratch_page = false;
+            // Set the destination to be the buffer.
+            *((uint32*)scratch_page_) = (uint32)physical_address_of_buffer;
+          }
         }
+
+        if (copy_into_dma_scratch_page) {
+          // The destination buffer failed the above checks, so we need to copy
+          // into the scratch buffer, then once the data is ready, copy from the
+          // scratch buffer into the destination buffer.
+
+          *((uint32*)scratch_page_) = (uint32)scratch_page_physical_address_ +
+                                      kScratchBufferTempDataOffset;
+        }
+
+        // Clear the command bits.
+        Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), 0);
+
+        // Clear the status.
+        Write8BitsToPort(ATA_BMR_STATUS(bus_master_id), 0);
+
+        // Set the PRDT into the Bus Master Register.
+        Write32BitsToPort(ATA_BMR_PRDT(bus_master_id),
+                          (size_t)scratch_page_physical_address_);
       }
 
-      if (copy_into_dma_scratch_page) {
-        // The destination buffer failed the above checks, so we need to copy
-        // into the scratch buffer, then once the data is ready, copy from the
-        // scratch buffer into the destination buffer.
 
-        *((uint32*)scratch_page_) = (uint32)scratch_page_physical_address_ +
-                                    kScratchBufferTempDataOffset;
+      if (supports_dma_) {
+        std::cout << "DMA oh no!" << std::endl;
+        // Start!
+        Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id),
+                         ATA_BMR_COMMAND_START_BIT);
+
+        WaitForInterrupt(device_->primary_channel);
+
+        // Tell the bus to stop.
+        Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), 0);
+
+        // Need to read the status to flush the data to memory.
+        uint8 status = Read8BitsFromPort(ATA_BMR_STATUS(bus_master_id));
+
+        // Calculate how many bytes to read from this sector.
+        size_t remaining_bytes_in_sector = (size_t)ATAPI_SECTOR_SIZE -
+    skip_bytes; size_t bytes_read = std::min(remaining_bytes_in_sector,
+    (size_t)bytes_to_copy);
+
+        if (copy_into_dma_scratch_page) {
+          // Copy the data out of the scratch buffer and into the destination
+          // buffer.
+          memcpy(&destination_buffer[buffer_offset],
+                 &scratch_page_[kScratchBufferTempDataOffset + skip_bytes],
+                 bytes_read);
+        }
+        bytes_to_copy -= bytes_read;
+        buffer_offset += bytes_read;
+        skip_bytes = 0;
       }
-
-      // Clear the command bits.
-      Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), 0);
-
-      // Clear the status.
-      Write8BitsToPort(ATA_BMR_STATUS(bus_master_id), 0);
-
-      // Set the PRDT into the Bus Master Register.
-      Write32BitsToPort(ATA_BMR_PRDT(bus_master_id),
-                        (size_t)scratch_page_physical_address_);
-    }
-
-
-    if (supports_dma_) {
-      std::cout << "DMA oh no!" << std::endl;
-      // Start!
-      Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id),
-                       ATA_BMR_COMMAND_START_BIT);
-
-      WaitForInterrupt(device_->primary_channel);
-
-      // Tell the bus to stop.
-      Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), 0);
-
-      // Need to read the status to flush the data to memory.
-      uint8 status = Read8BitsFromPort(ATA_BMR_STATUS(bus_master_id));
-
-      // Calculate how many bytes to read from this sector.
-      size_t remaining_bytes_in_sector = (size_t)ATAPI_SECTOR_SIZE - skip_bytes;
-      size_t bytes_read =
-          std::min(remaining_bytes_in_sector, (size_t)bytes_to_copy);
-
-      if (copy_into_dma_scratch_page) {
-        // Copy the data out of the scratch buffer and into the destination
-        // buffer.
-        memcpy(&destination_buffer[buffer_offset],
-               &scratch_page_[kScratchBufferTempDataOffset + skip_bytes],
-               bytes_read);
-      }
-      bytes_to_copy -= bytes_read;
-      buffer_offset += bytes_read;
-      skip_bytes = 0;
-    }
-*/
-  return StorageDevice::ReadResponse();
+  */
+  return Status::OK;
 }
 
 ::perception::Status IdeStorageDevice::SentAtapiPacketCommand(

@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,20 +11,20 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#pragma once
 
-namespace perception;
+#include <string>
 
-// Represents a service that can load applications.
-service LoaderService {
-	// Launches an application.
-	message LaunchApplicationRequest {
-		// The name of the application to launch.
-		Name : string = 1;
-	}
-	minimessage LaunchApplicationResponse {
-		// The ID of the newly launched process.
-		ProcessId : uint64 = 1;
-	}
-	LaunchApplication :
-		LaunchApplicationRequest -> LaunchApplicationResponse = 0;
-}
+#include "perception/service_macros.h"
+
+namespace perception {
+
+#define METHOD_LIST(X)                                \
+  X(1, Close, void, void)
+
+DEFINE_PERCEPTION_SERVICE(MemoryMappedFile, "perception.ui.MemoryMappedFile",
+                          METHOD_LIST)
+
+#undef METHOD_LIST
+
+}  // namespace perception

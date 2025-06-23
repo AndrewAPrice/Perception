@@ -59,8 +59,8 @@ class SharedMemoryWriteStream : public WriteStream {
 
 // Serializable to shared memory. Grows the shared memory if it's not large
 // enough.
-void SerializeToSharedMemory(Serializable& object, SharedMemory& shared_memory,
-                             size_t offset);
+void SerializeToSharedMemory(const Serializable& object,
+                             SharedMemory& shared_memory, size_t offset);
 
 }  // namespace serialization
 }  // namespace perception

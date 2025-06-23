@@ -16,27 +16,30 @@
 
 #include <iostream>
 
+#include "perception/devices/graphics_device.h"
 #include "perception/fibers.h"
 #include "perception/processes.h"
+#include "perception/services.h"
 #include "perception/shared_memory.h"
 
+namespace graphics = ::perception::devices::graphics;
 using ::perception::Fiber;
 using ::perception::GetCurrentlyExecutingFiber;
 using ::perception::GetProcessId;
+using ::perception::GetService;
 using ::perception::MessageId;
 using ::perception::ProcessId;
 using ::perception::SharedMemory;
 using ::perception::Sleep;
-using ::permebuf::perception::devices::GraphicsCommand;
-using ::permebuf::perception::devices::GraphicsDriver;
+using ::perception::Status;
+using ::perception::devices::GraphicsDevice;
 
 namespace {
 
-GraphicsDriver graphics_driver;
-int screen_width;
-int screen_height;
+GraphicsDevice::Client graphics_device;
+graphics::Size screen_size;
 int window_manager_texture_id;
-SharedMemory window_manager_texture_buffer;
+std::shared_ptr<SharedMemory> window_manager_texture_buffer;
 
 bool screen_is_drawing;
 Fiber* fiber_waiting_on_screen_to_finish_drawing;
@@ -45,49 +48,36 @@ Fiber* fiber_waiting_on_screen_to_finish_drawing;
 
 void InitializeScreen() {
   // Sleep until we get the graphics driver.
-  graphics_driver = GraphicsDriver::Get();
-
+  graphics_device = GetService<GraphicsDevice>();
   // Query the screen size.
-  auto screen_size = *graphics_driver.CallGetScreenSize(
-      GraphicsDriver::GetScreenSizeRequest());
-  screen_width = screen_size.GetWidth();
-  screen_height = screen_size.GetHeight();
+  screen_size = *graphics_device.GetScreenSize();
 
   // Allow the window manager to draw to the screen.
-  GraphicsDriver::SetProcessAllowedToDrawToScreenMessage
-      allow_draw_to_screen_message;
-  allow_draw_to_screen_message.SetProcess(GetProcessId());
-  graphics_driver.SendSetProcessAllowedToDrawToScreen(
-      allow_draw_to_screen_message);
+  graphics::ProcessAllowedToDrawToScreenParameters allow_draw_to_screen_message;
+  allow_draw_to_screen_message.process = GetProcessId();
+  graphics_device.SetProcessAllowedToDrawToScreen(allow_draw_to_screen_message);
 
   // Create a texture.
-  GraphicsDriver::CreateTextureRequest create_texture_request;
-  create_texture_request.SetWidth(screen_width);
-  create_texture_request.SetHeight(screen_height);
-
+  graphics::CreateTextureRequest create_texture_request;
+  create_texture_request.size = screen_size;
   auto create_texture_response =
-      *graphics_driver.CallCreateTexture(create_texture_request);
-  window_manager_texture_id = create_texture_response.GetTexture();
-  window_manager_texture_buffer =
-      std::move(create_texture_response.GetPixelBuffer());
-  window_manager_texture_buffer.Join();
+      graphics_device.CreateTexture(create_texture_request);
+  window_manager_texture_id = create_texture_response->texture.id;
+  window_manager_texture_buffer = create_texture_response->pixel_buffer;
+  window_manager_texture_buffer->Join();
 
   fiber_waiting_on_screen_to_finish_drawing = nullptr;
   screen_is_drawing = false;
 }
 
-::permebuf::perception::devices::GraphicsDriver& GetGraphicsDriver() {
-  return graphics_driver;
-}
+int GetScreenWidth() { return screen_size.width; }
 
-int GetScreenWidth() { return screen_width; }
-
-int GetScreenHeight() { return screen_height; }
+int GetScreenHeight() { return screen_size.height; }
 
 size_t GetWindowManagerTextureId() { return window_manager_texture_id; }
 
 uint32* GetWindowManagerTextureData() {
-  return reinterpret_cast<uint32*>(*window_manager_texture_buffer);
+  return reinterpret_cast<uint32*>(**window_manager_texture_buffer);
 }
 
 void SleepUntilWeAreReadyToStartDrawing() {
@@ -104,18 +94,14 @@ void SleepUntilWeAreReadyToStartDrawing() {
 }
 
 void RunDrawCommands(
-    Permebuf<
-        ::permebuf::perception::devices::GraphicsDriver::RunCommandsMessage>
-        commands) {
+    const ::perception::devices::graphics::Commands& commands) {
   // Send the draw calls.
   screen_is_drawing = true;
 
-  graphics_driver.CallRunCommandsAndWait(
-      std::move(commands),
-      [](StatusOr<GraphicsDriver::EmptyResponse> response) {
-        screen_is_drawing = false;
-        Fiber* waiting_fiber = fiber_waiting_on_screen_to_finish_drawing;
-        fiber_waiting_on_screen_to_finish_drawing = nullptr;
-        if (waiting_fiber) waiting_fiber->WakeUp();
-      });
+  graphics_device.RunCommands(commands, [](Status response) {
+    screen_is_drawing = false;
+    Fiber* waiting_fiber = fiber_waiting_on_screen_to_finish_drawing;
+    fiber_waiting_on_screen_to_finish_drawing = nullptr;
+    if (waiting_fiber) waiting_fiber->WakeUp();
+  });
 }

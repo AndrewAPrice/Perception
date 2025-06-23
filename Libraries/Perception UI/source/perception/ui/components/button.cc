@@ -86,15 +86,12 @@ void Button::UpdateFillColor() {
 
 uint32 Button::GetFillColor() {
   if (is_pushed_) {
-    std::cout << "is pushed" << std::endl;
     return pushed_color_;
   }
   if (is_hovering_) {
-    std::cout << "is hovering" << std::endl;
     return hover_color_;
   }
 
-    std::cout << "is idle" << std::endl;
   return idle_color_;
 }
 

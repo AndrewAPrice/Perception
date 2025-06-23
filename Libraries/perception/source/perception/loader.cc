@@ -12,15 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import "devices/keyboard_listener.permebuf";
+#include "perception/loader.h"
 
-namespace perception.devices;
+#include "perception/serialization/serializer.h"
 
-service KeyboardDriver {
-	// Specifies the service that we should send keyboard events to.
-	minimessage SetKeyboardListenerMessage {
-		// The service we should send keyboard events to.
-		NewListener : KeyboardListener = 1;	
-	}
-	SetKeyboardListener : SetKeyboardListenerMessage = 0;
+namespace perception {
+
+void LoadApplicationRequest::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.String("Name", name);
 }
+
+void LoadApplicationResponse::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.Integer("Process", process);
+}
+
+}  // namespace perception

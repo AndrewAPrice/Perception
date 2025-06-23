@@ -20,7 +20,7 @@
 
 using ::perception::HandOverControl;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   // Load the multiboot modules first.
   LoadMultibootModules();
 

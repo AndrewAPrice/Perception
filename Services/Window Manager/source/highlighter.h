@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
+#include "perception/devices/graphics_device.h"
 
 void InitializeHighlighter();
 void SetHighlighter(int min_x, int min_y, int max_x, int max_y);
@@ -25,10 +25,5 @@ void DisableHighlighter();
 void PrepHighlighterForDrawing(int min_x, int min_y, int max_x, int max_y);
 
 // Draws the highlighter.
-void DrawHighlighter(
-    Permebuf<
-        ::permebuf::perception::devices::GraphicsDriver::RunCommandsMessage>&
-        commands,
-    PermebufListOfOneOfs<::permebuf::perception::devices::GraphicsCommand>&
-        last_graphics_command,
-    int min_x, int min_y, int max_x, int max_y);
+void DrawHighlighter(::perception::devices::graphics::Commands& commands,
+                      int min_x, int min_y, int max_x, int max_y);

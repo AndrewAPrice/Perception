@@ -18,25 +18,23 @@
 
 #include <iostream>
 
-#include "Permebuf.h"
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
+#include "perception/services.h"
+#include "perception/storage_manager.h"
 
-using ::permebuf::perception::StorageManager;
+using ::perception::GetService;
+using ::perception::StorageManager;
 
 namespace perception {
 namespace linux_syscalls {
 
-long access(const char *pathname, int mode) {
-  Permebuf<StorageManager::CheckPermissionsRequest> request;
-  request->SetPath(std::string(pathname));
-  auto status_or_response =
-      StorageManager::Get().CallCheckPermissions(std::move(request));
+long access(const char* pathname, int mode) {
+  auto status_or_response = GetService<StorageManager>().CheckPermissions({pathname});
   if (status_or_response) {
     const auto& response = *status_or_response;
-    if (((mode & F_OK) && !response.GetFileExists()) ||
-    ((mode & R_OK) && !response.GetCanRead()) ||
-    ((mode & W_OK) && !response.GetCanWrite()) ||
-    ((mode & X_OK) && !response.GetCanExecute())) {
+    if (((mode & F_OK) && !response.exists) ||
+        ((mode & R_OK) && !response.can_read) ||
+        ((mode & W_OK) && !response.can_write) ||
+        ((mode & X_OK) && !response.can_execute)) {
       return -1;
     }
     return 0;

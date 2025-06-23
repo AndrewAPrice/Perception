@@ -34,7 +34,7 @@ MessageId ServiceClient::ServiceId() const { return message_id_; }
 
 bool ServiceClient::IsValid() const { return process_id_ != 0; }
 
-MessageId ServiceClient::NotifyOnDisappearence(
+MessageId ServiceClient::NotifyOnDisappearance(
     const std::function<void()>& on_disappearance) {
   return NotifyWhenServiceDisappears(process_id_, message_id_,
                                      on_disappearance);

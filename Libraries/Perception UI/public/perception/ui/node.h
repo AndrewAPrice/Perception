@@ -27,7 +27,7 @@
 #include "perception/ui/rectangle.h"
 #include "perception/ui/size.h"
 #include "perception/window/mouse_button.h"
-#include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
+#include "perception/devices/mouse_listener.h"
 #include "yoga/Yoga.h"
 
 namespace perception {

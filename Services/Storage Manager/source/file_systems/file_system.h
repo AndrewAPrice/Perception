@@ -19,14 +19,14 @@
 #include <string_view>
 
 #include "file.h"
-#include "permebuf/Libraries/perception/devices/storage_device.permebuf.h"
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
+#include "perception/devices/storage_device.h"
+#include "perception/storage_manager.h"
 
 namespace file_systems {
 
 class FileSystem {
  public:
-  FileSystem(::permebuf::perception::devices::StorageDevice storage_device);
+  FileSystem(::perception::devices::StorageDevice::Client storage_device);
 
   virtual ~FileSystem() {}
 
@@ -45,12 +45,12 @@ class FileSystem {
   virtual bool ForEachEntryInDirectory(
       std::string_view path, size_t start_index, size_t count,
       const std::function<void(std::string_view,
-                               ::permebuf::perception::DirectoryEntryType,
-                               size_t)>& on_each_entry) = 0;
+                               ::perception::DirectoryEntry::Type, size_t)>&
+          on_each_entry) = 0;
 
   virtual std::string_view GetFileSystemType() = 0;
 
-  ::permebuf::perception::devices::StorageType GetStorageType() const {
+  ::perception::devices::StorageDeviceType GetStorageType() const {
     return storage_type_;
   }
 
@@ -62,9 +62,8 @@ class FileSystem {
                                     bool& can_read, bool& can_write,
                                     bool& can_execute) = 0;
 
-  virtual StatusOr<
-      ::permebuf::perception::StorageManager::GetFileStatisticsResponse>
-  GetFileStatistics(std::string_view path) = 0;
+  virtual StatusOr<::perception::FileStatistics> GetFileStatistics(
+      std::string_view path) = 0;
 
   size_t GetOptionalOperationSize() const { return optimal_operation_size_; }
 
@@ -72,10 +71,10 @@ class FileSystem {
 
  protected:
   // Storage device.
-  ::permebuf::perception::devices::StorageDevice storage_device_;
+  ::perception::devices::StorageDevice::Client storage_device_;
 
   // The type of storage device this is.
-  ::permebuf::perception::devices::StorageType storage_type_;
+  ::perception::devices::StorageDeviceType storage_type_;
 
   // The name of the device.
   std::string device_name_;
@@ -90,6 +89,6 @@ class FileSystem {
 // Returns a FileSystem instance for accessing this storage device if it's
 // a file system we can handle, otherwise returns a nullptr.
 std::unique_ptr<FileSystem> InitializeStorageDevice(
-    ::permebuf::perception::devices::StorageDevice storage_device);
+    ::perception::devices::StorageDevice::Client storage_device);
 
 }  // namespace file_systems

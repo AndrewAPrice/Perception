@@ -23,12 +23,14 @@
 #include "ide_types.h"
 #include "interrupts.h"
 #include "io.h"
+#include "perception/devices/device_manager.h"
 #include "perception/pci.h"
 #include "perception/port_io.h"
+#include "perception/services.h"
 #include "perception/threads.h"
 #include "perception/time.h"
-#include "permebuf/Libraries/perception/devices/device_manager.permebuf.h"
 
+using ::perception::GetService;
 using ::perception::kPciHdrBar0;
 using ::perception::kPciHdrBar1;
 using ::perception::kPciHdrBar2;
@@ -45,8 +47,10 @@ using ::perception::Write16BitsToPort;
 using ::perception::Write8BitsToPciConfig;
 using ::perception::Write8BitsToPort;
 using ::perception::Yield;
-using ::permebuf::perception::devices::DeviceManager;
-using ::permebuf::perception::devices::PciDevice;
+using ::perception::devices::DeviceManager;
+using ::perception::devices::PciDevice;
+using ::perception::devices::PciDeviceFilter;
+using ::perception::devices::PciDeviceFilters;
 
 namespace {
 
@@ -285,7 +289,7 @@ void InitializeIdeController(uint8 bus, uint8 slot, uint8 function,
   controller->channels[ATA_SECONDARY].bus_master_id = bus_master_id + 8;
 
   // Temporarily disabled until the reading code is reimplemented.
-  bool supports_dma = false; // prog_if & (1 << 7);
+  bool supports_dma = false;  // prog_if & (1 << 7);
 
 #if 0
 	if(prog_if == 0x8A || prog_if == 0x80) {
@@ -309,23 +313,28 @@ void InitializeIdeController(uint8 bus, uint8 slot, uint8 function,
 }  // namespace
 
 void InitializeIdeControllers() {
-  DeviceManager::QueryPciDevicesRequest request;
-  request.SetBaseClass(0x01);
-  request.SetSubClass(0x01);
-  request.SetProgIf(-1);
-  request.SetVendor(-1);
-  request.SetDeviceId(-1);
-  request.SetBus(-1);
-  request.SetSlot(-1);
-  request.SetFunction(-1);
-  auto status_or_devices = DeviceManager::Get().CallQueryPciDevices(request);
+  PciDeviceFilters filters;
+
+  {
+    auto &base_class_filter = filters.filters.emplace_back();
+    base_class_filter.key = PciDeviceFilter::Key::BASE_CLASS;
+    base_class_filter.value = 0x01;
+  }
+
+  {
+    auto &base_class_filter = filters.filters.emplace_back();
+    base_class_filter.key = PciDeviceFilter::Key::SUB_CLASS;
+    base_class_filter.value = 0x01;
+  }
+
+  auto status_or_devices = GetService<DeviceManager>().QueryPciDevices(filters);
   if (!status_or_devices) return;
 
-  for (const auto device : (*status_or_devices)->GetDevices()) {
-    std::cout << "Initializing " << *device.GetName() << std::endl;
+  for (const auto &device : status_or_devices->devices) {
+    std::cout << "Initializing " << device.name << std::endl;
 
-    InitializeIdeController(device.GetBus(), device.GetSlot(),
-                            device.GetFunction(), device.GetProgIf());
+    InitializeIdeController(device.bus, device.slot, device.function,
+                            device.prog_if);
   }
 }
 

@@ -16,35 +16,33 @@
 
 #include <sys/stat.h>
 
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
-
-using ::permebuf::perception::StorageManager;
+#include "perception/services.h"
+#include "perception/storage_manager.h"
 
 namespace perception {
 namespace linux_syscalls {
 
 long stat(const char* pathname, struct stat* statbuf) {
-  Permebuf<StorageManager::GetFileStatisticsRequest> request;
-  request->SetPath(pathname);
-
   auto status_or_response =
-      StorageManager::Get().CallGetFileStatistics(std::move(request));
+      GetService<StorageManager>().GetFileStatistics({pathname});
   if (!status_or_response) {
     errno = EINVAL;
     return -1;
   }
 
-  if (!status_or_response->GetExists()) {
+  if (!status_or_response->exists) {
     errno = ENOENT;
     return -1;
   }
 
   memset(statbuf, 0, sizeof(struct stat));
-  if (status_or_response->GetIsDirectory())
-    statbuf->st_mode = S_IFDIR;
-  else if (status_or_response->GetIsFile()) {
-    statbuf->st_mode = S_IFREG;
-    statbuf->st_size = status_or_response->GetSizeInBytes();
+  switch (status_or_response->type) {
+    case DirectoryEntry::Type::DIRECTORY:
+      statbuf->st_mode = S_IFDIR;
+      break;
+    case DirectoryEntry::Type::FILE:
+      statbuf->st_mode = S_IFREG;
+      statbuf->st_size = status_or_response->size_in_bytes;
   }
 
   return 0;

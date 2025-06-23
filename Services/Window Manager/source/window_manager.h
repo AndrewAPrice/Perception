@@ -17,37 +17,36 @@
 #include <functional>
 #include <string>
 
-#include "permebuf/Libraries/perception/window.permebuf.h"
-#include "permebuf/Libraries/perception/window_manager.permebuf.h"
+#include "perception/window/base_window.h"
+#include "perception/window/window_manager.h"
+#include "status.h"
 
-class WindowManager : ::permebuf::perception::WindowManager::Server {
+class WindowManager : public ::perception::window::WindowManager::Server {
  public:
-  typedef ::permebuf::perception::WindowManager WM;
+  StatusOr<::perception::window::CreateWindowResponse> CreateWindow(
+      const ::perception::window::CreateWindowRequest& request,
+      ::perception::ProcessId sender) override;
 
-  StatusOr<Permebuf<WM::CreateWindowResponse>> HandleCreateWindow(
-      ::perception::ProcessId sender,
-      Permebuf<WM::CreateWindowRequest> request) override;
+  ::perception::Status CloseWindow(
+      const ::perception::window::BaseWindow::Client& window,
+      ::perception::ProcessId sender) override;
 
-  void HandleCloseWindow(::perception::ProcessId sender,
-                         const WM::CloseWindowMessage& message) override;
+  ::perception::Status SetWindowTexture(
+      const ::perception::window::SetWindowTextureParameters& parameters,
+      ::perception::ProcessId sender) override;
 
-  void HandleSetWindowTexture(
-      ::perception::ProcessId sender,
-      const WM::SetWindowTextureMessage& message) override;
+  ::perception::Status SetWindowTitle(
+      const ::perception::window::SetWindowTitleParameters& parameters,
+      ::perception::ProcessId sender) override;
 
-  void HandleSetWindowTitle(
-      ::perception::ProcessId sender,
-      Permebuf<WM::SetWindowTitleMessage> message) override;
+  ::perception::Status SystemButtonPushed() override;
 
-  void HandleSystemButtonPushed(
-      ::perception::ProcessId sender,
-      const WM::SystemButtonPushedMessage& message) override;
+  ::perception::Status InvalidateWindow(
+      const ::perception::window::InvalidateWindowParameters& parameters,
+      ::perception::ProcessId sender) override;
 
-  void HandleInvalidateWindow(
-      ::perception::ProcessId sender,
-      const WM::InvalidateWindowMessage& message) override;
+  StatusOr<::perception::window::Size> GetMaximumWindowSize() override;
 
-  StatusOr<WM::GetMaximumWindowSizeResponse> HandleGetMaximumWindowSize(
-      ::perception::ProcessId sender,
-      const WM::GetMaximumWindowSizeRequest& message) override;
+  StatusOr<::perception::window::DisplayEnvironment> GetDisplayEnvironment()
+      override;
 };

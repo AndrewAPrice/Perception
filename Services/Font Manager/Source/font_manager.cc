@@ -14,18 +14,27 @@
 
 #include "font_manager.h"
 
+#include <iostream>
 #include <map>
 
+#include "perception/memory_mapped_file.h"
+#include "perception/services.h"
 #include "perception/shared_memory.h"
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
+#include "perception/storage_manager.h"
+#include "status.h"
 
+using ::perception::GetService;
+using ::perception::MemoryMappedFile;
 using ::perception::SharedMemory;
 using ::perception::Status;
-using ::permebuf::perception::FontData;
-using ::permebuf::perception::MemoryMappedFile;
-using ::permebuf::perception::StorageManager;
-using FM = ::permebuf::perception::FontManager;
-using FontStyle = ::permebuf::perception::FontStyle;
+using ::perception::StorageManager;
+using ::perception::ui::FontData;
+using ::perception::ui::FontFamilies;
+using ::perception::ui::FontFamily;
+using ::perception::ui::FontStyle;
+using ::perception::ui::FontStyles;
+using ::perception::ui::MatchFontRequest;
+using ::perception::ui::MatchFontResponse;
 
 namespace {
 
@@ -90,8 +99,8 @@ auto kFcIntToFontSlant = std::map<int, FontStyle::Slant>(
      {FC_SLANT_OBLIQUE, FontStyle::Slant::OBLIQUE}});
 
 struct MemoryMappedFont {
-  MemoryMappedFile file;
-  SharedMemory buffer;
+  ::perception::MemoryMappedFile::Client file;
+  std::shared_ptr<SharedMemory> buffer;
 };
 
 std::map<std::string, std::shared_ptr<MemoryMappedFont>> font_data_by_path;
@@ -123,40 +132,36 @@ void PopulateFcPatternFromFontStyle(const FontStyle& style,
                                     FcPattern& pattern) {
   FcPatternAddInteger(
       &pattern, FC_WEIGHT,
-      GetOrDefault(kFontWeightToFcInt, style.GetWeight(), FC_WEIGHT_REGULAR));
+      GetOrDefault(kFontWeightToFcInt, style.weight, FC_WEIGHT_REGULAR));
   FcPatternAddInteger(
       &pattern, FC_WIDTH,
-      GetOrDefault(kFontWidthToFcInt, style.GetWidth(), FC_WIDTH_NORMAL));
+      GetOrDefault(kFontWidthToFcInt, style.width, FC_WIDTH_NORMAL));
   FcPatternAddInteger(
       &pattern, FC_SLANT,
-      GetOrDefault(kFontSlantToFcInt, style.GetSlant(), FC_SLANT_ROMAN));
+      GetOrDefault(kFontSlantToFcInt, style.slant, FC_SLANT_ROMAN));
 }
 
-void PopulateFontStyleFromFcPattern(FcPattern& pattern, FontStyle style) {
-  style.SetWeight(GetOrDefault(kFcIntToFontWeight,
-                               GetInt(pattern, FC_WEIGHT, FC_WEIGHT_REGULAR),
-                               FontStyle::Weight::REGULAR));
-  style.SetWidth(GetOrDefault(kFcIntToFontWidth,
-                              GetInt(pattern, FC_WIDTH, FC_WIDTH_NORMAL),
-                              FontStyle::Width::NORMAL));
-  style.SetSlant(GetOrDefault(kFcIntToFontSlant,
-                              GetInt(pattern, FC_SLANT, FC_SLANT_ROMAN),
-                              FontStyle::Slant::UPRIGHT));
+void PopulateFontStyleFromFcPattern(FcPattern& pattern, FontStyle& style) {
+  style.weight = GetOrDefault(kFcIntToFontWeight,
+                              GetInt(pattern, FC_WEIGHT, FC_WEIGHT_REGULAR),
+                              FontStyle::Weight::REGULAR);
+  style.width = GetOrDefault(kFcIntToFontWidth,
+                             GetInt(pattern, FC_WIDTH, FC_WIDTH_NORMAL),
+                             FontStyle::Width::NORMAL);
+  style.slant =
+      GetOrDefault(kFcIntToFontSlant, GetInt(pattern, FC_SLANT, FC_SLANT_ROMAN),
+                   FontStyle::Slant::UPRIGHT);
 }
 
 Status MakeSureFontIsLoaded(const std::string& path) {
   if (!font_data_by_path.contains(path)) {
     // Open the font as a memory mapped file.
-    Permebuf<StorageManager::OpenMemoryMappedFileRequest> request;
-    request->SetPath(path);
-
-    ASSIGN_OR_RETURN(
-        auto response,
-        StorageManager::Get().CallOpenMemoryMappedFile(std::move(request)));
+    ASSIGN_OR_RETURN(auto response,
+                     GetService<StorageManager>().OpenMemoryMappedFile({path}));
 
     auto memory_mapped_font = std::make_shared<MemoryMappedFont>();
-    memory_mapped_font->file = response.GetFile();
-    memory_mapped_font->buffer = response.GetFileContents().Clone();
+    memory_mapped_font->file = response.file;
+    memory_mapped_font->buffer = response.file_contents;
 
     font_data_by_path[path] = memory_mapped_font;
   }
@@ -165,26 +170,23 @@ Status MakeSureFontIsLoaded(const std::string& path) {
 
 }  // namespace
 
-FontManager::FontManager() {
-  config_ = FcConfigReference(nullptr);
-}
+FontManager::FontManager() { config_ = FcConfigReference(nullptr); }
 
 FontManager::~FontManager() { FcConfigDestroy(config_); }
 
-StatusOr<Permebuf<FM::MatchFontResponse>> FontManager::HandleMatchFont(
-    ::perception::ProcessId sender, Permebuf<FM::MatchFontRequest> request) {
+StatusOr<MatchFontResponse> FontManager::MatchFont(
+    const MatchFontRequest& request) {
   std::scoped_lock lock(mutex_);
 
   // Most of this is copied from SkFontConfigInterface_direct.cpp from Skia
   // then customized for Perception.
   FcPattern* pattern = FcPatternCreate();
-  std::string_view family_name = *request->GetFamilyName();
-  if (!request->GetFamilyName().IsEmpty()) {
+  if (!request.family_name.empty()) {
     FcPatternAddString(pattern, FC_FAMILY,
-                       (FcChar8*)request->GetFamilyName().RawString());
+                       (FcChar8*)request.family_name.c_str());
   }
 
-  PopulateFcPatternFromFontStyle(request->GetStyle(), *pattern);
+  PopulateFcPatternFromFontStyle(request.style, *pattern);
 
   FcPatternAddBool(pattern, FC_SCALABLE, FcTrue);
   FcConfigSubstitute(config_, pattern, FcMatchPattern);
@@ -236,33 +238,28 @@ StatusOr<Permebuf<FM::MatchFontResponse>> FontManager::HandleMatchFont(
 
   RETURN_ON_ERROR(MakeSureFontIsLoaded(resolved_filename));
 
-  auto response = Permebuf<FM::MatchFontResponse>();
+  MatchFontResponse response;
+  response.face_index = face_index;
+  response.family_name = post_config_family;
+  response.data.type = FontData::Type::BUFFER;
+  response.data.buffer = font_data_by_path[resolved_filename]->buffer;
 
-  response->SetFaceIndex(face_index);
-  response->SetFamilyName(std::string_view(post_config_family));
-  response->MutableData().MutableBuffer().SetBuffer(
-      font_data_by_path[resolved_filename]->buffer);
-
-  PopulateFontStyleFromFcPattern(*match, response->MutableStyle());
+  PopulateFontStyleFromFcPattern(*match, response.style);
 
   return response;
 }
 
-StatusOr<Permebuf<FM::GetFontFamiliesResponse>>
-FontManager::HandleGetFontFamilies(::perception::ProcessId sender,
-                                   const FM::GetFontFamiliesRequest& request) {
+StatusOr<FontFamilies> FontManager::GetFontFamilies() {
   std::scoped_lock lock(mutex_);
   std::cout << "TODO: Implement FontManager::HandleGetFontFamilies"
             << std::endl;
-  return Permebuf<FM::GetFontFamiliesResponse>();
+  return Status::UNIMPLEMENTED;
 }
 
-StatusOr<Permebuf<FM::GetFontFamilyStylesResponse>>
-FontManager::HandleGetFontFamilyStyles(
-    ::perception::ProcessId sender,
-    Permebuf<FM::GetFontFamilyStylesRequest> request) {
+StatusOr<FontStyles> FontManager::GetFontFamilyStyles(
+    const ::perception::ui::FontFamily& request) {
   std::scoped_lock lock(mutex_);
   std::cout << "TODO: Implement FontManager::HandleGetFontFamilyStyles"
             << std::endl;
-  return Permebuf<FM::GetFontFamilyStylesResponse>();
+  return Status::UNIMPLEMENTED;
 }

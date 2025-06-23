@@ -18,9 +18,9 @@
 #include <optional>
 #include <string>
 
-#include "permebuf/Libraries/perception/devices/keyboard_listener.permebuf.h"
-#include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
-#include "permebuf/Libraries/perception/window.permebuf.h"
+#include "perception/devices/keyboard_listener.h"
+#include "perception/devices/mouse_listener.h"
+#include "perception/window/base_window.h"
 #include "types.h"
 
 namespace perception {
@@ -33,23 +33,17 @@ class Window {
  public:
   static Window* CreateDialog(
       std::string_view title, int width, int height, uint32 background_color,
-      ::permebuf::perception::Window window_listener =
-          ::permebuf::perception::Window(),
-      ::permebuf::perception::devices::KeyboardListener keyboard_listener =
-          ::permebuf::perception::devices::KeyboardListener(),
-      ::permebuf::perception::devices::MouseListener mouse_listener =
-          ::permebuf::perception::devices::MouseListener());
+      ::perception::window::BaseWindow::Client window_listener = {},
+      ::perception::devices::KeyboardListener::Client keyboard_listener = {},
+      ::perception::devices::MouseListener::Client mouse_listener = {});
   static Window* CreateWindow(
       std::string_view title, uint32 background_color,
-      ::permebuf::perception::Window window_listener =
-          ::permebuf::perception::Window(),
-      ::permebuf::perception::devices::KeyboardListener keyboard_listener =
-          ::permebuf::perception::devices::KeyboardListener(),
-      ::permebuf::perception::devices::MouseListener mouse_listener =
-          ::permebuf::perception::devices::MouseListener());
+      ::perception::window::BaseWindow::Client window_listener = {},
+      ::perception::devices::KeyboardListener::Client keyboard_listener = {},
+      ::perception::devices::MouseListener::Client mouse_listener = {});
 
   static Window* GetWindow(
-      const ::permebuf::perception::Window& window_listener);
+      const ::perception::window::BaseWindow::Client& window_listener);
 
   void Focus();
   bool IsFocused();
@@ -66,7 +60,7 @@ class Window {
   void DraggedTo(int screen_x, int screen_y);
   void DroppedAt(int screen_x, int screen_y);
   bool MouseEvent(int screen_x, int screen_y,
-                  ::permebuf::perception::devices::MouseButton button,
+                  ::perception::devices::MouseButton button,
                   bool is_button_down);
   void HandleTabClick(int offset_along_tab, int original_tab_x,
                       int original_tab_y);
@@ -123,12 +117,12 @@ class Window {
 
   uint32 fill_color_;
 
-  ::permebuf::perception::Window window_listener_;
+  ::perception::window::BaseWindow::Client window_listener_;
   ::perception::MessageId message_id_to_notify_on_window_disappearence_;
 
-  ::permebuf::perception::devices::KeyboardListener keyboard_listener_;
+  ::perception::devices::KeyboardListener::Client keyboard_listener_;
 
-  ::permebuf::perception::devices::MouseListener mouse_listener_;
+  ::perception::devices::MouseListener::Client mouse_listener_;
 };
 
 void InitializeWindows();

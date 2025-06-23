@@ -14,14 +14,10 @@
 
 #pragma once
 
-#include "permebuf/Libraries/perception/devices/device_manager.permebuf.h"
+#include "perception/devices/device_manager.h"
 
-class DeviceManager
-    : public ::permebuf::perception::devices::DeviceManager::Server {
+class DeviceManager : public ::perception::devices::DeviceManager::Server {
  public:
-  typedef ::permebuf::perception::devices::DeviceManager DM;
-
-  virtual StatusOr<Permebuf<DM::QueryPciDevicesResponse>> HandleQueryPciDevices(
-      ::perception::ProcessId sender,
-      const DM::QueryPciDevicesRequest& request) override;
+  virtual StatusOr<::perception::devices::PciDevices> QueryPciDevices(
+      const ::perception::devices::PciDeviceFilters& request) override;
 };

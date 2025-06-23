@@ -20,111 +20,70 @@
 #include "perception/processes.h"
 #include "virtual_file_system.h"
 
+using ::perception::CheckPermissionsResponse;
+using ::perception::DirectoryEntry;
+using ::perception::FileStatistics;
 using ::perception::GetProcessName;
+using ::perception::OpenFileResponse;
+using ::perception::OpenMemoryMappedFileResponse;
 using ::perception::ProcessId;
-using ::permebuf::perception::DirectoryEntry;
-using ::permebuf::perception::DirectoryEntryType;
-using SM = ::permebuf::perception::StorageManager;
-
-// #define DEBUG
+using ::perception::ReadDirectoryRequest;
+using ::perception::ReadDirectoryResponse;
+using ::perception::RequestWithFilePath;
 
 StorageManager::StorageManager() {}
 
 StorageManager::~StorageManager() {}
 
-StatusOr<SM::OpenFileResponse> StorageManager::HandleOpenFile(
-    ::perception::ProcessId sender, Permebuf<SM::OpenFileRequest> request) {
-#ifdef DEBUG
-  std::cout << GetProcessName(sender) << " wants to open "
-            << *request->GetPath() << std::endl;
-#endif
+StatusOr<OpenFileResponse> StorageManager::OpenFile(
+    const RequestWithFilePath& request, ProcessId sender) {
   size_t size_in_bytes = 0;
   size_t optimal_operation_size = 0;
-  ASSIGN_OR_RETURN(auto* file, OpenFile(*request->GetPath(), size_in_bytes,
-                                        optimal_operation_size, sender));
+  ASSIGN_OR_RETURN(auto* file, ::OpenFile(request.path, size_in_bytes,
+                                          optimal_operation_size, sender));
 
-  SM::OpenFileResponse response;
-  response.SetFile(*(::permebuf::perception::File::Server*)file);
-  response.SetSizeInBytes(size_in_bytes);
-  response.SetOptimalOperationSize(optimal_operation_size);
+  OpenFileResponse response;
+  response.file = *(::perception::File::Server*)file;
+  response.size_in_bytes = size_in_bytes;
+  response.optimal_operation_size = optimal_operation_size;
   return response;
 }
 
-StatusOr<SM::OpenMemoryMappedFileResponse>
-StorageManager::HandleOpenMemoryMappedFile(
-    ::perception::ProcessId sender,
-    Permebuf<SM::OpenMemoryMappedFileRequest> request) {
-#ifdef DEBUG
-  std::cout << GetProcessName(sender) << " wants to memory map "
-            << *request->GetPath() << std::endl;
-#endif
+StatusOr<OpenMemoryMappedFileResponse> StorageManager::OpenMemoryMappedFile(
+    const RequestWithFilePath& request, ::perception::ProcessId sender) {
   ASSIGN_OR_RETURN(MemoryMappedFile * mmfile,
-                   OpenMemoryMappedFile(*request->GetPath(), sender));
-  SM::OpenMemoryMappedFileResponse response;
-  response.SetFile(*(::permebuf::perception::MemoryMappedFile::Server*)mmfile);
-  response.SetFileContents(mmfile->GetBuffer());
+                   ::OpenMemoryMappedFile(request.path, sender));
+  OpenMemoryMappedFileResponse response;
+  response.file = *(::perception::MemoryMappedFile::Server*)mmfile;
+  response.file_contents = mmfile->GetBuffer();
   return response;
 }
 
-StatusOr<Permebuf<SM::ReadDirectoryResponse>>
-StorageManager::HandleReadDirectory(
-    ::perception::ProcessId sender,
-    Permebuf<SM::ReadDirectoryRequest> request) {
-#ifdef DEBUG
-  std::cout << GetProcessName(sender) << " wants to iterate through "
-            << *request->GetPath() << std::endl;
-#endif
-  Permebuf<SM::ReadDirectoryResponse> response;
+StatusOr<ReadDirectoryResponse> StorageManager::ReadDirectory(
+    const ReadDirectoryRequest& request) {
+  ReadDirectoryResponse response;
 
-  PermebufListOf<DirectoryEntry> last_directory_entry;
-
-  bool no_more_entries = ForEachEntryInDirectory(
-      *request->GetPath(), request->GetFirstIndex(),
-      request->GetMaximumNumberOfEntries(),
-      [&](std::string_view name, DirectoryEntryType type, size_t size) {
-        auto directory_entry = response.AllocateMessage<DirectoryEntry>();
-        directory_entry.SetName(name);
-        directory_entry.SetType(type);
-        directory_entry.SetSizeInBytes(size);
-
-        if (last_directory_entry.IsValid()) {
-          last_directory_entry = last_directory_entry.InsertAfter();
-        } else {
-          last_directory_entry = response->MutableEntries();
-        }
-        last_directory_entry.Set(directory_entry);
+  response.has_more_entries = !ForEachEntryInDirectory(
+      request.path, request.first_index, request.maximum_number_of_entries,
+      [&](std::string_view name, DirectoryEntry::Type type, size_t size) {
+        auto& directory_entry = response.entries.emplace_back();
+        directory_entry.name = name;
+        directory_entry.type = static_cast<DirectoryEntry::Type>(type);
+        directory_entry.size_in_bytes = size;
       });
-  response->SetHasMoreEntries(!no_more_entries);
   return response;
 }
 
-StatusOr<SM::CheckPermissionsResponse> StorageManager::HandleCheckPermissions(
-    ::perception::ProcessId sender,
-    Permebuf<SM::CheckPermissionsRequest> request) {
-#ifdef DEBUG
-  std::cout << GetProcessName(sender) << " wants to check "
-            << *request->GetPath() << std::endl;
-#endif
-  SM::CheckPermissionsResponse response;
-  bool file_exists, can_read, can_write, can_execute;
-
-  RETURN_ON_ERROR(CheckFilePermissions(*request->GetPath(), file_exists,
-                                       can_read, can_write, can_execute));
-
-  response.SetFileExists(file_exists);
-  response.SetCanRead(can_read);
-  response.SetCanWrite(can_write);
-  response.SetCanExecute(can_execute);
-
+StatusOr<CheckPermissionsResponse> StorageManager::CheckPermissions(
+    const RequestWithFilePath& request) {
+  CheckPermissionsResponse response;
+  RETURN_ON_ERROR(CheckFilePermissions(request.path, response.exists,
+                                       response.can_read, response.can_write,
+                                       response.can_execute));
   return response;
 }
 
-StatusOr<SM::GetFileStatisticsResponse> StorageManager::HandleGetFileStatistics(
-    ::perception::ProcessId sender,
-    Permebuf<SM::GetFileStatisticsRequest> request) {
-#ifdef DEBUG
-  std::cout << GetProcessName(sender) << " wants to get stats about "
-            << *request->GetPath() << std::endl;
-#endif
-  return GetFileStatistics(*request->GetPath());
+StatusOr<FileStatistics> StorageManager::GetFileStatistics(
+    const RequestWithFilePath& request) {
+  return ::GetFileStatistics(request.path);
 }

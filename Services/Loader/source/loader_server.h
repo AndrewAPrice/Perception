@@ -17,15 +17,13 @@
 #include <functional>
 #include <string>
 
-#include "permebuf/Libraries/perception/loader.permebuf.h"
+#include "perception/loader.h"
 
 // Implementation of the LoaderService that listens for requests to load
 // executables.
-class LoaderServer : public ::permebuf::perception::LoaderService::Server {
+class LoaderServer : public ::perception::Loader::Server {
  public:
-  StatusOr<::permebuf::perception::LoaderService::LaunchApplicationResponse>
-  HandleLaunchApplication(
-      ::perception::ProcessId sender,
-      Permebuf<::permebuf::perception::LoaderService::LaunchApplicationRequest>
-          request) override;
+  StatusOr<::perception::LoadApplicationResponse> LaunchApplication(
+      const ::perception::LoadApplicationRequest& request,
+      ::perception::ProcessId sender) override;
 };

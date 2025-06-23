@@ -31,7 +31,7 @@
 #include "perception/ui/theme.h"
 #include "perception/ui/ui_window.h"
 #include "perception/ui/node.h"
-#include "permebuf/Libraries/perception/loader.permebuf.h"
+#include "perception/loader.h"
 #include "tabs.h"
 
 using ::perception::MessageId;

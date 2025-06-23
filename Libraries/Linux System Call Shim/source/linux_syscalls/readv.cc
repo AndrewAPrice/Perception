@@ -20,9 +20,8 @@
 #include <iostream>
 
 #include "files.h"
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
-
-using ::permebuf::perception::File;
+#include "perception/storage_manager.h"
+#include "status.h"
 
 namespace perception {
 namespace linux_syscalls {
@@ -70,17 +69,16 @@ long readv(long fd, void* iov, long iovcnt) {
     size_t chunk_end = chunk_start + bytes_to_read_this_chunk;
 
     // Create the request to send to storage manager.
-    File::ReadFileRequest request;
-    request.SetOffsetInFile(chunk_start);
-    request.SetOffsetInDestinationBuffer(0);
-    request.SetBytesToCopy(bytes_to_read_this_chunk);
-    request.SetBufferToCopyInto(*pooled_shared_memory->shared_memory);
+    ReadFileRequest request;
+    request.offset_in_file = chunk_start;
+    request.offset_in_destination_buffer = 0;
+    request.bytes_to_copy = bytes_to_read_this_chunk;
+    request.buffer_to_copy_into = pooled_shared_memory->shared_memory;
 
     // Read the file.
-    auto status_or_response =
-        descriptor->file.file.CallReadFile(std::move(request));
+    auto status = descriptor->file.file.Read(request);
 
-    if (!status_or_response) {
+    if (status != Status::OK) {
       std::cout << "Error while reading file." << std::endl;
       kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
       errno = EINVAL;

@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <concepts>
 #include <functional>
 
 #include "perception/scheduler.h"
@@ -47,7 +48,7 @@
 //     X(2, Subtract, SingleValue, DoubleValue) \
 //     X(3, Negate, SingleValue, SingleValue)
 //
-//   DEFINE_PERCEPTION_SERVICE(Calculator, "perception.Calculator",
+//   DEFINE_PERCEPTION_SERVICE(Calculator, "perception.Calculator", \
 //                             CALCULATOR_METHOD_LIST)
 //
 // To implement the service, you can subclass the generated
@@ -90,20 +91,17 @@
 #define IS_VOID(argument_type) \
   CAT(IS_VOID_RESULT_, IS_VOID_CHECK(argument_type))
 
-#define PARAM_FORMAT_0(T) T&
+#define PARAM_FORMAT_0(T) const T&
 #define PARAM_FORMAT_1(T)
 
-#define NAMED_PARAM_FORMAT_0(T) T& input
+#define NAMED_PARAM_FORMAT_0(T) const T& input
 #define NAMED_PARAM_FORMAT_1(T)
 
-#define NAMED_PARAM_WITH_COMMA_FORMAT_0(T) T &input,
+#define NAMED_PARAM_WITH_COMMA_FORMAT_0(T) const T &input,
 #define NAMED_PARAM_WITH_COMMA_FORMAT_1(T)
 
 #define ARGUMENT_FORMAT_0 input
 #define ARGUMENT_FORMAT_1
-
-#define CONST_CAST_ARGUMENT_FORMAT_0(T) const_cast<T&>(input)
-#define CONST_CAST_ARGUMENT_FORMAT_1(T)
 
 #define ARGUMENT_WITH_COMMA_FORMAT_0 input,
 #define ARGUMENT_WITH_COMMA_FORMAT_1
@@ -115,29 +113,11 @@
 /// X macros.
 /////////////
 
-#define DECLARE_SERVICE_VIRTUAL_METHOD(id, method_name, return_type,          \
-                                       argument_type)                         \
-  virtual CAT(RESPONSE_FORMAT_, IS_VOID(return_type))(return_type)            \
-      method_name(                                                            \
-          CAT(PARAM_FORMAT_, IS_VOID(argument_type))(argument_type)) = 0;     \
-                                                                              \
-  virtual void method_name(                                                   \
-      CAT(NAMED_PARAM_WITH_COMMA_FORMAT_,                                     \
-          IS_VOID(argument_type))(argument_type)                              \
-          std::function<void(                                                 \
-              CAT(RESPONSE_FORMAT_, IS_VOID(return_type))(return_type))>      \
-              on_response) {                                                  \
-    ::perception::Defer([CAT(ARGUMENT_WITH_COMMA_FORMAT_,                     \
-                             IS_VOID(argument_type)) on_response,             \
-                         this]() {                                            \
-      if (on_response) {                                                      \
-        on_response(method_name(CAT(CONST_CAST_ARGUMENT_FORMAT_,              \
-                                    IS_VOID(argument_type))(argument_type))); \
-      } else {                                                                \
-        (void)method_name(CAT(CONST_CAST_ARGUMENT_FORMAT_,                    \
-                              IS_VOID(argument_type))(argument_type));        \
-      }                                                                       \
-    });                                                                       \
+#define DECLARE_SERVICE_VIRTUAL_METHOD(id, method_name, return_type,           \
+                                       argument_type)                          \
+  virtual CAT(RESPONSE_FORMAT_, IS_VOID(return_type))(return_type)             \
+      method_name(CAT(PARAM_FORMAT_, IS_VOID(argument_type))(argument_type)) { \
+    return ::perception::Status::UNIMPLEMENTED;                                \
   }
 
 #define DECLARE_SERVICE_METHOD_ID(id, method_name, return_type, argument_type) \
@@ -154,12 +134,12 @@
         CAT(ARGUMENT_WITH_COMMA_FORMAT_, IS_VOID(argument_type)) id);       \
   }                                                                         \
                                                                             \
-  virtual void method_name(                                                 \
+  void method_name(                                                         \
       CAT(NAMED_PARAM_WITH_COMMA_FORMAT_,                                   \
           IS_VOID(argument_type))(argument_type)                            \
           std::function<void(                                               \
               CAT(RESPONSE_FORMAT_, IS_VOID(return_type))(return_type))>    \
-              on_response) override {                                       \
+              on_response) {                                                \
     AsyncDispatch<CAT(RESPONSE_FORMAT_, IS_VOID(return_type))(return_type), \
                   argument_type>(                                           \
         CAT(ARGUMENT_WITH_COMMA_FORMAT_, IS_VOID(argument_type)) id,        \
@@ -175,6 +155,19 @@
                           argument_type, ServiceType>(            \
         this, &ServiceType::method_name, sender, message_data);   \
     break;                                                        \
+  }
+
+#define IMPLEMENT_SERVER_STUB(id, method_name, return_type, argument_type)     \
+  virtual CAT(RESPONSE_FORMAT_, IS_VOID(return_type))(return_type)             \
+      method_name(CAT(NAMED_PARAM_WITH_COMMA_FORMAT_, IS_VOID(argument_type))( \
+          argument_type) ProcessId sender) {                                   \
+    return method_name(CAT(ARGUMENT_FORMAT_, IS_VOID(argument_type)));         \
+  }                                                                            \
+                                                                               \
+  virtual CAT(RESPONSE_FORMAT_, IS_VOID(return_type))(return_type)             \
+      method_name(CAT(NAMED_PARAM_FORMAT_,                                     \
+                      IS_VOID(argument_type))(argument_type)) override {       \
+    return ::perception::Status::UNIMPLEMENTED;                                \
   }
 
 //////////////////////////////////
@@ -208,10 +201,13 @@
                                                                           \
     virtual ~class_name##_Server() {}                                     \
                                                                           \
-   private:                                                               \
-    void HandleRequest(                                                   \
-        const ::perception::ProcessId sender,                             \
-        const ::perception::MessageData& message_data) override {         \
+   method_list(IMPLEMENT_SERVER_STUB)                                     \
+                                                                          \
+       private :                                                          \
+                                                                          \
+       void HandleRequest(                                                \
+           const ::perception::ProcessId sender,                          \
+           const ::perception::MessageData& message_data) override {      \
       switch (message_data.param1) {                                      \
         default: /* Handle unknown method error */                        \
           HandleUnknownRequest(sender, message_data);                     \
@@ -220,7 +216,7 @@
           method_list(HANDLE_SERVICE_SERVER_CASE)                         \
       }                                                                   \
     }                                                                     \
-  };                                                                      \
+    };                                                                      \
                                                                           \
   class class_name##_Client : public class_name,                          \
                               public ::perception::ServiceClient {        \

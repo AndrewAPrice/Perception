@@ -31,16 +31,15 @@ VectorWriteStream::VectorWriteStream(std::vector<std::byte>* data)
 }
 
 // Copies data into the stream.
-void VectorWriteStream::CopyDataIntoStream(const void* data,
-                                                   size_t size) {
+void VectorWriteStream::CopyDataIntoStream(const void* data, size_t size) {
   for (auto byte_data = (std::byte*)data; size > 0; size--, byte_data++)
     data_->push_back(*byte_data);
 }
 
 // Copies data into the stream at a specific offset. This is isolated and does
 // not change 'CurrentOffset'.
-void VectorWriteStream::CopyDataIntoStream(const void* data,
-                                                   size_t size, size_t offset) {
+void VectorWriteStream::CopyDataIntoStream(const void* data, size_t size,
+                                           size_t offset) {
   size_t max_size = size + offset;
   if (data_->size() < max_size) data_->resize(max_size);
 
@@ -57,7 +56,7 @@ void VectorWriteStream::SkipForward(size_t size) {
 // The current offset in the stream.
 size_t VectorWriteStream::CurrentOffset() { return data_->size(); }
 
-std::vector<std::byte> SerializeToByteVector(Serializable& object) {
+std::vector<std::byte> SerializeToByteVector(const Serializable& object) {
   std::vector<std::byte> vector;
   VectorWriteStream write_stream(&vector);
   SerializeIntoStream(object, write_stream);

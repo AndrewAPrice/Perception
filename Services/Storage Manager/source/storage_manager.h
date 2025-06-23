@@ -14,32 +14,28 @@
 
 #pragma once
 
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
+#include "perception/storage_manager.h"
 
-class StorageManager : public ::permebuf::perception::StorageManager::Server {
+class StorageManager : public ::perception::StorageManager::Server {
  public:
-  typedef ::permebuf::perception::StorageManager SM;
-
+ 
   StorageManager();
   virtual ~StorageManager();
 
-  virtual StatusOr<SM::OpenFileResponse> HandleOpenFile(
-      ::perception::ProcessId sender,
-      Permebuf<SM::OpenFileRequest> request) override;
+  virtual StatusOr<::perception::OpenFileResponse> OpenFile(
+      const ::perception::RequestWithFilePath& request,
+      ::perception::ProcessId sender) override;
 
-  virtual StatusOr<SM::OpenMemoryMappedFileResponse> HandleOpenMemoryMappedFile(
-      ::perception::ProcessId sender,
-      Permebuf<SM::OpenMemoryMappedFileRequest> request) override;
+  virtual StatusOr<::perception::OpenMemoryMappedFileResponse>
+  OpenMemoryMappedFile(const ::perception::RequestWithFilePath& request,
+                       ::perception::ProcessId sender) override;
 
-  virtual StatusOr<Permebuf<SM::ReadDirectoryResponse>> HandleReadDirectory(
-      ::perception::ProcessId sender,
-      Permebuf<SM::ReadDirectoryRequest> request) override;
+  virtual StatusOr<::perception::ReadDirectoryResponse> ReadDirectory(
+      const ::perception::ReadDirectoryRequest& request) override;
 
-  virtual StatusOr<SM::CheckPermissionsResponse> HandleCheckPermissions(
-      ::perception::ProcessId sender,
-      Permebuf<SM::CheckPermissionsRequest> request) override;
+  virtual StatusOr<::perception::CheckPermissionsResponse> CheckPermissions(
+      const ::perception::RequestWithFilePath& request) override;
 
-  virtual StatusOr<SM::GetFileStatisticsResponse> HandleGetFileStatistics(
-      ::perception::ProcessId sender,
-      Permebuf<SM::GetFileStatisticsRequest> request) override;
+  virtual StatusOr<::perception::FileStatistics> GetFileStatistics(
+      const ::perception::RequestWithFilePath& request) override;
 };

@@ -66,8 +66,8 @@ void SharedMemoryWriteStream::SkipForward(size_t size) { offset_ += size; }
 // The current offset in the stream.
 size_t SharedMemoryWriteStream::CurrentOffset() { return offset_; }
 
-void SerializeToSharedMemory(Serializable& object, SharedMemory& shared_memory,
-                             size_t offset) {
+void SerializeToSharedMemory(const Serializable& object,
+                             SharedMemory& shared_memory, size_t offset) {
   (void)shared_memory.Join();
   if (shared_memory.GetSize() == 0) return;
 

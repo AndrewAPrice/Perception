@@ -19,9 +19,11 @@
 #include "compositor.h"
 #include "frame.h"
 #include "highlighter.h"
+#include "perception/devices/keyboard_device.h"
+#include "perception/devices/mouse_listener.h"
 #include "perception/draw.h"
 #include "perception/font.h"
-#include "permebuf/Libraries/perception/devices/keyboard_driver.permebuf.h"
+#include "perception/services.h"
 #include "screen.h"
 
 using ::perception::DrawXLine;
@@ -31,10 +33,14 @@ using ::perception::DrawYLineAlpha;
 using ::perception::FillRectangle;
 using ::perception::Font;
 using ::perception::FontFace;
-using ::permebuf::perception::devices::KeyboardDriver;
-using ::permebuf::perception::devices::KeyboardListener;
-using ::permebuf::perception::devices::MouseButton;
-using ::permebuf::perception::devices::MouseListener;
+using ::perception::GetService;
+using ::perception::devices::KeyboardDevice;
+using ::perception::devices::KeyboardListener;
+using ::perception::devices::MouseButton;
+using ::perception::devices::MouseClickEvent;
+using ::perception::devices::MouseListener;
+using ::perception::devices::MousePositionEvent;
+using ::perception::window::BaseWindow;
 
 namespace {
 
@@ -61,15 +67,15 @@ Window* hovered_window;
 int dragging_offset_x;
 int dragging_offset_y;
 
-std::map<::permebuf::perception::Window, Window*> windows_by_service;
+std::map<BaseWindow::Client, Window*> windows_by_service;
 
 }  // namespace
 
 Window* Window::CreateDialog(std::string_view title, int width, int height,
                              uint32 background_color,
-                             ::permebuf::perception::Window window_listener,
-                             KeyboardListener keyboard_listener,
-                             MouseListener mouse_listener) {
+                             BaseWindow::Client window_listener,
+                             KeyboardListener::Client keyboard_listener,
+                             MouseListener::Client mouse_listener) {
   if (!window_listener || windows_by_service.count(window_listener) > 0) {
     // Window already exists or a window listener wasn't specified.
     return nullptr;
@@ -122,11 +128,10 @@ Window* Window::CreateDialog(std::string_view title, int width, int height,
   return window;
 }
 
-Window* Window::CreateWindow(
-    std::string_view title, uint32 background_color,
-    ::permebuf::perception::Window window_listener,
-    ::permebuf::perception::devices::KeyboardListener keyboard_listener,
-    ::permebuf::perception::devices::MouseListener mouse_listener) {
+Window* Window::CreateWindow(std::string_view title, uint32 background_color,
+                             BaseWindow::Client window_listener,
+                             KeyboardListener::Client keyboard_listener,
+                             MouseListener::Client mouse_listener) {
   if (!window_listener || windows_by_service.count(window_listener) > 0) {
     // Window already exists or a window listener wasn't specified.
     return nullptr;
@@ -160,8 +165,7 @@ Window* Window::CreateWindow(
   return window;
 }
 
-Window* Window::GetWindow(
-    const ::permebuf::perception::Window& window_listener) {
+Window* Window::GetWindow(const BaseWindow::Client& window_listener) {
   auto window_itr = windows_by_service.find(window_listener);
   if (window_itr == windows_by_service.end()) return nullptr;
   return window_itr->second;
@@ -179,8 +183,7 @@ void Window::Focus() {
 
     // Tell the old window they lost focus.
     if (focused_window->window_listener_) {
-      focused_window->window_listener_.SendLostFocus(
-          ::permebuf::perception::Window::LostFocusMessage());
+      focused_window->window_listener_.LostFocus({});
     }
   }
 
@@ -209,26 +212,17 @@ void Window::Focus() {
   }
   focused_window = this;
 
-  if (window_listener_) {
-    window_listener_.SendGainedFocus(
-        ::permebuf::perception::Window::GainedFocusMessage());
-  }
+  if (window_listener_) window_listener_.GainedFocus({});
 
   // We now want to send keyboard events to this window.
-  KeyboardDriver::SetKeyboardListenerMessage keyboard_listener_message;
-  keyboard_listener_message.SetNewListener(keyboard_listener_);
-
-  KeyboardDriver::Get().SendSetKeyboardListener(keyboard_listener_message);
+  GetService<KeyboardDevice>().SetKeyboardListener(keyboard_listener_, {});
 }
 
 bool Window::IsFocused() { return focused_window == this; }
 
 void Window::Resized() {
   if (window_listener_) {
-    ::permebuf::perception::Window::SetSizeMessage message;
-    message.SetWidth(width_);
-    message.SetHeight(height_);
-    window_listener_.SendSetSize(message);
+    window_listener_.SetSize({width_, height_}, {});
   }
 }
 
@@ -286,8 +280,7 @@ void Window::Close() {
     // listener that it has closed, otherwise Close() will be called again.
     window_listener_.StopNotifyingOnDisappearance(
         message_id_to_notify_on_window_disappearence_);
-    window_listener_.SendClosed(
-        ::permebuf::perception::Window::ClosedMessage());
+    window_listener_.Closed({});
   }
 
   windows_by_service.erase(window_listener_);
@@ -299,11 +292,9 @@ void Window::Close() {
 
 void Window::UnfocusAllWindows() {
   if (focused_window && focused_window->window_listener_) {
-    focused_window->window_listener_.SendLostFocus(
-        ::permebuf::perception::Window::LostFocusMessage());
+    focused_window->window_listener_.LostFocus({});
   }
-  KeyboardDriver::Get().SendSetKeyboardListener(
-      KeyboardDriver::SetKeyboardListenerMessage());
+  GetService<KeyboardDevice>().SetKeyboardListener({}, {});
 }
 
 bool Window::ForEachFrontToBackDialog(
@@ -331,8 +322,7 @@ Window* Window::GetWindowBeingDragged() { return dragging_window; }
 void Window::MouseNotHoveringOverWindowContents() {
   if (hovered_window != nullptr) {
     if (hovered_window->mouse_listener_) {
-      hovered_window->mouse_listener_.SendOnMouseLeave(
-          MouseListener::OnMouseLeaveMessage());
+      hovered_window->mouse_listener_.MouseLeave({});
     }
     hovered_window = nullptr;
   }
@@ -444,32 +434,30 @@ bool Window::MouseEvent(int screen_x, int screen_y, MouseButton button,
         if (hovered_window != nullptr && hovered_window->mouse_listener_) {
           // Let the old window we were hovering over know the mouse has
           // left the premises.
-          hovered_window->mouse_listener_.SendOnMouseLeave(
-              MouseListener::OnMouseLeaveMessage());
+          hovered_window->mouse_listener_.MouseLeave({});
         }
         hovered_window = this;
         if (window_listener_) {
           // Let our window know the mouse has entered the premises.
-          mouse_listener_.SendOnMouseEnter(
-              MouseListener::OnMouseEnterMessage());
+          mouse_listener_.MouseEnter({});
         }
       }
 
       if (mouse_listener_) {
         if (button == MouseButton::Unknown) {
           // We were hovered over.
-          MouseListener::OnMouseHoverMessage message;
-          message.SetX(local_x);
-          message.SetY(local_y);
-          mouse_listener_.SendOnMouseHover(message);
+          MousePositionEvent message;
+          message.x = local_x;
+          message.y = local_y;
+          mouse_listener_.MouseHover(message, {});
         } else {
           // We were clicked.
-          MouseListener::OnMouseClickMessage message;
-          message.SetButton(button);
-          message.SetX(local_x);
-          message.SetY(local_y);
-          message.SetWasPressedDown(is_button_down);
-          mouse_listener_.SendOnMouseClick(message);
+          MouseClickEvent message;
+          message.position.x = local_x;
+          message.position.y = local_y;
+          message.button.button = button;
+          message.button.is_pressed_down = is_button_down;
+          mouse_listener_.MouseClick(message, {});
         }
       }
     } else {
@@ -538,7 +526,7 @@ void Window::CommonInit() {
         window_listener_.NotifyOnDisappearance([this]() {
           // Unassign the window listener first, so messages don't get sent to a
           // non-existent service.
-          window_listener_ = ::permebuf::perception::Window();
+          window_listener_ = {};
           Close();
         });
   }

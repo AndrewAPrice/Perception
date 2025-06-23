@@ -30,7 +30,7 @@ class Serializable;
 // fields in a backwards-compatible way.
 //
 // Example usage:
-//   void MyObject::Serialize(Serializer& serializer) {
+//   void MyObject::Serialize(serialization::Serializer& serializer) {
 //     serializer.String("Name", name_);
 //     serializer.Integer();
 //     serializer.Float("Size", size_);
@@ -45,7 +45,7 @@ class Serializable;
 //
 // You can conditionally branch (e.g. to implement a one-of statement), as long
 // as the number of serialization steps stays consistent. e.g.:
-//   void MyObject::Serialize(Serializer& serializer) {
+//   void MyObject::Serialize(serialization::Serializer& serializer) {
 //     serializer.Integer("Fruit Type", fruit_type_);
 //     switch(type_) {
 //       case APPLE:
@@ -69,14 +69,28 @@ class Serializer {
 
   // Serializes a field. The parameterless variations skip over the field.
   virtual void Integer() = 0;
-  virtual void Integer(std::string_view name, uint8& value) = 0;
-  virtual void Integer(std::string_view name, int8& value) = 0;
-  virtual void Integer(std::string_view name, uint16& value) = 0;
-  virtual void Integer(std::string_view name, int16& value) = 0;
-  virtual void Integer(std::string_view name, uint32& value) = 0;
-  virtual void Integer(std::string_view name, int32& value) = 0;
-  virtual void Integer(std::string_view name, uint64& value) = 0;
-  virtual void Integer(std::string_view name, int64& value) = 0;
+  template <class T>
+  void Integer(std::string_view name, T& value) {
+    if constexpr (std::is_signed_v<T>) {
+      if (IsDeserializing()) {
+        int64 v = 0;
+        SignedInteger(name, v);
+        value = static_cast<T>(v);
+      } else {
+        int64 v = static_cast<int64>(value);
+        SignedInteger(name, v);
+      }
+    } else {
+      if (IsDeserializing()) {
+        uint64 v = 0;
+        UnsignedInteger(name, v);
+        value = static_cast<T>(v);
+      } else {
+        uint64 v = static_cast<uint64>(value);
+        UnsignedInteger(name, v);
+      }
+    }
+  }
 
   virtual void Float() = 0;
   virtual void Float(std::string_view name, float& value) = 0;
@@ -151,7 +165,6 @@ class Serializer {
         });
   }
 
-
   template <class S>
   void ArrayOfSerializables(std::string_view name, std::vector<S>& arr) {
     ArrayOfSerializables(
@@ -169,6 +182,10 @@ class Serializer {
           for (int i = 0; i < elements; i++) deserialize_entry(arr[i]);
         });
   }
+
+ private:
+  virtual void UnsignedInteger(std::string_view name, uint64& value) = 0;
+  virtual void SignedInteger(std::string_view name, int64& value) = 0;
 };
 
 }  // namespace serialization

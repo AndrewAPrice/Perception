@@ -32,7 +32,7 @@ class DoubleValue : public Serializable {
   float a;
   float b;
 
-  DoubleValue() {}::pe
+  DoubleValue() {}
   DoubleValue(float a, float b) : a(a), b(b) {}
 
   virtual void Serialize(Serializer& serializer) override {
@@ -157,7 +157,7 @@ There's also `FindFirstInstanceOfService` will return a `std::optional<>` either
 auto calculator = GetService<Calculator>();
 
 std::cout << "2+5 is.." << std::flush;
-auto response = calculator.Add(DoubleValue(2.0f, 5.0f));
+auto response = calculator.Add({2.0f, 5.0f});
 if (!response.IsOk()) return; // Error
 std::cout << response->value << std::endl;
 ```
@@ -166,7 +166,7 @@ Prefer to use the status macros in [status.h](../status.h) to gracefully propoga
 
 ```
 StatusOr<float> AddUsingRemoteCalculator(float a, float b) {
-    ASSIGN_OR_RETURN(auto response, calculator.Add(DoubleValue(a, b)));
+    ASSIGN_OR_RETURN(auto response, calculator.Add({a, b}));
     return response.value;
 }
 ```

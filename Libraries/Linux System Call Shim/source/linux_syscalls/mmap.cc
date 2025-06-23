@@ -19,11 +19,10 @@
 #include "files.h"
 #include "perception/debug.h"
 #include "perception/memory.h"
+#include "perception/services.h"
 #include "perception/shared_memory.h"
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
+#include "perception/storage_manager.h"
 #include "sys/mman.h"
-
-using ::permebuf::perception::StorageManager;
 
 namespace perception {
 namespace linux_syscalls {
@@ -78,20 +77,15 @@ long mmap(long addr, long length, long prot, long flags, long fd, long offset) {
       return -1;
     }
 
-    Permebuf<StorageManager::OpenMemoryMappedFileRequest> request;
-    request->SetPath(file_descriptor->file.path);
-
-    auto status_or_response =
-        StorageManager::Get().CallOpenMemoryMappedFile(std::move(request));
+    auto status_or_response = GetService<StorageManager>().OpenMemoryMappedFile(
+        {file_descriptor->file.path});
     if (!status_or_response.Ok()) {
       errno = EINVAL;
       return -1;
     }
 
-    return (long)AddMemoryMappedFile(
-        status_or_response->GetFile(),
-        std::make_unique<SharedMemory>(
-            status_or_response->GetFileContents().Clone()));
+    return (long)AddMemoryMappedFile(status_or_response->file,
+                                     status_or_response->file_contents);
   }
 }
 

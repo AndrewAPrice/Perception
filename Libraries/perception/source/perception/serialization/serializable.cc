@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import "devices/mouse_listener.permebuf";
+#include "perception/serialization/serializable.h"
 
-namespace perception.devices;
+#include "perception/serialization/text_serializer.h"
 
-service MouseDriver {
-	// Specifies the service that we should send mouse events to.
-	minimessage SetMouseListenerMessage {
-		// The service we should send mouse events to.
-		NewListener : MouseListener = 1;	
-	}
-	SetMouseListener : SetMouseListenerMessage = 0;
+namespace perception {
+namespace serialization {
+
+std::string Serializable::ToString() const {
+    return SerializeToString(*this);
+}
+
+}
 }

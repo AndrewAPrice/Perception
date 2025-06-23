@@ -17,12 +17,14 @@
 #include <optional>
 #include <string_view>
 
+#include "perception/service_macros.h"
 #include "types.h"
 
 namespace perception {
 
-// std::optional<ProcessId> LaunchApplication(std::string_view name);
-
-void ShowLauncher();
+#define METHOD_LIST(X) X(1, ShowLauncher, void, void)
+DEFINE_PERCEPTION_SERVICE(Launcher, "perception.devices.ShowLauncher",
+                          METHOD_LIST)
+#undef METHOD_LIST
 
 }  // namespace perception

@@ -14,19 +14,19 @@
 
 #include "loader_server.h"
 
+#include <iostream>
+
 #include "loader.h"
 
 using ::perception::ProcessId;
-using LoaderService = ::permebuf::perception::LoaderService;
 
-StatusOr<LoaderService::LaunchApplicationResponse>
-LoaderServer::HandleLaunchApplication(
-    ProcessId sender,
-    Permebuf<LoaderService::LaunchApplicationRequest> request) {
-  std::cout << "Requested to load " << *request->GetName() << std::endl;
-  ASSIGN_OR_RETURN(auto child_pid, LoadProgram(sender, *request->GetName()));
+StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
+    const ::perception::LoadApplicationRequest& request,
+  ProcessId sender) {
+  std::cout << "Requested to load " << request.name << std::endl;
+  ASSIGN_OR_RETURN(auto child_pid, LoadProgram(sender, request.name));
 
-  LoaderService::LaunchApplicationResponse response;
-  response.SetProcessId(child_pid);
+  ::perception::LoadApplicationResponse response;
+  response.process = child_pid;
   return response;
 }

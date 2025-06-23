@@ -19,20 +19,22 @@
 #include <optional>
 
 #if 0
+#include "perception/devices/graphics_device.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
+#include "perception/services.h"
 #include "perception/ui/label.h"
 #include "perception/ui/text_alignment.h"
 #include "perception/ui/ui_window.h"
-#include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
 #include "side_panel.h"
 using ::perception::Defer;
 using ::perception::TerminateProcess;
 using ::perception::ui::kFillParent;
+using ::perception::GetService;
 using ::perception::ui::Label;
 using ::perception::ui::TextAlignment;
 using ::perception::ui::UiWindow;
-using ::permebuf::perception::devices::GraphicsDriver;
+using ::perception::devices::GraphicsDevice;
 
 namespace {
 
@@ -57,8 +59,7 @@ void ShowLauncherWindow() {
   }
 
   // Query the screen size.
-  auto screen_size = *GraphicsDriver::Get().CallGetScreenSize(
-      GraphicsDriver::GetScreenSizeRequest());
+  auto screen_size = GetService<GraphicsDevice>().GetScreenSize();
 
   // Create the launcher that's 80% of the screen size.
   int launcher_width = screen_size.GetWidth() * 8 / 10;

@@ -18,8 +18,7 @@
 #include "perception/draw.h"
 #include "screen.h"
 
-using ::permebuf::perception::devices::GraphicsCommand;
-using ::permebuf::perception::devices::GraphicsDriver;
+namespace graphics = ::perception::devices::graphics;
 
 namespace {
 
@@ -75,10 +74,8 @@ void PrepHighlighterForDrawing(int min_x, int min_y, int max_x, int max_y) {
       std::min(max_x, highlighter_max_x), std::min(max_y, highlighter_max_y));
 }
 
-void DrawHighlighter(
-    Permebuf<GraphicsDriver::RunCommandsMessage>& commands,
-    PermebufListOfOneOfs<GraphicsCommand>& last_graphics_command, int min_x,
-    int min_y, int max_x, int max_y) {
+void DrawHighlighter(graphics::Commands& commands, int min_x, int min_y,
+                     int max_x, int max_y) {
   if (!highlighter_enabled) return;
   if (min_x >= highlighter_max_x || min_y >= highlighter_max_y ||
       max_x <= highlighter_min_x || max_y <= highlighter_min_y) {
@@ -86,24 +83,28 @@ void DrawHighlighter(
     return;
   }
 
-  if (!last_graphics_command.IsValid()) {
+  if (commands.commands.empty()) {
     // First graphics command. Set the window manager's texture as
     // the destination texture.
-    last_graphics_command = commands->MutableCommands();
-    auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
-    last_graphics_command.Set(command_one_of);
-    command_one_of.MutableSetDestinationTexture().SetTexture(
+    auto& command = commands.commands.emplace_back();
+    command.type = graphics::Command::Type::SET_DESTINATION_TEXTURE;
+    command.texture_reference = std::make_shared<graphics::TextureReference>(
         GetWindowManagerTextureId());
   }
 
   // Draw the highlighting cursor.
-  last_graphics_command = last_graphics_command.InsertAfter();
-  auto draw_command_oneof = commands.AllocateOneOf<GraphicsCommand>();
-  last_graphics_command.Set(draw_command_oneof);
-  auto fill_rectangle_with_alpha = draw_command_oneof.MutableFillRectangle();
-  fill_rectangle_with_alpha.SetLeft(std::max(min_x, highlighter_min_x));
-  fill_rectangle_with_alpha.SetTop(std::max(min_y, highlighter_min_y));
-  fill_rectangle_with_alpha.SetRight(std::min(max_x, highlighter_max_x));
-  fill_rectangle_with_alpha.SetBottom(std::min(max_y, highlighter_max_y));
-  fill_rectangle_with_alpha.SetColor(HIGHLIGHTER_TINT);
+  {
+    auto parameters = std::make_shared<graphics::FillRectangleParameters>();
+    parameters->destination.left = std::max(min_x, highlighter_min_x);
+    parameters->destination.top = std::max(min_y, highlighter_min_y);
+    parameters->size.width =
+        std::min(max_x, highlighter_max_x) - parameters->destination.left;
+    parameters->size.height =
+        std::min(max_y, highlighter_max_y) - parameters->destination.top;
+    parameters->color = HIGHLIGHTER_TINT;
+
+    auto& command = commands.commands.emplace_back();
+    command.type = graphics::Command::Type::FILL_RECTANGLE;
+    command.fill_rectangle_parameters = parameters;
+  }
 }

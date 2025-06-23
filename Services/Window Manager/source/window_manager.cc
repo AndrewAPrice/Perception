@@ -19,77 +19,86 @@
 #include "compositor.h"
 #include "perception/launcher.h"
 #include "screen.h"
+#include "status.h"
 #include "window.h"
 
-using ::perception::ShowLauncher;
-using WM = ::permebuf::perception::WindowManager;
+using ::perception::ProcessId;
+using ::perception::Status;
+using ::perception::window::BaseWindow;
+using ::perception::window::CreateWindowRequest;
+using ::perception::window::CreateWindowResponse;
+using ::perception::window::DisplayEnvironment;
+using ::perception::window::InvalidateWindowParameters;
+using ::perception::window::SetWindowTextureParameters;
+using ::perception::window::SetWindowTitleParameters;
+using ::perception::window::Size;
 
-StatusOr<Permebuf<WM::CreateWindowResponse>> WindowManager::HandleCreateWindow(
-    ::perception::ProcessId sender,
-    Permebuf<WindowManager::WM::CreateWindowRequest> request) {
+StatusOr<CreateWindowResponse> WindowManager::CreateWindow(
+    const CreateWindowRequest& request, ProcessId sender) {
   Window* window;
 
-  if (request->GetIsDialog()) {
+  if (request.is_dialog) {
     window = Window::CreateDialog(
-        *request->GetTitle(), request->GetDesiredDialogWidth(),
-        request->GetDesiredDialogHeight(), request->GetFillColor(),
-        request->GetWindow(), request->GetKeyboardListener(),
-        request->GetMouseListener());
+        request.title, request.desired_dialog_size.width,
+        request.desired_dialog_size.height, request.fill_color, request.window,
+        request.keyboard_listener, request.mouse_listener);
   } else {
-    window = Window::CreateWindow(
-        *request->GetTitle(), request->GetFillColor(), request->GetWindow(),
-        request->GetKeyboardListener(), request->GetMouseListener());
+    window =
+        Window::CreateWindow(request.title, request.fill_color, request.window,
+                             request.keyboard_listener, request.mouse_listener);
   }
 
-  Permebuf<WM::CreateWindowResponse> response;
-  if (window != nullptr) {
-    // Respond with the window dimensions if we were able to create this
-    // window.
-    response->SetWidth(window->GetWidth());
-    response->SetHeight(window->GetHeight());
-  }
+  if (window == nullptr) return Status::INTERNAL_ERROR;
+
+  CreateWindowResponse response;
+  response.window_size = {window->GetWidth(), window->GetHeight()};
   return response;
 }
 
-void WindowManager::HandleCloseWindow(::perception::ProcessId sender,
-                                      const WM::CloseWindowMessage& message) {
+Status WindowManager::CloseWindow(const BaseWindow::Client& window,
+                                  ::perception::ProcessId sender) {
   std::cout << "Implement WindowManager::HandleCloseWindow" << std::endl;
+  return Status::UNIMPLEMENTED;
 }
 
-void WindowManager::HandleSetWindowTexture(
-    ::perception::ProcessId sender,
-    const WM::SetWindowTextureMessage& message) {
-  Window* window = Window::GetWindow(message.GetWindow());
-  if (window != nullptr) window->SetTextureId(message.GetTextureId());
+Status WindowManager::SetWindowTexture(
+    const SetWindowTextureParameters& parameters,
+    ::perception::ProcessId sender) {
+  Window* window = Window::GetWindow(parameters.window);
+  if (window == nullptr) return Status::INVALID_ARGUMENT;
+
+  window->SetTextureId(parameters.texture.id);
+  return Status::PROCESS_DOESNT_EXIST;
 }
 
-void WindowManager::HandleSetWindowTitle(
-    ::perception::ProcessId sender,
-    Permebuf<WM::SetWindowTitleMessage> message) {
+Status WindowManager::SetWindowTitle(const SetWindowTitleParameters& parameters,
+                                     ::perception::ProcessId sender) {
   std::cout << "Implement WindowManager::HandleWindowTitle" << std::endl;
+  return Status::UNIMPLEMENTED;
 }
 
-void WindowManager::HandleSystemButtonPushed(
-    ::perception::ProcessId sender,
-    const WM::SystemButtonPushedMessage& message) {
-  ShowLauncher();
+Status WindowManager::SystemButtonPushed() {
+  // TODO: show launcher
+  // ShowLauncher();
+
+  return Status::OK;
 }
 
-void WindowManager::HandleInvalidateWindow(
-    ::perception::ProcessId sender,
-    const WM::InvalidateWindowMessage& message) {
-  Window* window = Window::GetWindow(message.GetWindow());
-  if (window != nullptr)
-    window->InvalidateContents(message.GetLeft(), message.GetTop(),
-                               message.GetRight(), message.GetBottom());
+Status WindowManager::InvalidateWindow(
+    const InvalidateWindowParameters& parameters,
+    ::perception::ProcessId sender) {
+  Window* window = Window::GetWindow(parameters.window);
+  if (window == nullptr) return Status::INVALID_ARGUMENT;
+
+  window->InvalidateContents(parameters.left, parameters.top, parameters.right,
+                             parameters.bottom);
+  return Status::OK;
 }
 
-StatusOr<WM::GetMaximumWindowSizeResponse>
-WindowManager::HandleGetMaximumWindowSize(
-    ::perception::ProcessId sender,
-    const WM::GetMaximumWindowSizeRequest& message) {
-  WM::GetMaximumWindowSizeResponse response;
-  response.SetWidth(GetScreenWidth());
-  response.SetHeight(GetScreenHeight() - WINDOW_TITLE_HEIGHT - 3);
-  return response;
+StatusOr<Size> WindowManager::GetMaximumWindowSize() {
+  return Size(GetScreenWidth(), GetScreenHeight() - WINDOW_TITLE_HEIGHT - 3);
+}
+
+StatusOr<DisplayEnvironment> WindowManager::GetDisplayEnvironment() {
+  return Status::UNIMPLEMENTED;
 }

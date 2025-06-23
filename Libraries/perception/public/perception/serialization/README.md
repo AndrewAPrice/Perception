@@ -13,21 +13,21 @@ To create a serializable class, inherit your class from [`Serilizable`](serializ
 Example:
 
 ```
-class MyObject : public Serializable {
+class MyObject : public serialization::Serializable {
   public:
     std::string name;
     int age;
 
-    virtual Serialize(Serializer& serializer) {
+    virtual Serialize(serialization::Serializer& serializer) {
         serializer.String("Name", name);
         serializer.Integer("Age", age);
     }
 };
 ```
 
-Then to print this object out, you can serialize is to a human readable string with [`SerializeToString`](text_serializer.h):
+Then to print this object out, you can serialize is to a human readable string with [`.ToString()`](serializable.h):
 ```
-std::cout << SerializeToString(object) << std::endl;
+std::cout << object.ToString() << std::endl;
 ```
 
 You can serialize to a `std::vector<std::byte>` with [`SerializeToByteVector`](vector_write_stream.h), to shared memory with [`SerializedToSharedMemory`](shared_memory_write_stream.h), etc. You can deserialize with [`DeserializeFromByteVector`](memory_read_string.h), [`DeserializeFromSharedMemory`](memory_read_string.h), etc. There's even a [`DeserializeToEmpty`](memory_read_string.h) to reset all the values back to null/0/empty.
@@ -45,7 +45,7 @@ Do not put anything behind loops that can run a dynamic number of times. Conditi
 You can conditionally branch (e.g. to implement a one-of statement), as long as the number of serialization steps stays consistent and they are of the same type (so you can mix and match `Serializable` objects), and handle the unknown/default case, e.g.:
 
 ```
-void MyObject::Serialize(Serializer& serializer) {
+void MyObject::Serialize(serialization::Serializer& serializer) {
     serializer.Integer("Fruit Type", fruit_type_);
     switch(type_) {
         case APPLE:

@@ -23,7 +23,7 @@ namespace serialization {
 
 class Serializable;
 
-std::string SerializeToString(Serializable &object);
+std::string SerializeToString(const Serializable &object);
 
 }  // namespace serialization
 }  // namespace perception

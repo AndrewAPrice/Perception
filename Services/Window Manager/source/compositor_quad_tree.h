@@ -58,7 +58,7 @@ struct Rectangle : public ::perception::QuadTree<Rectangle>::Object {
 
 class CompositorQuadTree : public ::perception::QuadTree<Rectangle> {
  public:
-  CompositorQuadTree() : QuadTree(&rectangle_pool_) {}
+  CompositorQuadTree() : rectangle_pool_(), QuadTree(&rectangle_pool_) {}
 
   virtual ~CompositorQuadTree() {}
 

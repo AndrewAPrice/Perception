@@ -25,7 +25,7 @@ class Serializable;
 class WriteStream;
 
 // Serializes an object into a stream.
-void SerializeIntoStream(Serializable &object, WriteStream &stream);
+void SerializeIntoStream(const Serializable &object, WriteStream &stream);
 
 }  // namespace serialization
 }  // namespace perception

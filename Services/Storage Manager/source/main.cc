@@ -15,27 +15,29 @@
 #include <iostream>
 
 #include "file_systems/file_system.h"
+#include "perception/devices/storage_device.h"
 #include "perception/scheduler.h"
-#include "permebuf/Libraries/perception/devices/storage_device.permebuf.h"
+#include "perception/services.h"
 #include "storage_manager.h"
 #include "virtual_file_system.h"
 
 using ::file_systems::InitializeStorageDevice;
 using ::perception::HandOverControl;
-using ::permebuf::perception::devices::StorageDevice;
+using ::perception::NotifyOnEachNewServiceInstance;
+using ::perception::devices::StorageDevice;
 
-int main (int argc, char *argv[]) {
-  StorageDevice::NotifyOnEachNewInstance([](StorageDevice storage_device) {
-    auto file_system = InitializeStorageDevice(storage_device);
-    if (file_system) {
-      MountFileSystem(std::move(file_system));
-    } else if (!file_system) {
-      auto status_or_device_details = storage_device.CallGetDeviceDetails(
-          StorageDevice::GetDeviceDetailsRequest());
-      std::cout << "Unknown file system on "
-                << *(*status_or_device_details)->GetName() << "." << std::endl;
-    }
-  });
+int main(int argc, char *argv[]) {
+  NotifyOnEachNewServiceInstance<StorageDevice>(
+      [](StorageDevice::Client storage_device) {
+        auto file_system = InitializeStorageDevice(storage_device);
+        if (file_system) {
+          MountFileSystem(std::move(file_system));
+        } else if (!file_system) {
+          auto status_or_device_details = storage_device.GetDeviceDetails();
+          std::cout << "Unknown file system on "
+                    << status_or_device_details->name << "." << std::endl;
+        }
+      });
 
   auto storage_manager = std::make_unique<StorageManager>();
 

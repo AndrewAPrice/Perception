@@ -12,28 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "perception/devices/keyboard_device.h"
+#include "perception/devices/keyboard_listener.h"
+#include "perception/devices/mouse_device.h"
+#include "perception/devices/mouse_listener.h"
 #include "perception/interrupts.h"
 #include "perception/messages.h"
 #include "perception/port_io.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
-#include "permebuf/Libraries/perception/devices/keyboard_driver.permebuf.h"
-#include "permebuf/Libraries/perception/devices/keyboard_listener.permebuf.h"
-#include "permebuf/Libraries/perception/devices/mouse_driver.permebuf.h"
-#include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
-#include "permebuf/Libraries/perception/window_manager.permebuf.h"
+#include "perception/services.h"
+#include "perception/window/window_manager.h"
+#include "status.h"
 
+using ::perception::FindFirstInstanceOfService;
 using ::perception::IsDuplicateInstanceOfProcess;
 using ::perception::ProcessId;
 using ::perception::Read8BitsFromPort;
 using ::perception::RegisterInterruptHandler;
+using ::perception::Status;
 using ::perception::Write8BitsToPort;
-using ::permebuf::perception::WindowManager;
-using ::permebuf::perception::devices::KeyboardDriver;
-using ::permebuf::perception::devices::KeyboardListener;
-using ::permebuf::perception::devices::MouseButton;
-using ::permebuf::perception::devices::MouseDriver;
-using ::permebuf::perception::devices::MouseListener;
+using ::perception::devices::KeyboardDevice;
+using ::perception::devices::KeyboardListener;
+using ::perception::devices::MouseButton;
+using ::perception::devices::MouseButtonEvent;
+using ::perception::devices::MouseClickEvent;
+using ::perception::devices::MouseDevice;
+using ::perception::devices::MouseListener;
+using ::perception::devices::MousePositionEvent;
+using ::perception::devices::RelativeMousePositionEvent;
+using ::perception::devices::KeyboardEvent;
+using ::perception::window::WindowManager;
 
 namespace {
 
@@ -43,16 +52,15 @@ constexpr size_t kTimeout = 100000;
 constexpr uint8 kSystemKeyDown = 1;
 constexpr uint8 kSystemKeyUp = 129;
 
-class PS2MouseDriver : public MouseDriver::Server {
+class PS2MouseDevice : public MouseDevice::Server {
  public:
-  PS2MouseDriver()
+  PS2MouseDevice()
       : mouse_bytes_received_(0), last_button_state_{false, false, false} {}
 
-  virtual ~PS2MouseDriver() {
+  virtual ~PS2MouseDevice() {
     if (mouse_captor_) {
       // Tell the captor we had to let the mouse go.
-      mouse_captor_->SendOnMouseReleased(
-          MouseListener::OnMouseReleasedMessage());
+      mouse_captor_->MouseReleased();
     }
   }
 
@@ -71,22 +79,20 @@ class PS2MouseDriver : public MouseDriver::Server {
     }
   }
 
-  virtual void HandleSetMouseListener(
-      ProcessId sender,
-      const MouseDriver::SetMouseListenerMessage& message) override {
+  virtual Status SetMouseListener(
+      const MouseListener::Client& listener) override {
     if (mouse_captor_) {
       // Let the old captor know the mouse has escaped.
-      mouse_captor_->SendOnMouseReleased(
-          MouseListener::OnMouseReleasedMessage());
+      mouse_captor_->MouseReleased();
     }
-    if (message.HasNewListener()) {
-      mouse_captor_ = std::make_unique<MouseListener>(message.GetNewListener());
+    if (listener.IsValid()) {
+      mouse_captor_ = std::make_unique<MouseListener::Client>(listener);
       // Let our captor know they have taken the mouse captive.
-      mouse_captor_->SendOnMouseTakenCaptive(
-          MouseListener::OnMouseTakenCaptiveMessage());
+      mouse_captor_->MouseTakenCaptive();
     } else {
       mouse_captor_.reset();
     }
+    return Status::OK;
   }
 
  private:
@@ -99,7 +105,7 @@ class PS2MouseDriver : public MouseDriver::Server {
   bool last_button_state_[3];
 
   // The service we should sent mouse events to.
-  std::unique_ptr<MouseListener> mouse_captor_;
+  std::unique_ptr<MouseListener::Client> mouse_captor_;
 
   // Processes the mouse message.
   void ProcessMouseMessage(uint8 status, uint8 offset_x, uint8 offset_y) {
@@ -113,10 +119,10 @@ class PS2MouseDriver : public MouseDriver::Server {
 
     if ((delta_x != 0 || delta_y != 0) && mouse_captor_) {
       // Send our captor a message that the mouse has moved.
-      MouseListener::OnMouseMoveMessage message;
-      message.SetDeltaX(static_cast<float>(delta_x));
-      message.SetDeltaY(static_cast<float>(delta_y));
-      mouse_captor_->SendOnMouseMove(message);
+      RelativeMousePositionEvent message;
+      message.delta_x = static_cast<float>(delta_x);
+      message.delta_y = static_cast<float>(delta_y);
+      mouse_captor_->MouseMove(message);
     }
 
     for (int button_index : {0, 1, 2}) {
@@ -124,35 +130,34 @@ class PS2MouseDriver : public MouseDriver::Server {
         last_button_state_[button_index] = buttons[button_index];
         if (mouse_captor_) {
           // Send our captor a message that a mouse button has changed state.
-          MouseListener::OnMouseButtonMessage message;
+          MouseButtonEvent message;
           switch (button_index) {
             case 0:
-              message.SetButton(MouseButton::Left);
+              message.button = MouseButton::Left;
               break;
             case 1:
-              message.SetButton(MouseButton::Middle);
+              message.button = MouseButton::Middle;
               break;
             case 2:
-              message.SetButton(MouseButton::Right);
+              message.button = MouseButton::Right;
               break;
           }
-          message.SetIsPressedDown(buttons[button_index]);
-          mouse_captor_->SendOnMouseButton(message);
+          message.is_pressed_down = buttons[button_index];
+          mouse_captor_->MouseButton(message);
         }
       }
     }
   }
 };
 
-class PS2KeyboardDriver : public KeyboardDriver::Server {
+class PS2KeyboardDevice : public KeyboardDevice::Server {
  public:
-  PS2KeyboardDriver() {}
+  PS2KeyboardDevice() {}
 
-  virtual ~PS2KeyboardDriver() {
+  virtual ~PS2KeyboardDevice() {
     if (keyboard_captor_) {
       // Tell the captor we had to let the keyboard go.
-      keyboard_captor_->SendOnKeyboardReleased(
-          KeyboardListener::OnKeyboardReleasedMessage());
+      keyboard_captor_->KeyboardReleased();
     }
   }
 
@@ -160,11 +165,8 @@ class PS2KeyboardDriver : public KeyboardDriver::Server {
     uint8 val = Read8BitsFromPort(0x60);
     if (val == kSystemKeyDown) {
       // The system key was pressed. Notify the window manager.
-      auto window_manager = WindowManager::FindFirstInstance();
-      if (window_manager) {
-        window_manager->SendSystemButtonPushed(
-            WindowManager::SystemButtonPushedMessage());
-      }
+      auto window_manager = FindFirstInstanceOfService<WindowManager>();
+      if (window_manager) window_manager->SystemButtonPushed({});
       return;
     } else if (val == kSystemKeyUp) {
       // Ignore releasing the system key.
@@ -178,34 +180,31 @@ class PS2KeyboardDriver : public KeyboardDriver::Server {
     uint8 key = val & 127;
     if ((val & 128) == 0) {
       // Send our captor a message that the key was pressed down.
-      KeyboardListener::OnKeyDownMessage message;
-      message.SetKey(key);
-      keyboard_captor_->SendOnKeyDown(message);
+      KeyboardEvent message;
+      message.key = key;
+      keyboard_captor_->KeyDown(message);
     } else {
       // Send our captor a message that the key was released.
-      KeyboardListener::OnKeyUpMessage message;
-      message.SetKey(key);
-      keyboard_captor_->SendOnKeyUp(message);
+      KeyboardEvent message;
+      message.key = key;
+      keyboard_captor_->KeyUp(message);
     }
   }
 
-  virtual void HandleSetKeyboardListener(
-      ProcessId,
-      const KeyboardDriver::SetKeyboardListenerMessage& message) override {
+  virtual Status SetKeyboardListener(
+      const KeyboardListener::Client& listener) override {
     if (keyboard_captor_) {
       // Let the old captor know the keyboard has escaped.
-      keyboard_captor_->SendOnKeyboardReleased(
-          KeyboardListener::OnKeyboardReleasedMessage());
+      keyboard_captor_->KeyboardReleased();
     }
-    if (message.HasNewListener()) {
-      keyboard_captor_ =
-          std::make_unique<KeyboardListener>(message.GetNewListener());
+    if (listener.IsValid()) {
+      keyboard_captor_ = std::make_unique<KeyboardListener::Client>(listener);
       // Let our captor know they have taken the keybord captive.
-      keyboard_captor_->SendOnKeyboardTakenCaptive(
-          KeyboardListener::OnKeyboardTakenCaptiveMessage());
+      keyboard_captor_->KeyboardTakenCaptive();
     } else {
       keyboard_captor_.reset();
     }
+    return Status::OK;
   }
 
  private:
@@ -213,11 +212,11 @@ class PS2KeyboardDriver : public KeyboardDriver::Server {
   std::unique_ptr<KeyboardListener> keyboard_captor_;
 };
 
-// Global instance of the mouse driver.
-std::unique_ptr<PS2MouseDriver> mouse_driver;
+// Global instance of the mouse device.
+std::unique_ptr<PS2MouseDevice> mouse_device;
 
-// Global instance of the keyboard driver.
-std::unique_ptr<PS2KeyboardDriver> keyboard_driver;
+// Global instance of the keyboard device.
+std::unique_ptr<PS2KeyboardDevice> keyboard_device;
 
 void InterruptHandler() {
   uint8 check;
@@ -225,9 +224,9 @@ void InterruptHandler() {
   // Keep looping while there are bytes (the mouse will send multiple bytes.)
   while ((check = Read8BitsFromPort(0x64)) & 1) {
     if (check & (1 << 5)) {
-      mouse_driver->HandleMouseInterrupt();
+      mouse_device->HandleMouseInterrupt();
     } else {
-      keyboard_driver->HandleKeyboardInterrupt();
+      keyboard_device->HandleKeyboardInterrupt();
     }
   }
 }
@@ -287,11 +286,11 @@ void InitializePS2Controller() {
 
 }  // namespace
 
-int main (int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   if (IsDuplicateInstanceOfProcess()) return 0;
 
-  mouse_driver = std::make_unique<PS2MouseDriver>();
-  keyboard_driver = std::make_unique<PS2KeyboardDriver>();
+  mouse_device = std::make_unique<PS2MouseDevice>();
+  keyboard_device = std::make_unique<PS2KeyboardDevice>();
   InitializePS2Controller();
 
   // Listen to the interrupts.

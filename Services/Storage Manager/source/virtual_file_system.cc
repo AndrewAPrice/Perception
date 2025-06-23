@@ -25,14 +25,15 @@
 #include "perception/processes.h"
 
 using ::file_systems::FileSystem;
+using ::perception::DirectoryEntry;
 using ::perception::Fiber;
+using ::perception::FileStatistics;
 using ::perception::GetCurrentlyExecutingFiber;
 using ::perception::ProcessId;
 using ::perception::Sleep;
 using ::perception::Status;
-using ::permebuf::perception::DirectoryEntryType;
-using ::permebuf::perception::StorageManager;
-using ::permebuf::perception::devices::StorageType;
+using ::perception::StorageManager;
+using ::perception::devices::StorageDeviceType;
 
 namespace {
 
@@ -56,7 +57,7 @@ int next_unknown_device_index = 1;
 
 std::string GetMountNameForFileSystem(FileSystem& file_system) {
   switch (file_system.GetStorageType()) {
-    case StorageType::Optical: {
+    case StorageDeviceType::OPTICAL: {
       std::string name = "Optical " + std::to_string(next_optical_drive_index);
       next_optical_drive_index++;
       return name;
@@ -276,7 +277,7 @@ void CloseMemoryMappedFile(::perception::ProcessId sender,
 
 bool ForEachEntryInDirectory(
     std::string_view directory, int offset, int count,
-    const std::function<void(std::string_view, DirectoryEntryType, size_t)>&
+    const std::function<void(std::string_view, DirectoryEntry::Type, size_t)>&
         on_each_entry) {
   if (directory.empty() || directory[0] != '/') return true;
 
@@ -290,8 +291,8 @@ bool ForEachEntryInDirectory(
         return false;
       }
       if (index >= offset && (index < offset + count || count == 0)) {
-        on_each_entry(mounted_file_system.first, DirectoryEntryType::Directory,
-                      0);
+        on_each_entry(mounted_file_system.first,
+                      DirectoryEntry::Type::DIRECTORY, 0);
       }
       index++;
     }
@@ -312,16 +313,17 @@ bool ForEachEntryInDirectory(
   }
 }
 
-StatusOr<StorageManager::GetFileStatisticsResponse> GetFileStatistics(
-    std::string_view path) {
+StatusOr<FileStatistics> GetFileStatistics(std::string_view path) {
   if (path.empty() || path[0] != '/') {
-    return StorageManager::GetFileStatisticsResponse();
+    FileStatistics response;
+    response.exists = false;
+    return response;
   }
 
   if (path == "/") {
-    StorageManager::GetFileStatisticsResponse response;
-    response.SetExists(true);
-    response.SetIsDirectory(true);
+    FileStatistics response;
+    response.exists = true;
+    response.type == DirectoryEntry::Type::DIRECTORY;
     return response;
   }
 
@@ -332,7 +334,9 @@ StatusOr<StorageManager::GetFileStatisticsResponse> GetFileStatistics(
   // Does the mount point exist?
   auto mount_point_itr = mounted_file_systems.find(mount_point);
   if (mount_point_itr == mounted_file_systems.end()) {
-    return StorageManager::GetFileStatisticsResponse();  // No mount point.
+    FileStatistics response;
+    response.exists = false;
+    return response;
   }
 
   return mount_point_itr->second->GetFileStatistics(path_on_mount_point);

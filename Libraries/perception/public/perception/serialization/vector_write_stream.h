@@ -49,7 +49,7 @@ class VectorWriteStream : public WriteStream {
 };
 
 // Serializes a serializable into a byte vector.
-std::vector<std::byte> SerializeToByteVector(Serializable& object);
+std::vector<std::byte> SerializeToByteVector(const Serializable& object);
 
 }  // namespace serialization
 }  // namespace perception

@@ -16,18 +16,27 @@
 
 #include "compositor.h"
 #include "frame.h"
-#include "permebuf/Libraries/perception/devices/mouse_driver.permebuf.h"
-#include "permebuf/Libraries/perception/devices/mouse_listener.permebuf.h"
+#include "perception/devices/mouse_device.h"
+#include "perception/devices/mouse_listener.h"
+#include "perception/services.h"
 #include "screen.h"
+#include "status.h"
 #include "window.h"
 
+namespace graphics = ::perception::devices::graphics;
+using ::perception::GetService;
 using ::perception::MessageId;
+using ::perception::NotifyOnEachNewServiceInstance;
 using ::perception::ProcessId;
-using ::permebuf::perception::devices::GraphicsCommand;
-using ::permebuf::perception::devices::GraphicsDriver;
-using ::permebuf::perception::devices::MouseButton;
-using ::permebuf::perception::devices::MouseDriver;
-using ::permebuf::perception::devices::MouseListener;
+using ::perception::Status;
+using ::perception::devices::GraphicsDevice;
+using ::perception::devices::MouseButton;
+using ::perception::devices::MouseButtonEvent;
+using ::perception::devices::MouseClickEvent;
+using ::perception::devices::MouseDevice;
+using ::perception::devices::MouseListener;
+using ::perception::devices::MousePositionEvent;
+using ::perception::devices::RelativeMousePositionEvent;
 
 namespace {
 
@@ -74,13 +83,12 @@ constexpr int kMousePointerHeight = 17;
 
 class MyMouseListener : public MouseListener::Server {
  public:
-  void HandleOnMouseMove(
-      ProcessId, const MouseListener::OnMouseMoveMessage& message) override {
+  Status MouseMove(const RelativeMousePositionEvent& message) override {
     int old_mouse_x = mouse_x;
     int old_mouse_y = mouse_y;
 
-    mouse_x += static_cast<int>(message.GetDeltaX());
-    mouse_y += static_cast<int>(message.GetDeltaY());
+    mouse_x += static_cast<int>(message.delta_x);
+    mouse_y += static_cast<int>(message.delta_y);
 
     mouse_x = std::max(0, std::min(mouse_x, GetScreenWidth() - 1));
     mouse_y = std::max(0, std::min(mouse_y, GetScreenHeight() - 1));
@@ -96,13 +104,13 @@ class MyMouseListener : public MouseListener::Server {
       Window* dragging_window = Window::GetWindowBeingDragged();
       if (dragging_window) {
         dragging_window->DraggedTo(mouse_x, mouse_y);
-        return;
+        return Status::OK;
       }
 
       Frame* dragging_frame = Frame::GetFrameBeingDragged();
       if (dragging_frame) {
         dragging_frame->DraggedTo(mouse_x, mouse_y);
-        return;
+        return Status::OK;
       }
 
       // Test if any of the dialogs (from front to back) can handle this
@@ -111,7 +119,7 @@ class MyMouseListener : public MouseListener::Server {
             return window.MouseEvent(mouse_x, mouse_y, MouseButton::Unknown,
                                      false);
           }))
-        return;
+        return Status::OK;
 
       // Send the click to the frames.
       Frame* root_frame = Frame::GetRootFrame();
@@ -121,46 +129,46 @@ class MyMouseListener : public MouseListener::Server {
         Window::MouseNotHoveringOverWindowContents();
       }
     }
+
+    return Status::OK;
   }
 
-  void HandleOnMouseButton(
-      ProcessId, const MouseListener::OnMouseButtonMessage& message) override {
+  Status MouseButton(const MouseButtonEvent& message) override {
     // Handle dropping a dragged window.
     Window* dragging_window = Window::GetWindowBeingDragged();
     if (dragging_window) {
-      if (message.GetButton() != MouseButton::Left ||
-          message.GetIsPressedDown())
-        return;
+      if (message.button != MouseButton::Left || message.is_pressed_down)
+        return Status::OK;
       dragging_window->DroppedAt(mouse_x, mouse_y);
-      return;
+      return Status::OK;
     }
 
     // Handle dropping a dragged frame.
     Frame* dragging_frame = Frame::GetFrameBeingDragged();
     if (dragging_frame) {
-      if (message.GetButton() != MouseButton::Left ||
-          message.GetIsPressedDown())
-        return;
+      if (message.button != MouseButton::Left || message.is_pressed_down)
+        return Status::OK;
       dragging_frame->DroppedAt(mouse_x, mouse_y);
-      return;
+      return Status::OK;
     }
 
     // Test if any of the dialogs (from front to back) can handle this
     // click.
     if (Window::ForEachFrontToBackDialog([&](Window& window) {
-          return window.MouseEvent(mouse_x, mouse_y, message.GetButton(),
-                                   message.GetIsPressedDown());
+          return window.MouseEvent(mouse_x, mouse_y, message.button,
+                                   message.is_pressed_down);
         }))
-      return;
+      return Status::OK;
 
     // Send the click to the frames.
     Frame* root_frame = Frame::GetRootFrame();
     if (root_frame) {
-      root_frame->MouseEvent(mouse_x, mouse_y, message.GetButton(),
-                             message.GetIsPressedDown());
+      root_frame->MouseEvent(mouse_x, mouse_y, message.button,
+                             message.is_pressed_down);
     } else {
       Window::MouseNotHoveringOverWindowContents();
     }
+    return Status::OK;
   }
 };
 
@@ -175,22 +183,21 @@ void InitializeMouse() {
   mouse_listener = std::make_unique<MyMouseListener>();
 
   // Tell each mouse driver who we are.
-  (void)MouseDriver::NotifyOnEachNewInstance([](MouseDriver mouse_driver) {
-    // Tell the mouse driver to send us mouse messages.
-    MouseDriver::SetMouseListenerMessage message;
-    message.SetNewListener(*mouse_listener);
-    mouse_driver.SendSetMouseListener(message);
-  });
+  NotifyOnEachNewServiceInstance<MouseDevice>(
+      [](MouseDevice::Client mouse_device) {
+        // Tell the mouse driver to send us mouse messages.
+        mouse_device.SetMouseListener(*mouse_listener);
+      });
 
   // Create a texture for the mouse.
-  GraphicsDriver::CreateTextureRequest create_texture_request;
-  create_texture_request.SetWidth(kMousePointerWidth);
-  create_texture_request.SetHeight(kMousePointerHeight);
+  graphics::CreateTextureRequest create_texture_request;
+  create_texture_request.size.width = kMousePointerWidth;
+  create_texture_request.size.height = kMousePointerHeight;
 
   auto create_texture_response =
-      *GetGraphicsDriver().CallCreateTexture(create_texture_request);
-  mouse_texture_id = create_texture_response.GetTexture();
-  create_texture_response.GetPixelBuffer().Apply([](void* data, size_t) {
+      GetService<GraphicsDevice>().CreateTexture(create_texture_request);
+  mouse_texture_id = create_texture_response->texture.id;
+  create_texture_response->pixel_buffer->Apply([](void* data, size_t) {
     uint32* destination = (uint32*)data;
     for (int i = 0; i < kMousePointerWidth * kMousePointerHeight; i++) {
       destination[i] = kMousePointer[i];
@@ -216,9 +223,8 @@ void PrepMouseForDrawing(int min_x, int min_y, int max_x, int max_y) {
       std::min(mouse_y + kMousePointerHeight, max_y));
 }
 
-void DrawMouse(Permebuf<GraphicsDriver::RunCommandsMessage>& commands,
-               PermebufListOfOneOfs<GraphicsCommand>& last_graphics_command,
-               int min_x, int min_y, int max_x, int max_y) {
+void DrawMouse(graphics::Commands& commands, int min_x, int min_y, int max_x,
+               int max_y) {
   if (min_x >= mouse_x + kMousePointerWidth ||
       min_y >= mouse_y + kMousePointerHeight || max_x <= mouse_x ||
       max_y <= mouse_y) {
@@ -226,28 +232,27 @@ void DrawMouse(Permebuf<GraphicsDriver::RunCommandsMessage>& commands,
     return;
   }
 
-  if (!last_graphics_command.IsValid()) {
+  if (commands.commands.empty()) {
     // First graphics command. Set the window manager's texture as
     // the destination texture.
-    last_graphics_command = commands->MutableCommands();
-    auto command_one_of = commands.AllocateOneOf<GraphicsCommand>();
-    last_graphics_command.Set(command_one_of);
-    command_one_of.MutableSetDestinationTexture().SetTexture(
+    auto& command = commands.commands.emplace_back();
+    command.type = graphics::Command::Type::SET_DESTINATION_TEXTURE;
+    command.texture_reference = std::make_shared<graphics::TextureReference>(
         GetWindowManagerTextureId());
   }
 
   // Set the mouse as the source texture.
-  last_graphics_command = last_graphics_command.InsertAfter();
-  auto texture_oneof = commands.AllocateOneOf<GraphicsCommand>();
-  last_graphics_command.Set(texture_oneof);
-  texture_oneof.MutableSetSourceTexture().SetTexture(mouse_texture_id);
+  {
+    auto& command = commands.commands.emplace_back();
+    command.type = graphics::Command::Type::SET_SOURCE_TEXTURE;
+    command.texture_reference =
+        std::make_shared<graphics::TextureReference>(mouse_texture_id);
+  }
 
   // Draw the mouse cursor.
-  last_graphics_command = last_graphics_command.InsertAfter();
-  auto draw_command_oneof = commands.AllocateOneOf<GraphicsCommand>();
-  last_graphics_command.Set(draw_command_oneof);
-  auto copy_texture_with_alpha =
-      draw_command_oneof.MutableCopyTextureToPositionWithAlphaBlending();
-  copy_texture_with_alpha.SetLeftDestination(mouse_x);
-  copy_texture_with_alpha.SetTopDestination(mouse_y);
+  {
+    auto& command = commands.commands.emplace_back();
+    command.type = graphics::Command::Type::SET_SOURCE_TEXTURE;
+    command.position = std::make_shared<graphics::Position>(mouse_x, mouse_y);
+  }
 }

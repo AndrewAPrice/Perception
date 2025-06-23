@@ -19,11 +19,9 @@
 #include "applications.h"
 #include "launcher_window.h"
 
-using LauncherService = ::permebuf::perception::Launcher;
-
-void Launcher::HandleShowLauncher(
-    ::perception::ProcessId sender,
-    const ::LauncherService::ShowLauncherMessage& message) {
-//  ScanForApplications();
-//  ShowLauncherWindow();
+::perception::Status Launcher::ShowLauncher() {
+  std::cout << "Show launcher." << std::endl;
+  //  ScanForApplications();
+  //  ShowLauncherWindow();
+  return ::perception::Status::OK;
 }

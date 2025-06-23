@@ -13,6 +13,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include "perception/serialization/text_serializer.h"
+
 #include <types.h>
 
 #include <string>
@@ -43,37 +45,7 @@ class TextSerializer : public Serializer {
 
   virtual void Integer() override {}
 
-  virtual void Integer(std::string_view name, uint8& value) override {
-    auto value64 = static_cast<uint64>(value);
-    Integer(name, value64);
-  }
-
-  virtual void Integer(std::string_view name, int8& value) override {
-    auto value64 = static_cast<int64>(value);
-    Integer(name, value64);
-  }
-
-  virtual void Integer(std::string_view name, uint16& value) override {
-    auto value64 = static_cast<uint64>(value);
-    Integer(name, value64);
-  }
-
-  virtual void Integer(std::string_view name, int16& value) override {
-    auto value64 = static_cast<int64>(value);
-    Integer(name, value64);
-  }
-
-  virtual void Integer(std::string_view name, uint32& value) override {
-    auto value64 = static_cast<uint64>(value);
-    Integer(name, value64);
-  }
-
-  virtual void Integer(std::string_view name, int32& value) override {
-    auto value64 = static_cast<int64>(value);
-    Integer(name, value64);
-  }
-
-  virtual void Integer(std::string_view name, uint64& value) override {
+  virtual void UnsignedInteger(std::string_view name, uint64& value) override {
     AppendIndentation();
     output_string_->append(name);
     output_string_->append(": ");
@@ -81,7 +53,7 @@ class TextSerializer : public Serializer {
     output_string_->append("\n");
   }
 
-  virtual void Integer(std::string_view name, int64& value) override {
+  virtual void SignedInteger(std::string_view name, int64& value) override {
     AppendIndentation();
     output_string_->append(name);
     output_string_->append(": ");
@@ -178,11 +150,11 @@ class TextSerializer : public Serializer {
 
 }  // namespace
 
-std::string SerializeToString(class Serializable& object) {
+std::string SerializeToString(const class Serializable& object) {
   std::string output_string = "";
 
   TextSerializer serializer(2, &output_string);
-  object.Serialize(serializer);
+  const_cast<class Serializable&>(object).Serialize(serializer);
 
   output_string.append("}");
 

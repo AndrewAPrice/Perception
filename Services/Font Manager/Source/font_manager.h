@@ -12,31 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "permebuf/Libraries/perception/font_manager.permebuf.h"
-
 #include <mutex>
+
 #include "fontconfig/fontconfig.h"
+#include "perception/ui/font_manager.h"
 
-class FontManager : public ::permebuf::perception::FontManager::Server {
+class FontManager : public ::perception::ui::FontManager::Server {
  public:
-  typedef ::permebuf::perception::FontManager FM;
-
   FontManager();
   ~FontManager();
 
-  virtual StatusOr<Permebuf<FM::MatchFontResponse>> HandleMatchFont(
-      ::perception::ProcessId sender,
-      Permebuf<FM::MatchFontRequest> request) override;
+  virtual StatusOr<::perception::ui::MatchFontResponse> MatchFont(
+      const ::perception::ui::MatchFontRequest& request) override;
 
-  virtual StatusOr<Permebuf<FM::GetFontFamiliesResponse>> HandleGetFontFamilies(
-      ::perception::ProcessId sender,
-      const FM::GetFontFamiliesRequest& request) override;
+  virtual StatusOr<::perception::ui::FontFamilies> GetFontFamilies() override;
 
-  virtual StatusOr<Permebuf<FM::GetFontFamilyStylesResponse>> HandleGetFontFamilyStyles(
-      ::perception::ProcessId sender,
-      Permebuf<FM::GetFontFamilyStylesRequest> request) override;
+  virtual StatusOr<::perception::ui::FontStyles> GetFontFamilyStyles(
+      const ::perception::ui::FontFamily& request) override;
 
-  private:
-    FcConfig* config_;
-    std::mutex mutex_;
+ private:
+  FcConfig* config_;
+  std::mutex mutex_;
 };

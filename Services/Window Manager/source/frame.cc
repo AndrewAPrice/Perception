@@ -27,7 +27,7 @@ using ::perception::DrawYLine;
 using ::perception::DrawYLineAlpha;
 using ::perception::FillRectangle;
 using ::perception::Font;
-using ::permebuf::perception::devices::MouseButton;
+using ::perception::devices::MouseButton;
 
 namespace {
 

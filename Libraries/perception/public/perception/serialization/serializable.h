@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <string>
+
 namespace perception {
 namespace serialization {
 
@@ -24,6 +26,9 @@ class Serializable {
  public:
   // Serializes the class.
   virtual void Serialize(Serializer& serializer) = 0;
+
+  // Serializes to a human readable string.
+  virtual std::string ToString() const;
 };
 
 }  // namespace serialization

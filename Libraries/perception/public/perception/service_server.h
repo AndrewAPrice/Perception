@@ -40,9 +40,10 @@ class ServiceServer {
   virtual ~ServiceServer();
 
   template <class ResponseType, class RequestType, class Service>
-  void HandleExpectedRequest(Service* service,
-                             ResponseType (Service::*handler)(RequestType&),
-                             ProcessId sender, const MessageData& message) {
+  void HandleExpectedRequest(
+      Service* service,
+      ResponseType (Service::*handler)(const RequestType&, ProcessId),
+      ProcessId sender, const MessageData& message) {
     RequestType request;
 
     if (message.param3 == SIZE_MAX) {
@@ -60,26 +61,26 @@ class ServiceServer {
 
     if (message.param2 == SIZE_MAX) {
       // Don't care about a response.
-      (void)(service->*handler)(request);
+      (void)(service->*handler)(request, sender);
       return;
     }
-    auto response = (service->*handler)(request);
+    auto response = (service->*handler)(request, sender);
     SendBackResponse(response, sender, message);
   }
 
   template <class ResponseType, class RequestType, class Service>
   void HandleExpectedRequest(Service* service,
-                             ResponseType (Service::*handler)(),
+                             ResponseType (Service::*handler)(ProcessId),
                              ProcessId sender, const MessageData& message) {
     HandleUnexpectedMessageInRequest(sender, message);
 
     if (message.param2 == SIZE_MAX) {
       // Don't care about a response.
-      (void)(service->*handler)();
+      (void)(service->*handler)(sender);
       return;
     }
 
-    auto response = (service->*handler)();
+    auto response = (service->*handler)(sender);
     SendBackResponse(response, sender, message);
   }
 

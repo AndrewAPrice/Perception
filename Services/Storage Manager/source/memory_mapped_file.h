@@ -12,31 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <mutex>
 
 #include "file.h"
 #include "perception/shared_memory.h"
-#include "permebuf/Libraries/perception/storage_manager.permebuf.h"
+#include "perception/storage_manager.h"
 
-class MemoryMappedFile
-    : public ::permebuf::perception::MemoryMappedFile::Server {
+class MemoryMappedFile : public ::perception::MemoryMappedFile::Server {
  public:
-  typedef ::permebuf::perception::MemoryMappedFile MMF;
-
   MemoryMappedFile(std::unique_ptr<File> file, size_t length_of_file,
                    size_t optimal_operation_size,
                    ::perception::ProcessId allowed_process);
 
-  virtual void HandleCloseFile(::perception::ProcessId sender,
-                               const MMF::CloseFileMessage&) override;
+  virtual ::perception::Status Close(::perception::ProcessId sender) override;
 
-  ::perception::SharedMemory& GetBuffer();
+  std::shared_ptr<::perception::SharedMemory> GetBuffer();
 
  private:
   std::unique_ptr<File> file_;
   ::perception::ProcessId allowed_process_;
   size_t length_of_file_;
-  std::unique_ptr<::perception::SharedMemory> buffer_;
+  std::shared_ptr<::perception::SharedMemory> buffer_;
   std::mutex mutex_;
 
   // The optimal size of operations, in bytes.

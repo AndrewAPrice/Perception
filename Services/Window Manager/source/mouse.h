@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "permebuf/Libraries/perception/devices/graphics_driver.permebuf.h"
+#include "perception/devices/graphics_device.h"
 
 void InitializeMouse();
 int GetMouseX();
@@ -26,9 +26,5 @@ void PrepMouseForDrawing(int min_x, int min_y, int max_x, int max_y);
 
 // Draws the mouse.
 void DrawMouse(
-    Permebuf<
-        ::permebuf::perception::devices::GraphicsDriver::RunCommandsMessage>&
-        commands,
-    PermebufListOfOneOfs<::permebuf::perception::devices::GraphicsCommand>&
-        last_graphics_command,
+    ::perception::devices::graphics::Commands& commands,
     int min_x, int min_y, int max_x, int max_y);

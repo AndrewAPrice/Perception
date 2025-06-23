@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,19 +11,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #pragma once
 
-#include <string>
+#include "perception/serialization/serializable.h"
 
-#include "types.h"
+namespace perception {
+namespace serialization {
+class Serializer;
+}
 
-enum class DirectoryEntryType { UNKNOWN = 0, FILE = 1, DIRECTORY = 2 };
+namespace window {
 
-struct DirectoryEntry {
-  std::string name;
+class Size : public serialization::Serializable {
+ public:
+  Size() : width(0), height(0) {}
+  Size(int width, int height) : width(width), height(height) {}
 
-  DirectoryEntryType type;
+  float width, height;
 
-  size_t size;
+  virtual void Serialize(serialization::Serializer &serializer) override;
 };
+
+}  // namespace window
+}  // namespace perception
