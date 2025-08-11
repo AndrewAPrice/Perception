@@ -72,18 +72,19 @@ class ScrollBar {
 
   uint32 GetFabColor() const;
 
-  std::pair<float, float> CalculateFabOffsetAndSize(float available_length) const;
+  std::pair<float, float> CalculateFabOffsetAndSize(
+      float available_length) const;
 
-  float CalculateDragPosition(float mouse_offset,
-  float fab_length, float track_length);
+  float CalculateDragPosition(float mouse_offset, float fab_length,
+                              float track_length);
 
-  void AdjustRectangleForFab(Rectangle &rectangle) const;
+  void AdjustRectangleForFab(Rectangle& rectangle) const;
 
   Rectangle GetFabArea() const;
 
   void Draw(const DrawContext& draw_context);
   Size Measure(float width, YGMeasureMode width_mode, float height,
-                        YGMeasureMode height_mode);
+               YGMeasureMode height_mode);
 
   void MouseHover(const Point& point);
   void MouseLeave();
