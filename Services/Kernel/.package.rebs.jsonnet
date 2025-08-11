@@ -1,6 +1,7 @@
 {
   local cpp_compiler = 'clang',
   local linker = 'ld.lld',
+  statically_link: 0,
   build_commands: {
     // C and C++:
     local c_optimizations =
