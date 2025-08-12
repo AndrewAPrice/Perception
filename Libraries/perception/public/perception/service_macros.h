@@ -149,7 +149,6 @@
 #define HANDLE_SERVICE_SERVER_CASE(id, method_name, return_type,  \
                                    argument_type)                 \
   case id: {                                                      \
-    using ServiceType = std::decay_t<decltype(*this)>;            \
     HandleExpectedRequest<CAT(RESPONSE_FORMAT_,                   \
                               IS_VOID(return_type))(return_type), \
                           argument_type, ServiceType>(            \
@@ -208,6 +207,7 @@
        void HandleRequest(                                                \
            const ::perception::ProcessId sender,                          \
            const ::perception::MessageData& message_data) override {      \
+      using ServiceType = std::decay_t<decltype(*this)>;                  \
       switch (message_data.param1) {                                      \
         default: /* Handle unknown method error */                        \
           HandleUnknownRequest(sender, message_data);                     \
@@ -216,7 +216,7 @@
           method_list(HANDLE_SERVICE_SERVER_CASE)                         \
       }                                                                   \
     }                                                                     \
-    };                                                                      \
+  };                                                                      \
                                                                           \
   class class_name##_Client : public class_name,                          \
                               public ::perception::ServiceClient {        \
