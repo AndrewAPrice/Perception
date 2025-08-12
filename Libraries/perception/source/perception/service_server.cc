@@ -74,7 +74,7 @@ void ServiceServer::HandleUnknownRequest(ProcessId sender,
   SendMessage(sender, response_data);
 }
 
-ProcessId ServiceServer::ServerProcessId() const { GetProcessId(); }
+ProcessId ServiceServer::ServerProcessId() const { return GetProcessId(); }
 
 MessageId ServiceServer::ServiceId() const { return message_id_; }
 
