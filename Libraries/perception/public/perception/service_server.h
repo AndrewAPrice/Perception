@@ -14,8 +14,18 @@
 
 #pragma once
 
+// Define VERBOSE for printing failures.
+#define VERBOSE
+
 #include <functional>
 #include <string_view>
+
+#ifdef VERBOSE
+#include <iostream>
+
+#include "perception/processes.h"
+#include "perception/serialization/text_serializer.h"
+#endif
 
 #include "perception/messages.h"
 #include "perception/rpc_memory.h"
@@ -65,6 +75,16 @@ class ServiceServer {
       return;
     }
     auto response = (service->*handler)(request, sender);
+    Status status = ToStatus(response);
+    if (status != Status::OK) {
+      std::cout << "Bad status " << (int)status << " from "
+                << Service::FullyQualifiedName() << "(\""
+                << GetProcessName() << "\") to \"" << GetProcessName(sender)
+                << "\" with request: " << std::endl
+                << SerializeToString(request) << std::endl;
+    }
+#endif
+
     SendBackResponse(response, sender, message);
   }
 
