@@ -140,7 +140,7 @@ class BinarySerializer : public Serializer {
  private:
   void WriteVariableLengthInteger(uint64 value) {
     while (value >= 0x80) {
-      auto byte = static_cast<uint8_t>(value & 0x7F);
+      auto byte = static_cast<uint8_t>(value & 0x7F) | 0x80;
       write_stream_->CopyDataIntoStream(&byte, 1);
       value >>= 7;
     }
