@@ -75,6 +75,7 @@ class ServiceServer {
       return;
     }
     auto response = (service->*handler)(request, sender);
+#ifdef VERBOSE
     Status status = ToStatus(response);
     if (status != Status::OK) {
       std::cout << "Bad status " << (int)status << " from "
