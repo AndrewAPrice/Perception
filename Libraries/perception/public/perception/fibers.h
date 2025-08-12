@@ -21,7 +21,9 @@
 namespace perception {
 
 class Fiber;
+struct MessageData;
 struct MessageHandler;
+struct FiberLocalMessageHandler;
 class Scheduler;
 
 // Registers that need to be preserved between switching fibers.
@@ -45,7 +47,8 @@ class Fiber {
   static Fiber* Create(const std::function<void()>& function);
 
   // Creates a fiber to invoke a message handler.
-  static Fiber* Create(const MessageHandler& message_handler);
+  static Fiber* Create(std::shared_ptr<MessageHandler> message_handler,
+                       ProcessId senders_pid, const MessageData& message_data);
 
   // Switches to this fiber.
   void SwitchTo();
@@ -84,7 +87,7 @@ class Fiber {
   static void CallRootFunction(Fiber* fiber);
 
   // Calls the message handler for a fiber.
-  static void CallMessageHandler(MessageHandler* message_handler);
+  static void CallMessageHandler(FiberLocalMessageHandler* message_handler);
 
   // Terminates the fiber after we're done calling the root
   // function.
