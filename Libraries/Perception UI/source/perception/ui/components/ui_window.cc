@@ -81,7 +81,7 @@ void UiWindow::SetTitle(std::string_view title) {
   if (title_ == title) return;
   title_ = title;
 
-  if (created_) base_window_->SetTitle(title);
+  if (created_ && base_window_) base_window_->SetTitle(title);
 }
 
 void UiWindow::SetIsDialog(bool is_dialog) {
@@ -100,8 +100,10 @@ void UiWindow::WindowResized() {
 
   auto node = node_.lock();
 
-  buffer_width_ = base_window_->GetWidth();
-  buffer_height_ = base_window_->GetHeight();
+  if (base_window_) {
+    buffer_width_ = base_window_->GetWidth();
+    buffer_height_ = base_window_->GetHeight();
+  }
 
   Layout layout = node->GetLayout();
   layout.SetWidth((float)buffer_width_);
@@ -154,7 +156,7 @@ void UiWindow::Draw() {
   std::scoped_lock lock(window_mutex_);
 
   if (!invalidated_) return;
-  base_window_->Present();
+  if (base_window_) base_window_->Present();
   invalidated_ = false;
 }
 

@@ -126,6 +126,7 @@ void AfterDuration(std::chrono::microseconds time,
   MessageId message_id = GenerateUniqueMessageId();
   SendMessageInMicrosecondsFromNow(time.count(), message_id);
 
+    std::cout << "AfterDuration " << message_id << std::endl;
   ::perception::RegisterMessageHandler(
       message_id,
       [message_id, on_duration](ProcessId sender, const MessageData&) {
@@ -146,6 +147,7 @@ void AfterTimeSinceKernelStarted(std::chrono::microseconds time,
   MessageId message_id = GenerateUniqueMessageId();
   SendMessageAtMicrosecondsSinceKernelStart(time.count(), message_id);
 
+    std::cout << "AfterTimeSinceKernelStarted " << message_id << std::endl;
   ::perception::RegisterMessageHandler(
       message_id, [message_id, at_time](ProcessId sender, const MessageData&) {
         if (sender != 0)

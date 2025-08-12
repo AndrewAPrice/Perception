@@ -50,6 +50,9 @@ void InitializeSystemCalls() {
 #endif
 }
 
+int last_printing_process = -1;
+bool last_char_was_newline = false;
+
 extern "C" void SyscallHandler(int syscall_number) {
   switch (static_cast<Syscall>(syscall_number)) {
     default:
@@ -61,9 +64,17 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       print << ") is unimplemented.\n";
       break;
-    case Syscall::PrintDebugCharacter:
-      print << (char)currently_executing_thread_regs->rax;
+    case Syscall::PrintDebugCharacter: {
+      if (last_printing_process != running_thread->process->pid) {
+        if (!last_char_was_newline) print << '\n';
+        print << running_thread->process->name << ": ";
+        last_printing_process = running_thread->process->pid;
+      }
+      char c = (char)currently_executing_thread_regs->rax;
+      print << c;
+      last_char_was_newline = (c == '\n');
       break;
+    }
     case Syscall::PrintRegistersAndStack: {
       print << "Dump requested by PID " << NumberFormat::Decimal
             << running_thread->process->pid << " ("

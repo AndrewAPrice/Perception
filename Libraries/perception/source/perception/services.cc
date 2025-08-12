@@ -325,6 +325,7 @@ MessageId NotifyOnEachNewServiceInstance(
   if (name.size() > kMaxServiceNameLength) return 0;
 
   MessageId message_id = GenerateUniqueMessageId();
+      std::cout << "NotifyOnEachNewServiceInstance (" << name << ") as " << message_id << std::endl;
   RegisterMessageHandler(
       message_id,
       [on_each_service](ProcessId sender, const MessageData& message_data) {
@@ -405,6 +406,8 @@ MessageId NotifyWhenServiceDisappears(
     const std::function<void()>& on_disappearance) {
 #ifdef PERCEPTION
   MessageId notification_message_id = GenerateUniqueMessageId();
+
+      std::cout << "NotifyWhenServiceDisappears as " << notification_message_id << std::endl;
   RegisterMessageHandler(notification_message_id,
                          [notification_message_id, on_disappearance](
                              ProcessId sender, const MessageData&) {
