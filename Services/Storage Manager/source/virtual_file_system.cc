@@ -323,7 +323,7 @@ StatusOr<FileStatistics> GetFileStatistics(std::string_view path) {
   if (path == "/") {
     FileStatistics response;
     response.exists = true;
-    response.type == DirectoryEntry::Type::DIRECTORY;
+    response.type = DirectoryEntry::Type::DIRECTORY;
     return response;
   }
 
