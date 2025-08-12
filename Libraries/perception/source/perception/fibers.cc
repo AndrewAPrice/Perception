@@ -99,16 +99,27 @@ Fiber* Fiber::Create(const std::function<void()>& function) {
 }
 
 // Creates a fiber to invoke a message handler.
-Fiber* Fiber::Create(const MessageHandler& message_handler) {
+Fiber* Fiber::Create(std::shared_ptr<MessageHandler> message_handler,
+                     ProcessId senders_pid, const MessageData& message_data) {
   Fiber* fiber = Create();
 
-  // Point to the top of the stack, just under the red-zone.
   size_t* top_of_stack =
-      &fiber->bottom_of_stack_[kPageSize * kNumberOfStackPages / 8 - 128 / 8];
+      &fiber->bottom_of_stack_[kPageSize * kNumberOfStackPages / 8];
+
+  // Copy the MessageHandler so it can be recycled.
+  top_of_stack -= sizeof(FiberLocalMessageHandler) / 8;
+  FiberLocalMessageHandler* local_message_handler =
+      new ((FiberLocalMessageHandler*)top_of_stack) FiberLocalMessageHandler();
+  local_message_handler->message_handler = message_handler;
+  local_message_handler->message_data = message_data;
+  local_message_handler->senders_pid = senders_pid;
+
+  // Leave enough room for the safe zone.
+  top_of_stack -= 128 / 8;
 
   // Write the pointer to the message handler to the stack.
   top_of_stack--;
-  *top_of_stack = (size_t)&message_handler;
+  *top_of_stack = (size_t)local_message_handler;
 
   // Write our C++ entrypoint function to the stack.
   top_of_stack--;
@@ -158,14 +169,24 @@ void Fiber::WakeUp() { Scheduler::ScheduleFiber(this); }
 
 // Calls the root function of the fiber.
 void Fiber::CallRootFunction(Fiber* fiber) {
-  fiber->root_function_();
+  if (fiber->root_function_) {
+    fiber->root_function_();
+  }
   TerminateFiber(fiber);
 }
 
 // Calls the message handler for a fiber.
-void Fiber::CallMessageHandler(MessageHandler* message_handler) {
-  message_handler->handler_function(message_handler->senders_pid,
-                                    message_handler->message_data);
+void Fiber::CallMessageHandler(
+    FiberLocalMessageHandler* local_message_handler) {
+  auto message_handler = local_message_handler->message_handler.lock();
+  if (message_handler == nullptr) {
+    return;  // No longer listening for this message.
+  }
+
+  message_handler->handler_function(local_message_handler->senders_pid,
+                                    local_message_handler->message_data);
+
+  local_message_handler->~FiberLocalMessageHandler();
   TerminateFiber(GetCurrentlyExecutingFiber());
 }
 

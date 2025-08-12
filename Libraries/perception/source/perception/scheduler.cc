@@ -15,6 +15,7 @@
 #include "perception/scheduler.h"
 
 #include <iostream>
+#include <memory>
 
 #include "perception/fibers.h"
 #include "perception/messages.h"
@@ -32,11 +33,11 @@ namespace {
 /*thread_local*/ Fiber* first_late_scheduled_fiber = nullptr;
 /*thread_local*/ Fiber* last_late_scheduled_fiber = nullptr;
 
-// The fiber to return to when we're out of work instead of sleeping. This is
-// the caller of HandleEverything.
-/*thread_local*/ Fiber* fiber_to_return_to_when_were_out_of_work = nullptr;
-/*thread_local*/ Fiber*
-    fiber_to_return_to_after_sleeping_when_were_out_of_work = nullptr;
+// The fiber to return to when there's no more work to do, instead of sleeping.
+// This is the caller of HandleEverything.
+/*thread_local*/ Fiber* fiber_to_return_to_when_out_of_work = nullptr;
+/*thread_local*/ Fiber* fiber_to_return_to_after_sleeping_when_out_of_work =
+    nullptr;
 
 // Sleeps until a message. Returns true if a message was received.
 bool SleepThreadUntilMessage(ProcessId& senders_pid,
@@ -75,7 +76,7 @@ bool SleepThreadUntilMessage(ProcessId& senders_pid,
 }
 
 // Polls for a message, returning false immediately if no message was received.
-bool PollForMessage(ProcessId& senders_pid, MessageData &message_data) {
+bool PollForMessage(ProcessId& senders_pid, MessageData& message_data) {
 #if PERCEPTION
   // TODO: Handle metadata
   volatile register size_t syscall asm("rdi") = 18;
@@ -123,10 +124,10 @@ void DeferAfterEvents(const std::function<void()>& function) {
 
 // Hand over control to the scheduler. This function never returns.
 void HandOverControl() {
-  if (fiber_to_return_to_when_were_out_of_work != nullptr ||
-      fiber_to_return_to_after_sleeping_when_were_out_of_work != nullptr) {
-    std::cerr << "We can't nest ::perception::HandOverControl "
-              << "inside of ::perception::FinishAnyPendingWork or "
+  if (fiber_to_return_to_when_out_of_work != nullptr ||
+      fiber_to_return_to_after_sleeping_when_out_of_work != nullptr) {
+    std::cerr << "::perception::HandOverControl can be nested inside of"
+              << "::perception::FinishAnyPendingWork or "
               << "WaitForMessagesThenReturn because it will never return."
               << std::endl;
     return;
@@ -139,43 +140,41 @@ void HandOverControl() {
 // Runs all fibers, handles all events, then returns when there's
 // nothing else to do.
 void FinishAnyPendingWork() {
-  if (fiber_to_return_to_when_were_out_of_work != nullptr ||
-      fiber_to_return_to_after_sleeping_when_were_out_of_work != nullptr) {
-    std::cerr << "We can't have nested calls"
-              << "::perception::FinishAnyPendingWork and "
-              << "WaitForMessagesThenReturn" << std::endl;
+  if (fiber_to_return_to_when_out_of_work != nullptr ||
+      fiber_to_return_to_after_sleeping_when_out_of_work != nullptr) {
+    std::cerr << "::perception::FinishAnyPendingWork and "
+              << "WaitForMessagesThenReturn can't be nested." << std::endl;
     return;
   }
 
-  // Remember where we are right now.
-  fiber_to_return_to_when_were_out_of_work = GetCurrentlyExecutingFiber();
+  // Remember the current fiber to return to once any pending work is done.
+  fiber_to_return_to_when_out_of_work = GetCurrentlyExecutingFiber();
 
   // Switch to the next scheduled fiber.
   Scheduler::GetNextFiberToRun()->SwitchTo();
 
-  // We're back here once there is no more work to do.
-  fiber_to_return_to_when_were_out_of_work = nullptr;
+  // Once execution has returned here, there is no more work to do.
+  fiber_to_return_to_when_out_of_work = nullptr;
 }
 
 void WaitForMessagesThenReturn() {
-  if (fiber_to_return_to_when_were_out_of_work != nullptr ||
-      fiber_to_return_to_after_sleeping_when_were_out_of_work != nullptr) {
-    std::cerr << "We can't have nested calls"
-              << "::perception::FinishAnyPendingWork and "
-              << "WaitForMessagesThenReturn" << std::endl;
+  if (fiber_to_return_to_when_out_of_work != nullptr ||
+      fiber_to_return_to_after_sleeping_when_out_of_work != nullptr) {
+    std::cerr << "::perception::FinishAnyPendingWork and "
+              << "WaitForMessagesThenReturn can't be nested." << std::endl;
     return;
   }
 
-  // Remember where we are right now.
-  fiber_to_return_to_after_sleeping_when_were_out_of_work =
+  // Remember the current fiber to return to after any pending work is done.
+  fiber_to_return_to_after_sleeping_when_out_of_work =
       GetCurrentlyExecutingFiber();
 
   // Switch to the next scheduled fiber.
   Scheduler::GetNextFiberToRun()->SwitchTo();
 
-  // We're back here once there is no more work to do.
-  fiber_to_return_to_when_were_out_of_work = nullptr;
-  fiber_to_return_to_after_sleeping_when_were_out_of_work = nullptr;
+  // Once execution has returned here, there is no more work to do.
+  fiber_to_return_to_when_out_of_work = nullptr;
+  fiber_to_return_to_after_sleeping_when_out_of_work = nullptr;
 }
 
 // Gets the next fiber to run, or sleeps until there is one.
@@ -191,7 +190,7 @@ Fiber* Scheduler::GetNextFiberToRun() {
       last_scheduled_fiber = nullptr;
     }
 
-    // We're removing this fiber from the schedule.
+    // Remove the fiber that is about to execute from the schedule.
     fiber->is_scheduled_to_run_ = false;
     return fiber;
   }
@@ -200,17 +199,15 @@ Fiber* Scheduler::GetNextFiberToRun() {
   ProcessId senders_pid;
   MessageData message_data;
 
-  if (fiber_to_return_to_when_were_out_of_work == nullptr &&
+  if (fiber_to_return_to_when_out_of_work == nullptr &&
       first_late_scheduled_fiber == nullptr) {
-    if (fiber_to_return_to_after_sleeping_when_were_out_of_work != nullptr) {
-      // We want to sleep first, then return immediately when we run out
-      // of work.
-      fiber_to_return_to_when_were_out_of_work =
-          fiber_to_return_to_after_sleeping_when_were_out_of_work;
+    if (fiber_to_return_to_after_sleeping_when_out_of_work != nullptr) {
+      // Sleep first, then return immediately once there is no more work.
+      fiber_to_return_to_when_out_of_work =
+          fiber_to_return_to_after_sleeping_when_out_of_work;
     }
 
-    // Nothing is waiting for to finish, so we'll sleep for the next
-    // message.
+    // Nothing is waiting for to finish, so sleep for the next message.
     while (true) {
       if (!SleepThreadUntilMessage(senders_pid, message_data)) {
         // The thread randomly woke without a message. This shouldn't
@@ -234,7 +231,7 @@ Fiber* Scheduler::GetNextFiberToRun() {
       if (fiber != nullptr) return fiber;
     }
 
-    // There are no messages and there are no other fibers. We can run any late
+    // There are no messages and there are no other fibers. Run any late
     // fibers now.
     if (first_late_scheduled_fiber != nullptr) {
       Fiber* fiber = first_late_scheduled_fiber;
@@ -246,14 +243,14 @@ Fiber* Scheduler::GetNextFiberToRun() {
       if (first_late_scheduled_fiber == nullptr)
         last_late_scheduled_fiber = nullptr;
 
-      // We're removing this fiber from the schedule.
+      // Remove the fiber that is about to execute from the schedule.
       fiber->is_scheduled_to_run_ = false;
       return fiber;
     }
 
-    // There are no messages and there are no fibers. We can return
-    // to the caller of HandleEverything().
-    return fiber_to_return_to_when_were_out_of_work;
+    // There are no messages and there are no fibers. Return to the caller of
+    // HandleEverything().
+    return fiber_to_return_to_when_out_of_work;
   }
 }
 
@@ -294,24 +291,23 @@ void Scheduler::ScheduleFiberAfterEvents(Fiber* fiber) {
 // nothing to do.
 Fiber* Scheduler::GetFiberToHandleMessage(ProcessId senders_pid,
                                           const MessageData& message_data) {
-  MessageHandler* handler = GetMessageHandler(message_data.message_id);
-  if (handler == nullptr) {
+  auto handler = GetMessageHandler(message_data.message_id);
+  if (!handler) {
     // Message handler not defined.
     DealWithUnhandledMessage(senders_pid, message_data);
     return nullptr;
   }
 
-  // Store these values that the fiber will read when it wakes up.
-  handler->senders_pid = senders_pid;
-  handler->message_data = message_data;
-
   if (handler->fiber_to_wake_up) {
-    // We have a sleeping fiber to wake up.
+    // There is a sleeping fiber to wake up. Store these values that the fiber
+    // will read when it wakes up.
+    handler->senders_pid = senders_pid;
+    handler->message_data = message_data;
     return handler->fiber_to_wake_up;
   }
 
-  // We need to create a fiber to call the handler.
-  return Fiber::Create(*handler);
+  // Create a fiber to call the handler.
+  return Fiber::Create(handler, senders_pid, message_data);
 }
 
 }  // namespace perception

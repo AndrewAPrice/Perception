@@ -27,7 +27,7 @@ namespace {
 MessageId next_unique_message_id = 0;
 
 // The handler for each message ID.
-std::map<MessageId, MessageHandler> handlers_by_message_id;
+std::map<MessageId, std::shared_ptr<MessageHandler>> handlers_by_message_id;
 
 }  // namespace
 
@@ -138,9 +138,9 @@ void RegisterRawMessageHandler(
   if (handlers_by_message_id_itr != handlers_by_message_id.end())
     handlers_by_message_id.erase(handlers_by_message_id_itr);
 
-  MessageHandler handler;
-  handler.fiber_to_wake_up = nullptr;
-  handler.handler_function = std::move(callback);
+  auto handler = std::make_shared<MessageHandler>();
+  handler->fiber_to_wake_up = nullptr;
+  handler->handler_function = std::move(callback);
   handlers_by_message_id.emplace(
       std::make_pair(message_id, std::move(handler)));
 }
@@ -173,8 +173,8 @@ void SleepUntilMessage(MessageId message_id, ProcessId& sender,
 void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
                           MessageData& message_data) {
   // Register the handler to wake us up.
-  MessageHandler handler;
-  handler.fiber_to_wake_up = GetCurrentlyExecutingFiber();
+  auto handler = std::make_shared<MessageHandler>();
+  handler->fiber_to_wake_up = GetCurrentlyExecutingFiber();
   handlers_by_message_id.emplace(
       std::make_pair(message_id, std::move(handler)));
 
@@ -189,19 +189,20 @@ void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
     return;
   }
 
-  sender = handler_itr->second.senders_pid;
-  message_data = handler_itr->second.message_data;
+  sender = handler_itr->second->senders_pid;
+  message_data = handler_itr->second->message_data;
 
   // We can stop listening now.
   handlers_by_message_id.erase(handler_itr);
 }
+
 // Maybe returns a message handler for the given ID, or nullptr.
-MessageHandler* GetMessageHandler(MessageId message_id) {
+std::shared_ptr<MessageHandler> GetMessageHandler(MessageId message_id) {
   auto handler_itr = handlers_by_message_id.find(message_id);
   if (handler_itr == handlers_by_message_id.end())
-    return nullptr;
+    return {};
   else
-    return &handler_itr->second;
+    return handler_itr->second;
 }
 
 }  // namespace perception

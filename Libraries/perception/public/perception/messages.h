@@ -15,7 +15,10 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 
+#include "linked_list.h"
+#include "object_pool.h"
 #include "status.h"
 #include "types.h"
 
@@ -56,6 +59,12 @@ struct MessageHandler {
 
   // Temporary variables where we store the message data when we
   // create or wake up a fiber.
+  ProcessId senders_pid;
+  MessageData message_data;
+};
+
+struct FiberLocalMessageHandler {
+  std::weak_ptr<MessageHandler> message_handler;
   ProcessId senders_pid;
   MessageData message_data;
 };
@@ -115,6 +124,6 @@ void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
                           MessageData& data);
 
 // Maybe returns a message handler for the given ID, or nullptr.
-MessageHandler* GetMessageHandler(MessageId message_id);
+std::shared_ptr<MessageHandler> GetMessageHandler(MessageId message_id);
 
 }  // namespace perception
