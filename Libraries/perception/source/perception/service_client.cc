@@ -20,8 +20,7 @@
 namespace perception {
 
 ServiceClient::ServiceClient(ProcessId process_id, MessageId message_id)
-    : process_id_(process_id), message_id_(message_id) {
-}
+    : process_id_(process_id), message_id_(message_id) {}
 
 void ServiceClient::Serialize(serialization::Serializer& serializer) {
   serializer.Integer("Process ID", process_id_);
@@ -31,6 +30,13 @@ void ServiceClient::Serialize(serialization::Serializer& serializer) {
 ProcessId ServiceClient::ServerProcessId() const { return process_id_; }
 
 MessageId ServiceClient::ServiceId() const { return message_id_; }
+
+bool ServiceClient::operator<(const ServiceClient& rhs) const {
+  auto process_1 = ServerProcessId();
+  auto process_2 = rhs.ServerProcessId();
+  if (process_1 != process_2) return process_1 < process_2;
+  return ServiceId() < rhs.ServiceId();
+}
 
 bool ServiceClient::IsValid() const { return process_id_ != 0; }
 

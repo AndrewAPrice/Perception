@@ -123,6 +123,10 @@
 #define DECLARE_SERVICE_METHOD_ID(id, method_name, return_type, argument_type) \
   k##method_name = id,
 
+#define METHOD_NAME_SWITCH_CASES(id, method_name, return_type, argument_type) \
+  case id:                                                                    \
+    return #method_name;
+
 #define IMPLEMENT_SERVICE_CLIENT_STUB(id, method_name, return_type,         \
                                       argument_type)                        \
   virtual CAT(RESPONSE_FORMAT_, IS_VOID(return_type))(return_type)          \
@@ -184,6 +188,14 @@
     virtual ~class_name() = default;                                      \
                                                                           \
     enum MethodIds { method_list(DECLARE_SERVICE_METHOD_ID) };            \
+                                                                          \
+    static std::string_view MethodName(int method_id) {                   \
+      switch (method_id) {                                                \
+        default:                                                          \
+          return "Unknown";                                               \
+          method_list(METHOD_NAME_SWITCH_CASES)                           \
+      }                                                                   \
+    }                                                                     \
                                                                           \
     static std::string_view FullyQualifiedName() {                        \
       return fully_qualified_name;                                        \

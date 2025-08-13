@@ -78,6 +78,13 @@ ProcessId ServiceServer::ServerProcessId() const { return GetProcessId(); }
 
 MessageId ServiceServer::ServiceId() const { return message_id_; }
 
+bool ServiceServer::operator<(const ServiceServer& rhs) const {
+  auto process_1 = ServerProcessId();
+  auto process_2 = rhs.ServerProcessId();
+  if (process_1 != process_2) return process_1 < process_2;
+  return ServiceId() < rhs.ServiceId();
+}
+
 void ServiceServer::HandleUnexpectedMessageInRequest(
     ProcessId sender, const MessageData& message) {
   if (message.param3 == SIZE_MAX) return;

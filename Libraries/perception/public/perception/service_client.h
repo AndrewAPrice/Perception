@@ -71,6 +71,8 @@ class ServiceClient : public serialization::Serializable {
 
   MessageId ServiceId() const;
 
+  bool operator<(const ServiceClient& rhs) const;
+
   bool IsValid() const;
 
   operator bool() const { return IsValid(); }

@@ -44,6 +44,8 @@ class ServiceServer {
 
   MessageId ServiceId() const;
 
+  bool operator<(const ServiceServer& rhs) const;
+
  protected:
   ServiceServer(ServiceServerOptions options, std::string_view service_name);
 
@@ -78,10 +80,12 @@ class ServiceServer {
 #ifdef VERBOSE
     Status status = ToStatus(response);
     if (status != Status::OK) {
-      std::cout << "Bad status " << (int)status << " from "
-                << Service::FullyQualifiedName() << "(\""
-                << GetProcessName() << "\") to \"" << GetProcessName(sender)
-                << "\" with request: " << std::endl
+      std::cout << "Call to " << Service::MethodName(message.param1) << " ("
+                << message.param1 << ") in " << Service::FullyQualifiedName()
+                << " (\"" << GetProcessName() << "\") from \""
+                << GetProcessName(sender)
+                << "\" returned bad status: " << (int)status
+                << " with request: " << std::endl
                 << SerializeToString(request) << std::endl;
     }
 #endif
