@@ -252,7 +252,7 @@ void DrawMouse(graphics::Commands& commands, int min_x, int min_y, int max_x,
   // Draw the mouse cursor.
   {
     auto& command = commands.commands.emplace_back();
-    command.type = graphics::Command::Type::SET_SOURCE_TEXTURE;
+    command.type = graphics::Command::Type::COPY_ENTIRE_TEXTURE_WITH_ALPHA_BLENDING;
     command.position = std::make_shared<graphics::Position>(mouse_x, mouse_y);
   }
 }

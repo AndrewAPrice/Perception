@@ -131,7 +131,7 @@ void DrawScreen() {
             command.type = graphics::Command::Type::SET_SOURCE_TEXTURE;
             command.texture_reference =
                 std::make_shared<graphics::TextureReference>(
-                    GetWindowManagerTextureId());
+                    rectangle->texture_id);
             texture_drawing_into_window_manager = rectangle->texture_id;
           }
 
@@ -194,7 +194,7 @@ void DrawScreen() {
           command.type = graphics::Command::Type::SET_SOURCE_TEXTURE;
           command.texture_reference =
               std::make_shared<graphics::TextureReference>(
-                  GetWindowManagerTextureId());
+                  rectangle->texture_id);
           texture_drawing_into_framebuffer = rectangle->texture_id;
         }
 

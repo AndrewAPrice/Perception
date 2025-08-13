@@ -48,7 +48,9 @@ StatusOr<CreateWindowResponse> WindowManager::CreateWindow(
                              request.keyboard_listener, request.mouse_listener);
   }
 
-  if (window == nullptr) return Status::INTERNAL_ERROR;
+  if (window == nullptr) {
+    return Status::INTERNAL_ERROR;
+  }
 
   CreateWindowResponse response;
   response.window_size = {window->GetWidth(), window->GetHeight()};
@@ -68,7 +70,7 @@ Status WindowManager::SetWindowTexture(
   if (window == nullptr) return Status::INVALID_ARGUMENT;
 
   window->SetTextureId(parameters.texture.id);
-  return Status::PROCESS_DOESNT_EXIST;
+  return Status::OK;
 }
 
 Status WindowManager::SetWindowTitle(const SetWindowTitleParameters& parameters,
