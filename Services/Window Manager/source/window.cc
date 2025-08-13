@@ -23,6 +23,7 @@
 #include "perception/devices/mouse_listener.h"
 #include "perception/draw.h"
 #include "perception/font.h"
+#include "perception/serialization/text_serializer.h"
 #include "perception/services.h"
 #include "screen.h"
 
@@ -40,6 +41,7 @@ using ::perception::devices::MouseButton;
 using ::perception::devices::MouseClickEvent;
 using ::perception::devices::MouseListener;
 using ::perception::devices::MousePositionEvent;
+using ::perception::serialization::SerializeToString;
 using ::perception::window::BaseWindow;
 
 namespace {
@@ -76,10 +78,9 @@ Window* Window::CreateDialog(std::string_view title, int width, int height,
                              BaseWindow::Client window_listener,
                              KeyboardListener::Client keyboard_listener,
                              MouseListener::Client mouse_listener) {
-  if (!window_listener || windows_by_service.count(window_listener) > 0) {
-    // Window already exists or a window listener wasn't specified.
+  if (!CanUseWindowListenerForNewWindow(window_listener, /*is_dialog=*/true))
     return nullptr;
-  }
+
   if (title.size() > kMaxTitleLength) {
     title = title.substr(0, kMaxTitleLength);
   }
@@ -132,10 +133,8 @@ Window* Window::CreateWindow(std::string_view title, uint32 background_color,
                              BaseWindow::Client window_listener,
                              KeyboardListener::Client keyboard_listener,
                              MouseListener::Client mouse_listener) {
-  if (!window_listener || windows_by_service.count(window_listener) > 0) {
-    // Window already exists or a window listener wasn't specified.
+  if (!CanUseWindowListenerForNewWindow(window_listener, /*is_dialog=*/false))
     return nullptr;
-  }
 
   if (title.size() > kMaxTitleLength) {
     title = title.substr(0, kMaxTitleLength);
@@ -624,6 +623,28 @@ void Window::DrawWindowContents(int x, int y, int min_x, int min_y, int max_x,
     CopyTexture(draw_min_x, draw_min_y, draw_max_x, draw_max_y, texture_id_,
                 draw_min_x - x, draw_min_y - y);
   }
+}
+
+bool Window::CanUseWindowListenerForNewWindow(
+    BaseWindow::Client window_listener, bool is_dialog) {
+  if (!window_listener) {
+    std::cout << "Can't create a " << (is_dialog ? "dialog" : "window")
+              << " without a window listener." << std::endl;
+    return false;
+  }
+
+  auto itr = windows_by_service.find(window_listener);
+  if (itr != windows_by_service.end()) {
+    Window* window = itr->second;
+    std::cout << "Can't create a " << (is_dialog ? "dialog" : "window")
+              << " with the window listener "
+              << SerializeToString(window_listener)
+              << " because it is already used by another "
+              << (window->is_dialog_ ? "dialog" : "window") << " \""
+              << window->title_ << "\"." << std::endl;
+    return false;
+  }
+  return true;
 }
 
 void InitializeWindows() {

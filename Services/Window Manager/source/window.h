@@ -87,6 +87,10 @@ class Window {
   void DrawWindowContents(int x, int y, int min_x, int min_y, int max_x,
                           int max_y);
 
+  // Returns whether the window listener can be used for creating a new window.
+  static bool CanUseWindowListenerForNewWindow(
+      ::perception::window::BaseWindow::Client window_listener, bool is_dialog);
+
   // The window's title.
   std::string title_;
 
