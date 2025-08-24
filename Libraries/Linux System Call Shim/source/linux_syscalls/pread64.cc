@@ -24,7 +24,6 @@ namespace perception {
 namespace linux_syscalls {
 
 long pread64(int fd, void *buf, long count, off_t offset) {
-  std::cout << "Reading " << count << " from " << offset <<std::endl;
   auto file = GetFileDescriptor(fd);
   if (!file || file->type != FileDescriptor::Type::FILE) {
     // File not open or not a file.
@@ -34,7 +33,6 @@ long pread64(int fd, void *buf, long count, off_t offset) {
   // Remember the old file offet, and seek to the new offset.
   size_t old_ofset = file->file.offset_in_file;
   file->file.offset_in_file = offset;
-
 
   // Read from the offset.
   iovec iov;
