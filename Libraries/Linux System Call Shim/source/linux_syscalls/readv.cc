@@ -79,8 +79,7 @@ long readv(long fd, void* iov, long iovcnt) {
     auto status = descriptor->file.file.Read(request);
 
     if (status != Status::OK) {
-      std::cout << "Error while reading file." << std::endl;
-      kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
+      kSharedMemoryPool.ReleaseSharedMemory(pooled_shared_memory);
       errno = EINVAL;
       return -1;
     }
@@ -118,7 +117,10 @@ long readv(long fd, void* iov, long iovcnt) {
 
     // Increment how much we've read for this chunk.
     bytes_read += bytes_to_read_this_chunk;
+    bytes_to_read -= bytes_to_read_this_chunk;
   }
+
+  kSharedMemoryPool.ReleaseSharedMemory(pooled_shared_memory);
 
   // Remember how far we've read into this file, so subsequent calls can
   // continue reading the following data in the file.
