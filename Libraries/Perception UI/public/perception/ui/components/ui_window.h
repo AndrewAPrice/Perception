@@ -39,17 +39,20 @@ class UiWindow : public window::WindowDelegate,
  public:
   template <typename... Modifiers>
   static std::shared_ptr<Node> ResizableWindow(std::string_view title,
-                                           Modifiers... modifiers) {
-    return Node::Empty([title](UiWindow& window) { window.SetTitle(title); },
-                       [](Layout& layout) { layout.SetMargin(YGEdgeAll, 8.f); },
-                       modifiers...);
+                                               Modifiers... modifiers) {
+    return Node::Empty(
+        [title](UiWindow& window) {
+          window.SetTitle(title);
+          window.SetIsResizable(true);
+        },
+        [](Layout& layout) { layout.SetMargin(YGEdgeAll, 8.f); }, modifiers...);
   }
 
   template <typename... Modifiers>
   static std::shared_ptr<Node> Dialog(std::string_view title,
                                       Modifiers... modifiers) {
     return ResizableWindow(
-        title, [](UiWindow& window) { window.SetIsDialog(true); },
+        title, [](UiWindow& window) { window.SetIsResizable(false); },
         modifiers...);
   }
 
@@ -60,7 +63,7 @@ class UiWindow : public window::WindowDelegate,
   void SetBackgroundColor(uint32 background_color);
   void OnClose(std::function<void()> on_close_handler);
   void SetTitle(std::string_view title);
-  void SetIsDialog(bool is_dialog);
+  void SetIsResizable(bool is_resizable);
   void OnResize(std::function<void()> on_resize_handler);
   void FocusOnNode();
 
@@ -97,7 +100,7 @@ class UiWindow : public window::WindowDelegate,
 
   bool invalidated_;
   bool created_;
-  bool is_dialog_;
+  bool is_resizable_;
 
   void Create();
 

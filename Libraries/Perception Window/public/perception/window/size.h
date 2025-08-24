@@ -25,7 +25,7 @@ namespace window {
 class Size : public serialization::Serializable {
  public:
   Size() : width(0), height(0) {}
-  Size(int width, int height) : width(width), height(height) {}
+  Size(float width, float height) : width(width), height(height) {}
 
   float width, height;
 

@@ -16,95 +16,48 @@
 
 #include "compositor.h"
 #include "perception/draw.h"
+#include "perception/ui/rectangle.h"
 #include "screen.h"
 
+using ::perception::ui::Rectangle;
 namespace graphics = ::perception::devices::graphics;
 
 namespace {
 
 bool highlighter_enabled;
-int highlighter_min_x;
-int highlighter_min_y;
-int highlighter_max_x;
-int highlighter_max_y;
+Rectangle highlighter_area;
 
 }  // namespace
 
 void InitializeHighlighter() { highlighter_enabled = false; }
 
-void SetHighlighter(int min_x, int min_y, int max_x, int max_y) {
+void SetHighlighter(const Rectangle& screen_area) {
   if (highlighter_enabled) {
-    if (highlighter_min_x == min_x && highlighter_max_x == max_x &&
-        highlighter_min_y == min_y && highlighter_max_y == max_y) {
-      return;
-    }
+    if (highlighter_area == screen_area) return;
 
-    InvalidateScreen(highlighter_min_x, highlighter_min_y, highlighter_max_x,
-                     highlighter_max_y);
+    InvalidateScreen(highlighter_area);
   }
 
-  highlighter_min_x = min_x;
-  highlighter_min_y = min_y;
-  highlighter_max_x = max_x;
-  highlighter_max_y = max_y;
+  highlighter_area = screen_area;
   highlighter_enabled = true;
 
-  InvalidateScreen(highlighter_min_x, highlighter_min_y, highlighter_max_x,
-                   highlighter_max_y);
+  InvalidateScreen(highlighter_area);
 }
 
 void DisableHighlighter() {
   if (!highlighter_enabled) return;
 
   highlighter_enabled = false;
-  InvalidateScreen(highlighter_min_x, highlighter_min_y, highlighter_max_x,
-                   highlighter_max_y);
+  InvalidateScreen(highlighter_area);
 }
 
-void PrepHighlighterForDrawing(int min_x, int min_y, int max_x, int max_y) {
+void DrawHighlighter(const Rectangle& draw_area) {
   if (!highlighter_enabled) return;
-  if (min_x >= highlighter_max_x || min_y >= highlighter_max_y ||
-      max_x <= highlighter_min_x || max_y <= highlighter_min_y) {
+  if (!draw_area.Intersects(highlighter_area)) {
     // The highlighting is outside of the draw area.
     return;
   }
 
-  CopySectionOfScreenIntoWindowManagersTexture(
-      std::max(min_x, highlighter_min_x), std::max(min_y, highlighter_min_y),
-      std::min(max_x, highlighter_max_x), std::min(max_y, highlighter_max_y));
-}
-
-void DrawHighlighter(graphics::Commands& commands, int min_x, int min_y,
-                     int max_x, int max_y) {
-  if (!highlighter_enabled) return;
-  if (min_x >= highlighter_max_x || min_y >= highlighter_max_y ||
-      max_x <= highlighter_min_x || max_y <= highlighter_min_y) {
-    // The highlighting is outside of the draw area.
-    return;
-  }
-
-  if (commands.commands.empty()) {
-    // First graphics command. Set the window manager's texture as
-    // the destination texture.
-    auto& command = commands.commands.emplace_back();
-    command.type = graphics::Command::Type::SET_DESTINATION_TEXTURE;
-    command.texture_reference = std::make_shared<graphics::TextureReference>(
-        GetWindowManagerTextureId());
-  }
-
-  // Draw the highlighting cursor.
-  {
-    auto parameters = std::make_shared<graphics::FillRectangleParameters>();
-    parameters->destination.left = std::max(min_x, highlighter_min_x);
-    parameters->destination.top = std::max(min_y, highlighter_min_y);
-    parameters->size.width =
-        std::min(max_x, highlighter_max_x) - parameters->destination.left;
-    parameters->size.height =
-        std::min(max_y, highlighter_max_y) - parameters->destination.top;
-    parameters->color = HIGHLIGHTER_TINT;
-
-    auto& command = commands.commands.emplace_back();
-    command.type = graphics::Command::Type::FILL_RECTANGLE;
-    command.fill_rectangle_parameters = parameters;
-  }
+  auto drawing_intersection = draw_area.Intersection(highlighter_area);
+  DrawAlphaBlendedColor(drawing_intersection, HIGHLIGHTER_TINT);
 }

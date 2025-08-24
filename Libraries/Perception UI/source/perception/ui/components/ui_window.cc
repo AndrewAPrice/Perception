@@ -84,9 +84,9 @@ void UiWindow::SetTitle(std::string_view title) {
   if (created_ && base_window_) base_window_->SetTitle(title);
 }
 
-void UiWindow::SetIsDialog(bool is_dialog) {
+void UiWindow::SetIsResizable(bool is_resizable) {
   if (created_) return;
-  is_dialog_ = is_dialog;
+  is_resizable_ = is_resizable;
 }
 
 void UiWindow::WindowClosed() {
@@ -234,27 +234,23 @@ void UiWindow::Create() {
   auto strong_node = node_.lock();
 
   window::Window::CreationOptions options{.title = title_,
-                                          .is_resizable = !is_dialog_,
-                                          .is_dialog = is_dialog_,
+                                          .is_resizable = is_resizable_,
                                           .is_double_buffered = true};
 
   Layout layout = strong_node->GetLayout();
 
-  if (is_dialog_) {
-    // Measure how big the dialog is.
+  // Measure how big the content is.
 
-    // If a dimension is 'auto', it fills to take the entire size passed in, but
-    // if YGUndefined is passed in, it'll fill to wrap the content.
-    auto width = layout.GetWidth();
-    auto height = layout.GetHeight();
-    layout.Calculate(width.unit == YGUnitAuto || width.value <= 0 ? YGUndefined
-                                                                  : width.value,
-                     height.unit == YGUnitAuto || height.value <= 0
-                         ? YGUndefined
-                         : height.value);
-    options.prefered_width = layout.GetCalculatedWidthWithMargin();
-    options.prefered_height = layout.GetCalculatedHeightWithMargin();
-  }
+  // If a dimension is 'auto', it fills to take the entire size passed in, but
+  // if YGUndefined is passed in, it'll fill to wrap the content.
+  auto width = layout.GetWidth();
+  auto height = layout.GetHeight();
+  layout.Calculate(
+      width.unit == YGUnitAuto || width.value <= 0 ? YGUndefined : width.value,
+      height.unit == YGUnitAuto || height.value <= 0 ? YGUndefined
+                                                     : height.value);
+  options.prefered_width = layout.GetCalculatedWidthWithMargin();
+  options.prefered_height = layout.GetCalculatedHeightWithMargin();
 
   base_window_ = window::Window::CreateWindow(options);
   if (base_window_) {

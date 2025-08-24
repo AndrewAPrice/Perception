@@ -22,6 +22,10 @@
 namespace perception {
 namespace ui {
 
+Rectangle Rectangle::FromMinMaxPoints(const Point& min, const Point& max) {
+  return Rectangle{.origin = min, .size = (max - min).ToSize()};
+}
+
 bool Rectangle::operator==(const Rectangle& other) const {
   return origin == other.origin && size == other.size;
 }
@@ -30,6 +34,11 @@ float Rectangle::MinX() const { return origin.x; }
 float Rectangle::MinY() const { return origin.y; }
 float Rectangle::MaxX() const { return origin.x + size.width; }
 float Rectangle::MaxY() const { return origin.y + size.height; }
+float Rectangle::Width() const { return size.width; }
+float Rectangle::Height() const { return size.height; }
+
+Point Rectangle::Min() const { return origin; }
+Point Rectangle::Max() const { return {.x = MaxX(), .y = MaxY()}; }
 
 Rectangle Rectangle::Intersection(const Rectangle& other) const {
   Point min = {.x = std::max(MinX(), other.MinX()),
@@ -45,13 +54,20 @@ Rectangle Rectangle::Union(const Rectangle& other) const {
                .y = std::min(MinY(), other.MinY())};
   Point max = {.x = std::max(MaxX(), other.MaxX()),
                .y = std::max(MaxY(), other.MaxY())};
-  Size size = (max - min).ToSize();
-  return {.origin = min, .size = size};
+  return FromMinMaxPoints(min, max);
 }
 
 bool Rectangle::Intersects(const Rectangle& other) const {
   if (MaxX() < other.MinX() || MaxY() < other.MinY() || MinX() > other.MaxX() ||
       MinY() > other.MaxY()) {
+    return false;
+  }
+  return true;
+}
+
+bool Rectangle::Contains(const Rectangle& child) const {
+  if (child.MinX() < MinX() || child.MinY() < MinY() ||
+      child.MaxX() >= MaxX() || child.MaxY() >= MaxY()) {
     return false;
   }
   return true;

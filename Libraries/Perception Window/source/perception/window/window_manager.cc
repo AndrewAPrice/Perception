@@ -21,9 +21,9 @@ namespace window {
 void CreateWindowRequest::Serialize(serialization::Serializer& serializer) {
   serializer.Serializable("Window", window);
   serializer.String("Title", title);
-  serializer.Integer("Is dialog", is_dialog);
-  serializer.Serializable("Desired dialog size", desired_dialog_size);
-  serializer.Integer("Fill color", fill_color);
+  serializer.Integer("Is resizable", is_resizable);
+  serializer.Integer("Hide window buttons", hide_window_buttons);
+  serializer.Serializable("Desired size", desired_size);
   serializer.Serializable("Keyboard listener", keyboard_listener);
   serializer.Serializable("Mouse listener", mouse_listener);
 }

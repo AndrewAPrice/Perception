@@ -21,6 +21,7 @@
 #include "perception/processes.h"
 #include "perception/services.h"
 #include "perception/shared_memory.h"
+#include "perception/ui/size.h"
 
 namespace graphics = ::perception::devices::graphics;
 using ::perception::Fiber;
@@ -33,11 +34,12 @@ using ::perception::SharedMemory;
 using ::perception::Sleep;
 using ::perception::Status;
 using ::perception::devices::GraphicsDevice;
+using ::perception::ui::Size;
 
 namespace {
 
 GraphicsDevice::Client graphics_device;
-graphics::Size screen_size;
+Size screen_size;
 int window_manager_texture_id;
 std::shared_ptr<SharedMemory> window_manager_texture_buffer;
 
@@ -50,7 +52,7 @@ void InitializeScreen() {
   // Sleep until we get the graphics driver.
   graphics_device = GetService<GraphicsDevice>();
   // Query the screen size.
-  screen_size = *graphics_device.GetScreenSize();
+  auto graphics_screen_size = *graphics_device.GetScreenSize();
 
   // Allow the window manager to draw to the screen.
   graphics::ProcessAllowedToDrawToScreenParameters allow_draw_to_screen_message;
@@ -59,7 +61,7 @@ void InitializeScreen() {
 
   // Create a texture.
   graphics::CreateTextureRequest create_texture_request;
-  create_texture_request.size = screen_size;
+  create_texture_request.size = graphics_screen_size;
   auto create_texture_response =
       graphics_device.CreateTexture(create_texture_request);
   window_manager_texture_id = create_texture_response->texture.id;
@@ -68,11 +70,13 @@ void InitializeScreen() {
 
   fiber_waiting_on_screen_to_finish_drawing = nullptr;
   screen_is_drawing = false;
+  screen_size = Size{.width = static_cast<float>(graphics_screen_size.width),
+                     .height = static_cast<float>(graphics_screen_size.height)};
 }
 
-int GetScreenWidth() { return screen_size.width; }
-
-int GetScreenHeight() { return screen_size.height; }
+Size GetScreenSize() {
+  return Size{.width = screen_size.width, .height = screen_size.height};
+}
 
 size_t GetWindowManagerTextureId() { return window_manager_texture_id; }
 

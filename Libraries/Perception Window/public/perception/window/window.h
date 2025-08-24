@@ -41,11 +41,8 @@ class Window {
     // Whether the window is resizable.
     bool is_resizable;
 
-    // Whether the window is a dialog.
-    bool is_dialog;
-
-    // If the window is a dialog, the optional parent the dialog is for.
-    Window* dialog_parent;
+    // Whether the window buttons (close, minimize, etc.) should be hidden.
+    bool hide_window_buttons;
 
     // Whether the window will be double buffered. If double buffering is
     // disabled, the window manager/graphics driver could copy the pixels out of

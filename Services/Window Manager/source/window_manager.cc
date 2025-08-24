@@ -18,12 +18,16 @@
 
 #include "compositor.h"
 #include "perception/launcher.h"
+#include "perception/ui/point.h"
+#include "perception/ui/rectangle.h"
 #include "screen.h"
 #include "status.h"
 #include "window.h"
 
 using ::perception::ProcessId;
 using ::perception::Status;
+using ::perception::ui::Point;
+using ::perception::ui::Rectangle;
 using ::perception::window::BaseWindow;
 using ::perception::window::CreateWindowRequest;
 using ::perception::window::CreateWindowResponse;
@@ -35,25 +39,17 @@ using ::perception::window::Size;
 
 StatusOr<CreateWindowResponse> WindowManager::CreateWindow(
     const CreateWindowRequest& request, ProcessId sender) {
-  Window* window;
+  ASSIGN_OR_RETURN(auto window, Window::CreateWindow(request));
 
-  if (request.is_dialog) {
-    window = Window::CreateDialog(
-        request.title, request.desired_dialog_size.width,
-        request.desired_dialog_size.height, request.fill_color, request.window,
-        request.keyboard_listener, request.mouse_listener);
-  } else {
-    window =
-        Window::CreateWindow(request.title, request.fill_color, request.window,
-                             request.keyboard_listener, request.mouse_listener);
-  }
-
-  if (window == nullptr) {
+  if (!window) {
+  std::cout << "Internal error creating new window " << request.title << std::endl;
     return Status::INTERNAL_ERROR;
   }
 
+  auto window_size = window->GetScreenArea().size;
+
   CreateWindowResponse response;
-  response.window_size = {window->GetWidth(), window->GetHeight()};
+  response.window_size = {window_size.width, window_size.height};
   return response;
 }
 
@@ -66,8 +62,8 @@ Status WindowManager::CloseWindow(const BaseWindow::Client& window,
 Status WindowManager::SetWindowTexture(
     const SetWindowTextureParameters& parameters,
     ::perception::ProcessId sender) {
-  Window* window = Window::GetWindow(parameters.window);
-  if (window == nullptr) return Status::INVALID_ARGUMENT;
+  auto window = GetWindowWithListener(parameters.window);
+  if (!window) return Status::INVALID_ARGUMENT;
 
   window->SetTextureId(parameters.texture.id);
   return Status::OK;
@@ -89,16 +85,18 @@ Status WindowManager::SystemButtonPushed() {
 Status WindowManager::InvalidateWindow(
     const InvalidateWindowParameters& parameters,
     ::perception::ProcessId sender) {
-  Window* window = Window::GetWindow(parameters.window);
-  if (window == nullptr) return Status::INVALID_ARGUMENT;
+  auto window = GetWindowWithListener(parameters.window);
+  if (!window) return Status::INVALID_ARGUMENT;
 
-  window->InvalidateContents(parameters.left, parameters.top, parameters.right,
-                             parameters.bottom);
+  window->InvalidateLocalArea(
+      Rectangle::FromMinMaxPoints(Point{parameters.left, parameters.top},
+                                  Point{parameters.right, parameters.bottom}));
   return Status::OK;
 }
 
 StatusOr<Size> WindowManager::GetMaximumWindowSize() {
-  return Size(GetScreenWidth(), GetScreenHeight() - WINDOW_TITLE_HEIGHT - 3);
+  auto screen_size = GetScreenSize();
+  return Size(screen_size.width, screen_size.height);
 }
 
 StatusOr<DisplayEnvironment> WindowManager::GetDisplayEnvironment() {

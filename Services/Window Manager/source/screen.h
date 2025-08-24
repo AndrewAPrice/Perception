@@ -15,12 +15,12 @@
 #pragma once
 
 #include "perception/devices/graphics_device.h"
+#include "perception/ui/size.h"
 #include "types.h"
 
 void InitializeScreen();
 ::perception::devices::GraphicsDevice::Client &GetGraphicsDevice();
-int GetScreenWidth();
-int GetScreenHeight();
+::perception::ui::Size GetScreenSize();
 size_t GetWindowManagerTextureId();
 uint32* GetWindowManagerTextureData();
 void SleepUntilWeAreReadyToStartDrawing();

@@ -37,14 +37,16 @@ class CreateWindowRequest : public serialization::Serializable {
   // The title of the window.
   std::string title;
 
-  // Whether this should be a dialog?
-  bool is_dialog;
+  // Whether this window should be resizable.
+  bool is_resizable;
 
-  // The desired size of the dialog.
-  Size desired_dialog_size;
+  // Whether the window buttons should hide if they're not being hovered over.
+  bool hide_window_buttons;
 
-  // The fill color, if there's no content to draw.
-  uint32 fill_color;
+  // The desired size of the window. If this is {0,0} then the window will
+  // automatically be sized. If this is larger than the maximum window size,
+  // then the maximum window size will be used.
+  Size desired_size;
 
   // The keyboard listener, if this window cares about keyboard events.
   devices::KeyboardListener::Client keyboard_listener;

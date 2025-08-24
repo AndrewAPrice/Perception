@@ -23,6 +23,26 @@ bool Size::operator==(const Size& other) const {
   return width == other.width && height == other.height;
 }
 
+Size Size::operator+(const Size& other) const {
+  return {width + other.width, height + other.height};
+}
+
+Size& Size::operator+=(const Size& other) {
+  width += other.width;
+  height += other.height;
+  return *this;
+}
+
+Size Size::operator-(const Size& other) const {
+  return {width - other.width, height - other.height};
+}
+
+Size& Size::operator-=(const Size& other) {
+  width -= other.width;
+  height -= other.height;
+  return *this;
+}
+
 Point Size::ToPoint() const { return {.x = width, .y = height}; }
 
 float& Size::operator[](int index) { return dimensions[index]; }

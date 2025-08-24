@@ -16,7 +16,12 @@
 
 #include <algorithm>
 
+#include "perception/ui/point.h"
+#include "perception/ui/rectangle.h"
+#include "perception/ui/size.h"
+
 namespace perception {
+namespace ui {
 
 // Represents a quadtree.
 template <class T>
@@ -32,38 +37,29 @@ class QuadTree {
     // we add/remove items from the tree) for temporary iteration.
     T* next_temp;
 
-    // The bounding box of this object.
-    int min_x, min_y, max_x, max_y;
+    // The bounds of this object.
+    Rectangle bounds;
 
     // The node that we're in.
     Node* node;
 
     // Does this object overlap with another object?
-    bool Overlaps(const T& other) {
-      return !(max_x <= other.min_x || max_y <= other.min_y ||
-               min_x >= other.max_x || min_y >= other.max_y);
-    }
+    bool Intersects(const T& other) { return bounds.Intersects(other.bounds); }
   };
 
   struct Node {
     Node* parent;
     Node* children[4];
     T* items;
-    int min_x, min_y, max_x, max_y;
+    Rectangle bounds;
 
-    bool Overlaps(const T& other) {
-      return !(max_x <= other.min_x || max_y <= other.min_y ||
-               min_x >= other.max_x || min_y >= other.max_y);
-    }
+    bool Intersects(const T& other) { return bounds.Intersects(other.bounds); }
 
-    bool Contains(const T& other) {
-      return min_x <= other.min_x && min_y <= other.min_y &&
-             max_x >= other.max_x && max_y >= other.max_y;
-    }
+    bool Contains(const T& other) { return bounds.Contains(other.bounds); }
   };
 
   QuadTree(ObjectPool<T>* object_pool)
-      : root_(nullptr), object_pool_(object_pool_) {}
+      : root_(nullptr), object_pool_(object_pool) {}
 
   virtual ~QuadTree() { Reset(); }
 
@@ -73,23 +69,20 @@ class QuadTree {
   }
 
   void Add(T* item) {
-    int width = item->max_x - item->min_x;
-    int height = item->max_y - item->min_y;
+    float width = item->bounds.Width();
+    float height = item->bounds.Height();
     if (width <= 0 || height <= 0) {
       object_pool_->Release(item);
       return;
     }
 
-    int size = std::max(width, height);
+    float size = std::max(width, height);
 
     if (root_ == nullptr) {
       // First item being added to the quadtree.
       root_ = node_pool_.Allocate();
       for (int i = 0; i < 4; i++) root_->children[i] = nullptr;
-      root_->min_x = item->min_x;
-      root_->min_y = item->min_y;
-      root_->max_x = item->min_x + size;
-      root_->max_y = item->min_y + size;
+      root_->bounds = {.origin = item->bounds.origin, .size = {size, size}};
       root_->parent = nullptr;
       root_->items = item;
 
@@ -100,47 +93,45 @@ class QuadTree {
     } else {
       Node* node = root_;
       while (true) {
-        int node_size = node->max_x - node->min_x;
+        float node_size = node->bounds.size.width;
 
-        /* std::cout << "Testing item " << item->min_x << "," <<
-               item->min_y << " -> " << item->max_x << "," <<
-               item->max_y << " of size " << size << " in node " <<
-               node->min_x << "," << node->min_y << " -> " <<
-               node->max_x << "," << node->max_y << " of size " <<
-               (node_size * 3 / 4) << " -> " <<
-               node_size << std::endl; */
+        /*
+        std::cout << "Testing item " << item->bounds.MinX() << ","
+                  << item->bounds.MinY() << " -> " << item->bounds.MaxX() << ","
+                  << item->bounds.MaxY() << " of size " << size << " in node "
+                  << node->bounds.MinX() << "," << node->bounds.MinY() << " -> "
+                  << node->bounds.MaxX() << "," << node->bounds.MaxY()
+                  << " of size " << (node_size * 0.75f) << " -> " << node_size
+                  << std::endl;
+        */
 
         if (!node->Contains(*item)) {
           // Too big for this node.
           if (node->parent == nullptr) {
             // We need to create a parent.
-            bool to_the_left = item->min_x < node->min_x;
-            bool to_the_top = item->min_y < node->min_y;
-            int new_size = node_size * 4 / 3;
+            bool to_the_left = item->bounds.origin.x < node->bounds.origin.x;
+            bool to_the_top = item->bounds.origin.y < node->bounds.origin.y;
 
             Node* parent = node_pool_.Allocate();
             root_ = parent;
             node->parent = parent;
             parent->parent = nullptr;
             parent->items = nullptr;
+            float new_size = node_size / 0.75f;  // Grow by 33% (inv of 77%).
+            float offset = new_size - size;
+            parent->bounds.size = Size{new_size, new_size};
             for (int i = 0; i < 4; i++) parent->children[i] = nullptr;
 
             if (to_the_left) {
               if (to_the_top) {
                 // Expand up and left.
-                parent->min_x = node->max_x - new_size;
-                parent->min_y = node->max_y - new_size;
-                parent->max_x = node->max_x;
-                parent->max_y = node->max_y;
-
+                parent->bounds.origin =
+                    node->bounds.origin - Point{offset, offset};
                 // Bottom right child is the current node.
                 parent->children[0] = node;
               } else {
                 // Expand down and left.
-                parent->min_x = node->max_x - new_size;
-                parent->min_y = node->min_y;
-                parent->max_x = node->max_x;
-                parent->max_x = node->min_y + new_size;
+                parent->bounds.origin = node->bounds.origin - Point{offset, 0};
 
                 // Top right child is the current node.
                 parent->children[1] = node;
@@ -148,19 +139,13 @@ class QuadTree {
             } else {
               if (to_the_top) {
                 // Expand up and right.
-                parent->min_x = node->min_x;
-                parent->min_y = node->max_y - new_size;
-                parent->max_x = node->min_x + new_size;
-                parent->max_y = node->max_y;
+                parent->bounds.origin = node->bounds.origin - Point{0, offset};
 
                 // Bottom left child is the current node.
                 parent->children[2] = node;
               } else {
                 // Expand down and right.
-                parent->min_x = node->min_x;
-                parent->min_y = node->min_y;
-                parent->max_x = node->min_x + new_size;
-                parent->max_y = node->min_y + new_size;
+                parent->bounds.origin = node->bounds.origin;
 
                 // Top left child is the current node.
                 parent->children[3] = node;
@@ -171,8 +156,7 @@ class QuadTree {
             node = node->parent;
           }
         } else {
-          int child_node_size = node_size * 3 / 4;
-          if (size >= node_size / 2) {
+          if (size >= node_size / 2.0f) {
             // Perfect size for this node, we'll add ourselves here.
             item->previous = nullptr;
             item->next = node->items;
@@ -181,9 +165,14 @@ class QuadTree {
             node->items = item;
             return;
           } else {
+            float child_node_size = node_size * 0.75f;
+            float offset = node_size - child_node_size;
+
             // Too small for this node, find the perfect child.
-            bool to_the_right = item->min_x > node->max_x - child_node_size;
-            bool to_the_bottom = item->min_y > node->max_y - child_node_size;
+            bool to_the_right =
+                item->bounds.MinX() > node->bounds.MinX() + offset;
+            bool to_the_bottom =
+                item->bounds.MinY() > node->bounds.MinY() + offset;
 
             if (to_the_right) {
               if (to_the_bottom) {
@@ -194,10 +183,9 @@ class QuadTree {
                   for (int i = 0; i < 4; i++) child->children[i] = nullptr;
                   child->items = nullptr;
 
-                  child->min_x = node->max_x - child_node_size;
-                  child->min_y = node->max_y - child_node_size;
-                  child->max_x = node->max_x;
-                  child->max_y = node->max_y;
+                  child->bounds.origin =
+                      node->bounds.origin + Point{offset, offset};
+                  child->bounds.size = {child_node_size, child_node_size};
 
                   node->children[0] = child;
                   node = child;
@@ -212,10 +200,8 @@ class QuadTree {
                   for (int i = 0; i < 4; i++) child->children[i] = nullptr;
                   child->items = nullptr;
 
-                  child->min_x = node->max_x - child_node_size;
-                  child->min_y = node->min_y;
-                  child->max_x = node->max_x;
-                  child->max_y = node->min_y + child_node_size;
+                  child->bounds.origin = node->bounds.origin + Point{offset, 0};
+                  child->bounds.size = {child_node_size, child_node_size};
 
                   node->children[1] = child;
                   node = child;
@@ -232,10 +218,8 @@ class QuadTree {
                   for (int i = 0; i < 4; i++) child->children[i] = nullptr;
                   child->items = nullptr;
 
-                  child->min_x = node->min_x;
-                  child->min_y = node->max_y - child_node_size;
-                  child->max_x = node->min_x + child_node_size;
-                  child->max_y = node->max_y;
+                  child->bounds.origin = node->bounds.origin + Point{0, offset};
+                  child->bounds.size = {child_node_size, child_node_size};
 
                   node->children[2] = child;
                   node = child;
@@ -250,10 +234,8 @@ class QuadTree {
                   for (int i = 0; i < 4; i++) child->children[i] = nullptr;
                   child->items = nullptr;
 
-                  child->min_x = node->min_x;
-                  child->min_y = node->min_y;
-                  child->max_x = node->min_x + child_node_size;
-                  child->max_y = node->min_y + child_node_size;
+                  child->bounds.origin = node->bounds.origin;
+                  child->bounds.size = {child_node_size, child_node_size};
 
                   node->children[3] = child;
                   node = child;
@@ -376,10 +358,10 @@ class QuadTree {
                                     T*& last_overlapping_item) {
     if (node == nullptr) return;
 
-    if (!node->Overlaps(*new_item)) return;
+    if (!node->Intersects(*new_item)) return;
 
     for (T* item = node->items; item != nullptr; item = item->next) {
-      if (item->Overlaps(*new_item)) {
+      if (item->Intersects(*new_item)) {
         item->next_temp = last_overlapping_item;
         last_overlapping_item = item;
       }
@@ -390,6 +372,7 @@ class QuadTree {
                                    last_overlapping_item);
     }
   }
-};
+};  // namespace ui
 
+}  // namespace ui
 }  // namespace perception

@@ -364,10 +364,11 @@ std::shared_ptr<Window> Window::CreateWindow(
   create_window_request.title = creation_options.title;
   create_window_request.keyboard_listener = *window;
   create_window_request.mouse_listener = *window;
-  create_window_request.is_dialog = creation_options.is_dialog;
-  create_window_request.desired_dialog_size.width = creation_options.prefered_width;
-  create_window_request.desired_dialog_size.height =
-      creation_options.prefered_height;
+  create_window_request.is_resizable = creation_options.is_resizable;
+  create_window_request.desired_size.width = creation_options.prefered_width;
+  create_window_request.hide_window_buttons =
+      creation_options.hide_window_buttons;
+  create_window_request.desired_size.height = creation_options.prefered_height;
 
   auto status_or_result =
       GetService<WindowManager>().CreateWindow(create_window_request);

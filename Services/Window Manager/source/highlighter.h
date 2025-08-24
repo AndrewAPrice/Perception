@@ -15,15 +15,11 @@
 #pragma once
 
 #include "perception/devices/graphics_device.h"
+#include "perception/ui/rectangle.h"
 
 void InitializeHighlighter();
-void SetHighlighter(int min_x, int min_y, int max_x, int max_y);
+void SetHighlighter(const ::perception::ui::Rectangle& screen_area);
 void DisableHighlighter();
 
-// Preps the overlays for drawing, which will mark which areas need to be drawn
-// to the window manager's texture and not directly to the screen.
-void PrepHighlighterForDrawing(int min_x, int min_y, int max_x, int max_y);
-
 // Draws the highlighter.
-void DrawHighlighter(::perception::devices::graphics::Commands& commands,
-                      int min_x, int min_y, int max_x, int max_y);
+void DrawHighlighter(const ::perception::ui::Rectangle& draw_area);

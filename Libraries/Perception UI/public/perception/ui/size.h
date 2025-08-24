@@ -29,6 +29,15 @@ struct Size {
   };
 
   bool operator==(const Size& other) const;
+
+  Size operator+(const Size& other) const;
+
+  Size& operator+=(const Size& other);
+
+  Size operator-(const Size& other) const;
+
+  Size& operator-=(const Size& other);
+
   Point ToPoint() const;
 
   float& operator[](int index);

@@ -15,13 +15,23 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 
+#include "mouse.h"
 #include "perception/devices/keyboard_listener.h"
 #include "perception/devices/mouse_listener.h"
+#include "perception/linked_list.h"
+#include "perception/ui/point.h"
+#include "perception/ui/rectangle.h"
+#include "perception/ui/size.h"
 #include "perception/window/base_window.h"
+#include "perception/window/window_manager.h"
+#include "status.h"
 #include "types.h"
+#include "window_buttons.h"
 
 namespace perception {
 class Font;
@@ -29,106 +39,87 @@ class Font;
 
 class Frame;
 
-class Window {
+class Window : public std::enable_shared_from_this<Window> {
  public:
-  static Window* CreateDialog(
-      std::string_view title, int width, int height, uint32 background_color,
-      ::perception::window::BaseWindow::Client window_listener = {},
-      ::perception::devices::KeyboardListener::Client keyboard_listener = {},
-      ::perception::devices::MouseListener::Client mouse_listener = {});
-  static Window* CreateWindow(
-      std::string_view title, uint32 background_color,
-      ::perception::window::BaseWindow::Client window_listener = {},
-      ::perception::devices::KeyboardListener::Client keyboard_listener = {},
-      ::perception::devices::MouseListener::Client mouse_listener = {});
+  static StatusOr<std::shared_ptr<Window>> CreateWindow(
+      const ::perception::window::CreateWindowRequest& request);
 
-  static Window* GetWindow(
-      const ::perception::window::BaseWindow::Client& window_listener);
+  ~Window();
 
   void Focus();
-  bool IsFocused();
-  void Resized();
+  bool IsFocused() const;
   void Close();
   static void UnfocusAllWindows();
+  std::string_view GetTitle() const;
 
-  static bool ForEachFrontToBackDialog(
-      const std::function<bool(Window&)>& on_each_dialog);
-  static void ForEachBackToFrontDialog(
-      const std::function<void(Window&)>& on_each_dialog);
+  static bool ForEachFrontToBackWindow(
+      const std::function<bool(Window&)>& on_each_window);
+  static bool ForEachBackToFrontWindow(
+      const std::function<bool(Window&)>& on_each_window);
   static Window* GetWindowBeingDragged();
   static void MouseNotHoveringOverWindowContents();
-  void DraggedTo(int screen_x, int screen_y);
-  void DroppedAt(int screen_x, int screen_y);
-  bool MouseEvent(int screen_x, int screen_y,
-                  ::perception::devices::MouseButton button,
-                  bool is_button_down);
-  void HandleTabClick(int offset_along_tab, int original_tab_x,
-                      int original_tab_y);
+  bool MouseEvent(const ::perception::ui::Point& point,
+                  std::optional<MouseButtonEvent> button_event);
 
-  void Draw(int min_x, int min_y, int max_x, int max_y);
-  void InvalidateDialogAndTitle();
-  void InvalidateContents(int min_x, int min_y, int max_x, int max_y);
+  void Draw(const ::perception::ui::Rectangle& screen_area);
+  void Invalidate();
+  void Invalidate(const ::perception::ui::Rectangle& screen_area);
+  void InvalidateLocalArea(const ::perception::ui::Rectangle& window_area);
 
-  int GetX() { return x_; }
-  int GetY() { return y_; }
-  int GetWidth() { return width_; }
-  int GetHeight() { return height_; }
-  bool IsDialog() { return is_dialog_; }
+  ::perception::ui::Rectangle GetScreenAreaWithFrame() const;
+  const ::perception::ui::Rectangle& GetScreenArea() const;
+  bool IsVisible() const { return is_visible_; }
 
   void SetTextureId(int texture_id);
 
+  // Next/previous windows in the Z-order of things. Public for visibility from
+  // LinkedList.
+  ::perception::LinkedListNode z_ordering_linked_list_node_;
+
  private:
-  friend Frame;
-
   void CommonInit();
-  static void DrawHeaderBackground(int x, int y, int width, uint32 color);
+  void Show();
+  void Hide();
+  void Resized();
 
-  void DrawDecorations(int min_x, int min_y, int max_x, int max_y);
-  void DrawWindowContents(int x, int y, int min_x, int min_y, int max_x,
-                          int max_y);
+  void Unfocus();
+  bool IsDragging() const;
+  bool IsHovering() const;
 
-  // Returns whether the window listener can be used for creating a new window.
-  static bool CanUseWindowListenerForNewWindow(
-      ::perception::window::BaseWindow::Client window_listener, bool is_dialog);
+  ::perception::ui::Rectangle WindowButtonScreenArea() const;
+  bool AreWindowButtonsVisible() const;
+  void HandleWindowButtonClick();
 
   // The window's title.
   std::string title_;
 
-  // The width of the window's title, in pixels.
-  int title_width_;
-
   // The window's position.
-  int x_;
-  int y_;
+  ::perception::ui::Rectangle screen_area_;
 
-  // The window's size.
-  int width_;
-  int height_;
+  // Whether the window is visible. This also corrolates to whether
+  bool is_visible_;
 
-  // Is the window a dialog?
-  bool is_dialog_;
+  bool is_resizable_;
 
-  // The frame this window is in. Not used for dialogs.
-  Frame* frame_;
+  // The window button the mouse is over.
+  std::optional<WindowButton> hovered_window_button_;
+
+  bool hide_window_buttons_;
 
   // The texture representing the contents of this window.
   // 0 if unknown.
   size_t texture_id_;
 
-  // Next/previous windows in the Z-order of things.
-  Window* next_;
-  Window* previous_;
-
-  uint32 fill_color_;
-
   ::perception::window::BaseWindow::Client window_listener_;
   ::perception::MessageId message_id_to_notify_on_window_disappearence_;
+  bool window_listener_already_disappeared_;
 
   ::perception::devices::KeyboardListener::Client keyboard_listener_;
 
   ::perception::devices::MouseListener::Client mouse_listener_;
 };
 
-void InitializeWindows();
+std::shared_ptr<Window> GetWindowWithListener(
+    const ::perception::window::BaseWindow::Client& window_listener);
 
-::perception::Font* GetWindowTitleFont();
+// ::perception::Font* GetWindowTitleFont();

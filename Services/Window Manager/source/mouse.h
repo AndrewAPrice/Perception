@@ -15,16 +15,19 @@
 #pragma once
 
 #include "perception/devices/graphics_device.h"
+#include "perception/devices/mouse_listener.h"
+#include "perception/ui/point.h"
+#include "perception/ui/rectangle.h"
+
+struct MouseButtonEvent {
+  ::perception::devices::MouseButton button;
+  bool is_pressed_down;
+};
 
 void InitializeMouse();
-int GetMouseX();
-int GetMouseY();
+
+const ::perception::ui::Point& GetMousePosition();
 
 // Preps the overlays for drawing, which will mark which areas need to be drawn
 // to the window manager's texture and not directly to the screen.
-void PrepMouseForDrawing(int min_x, int min_y, int max_x, int max_y);
-
-// Draws the mouse.
-void DrawMouse(
-    ::perception::devices::graphics::Commands& commands,
-    int min_x, int min_y, int max_x, int max_y);
+void DrawMouse(const ::perception::ui::Rectangle& draw_area);

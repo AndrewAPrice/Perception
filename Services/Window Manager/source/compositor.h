@@ -14,15 +14,12 @@
 
 #pragma once
 
+#include "perception/ui/point.h"
+#include "perception/ui/rectangle.h"
 #include "types.h"
 
 constexpr uint32 kBackgroundColor =
     (0xFF << 24) + (78 << 16) + (152 << 8) + 0xFF;
-
-#define WINDOW_TITLE_HEIGHT 12
-#define WINDOW_BORDER_COLOUR 0xFF000000
-#define WINDOW_TITLE_TEXT_COLOUR 0xFF000000
-#define WINDOW_TITLE_WIDTH_PADDING 15
 
 #define FOCUSED_WINDOW_COLOUR 0xFFC3C3C3
 #define UNFOCUSED_WINDOW_COLOUR 0xFF8F8F8F
@@ -47,15 +44,14 @@ constexpr uint32 kBackgroundColor =
 #define SPLIT_BORDER_WIDTH 2
 #define SPLIT_BORDER_COLOR ((0xFF << 24) + (212 << 16) + (212 << 8) + 212)
 
-#define DIALOG_BORDER_COLOUR 0x00000000
-#define DIALOG_SHADOW_0 (40 | DIALOG_BORDER_COLOUR)
-#define DIALOG_SHADOW_1 (10 | DIALOG_BORDER_COLOUR)
-#define DIALOG_SHADOW_WIDTH 2
+#define WINDOW_BORDER_COLOUR 0xFF000000
+#define WINDOW_SHADOW_1 0x55000000
+#define WINDOW_SHADOW_2 0x55000000
 
 void InitializeCompositor();
 
 // Invalidates a section of the screen.
-void InvalidateScreen(int min_x, int min_y, int max_x, int max_y);
+void InvalidateScreen(const ::perception::ui::Rectangle& screen_area);
 
 // Draws any invalidated sections of the screen.
 void DrawScreen();
@@ -63,13 +59,20 @@ void DrawScreen();
 // Drawing commmands for composing the screen, for use inside of DrawScreen()
 // and its subcallees:
 
-// Draws a solid color on the screen.
-void DrawSolidColor(int min_x, int min_y, int max_x, int max_y,
-                    uint32 fill_color);
+// Draws an opaque color on the screen.
+void DrawOpaqueColor(const ::perception::ui::Rectangle& screen_area,
+                     uint32 fill_color);
 
-// Copies a part of a texture onto the screen.
-void CopyTexture(int min_x, int min_y, int max_x, int max_y, size_t texture_id,
-                 int texture_x, int texture_y);
+// Draw an alpha blended color on the screen.
+void DrawAlphaBlendedColor(const ::perception::ui::Rectangle& screen_area,
+                           uint32 fill_color);
 
-void CopySectionOfScreenIntoWindowManagersTexture(int min_x, int min_y,
-                                                  int max_x, int max_y);
+// Copies a part of an opaque texture onto the screen.
+void CopyOpaqueTexture(const ::perception::ui::Rectangle& screen_area,
+                       size_t texture_id,
+                       const ::perception::ui::Point& offset);
+
+// Copies a part of an alpha blended texture onto the screen.
+void CopyAlphaBlendedTexture(const ::perception::ui::Rectangle& screen_area,
+                             size_t texture_id,
+                             const ::perception::ui::Point& offset);

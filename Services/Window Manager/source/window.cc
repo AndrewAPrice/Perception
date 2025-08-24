@@ -14,27 +14,37 @@
 
 #include "window.h"
 
+#include <iostream>
 #include <map>
+#include <set>
 
 #include "compositor.h"
-#include "frame.h"
 #include "highlighter.h"
 #include "perception/devices/keyboard_device.h"
 #include "perception/devices/mouse_listener.h"
 #include "perception/draw.h"
-#include "perception/font.h"
+#include "perception/linked_list.h"
+#include "perception/processes.h"
+#include "perception/scheduler.h"
 #include "perception/serialization/text_serializer.h"
 #include "perception/services.h"
+#include "perception/ui/point.h"
+#include "perception/ui/rectangle.h"
+#include "perception/ui/size.h"
+#include "perception/window/window_manager.h"
 #include "screen.h"
+#include "window_buttons.h"
 
+using ::perception::Defer;
 using ::perception::DrawXLine;
 using ::perception::DrawXLineAlpha;
 using ::perception::DrawYLine;
 using ::perception::DrawYLineAlpha;
 using ::perception::FillRectangle;
-using ::perception::Font;
-using ::perception::FontFace;
+using ::perception::GetProcessName;
 using ::perception::GetService;
+using ::perception::LinkedList;
+using ::perception::Status;
 using ::perception::devices::KeyboardDevice;
 using ::perception::devices::KeyboardListener;
 using ::perception::devices::MouseButton;
@@ -42,617 +52,586 @@ using ::perception::devices::MouseClickEvent;
 using ::perception::devices::MouseListener;
 using ::perception::devices::MousePositionEvent;
 using ::perception::serialization::SerializeToString;
+using ::perception::ui::Point;
+using ::perception::ui::Rectangle;
+using ::perception::ui::Size;
 using ::perception::window::BaseWindow;
+using ::perception::window::CreateWindowRequest;
 
 namespace {
 
 constexpr int kMaxTitleLength = 50;
+constexpr float kDragBorder = 6;
 
-// Font to use for window title.
-Font* window_title_font;
+constexpr float kFrameThickness = 1;
+constexpr float kDropFrameThickness = 2;
+
+constexpr float kMinimumWindowSize = 64;
+constexpr float kMinimumVisibleWindow = 8;
+
+// Windows, mapped by their listeners.
+std::map<BaseWindow::Client, std::shared_ptr<Window>> windows_by_listeners;
+
+// Z-ordered windows, from back to front. Since LinkedLists can't hold
+// shared_ptrs, the object must also be held by windows_by_listeners.
+LinkedList<Window, &Window::z_ordering_linked_list_node_> z_ordered_windows_;
+
+// The window that currently has focused.
+Window* focused_window;
+
+// Window that the mouse is currently over the contents of.
+Window* hovering_window;
 
 // The window being dragged.
 Window* dragging_window;
 
-// The currently focused window.
-Window* focused_window;
-
-// Linked list of dialogs.
-Window* first_dialog;
-Window* last_dialog;
-
-// Window that the mouse is currently over the contents of.
-Window* hovered_window;
-
 // When dragging a dialog: offset
 // When dragging a window: top left of the original title
-int dragging_offset_x;
-int dragging_offset_y;
+Point dragging_origin;
 
-std::map<BaseWindow::Client, Window*> windows_by_service;
+// The edges being dragged. If all are false, then the entire window
+// is being dragged.
+bool dragging_left_edge = false;
+bool dragging_right_edge = false;
+bool dragging_top_edge = false;
+bool dragging_bottom_edge = false;
+
+// Returns whether the window listener can be used for creating a new window.
+bool CanUseWindowListenerForNewWindow(BaseWindow::Client window_listener) {
+  if (!window_listener) {
+    std::cout << "Can't create a window without a window listener."
+              << std::endl;
+    return false;
+  }
+
+  auto itr = windows_by_listeners.find(window_listener);
+  if (itr != windows_by_listeners.end()) {
+    auto window = itr->second;
+    std::cout << "Can't create a window with the window listener "
+              << SerializeToString(window_listener) << " owned by \""
+              << GetProcessName(window_listener.ServerProcessId())
+              << "\" because it is already used by another window \""
+              << window->GetTitle() << "\"." << std::endl;
+    return false;
+  }
+  return true;
+}
+
+void DrawWindowFramePart(const Rectangle& screen_area,
+                         const Rectangle& frame_area, uint32 color) {
+  auto area_to_fill = screen_area.Intersection(frame_area);
+  if (area_to_fill.size.height <= 0 || area_to_fill.size.width <= 0) return;
+
+  DrawOpaqueColor(area_to_fill, color);
+}
+
+void DrawAlphaWindowFramePart(const Rectangle& screen_area,
+                              const Rectangle& frame_area, uint32 color) {
+  auto area_to_fill = screen_area.Intersection(frame_area);
+  if (area_to_fill.size.height <= 0 || area_to_fill.size.width <= 0) return;
+
+  DrawAlphaBlendedColor(area_to_fill, color);
+}
+
+void StopDragging() {
+  DisableHighlighter();
+  dragging_window = nullptr;
+  dragging_left_edge = false;
+  dragging_right_edge = false;
+  dragging_top_edge = false;
+  dragging_bottom_edge = false;
+}
+
+void ValidateWindowBounds(Rectangle& bounds) {
+  auto screen_size = GetScreenSize();
+  for (int i = 0; i < 2; i++) {
+    bounds.size[i] =
+        std::max(kMinimumWindowSize, std::min(screen_size[i], bounds.size[i]));
+
+    float min_position = -bounds.size[i] + kMinimumVisibleWindow;
+    float max_position = screen_size[i] - kMinimumVisibleWindow;
+
+    bounds.origin[i] =
+        std::max(min_position, std::min(max_position, bounds.origin[i]));
+  }
+}
 
 }  // namespace
 
-Window* Window::CreateDialog(std::string_view title, int width, int height,
-                             uint32 background_color,
-                             BaseWindow::Client window_listener,
-                             KeyboardListener::Client keyboard_listener,
-                             MouseListener::Client mouse_listener) {
-  if (!CanUseWindowListenerForNewWindow(window_listener, /*is_dialog=*/true))
-    return nullptr;
+StatusOr<std::shared_ptr<Window>> Window::CreateWindow(
+    const CreateWindowRequest& request) {
+  if (!CanUseWindowListenerForNewWindow(request.window))
+    return Status::INVALID_ARGUMENT;
 
-  if (title.size() > kMaxTitleLength) {
-    title = title.substr(0, kMaxTitleLength);
+  auto window = std::make_shared<Window>();
+  window->title_ = request.title;
+  if (window->title_.size() > kMaxTitleLength) {
+    window->title_ = window->title_.substr(0, kMaxTitleLength);
   }
-  Window* window = new Window();
-  window->title_ = title;
-  window->title_width_ =
-      window_title_font->MeasureString(title) + WINDOW_TITLE_WIDTH_PADDING;
-  window->is_dialog_ = true;
-  window->texture_id_ = 0;
-  window->fill_color_ = background_color;
-  window->window_listener_ = window_listener;
-  window->keyboard_listener_ = keyboard_listener;
-  window->mouse_listener_ = mouse_listener;
+  window->is_resizable_ = request.is_resizable;
+  window->hide_window_buttons_ = request.hide_window_buttons;
+  window->window_listener_ = request.window;
+  window->keyboard_listener_ = request.keyboard_listener;
+  window->mouse_listener_ = request.mouse_listener;
+
+  auto screen_size = GetScreenSize();
+  window->screen_area_.size = {
+      .width = request.desired_size.width > 0 ? request.desired_size.width
+                                              : (screen_size.width * 3 / 4),
+      .height = request.desired_size.height > 0 ? request.desired_size.height
+                                                : (screen_size.height * 3 / 4)};
   window->CommonInit();
 
-  // Window can't be smaller than the title, or larger than the screen.
-  window->width_ =
-      std::min(std::max(width, window->title_width_), GetScreenWidth() - 2);
+  // Center the new window in the middle of the screen.
+  auto size_delta = screen_size - window->screen_area_.size;
+  window->screen_area_.origin =
+      Point{.x = size_delta.width / 2, .y = size_delta.height / 2};
 
-  window->height_ =
-      std::min(height, GetScreenHeight() - WINDOW_TITLE_HEIGHT - 3);
-
-  // Center the new dialog on the screen.
-  window->x_ =
-      std::max((GetScreenWidth() - window->width_) / 2 - SPLIT_BORDER_WIDTH, 0);
-  window->y_ = std::max(
-      (GetScreenHeight() - window->height_) / 2 - 2 - WINDOW_TITLE_HEIGHT, 0);
-
-  // Add it to the linked list of dialogs.
-  if (first_dialog == nullptr) {
-    window->previous_ = nullptr;
-    window->next_ = nullptr;
-    first_dialog = window;
-    last_dialog = window;
-  } else {
-    first_dialog->previous_ = window;
-    window->previous_ = nullptr;
-    window->next_ = first_dialog;
-    first_dialog = window;
-  }
-
-  // Focus on it.
-  window->Focus();
-
-  windows_by_service[window_listener] = window;
+  windows_by_listeners[request.window] = window;
   return window;
 }
 
-Window* Window::CreateWindow(std::string_view title, uint32 background_color,
-                             BaseWindow::Client window_listener,
-                             KeyboardListener::Client keyboard_listener,
-                             MouseListener::Client mouse_listener) {
-  if (!CanUseWindowListenerForNewWindow(window_listener, /*is_dialog=*/false))
-    return nullptr;
-
-  if (title.size() > kMaxTitleLength) {
-    title = title.substr(0, kMaxTitleLength);
-  }
-
-  Window* window = new Window();
-  window->title_ = title;
-  window->title_width_ =
-      window_title_font->MeasureString(title) + WINDOW_TITLE_WIDTH_PADDING;
-  window->is_dialog_ = false;
-  window->texture_id_ = 0;
-  window->fill_color_ = background_color;
-  window->keyboard_listener_ = keyboard_listener;
-  window->mouse_listener_ = mouse_listener;
-
-  Frame::AddWindowToLastFocusedFrame(*window);
-
-  // Set the window listener after we add the window to the frame, so we
-  // don't issue a resize message during creation.
-  window->window_listener_ = window_listener;
-  window->CommonInit();
-
-  // Focus on it.
-  focused_window = window;
-
-  windows_by_service[window_listener] = window;
-  return window;
+Window::~Window() {
+  Hide();
+  if (!window_listener_already_disappeared_) window_listener_.Closed({});
 }
 
-Window* Window::GetWindow(const BaseWindow::Client& window_listener) {
-  auto window_itr = windows_by_service.find(window_listener);
-  if (window_itr == windows_by_service.end()) return nullptr;
+std::shared_ptr<Window> GetWindowWithListener(
+    const BaseWindow::Client& window_listener) {
+  auto window_itr = windows_by_listeners.find(window_listener);
+  if (window_itr == windows_by_listeners.end()) return nullptr;
   return window_itr->second;
 }
 
 void Window::Focus() {
-  if (focused_window == this) return;
+  if (focused_window == this && !IsVisible()) return;
 
+  // There's a different focused window.
   if (focused_window) {
-    if (focused_window->is_dialog_) {
-      focused_window->InvalidateDialogAndTitle();
-    } else {
-      focused_window->frame_->Invalidate();
-    }
-
-    // Tell the old window they lost focus.
-    if (focused_window->window_listener_) {
-      focused_window->window_listener_.LostFocus({});
-    }
+    focused_window->Unfocus();
   }
 
-  if (is_dialog_) {
-    // Move us to the front of the linked list, if we're not already.
-    if (previous_ != nullptr) {
-      // Remove from current position.
-      if (next_) {
-        next_->previous_ = previous_;
-      } else {
-        last_dialog = previous_;
-      }
-      previous_->next_ = next_;
+  z_ordered_windows_.Remove(this);
+  z_ordered_windows_.AddBack(this);
 
-      // Insert us at the front.
-      next_ = first_dialog;
-      first_dialog->previous_ = this;
-      previous_ = nullptr;
-      first_dialog = this;
-    }
+  Invalidate();
 
-    InvalidateDialogAndTitle();
-  } else {
-    frame_->DockFrame.focused_window_ = this;
-    frame_->Invalidate();
-  }
-  focused_window = this;
-
-  if (window_listener_) window_listener_.GainedFocus({});
+  if (!window_listener_already_disappeared_) window_listener_.GainedFocus({});
 
   // We now want to send keyboard events to this window.
   GetService<KeyboardDevice>().SetKeyboardListener(keyboard_listener_, {});
 }
 
-bool Window::IsFocused() { return focused_window == this; }
-
-void Window::Resized() {
-  if (window_listener_) {
-    window_listener_.SetSize({width_, height_}, {});
-  }
-}
+bool Window::IsFocused() const { return focused_window == this; }
 
 void Window::Close() {
-  int min_x, min_y, max_x, max_y;
+  Hide();
+  std::weak_ptr<Window> weak_this = shared_from_this();
 
-  /* find the next window to focus, and remove us */
-  if (is_dialog_) {
-    min_x = x_;
-    min_y = y_;
-    max_x = x_ + width_ + DIALOG_BORDER_WIDTH + DIALOG_SHADOW_WIDTH;
-    max_y = y_ + height_ + DIALOG_BORDER_HEIGHT + DIALOG_SHADOW_WIDTH;
+  window_listener_.StopNotifyingOnDisappearance(
+      message_id_to_notify_on_window_disappearence_);
 
-    if (this == focused_window) {
-      if (next_)
-        next_->Focus();
-      else
-        UnfocusAllWindows();
+  Defer([weak_this]() {
+    auto strong_this = weak_this.lock();
+    if (strong_this) {
+      // Remove the owner of the shared_ptr.
+      windows_by_listeners.erase(strong_this->window_listener_);
     }
-
-    if (next_)
-      next_->previous_ = previous_;
-    else
-      last_dialog = previous_;
-
-    if (previous_)
-      previous_->next_ = next_;
-    else
-      first_dialog = next_;
-  } else {
-    /* invalidate this frame */
-    min_x = frame_->x_;
-    min_y = frame_->y_;
-    max_x = frame_->x_ + frame_->width_;
-    max_y = frame_->y_ + frame_->height_;
-
-    /* unfocus this window */
-    if (this == focused_window) {
-      if (next_) /* next window in this frame to focus on? */
-        next_->Focus();
-      else if (previous_) /* previous window? */
-        previous_->Focus();
-      else /* unfocus everything */
-        UnfocusAllWindows();
-    }
-    frame_->RemoveWindow(*this);
-  }
-
-  if (this == dragging_window) dragging_window = nullptr;
-
-  if (this == hovered_window) hovered_window = nullptr;
-
-  if (window_listener_) {
-    // Stop listening for the service to disappear before telling the window
-    // listener that it has closed, otherwise Close() will be called again.
-    window_listener_.StopNotifyingOnDisappearance(
-        message_id_to_notify_on_window_disappearence_);
-    window_listener_.Closed({});
-  }
-
-  windows_by_service.erase(window_listener_);
-
-  delete this;
-
-  InvalidateScreen(min_x, min_y, max_x, max_y);
+  });
 }
 
 void Window::UnfocusAllWindows() {
-  if (focused_window && focused_window->window_listener_) {
-    focused_window->window_listener_.LostFocus({});
-  }
+  if (focused_window) focused_window->Unfocus();
   GetService<KeyboardDevice>().SetKeyboardListener({}, {});
 }
 
-bool Window::ForEachFrontToBackDialog(
-    const std::function<bool(Window&)>& on_each_dialog) {
-  Window* dialog = first_dialog;
-  while (dialog != nullptr) {
-    if (on_each_dialog(*dialog)) return true;
+std::string_view Window::GetTitle() const { return title_; }
 
-    dialog = dialog->next_;
+bool Window::ForEachFrontToBackWindow(
+    const std::function<bool(Window&)>& on_each_window) {
+  for (auto itr = z_ordered_windows_.rbegin(); itr != z_ordered_windows_.rend();
+       ++itr) {
+    if (on_each_window(**itr)) return true;
   }
   return false;
 }
 
-void Window::ForEachBackToFrontDialog(
-    const std::function<void(Window&)>& on_each_dialog) {
-  Window* dialog = last_dialog;
-  while (dialog != nullptr) {
-    on_each_dialog(*dialog);
-    dialog = dialog->previous_;
+bool Window::ForEachBackToFrontWindow(
+    const std::function<bool(Window&)>& on_each_window) {
+  for (auto itr = z_ordered_windows_.begin(); itr != z_ordered_windows_.end();
+       ++itr) {
+    if (on_each_window(**itr)) return true;
   }
+  return false;
 }
 
-Window* Window::GetWindowBeingDragged() { return dragging_window; }
+bool Window::MouseEvent(const Point& point,
+                        std::optional<MouseButtonEvent> button_event) {
+  if (IsDragging()) {
+    bool resizing = false;
 
-void Window::MouseNotHoveringOverWindowContents() {
-  if (hovered_window != nullptr) {
-    if (hovered_window->mouse_listener_) {
-      hovered_window->mouse_listener_.MouseLeave({});
-    }
-    hovered_window = nullptr;
-  }
-}
-
-void Window::DraggedTo(int screen_x, int screen_y) {
-  if (dragging_window != this) return;
-
-  if (is_dialog_) {
-    int old_x = x_;
-    int old_y = y_;
-
-    x_ = screen_x - dragging_offset_x;
-    y_ = screen_y - dragging_offset_y;
-
-    // Invalid window because we moved.
-    if (old_x != x_ || old_y != y_) {
-      InvalidateScreen(std::min(old_x, x_), std::min(old_y, y_),
-                       std::max(old_x, x_) + width_ + DIALOG_BORDER_WIDTH +
-                           DIALOG_SHADOW_WIDTH,
-                       std::max(old_y, y_) + height_ + DIALOG_BORDER_HEIGHT +
-                           DIALOG_SHADOW_WIDTH);
-    }
-  } else {
-    // Dragging a tabbed frame.
-    if (screen_x >= dragging_offset_x && screen_y >= dragging_offset_y &&
-        screen_x <= dragging_offset_x + title_width_ + 2 &&
-        screen_y <= dragging_offset_y + WINDOW_TITLE_HEIGHT + 2) {
-      // Over the original tab.
-      DisableHighlighter();
-      return;
+    auto new_screen_area = GetScreenArea();
+    Point drag_offset = point - dragging_origin;
+    if (dragging_left_edge) {
+      new_screen_area.origin.x += drag_offset.x;
+      new_screen_area.size.width -= drag_offset.x;
+      resizing = true;
+    } else if (dragging_right_edge) {
+      new_screen_area.size.width += drag_offset.x;
+      resizing = true;
     }
 
-    int drop_min_x, drop_min_y, drop_max_x, drop_max_y;
-    Frame* drop_frame =
-        Frame::GetDropFrame(*this, screen_x, screen_y, drop_min_x, drop_min_y,
-                            drop_max_x, drop_max_y);
-
-    if (drop_frame) {
-      // There is somewhere we can drop this window.
-      SetHighlighter(drop_min_x, drop_min_y, drop_max_x, drop_max_y);
-    } else {
-      DisableHighlighter();
-    }
-  }
-}
-
-void Window::DroppedAt(int screen_x, int screen_y) {
-  dragging_window = nullptr;
-
-  if (!is_dialog_) {
-    // Dragging a tabbed frame.
-    if (screen_x >= dragging_offset_x && screen_y >= dragging_offset_y &&
-        screen_x <= dragging_offset_x + title_width_ + 2 &&
-        screen_y <= dragging_offset_y + WINDOW_TITLE_HEIGHT + 2) {
-      // Over the original tab.
-      DisableHighlighter();
-      return;
-    }
-    Frame::DropInWindow(*this, screen_x, screen_y);
-    DisableHighlighter();
-  }
-}
-
-bool Window::MouseEvent(int screen_x, int screen_y, MouseButton button,
-                        bool is_button_down) {
-  if (is_dialog_) {
-    if (x_ >= screen_x || y_ >= screen_y ||
-        x_ + width_ + DIALOG_BORDER_WIDTH < screen_x ||
-        y_ + height_ + DIALOG_BORDER_HEIGHT < screen_y) {
-      return false;
-    }
-  }
-
-  if (is_dialog_ && screen_y < y_ + WINDOW_TITLE_HEIGHT + 2) {
-    // In the title area.
-    if (screen_x >= x_ + title_width_ + 2) {
-      // But outside of our title tab.
-      return false;
+    if (dragging_top_edge) {
+      new_screen_area.origin.y += drag_offset.y;
+      new_screen_area.size.height -= drag_offset.y;
+      resizing = true;
+    } else if (dragging_bottom_edge) {
+      new_screen_area.size.height += drag_offset.y;
+      resizing = true;
     }
 
-    // We're over the title and not the contents.
-    MouseNotHoveringOverWindowContents();
-
-    if (button == MouseButton::Left && is_button_down) {
-      if (IsFocused() &&
-          screen_x >= x_ + title_width_ - 1 - WINDOW_TITLE_WIDTH_PADDING) {
-        // We clicked the close button.
-        Close();
-        return true;
-      }
-      // We're starting to drag the window.
-      dragging_window = this;
-      dragging_offset_x = screen_x - x_;
-      dragging_offset_y = screen_y - y_;
+    if (!resizing) {
+      // Handle dragging the entire window.
+      new_screen_area.origin.x += drag_offset.x;
+      new_screen_area.origin.y += drag_offset.y;
     }
-  } else {
-    // Test if we're clicking in the window's contents.
-    int local_x = screen_x;
-    int local_y = screen_y;
-    if (is_dialog_) {
-      local_x -= x_ + 1;
-      local_y -= y_ + WINDOW_TITLE_HEIGHT + 2;
-    }
-    if (local_x >= 0 && local_y >= 0 && local_x < width_ && local_y < height_) {
-      // We're over the contents.
-      if (hovered_window != this) {
-        // We just entered this window.
-        if (hovered_window != nullptr && hovered_window->mouse_listener_) {
-          // Let the old window we were hovering over know the mouse has
-          // left the premises.
-          hovered_window->mouse_listener_.MouseLeave({});
-        }
-        hovered_window = this;
-        if (window_listener_) {
-          // Let our window know the mouse has entered the premises.
-          mouse_listener_.MouseEnter({});
-        }
-      }
 
-      if (mouse_listener_) {
-        if (button == MouseButton::Unknown) {
-          // We were hovered over.
-          MousePositionEvent message;
-          message.x = local_x;
-          message.y = local_y;
-          mouse_listener_.MouseHover(message, {});
-        } else {
-          // We were clicked.
-          MouseClickEvent message;
-          message.position.x = local_x;
-          message.position.y = local_y;
-          message.button.button = button;
-          message.button.is_pressed_down = is_button_down;
-          mouse_listener_.MouseClick(message, {});
-        }
+    ValidateWindowBounds(new_screen_area);
+
+    if (button_event && !button_event->is_pressed_down &&
+        button_event->button == MouseButton::Left) {
+      // Released the drag.
+      StopDragging();
+
+      if (screen_area_ != new_screen_area) {
+        bool resized = screen_area_.size != new_screen_area.size;
+
+        // The bounds have changed. Update the frame and invalidate the
+        // screen where both the old frame and the new frames are.
+        auto old_area_with_frame = GetScreenAreaWithFrame();
+        screen_area_ = new_screen_area;
+        auto new_area_with_frame = GetScreenAreaWithFrame();
+
+        if (resized) Resized();
+        InvalidateScreen(old_area_with_frame.Union(new_area_with_frame));
       }
     } else {
-      // We're over the frame but not the contents.
-      MouseNotHoveringOverWindowContents();
+      // Still dragging.
+      new_screen_area.origin -=
+          Point{.x = kFrameThickness, .y = kFrameThickness};
+      new_screen_area.size += Size{.width = 2.0f * kFrameThickness,
+                                   .height = 2.0f * kFrameThickness};
+      SetHighlighter(new_screen_area);
     }
+    return true;
   }
 
-  if (button != MouseButton::Unknown) {
-    // We're in focus!
+  auto screen_area = GetScreenArea();
+  Rectangle hit_area;
+
+  bool check_for_begin_resizing = is_resizable_ && button_event &&
+                                  button_event->is_pressed_down &&
+                                  button_event->button == MouseButton::Left;
+  if (check_for_begin_resizing) {
+    hit_area = {.origin = screen_area.origin -
+                          Point{kDragBorder / 2.0f, kDragBorder / 2.0f},
+                .size = screen_area.size + Size{kDragBorder, kDragBorder}};
+  } else {
+    hit_area = {
+        .origin = screen_area.origin - Point{kFrameThickness, kFrameThickness},
+        .size = screen_area.size +
+                Size{kFrameThickness * 2.0f, kFrameThickness * 2.0f}};
+  }
+
+  if (!hit_area.Contains(point)) {
+    // Not even in the hit area.
+    if (IsHovering()) {
+      if (mouse_listener_) mouse_listener_.MouseLeave({});
+      hovering_window = nullptr;
+    }
+    if (hovered_window_button_) {
+      hovered_window_button_ = std::nullopt;
+      InvalidateScreen(WindowButtonScreenArea());
+    }
+    return false;
+  }
+
+  if (button_event && button_event->is_pressed_down && !IsFocused()) {
     Focus();
   }
 
-  // Handle mouse in this window.
+  if (check_for_begin_resizing) {
+    // Check for the beginning of drags.
+    if (point.x <= screen_area.MinX() + kDragBorder / 2.0f) {
+      dragging_left_edge = true;
+      dragging_window = this;
+    } else if (point.x >= screen_area.MaxX() - kDragBorder / 2.0f) {
+      dragging_right_edge = true;
+      dragging_window = this;
+    }
+
+    if (point.y <= screen_area.MinY() + kDragBorder / 2.0f) {
+      dragging_top_edge = true;
+      dragging_window = this;
+    } else if (point.y >= screen_area.MaxY() - kDragBorder / 2.0f) {
+      dragging_bottom_edge = true;
+      dragging_window = this;
+    }
+
+    if (IsDragging()) {
+      // Starting a drag!
+      dragging_origin = point;
+
+      screen_area.origin -= Point{.x = kFrameThickness, .y = kFrameThickness};
+      screen_area.size += Size{.width = 2.0f * kFrameThickness,
+                               .height = 2.0f * kFrameThickness};
+
+      SetHighlighter(screen_area);
+    }
+  }
+
+  if (screen_area.Contains(point)) {
+    if (!IsHovering()) {
+      hovering_window = this;
+      if (mouse_listener_) mouse_listener_.MouseEnter({});
+    }
+
+    std::optional<WindowButton> hovered_window_button;
+    auto window_button_area = WindowButtonScreenArea();
+    if (window_button_area.Contains(point)) {
+      hovered_window_button = GetWindowButtonAtPoint(
+          point.x - window_button_area.MinX(), is_resizable_);
+    }
+
+    if (hovered_window_button != hovered_window_button_) {
+      hovered_window_button_ = hovered_window_button;
+      InvalidateScreen(window_button_area);
+    }
+
+    Point local_point = point - screen_area.origin;
+    if (button_event && !IsDragging()) {
+      if (hovered_window_button && button_event->button == MouseButton::Left &&
+          button_event->is_pressed_down) {
+        HandleWindowButtonClick();
+        return true;
+      }
+      // Click event.
+      MouseClickEvent message;
+      message.position.x = local_point.x;
+      message.position.y = local_point.y;
+      message.button.button = button_event->button;
+      message.button.is_pressed_down = button_event->is_pressed_down;
+      if (mouse_listener_) mouse_listener_.MouseClick(message, {});
+    } else {
+      // Hover event.
+      MousePositionEvent message;
+      message.x = local_point.x;
+      message.y = local_point.y;
+      if (mouse_listener_) mouse_listener_.MouseHover(message, {});
+    }
+
+  } else {
+    if (IsHovering()) {
+      if (mouse_listener_) mouse_listener_.MouseLeave({});
+      hovering_window = nullptr;
+    }
+    if (hovered_window_button_) {
+      hovered_window_button_ = std::nullopt;
+      InvalidateScreen(WindowButtonScreenArea());
+    }
+  }
+
   return true;
 }
 
-void Window::HandleTabClick(int offset_along_tab, int original_tab_x,
-                            int original_tab_y) {
-  if (IsFocused() &&
-      offset_along_tab >= title_width_ - WINDOW_TITLE_WIDTH_PADDING) {
-    // We clicked the close button.
-    Close();
-    return;
-  }
-  dragging_window = this;
-  dragging_offset_x = original_tab_x;
-  dragging_offset_y = original_tab_y;
+void Window::Draw(const Rectangle& screen_area) {
+  if (!IsVisible()) return;
+  if (!screen_area.Intersects(GetScreenAreaWithFrame())) return;
+  auto bounds = GetScreenArea();
 
-  // We're in focus!
-  Focus();
-}
+  // Draw the frame.
+  float max_x = bounds.MaxX();
+  float max_y = bounds.MaxY();
+  float horizontal_frame_width = bounds.size.width + 2;
+  float vertical_frame_height = bounds.size.height;
+  // Top frame.
+  DrawWindowFramePart(
+      screen_area,
+      {.origin = {.x = bounds.origin.x - 1, .y = bounds.origin.y - 1},
+       .size = {.width = horizontal_frame_width, .height = 1}},
+      WINDOW_BORDER_COLOUR);
 
-void Window::Draw(int min_x, int min_y, int max_x, int max_y) {
-  // Skip this window if it's out of the redraw region.
-  if (x_ >= max_x || y_ >= max_y ||
-      x_ + width_ + DIALOG_BORDER_WIDTH + DIALOG_SHADOW_WIDTH < min_x ||
-      y_ + height_ + DIALOG_BORDER_HEIGHT + DIALOG_SHADOW_WIDTH < min_y) {
-    return;
-  }
+  // Left frame.
+  DrawWindowFramePart(
+      screen_area,
+      {.origin = {.x = bounds.origin.x - 1, .y = bounds.origin.y},
+       .size = {.width = 1, .height = vertical_frame_height}},
+      WINDOW_BORDER_COLOUR);
 
-  DrawDecorations(min_x, min_y, max_x, max_y);
+  // Bottom frame, with shadows.
+  Rectangle bottom_frame = {
+      .origin = {.x = bounds.origin.x - 1, .y = max_y},
+      .size = {.width = horizontal_frame_width, .height = 1}};
+  DrawWindowFramePart(screen_area, bottom_frame, WINDOW_BORDER_COLOUR);
+  bottom_frame.origin += {.x = 1, .y = 1};
+  DrawAlphaWindowFramePart(screen_area, bottom_frame, WINDOW_SHADOW_1);
+  bottom_frame.origin += {.x = 1, .y = 1};
+  DrawAlphaWindowFramePart(screen_area, bottom_frame, WINDOW_SHADOW_2);
+
+  // Right frame, with shadows.
+  Rectangle right_frame = {
+      .origin = {.x = max_x, .y = bounds.origin.y},
+      .size = {.width = 1, .height = vertical_frame_height}};
+  DrawWindowFramePart(screen_area, right_frame, WINDOW_BORDER_COLOUR);
+  right_frame.origin.x += 1;
+  right_frame.size.height += 1;
+  DrawAlphaWindowFramePart(screen_area, right_frame, WINDOW_SHADOW_1);
+  right_frame.origin += {.x = 1, .y = 1};
+  DrawAlphaWindowFramePart(screen_area, right_frame, WINDOW_SHADOW_2);
   // Draw the contents of the window.
-  DrawWindowContents(x_ + 1, y_ + WINDOW_TITLE_HEIGHT + 2, min_x, min_y, max_x,
-                     max_y);
+  auto intersection = bounds.Intersection(screen_area);
+  if (intersection.size.width >= 1 && intersection.size.height >= 1) {
+    CopyOpaqueTexture(intersection, texture_id_,
+                      intersection.origin - bounds.origin);
+  }
+
+  if (AreWindowButtonsVisible()) {
+    auto button_screen_area = WindowButtonScreenArea();
+    auto button_intersection = button_screen_area.Intersection(screen_area);
+    if (button_intersection.size.width >= 1 &&
+        button_intersection.size.height >= 1) {
+      Point window_button_texture_offset =
+          WindowButtonTextureOffset(is_resizable_, hovered_window_button_);
+      CopyAlphaBlendedTexture(button_intersection, WindowButtonsTextureId(),
+                              button_intersection.origin -
+                                  button_screen_area.origin +
+                                  window_button_texture_offset);
+    }
+  }
 }
 
-void Window::InvalidateDialogAndTitle() {
-  InvalidateScreen(x_, y_, x_ + width_ + DIALOG_BORDER_WIDTH,
-                   y_ + height_ + DIALOG_BORDER_HEIGHT);
+void Window::Invalidate() { return Invalidate(GetScreenAreaWithFrame()); }
+
+void Window::Invalidate(const Rectangle& screen_area) {
+  if (!IsVisible()) return Show();
+
+  Rectangle screen_area_to_invalidate =
+      screen_area.Intersection(GetScreenAreaWithFrame());
+  if (screen_area_to_invalidate.Height() <= 0 ||
+      screen_area_to_invalidate.Width() <= 0)
+    return;
+
+  InvalidateScreen(screen_area_to_invalidate);
 }
 
-void Window::InvalidateContents(int min_x, int min_y, int max_x, int max_y) {
-  max_x = std::min(max_x, width_);
-  max_y = std::min(max_y, height_);
-  int x = is_dialog_ ? x_ + 2 : x_;
-  int y = is_dialog_ ? y_ + WINDOW_TITLE_HEIGHT + 2 : y_;
-  InvalidateScreen(x + min_x, y + min_y, x + max_x, y + max_y);
+void Window::InvalidateLocalArea(const Rectangle& window_area) {
+  auto screen_area = window_area;
+  screen_area.origin += screen_area_.origin;
+
+  return Invalidate(screen_area);
 }
+
+Rectangle Window::GetScreenAreaWithFrame() const {
+  auto screen_area = GetScreenArea();
+  screen_area.origin -= Point{.x = kFrameThickness, .y = kFrameThickness};
+  screen_area.size +=
+      Size{.width = 2.0f * kFrameThickness + kDropFrameThickness,
+           .height = 2.0f * kFrameThickness + kDropFrameThickness};
+  return screen_area;
+}
+
+const Rectangle& Window::GetScreenArea() const { return screen_area_; }
 
 void Window::SetTextureId(int texture_id) { texture_id_ = texture_id; }
 
 void Window::CommonInit() {
-  if (window_listener_) {
-    message_id_to_notify_on_window_disappearence_ =
-        window_listener_.NotifyOnDisappearance([this]() {
-          // Unassign the window listener first, so messages don't get sent to a
-          // non-existent service.
-          window_listener_ = {};
-          Close();
-        });
-  }
+  is_visible_ = false;
+  ValidateWindowBounds(screen_area_);
+  std::weak_ptr<Window> weak_self = shared_from_this();
+  message_id_to_notify_on_window_disappearence_ =
+      window_listener_.NotifyOnDisappearance([weak_self]() {
+        auto strong_self = weak_self.lock();
+        if (strong_self) {
+          strong_self->window_listener_already_disappeared_ = true;
+          strong_self->Close();
+        }
+      });
 }
 
-void Window::DrawHeaderBackground(int x, int y, int width, uint32 color) {
-  uint32 outer_line = color - 0x10101000;
-  DrawXLine(x, y, width, outer_line, GetWindowManagerTextureData(),
-            GetScreenWidth(), GetScreenHeight());
-  FillRectangle(x, y + 1, width + x, WINDOW_TITLE_HEIGHT + y - 1, color,
-                GetWindowManagerTextureData(), GetScreenWidth(),
-                GetScreenHeight());
-  DrawXLine(x, y + WINDOW_TITLE_HEIGHT - 1, width, outer_line,
-            GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+void Window::Show() {
+  if (IsVisible()) return;
+
+  // There needs to be a texture to draw.
+  if (texture_id_ == 0) return;
+
+  z_ordered_windows_.AddBack(this);
+  is_visible_ = true;
+
+  InvalidateScreen(GetScreenAreaWithFrame());
 }
 
-void Window::DrawDecorations(int min_x, int min_y, int max_x, int max_y) {
-  /*	if (min_x >= x_ + 1 && min_y >= y_ + WINDOW_TITLE_HEIGHT + 2 &&
-                  max_x <= x_ + width_ + 1 &&
-                  max_y <= y_ + height_ + WINDOW_TITLE_HEIGHT + 2) {
-                  // The draw region only included the window's contents, so we
-     can skip
-                  // drawing the window's frame.
-                  return;
-          }*/
+void Window::Hide() {
+  if (!IsVisible()) return;
 
-  int x = x_;
-  int y = y_;
+  if (IsDragging()) StopDragging();
+  if (IsHovering()) hovering_window = nullptr;
 
-  /* draw the left border */
-  DrawYLine(x, y, WINDOW_TITLE_HEIGHT + height_ + 3, DIALOG_BORDER_COLOUR,
-            GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-
-  // Is the header in our draw region?
-  //	if (max_x > x_ + 1 && max_y > y_ + 1 &&
-  //		min_x <= x_ + title_width_ + 2 &&
-  //		min_y <= y_ + WINDOW_TITLE_HEIGHT + 2) {
-  /* draw the borders around the top frame */
-  DrawXLine(x, y, title_width_ + 2, DIALOG_BORDER_COLOUR,
-            GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-  DrawYLine(x + title_width_ + 1, y, WINDOW_TITLE_HEIGHT + 1,
-            DIALOG_BORDER_COLOUR, GetWindowManagerTextureData(),
-            GetScreenWidth(), GetScreenHeight());
-
-  /* fill in the colour behind it */
-  DrawHeaderBackground(
-      x + 1, y + 1, title_width_,
-      focused_window == this ? FOCUSED_WINDOW_COLOUR : UNFOCUSED_WINDOW_COLOUR);
-
-  /* write the title */
-  window_title_font->DrawString(x + 2, y + 3, title_, WINDOW_TITLE_TEXT_COLOUR,
-                                GetWindowManagerTextureData(), GetScreenWidth(),
-                                GetScreenHeight());
-
-  /* draw the close button */
-  if (focused_window == this) {
-    window_title_font->DrawString(
-        x + title_width_ - 8, y + 3, "X", WINDOW_CLOSE_BUTTON_COLOUR,
-        GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
+  if (IsFocused()) {
+    Window* previous_window = z_ordered_windows_.PreviousItem(this);
+    if (previous_window) {
+      previous_window->Focus();
+    } else {
+      UnfocusAllWindows();
+    }
   }
-
-  CopyTexture(std::max(x_, min_x), std::max(y, min_y),
-              std::min(x_ + title_width_ + 2, max_x),
-              std::min(y + WINDOW_TITLE_HEIGHT + 1, max_y),
-              GetWindowManagerTextureId(), std::max(x_, min_x),
-              std::max(y, min_y));
-  //	}
-
-  y += WINDOW_TITLE_HEIGHT + 1;
-
-  /* draw the rest of the borders */
-  DrawXLine(x + 1, y, width_, DIALOG_BORDER_COLOUR,
-            GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-  DrawXLine(x + 1, y + height_ + 1, width_, DIALOG_BORDER_COLOUR,
-            GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-  DrawYLine(x + width_ + 1, y, height_ + 2, DIALOG_BORDER_COLOUR,
-            GetWindowManagerTextureData(), GetScreenWidth(), GetScreenHeight());
-
-  CopyTexture(std::max(x_, min_x), std::max(y, min_y),
-              std::min(x_ + width_ + 2, max_x),
-              std::min(y + height_ + 2, max_y), GetWindowManagerTextureId(),
-              std::max(x_, min_x), std::max(y, min_y));
+  z_ordered_windows_.Remove(this);
+  InvalidateScreen(GetScreenAreaWithFrame());
+  is_visible_ = false;
 }
 
-void Window::DrawWindowContents(int x, int y, int min_x, int min_y, int max_x,
-                                int max_y) {
-  int draw_min_x = std::max(x, min_x);
-  int draw_min_y = std::max(y, min_y);
-  int draw_max_x = std::min(x + width_, max_x);
-  int draw_max_y = std::min(y + height_, max_y);
-
-  if (texture_id_ == 0) {
-    DrawSolidColor(draw_min_x, draw_min_y, draw_max_x, draw_max_y, fill_color_);
-  } else {
-    CopyTexture(draw_min_x, draw_min_y, draw_max_x, draw_max_y, texture_id_,
-                draw_min_x - x, draw_min_y - y);
-  }
+void Window::Resized() {
+  if (!window_listener_already_disappeared_)
+    window_listener_.SetSize({screen_area_.Width(), screen_area_.Height()}, {});
 }
 
-bool Window::CanUseWindowListenerForNewWindow(
-    BaseWindow::Client window_listener, bool is_dialog) {
-  if (!window_listener) {
-    std::cout << "Can't create a " << (is_dialog ? "dialog" : "window")
-              << " without a window listener." << std::endl;
-    return false;
-  }
+void Window::Unfocus() {
+  if (!IsFocused()) return;
 
-  auto itr = windows_by_service.find(window_listener);
-  if (itr != windows_by_service.end()) {
-    Window* window = itr->second;
-    std::cout << "Can't create a " << (is_dialog ? "dialog" : "window")
-              << " with the window listener "
-              << SerializeToString(window_listener)
-              << " because it is already used by another "
-              << (window->is_dialog_ ? "dialog" : "window") << " \""
-              << window->title_ << "\"." << std::endl;
-    return false;
-  }
-  return true;
-}
-
-void InitializeWindows() {
-  dragging_window = nullptr;
   focused_window = nullptr;
-  first_dialog = nullptr;
-  hovered_window = nullptr;
-  window_title_font = Font::LoadFont(FontFace::DejaVuSans);
+  if (IsDragging()) StopDragging();
+  if (IsHovering()) hovering_window = nullptr;
+
+  if (!window_listener_already_disappeared_) window_listener_.LostFocus({});
 }
 
-Font* GetWindowTitleFont() { return window_title_font; }
+bool Window::IsDragging() const { return dragging_window == this; }
+
+bool Window::IsHovering() const { return hovering_window == this; }
+
+Rectangle Window::WindowButtonScreenArea() const {
+  Rectangle rect;
+  rect.size = WindowButtonSize(is_resizable_);
+  rect.origin.x = screen_area_.MaxX() - rect.size.width;
+  rect.origin.y = screen_area_.origin.y;
+  return rect;
+}
+
+bool Window::AreWindowButtonsVisible() const {
+  return !hide_window_buttons_ || hovered_window_button_;
+}
+
+void Window::HandleWindowButtonClick() {
+  if (!hovered_window_button_) return;
+
+  switch (*hovered_window_button_) {
+    case WindowButton::Close:
+      Close();
+      break;
+    case WindowButton::Minimize:
+      std::cout << "TODO: Implement minimize." << std::endl;
+      break;
+    case WindowButton::ToggleFullScreen:
+      std::cout << "TODO: Implement toggle full screen." << std::endl;
+      break;
+  }
+}

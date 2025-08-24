@@ -15,27 +15,30 @@
 #include <iostream>
 
 #include "compositor.h"
-#include "frame.h"
 #include "highlighter.h"
 #include "mouse.h"
 #include "perception/scheduler.h"
+#include "perception/ui/rectangle.h"
 #include "screen.h"
 #include "window.h"
+#include "window_buttons.h"
 #include "window_manager.h"
 
 using ::perception::WaitForMessagesThenReturn;
+using ::perception::ui::Rectangle;
 
 int main(int argc, char *argv[]) {
   InitializeScreen();
   InitializeMouse();
   InitializeCompositor();
   InitializeHighlighter();
-  InitializeFrames();
-  InitializeWindows();
+  InitializeWindowButtons();
   WindowManager window_manager;
 
+  std::cout << "Done" << std::endl;
+
   // Draw the entire screen.
-  InvalidateScreen(0, 0, GetScreenWidth(), GetScreenHeight());
+  InvalidateScreen(Rectangle{.size = GetScreenSize()});
   DrawScreen();
   while (true) {
     // Sleep until we have messages, then process them.

@@ -17,46 +17,58 @@
 #include <functional>
 
 #include "perception/object_pool.h"
-#include "perception/quadtree.h"
+#include "perception/ui/point.h"
+#include "perception/ui/quadtree.h"
+#include "perception/ui/rectangle.h"
 #include "types.h"
 
-struct Rectangle : public ::perception::QuadTree<Rectangle>::Object {
+enum class QuadRectangleStage {
+  // An opaque (no transparency) block to draw directly to the screen.
+  OPAQUE_TO_SCREEN,
+
+  // An opaque (no transparency) block to draw to the window manager.
+  OPAQUE_TO_WINDOW_MANAGER,
+
+  // An alpha blended block to draw to the window manager. This will be
+  // z-sorted.
+  ALPHA_TO_WINDOW_MANAGER,
+};
+
+struct QuadRectangle
+    : public ::perception::ui::QuadTree<QuadRectangle>::Object {
   // The texture ID to copy to the output. May be 0 if we are a solid fill
   // color.
   size_t texture_id;
 
   // Coordinates in the texture to start copying from.
-  int texture_x, texture_y;
+  ::perception::ui::Point texture_offset;
 
   // Fixed color to fill with, if texture_id = 0.
   uint32 color;
 
-  // Should this rectangle be drawn into the window manager's texture first?
-  bool draw_into_wm_texture;
+  // The z-ordering, for alpha blended draws.
+  int z_index;
+
+  // The draw stage.
+  QuadRectangleStage stage;
 
   // Is this a rectangle for a solid color?
   bool IsSolidColor() { return texture_id == 0; }
 
   // Makes this rectangle a sub-rectangle of the other.
-  void SubRectangleOf(const Rectangle& other, int min_x_, int min_y_,
-                      int max_x_, int max_y_) {
-    min_x = min_x_;
-    min_y = min_y_;
-    max_x = max_x_;
-    max_y = max_y_;
-
-    draw_into_wm_texture = other.draw_into_wm_texture;
+  void SubRectangleOf(const QuadRectangle& other) {
+    stage = other.stage;
+    z_index = other.z_index;
+    color = other.color;
     texture_id = other.texture_id;
-    if (texture_id == 0) {
-      color = other.color;
-    } else {
-      texture_x = other.texture_x + min_x - other.min_x;
-      texture_y = other.texture_y + min_y - other.min_y;
+    if (texture_id != 0) {
+      texture_offset =
+          other.texture_offset + bounds.origin - other.bounds.origin;
     }
   }
 };
 
-class CompositorQuadTree : public ::perception::QuadTree<Rectangle> {
+class CompositorQuadTree : public ::perception::ui::QuadTree<QuadRectangle> {
  public:
   CompositorQuadTree() : rectangle_pool_(), QuadTree(&rectangle_pool_) {}
 
@@ -64,28 +76,30 @@ class CompositorQuadTree : public ::perception::QuadTree<Rectangle> {
 
   // Adds a rectangle, splitting any rectangle that is partially covered,
   // and removing any rectangle that is fully covered.
-  void AddOccludingRectangle(Rectangle* rect);
+  void AddOccludingRectangle(QuadRectangle* rect);
+
+  void AddRectangle(QuadRectangle* rect);
 
   // Tells a region that it needs to draw into the window manager's
   // texture.
-  void DrawAreaToWindowManagerTexture(int min_x, int min_y, int max_x,
-                                      int max_y);
+  void DrawAreaToWindowManagerTexture(
+      const ::perception::ui::Rectangle& screen_area);
 
   // Allocates a Rectangle from the object pool, for passing into
   // AddOccludingRectangle.
-  Rectangle* AllocateRectangle();
+  QuadRectangle* AllocateRectangle();
 
  private:
   // Creates a sub-rectangle for each background part that is visible behind
   // the foreground. Make sure that the Rectangles at least overlap before
   // calling this.
   void CreateSubRectanglesForEachBackgroundPartThatPokesOut(
-      Rectangle* background, Rectangle* foreground);
+      QuadRectangle* background, QuadRectangle* foreground);
 
   // Creates a subrectangle that's part of the background.
-  void CreateSubRectangle(Rectangle& background, int min_x, int min_y,
-                          int max_x, int max_y,
-                          bool draw_into_wm_texture = false);
+  void CreateSubRectangle(QuadRectangle& background,
+                          const ::perception::ui::Rectangle& bounds,
+                          QuadRectangleStage stage);
 
-  ::perception::ObjectPool<Rectangle> rectangle_pool_;
+  ::perception::ObjectPool<QuadRectangle> rectangle_pool_;
 };

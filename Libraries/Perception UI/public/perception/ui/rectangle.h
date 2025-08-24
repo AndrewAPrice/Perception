@@ -26,12 +26,19 @@ struct Rectangle {
   Point origin;
   Size size;
 
+  static Rectangle FromMinMaxPoints(const Point& min, const Point& max);
+
   bool operator==(const Rectangle& other) const;
 
   float MinX() const;
   float MinY() const;
   float MaxX() const;
   float MaxY() const;
+  float Width() const;
+  float Height() const;
+
+  Point Min() const;
+  Point Max() const;
 
   // Returns a rectangle that contains only the area that is shared by this
   // rectangle and another rectangle. Check that the rectangles overlap with
@@ -45,6 +52,10 @@ struct Rectangle {
 
   // Returns whether another rectangle intersect this rectangle.
   bool Intersects(const Rectangle& other) const;
+
+  // Returns whether another rectangle is inside this rectangle. (Upper bounds is
+  // exclusive.)
+  bool Contains(const Rectangle& child) const;
 
   // Returns whether another point is inside this rectangle. (Upper bounds is
   // exclusive.)
