@@ -91,7 +91,8 @@ void DeserializeFromByteVector(Serializable& object,
 }
 
 void DeserializeFromSharedMemory(Serializable& object,
-                                 SharedMemory& shared_memory, size_t offset) {
+                                 SharedMemory& shared_memory, size_t offset,
+                                 size_t size) {
   void* ptr = *shared_memory;
   std::scoped_lock lock(shared_memory.Mutex());
   size_t shared_memory_size = shared_memory.GetSize();
@@ -101,8 +102,8 @@ void DeserializeFromSharedMemory(Serializable& object,
   }
 
   ptr = (void*)((size_t)ptr + offset);
-  shared_memory_size -= offset;
-  DeserializeFromMemory(object, ptr, shared_memory_size);
+  size = std::min(shared_memory_size - offset, size);
+  DeserializeFromMemory(object, ptr, size);
 }
 
 void DeserializeToEmpty(Serializable& object) {

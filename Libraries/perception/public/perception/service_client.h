@@ -170,7 +170,8 @@ class ServiceClient : public serialization::Serializable {
           auto shared_memory = GetMemoryBufferForReceivingFromProcess(
               process_id, message.param2);
           shared_memory->Grow(message.param3);
-          DeserializeFromSharedMemory(*response, *shared_memory, 1);
+          DeserializeFromSharedMemory(*response, *shared_memory, 1,
+                                      message.param4);
           SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
         }
       } else {
@@ -195,7 +196,8 @@ class ServiceClient : public serialization::Serializable {
     PrepareRequestMessage(method_id, message);
 
     auto shared_memory = GetMemoryBufferForSendingToProcess(process_id_);
-    serialization::SerializeToSharedMemory(request, *shared_memory, 1);
+    message.param5 =
+        serialization::SerializeToSharedMemory(request, *shared_memory, 1);
     message.param3 = shared_memory->GetId();
     message.param4 = shared_memory->GetSize();
   }

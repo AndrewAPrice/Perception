@@ -66,7 +66,8 @@ class ServiceServer {
       auto shared_memory =
           GetMemoryBufferForReceivingFromProcess(sender, message.param3);
       shared_memory->Grow(message.param4);
-      serialization::DeserializeFromSharedMemory(request, *shared_memory, 1);
+      serialization::DeserializeFromSharedMemory(request, *shared_memory, 1,
+                                                 message.param5);
 
       SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
     }
@@ -130,7 +131,8 @@ class ServiceServer {
       if (response.Ok()) {
         // Send back response type.
         auto shared_memory = GetMemoryBufferForSendingToProcess(sender);
-        serialization::SerializeToSharedMemory(*response, *shared_memory, 1);
+        response_data.param4 = serialization::SerializeToSharedMemory(
+            *response, *shared_memory, 1);
         response_data.param2 = shared_memory->GetId();
         response_data.param3 = shared_memory->GetSize();
       } else {

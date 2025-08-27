@@ -58,8 +58,8 @@ class SharedMemoryWriteStream : public WriteStream {
 };
 
 // Serializable to shared memory. Grows the shared memory if it's not large
-// enough.
-void SerializeToSharedMemory(const Serializable& object,
+// enough. Returns how many bytes of data were written into memory.
+size_t SerializeToSharedMemory(const Serializable& object,
                              SharedMemory& shared_memory, size_t offset);
 
 }  // namespace serialization
