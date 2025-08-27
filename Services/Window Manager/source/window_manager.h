@@ -49,4 +49,8 @@ class WindowManager : public ::perception::window::WindowManager::Server {
 
   StatusOr<::perception::window::DisplayEnvironment> GetDisplayEnvironment()
       override;
+
+  ::perception::Status StartDraggingWindow(
+      const ::perception::window::BaseWindow::Client& window,
+      ::perception::ProcessId sender) override;
 };

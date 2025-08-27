@@ -55,7 +55,7 @@ class Window {
       const CreationOptions& creation_options);
 
   // Windows get closed upon destruction.
-  virtual ~Window(){};
+  virtual ~Window() {};
 
   // The delegate to send messages to.
   virtual void SetDelegate(std::weak_ptr<WindowDelegate> delegate) = 0;
@@ -107,6 +107,11 @@ class Window {
   // Focuses the window. The delegate will be notified if the focal state of the
   // window changes.
   virtual void Focus() = 0;
+
+  // Start dragging the window under the mouse cursor. This is a signal that the
+  // user pressed the mouse button down while under something draggable, e.g.
+  // the title bar.
+  virtual void StartDragging() = 0;
 
   // Notifies that there's an update ready for thr window and the new contents
   // need to be presented. The delegate will be called to draw the actual

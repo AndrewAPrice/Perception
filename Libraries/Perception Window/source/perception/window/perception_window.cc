@@ -123,6 +123,10 @@ class PerceptionWindow : public Window,
     std::cout << "PerceptionWindow::Focus is not implemented." << std::endl;
   }
 
+  void StartDragging() override {
+    GetService<WindowManager>().StartDraggingWindow(*this);
+  }
+
   void Present() override {
     WindowDrawBuffer buffer;
     buffer.width = width_;

@@ -42,7 +42,8 @@ StatusOr<CreateWindowResponse> WindowManager::CreateWindow(
   ASSIGN_OR_RETURN(auto window, Window::CreateWindow(request));
 
   if (!window) {
-  std::cout << "Internal error creating new window " << request.title << std::endl;
+    std::cout << "Internal error creating new window " << request.title
+              << std::endl;
     return Status::INTERNAL_ERROR;
   }
 
@@ -100,5 +101,11 @@ StatusOr<Size> WindowManager::GetMaximumWindowSize() {
 }
 
 StatusOr<DisplayEnvironment> WindowManager::GetDisplayEnvironment() {
+  return Status::UNIMPLEMENTED;
+}
+
+Status WindowManager::StartDraggingWindow(const BaseWindow::Client& window,
+                                          ::perception::ProcessId sender) {
+  std::cout << "Start dragging!" << std::endl;
   return Status::UNIMPLEMENTED;
 }
