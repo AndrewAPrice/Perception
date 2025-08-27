@@ -20,6 +20,7 @@
 #include <memory>
 #include <vector>
 
+#include "perception/devices/mouse_listener.h"
 #include "perception/type_id.h"
 #include "perception/ui/image_effect.h"
 #include "perception/ui/layout.h"
@@ -27,7 +28,6 @@
 #include "perception/ui/rectangle.h"
 #include "perception/ui/size.h"
 #include "perception/window/mouse_button.h"
-#include "perception/devices/mouse_listener.h"
 #include "yoga/Yoga.h"
 
 namespace perception {
@@ -282,8 +282,20 @@ class Node : public std::enable_shared_from_this<Node> {
     *node_ptr = this->shared_from_this();
   }
 
+  // Applies a single modifier that matches a weak pointer to a node pointer. In
+  // this case, it stores the current node in the pointer.
+  void ApplySingleModifier(std::weak_ptr<Node>* node_ptr) {
+    *node_ptr = this->shared_from_this();
+  }
+
   // Applies a single modifier that matches a layout pointer.
   void ApplySingleModifier(std::shared_ptr<Layout>* layout_ptr) {
+    // Not supported.
+    layout_ptr->reset();
+  }
+
+  // Applies a single modifier that matches a weak layout pointer.
+  void ApplySingleModifier(std::weak_ptr<Layout>* layout_ptr) {
     // Not supported.
     layout_ptr->reset();
   }
@@ -292,6 +304,13 @@ class Node : public std::enable_shared_from_this<Node> {
   // it stores the component instance in the pointer.
   template <typename C>
   void ApplySingleModifier(std::shared_ptr<C>* component_ptr) {
+    *component_ptr = GetOrAdd<C>();
+  }
+
+  // Applies a single modifier that matches a weak component pointer. In this
+  // case, it stores the component instance in the pointer.
+  template <typename C>
+  void ApplySingleModifier(std::weak_ptr<C>* component_ptr) {
     *component_ptr = GetOrAdd<C>();
   }
 
