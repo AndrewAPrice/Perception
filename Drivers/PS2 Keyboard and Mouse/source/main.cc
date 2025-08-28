@@ -33,6 +33,7 @@ using ::perception::RegisterInterruptHandler;
 using ::perception::Status;
 using ::perception::Write8BitsToPort;
 using ::perception::devices::KeyboardDevice;
+using ::perception::devices::KeyboardEvent;
 using ::perception::devices::KeyboardListener;
 using ::perception::devices::MouseButton;
 using ::perception::devices::MouseButtonEvent;
@@ -41,7 +42,6 @@ using ::perception::devices::MouseDevice;
 using ::perception::devices::MouseListener;
 using ::perception::devices::MousePositionEvent;
 using ::perception::devices::RelativeMousePositionEvent;
-using ::perception::devices::KeyboardEvent;
 using ::perception::window::WindowManager;
 
 namespace {
@@ -75,7 +75,10 @@ class PS2MouseDevice : public MouseDevice::Server {
     } else {
       // Read one of the first 2 bytes.
       mouse_byte_buffer_[mouse_bytes_received_] = val;
-      mouse_bytes_received_++;
+
+      // The first byte should always have bit 3 set.
+      if (mouse_bytes_received_ != 0 || (mouse_byte_buffer_[0] & (1 << 3)))
+        mouse_bytes_received_++;
     }
   }
 
@@ -223,6 +226,12 @@ void InterruptHandler() {
 
   // Keep looping while there are bytes (the mouse will send multiple bytes.)
   while ((check = Read8BitsFromPort(0x64)) & 1) {
+    if ((check & (1 << 6)) /** Parity error. */ ||
+        (check & (1 << 7)) /** General Timeout Error. */) {
+      // Read and discard the byte.
+      (void)Read8BitsFromPort(0x60);
+      continue;
+    }
     if (check & (1 << 5)) {
       mouse_device->HandleMouseInterrupt();
     } else {

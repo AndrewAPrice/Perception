@@ -35,8 +35,6 @@ int main(int argc, char *argv[]) {
   InitializeWindowButtons();
   WindowManager window_manager;
 
-  std::cout << "Done" << std::endl;
-
   // Draw the entire screen.
   InvalidateScreen(Rectangle{.size = GetScreenSize()});
   DrawScreen();
