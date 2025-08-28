@@ -629,7 +629,9 @@ extern "C" void SyscallHandler(int syscall_number) {
     case Syscall::RegisterMessageToSendOnInterrupt:
       RegisterMessageToSendOnInterrupt(
           (int)currently_executing_thread_regs->rax, running_thread->process,
-          currently_executing_thread_regs->rbx);
+          currently_executing_thread_regs->rbx,
+          currently_executing_thread_regs->rdx,
+          currently_executing_thread_regs->rsi);
       break;
     case Syscall::UnregisterMessageToSendOnInterrupt:
       UnregisterMessageToSendOnInterrupt(

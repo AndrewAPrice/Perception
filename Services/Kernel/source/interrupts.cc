@@ -23,7 +23,6 @@
 #include "physical_allocator.h"
 #include "process.h"
 #include "scheduler.h"
-#include "text_terminal.h"
 #include "timer.h"
 #include "tss.h"
 #include "virtual_address_space.h"
@@ -83,6 +82,59 @@ void AllocateInterruptStack() {
   SetInterruptStack(virtual_addr);
 }
 
+void HandleInterruptMessage(MessageToFireOnInterrupt& message_to_fire) {
+  switch (message_to_fire.method) {
+    case 0:
+      SendKernelMessageToProcess(message_to_fire.process,
+                                 message_to_fire.message_id, 0, 0, 0, 0, 0);
+      break;
+    case 1: {
+      auto& params =
+          message_to_fire.interrupt_poll_status_against_mask_read_port_params;
+
+      // Can send up to 5 64-bit values in a message to the process.
+      size_t longs_to_send[5];
+      uint8* bytes_to_send = reinterpret_cast<uint8*>(longs_to_send);
+
+      // Clear the message.
+      for (size_t i = 0; i < 5; i++) longs_to_send[i] = 0;
+      int bytes_read = 0;
+
+      // Keep reading the status until the mask no longer matches.
+      while (true) {
+        uint8 status = ReadIOByte(params.status_port);
+        if ((status & params.status_mask) != params.status_mask)
+          break;  // Status doesn't match mask, stop reading.
+
+        // Set the status and read a byte.
+        bytes_to_send[bytes_read++] = status;
+        bytes_to_send[bytes_read++] = ReadIOByte(params.read_port);
+
+        // Check if the buffer has been filled up.
+        if (bytes_read >= sizeof(longs_to_send)) {
+          // Send the buffer to the process.
+          SendKernelMessageToProcess(
+              message_to_fire.process, message_to_fire.message_id,
+              longs_to_send[0], longs_to_send[1], longs_to_send[2],
+              longs_to_send[3], longs_to_send[4]);
+
+          // Clear the buffer and reset the counter.
+          for (size_t i = 0; i < 5; i++) longs_to_send[i] = 0;
+          bytes_read = 0;
+        }
+      }
+
+      // The status stopped matching the mask, send any bytes if they were read.
+      if (bytes_read > 0) {
+        SendKernelMessageToProcess(message_to_fire.process,
+                                   message_to_fire.message_id, longs_to_send[0],
+                                   longs_to_send[1], longs_to_send[2],
+                                   longs_to_send[3], longs_to_send[4]);
+      }
+    } break;
+  }
+}
+
 }  // namespace
 
 // The top of the interrupt's stack.
@@ -99,14 +151,16 @@ void InitializeInterrupts() {
                    &MessageToFireOnInterrupt::node_in_interrupt>();
   }
 
-  // There are two sets of interrupts - CPU exceptions and hardware signals. Handlers will be registered for both.
+  // There are two sets of interrupts - CPU exceptions and hardware signals.
+  // Handlers will be registered for both.
   RegisterExceptionInterrupts();
   RegisterInterruptHandlers();
 }
 
 // Registers a message to send to a process upon receiving an interrupt.
 void RegisterMessageToSendOnInterrupt(size_t interrupt_number, Process* process,
-                                      size_t message_id) {
+                                      size_t message_id, size_t method,
+                                      size_t param_1) {
   // Only drivers can listen to interrupts.
   if (!process->is_driver) return;
   interrupt_number &= 0xF;
@@ -116,6 +170,30 @@ void RegisterMessageToSendOnInterrupt(size_t interrupt_number, Process* process,
   message->process = process;
   message->message_id = message_id;
   message->interrupt_number = (uint8)interrupt_number;
+  message->method = method;
+  switch (method) {
+    default:
+      // Unknown method.
+      ObjectPool<MessageToFireOnInterrupt>::Release(message);
+      return;
+    case 0:
+      // Do nothing since this method needs no parameters.
+      break;
+    case 1: {
+      auto& params =
+          message->interrupt_poll_status_against_mask_read_port_params;
+      params.status_port = static_cast<uint16>(param_1 & 0xFFFF);
+      params.read_port = static_cast<uint16>((param_1 >> 16) & 0xFFFF);
+      params.status_mask = static_cast<uint8>((param_1 >> 32) & 0xFF);
+
+      if (params.status_mask == 0) {
+        // Mask have a non-0 status mask.
+        ObjectPool<MessageToFireOnInterrupt>::Release(message);
+        return;
+      }
+      break;
+    }
+  }
 
   // Add to the linked list of messages for this interrupt and process.
   messages_to_fire_on_interrupt[interrupt_number].AddBack(message);
@@ -160,8 +238,7 @@ extern "C" void CommonHardwareInterruptHandler(int interrupt_number) {
     // Send messages to any processes listening for this interrupt.
     for (MessageToFireOnInterrupt* message :
          messages_to_fire_on_interrupt[interrupt_number]) {
-      SendKernelMessageToProcess(message->process, message->message_id, 0, 0, 0,
-                                 0, 0);
+      HandleInterruptMessage(*message);
     }
 
     // If the IDT entry that was invoked was greater than 40 (IRQ 8-15) an EOI

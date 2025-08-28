@@ -44,7 +44,13 @@ enum class MessageStatus {
 
 struct MessageData {
   MessageId message_id;
-  size_t metadata, param1, param2, param3, param4, param5;
+  size_t metadata;
+  union {
+    struct {
+      size_t param1, param2, param3, param4, param5;
+    };
+    uint8 bytes[5 * sizeof(size_t)];
+  };
 };
 
 // Represents what to do when a message is received.

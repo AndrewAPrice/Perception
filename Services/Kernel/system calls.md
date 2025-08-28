@@ -741,6 +741,15 @@ Registers a message to be send to this process when an interrupt occurs. Only a 
 * `rdi` - 20
 * `rax` - The interrupt's number.
 * `rbx` - The ID of the message to send.
+* `rdx` - How to process the interrupt. This value affects what the othe registers mean. Possible values are:
+  * 0 - Send a message on each interrupt.
+  * 1 - While a status byte matches a mask, keep reading bytes from another port.
+    * `rsx` - Port and mask:
+      * Bits 0-15 - Status port
+      * Bits 16-31 - Read port.
+      * Bits 32-39 - Mask to match against port. Must be non 0.
+    * The message sent will fill param1 through to param5 with an array of {status byte, read byte}, allowing up to 20 pairs to be sent in a message.
+
 
 ### Output
 Nothing.

@@ -22,19 +22,47 @@ namespace perception {
 MessageId RegisterInterruptHandler(uint8 interrupt,
                                    std::function<void()> handler) {
   MessageId message_id = GenerateUniqueMessageId();
-  RegisterMessageHandler(message_id, [handler](ProcessId pid, const MessageData&) {
-    if (pid == 0)  // Only messages from the kernel are interrupts.
-      handler();
-  });
+  RegisterMessageHandler(
+      message_id, [handler](ProcessId pid, const MessageData &) {
+        if (pid != 0) return;  // Only messages from the kernel are interrupts.
+        handler();
+      });
 #ifdef PERCEPTION
   volatile register size_t syscall asm("rdi") = 20;
   volatile register size_t interrupt_r asm("rax") = (size_t)interrupt;
   volatile register size_t message_id_r asm("rbx") = message_id;
+  volatile register size_t method_r asm("rdx") = 0;
 
   __asm__ __volatile__("syscall\n" ::"r"(syscall), "r"(interrupt_r),
-                       "r"(message_id_r)
+                       "r"(message_id_r), "r"(method_r)
                        : "rcx", "r11");
 #endif
+  return message_id;
+}
+
+MessageId RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
+    uint8 interrupt, uint16 status_port, uint8 mask, uint16 read_port,
+    std::function<void(const uint8 *bytes)> handler) {
+  MessageId message_id = GenerateUniqueMessageId();
+  RegisterMessageHandler(
+      message_id, [handler](ProcessId pid, const MessageData &data) {
+        if (pid != 0) return;  // Only messages from the kernel are interrupts.
+        handler(data.bytes);
+      });
+#ifdef PERCEPTION
+  volatile register size_t syscall asm("rdi") = 20;
+  volatile register size_t interrupt_r asm("rax") = (size_t)interrupt;
+  volatile register size_t message_id_r asm("rbx") = message_id;
+  volatile register size_t method_r asm("rdx") = 1;
+  volatile register size_t params_r asm("rsi") =
+      static_cast<uint64>(status_port) |
+      (static_cast<uint64>(read_port) << 16) | (static_cast<uint64>(mask) << 32);
+
+  __asm__ __volatile__("syscall\n" ::"r"(syscall), "r"(interrupt_r),
+                       "r"(message_id_r), "r"(method_r), "r"(params_r)
+                       : "rcx", "r11");
+#endif
+
   return message_id;
 }
 

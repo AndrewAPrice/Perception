@@ -27,9 +27,10 @@
 
 using ::perception::FindFirstInstanceOfService;
 using ::perception::IsDuplicateInstanceOfProcess;
+using ::perception::kMaxInterruptReadBytes;
 using ::perception::ProcessId;
 using ::perception::Read8BitsFromPort;
-using ::perception::RegisterInterruptHandler;
+using ::perception::RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort;
 using ::perception::Status;
 using ::perception::Write8BitsToPort;
 using ::perception::devices::KeyboardDevice;
@@ -59,15 +60,14 @@ class PS2MouseDevice : public MouseDevice::Server {
 
   virtual ~PS2MouseDevice() {
     if (mouse_captor_) {
-      // Tell the captor we had to let the mouse go.
+      // Tell the captor the mouse was let go.
       mouse_captor_->MouseReleased();
     }
   }
 
-  void HandleMouseInterrupt() {
-    uint8 val = Read8BitsFromPort(0x60);
+  void HandleMouseInterrupt(uint8 val) {
     if (mouse_bytes_received_ == 2) {
-      // Process the message now that we have all 3 bytes.
+      // Process the message now that all 3 bytes have been received.
       ProcessMouseMessage(mouse_byte_buffer_[0], mouse_byte_buffer_[1], val);
 
       // Reset the cycle.
@@ -99,15 +99,15 @@ class PS2MouseDevice : public MouseDevice::Server {
   }
 
  private:
-  // Messages from the mouse come in 3 bytes. We need to buffer these until we
-  // have enough bytes to process a message.
+  // Messages from the mouse come in 3 bytes. Buffer these until there are
+  // enough bytes to process the message.
   uint8 mouse_bytes_received_;
   uint8 mouse_byte_buffer_[2];
 
   // The last known state of the mouse buttons.
   bool last_button_state_[3];
 
-  // The service we should sent mouse events to.
+  // The service to send mouse events to.
   std::unique_ptr<MouseListener::Client> mouse_captor_;
 
   // Processes the mouse message.
@@ -159,13 +159,12 @@ class PS2KeyboardDevice : public KeyboardDevice::Server {
 
   virtual ~PS2KeyboardDevice() {
     if (keyboard_captor_) {
-      // Tell the captor we had to let the keyboard go.
+      // Tell the captor that the keyboard has to be released.
       keyboard_captor_->KeyboardReleased();
     }
   }
 
-  void HandleKeyboardInterrupt() {
-    uint8 val = Read8BitsFromPort(0x60);
+  void HandleKeyboardInterrupt(uint8 val) {
     if (val == kSystemKeyDown) {
       // The system key was pressed. Notify the window manager.
       auto window_manager = FindFirstInstanceOfService<WindowManager>();
@@ -211,7 +210,7 @@ class PS2KeyboardDevice : public KeyboardDevice::Server {
   }
 
  private:
-  // The service we should sent keyboard events to.
+  // The service to send keyboard events to.
   std::unique_ptr<KeyboardListener> keyboard_captor_;
 };
 
@@ -221,21 +220,20 @@ std::unique_ptr<PS2MouseDevice> mouse_device;
 // Global instance of the keyboard device.
 std::unique_ptr<PS2KeyboardDevice> keyboard_device;
 
-void InterruptHandler() {
-  uint8 check;
-
-  // Keep looping while there are bytes (the mouse will send multiple bytes.)
-  while ((check = Read8BitsFromPort(0x64)) & 1) {
-    if ((check & (1 << 6)) /** Parity error. */ ||
-        (check & (1 << 7)) /** General Timeout Error. */) {
-      // Read and discard the byte.
-      (void)Read8BitsFromPort(0x60);
+void InterruptHandler(const uint8* bytes) {
+  // Loop over each byte until the status is NULL or there are no more bytes.
+  for (int offset = 0; offset <= kMaxInterruptReadBytes && bytes[offset] != 0;
+       offset += 2) {
+    uint8 status = bytes[offset];
+    if ((status & (1 << 6)) /** Parity error. */ ||
+        (status & (1 << 7)) /** General Timeout Error. */) {
       continue;
     }
-    if (check & (1 << 5)) {
-      mouse_device->HandleMouseInterrupt();
+
+    if (status & (1 << 5)) {
+      mouse_device->HandleMouseInterrupt(bytes[offset + 1]);
     } else {
-      keyboard_device->HandleKeyboardInterrupt();
+      keyboard_device->HandleKeyboardInterrupt(bytes[offset + 1]);
     }
   }
 }
@@ -303,8 +301,10 @@ int main(int argc, char* argv[]) {
   InitializePS2Controller();
 
   // Listen to the interrupts.
-  RegisterInterruptHandler(1, InterruptHandler);
-  RegisterInterruptHandler(12, InterruptHandler);
+  for (int irq : {1, 12})
+    RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
+        irq, /*status_port=*/0x64, /*mask=*/1, /*read_port=*/0x60,
+        InterruptHandler);
 
   perception::HandOverControl();
   return 0;

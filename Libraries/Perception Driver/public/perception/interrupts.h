@@ -20,12 +20,23 @@
 
 namespace perception {
 
+constexpr int kMaxInterruptReadBytes = 5 * 8;
+
 // Functions for dealing with hardware interrupts. The program calling this must
 // be a driver, otherwise the caller will terminate!
 
 // Registers a handler to call upon receiving an interrupt.
 MessageId RegisterInterruptHandler(uint8 interrupt,
                                    std::function<void()> handler);
+
+// Registers a handler to call upon receiving an interrupt. After the interrupt
+// is received, the status port will be polled, and while the mask bits are set,
+// a byte will be read from another port. The mask must be non-0. The handler
+// can receive multiple pairs of bytes. The handler should keep looping through
+// them until it encounters a NULL status or reads kMaxInterruptReadBytes.
+MessageId RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
+    uint8 interrupt, uint16 status_port, uint8 mask, uint16 read_port,
+    std::function<void(const uint8 *bytes)> handler);
 
 // Unregisters a handler to call to upon receiving an interrupt.
 void UnregisterInterruptHandler(uint8 interrupt, MessageId message_id);
