@@ -204,12 +204,12 @@ std::shared_ptr<Window> GetWindowWithListener(
 }
 
 void Window::Focus() {
-  if (focused_window == this && !IsVisible()) return;
+  if (IsFocused() || !IsVisible()) return;
 
   // There's a different focused window.
-  if (focused_window) {
-    focused_window->Unfocus();
-  }
+  if (focused_window) focused_window->Unfocus();
+
+  focused_window = this;
 
   z_ordered_windows_.Remove(this);
   z_ordered_windows_.AddBack(this);
@@ -531,6 +531,18 @@ void Window::InvalidateLocalArea(const Rectangle& window_area) {
   return Invalidate(screen_area);
 }
 
+void Window::StartDragging() {
+  if (!IsFocused() || dragging_window != nullptr) return;
+
+  dragging_window = this;
+  dragging_left_edge = false;
+  dragging_right_edge = false;
+  dragging_top_edge = false;
+  dragging_bottom_edge = false;
+
+  dragging_origin = GetMousePosition();
+}
+
 Rectangle Window::GetScreenAreaWithFrame() const {
   auto screen_area = GetScreenArea();
   screen_area.origin -= Point{.x = kFrameThickness, .y = kFrameThickness};
@@ -566,6 +578,8 @@ void Window::Show() {
 
   z_ordered_windows_.AddBack(this);
   is_visible_ = true;
+
+  Focus();
 
   InvalidateScreen(GetScreenAreaWithFrame());
 }

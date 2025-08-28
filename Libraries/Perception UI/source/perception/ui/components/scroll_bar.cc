@@ -25,6 +25,8 @@
 using Direction = perception::ui::components::ScrollBar::Direction;
 
 namespace perception {
+template class UniqueIdentifiableType<ui::components::ScrollBar>;
+
 namespace ui {
 namespace components {
 namespace {

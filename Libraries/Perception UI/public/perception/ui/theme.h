@@ -23,6 +23,10 @@ extern uint32 kBackgroundWindowColor;
 extern float kMarginAroundWidgets;
 
 extern uint32 kLabelTextColor;
+extern uint32 kLabelOnDarkTextColor;
+
+extern uint32 kTitleBarFocusedBackgroundColor;
+extern uint32 kTitleBarUnfocusedBackgroundColor;
 
 extern uint32 kButtonBackgroundColor;
 extern uint32 kButtonBackgroundHoverColor;

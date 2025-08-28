@@ -20,6 +20,8 @@
 #include "perception/ui/node.h"
 #include "perception/ui/point.h"
 #include "perception/ui/size.h"
+#include "perception/type_id.h"
+
 /*
 namespace perception {
 namespace ui {

@@ -22,7 +22,10 @@
 
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSurface.h"
+#include "perception/type_id.h"
+#include "perception/ui/components/title_bar.h"
 #include "perception/ui/node.h"
+#include "perception/ui/theme.h"
 #include "perception/window/window.h"
 #include "perception/window/window_delegate.h"
 
@@ -35,7 +38,8 @@ struct Point;
 namespace components {
 
 class UiWindow : public window::WindowDelegate,
-                 public std::enable_shared_from_this<UiWindow> {
+                 public std::enable_shared_from_this<UiWindow>,
+                 public UniqueIdentifiableType<UiWindow> {
  public:
   template <typename... Modifiers>
   static std::shared_ptr<Node> ResizableWindow(std::string_view title,
@@ -45,7 +49,25 @@ class UiWindow : public window::WindowDelegate,
           window.SetTitle(title);
           window.SetIsResizable(true);
         },
-        [](Layout& layout) { layout.SetMargin(YGEdgeAll, 8.f); }, modifiers...);
+        [](Layout& layout) {
+          layout.SetPadding(YGEdgeAll, 8.f);
+          layout.SetGap(kWidgetSpacing);
+        },
+        modifiers...);
+  }
+
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> ResizableWindowWithTitleBar(
+      std::string_view title, Modifiers... modifiers) {
+    auto window = ResizableWindow(title);
+    window->Apply(
+        TitleBar::TextTitleBar(title, *window),
+        [](Layout& layout) {
+          layout.SetFlexDirection(YGFlexDirectionColumn);
+          layout.SetGap(8.0f);
+        },
+        modifiers...);
+    return std::move(window);
   }
 
   template <typename... Modifiers>
@@ -54,6 +76,20 @@ class UiWindow : public window::WindowDelegate,
     return ResizableWindow(
         title, [](UiWindow& window) { window.SetIsResizable(false); },
         modifiers...);
+  }
+
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> DialogWithTitleBar(std::string_view title,
+                                                  Modifiers... modifiers) {
+    auto window = Dialog(title);
+    window->Apply(
+        TitleBar::TextTitleBar(title, *window),
+        [](Layout& layout) {
+          layout.SetFlexDirection(YGFlexDirectionColumn);
+          layout.SetGap(8.0f);
+        },
+        modifiers...);
+    return std::move(window);
   }
 
   UiWindow();
@@ -65,7 +101,11 @@ class UiWindow : public window::WindowDelegate,
   void SetTitle(std::string_view title);
   void SetIsResizable(bool is_resizable);
   void OnResize(std::function<void()> on_resize_handler);
+  bool IsResizable() const;
   void FocusOnNode();
+  void OnFocusChanged(std::function<void()> on_focus_changed);
+  bool IsFocused() const;
+  void StartDragging();
 
   void Draw();
   void GetNodesAt(
@@ -79,6 +119,8 @@ class UiWindow : public window::WindowDelegate,
   virtual void WindowClosed() override;
 
   virtual void WindowResized() override;
+
+  virtual void WindowFocusChanged() override;
 
   virtual void MouseClicked(const window::MouseClickEvent& event) override;
 
@@ -111,6 +153,7 @@ class UiWindow : public window::WindowDelegate,
   uint32 background_color_;
   std::vector<std::function<void()>> on_close_functions_;
   std::vector<std::function<void()>> on_resize_functions_;
+  std::vector<std::function<void()>> on_focus_changed_functions_;
 
   std::weak_ptr<Node> node_mouse_is_over_;
 
@@ -133,4 +176,7 @@ class UiWindow : public window::WindowDelegate,
 
 }  // namespace components
 }  // namespace ui
+  
+extern template class UniqueIdentifiableType<ui::components::UiWindow>;
+
 }  // namespace perception

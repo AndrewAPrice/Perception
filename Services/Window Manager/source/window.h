@@ -66,6 +66,8 @@ class Window : public std::enable_shared_from_this<Window> {
   void Invalidate(const ::perception::ui::Rectangle& screen_area);
   void InvalidateLocalArea(const ::perception::ui::Rectangle& window_area);
 
+  void StartDragging();
+
   ::perception::ui::Rectangle GetScreenAreaWithFrame() const;
   const ::perception::ui::Rectangle& GetScreenArea() const;
   bool IsVisible() const { return is_visible_; }

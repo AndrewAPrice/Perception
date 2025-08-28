@@ -25,6 +25,9 @@
 #include "perception/ui/image.h"
 
 namespace perception {
+
+template class UniqueIdentifiableType<ui::components::ImageView>;
+
 namespace ui {
 namespace components {
 namespace {

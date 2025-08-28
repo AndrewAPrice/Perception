@@ -30,15 +30,13 @@ using ::perception::ui::components::Label;
 using ::perception::ui::components::UiWindow;
 
 int main(int argc, char* argv[]) {
-  auto window = UiWindow::Dialog(
+  auto window = UiWindow::DialogWithTitleBar(
       "Welcome!",
       Label::BasicLabel(
           "Welcome to Perception. Press the ESCAPE key to open the launcher.",
           [](Layout& layout) {
             layout.SetJustifyContent(YGJustifyCenter);
             layout.SetAlignContent(YGAlignCenter);
-            layout.SetWidth(640);
-            layout.SetHeight(480);
           },
           [](Label& label) {
             label.SetTextAlignment(TextAlignment::MiddleCenter);

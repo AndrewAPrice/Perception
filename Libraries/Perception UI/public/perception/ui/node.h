@@ -15,6 +15,7 @@
 #pragma once
 
 #include <functional>
+#include <iostream>  // DO NOT SUBMIT
 #include <list>
 #include <map>
 #include <memory>
@@ -62,11 +63,11 @@ class Node : public std::enable_shared_from_this<Node> {
 
   template <typename T>
   void Add(std::shared_ptr<T> component) {
-    auto itr = components_.find(TypeId<T>());
+    auto itr = components_.find(T::TypeId());
     if (itr != components_.end()) return;
 
     component->SetNode(shared_from_this());
-    components_.insert({TypeId<T>(), component});
+    components_.insert({T::TypeId(), component});
   }
 
   template <typename T>
@@ -76,7 +77,7 @@ class Node : public std::enable_shared_from_this<Node> {
 
   template <typename T>
   std::shared_ptr<T> Get() {
-    auto itr = components_.find(TypeId<T>());
+    auto itr = components_.find(T::TypeId());
     if (itr == components_.end()) return {};
 
     return std::static_pointer_cast<T>(itr->second);
@@ -84,7 +85,7 @@ class Node : public std::enable_shared_from_this<Node> {
 
   template <typename T>
   std::shared_ptr<T> GetOrAdd() {
-    auto itr = components_.find(TypeId<T>());
+    auto itr = components_.find(T::TypeId());
     if (itr == components_.end()) {
       auto component = std::make_shared<T>();
       Add(component);

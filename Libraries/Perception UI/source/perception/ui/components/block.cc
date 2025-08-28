@@ -19,11 +19,16 @@
 #include "include/core/SkPath.h"
 #include "perception/draw.h"
 #include "perception/ui/draw_context.h"
+#include "perception/type_id.h"
 #include "perception/ui/theme.h"
 
 namespace perception {
+
+template class UniqueIdentifiableType<ui::components::Block>;
+
 namespace ui {
 namespace components {
+
 // shadows:
 // https://skia.googlesource.com/skia/+/2e551697dc56/modules/skottie/src/effects/ShadowStyles.cpp?autodive=0%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F
 

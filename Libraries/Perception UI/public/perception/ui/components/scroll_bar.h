@@ -20,6 +20,7 @@
 #include "perception/ui/node.h"
 #include "perception/ui/point.h"
 #include "perception/ui/size.h"
+#include "perception/type_id.h"
 
 namespace perception {
 namespace ui {
@@ -30,7 +31,7 @@ struct Rectangle;
 namespace components {
 
 // A bar that controls a scrollable area.
-class ScrollBar {
+class ScrollBar : public UniqueIdentifiableType<ScrollBar> {
  public:
   enum class Direction { VERTICAL, HORIZONTAL };
 
@@ -94,4 +95,7 @@ class ScrollBar {
 
 }  // namespace components
 }  // namespace ui
+
+extern template class UniqueIdentifiableType<ui::components::ScrollBar>;
+
 }  // namespace perception

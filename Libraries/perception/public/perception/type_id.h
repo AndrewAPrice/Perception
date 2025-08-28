@@ -11,29 +11,23 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#pragma once
+
+#include <iostream>
 
 #include "types.h"
 
 namespace perception {
-namespace internal {
 
-size_t NextUniqueId() noexcept;
-
-template <typename Type, typename = void>
-struct TypeId final {
-  [[nodiscard]] static size_t operator()() noexcept {
-    static const size_t value = NextUniqueId();
-    return value;
+template <class Derived>
+class UniqueIdentifiableType {
+ public:
+  static size_t TypeId() {
+    return reinterpret_cast<size_t>(&type_id_variable__);
   }
+
+ private:
+  inline static const bool type_id_variable__ = false;
 };
-
-}  // namespace internal
-
-// Returns a unique ID given a type.
-template <typename Type, typename = void>
-constexpr size_t TypeId() {
-    return internal::TypeId<Type>()();
-};
-
 
 }  // namespace perception

@@ -14,6 +14,8 @@
 
 #include "perception/ui/components/ui_window.h"
 
+#include <iostream>
+
 #include "include/core/SkColorSpace.h"
 #include "include/core/SkGraphics.h"
 #include "include/core/SkSurface.h"
@@ -38,6 +40,7 @@
 using ::perception::window::MouseButton;
 
 namespace perception {
+template class UniqueIdentifiableType<ui::components::UiWindow>;
 namespace ui {
 namespace components {
 
@@ -89,6 +92,21 @@ void UiWindow::SetIsResizable(bool is_resizable) {
   is_resizable_ = is_resizable;
 }
 
+bool UiWindow::IsResizable() const { return is_resizable_; }
+
+void UiWindow::OnFocusChanged(std::function<void()> on_focus_changed) {
+  on_focus_changed_functions_.push_back(on_focus_changed);
+}
+
+bool UiWindow::IsFocused() const {
+  if (!base_window_) return false;
+  return base_window_->IsFocused();
+}
+
+void UiWindow::StartDragging() {
+  if (base_window_) base_window_->StartDragging();
+}
+
 void UiWindow::WindowClosed() {
   std::scoped_lock lock(window_mutex_);
   for (auto& handler : on_close_functions_) handler();
@@ -112,6 +130,10 @@ void UiWindow::WindowResized() {
 
   for (auto& handler : on_resize_functions_) handler();
   InvalidateRender();
+}
+
+void UiWindow::WindowFocusChanged() {
+  for (auto& handler : on_focus_changed_functions_) handler();
 }
 
 void UiWindow::MouseClicked(const window::MouseClickEvent& event) {
@@ -156,7 +178,9 @@ void UiWindow::Draw() {
   std::scoped_lock lock(window_mutex_);
 
   if (!invalidated_) return;
-  if (base_window_) base_window_->Present();
+  if (base_window_) {
+    base_window_->Present();
+  }
   invalidated_ = false;
 }
 
@@ -265,13 +289,10 @@ void UiWindow::Create() {
     buffer_width_ = 0;
     buffer_height_ = 0;
   }
+
   for (auto& handler : on_resize_functions_) handler();
 
-  if (buffer_width_ != layout.GetCalculatedWidthWithMargin() ||
-      buffer_height_ != layout.GetCalculatedHeightWithMargin()) {
-    layout.Calculate((float)buffer_width_, (float)buffer_height_);
-  }
-
+  layout.Calculate((float)buffer_width_, (float)buffer_height_);
   InvalidateRender();
   created_ = true;
 }

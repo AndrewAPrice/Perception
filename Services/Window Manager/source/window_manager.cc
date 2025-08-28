@@ -104,8 +104,12 @@ StatusOr<DisplayEnvironment> WindowManager::GetDisplayEnvironment() {
   return Status::UNIMPLEMENTED;
 }
 
-Status WindowManager::StartDraggingWindow(const BaseWindow::Client& window,
-                                          ::perception::ProcessId sender) {
-  std::cout << "Start dragging!" << std::endl;
-  return Status::UNIMPLEMENTED;
+Status WindowManager::StartDraggingWindow(
+    const BaseWindow::Client& window_listener, ::perception::ProcessId sender) {
+  auto window = GetWindowWithListener(window_listener);
+  if (!window || sender != window_listener.ServerProcessId())
+    return Status::INVALID_ARGUMENT;
+
+  window->StartDragging();
+  return Status::OK;
 }

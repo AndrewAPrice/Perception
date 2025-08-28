@@ -14,15 +14,17 @@
 
 #pragma once
 
+#include "perception/type_id.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
 #include "perception/ui/theme.h"
+#include "perception/type_id.h"
 
 namespace perception {
 namespace ui {
 namespace components {
 
-class Container {
+class Container : public UniqueIdentifiableType<Container> {
  public:
   // Creates a container that lays out its contents vertically.
   template <typename... Modifiers>
@@ -49,4 +51,7 @@ class Container {
 
 }  // namespace components
 }  // namespace ui
+
+extern template class UniqueIdentifiableType<ui::components::Container>;
+
 }  // namespace perception

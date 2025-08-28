@@ -26,6 +26,8 @@
 #include "perception/ui/measurements.h"
 
 namespace perception {
+template class UniqueIdentifiableType<ui::components::Label>;
+
 namespace ui {
 namespace components {
 

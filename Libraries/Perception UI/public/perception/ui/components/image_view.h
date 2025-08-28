@@ -23,6 +23,7 @@
 #include "perception/ui/size.h"
 #include "perception/ui/text_alignment.h"
 #include "yoga/Yoga.h"
+#include "perception/type_id.h"
 
 namespace perception {
 namespace ui {
@@ -31,8 +32,9 @@ struct DrawContext;
 
 namespace components {
 
+
 // An image displays an image.
-class ImageView {
+class ImageView : public UniqueIdentifiableType<ImageView> {
  public:
   // Creates a basic ImageView that displays an image.
   template <typename... Modifiers>
@@ -76,4 +78,8 @@ class ImageView {
 
 }  // namespace components
 }  // namespace ui
+
+  
+extern template class UniqueIdentifiableType<ui::components::ImageView>;
+
 }  // namespace perception

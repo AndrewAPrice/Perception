@@ -19,6 +19,7 @@
 #include <string>
 #include <string_view>
 
+#include "perception/type_id.h"
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/label.h"
 #include "perception/ui/node.h"
@@ -30,7 +31,7 @@ struct Point;
 
 namespace components {
 
-class Button {
+class Button : public UniqueIdentifiableType<Button> {
  public:
   // Creates a basic button. There's nothing inside the button, so the
   // caller can add their own child nodes to display custom content inside
@@ -97,4 +98,7 @@ class Button {
 
 }  // namespace components
 }  // namespace ui
+
+extern template class UniqueIdentifiableType<ui::components::Button>;
+
 }  // namespace perception

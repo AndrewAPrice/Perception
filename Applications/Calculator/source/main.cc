@@ -183,15 +183,17 @@ int main(int argc, char* argv[]) {
   auto button_panel = Block::SolidColor(
       kButtonPanelBackgroundColor,
       [](Layout& layout) {
-        layout.SetWidth(194.0f);
         layout.SetAlignSelf(YGAlignStretch);
         layout.SetAlignContent(YGAlignCenter);
         layout.SetJustifyContent(YGJustifyCenter);
+        // Flush this button panel against the sides of the window.
+        for (auto edge : {YGEdgeTop, YGEdgeBottom, YGEdgeLeft})
+          layout.SetMargin(edge, -8.0f);
+        layout.SetPadding(YGEdgeAll, 8.0f);
       },
       Container::VerticalContainer(
           [](Layout& layout) {
             layout.SetAlignSelf(YGAlignCenter);
-            layout.SetWidthAuto();
           },
           Container::HorizontalContainer(
               Button::TextButton("C", PressClear),
@@ -221,7 +223,7 @@ int main(int argc, char* argv[]) {
                       Button::TextButton(".", PressDecimal))),
               Button::TextButton("=", std::bind(PressEquals)))));
 
-  auto window = UiWindow::ResizableWindow(
+  auto window = UiWindow::ResizableWindowWithTitleBar(
       "Calculator",
       [](UiWindow& window) { window.OnClose([]() { TerminateProcess(); }); },
       Container::HorizontalContainer(

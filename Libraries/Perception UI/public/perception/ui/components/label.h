@@ -22,8 +22,10 @@
 #include "perception/ui/size.h"
 #include "perception/ui/text_alignment.h"
 #include "yoga/Yoga.h"
+#include "perception/type_id.h"
 
 namespace perception {
+
 namespace ui {
 
 struct DrawContext;
@@ -31,7 +33,7 @@ struct DrawContext;
 namespace components {
 
 // A label draws a piece of text.
-class Label {
+class Label : public UniqueIdentifiableType<Label> {
  public:
   template <typename... Modifiers>
   static std::shared_ptr<Node> BasicLabel(std::string_view text,
@@ -75,4 +77,7 @@ class Label {
 
 }  // namespace components
 }  // namespace ui
+
+extern template class UniqueIdentifiableType<ui::components::Label>;
+
 }  // namespace perception

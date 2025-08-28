@@ -19,9 +19,11 @@
 #include <string>
 #include <string_view>
 
+#include "perception/type_id.h"
 #include "perception/ui/node.h"
 
 namespace perception {
+
 namespace ui {
 
 struct DrawContext;
@@ -30,13 +32,13 @@ namespace components {
 
 // A block is one of the fundemental building blocks for drawing something on
 // the screen. It can have a border, be filled, can clip its contents, etc.
-class Block {
+class Block : public UniqueIdentifiableType<Block> {
  public:
   // Creates a block that is a solid color.
   template <typename... Modifiers>
   static std::shared_ptr<Node> SolidColor(uint32 color,
                                           Modifiers... modifiers) {
-    return Node::Empty([&color](Block& block) { block.SetBorderColor(color); },
+    return Node::Empty([&color](Block& block) { block.SetFillColor(color); },
                        modifiers...);
   }
 
@@ -86,4 +88,7 @@ class Block {
 
 }  // namespace components
 }  // namespace ui
+
+extern template class UniqueIdentifiableType<ui::components::Block>;
+
 }  // namespace perception

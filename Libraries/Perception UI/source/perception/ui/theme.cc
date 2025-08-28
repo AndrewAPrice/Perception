@@ -30,6 +30,11 @@ uint32 kBackgroundWindowColor = HSVColor(0.0f, 0.0f, 0.95f);
 float kMarginAroundWidgets = 4.0f;
 
 uint32 kLabelTextColor = SkColorSetARGB(0xff, 0x0, 0x0, 0x0);
+uint32 kLabelOnDarkTextColor = SkColorSetARGB(0xff, 0xff, 0xff, 0xff);
+
+uint32 kTitleBarFocusedBackgroundColor = SkColorSetARGB(0xff, 0x7e, 0xa0, 0xf8);
+uint32 kTitleBarUnfocusedBackgroundColor =
+    SkColorSetARGB(0xff, 0xd9, 0xd9, 0xd9);
 
 uint32 kButtonBackgroundColor = HSVColor(0.0f, 0.0f, 1.0f);
 uint32 kButtonBackgroundHoverColor = HSVColor(0.0f, 0.0f, 0.925f);
@@ -56,7 +61,6 @@ float kScrollBarBorderRadius = kScrollBarThickness / 2.0f;
 float kScrollContainerBorderRadius = kScrollBarBorderRadius;
 
 uint32 kScrollContainerOutlineColor = kScrollBarTrackOutlineColor;
-
 
 uint32 kContainerBackgroundColor = HSVColor(0.0f, 0.0f, 0.97f);
 uint32 kContainerBorderColor = kButtonOutlineColor;

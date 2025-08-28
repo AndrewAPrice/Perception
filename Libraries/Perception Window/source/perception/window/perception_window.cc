@@ -124,7 +124,7 @@ class PerceptionWindow : public Window,
   }
 
   void StartDragging() override {
-    GetService<WindowManager>().StartDraggingWindow(*this);
+    GetService<WindowManager>().StartDraggingWindow(*this, {});
   }
 
   void Present() override {

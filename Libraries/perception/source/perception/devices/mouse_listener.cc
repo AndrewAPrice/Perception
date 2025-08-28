@@ -19,7 +19,8 @@
 namespace perception {
 namespace devices {
 
-void RelativeMousePositionEvent::Serialize(serialization::Serializer& serializer) {
+void RelativeMousePositionEvent::Serialize(
+    serialization::Serializer& serializer) {
   serializer.Float("Delta X", delta_x);
   serializer.Float("Delta Y", delta_y);
 }

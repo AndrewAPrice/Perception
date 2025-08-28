@@ -187,8 +187,8 @@ void Node::MouseButtonDown(const Point& point, window::MouseButton button) {
 
 void Node::OnMouseButtonUp(
     std::function<void(const Point& point, window::MouseButton button)>
-        mouse_button_down_function) {
-  on_mouse_button_up_functions_.push_back(mouse_button_down_function);
+        mouse_button_up_function) {
+  on_mouse_button_up_functions_.push_back(mouse_button_up_function);
 }
 
 void Node::MouseButtonUp(const Point& point, window::MouseButton button) {

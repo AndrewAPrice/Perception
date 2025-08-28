@@ -19,6 +19,9 @@
 #include "perception/ui/theme.h"
 
 namespace perception {
+
+template class UniqueIdentifiableType<ui::components::Button>;
+
 namespace ui {
 namespace components {
 
