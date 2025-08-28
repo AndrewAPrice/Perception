@@ -53,13 +53,17 @@ struct Rectangle {
   // Returns whether another rectangle intersect this rectangle.
   bool Intersects(const Rectangle& other) const;
 
-  // Returns whether another rectangle is inside this rectangle. (Upper bounds is
-  // exclusive.)
+  // Returns whether another rectangle is inside this rectangle. (Upper bounds
+  // is exclusive.)
   bool Contains(const Rectangle& child) const;
 
   // Returns whether another point is inside this rectangle. (Upper bounds is
   // exclusive.)
   bool Contains(const Point& point) const;
+
+  // Returns the rectangle, but rounded the largest bounding area using whole
+  // integers. Min values round down, max values round up.
+  Rectangle RoundedToLargestWholeInteger() const;
 };
 
 }  // namespace ui

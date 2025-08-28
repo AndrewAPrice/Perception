@@ -15,6 +15,7 @@
 #include "perception/ui/rectangle.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "perception/ui/point.h"
 #include "perception/ui/size.h"
@@ -58,16 +59,16 @@ Rectangle Rectangle::Union(const Rectangle& other) const {
 }
 
 bool Rectangle::Intersects(const Rectangle& other) const {
-  if (MaxX() < other.MinX() || MaxY() < other.MinY() || MinX() > other.MaxX() ||
-      MinY() > other.MaxY()) {
+  if (MaxX() <= other.MinX() || MaxY() <= other.MinY() ||
+      MinX() >= other.MaxX() || MinY() >= other.MaxY()) {
     return false;
   }
   return true;
 }
 
 bool Rectangle::Contains(const Rectangle& child) const {
-  if (child.MinX() < MinX() || child.MinY() < MinY() ||
-      child.MaxX() >= MaxX() || child.MaxY() >= MaxY()) {
+  if (child.MinX() < MinX() || child.MinY() < MinY() || child.MaxX() > MaxX() ||
+      child.MaxY() > MaxY()) {
     return false;
   }
   return true;
@@ -79,6 +80,12 @@ bool Rectangle::Contains(const Point& point) const {
     return false;
   }
   return true;
+}
+
+Rectangle Rectangle::RoundedToLargestWholeInteger() const {
+  return Rectangle::FromMinMaxPoints(
+      {.x = std::floor(MinX()), .y = std::floor(MinY())},
+      {.x = std::ceil(MaxX()), .y = std::ceil(MaxY())});
 }
 
 }  // namespace ui

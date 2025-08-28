@@ -15,6 +15,7 @@
 #pragma once
 
 #include <algorithm>
+// #include <iostream>
 
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
@@ -82,7 +83,8 @@ class QuadTree {
       // First item being added to the quadtree.
       root_ = node_pool_.Allocate();
       for (int i = 0; i < 4; i++) root_->children[i] = nullptr;
-      root_->bounds = {.origin = item->bounds.origin, .size = {size, size}};
+      Rectangle bounds = {.origin = item->bounds.origin, .size = {size, size}};
+      root_->bounds = bounds.RoundedToLargestWholeInteger();
       root_->parent = nullptr;
       root_->items = item;
 
@@ -103,7 +105,7 @@ class QuadTree {
                   << node->bounds.MaxX() << "," << node->bounds.MaxY()
                   << " of size " << (node_size * 0.75f) << " -> " << node_size
                   << std::endl;
-        */
+                  */
 
         if (!node->Contains(*item)) {
           // Too big for this node.
@@ -119,19 +121,18 @@ class QuadTree {
             parent->items = nullptr;
             float new_size = node_size / 0.75f;  // Grow by 33% (inv of 77%).
             float offset = new_size - size;
-            parent->bounds.size = Size{new_size, new_size};
+            Rectangle new_bounds = Rectangle{.size = {new_size, new_size}};
             for (int i = 0; i < 4; i++) parent->children[i] = nullptr;
 
             if (to_the_left) {
               if (to_the_top) {
                 // Expand up and left.
-                parent->bounds.origin =
-                    node->bounds.origin - Point{offset, offset};
+                new_bounds.origin = node->bounds.origin - Point{offset, offset};
                 // Bottom right child is the current node.
                 parent->children[0] = node;
               } else {
                 // Expand down and left.
-                parent->bounds.origin = node->bounds.origin - Point{offset, 0};
+                new_bounds.origin = node->bounds.origin - Point{offset, 0};
 
                 // Top right child is the current node.
                 parent->children[1] = node;
@@ -139,24 +140,25 @@ class QuadTree {
             } else {
               if (to_the_top) {
                 // Expand up and right.
-                parent->bounds.origin = node->bounds.origin - Point{0, offset};
+                new_bounds.origin = node->bounds.origin - Point{0, offset};
 
                 // Bottom left child is the current node.
                 parent->children[2] = node;
               } else {
                 // Expand down and right.
-                parent->bounds.origin = node->bounds.origin;
+                new_bounds.origin = node->bounds.origin;
 
                 // Top left child is the current node.
                 parent->children[3] = node;
               }
             }
+            parent->bounds = new_bounds.RoundedToLargestWholeInteger();
             node = parent;
           } else {
             node = node->parent;
           }
         } else {
-          if (size >= node_size / 2.0f) {
+          if (node_size <= kMinNodeSize || size >= node_size / 2.0f) {
             // Perfect size for this node, we'll add ourselves here.
             item->previous = nullptr;
             item->next = node->items;
@@ -183,9 +185,10 @@ class QuadTree {
                   for (int i = 0; i < 4; i++) child->children[i] = nullptr;
                   child->items = nullptr;
 
-                  child->bounds.origin =
-                      node->bounds.origin + Point{offset, offset};
-                  child->bounds.size = {child_node_size, child_node_size};
+                  Rectangle new_bounds = {
+                      .origin = node->bounds.origin + Point{offset, offset},
+                      .size = {child_node_size, child_node_size}};
+                  child->bounds = new_bounds.RoundedToLargestWholeInteger();
 
                   node->children[0] = child;
                   node = child;
@@ -200,8 +203,10 @@ class QuadTree {
                   for (int i = 0; i < 4; i++) child->children[i] = nullptr;
                   child->items = nullptr;
 
-                  child->bounds.origin = node->bounds.origin + Point{offset, 0};
-                  child->bounds.size = {child_node_size, child_node_size};
+                  Rectangle new_bounds = {
+                      .origin = node->bounds.origin + Point{offset, 0},
+                      .size = {child_node_size, child_node_size}};
+                  child->bounds = new_bounds.RoundedToLargestWholeInteger();
 
                   node->children[1] = child;
                   node = child;
@@ -218,8 +223,10 @@ class QuadTree {
                   for (int i = 0; i < 4; i++) child->children[i] = nullptr;
                   child->items = nullptr;
 
-                  child->bounds.origin = node->bounds.origin + Point{0, offset};
-                  child->bounds.size = {child_node_size, child_node_size};
+                  Rectangle new_bounds = {
+                      .origin = node->bounds.origin + Point{0, offset},
+                      .size = {child_node_size, child_node_size}};
+                  child->bounds = new_bounds.RoundedToLargestWholeInteger();
 
                   node->children[2] = child;
                   node = child;
@@ -234,8 +241,10 @@ class QuadTree {
                   for (int i = 0; i < 4; i++) child->children[i] = nullptr;
                   child->items = nullptr;
 
-                  child->bounds.origin = node->bounds.origin;
-                  child->bounds.size = {child_node_size, child_node_size};
+                  Rectangle new_bounds = {
+                      .origin = node->bounds.origin,
+                      .size = {child_node_size, child_node_size}};
+                  child->bounds = new_bounds.RoundedToLargestWholeInteger();
 
                   node->children[3] = child;
                   node = child;
@@ -372,6 +381,11 @@ class QuadTree {
                                    last_overlapping_item);
     }
   }
+
+  // The minimum size of a node. This is because the rectangles get rounded up
+  // to whole integer areas, and below this size, the node rectangles will keep
+  // rounding up.
+  static constexpr float kMinNodeSize = 3.0f;
 };  // namespace ui
 
 }  // namespace ui
