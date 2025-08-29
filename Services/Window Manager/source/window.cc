@@ -146,13 +146,14 @@ void ValidateWindowBounds(Rectangle& bounds) {
   auto screen_size = GetScreenSize();
   for (int i = 0; i < 2; i++) {
     bounds.size[i] =
-        std::max(kMinimumWindowSize, std::min(screen_size[i], bounds.size[i]));
+        std::max(kMinimumWindowSize,
+                 std::min(screen_size[i], std::round(bounds.size[i])));
 
     float min_position = -bounds.size[i] + kMinimumVisibleWindow;
     float max_position = screen_size[i] - kMinimumVisibleWindow;
 
-    bounds.origin[i] =
-        std::max(min_position, std::min(max_position, bounds.origin[i]));
+    bounds.origin[i] = std::max(
+        min_position, std::min(max_position, std::round(bounds.origin[i])));
   }
 }
 
@@ -174,18 +175,10 @@ StatusOr<std::shared_ptr<Window>> Window::CreateWindow(
   window->keyboard_listener_ = request.keyboard_listener;
   window->mouse_listener_ = request.mouse_listener;
 
-  auto screen_size = GetScreenSize();
-  window->screen_area_.size = {
-      .width = request.desired_size.width > 0 ? request.desired_size.width
-                                              : (screen_size.width * 3 / 4),
-      .height = request.desired_size.height > 0 ? request.desired_size.height
-                                                : (screen_size.height * 3 / 4)};
-  window->CommonInit();
+  window->screen_area_.size = {request.desired_size.width,
+                               request.desired_size.height};
 
-  // Center the new window in the middle of the screen.
-  auto size_delta = screen_size - window->screen_area_.size;
-  window->screen_area_.origin =
-      Point{.x = size_delta.width / 2, .y = size_delta.height / 2};
+  window->CommonInit();
 
   windows_by_listeners[request.window] = window;
   return window;
@@ -558,6 +551,19 @@ void Window::SetTextureId(int texture_id) { texture_id_ = texture_id; }
 
 void Window::CommonInit() {
   is_visible_ = false;
+
+  auto screen_size = GetScreenSize();
+  screen_area_.size = {
+      .width = screen_area_.size.width >= 1.0f ? screen_area_.size.width
+                                               : (screen_size.width * 0.75f),
+      .height = screen_area_.size.height >= 1.0f ? screen_area_.size.height
+                                                : (screen_size.height * 0.75f)};
+
+  // Center the new window in the middle of the screen.
+  auto size_delta = screen_size - screen_area_.size;
+  screen_area_.origin =
+      Point{.x = size_delta.width / 2.0f, .y = size_delta.height / 2.0f};
+
   ValidateWindowBounds(screen_area_);
   std::weak_ptr<Window> weak_self = shared_from_this();
   message_id_to_notify_on_window_disappearence_ =
