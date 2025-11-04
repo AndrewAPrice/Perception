@@ -108,7 +108,7 @@ class DiskFile : public File {
     memory_span_ = shared_memory_->ToSpan();
   }
 
-  ~DiskFile() { memory_mapped_file_.Close({}); }
+  ~DiskFile() { memory_mapped_file_.Close(nullptr); }
 
   virtual const ::perception::MemorySpan MemorySpan() const override {
     return memory_span_;
