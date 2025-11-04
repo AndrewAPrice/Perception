@@ -186,7 +186,7 @@ StatusOr<std::shared_ptr<Window>> Window::CreateWindow(
 
 Window::~Window() {
   Hide();
-  if (!window_listener_already_disappeared_) window_listener_.Closed({});
+  if (!window_listener_already_disappeared_) window_listener_.Closed(nullptr);
 }
 
 std::shared_ptr<Window> GetWindowWithListener(
@@ -209,10 +209,11 @@ void Window::Focus() {
 
   Invalidate();
 
-  if (!window_listener_already_disappeared_) window_listener_.GainedFocus({});
+  if (!window_listener_already_disappeared_)
+    window_listener_.GainedFocus(nullptr);
 
   // We now want to send keyboard events to this window.
-  GetService<KeyboardDevice>().SetKeyboardListener(keyboard_listener_, {});
+  GetService<KeyboardDevice>().SetKeyboardListener(keyboard_listener_, nullptr);
 }
 
 bool Window::IsFocused() const { return focused_window == this; }
@@ -235,7 +236,7 @@ void Window::Close() {
 
 void Window::UnfocusAllWindows() {
   if (focused_window) focused_window->Unfocus();
-  GetService<KeyboardDevice>().SetKeyboardListener({}, {});
+  GetService<KeyboardDevice>().SetKeyboardListener({}, nullptr);
 }
 
 std::string_view Window::GetTitle() const { return title_; }
@@ -339,7 +340,7 @@ bool Window::MouseEvent(const Point& point,
   if (!hit_area.Contains(point)) {
     // Not even in the hit area.
     if (IsHovering()) {
-      if (mouse_listener_) mouse_listener_.MouseLeave({});
+      if (mouse_listener_) mouse_listener_.MouseLeave(nullptr);
       hovering_window = nullptr;
     }
     if (hovered_window_button_) {
@@ -386,7 +387,7 @@ bool Window::MouseEvent(const Point& point,
   if (screen_area.Contains(point)) {
     if (!IsHovering()) {
       hovering_window = this;
-      if (mouse_listener_) mouse_listener_.MouseEnter({});
+      if (mouse_listener_) mouse_listener_.MouseEnter(nullptr);
     }
 
     std::optional<WindowButton> hovered_window_button;
@@ -414,18 +415,18 @@ bool Window::MouseEvent(const Point& point,
       message.position.y = local_point.y;
       message.button.button = button_event->button;
       message.button.is_pressed_down = button_event->is_pressed_down;
-      if (mouse_listener_) mouse_listener_.MouseClick(message, {});
+      if (mouse_listener_) mouse_listener_.MouseClick(message, nullptr);
     } else {
       // Hover event.
       MousePositionEvent message;
       message.x = local_point.x;
       message.y = local_point.y;
-      if (mouse_listener_) mouse_listener_.MouseHover(message, {});
+      if (mouse_listener_) mouse_listener_.MouseHover(message, nullptr);
     }
 
   } else {
     if (IsHovering()) {
-      if (mouse_listener_) mouse_listener_.MouseLeave({});
+      if (mouse_listener_) mouse_listener_.MouseLeave(nullptr);
       hovering_window = nullptr;
     }
     if (hovered_window_button_) {
@@ -553,11 +554,12 @@ void Window::CommonInit() {
   is_visible_ = false;
 
   auto screen_size = GetScreenSize();
-  screen_area_.size = {
-      .width = screen_area_.size.width >= 1.0f ? screen_area_.size.width
-                                               : (screen_size.width * 0.75f),
-      .height = screen_area_.size.height >= 1.0f ? screen_area_.size.height
-                                                : (screen_size.height * 0.75f)};
+  screen_area_.size = {.width = screen_area_.size.width >= 1.0f
+                                    ? screen_area_.size.width
+                                    : (screen_size.width * 0.75f),
+                       .height = screen_area_.size.height >= 1.0f
+                                     ? screen_area_.size.height
+                                     : (screen_size.height * 0.75f)};
 
   // Center the new window in the middle of the screen.
   auto size_delta = screen_size - screen_area_.size;
@@ -611,7 +613,8 @@ void Window::Hide() {
 
 void Window::Resized() {
   if (!window_listener_already_disappeared_)
-    window_listener_.SetSize({screen_area_.Width(), screen_area_.Height()}, {});
+    window_listener_.SetSize({screen_area_.Width(), screen_area_.Height()},
+                             nullptr);
 }
 
 void Window::Unfocus() {
@@ -621,7 +624,8 @@ void Window::Unfocus() {
   if (IsDragging()) StopDragging();
   if (IsHovering()) hovering_window = nullptr;
 
-  if (!window_listener_already_disappeared_) window_listener_.LostFocus({});
+  if (!window_listener_already_disappeared_)
+    window_listener_.LostFocus(nullptr);
 }
 
 bool Window::IsDragging() const { return dragging_window == this; }

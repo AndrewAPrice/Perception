@@ -112,8 +112,9 @@ class MyMouseListener : public MouseListener::Server {
 
       // Test if any of the dialogs (from front to back) can handle this
       // click.
-      (void)Window::ForEachFrontToBackWindow(
-          [](Window& window) { return window.MouseEvent(mouse_position, {}); });
+      (void)Window::ForEachFrontToBackWindow([](Window& window) {
+        return window.MouseEvent(mouse_position, std::nullopt);
+      });
     }
 
     return Status::OK;
