@@ -41,6 +41,8 @@ std::set<ProcessId> processes_monitoring_for_death;
 
 std::mutex mutex_for_processes_monitoring_for_death;
 
+constexpr int kYieldAttemptsBeforeGettingNewMemory = 10000;
+
 void OnProcessDied(ProcessId process_id) {
   {
     std::scoped_lock lock(mutex_for_processes_monitoring_for_death);
@@ -73,6 +75,19 @@ bool IsProcessStillAlive(ProcessId process_id) {
   return processes_monitoring_for_death.contains(process_id);
 }
 
+// Creates a memory buffer for sending data to a process. The caller should lock
+// `mutex_for_shared_memory_for_sending_to_processes` before calling.
+std::shared_ptr<SharedMemory> CreateNewMemoryBufferToSendToProcess(
+    ProcessId process_id) {
+  // Create new shared memory block.
+  std::shared_ptr<SharedMemory> shared_memory =
+      SharedMemory::FromSize(1, SharedMemory::kJoinersCanWrite);
+  shared_memory_for_sending_to_processes[process_id] = shared_memory;
+  // Set first bit to be in use.
+  *(unsigned char*)**shared_memory = 1;
+  return shared_memory;
+}
+
 }  // namespace
 
 std::shared_ptr<SharedMemory> GetMemoryBufferForSendingToProcess(
@@ -83,20 +98,14 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForSendingToProcess(
     std::scoped_lock lock(mutex_for_shared_memory_for_sending_to_processes);
     auto itr = shared_memory_for_sending_to_processes.find(process_id);
     if (itr == shared_memory_for_sending_to_processes.end()) {
-      // Create new shared memory block.
-      shared_memory = SharedMemory::FromSize(1, SharedMemory::kJoinersCanWrite);
-      shared_memory_for_sending_to_processes[process_id] = shared_memory;
-      // Clear start of shared memory.
-      *(unsigned char*)**shared_memory = 0;
-      new_memory_created = true;
+      MonitorForWhenProcessDies(process_id);
+      return CreateNewMemoryBufferToSendToProcess(process_id);
     } else {
       shared_memory = itr->second;
     }
   }
 
-  if (new_memory_created) {
-    MonitorForWhenProcessDies(process_id);
-  }
+  int attempts = 0;
 
   while (true) {
     bool success = false;
@@ -116,6 +125,15 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForSendingToProcess(
     // be looping.
     if (!IsProcessStillAlive(process_id)) break;
     Yield();
+
+    attempts++;
+    if (attempts >= kYieldAttemptsBeforeGettingNewMemory) {
+      std::cout << "Reached attempt limit for recycling RPC memory. Creating "
+                   "new memory block."
+                << std::endl;
+      std::scoped_lock lock(mutex_for_shared_memory_for_sending_to_processes);
+      return CreateNewMemoryBufferToSendToProcess(process_id);
+    }
   }
   return shared_memory;
 }
