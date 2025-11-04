@@ -44,7 +44,7 @@ void LoadAllRemainingDrivers() {
 
     LoadApplicationRequest request;
     request.name = driver_name;
-    GetService<Loader>().LaunchApplication(request, {});
+    GetService<Loader>().LaunchApplication(request, nullptr);
   }
   drivers_to_load.clear();
 }
