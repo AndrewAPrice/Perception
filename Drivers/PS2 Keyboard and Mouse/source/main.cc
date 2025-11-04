@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include <iostream>
 
 #include "perception/devices/keyboard_device.h"
 #include "perception/devices/keyboard_listener.h"
@@ -53,32 +54,39 @@ constexpr size_t kTimeout = 100000;
 constexpr uint8 kSystemKeyDown = 1;
 constexpr uint8 kSystemKeyUp = 129;
 
+enum class MousePacketState { kAwaitingByte1, kAwaitingByte2, kAwaitingByte3 };
+
 class PS2MouseDevice : public MouseDevice::Server {
  public:
   PS2MouseDevice()
-      : mouse_bytes_received_(0), last_button_state_{false, false, false} {}
+      : packet_state_(MousePacketState::kAwaitingByte1),
+        last_button_state_{false, false, false} {}
 
   virtual ~PS2MouseDevice() {
     if (mouse_captor_) {
       // Tell the captor the mouse was let go.
-      mouse_captor_->MouseReleased();
+      mouse_captor_->MouseReleased(nullptr);
     }
   }
 
   void HandleMouseInterrupt(uint8 val) {
-    if (mouse_bytes_received_ == 2) {
-      // Process the message now that all 3 bytes have been received.
-      ProcessMouseMessage(mouse_byte_buffer_[0], mouse_byte_buffer_[1], val);
-
-      // Reset the cycle.
-      mouse_bytes_received_ = 0;
-    } else {
-      // Read one of the first 2 bytes.
-      mouse_byte_buffer_[mouse_bytes_received_] = val;
-
-      // The first byte should always have bit 3 set.
-      if (mouse_bytes_received_ != 0 || (mouse_byte_buffer_[0] & (1 << 3)))
-        mouse_bytes_received_++;
+    switch (packet_state_) {
+      case MousePacketState::kAwaitingByte1:
+        // The first byte must have bit 3 set. If not, we're out of sync.
+        // Stay in this state and ignore the byte.
+        if ((val & (1 << 3)) == 0) return;
+        mouse_byte_buffer_[0] = val;
+        packet_state_ = MousePacketState::kAwaitingByte2;
+        break;
+      case MousePacketState::kAwaitingByte2:
+        mouse_byte_buffer_[1] = val;
+        packet_state_ = MousePacketState::kAwaitingByte3;
+        break;
+      case MousePacketState::kAwaitingByte3:
+        // We have all 3 bytes, process the packet.
+        ProcessMouseMessage(mouse_byte_buffer_[0], mouse_byte_buffer_[1], val);
+        packet_state_ = MousePacketState::kAwaitingByte1;
+        break;
     }
   }
 
@@ -86,12 +94,12 @@ class PS2MouseDevice : public MouseDevice::Server {
       const MouseListener::Client& listener) override {
     if (mouse_captor_) {
       // Let the old captor know the mouse has escaped.
-      mouse_captor_->MouseReleased();
+      mouse_captor_->MouseReleased(nullptr);
     }
     if (listener.IsValid()) {
       mouse_captor_ = std::make_unique<MouseListener::Client>(listener);
       // Let our captor know they have taken the mouse captive.
-      mouse_captor_->MouseTakenCaptive();
+      mouse_captor_->MouseTakenCaptive(nullptr);
     } else {
       mouse_captor_.reset();
     }
@@ -101,7 +109,7 @@ class PS2MouseDevice : public MouseDevice::Server {
  private:
   // Messages from the mouse come in 3 bytes. Buffer these until there are
   // enough bytes to process the message.
-  uint8 mouse_bytes_received_;
+  MousePacketState packet_state_;
   uint8 mouse_byte_buffer_[2];
 
   // The last known state of the mouse buttons.
@@ -112,21 +120,31 @@ class PS2MouseDevice : public MouseDevice::Server {
 
   // Processes the mouse message.
   void ProcessMouseMessage(uint8 status, uint8 offset_x, uint8 offset_y) {
-    // Read if the mouse has moved.
-    int16 delta_x = (int16)offset_x - (((int16)status << 4) & 0x100);
-    int16 delta_y = -(int16)offset_y + (((int16)status << 3) & 0x100);
+    int16 delta_x = 0;
+    if (status & (1 << 6)) {
+      std::cout << "X overflowed!" << std::endl;
+    } else {
+      delta_x = (int16)offset_x - (((int16)status << 4) & 0x100);
+    }
 
-    // Read the left, middle, right buttons.
-    bool buttons[3] = {(status & (1)) == 1, (status & (1 << 2)) == 4,
-                       (status & (1 << 1)) == 2};
+    int16 delta_y = 0;
+    if (status & (1 << 7)) {
+      std::cout << "Y overflowed!" << std::endl;
+    } else {
+      delta_y = -(int16)offset_y + (((int16)status << 3) & 0x100);
+    }
 
     if ((delta_x != 0 || delta_y != 0) && mouse_captor_) {
       // Send our captor a message that the mouse has moved.
       RelativeMousePositionEvent message;
       message.delta_x = static_cast<float>(delta_x);
       message.delta_y = static_cast<float>(delta_y);
-      mouse_captor_->MouseMove(message);
+      mouse_captor_->MouseMove(message, nullptr);
     }
+
+    // Read the left, middle, right buttons.
+    bool buttons[3] = {(status & (1)) == 1, (status & (1 << 2)) == 4,
+                       (status & (1 << 1)) == 2};
 
     for (int button_index : {0, 1, 2}) {
       if (buttons[button_index] != last_button_state_[button_index]) {
@@ -146,7 +164,7 @@ class PS2MouseDevice : public MouseDevice::Server {
               break;
           }
           message.is_pressed_down = buttons[button_index];
-          mouse_captor_->MouseButton(message);
+          mouse_captor_->MouseButton(message, nullptr);
         }
       }
     }
@@ -160,7 +178,7 @@ class PS2KeyboardDevice : public KeyboardDevice::Server {
   virtual ~PS2KeyboardDevice() {
     if (keyboard_captor_) {
       // Tell the captor that the keyboard has to be released.
-      keyboard_captor_->KeyboardReleased();
+      keyboard_captor_->KeyboardReleased(nullptr);
     }
   }
 
@@ -168,7 +186,7 @@ class PS2KeyboardDevice : public KeyboardDevice::Server {
     if (val == kSystemKeyDown) {
       // The system key was pressed. Notify the window manager.
       auto window_manager = FindFirstInstanceOfService<WindowManager>();
-      if (window_manager) window_manager->SystemButtonPushed({});
+      if (window_manager) window_manager->SystemButtonPushed(nullptr);
       return;
     } else if (val == kSystemKeyUp) {
       // Ignore releasing the system key.
@@ -184,12 +202,12 @@ class PS2KeyboardDevice : public KeyboardDevice::Server {
       // Send our captor a message that the key was pressed down.
       KeyboardEvent message;
       message.key = key;
-      keyboard_captor_->KeyDown(message);
+      keyboard_captor_->KeyDown(message, nullptr);
     } else {
       // Send our captor a message that the key was released.
       KeyboardEvent message;
       message.key = key;
-      keyboard_captor_->KeyUp(message);
+      keyboard_captor_->KeyUp(message, nullptr);
     }
   }
 
@@ -197,12 +215,12 @@ class PS2KeyboardDevice : public KeyboardDevice::Server {
       const KeyboardListener::Client& listener) override {
     if (keyboard_captor_) {
       // Let the old captor know the keyboard has escaped.
-      keyboard_captor_->KeyboardReleased();
+      keyboard_captor_->KeyboardReleased(nullptr);
     }
     if (listener.IsValid()) {
       keyboard_captor_ = std::make_unique<KeyboardListener::Client>(listener);
       // Let our captor know they have taken the keybord captive.
-      keyboard_captor_->KeyboardTakenCaptive();
+      keyboard_captor_->KeyboardTakenCaptive(nullptr);
     } else {
       keyboard_captor_.reset();
     }
@@ -211,7 +229,7 @@ class PS2KeyboardDevice : public KeyboardDevice::Server {
 
  private:
   // The service to send keyboard events to.
-  std::unique_ptr<KeyboardListener> keyboard_captor_;
+  std::unique_ptr<KeyboardListener::Client> keyboard_captor_;
 };
 
 // Global instance of the mouse device.
