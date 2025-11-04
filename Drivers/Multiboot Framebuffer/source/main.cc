@@ -520,7 +520,6 @@ class FramebufferGraphicsDevice : GraphicsDevice::Server {
       case 32:
         bytes_per_pixel = 4;
         break;
-        break;
     }
 
     uint8* destination_copy_start =
@@ -653,14 +652,15 @@ class FramebufferGraphicsDevice : GraphicsDevice::Server {
                       screen_width_, screen_height_, screen_pitch_,
                       /*destination_bpp=*/16, color,
                       /*alpha_blend=*/false);
-      }
-      if (screen_bits_per_pixel_ == 15) {
+      } else if (screen_bits_per_pixel_ == 15) {
         FillRectangle(left, right, top, bottom, (uint8*)framebuffer_,
                       screen_width_, screen_height_, screen_pitch_,
                       /*destination_bpp=*/15, color,
                       /*alpha_blend=*/false);
       } else {
         // Unsupported bits per pixel for the screen.
+        std::cout << "Unsupported screen bits per pixel: "
+                  << (int)screen_bits_per_pixel_ << std::endl;
       }
     } else {
       // Filling another texture.
