@@ -124,7 +124,7 @@ class PerceptionWindow : public Window,
   }
 
   void StartDragging() override {
-    GetService<WindowManager>().StartDraggingWindow(*this, {});
+    GetService<WindowManager>().StartDraggingWindow(*this, nullptr);
   }
 
   void Present() override {
@@ -164,7 +164,7 @@ class PerceptionWindow : public Window,
     message.top = invalidated_area.min_y;
     message.right = invalidated_area.max_x;
     message.bottom = invalidated_area.max_y;
-    GetService<WindowManager>().InvalidateWindow(message, {});
+    GetService<WindowManager>().InvalidateWindow(message, nullptr);
   }
 
   /// MouseListener::Server
