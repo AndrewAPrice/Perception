@@ -57,7 +57,6 @@ struct QuadRectangle
 
   // Makes this rectangle a sub-rectangle of the other.
   void SubRectangleOf(const QuadRectangle& other) {
-    stage = other.stage;
     z_index = other.z_index;
     color = other.color;
     texture_id = other.texture_id;
@@ -94,10 +93,10 @@ class CompositorQuadTree : public ::perception::ui::QuadTree<QuadRectangle> {
   // the foreground. Make sure that the Rectangles at least overlap before
   // calling this.
   void CreateSubRectanglesForEachBackgroundPartThatPokesOut(
-      QuadRectangle* background, QuadRectangle* foreground);
+      const QuadRectangle& background, const QuadRectangle& foreground);
 
   // Creates a subrectangle that's part of the background.
-  void CreateSubRectangle(QuadRectangle& background,
+  void CreateSubRectangle(const QuadRectangle& background,
                           const ::perception::ui::Rectangle& bounds,
                           QuadRectangleStage stage);
 

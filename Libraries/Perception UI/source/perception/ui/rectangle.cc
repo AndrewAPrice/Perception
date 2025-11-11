@@ -41,13 +41,15 @@ float Rectangle::Height() const { return size.height; }
 Point Rectangle::Min() const { return origin; }
 Point Rectangle::Max() const { return {.x = MaxX(), .y = MaxY()}; }
 
-Rectangle Rectangle::Intersection(const Rectangle& other) const {
+std::optional<Rectangle> Rectangle::Intersection(const Rectangle& other) const {
+  if (!Intersects(other)) return std::nullopt;
+
   Point min = {.x = std::max(MinX(), other.MinX()),
                .y = std::max(MinY(), other.MinY())};
   Point max = {.x = std::min(MaxX(), other.MaxX()),
                .y = std::min(MaxY(), other.MaxY())};
-  Size size = (max - min).ToSize();
-  return {.origin = min, .size = size};
+
+  return FromMinMaxPoints(min, max);
 }
 
 Rectangle Rectangle::Union(const Rectangle& other) const {

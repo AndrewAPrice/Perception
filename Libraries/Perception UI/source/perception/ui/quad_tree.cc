@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,40 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "perception/object_pool.h"
+#include "perception/ui/quadtree.h"
 
 namespace perception {
 namespace ui {
+namespace internal {
 
-struct Size;
+ObjectPool<QuadTreeNode> quad_tree_node_pool;
 
-struct Point {
-  union {
-    struct {
-      float x;
-      float y;
-    };
-    float dimensions[2];
-  };
-
-  bool operator==(const Point& other) const;
-
-  Point operator+(const Point& other) const;
-
-  Point& operator+=(const Point& other);
-
-  Point operator-(const Point& other) const;
-
-  Point& operator-=(const Point& other);
-
-  Size ToSize() const;
-
-  Point Rounded() const;
-
-  float& operator[](int index);
-
-  const float& operator[](int index) const;
-};
-
+}  // namespace internal
 }  // namespace ui
 }  // namespace perception

@@ -15,6 +15,7 @@
 #pragma once
 
 #include <algorithm>
+#include <optional>
 
 #include "perception/ui/point.h"
 #include "perception/ui/size.h"
@@ -44,7 +45,7 @@ struct Rectangle {
   // rectangle and another rectangle. Check that the rectangles overlap with
   // `Contains` first, otherwise a rectangle may be returned with a negative
   // size.
-  Rectangle Intersection(const Rectangle& other) const;
+  std::optional<Rectangle> Intersection(const Rectangle& other) const;
 
   // Returns a rectangle that is big enough to contain both this rectangle and
   // another rectangle.

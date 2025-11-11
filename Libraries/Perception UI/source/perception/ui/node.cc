@@ -94,13 +94,16 @@ void Node::Draw(DrawContext& draw_context) {
 
   bool clip_children = GetLayout().GetOverflow() != YGOverflowVisible;
   if (clip_children) {
-    Rectangle old_clipping_bounds = draw_context.clipping_bounds;
-    draw_context.clipping_bounds =
+    auto intersecting_clipping_bounds =
         draw_context.clipping_bounds.Intersection(draw_context.area);
+    if (intersecting_clipping_bounds) {
+      Rectangle old_clipping_bounds = draw_context.clipping_bounds;
+      draw_context.clipping_bounds = *intersecting_clipping_bounds;
 
-    DrawChildren(draw_context);
+      DrawChildren(draw_context);
 
-    draw_context.clipping_bounds = old_clipping_bounds;
+      draw_context.clipping_bounds = old_clipping_bounds;
+    }
   } else {
     DrawChildren(draw_context);
   }

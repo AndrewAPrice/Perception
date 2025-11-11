@@ -138,7 +138,9 @@ void DrawScreen() {
   has_invalidated_area = false;
 
   Rectangle screen_rectangle{.origin = {0, 0}, .size = GetScreenSize()};
-  Rectangle draw_area = invalidated_area.Intersection(screen_rectangle);
+  auto opt_draw_area = invalidated_area.Intersection(screen_rectangle);
+  if (!opt_draw_area) return;
+  Rectangle& draw_area = *opt_draw_area;
 
   if (draw_area.Width() <= 0 || draw_area.Height() <= 0) return;
 

@@ -59,5 +59,6 @@ void DrawHighlighter(const Rectangle& draw_area) {
   }
 
   auto drawing_intersection = draw_area.Intersection(highlighter_area);
-  DrawAlphaBlendedColor(drawing_intersection, HIGHLIGHTER_TINT);
+  if (drawing_intersection)
+    DrawAlphaBlendedColor(*drawing_intersection, HIGHLIGHTER_TINT);
 }

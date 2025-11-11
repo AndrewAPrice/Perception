@@ -120,17 +120,17 @@ bool CanUseWindowListenerForNewWindow(BaseWindow::Client window_listener) {
 void DrawWindowFramePart(const Rectangle& screen_area,
                          const Rectangle& frame_area, uint32 color) {
   auto area_to_fill = screen_area.Intersection(frame_area);
-  if (area_to_fill.size.height <= 0 || area_to_fill.size.width <= 0) return;
+  if (!area_to_fill) return;
 
-  DrawOpaqueColor(area_to_fill, color);
+  DrawOpaqueColor(*area_to_fill, color);
 }
 
 void DrawAlphaWindowFramePart(const Rectangle& screen_area,
                               const Rectangle& frame_area, uint32 color) {
   auto area_to_fill = screen_area.Intersection(frame_area);
-  if (area_to_fill.size.height <= 0 || area_to_fill.size.width <= 0) return;
+  if (!area_to_fill) return;
 
-  DrawAlphaBlendedColor(area_to_fill, color);
+  DrawAlphaBlendedColor(*area_to_fill, color);
 }
 
 void StopDragging() {
@@ -484,20 +484,19 @@ void Window::Draw(const Rectangle& screen_area) {
   DrawAlphaWindowFramePart(screen_area, right_frame, WINDOW_SHADOW_2);
   // Draw the contents of the window.
   auto intersection = bounds.Intersection(screen_area);
-  if (intersection.size.width >= 1 && intersection.size.height >= 1) {
-    CopyOpaqueTexture(intersection, texture_id_,
-                      intersection.origin - bounds.origin);
+  if (intersection) {
+    CopyOpaqueTexture(*intersection, texture_id_,
+                      intersection->origin - bounds.origin);
   }
 
   if (AreWindowButtonsVisible()) {
     auto button_screen_area = WindowButtonScreenArea();
     auto button_intersection = button_screen_area.Intersection(screen_area);
-    if (button_intersection.size.width >= 1 &&
-        button_intersection.size.height >= 1) {
+    if (button_intersection) {
       Point window_button_texture_offset =
           WindowButtonTextureOffset(is_resizable_, hovered_window_button_);
-      CopyAlphaBlendedTexture(button_intersection, WindowButtonsTextureId(),
-                              button_intersection.origin -
+      CopyAlphaBlendedTexture(*button_intersection, WindowButtonsTextureId(),
+                              button_intersection->origin -
                                   button_screen_area.origin +
                                   window_button_texture_offset);
     }
@@ -509,13 +508,11 @@ void Window::Invalidate() { return Invalidate(GetScreenAreaWithFrame()); }
 void Window::Invalidate(const Rectangle& screen_area) {
   if (!IsVisible()) return Show();
 
-  Rectangle screen_area_to_invalidate =
+  auto screen_area_to_invalidate =
       screen_area.Intersection(GetScreenAreaWithFrame());
-  if (screen_area_to_invalidate.Height() <= 0 ||
-      screen_area_to_invalidate.Width() <= 0)
-    return;
+  if (!screen_area_to_invalidate) return;
 
-  InvalidateScreen(screen_area_to_invalidate);
+  InvalidateScreen(*screen_area_to_invalidate);
 }
 
 void Window::InvalidateLocalArea(const Rectangle& window_area) {

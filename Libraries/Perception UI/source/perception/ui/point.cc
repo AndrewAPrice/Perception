@@ -14,6 +14,8 @@
 
 #include "perception/ui/point.h"
 
+#include <cmath>
+
 #include "perception/ui/size.h"
 
 namespace perception {
@@ -44,6 +46,8 @@ Point& Point::operator-=(const Point& other) {
 }
 
 Size Point::ToSize() const { return {.width = x, .height = y}; }
+
+Point Point::Rounded() const { return {std::round(x), std::round(y)}; }
 
 float& Point::operator[](int index) { return dimensions[index]; }
 
