@@ -1,9 +1,0 @@
-* Drag windows just not outlines.
-* Random mouse freezing
-
-* allow shared messages to be mapped multiple times, but can't be resized if more than 1 instance
-* serialize bit fields
-* emplace parameters
-* serialize subfunctions (for base classes)
-
-There's a hack in __stdio_read.c because the driver can't read odd offsets correctly, and this messes up window_buttons.cc.
