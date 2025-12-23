@@ -55,7 +55,7 @@ StatusOr<CreateWindowResponse> WindowManager::CreateWindow(
 }
 
 Status WindowManager::CloseWindow(const BaseWindow::Client& window,
-                                  ::perception::ProcessId sender) {
+                                  ::perception::ProcessId /*sender*/) {
   std::cout << "Implement WindowManager::HandleCloseWindow" << std::endl;
   return Status::UNIMPLEMENTED;
 }
