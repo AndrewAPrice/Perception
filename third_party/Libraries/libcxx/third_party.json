@@ -55,10 +55,17 @@
                 "source/support/win32/thread_win32.cpp"
             ],
             "replace": [{
-                "file": "source/tz.cpp",
+                "file": "source/experimental/tzdb.cpp",
                 "replacements": [[
                     "#if defined(__linux__)\n  return \"/usr/share/zoneinfo/\";",
                     "#if PERCEPTION\n  return \"/Libraries/Fonts/assets/libcxx/\";\n#elif defined(__linux__)\n  return \"/usr/share/zoneinfo/\";"]]
+                }, {
+                "file": "source/random.cpp",
+                "replacements": [
+                    ["#include <stdlib.h>", "#include <stdlib.h>\n\n#include \"perception/random.h\""],
+                    ["_LIBCPP_USING_ARC4_RANDOM", "PERCEPTION"],
+                    ["arc4random()", "perception::RandomNumber()"]
+                ]
             }]
         },
         {
@@ -72,6 +79,35 @@
             "source": "${git}/libcxxabi/src",
             "destination": "source",
             "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libc/hdr",
+            "destination": "source/hdr",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libc/shared",
+            "destination": "source/shared",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libc/src/__support",
+            "destination": "source/src/__support",
+            "extensions": [".h"],
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libc/include/llvm-libc-macros",
+            "destination": "source/include/llvm-libc-macros"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libc/include/llvm-libc-types",
+            "destination": "source/include/llvm-libc-types"
         },
         {
             "operation": "copy",

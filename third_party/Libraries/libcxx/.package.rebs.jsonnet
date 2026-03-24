@@ -13,7 +13,8 @@
     'source',
   ],
   files_to_ignore: [
-    'source/cxa_noexception.cpp'
+    'source/cxa_noexception.cpp',
+    'source/vendor/apple/shims.cpp'
   ],
   include_priority: 1,
   defines+: [
@@ -24,10 +25,18 @@
   ],
   public_defines: [
     '_LIBCPP_HAS_THREAD_API_C11',
+    '_LIBCPP_HAS_THREADS',
+    '_LIBCPP_HAS_MONOTONIC_CLOCK',
+    '_LIBCPP_PSTL_BACKEND_STD_THREAD',
     'LIBCXXRT',
+    '_LIBCPP_HAS_RANDOM_DEVICE',
+    '_LIBCPP_HAS_LOCALIZATION',
+    '_LIBCPP_HAS_TIME_ZONE_DATABASE',
+    '_LIBCPP_HAS_FILESYSTEM',
     '_LIBCPP_HAS_THREAD_API_PTHREAD',
     '_LIBCPP_HARDENING_MODE=2',
-    '_LIBCPP_PSTL_CPU_BACKEND_THREAD',
+    '_LIBCPP_ASSERTION_SEMANTIC_DEFAULT=4',
     '_LIBCPP_HAS_MUSL_LIBC',
+    'LIBC_NAMESPACE=__llvm_libc'
   ],
 }
