@@ -44,7 +44,11 @@
         {
             "operation": "copy",
             "source": "${git}/include/encode",
-            "destination": "public/include/encode"
+            "destination": "public/include/encode",
+            "exclude": [
+                "source/src/encode/SkPngRustEncoderImpl.cpp",
+                "source/src/encode/SkPngRustEncoderImpl.h"
+            ]
         },
         {
             "operation": "copy",
@@ -58,13 +62,23 @@
         },
         {
             "operation": "copy",
-            "source": "${git}/include/gpu/gl",
-            "destination": "public/include/gpu/gl"
+            "source": "${git}/include/gpu/ganesh/mock",
+            "destination": "public/include/gpu/ganesh/mock"
         },
         {
             "operation": "copy",
-            "source": "${git}/include/gpu/mock",
-            "destination": "public/include/gpu/mock"
+            "source": "${git}/include/gpu/graphite",
+            "destination": "public/include/gpu/graphite"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/gpu/mtl",
+            "destination": "public/include/gpu/mtl"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/gpu/vk",
+            "destination": "public/include/gpu/vk"
         },
         {
             "operation": "copy",
@@ -120,12 +134,18 @@
             "operation": "copy",
             "source": "${git}/src/base",
             "destination": "source/src/base",
-            "extensions": [".cpp"]
+            "extensions": [".cpp", ".h"]
         },
         {
             "operation": "copy",
             "source": "${git}/src/base",
             "destination": "public/src/base",
+            "extensions": [".h"]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/capture",
+            "destination": "public/src/capture",
             "extensions": [".h"]
         },
         {
@@ -144,7 +164,16 @@
                 "source/src/codec/SkAvifCodec.cpp",
                 "source/src/codec/SkAvifCodec.h",
                 "source/src/codec/SkJpegxlCodec.cpp",
-                "source/src/codec/SkJpegxlCodec.h"
+                "source/src/codec/SkJpegxlCodec.h",
+                "source/src/codec/SkPngRustCodec.cpp",
+                "source/src/codec/SkPngCodec.cpp",
+                "source/src/codec/SkPngCodec.cpp.h",
+                "source/src/codec/SkPngRustDecoder.cpp",
+                "source/src/codec/SkPngRustCodec.h",
+                "source/src/codec/SkCodecColorProfileRust.cpp",
+                "source/src/codec/SkCodecColorProfileRust.h",
+                "source/src/codec/SkCrabbyAvifCodec.cpp",
+                "source/src/codec/SkCrabbyAvifCodec.h"
             ],
             "replace": [{
                 "file": "source/src/codec/SkJpegSourceMgr.h",
@@ -197,13 +226,11 @@
                 "source/src/encode/SkJpegEncoder_none.cpp",
                 "source/src/encode/SkPngEncoderImpl.cpp",
                 "source/src/encode/SkPngEncoderImpl.h",
-                "source/src/encode/SkWebpEncoderImpl.cpp"
+                "source/src/encode/SkWebpEncoderImpl.cpp",
+                "source/src/encode/SkPngRustEncoderImpl.cpp",
+                "source/src/encode/SkPngRustEncoderImpl.h",
+                "source/src/encode/SkPngRustEncoder.cpp"
             ]
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/src/fonts",
-            "destination": "source/src/fonts"
         },
         {
             "operation": "copy",
@@ -298,7 +325,10 @@
         {
             "operation": "copy",
             "source": "${git}/src/pdf",
-            "destination": "source/src/pdf"
+            "destination": "source/src/pdf",
+            "exclude": [
+                "source/src/pdf/SkDocument_PDF_None.cpp"
+            ]
         },
         {
             "operation": "copy",
@@ -312,11 +342,13 @@
                 "source/src/ports/SkFontMgr_android_factory.cpp",
                 "source/src/ports/SkFontMgr_android_parser.cpp",
                 "source/src/ports/SkFontMgr_android_parser.h",
+                "source/src/ports/SkFontMgr_android_ndk.cpp",
                 "source/src/ports/SkFontMgr_custom_directory_factory.cpp",
                 "source/src/ports/SkFontMgr_custom_embedded.cpp",
                 "source/src/ports/SkFontMgr_custom_embedded_factory.cpp",
                 "source/src/ports/SkFontMgr_custom_empty.cpp",
                 "source/src/ports/SkFontMgr_custom_empty_factory.cpp",
+                "source/src/ports/SkFontMgr_fontations_empty.cpp",
                 "source/src/ports/SkFontMgr_fuchsia.cpp",
                 "source/src/ports/SkFontMgr_fuchsia.cpp",
                 "source/src/ports/SkFontMgr_mac_ct.cpp",
@@ -328,6 +360,8 @@
                 "source/src/ports/SkFontConfigInterface_direct_factory.cpp",
                 "source/src/ports/skFontMgr_fontconfig.cpp",
                 "source/src/ports/skFontMgr_fontconfig_factory.cpp",
+                "source/src/ports/SkFontScanner_fontations_priv.h",
+                "source/src/ports/SkFontScanner_fontations.cpp",
                 "source/src/ports/SkImageEncoder_CG.cpp",
                 "source/src/ports/SkImageEncoder_NDK.cpp",
                 "source/src/ports/SkImageEncoder_WIC.cpp",
@@ -374,7 +408,10 @@
         {
             "operation": "copy",
             "source": "${git}/src/sksl",
-            "destination": "source/src/sksl"
+            "destination": "source/src/sksl",
+            "exclude": [
+                "source/src/sksl/SkSLModuleDataFile.cpp"
+            ]
         },
         {
             "operation": "copy",
@@ -384,7 +421,12 @@
         {
             "operation": "copy",
             "source": "${git}/src/sksl/codegen",
-            "destination": "source/src/sksl/codegen"
+            "destination": "source/src/sksl/codegen",
+            "exclude": [
+                "source/src/sksl/codegen/SkSLWGSLValidator.cpp",
+                "source/src/sksl/codegen/SkSLSPIRVValidator.cpp",
+                "source/src/sksl/codegen/SkSLSPIRVtoHLSL.cpp"
+            ]
         },
         {
             "operation": "copy",
@@ -429,7 +471,12 @@
         {
             "operation": "copy",
             "source": "${git}/src/utils",
-            "destination": "source/src/utils"
+            "destination": "source/src/utils",
+            "exclude": [
+                "source/src/utils/SkGetExecutablePath_win.cpp",
+                "source/src/utils/SkGetExecutablePath_linux.cpp",
+                "source/src/utils/SkGetExecutablePath_mac.cpp"
+            ]
         },
         {
             "operation": "copy",
@@ -578,8 +625,13 @@
             "destination": "source/modules/skunicode/src",
             "exclude": [
                 "source/modules/skunicode/src/SkUnicode_icu4x.cpp",
-                "source/modules/skunicode/src/SkUnicode_libgrapheme.cpp"
-            ]
+                "source/modules/skunicode/src/SkUnicode_libgrapheme.cpp",
+                "source/modules/skunicode/src/SkUnicode_icu_runtime.cpp"
+            ],
+            "replace": [{
+                "file": "source/modules/skunicode/src/SkBidiFactory_icu_subset.cpp",
+                "replacements" : [["_skia", ""]]
+            }]
         },
         {
             "operation": "copy",
