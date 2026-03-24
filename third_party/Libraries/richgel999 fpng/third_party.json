@@ -12,14 +12,15 @@
             "source": "${git}/src",
             "destination": "source",
             "exclude": [
-                "source/fpng.h",
                 "source/fpng_test.cpp"
-            ]
+            ],
+            "extensions": [".cpp"]
         },
         {
             "operation": "copy",
-            "source": "${git}/src/fpng.h",
-            "destination": "public/fpng.h"
+            "source": "${git}/src/",
+            "destination": "public",
+            "extensions": [".h"]
         }
     ]
 }
