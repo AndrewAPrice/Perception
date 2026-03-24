@@ -163,11 +163,12 @@ Gdt64Ready:
 
 	; Point our data segments to the data segment.
 	mov rax, 0x10
-    mov ss, ax
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
+	mov ss, ax
+	mov ds, ax
+	mov es, ax
+	mov ax, 0x18 | 3 ; User data segment (DPL 3)
+	mov fs, ax
+	mov gs, ax
 
 	; Jump to the C entry point.
 	mov rax, kmain
