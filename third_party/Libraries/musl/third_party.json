@@ -1,36 +1,55 @@
 {
-    "repositories" : [
+    "repositories": [
         {
             "url": "git://git.musl-libc.org/musl",
             "type": "git",
             "placeholder": "git"
         }
     ],
-    "operations" : [
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/src/thread/x86_64",
+            "destination": "source/thread",
+            "recursive": true
+        },
         {
             "operation": "copy",
             "source": "${git}/include",
             "destination": "include",
             "recursive": true,
-            "exclude": ["include/syscall_arch.h"],
-            "replace": [{
-                "file": "include/unistd.h",
-                "replacements": [["long syscall(long, ...);'", "#ifndef syscall\nlong syscall(long, ...);\n#endif"]]
-            }]
+            "exclude": [
+                "include/syscall_arch.h"
+            ],
+            "replace": [
+                {
+                    "file": "include/unistd.h",
+                    "replacements": [
+                        [
+                            "long syscall(long, ...);'",
+                            "#ifndef syscall\nlong syscall(long, ...);\n#endif"
+                        ]
+                    ]
+                }
+            ]
         },
         {
             "operation": "copy",
             "source": "${git}/arch/generic",
             "destination": "include",
             "recursive": true,
-            "exclude": ["include/syscall_arch.h"]
+            "exclude": [
+                "include/syscall_arch.h"
+            ]
         },
         {
             "operation": "copy",
             "source": "${git}/arch/x86_64",
             "destination": "include",
             "recursive": true,
-            "exclude": ["include/syscall_arch.h"]
+            "exclude": [
+                "include/syscall_arch.h"
+            ]
         },
         {
             "operation": "copy",
@@ -79,10 +98,17 @@
             "source": "${git}/src/env",
             "destination": "source/env",
             "recursive": true,
-            "replace": [{
-                "file": "source/env/__libc_start_main.c",
-                "replacements": [["// weak_alias(libc_start_init, __libc_start_init);", "weak_alias(libc_start_init, __libc_start_init);"]]
-            }]
+            "replace": [
+                {
+                    "file": "source/env/__libc_start_main.c",
+                    "replacements": [
+                        [
+                            "// weak_alias(libc_start_init, __libc_start_init);",
+                            "weak_alias(libc_start_init, __libc_start_init);"
+                        ]
+                    ]
+                }
+            ]
         },
         {
             "operation": "copy",
@@ -116,7 +142,10 @@
             "operation": "copy",
             "source": "${git}/src/internal",
             "destination": "source/internal",
-            "recursive": true
+            "recursive": true,
+            "exclude": [
+                "${@}/source/internal/i386/defsysinfo.s"
+            ]
         },
         {
             "operation": "copy",
@@ -134,18 +163,30 @@
             "operation": "readFilesInDirectory",
             "path": "${git}/src/ldso/x86_64",
             "placeholder": "ldso-x86_64-files",
-            "extensions": [".s"],
+            "extensions": [
+                ".s"
+            ],
             "fullPath": true,
             "replacements": [
-                ["${git}/src/ldso/x86_64/", "${@}/source/ldso/"],
-                [".s", ".c"]
+                [
+                    "${git}/src/ldso/x86_64/",
+                    "${@}/source/ldso/"
+                ],
+                [
+                    ".s",
+                    ".c"
+                ]
             ]
         },
         {
             "operation": "copy",
             "source": "${git}/src/ldso",
             "destination": "source/ldso",
-            "exclude": ["${ldso-x86_64_files}"]
+            "exclude": [
+                "${ldso-x86_64_files}",
+                "${@}/source/ldso/dlsym.c",
+                "${@}/source/ldso/tlsdesc.c"
+            ]
         },
         {
             "operation": "copy",
@@ -157,7 +198,10 @@
             "operation": "copy",
             "source": "${git}/src/linux",
             "destination": "source/linux",
-            "recursive": true
+            "recursive": true,
+            "exclude": [
+                "${@}/source/linux/sysinfo.c"
+            ]
         },
         {
             "operation": "copy",
@@ -169,7 +213,14 @@
             "operation": "copy",
             "source": "${git}/src/malloc",
             "destination": "source/malloc",
-            "recursive": true
+            "recursive": true,
+            "exclude": [
+                "${@}/source/malloc/oldmalloc",
+                "${@}/source/malloc/oldmalloc/aligned_alloc.c",
+                "${@}/source/malloc/oldmalloc/malloc.c",
+                "${@}/source/malloc/oldmalloc/malloc_impl.h",
+                "${@}/source/malloc/oldmalloc/malloc_usable_size.c"
+            ]
         },
         {
             "operation": "copy",
@@ -179,11 +230,21 @@
             "replace": [
                 {
                     "file": "source/math/fma.c",
-                    "replacements": [["#include \"../fma.c\"", "#include \"fma.c.inl\""]]
+                    "replacements": [
+                        [
+                            "#include \"../fma.c\"",
+                            "#include \"fma.c.inl\""
+                        ]
+                    ]
                 },
-                { 
+                {
                     "file": "source/math/fmaf.c",
-                    "replacements": [["#include \"../fmaf.c\"", "#include \"fmaf.c.inl\""]]
+                    "replacements": [
+                        [
+                            "#include \"../fmaf.c\"",
+                            "#include \"fmaf.c.inl\""
+                        ]
+                    ]
                 }
             ]
         },
@@ -191,11 +252,19 @@
             "operation": "readFilesInDirectory",
             "path": "${git}/src/math/x86_64",
             "placeholder": "math-x86_64-files",
-            "extensions": [".s"],
+            "extensions": [
+                ".s"
+            ],
             "fullPath": true,
             "replacements": [
-                ["${git}/src/math/x86_64/", "${@}/source/math/"],
-                [".s", ".c"]
+                [
+                    "${git}/src/math/x86_64/",
+                    "${@}/source/math/"
+                ],
+                [
+                    ".s",
+                    ".c"
+                ]
             ]
         },
         {
@@ -206,7 +275,9 @@
                 "source/math/fma.c": "source/math/fma.c.inl",
                 "source/math/fmaf.c": "source/math/fmaf.c.inl"
             },
-            "exclude": ["${math-x86_64-files}"]
+            "exclude": [
+                "${math-x86_64-files}"
+            ]
         },
         {
             "operation": "copy",
@@ -224,7 +295,11 @@
             "operation": "copy",
             "source": "${git}/src/mq",
             "destination": "source/mq",
-            "recursive": true
+            "recursive": true,
+            "exclude": [
+                "${@}/source/mq/mq_setattr.c",
+                "${@}/source/mq/mq_open.c"
+            ]
         },
         {
             "operation": "copy",
@@ -260,18 +335,29 @@
             "operation": "readFilesInDirectory",
             "path": "${git}/src/process/x86_64",
             "placeholder": "process-x86_64-files",
-            "extensions": [".s"],
+            "extensions": [
+                ".s"
+            ],
             "fullPath": true,
             "replacements": [
-                ["${git}/src/process/x86_64/", "${@}/source/process/"],
-                [".s", ".c"]
+                [
+                    "${git}/src/process/x86_64/",
+                    "${@}/source/process/"
+                ],
+                [
+                    ".s",
+                    ".c"
+                ]
             ]
         },
         {
             "operation": "copy",
             "source": "${git}/src/process",
             "destination": "source/process",
-            "exclude": ["${process-x64_64_files}"]
+            "exclude": [
+                "${process-x64_64_files}",
+                "${@}/source/process/vfork.c"
+            ]
         },
         {
             "operation": "copy",
@@ -335,18 +421,28 @@
             "operation": "readFilesInDirectory",
             "path": "${git}/src/string/x86_64",
             "placeholder": "string-x86_64-files",
-            "extensions": [".s"],
+            "extensions": [
+                ".s"
+            ],
             "fullPath": true,
             "replacements": [
-                ["${git}/src/string/x86_64/", "${@}/source/string/"],
-                [".s", ".c"]
+                [
+                    "${git}/src/string/x86_64/",
+                    "${@}/source/string/"
+                ],
+                [
+                    ".s",
+                    ".c"
+                ]
             ]
         },
         {
             "operation": "copy",
             "source": "${git}/src/string",
             "destination": "source/string",
-            "exclude": ["${string-x86_64-files}"]
+            "exclude": [
+                "${string-x86_64-files}"
+            ]
         },
         {
             "operation": "copy",
@@ -364,17 +460,29 @@
             "operation": "copy",
             "source": "${git}/src/thread",
             "destination": "source/thread",
-            "exclude": ["source/thread/__set_thread_area.c"]
+            "exclude": [
+                "${@}/source/thread/__set_thread_area.c",
+                "${@}/source/thread/__unmapself.c",
+                "${@}/source/thread/clone.c",
+                "${@}/source/thread/syscall_cp.c"
+            ]
         },
         {
             "operation": "copy",
             "source": "${git}/src/time",
             "destination": "source/time",
             "recursive": true,
-            "replace": [{
-                "file": "source/time/__tz.c",
-                "replacements": [["index", "tindex"]]
-            }]
+            "replace": [
+                {
+                    "file": "source/time/__tz.c",
+                    "replacements": [
+                        [
+                            "index",
+                            "tindex"
+                        ]
+                    ]
+                }
+            ]
         },
         {
             "operation": "copy",
@@ -389,13 +497,19 @@
                 "include/bits/alltypes.h.in",
                 "include/alltypes.h.in"
             ],
-            "outputs": ["include/bits/alltypes.h"]
+            "outputs": [
+                "include/bits/alltypes.h"
+            ]
         },
         {
             "operation": "execute",
             "command": "sed -e s/__NR_/SYS_/p ${@}/include/bits/syscall.h.in > ${@}/include/bits/syscall.h",
-            "inputs": ["include/bits/syscall.h.in"],
-            "outputs": ["include/bits/syscall.h"]
+            "inputs": [
+                "include/bits/syscall.h.in"
+            ],
+            "outputs": [
+                "include/bits/syscall.h"
+            ]
         }
     ]
 }
