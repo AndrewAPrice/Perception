@@ -179,8 +179,8 @@ bool VirtualAddressSpace::InitializeUserSpace() {
   GetUserspaceVirtualMemoryHole(max_lower_half, min_higher_half,
                                 /*inclusive=*/false);
 
-  fmr->start_address = 0;
-  fmr->pages = max_lower_half / PAGE_SIZE;
+  fmr->start_address = PAGE_SIZE;
+  fmr->pages = (max_lower_half - PAGE_SIZE) / PAGE_SIZE;
   AddFreeMemoryRange(fmr);
 
   // Now add the higher half memory.
@@ -360,7 +360,7 @@ size_t VirtualAddressSpace::AllocatePages(size_t pages) {
 size_t VirtualAddressSpace::AllocatePagesBelowMaxBaseAddress(
     size_t pages, size_t max_base_address) {
   size_t start = FindAndReserveFreePageRange(pages);
-  if (start == OUT_OF_MEMORY) return 0;
+  if (start == OUT_OF_MEMORY) return OUT_OF_MEMORY;
 
   // Allocate each page we've found.
   size_t addr = start;
