@@ -15,7 +15,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long arch_prctl();
+long arch_prctl(int code, unsigned long addr);
 
 }
 }  // namespace perception

@@ -414,7 +414,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_alarm:
       return ::perception::linux_syscalls::alarm();
     case SYS_arch_prctl:
-      return ::perception::linux_syscalls::arch_prctl();
+      return ::perception::linux_syscalls::arch_prctl(a1, a2);
     case SYS_bind:
       return ::perception::linux_syscalls::bind();
     case SYS_bpf:

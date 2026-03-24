@@ -14,15 +14,22 @@
 
 #include "linux_syscalls/arch_prctl.h"
 
-#include "perception/debug.h"
+#include <errno.h>
+
+#include "perception/threads.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long arch_prctl() {
-  perception::DebugPrinterSingleton
-      << "System call arch_prctl is unimplemented.\n";
-  return 0;
+long arch_prctl(int code, unsigned long addr) {
+  if (code == 0x1002) { // ARCH_SET_FS
+    ::perception::SetThreadSegments(addr, true, 0, false);
+    return 0;
+  } else if (code == 0x1001) { // ARCH_SET_GS
+    ::perception::SetThreadSegments(0, false, addr, true);
+    return 0;
+  }
+  return -EINVAL;
 }
 
 }  // namespace linux_syscalls
