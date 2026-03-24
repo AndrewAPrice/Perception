@@ -9,6 +9,8 @@
   ],
   source_directories: [
     'source',
+    'public/graph',
+    'public/OT/Var/VARC'
   ],
   dependencies+: [
     'freetype',
