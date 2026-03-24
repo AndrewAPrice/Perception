@@ -1,3 +1,4 @@
 *
 !.gitignore
+!codec/
 !ports/
