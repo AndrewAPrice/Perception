@@ -204,7 +204,7 @@ void LoadNextMultibootModuleIntoProcess(Process *process,
        tag = NextMultibootTag(tag)) {
   }
 
-  if (tag == MULTIBOOT_TAG_TYPE_END) {
+  if (tag->type == MULTIBOOT_TAG_TYPE_END) {
     // Reached the end earlier than expected.
     multiboot_modules_to_pass_to_process = 0;
     size = 0;
