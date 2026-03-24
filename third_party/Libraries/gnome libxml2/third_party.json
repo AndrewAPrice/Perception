@@ -9,11 +9,9 @@
     "operations": [
         {
             "operation": "readRegExFromFile",
-            "file": "${git}/configure.ac",
+            "file": "${git}/VERSION",
             "values": {
-                ",major": "m4_define\\(\\[MAJOR_VERSION\\], (\\d+)\\)",
-                ",minor": "m4_define\\(\\[MINOR_VERSION\\], (\\d+)\\)",
-                ",micro": "m4_define\\(\\[MICRO_VERSION\\], (\\d+)\\)"
+                ",major,minor,micro": "(\\d+).(\\d+).(\\d+)"
             }
         },
         {
@@ -22,6 +20,12 @@
                 "version_string": "'${major}'+'.'+'${minor}'+'.'+'${micro}'",
                 "version_number": "${major} * 10000 + ${minor} * 100 + ${micro}"
             }
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/codegen",
+            "destination": "public/codegen",
+            "extensions": [".inc"]
         },
         {
             "operation": "copy",
@@ -66,12 +70,14 @@
                     ["@WITH_DEBUG@", "0"],
                     ["@WITH_MEM_DEBUG@", "0"],
                     ["@WITH_REGEXPS@", "1"],
+                    ["@WITH_RELAXNG@", "1"],
                     ["@WITH_SCHEMAS@", "1"],
                     ["@WITH_SCHEMATRON@", "1"],
                     ["@WITH_MODULES@", "0"],
                     ["@MODULE_EXTENSION@", ""],
                     ["@WITH_ZLIB@", "1"],
-                    ["@WITH_LZMA@", "0"]
+                    ["@WITH_LZMA@", "0"],
+                    ["@WITH_WINPATH@", "0"]
                 ]
             }]
         },
@@ -79,7 +85,12 @@
             "operation": "copy",
             "source": "${git}/include/private",
             "destination": "source/private",
-            "extensions": [".h"]
+            "extensions": [".h"],
+            "replace": [{
+                "file": "source/private/memory.h",
+                "replacements": [["#include \"../../libxml.h\"", "#include \"../libxml.h\""]]
+            }]
+
         },
         {
             "operation": "copy",
@@ -99,7 +110,13 @@
                 "source/testOOMlib.h",
                 "source/testrecurse.c",
                 "source/testThreads.c"
-            ]
+            ],
+            "replace": [{
+                "file": "source/private/memory.h",
+                "replacements": [
+                    ["#include \"../../libxml.h\"", "#include \"../libxml.h\""]
+                ]
+            }]
         }
     ]
 }
