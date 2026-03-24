@@ -2,7 +2,7 @@
 assets/
 
 # A list of third party files in assets/.
-third_party_files.json
+.third_party_files.json
 
 # Generated file.
 .clangd
