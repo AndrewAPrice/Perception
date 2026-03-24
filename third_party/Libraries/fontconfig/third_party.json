@@ -11,12 +11,31 @@
             "operation": "copy",
             "source": "${git}/fontconfig",
             "destination": "public/fontconfig",
-            "extensions": [".h"]
+            "extensions": [".h"],
+            "exclude": [
+                "public/fontconfig/fontconfig.inl"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/fontconfig/fontconfig.h.in",
+            "destination": "public/fontconfig/fontconfig.h",
+            "replace": [{
+                "file": ["public/fontconfig/fontconfig.h"],
+                "replacements": [["@CACHE_VERSION@", "0"]]
+            }]
         },
         {
             "operation": "copy",
             "source": "${git}/src",
-            "destination": "source/src"
+            "destination": "source/src",
+            "replace": [{
+                "file": "source/src/fccache.c",
+                "replacements": [
+                    ["FC_VERSION_", "FC_"],
+                    ["FC_MICRO", "FC_REVISION"]
+                ]
+            }]
         },
         {
             "operation": "copy",
@@ -33,11 +52,10 @@
             "source": "${git}/conf.d",
             "destination": "public/templates",
             "extensions": [".conf"]
-        },
-        {
+        },{
             "operation": "execute",
-            "command": "${git}/src/makealias ${git}/src ${@}/source/src/fcalias.h ${@}/source/src/fcaliastail.h ${git}/fontconfig/fontconfig.h ${git}/src/fcdeprecate.h ${git}/fontconfig/fcprivate.h",
-            "inputs": ["${git}/src/makealias", "${git}/fontconfig/fontconfig.h", "${git}/src/fcdeprecate.h", "${git}/fontconfig/fcprivate.h"],
+            "command": "${git}/src/makealias ${git}/src ${@}/source/src/fcalias.h ${@}/source/src/fcaliastail.h ${git}/fontconfig/fontconfig.h.in ${git}/src/fcdeprecate.h ${git}/fontconfig/fcprivate.h",
+            "inputs": ["${git}/src/makealias", "${git}/fontconfig/fontconfig.h.in", "${git}/src/fcdeprecate.h", "${git}/fontconfig/fcprivate.h"],
             "outputs": ["source/src/fcalias.h", "source/src/fcaliastail.h"]
         },
         {
@@ -65,9 +83,9 @@
         },
         {
             "operation": "execute",
-            "command": "python3 ${git}/fc-lang/fc-lang.py ${fc-lang-flattened} --template ${git}/fc-lang/fclang.tmpl.h --output ${@}/source/fc-lang/fclang.h --directory ${git}/fc-lang",
+            "command": "python3 ${git}/fc-lang/fc-lang.py ${fc-lang-flattened} --template ${git}/fc-lang/fclang.tmpl.h --output ${@}/source/src/fclang.h --directory ${git}/fc-lang",
             "inputs": ["${git}/fc-lang/fc-lang.py", "${git}/fc-lang/fclang.tmpl.h"],
-            "outputs": ["source/fc-lang/fclang.h"],
+            "outputs": ["source/src/fclang.h"],
             "alwaysRun": true
         },
         {
@@ -87,7 +105,13 @@
         },
         {
             "operation": "execute",
-            "command": "python3 ${@}/generated/cutout.py ${git}/src/fcobjshash.gperf.h ${@}/generated/fcobjshash.gperf ${git} gcc -I ${git} -I ${git}/src -E -P",
+            "command": "gcc -I ${git} -I ${git}/src -I ${@}/public -E -P ${git}/src/fcobjshash.gperf.h | sed 's/^ *//;s/ *, */,/' | awk ' /CUT_OUT_BEGIN/ { no_write=1; next; }; /CUT_OUT_END/ { no_write=0; next; }; /^$$/||/^#/ { next; }; { if (!no_write) print; next; }; ' - > ${@}/generated/fcobjshash.gperf.h",
+            "inputs": ["${@}/generated/cutout.py", "${git}/src/fcobjshash.gperf.h", "${git}/fc-case/fccase.tmpl.h"],
+            "outputs": ["generated/fcobjshash.gperf.h"]
+        },
+        {
+            "operation": "execute",
+            "command": "python3 ${@}/generated/cutout.py ${@}/generated/fcobjshash.gperf.h ${@}/generated/fcobjshash.gperf",
             "inputs": ["${@}/generated/cutout.py", "${git}/src/fcobjshash.gperf.h", "${git}/fc-case/fccase.tmpl.h"],
             "outputs": ["generated/fcobjshash.gperf"]
         },
@@ -105,6 +129,16 @@
                 "file": "source/src/fcobjshash.h",
                 "replacements": [["register unsigned int len", "register size_t len"]]
             }]
+        },
+        {
+            "operation": "execute",
+            "command": "python3 ${git}/fc-const/fc-const.py ${git}/fc-const/fcconst.list ${@}/source/src/fcobjs.h > ${@}/source/src/fcconst.h",
+            "inputs": [
+                "${git}/fc-const/fc-const.py",
+                "${git}/fc-const/fcconst.list",
+                "${@}/source/src/fcobjs.h"
+            ],
+            "outputs": ["source/src/fcconst.h"]
         }
     ]
 }
