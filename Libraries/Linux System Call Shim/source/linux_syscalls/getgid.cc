@@ -15,13 +15,14 @@
 #include "linux_syscalls/getgid.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long getgid() {
   perception::DebugPrinterSingleton << "System call getgid is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

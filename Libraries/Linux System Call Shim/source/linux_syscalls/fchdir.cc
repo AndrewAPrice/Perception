@@ -15,13 +15,14 @@
 #include "linux_syscalls/fchdir.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long fchdir() {
   perception::DebugPrinterSingleton << "System call fchdir is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

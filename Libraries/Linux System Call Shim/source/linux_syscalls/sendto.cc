@@ -15,13 +15,14 @@
 #include "linux_syscalls/sendto.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long sendto() {
   perception::DebugPrinterSingleton << "System call sendto is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

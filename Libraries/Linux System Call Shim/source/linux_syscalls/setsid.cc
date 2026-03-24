@@ -15,13 +15,14 @@
 #include "linux_syscalls/setsid.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long setsid() {
   perception::DebugPrinterSingleton << "System call setsid is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

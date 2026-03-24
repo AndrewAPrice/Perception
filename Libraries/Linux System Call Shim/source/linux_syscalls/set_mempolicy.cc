@@ -15,6 +15,7 @@
 #include "linux_syscalls/set_mempolicy.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long set_mempolicy() {
   perception::DebugPrinterSingleton
       << "System call set_mempolicy is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

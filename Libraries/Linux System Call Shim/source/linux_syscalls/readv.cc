@@ -17,7 +17,7 @@
 #include <errno.h>
 #include <sys/uio.h>
 
-#include <iostream>
+#include "perception/debug.h"
 
 #include "files.h"
 #include "perception/storage_manager.h"

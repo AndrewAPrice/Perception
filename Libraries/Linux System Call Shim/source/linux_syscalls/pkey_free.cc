@@ -15,6 +15,7 @@
 #include "linux_syscalls/pkey_free.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long pkey_free() {
   perception::DebugPrinterSingleton
       << "System call pkey_free is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

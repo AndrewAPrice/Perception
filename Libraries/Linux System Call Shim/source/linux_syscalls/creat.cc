@@ -15,13 +15,14 @@
 #include "linux_syscalls/creat.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long creat() {
   perception::DebugPrinterSingleton << "System call creat is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

@@ -15,6 +15,7 @@
 #include "linux_syscalls/io_cancel.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long io_cancel() {
   perception::DebugPrinterSingleton
       << "System call io_cancel is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

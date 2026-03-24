@@ -15,6 +15,7 @@
 #include "linux_syscalls/clock_gettime.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long clock_gettime() {
   perception::DebugPrinterSingleton
       << "System call clock_gettime is unimplemented.\n";
-  return 0;
+  return -ENOSYS; // -ENOSYS
 }
 
 }  // namespace linux_syscalls

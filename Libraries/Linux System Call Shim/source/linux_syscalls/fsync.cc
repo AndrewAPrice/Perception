@@ -15,13 +15,14 @@
 #include "linux_syscalls/fsync.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long fsync() {
   perception::DebugPrinterSingleton << "System call fsync is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

@@ -15,6 +15,7 @@
 #include "linux_syscalls/inotify_rm_watch.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long inotify_rm_watch() {
   perception::DebugPrinterSingleton
       << "System call inotify_rm_watch is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

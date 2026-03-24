@@ -15,13 +15,14 @@
 #include "linux_syscalls/chroot.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long chroot() {
   perception::DebugPrinterSingleton << "System call chroot is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

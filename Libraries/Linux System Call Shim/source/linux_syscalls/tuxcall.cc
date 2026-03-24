@@ -15,6 +15,7 @@
 #include "linux_syscalls/tuxcall.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long tuxcall() {
   perception::DebugPrinterSingleton
       << "System call tuxcall is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

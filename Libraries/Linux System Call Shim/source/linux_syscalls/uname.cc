@@ -15,13 +15,14 @@
 #include "linux_syscalls/uname.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long uname() {
   perception::DebugPrinterSingleton << "System call uname is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

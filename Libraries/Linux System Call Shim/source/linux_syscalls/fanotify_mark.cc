@@ -15,6 +15,7 @@
 #include "linux_syscalls/fanotify_mark.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long fanotify_mark() {
   perception::DebugPrinterSingleton
       << "System call fanotify_mark is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

@@ -15,13 +15,14 @@
 #include "linux_syscalls/msgctl.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long msgctl() {
   perception::DebugPrinterSingleton << "System call msgctl is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

@@ -36,6 +36,11 @@ long mmap(long addr, long length, long prot, long flags, long fd, long offset) {
     return -1;
   }
 
+  if (length == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+
   if ((flags & MAP_PRIVATE) == 0) {
     perception::DebugPrinterSingleton
         << "mmap passed flags " << (size_t)flags
@@ -60,6 +65,10 @@ long mmap(long addr, long length, long prot, long flags, long fd, long offset) {
     // Allocate 0-initialized memory.
     size_t pages = (size_t)(length + kPageSize - 1) / kPageSize;
     void *addr = AllocateMemoryPages(pages);
+    if (addr == nullptr) {
+       errno = ENOMEM;
+       return -1; // MAP_FAILED
+    }
     memset(addr, 0, pages * kPageSize);
     return (long)addr;
   } else {

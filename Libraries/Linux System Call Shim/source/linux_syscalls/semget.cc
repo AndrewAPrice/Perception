@@ -15,13 +15,14 @@
 #include "linux_syscalls/semget.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long semget() {
   perception::DebugPrinterSingleton << "System call semget is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

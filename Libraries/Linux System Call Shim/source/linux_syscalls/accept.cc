@@ -15,13 +15,14 @@
 #include "linux_syscalls/accept.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long accept() {
   perception::DebugPrinterSingleton << "System call accept is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

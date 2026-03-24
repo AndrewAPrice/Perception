@@ -15,6 +15,7 @@
 #include "linux_syscalls/fsconfig.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long fsconfig() {
   perception::DebugPrinterSingleton
       << "System call fsconfig is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

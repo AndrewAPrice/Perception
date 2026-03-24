@@ -15,13 +15,14 @@
 #include "linux_syscalls/ptrace.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long ptrace() {
   perception::DebugPrinterSingleton << "System call ptrace is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

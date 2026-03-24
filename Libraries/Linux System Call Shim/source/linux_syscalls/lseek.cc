@@ -14,7 +14,7 @@
 
 #include "linux_syscalls/lseek.h"
 
-#include <iostream>
+#include "perception/debug.h"
 
 #include "files.h"
 
@@ -39,7 +39,7 @@ off_t lseek(long fd, off_t offset, int whence) {
       file->file.offset_in_file = file->file.size_in_bytes + offset;
       break;
     default:
-      std::cout << "Unknown whence passed to lseek: " << whence << std::endl;
+      perception::DebugPrinterSingleton << "Unknown whence passed to lseek: " << (size_t)whence << '\n';
       return -1;
   }
 

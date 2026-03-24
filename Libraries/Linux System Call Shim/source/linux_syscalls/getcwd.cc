@@ -15,13 +15,14 @@
 #include "linux_syscalls/getcwd.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long getcwd() {
   perception::DebugPrinterSingleton << "System call getcwd is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

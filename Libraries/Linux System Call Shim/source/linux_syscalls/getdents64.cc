@@ -14,7 +14,7 @@
 
 #include "linux_syscalls/getdents64.h"
 
-#include <iostream>
+#include "perception/debug.h"
 
 #include "files.h"
 #include "perception/services.h"
@@ -57,8 +57,8 @@ long getdents64(unsigned int fd, dirent *dirp, unsigned int count) {
         dirp[return_index].d_type = DT_DIR;
         break;
       default:
-        std::cout << "Unhandled DirectoryEntry::Type " << (int)entry.type
-                  << " in Musl getdents64." << std::endl;
+        perception::DebugPrinterSingleton << "Unhandled DirectoryEntry::Type " << (size_t)entry.type
+                  << " in Musl getdents64." << '\n';
     }
 
     int chars_to_copy = entry.name.size();

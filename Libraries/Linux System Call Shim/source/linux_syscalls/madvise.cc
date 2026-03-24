@@ -15,6 +15,7 @@
 #include "linux_syscalls/madvise.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -23,7 +24,7 @@ long madvise() {
   // madvise is unimplemented but we'll silence it. madvise is used to hint to
   // the system on how we expect this memory to be read, so the system can
   // optimize paging memory to disk, something Perception doesn't support.
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

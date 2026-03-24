@@ -15,13 +15,14 @@
 #include "linux_syscalls/mremap.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long mremap() {
   perception::DebugPrinterSingleton << "System call mremap is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

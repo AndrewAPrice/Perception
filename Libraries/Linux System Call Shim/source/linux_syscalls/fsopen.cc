@@ -15,13 +15,14 @@
 #include "linux_syscalls/fsopen.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long fsopen() {
   perception::DebugPrinterSingleton << "System call fsopen is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

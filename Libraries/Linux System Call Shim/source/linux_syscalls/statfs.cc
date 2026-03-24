@@ -16,15 +16,16 @@
 
 #include <sys/vfs.h>
 
-#include <iostream>
+#include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long statfs(const char *path, struct statfs *buf) {
-  std::cout << "Syscall statfs is unimplemented. Called for " << path
-            << std::endl;
-  return 0;
+  perception::DebugPrinterSingleton << "Syscall statfs is unimplemented. Called for " << path
+            << '\n';
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

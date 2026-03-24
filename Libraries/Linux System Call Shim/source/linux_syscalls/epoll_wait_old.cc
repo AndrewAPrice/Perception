@@ -15,6 +15,7 @@
 #include "linux_syscalls/epoll_wait_old.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long epoll_wait_old() {
   perception::DebugPrinterSingleton
       << "System call epoll_wait_old is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

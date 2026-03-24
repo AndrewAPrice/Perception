@@ -15,13 +15,14 @@
 #include "linux_syscalls/statx.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long statx() {
   perception::DebugPrinterSingleton << "System call statx is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

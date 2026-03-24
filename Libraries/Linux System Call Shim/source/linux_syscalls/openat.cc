@@ -15,13 +15,14 @@
 #include "linux_syscalls/openat.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long openat() {
   perception::DebugPrinterSingleton << "System call openat is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

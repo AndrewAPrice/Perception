@@ -15,13 +15,14 @@
 #include "linux_syscalls/mknod.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long mknod() {
   perception::DebugPrinterSingleton << "System call mknod is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

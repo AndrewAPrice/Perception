@@ -15,13 +15,14 @@
 #include "linux_syscalls/rseq.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long rseq() {
   perception::DebugPrinterSingleton << "System call rseq is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

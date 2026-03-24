@@ -15,13 +15,14 @@
 #include "linux_syscalls/linkat.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long linkat() {
   perception::DebugPrinterSingleton << "System call linkat is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

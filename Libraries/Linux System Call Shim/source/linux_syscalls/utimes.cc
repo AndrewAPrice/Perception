@@ -15,13 +15,14 @@
 #include "linux_syscalls/utimes.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long utimes() {
   perception::DebugPrinterSingleton << "System call utimes is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

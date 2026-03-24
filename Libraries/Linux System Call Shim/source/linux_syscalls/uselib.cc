@@ -15,13 +15,14 @@
 #include "linux_syscalls/uselib.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long uselib() {
   perception::DebugPrinterSingleton << "System call uselib is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

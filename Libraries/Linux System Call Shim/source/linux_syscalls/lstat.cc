@@ -15,13 +15,14 @@
 #include "linux_syscalls/lstat.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long lstat() {
   perception::DebugPrinterSingleton << "System call lstat is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

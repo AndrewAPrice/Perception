@@ -15,13 +15,14 @@
 #include "linux_syscalls/chmod.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long chmod() {
   perception::DebugPrinterSingleton << "System call chmod is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

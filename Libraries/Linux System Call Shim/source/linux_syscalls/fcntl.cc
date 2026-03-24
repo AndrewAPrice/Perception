@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include <iostream>
+#include "perception/debug.h"
 
 #include "files.h"
 
@@ -30,152 +30,124 @@ long fcntl(long fd, long cmd, long arg) {
 
   switch (cmd) {
     case F_DUPFD:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_DUPFD"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_DUPFD\n";
       break;
     case F_DUPFD_CLOEXEC:
-      std::cout << "Musl syscall fnctl called with unimplemented command "
-                   "F_DUPFD_CLOEXEC"
-                << std::endl;
+      perception::DebugPrinterSingleton << "Musl syscall fnctl called with unimplemented command "
+                   "F_DUPFD_CLOEXEC\n";
       break;
     case F_GETFD:
     case F_SETFD:
       // The only flag supported is FD_CLOEXEC.
       if (arg != FD_CLOEXEC) {
-        std::cout << "Musl syscall fnctl/F_{GET|SET}FD called with arg other "
-                     "than FD_CLOEXEC."
-                  << std::endl;
+        perception::DebugPrinterSingleton << "Musl syscall fnctl/F_{GET|SET}FD called with arg other "
+                     "than FD_CLOEXEC.\n";
       }
       break;
     case F_GETFL:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_GETFL"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_GETFL\n";
       break;
     case F_SETFL:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_SETFL"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_SETFL\n";
       break;
     case F_SETLK:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_SETLK"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_SETLK\n";
       break;
     case F_SETLKW:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_SETLKW"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_SETLKW\n";
       break;
     case F_GETLK:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_GETLK"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_GETLK\n";
       break;
     case F_OFD_SETLK:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_OFD_SETLK"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_OFD_SETLK\n";
       break;
     case F_OFD_SETLKW:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_OFD_SETLKW"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_OFD_SETLKW\n";
       break;
     case F_OFD_GETLK:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_OFD_GETLK"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_OFD_GETLK\n";
       break;
     case F_GETOWN:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_GETOWN"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_GETOWN\n";
       break;
     case F_SETOWN:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_SETOWN"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_SETOWN\n";
       break;
     case F_GETOWN_EX:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_GETOWN_EX"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_GETOWN_EX\n";
       break;
     case F_SETOWN_EX:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_SETOWN_EX"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_SETOWN_EX\n";
       break;
     case F_GETSIG:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_GETSIG"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_GETSIG\n";
       break;
     case F_SETSIG:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_SETSIG"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_SETSIG\n";
       break;
     case F_SETLEASE:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_SETLEASE"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_SETLEASE\n";
       break;
     case F_GETLEASE:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_GETLEASE"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_GETLEASE\n";
       break;
     case F_NOTIFY:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_NOTIFY"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_NOTIFY\n";
       break;
     case F_SETPIPE_SZ:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_SETPIPE_SZ"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_SETPIPE_SZ\n";
       break;
     case F_GETPIPE_SZ:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_GETPIPE_SZ"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_GETPIPE_SZ\n";
       break;
     case F_ADD_SEALS:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_ADD_SEALS"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_ADD_SEALS\n";
       break;
     case F_GET_SEALS:
-      std::cout
-          << "Musl syscall fnctl called with unimplemented command F_GET_SEALS"
-          << std::endl;
+      perception::DebugPrinterSingleton
+          << "Musl syscall fnctl called with unimplemented command F_GET_SEALS\n";
       break;
     case F_GET_RW_HINT:
-      std::cout << "Musl syscall fnctl called with unimplemented command "
-                   "F_GET_RW_HINT"
-                << std::endl;
+      perception::DebugPrinterSingleton << "Musl syscall fnctl called with unimplemented command "
+                   "F_GET_RW_HINT\n";
       break;
     case F_SET_RW_HINT:
-      std::cout << "Musl syscall fnctl called with unimplemented command "
-                   "F_SET_RW_HINT"
-                << std::endl;
+      perception::DebugPrinterSingleton << "Musl syscall fnctl called with unimplemented command "
+                   "F_SET_RW_HINT\n";
       break;
     case F_GET_FILE_RW_HINT:
-      std::cout << "Musl syscall fnctl called with unimplemented command "
-                   "F_GET_FILE_RW_HINT"
-                << std::endl;
+      perception::DebugPrinterSingleton << "Musl syscall fnctl called with unimplemented command "
+                   "F_GET_FILE_RW_HINT\n";
       break;
     case F_SET_FILE_RW_HINT:
-      std::cout << "Musl syscall fnctl called with unimplemented command "
-                   "F_SET_FILE_RW_HINT"
-                << std::endl;
+      perception::DebugPrinterSingleton << "Musl syscall fnctl called with unimplemented command "
+                   "F_SET_FILE_RW_HINT\n";
       break;
     default:
-      std::cout << "Musl syscall fnctl called with unknown command " << cmd
-                << std::endl;
+      perception::DebugPrinterSingleton << "Musl syscall fnctl called with unknown command " << (size_t)cmd
+                << '\n';
   }
 
   return 0;
@@ -183,3 +155,4 @@ long fcntl(long fd, long cmd, long arg) {
 
 }  // namespace linux_syscalls
 }  // namespace perception
+

@@ -15,13 +15,14 @@
 #include "linux_syscalls/vfork.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long vfork() {
   perception::DebugPrinterSingleton << "System call vfork is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

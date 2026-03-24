@@ -15,13 +15,14 @@
 #include "linux_syscalls/ioperm.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long ioperm() {
   perception::DebugPrinterSingleton << "System call ioperm is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

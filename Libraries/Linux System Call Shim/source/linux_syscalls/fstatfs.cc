@@ -16,9 +16,10 @@
 
 #include <sys/vfs.h>
 
-#include <iostream>
+#include "perception/debug.h"
 
 #include "files.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -34,10 +35,10 @@ long fstatfs(int fd, struct statfs* buf) {
     errno = ENOTDIR;
     return -1;
   }
-  std::cout << "System call fstatfs is unimplemented. Called for "
-            << descriptor->directory.name << std::endl;
+  perception::DebugPrinterSingleton << "System call fstatfs is unimplemented. Called for "
+            << descriptor->directory.name.c_str() << '\n';
 
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

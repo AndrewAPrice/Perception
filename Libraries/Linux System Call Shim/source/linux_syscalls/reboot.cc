@@ -15,13 +15,14 @@
 #include "linux_syscalls/reboot.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long reboot() {
   perception::DebugPrinterSingleton << "System call reboot is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

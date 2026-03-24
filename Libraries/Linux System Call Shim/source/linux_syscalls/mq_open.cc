@@ -15,6 +15,7 @@
 #include "linux_syscalls/mq_open.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long mq_open() {
   perception::DebugPrinterSingleton
       << "System call mq_open is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

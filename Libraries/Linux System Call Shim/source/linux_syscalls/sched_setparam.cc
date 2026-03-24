@@ -15,6 +15,7 @@
 #include "linux_syscalls/sched_setparam.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long sched_setparam() {
   perception::DebugPrinterSingleton
       << "System call sched_setparam is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

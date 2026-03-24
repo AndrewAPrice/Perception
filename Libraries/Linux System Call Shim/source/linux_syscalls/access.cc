@@ -16,7 +16,7 @@
 
 #include <unistd.h>
 
-#include <iostream>
+#include "perception/debug.h"
 
 #include "perception/services.h"
 #include "perception/storage_manager.h"

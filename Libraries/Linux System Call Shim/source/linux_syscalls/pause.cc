@@ -15,13 +15,14 @@
 #include "linux_syscalls/pause.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long pause() {
   perception::DebugPrinterSingleton << "System call pause is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

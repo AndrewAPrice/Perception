@@ -15,13 +15,14 @@
 #include "linux_syscalls/flock.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long flock() {
   perception::DebugPrinterSingleton << "System call flock is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

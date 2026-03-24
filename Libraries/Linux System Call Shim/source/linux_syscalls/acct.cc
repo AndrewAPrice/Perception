@@ -15,13 +15,14 @@
 #include "linux_syscalls/acct.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long acct() {
   perception::DebugPrinterSingleton << "System call acct is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

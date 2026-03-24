@@ -15,13 +15,14 @@
 #include "linux_syscalls/wait4.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long wait4() {
   perception::DebugPrinterSingleton << "System call wait4 is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

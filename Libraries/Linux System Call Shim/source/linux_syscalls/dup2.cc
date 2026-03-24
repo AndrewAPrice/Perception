@@ -15,13 +15,14 @@
 #include "linux_syscalls/dup2.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long dup2() {
   perception::DebugPrinterSingleton << "System call dup2 is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

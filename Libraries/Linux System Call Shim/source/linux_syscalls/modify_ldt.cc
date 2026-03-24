@@ -15,6 +15,7 @@
 #include "linux_syscalls/modify_ldt.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long modify_ldt() {
   perception::DebugPrinterSingleton
       << "System call modify_ldt is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

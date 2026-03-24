@@ -15,13 +15,14 @@
 #include "linux_syscalls/getcpu.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long getcpu() {
   perception::DebugPrinterSingleton << "System call getcpu is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

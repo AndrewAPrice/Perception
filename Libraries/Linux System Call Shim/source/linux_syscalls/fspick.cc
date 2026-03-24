@@ -15,13 +15,14 @@
 #include "linux_syscalls/fspick.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long fspick() {
   perception::DebugPrinterSingleton << "System call fspick is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

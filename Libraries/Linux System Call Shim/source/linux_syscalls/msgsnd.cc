@@ -15,13 +15,14 @@
 #include "linux_syscalls/msgsnd.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long msgsnd() {
   perception::DebugPrinterSingleton << "System call msgsnd is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

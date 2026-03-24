@@ -15,6 +15,7 @@
 #include "linux_syscalls/epoll_ctl_old.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long epoll_ctl_old() {
   perception::DebugPrinterSingleton
       << "System call epoll_ctl_old is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

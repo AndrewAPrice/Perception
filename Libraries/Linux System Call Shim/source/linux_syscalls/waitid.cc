@@ -15,13 +15,14 @@
 #include "linux_syscalls/waitid.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long waitid() {
   perception::DebugPrinterSingleton << "System call waitid is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

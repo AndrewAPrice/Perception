@@ -15,6 +15,7 @@
 #include "linux_syscalls/sync_file_range.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long sync_file_range() {
   perception::DebugPrinterSingleton
       << "System call sync_file_range is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

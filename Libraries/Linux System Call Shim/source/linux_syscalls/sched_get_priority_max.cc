@@ -15,6 +15,7 @@
 #include "linux_syscalls/sched_get_priority_max.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long sched_get_priority_max() {
   perception::DebugPrinterSingleton
       << "System call sched_get_priority_max is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

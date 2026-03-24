@@ -15,13 +15,14 @@
 #include "linux_syscalls/prctl.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long prctl() {
   perception::DebugPrinterSingleton << "System call prctl is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

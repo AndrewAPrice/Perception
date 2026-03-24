@@ -15,6 +15,7 @@
 #include "linux_syscalls/pwrite64.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long pwrite64() {
   perception::DebugPrinterSingleton
       << "System call pwrite64 is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

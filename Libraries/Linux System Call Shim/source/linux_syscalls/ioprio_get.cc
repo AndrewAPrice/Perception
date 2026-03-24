@@ -15,6 +15,7 @@
 #include "linux_syscalls/ioprio_get.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long ioprio_get() {
   perception::DebugPrinterSingleton
       << "System call ioprio_get is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

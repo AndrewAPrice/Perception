@@ -15,13 +15,14 @@
 #include "linux_syscalls/ppoll.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long ppoll() {
   perception::DebugPrinterSingleton << "System call ppoll is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

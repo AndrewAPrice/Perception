@@ -15,13 +15,14 @@
 #include "linux_syscalls/pipe.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long pipe() {
   perception::DebugPrinterSingleton << "System call pipe is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

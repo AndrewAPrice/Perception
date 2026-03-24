@@ -15,13 +15,14 @@
 #include "linux_syscalls/chown.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long chown() {
   perception::DebugPrinterSingleton << "System call chown is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

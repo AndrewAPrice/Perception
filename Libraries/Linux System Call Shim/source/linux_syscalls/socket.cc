@@ -15,13 +15,14 @@
 #include "linux_syscalls/socket.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long socket() {
   perception::DebugPrinterSingleton << "System call socket is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

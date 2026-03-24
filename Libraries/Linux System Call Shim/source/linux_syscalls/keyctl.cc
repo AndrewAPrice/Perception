@@ -15,13 +15,14 @@
 #include "linux_syscalls/keyctl.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long keyctl() {
   perception::DebugPrinterSingleton << "System call keyctl is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

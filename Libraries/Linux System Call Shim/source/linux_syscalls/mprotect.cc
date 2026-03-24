@@ -16,7 +16,7 @@
 
 #include <sys/mman.h>
 
-#include <iostream>
+#include "perception/debug.h"
 
 #include "perception/memory.h"
 
@@ -28,7 +28,6 @@ namespace linux_syscalls {
 long mprotect(void* addr, size_t len, int prot) {
   size_t pages = (len + kPageSize - 1) / kPageSize;
   if ((prot & PROT_READ) == 0) {
-    std::cout << "Ignoring mprotect called without PROT_READ" << std::endl;
     return 0;
   }
 

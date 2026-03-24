@@ -15,6 +15,7 @@
 #include "linux_syscalls/ftruncate.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long ftruncate() {
   perception::DebugPrinterSingleton
       << "System call ftruncate is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

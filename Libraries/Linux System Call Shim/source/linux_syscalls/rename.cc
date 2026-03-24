@@ -15,13 +15,14 @@
 #include "linux_syscalls/rename.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long rename() {
   perception::DebugPrinterSingleton << "System call rename is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

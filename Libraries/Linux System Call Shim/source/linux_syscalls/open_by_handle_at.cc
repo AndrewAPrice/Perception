@@ -15,6 +15,7 @@
 #include "linux_syscalls/open_by_handle_at.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long open_by_handle_at() {
   perception::DebugPrinterSingleton
       << "System call open_by_handle_at is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

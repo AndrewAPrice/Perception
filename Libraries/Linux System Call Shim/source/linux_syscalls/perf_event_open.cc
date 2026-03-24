@@ -15,6 +15,7 @@
 #include "linux_syscalls/perf_event_open.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long perf_event_open() {
   perception::DebugPrinterSingleton
       << "System call perf_event_open is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

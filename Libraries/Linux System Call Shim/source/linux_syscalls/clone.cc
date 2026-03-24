@@ -15,13 +15,14 @@
 #include "linux_syscalls/clone.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long clone() {
   perception::DebugPrinterSingleton << "System call clone is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

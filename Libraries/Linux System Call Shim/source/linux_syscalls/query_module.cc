@@ -15,6 +15,7 @@
 #include "linux_syscalls/query_module.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long query_module() {
   perception::DebugPrinterSingleton
       << "System call query_module is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

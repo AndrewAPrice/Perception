@@ -15,13 +15,14 @@
 #include "linux_syscalls/getuid.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long getuid() {
   perception::DebugPrinterSingleton << "System call getuid is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

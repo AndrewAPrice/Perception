@@ -15,13 +15,14 @@
 #include "linux_syscalls/mlock2.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long mlock2() {
   perception::DebugPrinterSingleton << "System call mlock2 is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

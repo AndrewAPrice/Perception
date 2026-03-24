@@ -15,13 +15,14 @@
 #include "linux_syscalls/syslog.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long syslog() {
   perception::DebugPrinterSingleton << "System call syslog is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

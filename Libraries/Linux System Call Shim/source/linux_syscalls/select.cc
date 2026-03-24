@@ -15,13 +15,14 @@
 #include "linux_syscalls/select.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long select() {
   perception::DebugPrinterSingleton << "System call select is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

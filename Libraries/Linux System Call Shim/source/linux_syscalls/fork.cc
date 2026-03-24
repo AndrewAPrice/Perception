@@ -15,13 +15,14 @@
 #include "linux_syscalls/fork.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long fork() {
   perception::DebugPrinterSingleton << "System call fork is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

@@ -15,6 +15,7 @@
 #include "linux_syscalls/memfd_create.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long memfd_create() {
   perception::DebugPrinterSingleton
       << "System call memfd_create is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

@@ -14,7 +14,7 @@
 
 #include "linux_syscalls/futex.h"
 
-#include <iostream>
+#include "perception/debug.h"
 #include <map>
 #include <vector>
 
@@ -25,7 +25,10 @@ namespace perception {
 namespace linux_syscalls {
 namespace {
 
-std::map<volatile int *, std::vector<Fiber *>> fibers_sleeping_on_addrs;
+std::map<volatile int *, std::vector<Fiber *>>& FibersSleepingOnAddrs() {
+  static std::map<volatile int *, std::vector<Fiber *>> fibers_sleeping_on_addrs;
+  return fibers_sleeping_on_addrs;
+}
 
 }
 
@@ -41,9 +44,9 @@ long futex(volatile int *addr, int op, int val, void *ts) {
       if (*addr != val) return EAGAIN;
 
       // Sleep, waiting for FUTEX_WAKE at this addr.
-      auto itr = fibers_sleeping_on_addrs.find(addr);
-      if (itr == fibers_sleeping_on_addrs.end()) {
-        fibers_sleeping_on_addrs[addr] = {GetCurrentlyExecutingFiber()};
+      auto itr = FibersSleepingOnAddrs().find(addr);
+      if (itr == FibersSleepingOnAddrs().end()) {
+        FibersSleepingOnAddrs()[addr] = {GetCurrentlyExecutingFiber()};
       } else {
         itr->second.push_back(GetCurrentlyExecutingFiber());
       }
@@ -52,14 +55,14 @@ long futex(volatile int *addr, int op, int val, void *ts) {
     }
     case FUTEX_WAKE: {
       // Wake up to 'val' listeners.
-      auto itr = fibers_sleeping_on_addrs.find(addr);
-      if (itr == fibers_sleeping_on_addrs.end()) return 0;  // Nobody listening.
+      auto itr = FibersSleepingOnAddrs().find(addr);
+      if (itr == FibersSleepingOnAddrs().end()) return 0;  // Nobody listening.
 
       if (itr->second.size() <= val) {
         // Wake up everybody.
         for (Fiber *fiber_to_wake : itr->second) fiber_to_wake->WakeUp();
 
-        fibers_sleeping_on_addrs.erase(itr);
+        FibersSleepingOnAddrs().erase(itr);
       } else {
         // Only wake up a few listeners.
         for (; val > 0; val--) {
@@ -71,31 +74,31 @@ long futex(volatile int *addr, int op, int val, void *ts) {
       return 0;
     }
     case FUTEX_FD:
-      std::cout << "FUTEX_FD not implemented" << std::endl;
+      perception::DebugPrinterSingleton << "FUTEX_FD not implemented" << '\n';
       break;
     case FUTEX_REQUEUE:
-      std::cout << "FUTEX_REQUEUE not implemented" << std::endl;
+      perception::DebugPrinterSingleton << "FUTEX_REQUEUE not implemented" << '\n';
       break;
     case FUTEX_CMP_REQUEUE:
-      std::cout << "FUTEX_CMP_REQUEUE not implemented" << std::endl;
+      perception::DebugPrinterSingleton << "FUTEX_CMP_REQUEUE not implemented" << '\n';
       break;
     case FUTEX_WAKE_OP:
-      std::cout << "FUTEX_WAKE_OP not implemented" << std::endl;
+      perception::DebugPrinterSingleton << "FUTEX_WAKE_OP not implemented" << '\n';
       break;
     case FUTEX_LOCK_PI:
-      std::cout << "FUTEX_LOCK_PI not implemented" << std::endl;
+      perception::DebugPrinterSingleton << "FUTEX_LOCK_PI not implemented" << '\n';
       break;
     case FUTEX_UNLOCK_PI:
-      std::cout << "FUTEX_UNLOCK_PI not implemented" << std::endl;
+      perception::DebugPrinterSingleton << "FUTEX_UNLOCK_PI not implemented" << '\n';
       break;
     case FUTEX_TRYLOCK_PI:
-      std::cout << "FUTEX_TRYLOCK_PI not implemented" << std::endl;
+      perception::DebugPrinterSingleton << "FUTEX_TRYLOCK_PI not implemented" << '\n';
       break;
     case FUTEX_WAIT_BITSET:
-      std::cout << "FUTEX_WAIT_BITSET not implemented" << std::endl;
+      perception::DebugPrinterSingleton << "FUTEX_WAIT_BITSET not implemented" << '\n';
       break;
     default:
-      std::cout << "Unknown Futex syscall operation: " << op << std::endl;
+      perception::DebugPrinterSingleton << "Unknown Futex syscall operation: " << (size_t)op << '\n';
       break;
   }
   return 0;

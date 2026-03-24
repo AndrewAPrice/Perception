@@ -15,6 +15,7 @@
 #include "linux_syscalls/kexec_load.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long kexec_load() {
   perception::DebugPrinterSingleton
       << "System call kexec_load is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

@@ -15,13 +15,14 @@
 #include "linux_syscalls/tkill.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long tkill() {
   perception::DebugPrinterSingleton << "System call tkill is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

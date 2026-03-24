@@ -15,13 +15,14 @@
 #include "linux_syscalls/link.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long link() {
   perception::DebugPrinterSingleton << "System call link is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

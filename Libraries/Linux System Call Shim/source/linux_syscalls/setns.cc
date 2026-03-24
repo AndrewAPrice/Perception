@@ -15,13 +15,14 @@
 #include "linux_syscalls/setns.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long setns() {
   perception::DebugPrinterSingleton << "System call setns is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

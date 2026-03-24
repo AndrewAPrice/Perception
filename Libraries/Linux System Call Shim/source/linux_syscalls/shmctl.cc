@@ -15,13 +15,14 @@
 #include "linux_syscalls/shmctl.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long shmctl() {
   perception::DebugPrinterSingleton << "System call shmctl is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

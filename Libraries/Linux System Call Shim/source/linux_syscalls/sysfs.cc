@@ -15,13 +15,14 @@
 #include "linux_syscalls/sysfs.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long sysfs() {
   perception::DebugPrinterSingleton << "System call sysfs is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

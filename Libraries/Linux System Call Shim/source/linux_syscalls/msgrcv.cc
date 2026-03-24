@@ -15,13 +15,14 @@
 #include "linux_syscalls/msgrcv.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long msgrcv() {
   perception::DebugPrinterSingleton << "System call msgrcv is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

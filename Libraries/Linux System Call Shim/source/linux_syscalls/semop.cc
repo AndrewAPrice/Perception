@@ -15,13 +15,14 @@
 #include "linux_syscalls/semop.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long semop() {
   perception::DebugPrinterSingleton << "System call semop is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

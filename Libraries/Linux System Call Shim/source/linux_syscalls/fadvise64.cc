@@ -15,6 +15,7 @@
 #include "linux_syscalls/fadvise64.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long fadvise64() {
   perception::DebugPrinterSingleton
       << "System call fadvise64 is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

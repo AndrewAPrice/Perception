@@ -15,13 +15,14 @@
 #include "linux_syscalls/bpf.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long bpf() {
   perception::DebugPrinterSingleton << "System call bpf is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

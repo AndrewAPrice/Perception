@@ -15,6 +15,7 @@
 #include "linux_syscalls/timerfd_create.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -22,7 +23,7 @@ namespace linux_syscalls {
 long timerfd_create() {
   perception::DebugPrinterSingleton
       << "System call timerfd_create is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

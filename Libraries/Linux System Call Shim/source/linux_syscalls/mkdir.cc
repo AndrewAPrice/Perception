@@ -15,13 +15,14 @@
 #include "linux_syscalls/mkdir.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long mkdir() {
   perception::DebugPrinterSingleton << "System call mkdir is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

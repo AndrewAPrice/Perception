@@ -15,13 +15,14 @@
 #include "linux_syscalls/execve.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long execve() {
   perception::DebugPrinterSingleton << "System call execve is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

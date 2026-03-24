@@ -15,13 +15,14 @@
 #include "linux_syscalls/ustat.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long ustat() {
   perception::DebugPrinterSingleton << "System call ustat is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls

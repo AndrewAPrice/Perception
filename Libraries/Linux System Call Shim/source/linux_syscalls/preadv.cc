@@ -15,13 +15,14 @@
 #include "linux_syscalls/preadv.h"
 
 #include "perception/debug.h"
+#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
 
 long preadv() {
   perception::DebugPrinterSingleton << "System call preadv is unimplemented.\n";
-  return 0;
+  return -ENOSYS;
 }
 
 }  // namespace linux_syscalls
