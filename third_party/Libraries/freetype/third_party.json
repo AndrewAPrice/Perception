@@ -89,7 +89,13 @@
             "operation": "copy",
             "source": "${git}/src/gxvalid",
             "destination": "source/gxvalid",
-            "exclude": ["source/gxvalid/gxvalid.c"]
+            "exclude": ["source/gxvalid/gxvalid.c"],
+            "replace": [{
+                "file": "source/gxvalid/gxvfgen.c",
+                "replacements": [[
+                    "#include <string.h>", "#include <string.h>\n\n#include \"freetype/config/ftstdlib.h\""
+                ]]
+            }]
         },
         {
             "operation": "copy",
