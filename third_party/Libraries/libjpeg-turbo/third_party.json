@@ -15,6 +15,7 @@
         {
             "operation": "set",
             "values": {
+                "8_bit_files_to_duplicate": [],
                 "12_bit_files_to_duplicate": [
                     "jcapistd",
                     "jccoefct",
@@ -67,23 +68,43 @@
                     "jutils",
                     "rdppm",
                     "wrppm"
-                ],
-                "12_bit_sources": "${git}/${12_bit_files_to_duplicate}.c",
+                ]
+            }
+        },
+        {
+            "operation": "set",
+            "values": {
+                "8_bit_sources": "${git}/src/${8_bit_files_to_duplicate}.c",
+                "8_bit_destinations": "${@}/source/${8_bit_files_to_duplicate}_12.c",
+                "12_bit_sources": "${git}/src/${12_bit_files_to_duplicate}.c",
                 "12_bit_destinations": "${@}/source/${12_bit_files_to_duplicate}_12.c",
-                "16_bit_sources": "${git}/${16_bit_files_to_duplicate}.c",
+                "16_bit_sources": "${git}/src/${16_bit_files_to_duplicate}.c",
                 "16_bit_destinations": "${@}/source/${16_bit_files_to_duplicate}_16.c"
             }
         },
         {
             "operation": "evaluate",
             "values": {
-                "version_stering": "'${major}'+'.'+'${minor}'+'.'+'${revision}'",
+                "version_string": "'${major}'+'.'+'${minor}'+'.'+'${revision}'",
                 "version_number": "${major} * 100000 + ${minor} * 100 + ${revision}"
             }
         },
         {
+            "operation": "readFilesInDirectory",
+            "path": "${git}/src",
+            "placeholder": "test-sources",
+            "regex": "^tj.*\\.c",
+            "fullPath": true,
+            "replacements": [
+                [
+                    "${git}/src/",
+                    "${@}/source/"
+                ]
+            ]
+        },
+        {
             "operation": "copy",
-            "source": "${git}",
+            "source": "${git}/src",
             "destination": "source",
             "extensions": [".asm", ".c", ".cpp", ".h", ".hh", ".inc"],
             "exclude": [
@@ -91,7 +112,7 @@
                 "source/jpeglib.h",
                 "source/jmorecfg.h",
                 "source/turbojpeg-jni.c",
-                "source/jcapistd.c"
+                "${test-sources}"
             ]
         },
         {
@@ -102,6 +123,17 @@
                 "file": "${12_bit_destinations}",
                 "prepend": "#define BITS_IN_JSAMPLE 12\n"
             }]
+        },
+        {
+            "operation": "copy",
+            "source": "${8_bit_sources}",
+            "destination": "${8_bit_destinations}",
+            "replace": [
+                {
+                    "file": "${8_bit_destinations}",
+                    "prepend": "#define BITS_IN_JSAMPLE 8\n"
+                }
+            ]
         },
         {
             "operation": "copy",
@@ -126,7 +158,16 @@
             "exclude": ["source/simd/x86_64/jsimdcfg.inc.h"],
             "replace": [{
                 "file": "source/simd/x86_64/jsimd.c",
-                "replacements": [["#include \"../../jpeglib.h\"", "#include \"jpeglib.h\""]]
+                "replacements": [
+                    [
+                        "#include \"../../src/jpeglib.h\"",
+                        "#include \"jpeglib.h\""
+                    ],
+                    [
+                        "#include \"../../src/",
+                        "#include \"../../"
+                    ]
+                ]
             }]
         },
         {
@@ -144,13 +185,24 @@
         },
         {
             "operation": "copy",
-            "source": "${git}/md5",
+            "source": "${git}/src/md5",
             "destination": "source/md5",
-            "extensions": [".asm", ".c", ".cpp", ".h", ".hh", ".inc"]
+            "extensions": [
+                ".asm",
+                ".c",
+                ".cpp",
+                ".h",
+                ".hh",
+                ".inc"
+            ],
+            "exclude": [
+                "source/md5/md5cmp.c",
+                "source/md5/md5sum.c"
+            ]
         },
         {
             "operation": "copy",
-            "source": "${git}/jconfig.h.in",
+            "source": "${git}/src/jconfig.h.in",
             "destination": "public/jconfig.h",
             "replace": [{
                 "file": "public/jconfig.h",
@@ -166,22 +218,22 @@
         },
         {
             "operation": "copy",
-            "source": "${git}/jerror.h",
+            "source": "${git}/src/jerror.h",
             "destination": "public/jerror.h"
         },
         {
             "operation": "copy",
-            "source": "${git}/jpeglib.h",
+            "source": "${git}/src/jpeglib.h",
             "destination": "public/jpeglib.h"
         },
         {
             "operation": "copy",
-            "source": "${git}/jmorecfg.h",
+            "source": "${git}/src/jmorecfg.h",
             "destination": "public/jmorecfg.h"
         },
         {
             "operation": "copy",
-            "source": "${git}/jconfigint.h.in",
+            "source": "${git}/src/jconfigint.h.in",
             "destination": "source/jconfigint.h",
             "replace": [{
                 "file": "source/jconfigint.h",
@@ -192,13 +244,20 @@
                     ["@CMAKE_PROJECT_NAME@", "turbo-jpeg"],
                     ["@VERSION@", "${version_string}"],
                     ["@SIZE_T@", "8"],
-                    ["#cmakedefine", "#define"]
+                    [
+                        "#cmakedefine",
+                        "#define"
+                    ],
+                    [
+                        "#define HAVE_INTRIN_H",
+                        ""
+                    ]
                 ]
             }]
         },
         {
             "operation": "copy",
-            "source": "${git}/jversion.h.in",
+            "source": "${git}/src/jversion.h.in",
             "destination": "source/jversion.h"
         },
         {
@@ -208,9 +267,15 @@
             "replace": [{
                 "file": "source/simd/jsimdcfg.inc.h",
                 "replacements": [
-                    ["#include \"../jpeglib.h\"", "#include \"jpeglib.h\""],
+                    [
+                        "#include \"../src/jpeglib.h\"",
+                        "#include \"jpeglib.h\""
+                    ],
                     ["#include \"../jconfig.h\"", "#include \"jconfig.h\""],
-                    ["#include \"../jmorecfg.h\"", "#include \"jmorecfg.h\""]
+                    [
+                        "#include \"../src/jmorecfg.h\"",
+                        "#include \"jmorecfg.h\""
+                    ]
                 ]
             }]
         },

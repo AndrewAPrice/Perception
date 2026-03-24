@@ -12,6 +12,8 @@
     'PPM_SUPPORTED',
   ],
   files_to_ignore: [
+    'source/bmpsizetest.c',
+    'source/simd/simdcoverage.c',
     'source/jccolext.c',
     'source/jdcol565.c',
     'source/jdcolext.c',
