@@ -15,6 +15,9 @@
 
 #include "object_pool.h"
 #include "physical_allocator.h"
+#include "process.h"
+#include "scheduler.h"
+#include "thread.h"
 #include "virtual_allocator.h"
 
 namespace {
