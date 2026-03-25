@@ -97,10 +97,25 @@ void Yield() {
 
 void SetThreadSegment(size_t segment_address) {
 #ifdef PERCEPTION
-  register size_t syscall_num asm("rdi") = 27;
-  register size_t param asm("rax") = segment_address;
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "D"((size_t)27), "a"(segment_address)
+                       : "rcx", "r11", "memory");
+#endif
+}
 
-  __asm__("syscall\n" ::"r"(syscall_num), "r"(param) : "rcx", "r11");
+void SetThreadSegments(std::optional<size_t> fs_address,
+                       std::optional<size_t> gs_address) {
+#ifdef PERCEPTION
+  size_t mask = 0;
+  if (fs_address) mask |= 1;
+  if (gs_address) mask |= 2;
+
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "D"((size_t)63), "a"(fs_address.value_or(0)),
+                         "b"(gs_address.value_or(0)), "d"(mask)
+                       : "rcx", "r11", "memory");
 #endif
 }
 

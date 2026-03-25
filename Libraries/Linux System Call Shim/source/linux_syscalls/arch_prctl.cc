@@ -22,11 +22,11 @@ namespace perception {
 namespace linux_syscalls {
 
 long arch_prctl(int code, unsigned long addr) {
-  if (code == 0x1002) { // ARCH_SET_FS
-    ::perception::SetThreadSegments(addr, true, 0, false);
+  if (code == 0x1002) {  // ARCH_SET_FS
+    ::perception::SetThreadSegments(addr, std::nullopt);
     return 0;
-  } else if (code == 0x1001) { // ARCH_SET_GS
-    ::perception::SetThreadSegments(0, false, addr, true);
+  } else if (code == 0x1001) {  // ARCH_SET_GS
+    ::perception::SetThreadSegments(std::nullopt, addr);
     return 0;
   }
   return -EINVAL;

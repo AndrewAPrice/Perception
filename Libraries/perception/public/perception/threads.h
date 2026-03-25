@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <optional>
 #include "types.h"
 
 namespace perception {
@@ -41,6 +42,10 @@ void Yield();
 
 // Sets the address for the thread's segment (FS).
 void SetThreadSegment(size_t segment_address);
+
+// Sets the address for the thread's segments (FS and/or GS).
+void SetThreadSegments(std::optional<size_t> fs_address,
+                       std::optional<size_t> gs_address);
 
 // Set an address (that must be 8-byte aligned) to be cleared on the termination
 // of the currently executing thread.
