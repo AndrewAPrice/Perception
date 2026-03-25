@@ -55,23 +55,27 @@ void CallArrayOfFunctions(size_t *address) {
 
   for (; init_arrays_count > 0; init_arrays_count--) {
     size_t function_address = *(address++);
-    JumpToFunction(function_address);
+    (*(void (**)(void))&function_address)();
   }
 }
 
 void CallArrayOfFunctions(size_t *first_address_ptr, size_t *last_address_ptr) {
   for (size_t address_ptr = (size_t)first_address_ptr;
-       address_ptr < (size_t)last_address_ptr; address_ptr += sizeof(size_t))
+       address_ptr < (size_t)last_address_ptr; address_ptr += sizeof(size_t)) {
+    size_t func = *(size_t *)address_ptr;
     (*(void (**)(void))address_ptr)();
+  }
 }
 
 // Returns whether is is a statically linked application.
 bool IsStaticallyLinked() {
-  // The Perception loader populates __init_array_of_arrays.
-  return (size_t *)&__init_array_of_arrays == 0;
+  size_t addr;
+  __asm__ volatile("movq __init_array_of_arrays@GOTPCREL(%%rip), %0"
+                   : "=r"(addr));
+  return addr == 0;
 }
 
-}  // namespace
+} // namespace
 
 extern "C" {
 
@@ -100,5 +104,4 @@ __attribute__((visibility("default"))) void __libc_exit_fini() {
 
 // Calls main.
 void _main(int argc, char *argv[]) __attribute__((weak)) { main(argc, argv); }
-
 }

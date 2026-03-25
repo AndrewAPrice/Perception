@@ -27,12 +27,23 @@ envp:
 	DQ 0
 	DQ 0
 
+[extern __libc_start_init]
+[extern __libc_exit_fini]
+
 ; This is the entrypoint where programs begin running.
 _start:
-	; Call the C entry point.
+	; Diagnostics: print 'A' using Syscall 0
+	mov rdi, 0                  ; syscall 0
+	mov rax, 0x41               ; 'A'
+	syscall
+
 	lea rdi, [_main wrt ..plt]
-	mov rsi, 0 ; argc
-	lea rdx, [envp] ; argv
+	mov rsi, 0                  ; argc = 0
+	lea rdx, [envp]            ; argv = envp address
+	; Call the C entry point.
+	lea rcx, [__libc_start_init wrt ..plt]
+	lea r8, [__libc_exit_fini wrt ..plt]
+	xor r9, r9
 	call __libc_start_main wrt ..plt
 
 	; Call registered destructors.
