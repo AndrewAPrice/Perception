@@ -166,7 +166,7 @@ void LoadMultibootModules() {
     // Found a multiboot module.
     if (tag->type == MULTIBOOT_TAG_TYPE_MODULE) {
       multiboot_tag_module *module_tag = (multiboot_tag_module *)tag;
-      size_t size = module_tag->mod_start - module_tag->mod_end;
+      size_t size = module_tag->mod_end - module_tag->mod_start;
       if (size == 0) {
         // Replace the tag so empty modules get skipped over later.
         tag->type = kLoadedMultibootTagType;
