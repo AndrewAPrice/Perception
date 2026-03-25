@@ -131,6 +131,18 @@ Sets the value of the FS segment base. Each thread can have its own FS segment b
 * `rdi` - 27
 * `rax` - The address of the fs segment base.
 
+## Set thread segment extended
+
+Sets the value of the FS and/or GS segment base. Each thread can have its own segment bases. Supports setting both or either in a single call.
+
+### Input
+* `rdi` - 63
+* `rax` - Address for `%fs_base` (used if `rdx` bit 0 is set)
+* `rbx` - Address for `%gs_base` (used if `rdx` bit 1 is set)
+* `rdx` - **Bitfield Mask:**
+  - Bit 0: Set `%fs_base`
+  - Bit 1: Set `%gs_base`
+
 ## Set memory address to clear on thread termination
 
 Sets a memory address of a 64-bit (8-byte aligned) integer that should cleared when the currently running thread is terminated.

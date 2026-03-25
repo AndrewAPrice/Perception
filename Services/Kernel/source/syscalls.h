@@ -15,7 +15,7 @@
 #pragma once
 
 // The total number of system calls.
-#define NUMBER_OF_SYSCALLS 63
+#define NUMBER_OF_SYSCALLS 64
 
 // The canonical list of system calls, mapped to the system call number.
 enum class Syscall {
@@ -33,6 +33,7 @@ enum class Syscall {
   TerminateThread = 5,
   Yield = 8,
   SetThreadSegment = 27,
+  SetThreadSegmentExtended = 63,
   SetAddressToClearOnThreadTermination = 28,
   // Memory management,
   AllocateMemoryPages = 12,

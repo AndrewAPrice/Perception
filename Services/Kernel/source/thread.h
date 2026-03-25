@@ -31,8 +31,11 @@ struct Thread {
   // switching?
   bool uses_fpu_registers : 1;
 
-  // Offset of the thread's segment (FS).
-  size_t thread_segment_offset;
+  // Offset of the thread's FS segment.
+  size_t thread_fs_segment_offset;
+
+  // Offset of the thread's GS segment.
+  size_t thread_gs_segment_offset;
 
   // Virtual address of the thread's stack. This gets released when the thread
   // is destroyed.
@@ -83,6 +86,10 @@ Thread *GetThreadFromTid(Process *process, size_t tid);
 
 // Set the thread's segment offset (FS).
 void SetThreadSegment(Thread *thread, size_t address);
+
+// Set the thread's segments (FS and/or GS).
+void SetThreadSegments(Thread *thread, size_t fs_address, bool set_fs,
+                       size_t gs_address, bool set_gs);
 
 // Load's a thread segment.
 void LoadThreadSegment(Thread *thread);

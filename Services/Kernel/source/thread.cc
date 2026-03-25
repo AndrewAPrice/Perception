@@ -16,6 +16,9 @@ namespace {
 // The model specific register that stores the FS segment's base address.
 #define FSBASE_MSR 0xC0000100
 
+// The model specific register that stores the GS segment's base address.
+#define GSBASE_MSR 0xC0000101
+
 // The number of stack pages.
 #define STACK_PAGES 8
 
@@ -79,7 +82,8 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param) {
   InitializeRegisters(*process, entry_point, param, *thread);
 
   // No thread segment.
-  thread->thread_segment_offset = (size_t)nullptr;
+  thread->thread_fs_segment_offset = (size_t)nullptr;
+  thread->thread_gs_segment_offset = (size_t)nullptr;
 
   // The thread isn't initially awake until we schedule it.
   thread->awake = false;
@@ -175,16 +179,27 @@ Thread* GetThreadFromTid(Process* process, size_t tid) {
 
 // Set the thread's segment offset (FS).
 void SetThreadSegment(Thread* thread, size_t address) {
-  thread->thread_segment_offset = address;
+  thread->thread_fs_segment_offset = address;
 
-  if (thread == running_thread) {
+  if (running_thread != nullptr && thread == running_thread) {
+    LoadThreadSegment(thread);
+  }
+}
+
+// Set the thread's segments (FS and/or GS).
+void SetThreadSegments(Thread* thread, size_t fs_address, bool set_fs, size_t gs_address, bool set_gs) {
+  if (set_fs) thread->thread_fs_segment_offset = fs_address;
+  if (set_gs) thread->thread_gs_segment_offset = gs_address;
+
+  if (running_thread != nullptr && thread == running_thread) {
     LoadThreadSegment(thread);
   }
 }
 
 // Load's a thread segment.
 void LoadThreadSegment(Thread* thread) {
-  WriteModelSpecificRegister(FSBASE_MSR, thread->thread_segment_offset);
+  WriteModelSpecificRegister(FSBASE_MSR, thread->thread_fs_segment_offset);
+  WriteModelSpecificRegister(GSBASE_MSR, thread->thread_gs_segment_offset);
 }
 
 #ifdef __TEST__

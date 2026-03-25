@@ -46,6 +46,8 @@ const char *GetSystemCallName(Syscall syscall) {
       return "Yield";
     case Syscall::SetThreadSegment:
       return "SetThreadSegment";
+    case Syscall::SetThreadSegmentExtended:
+      return "SetThreadSegmentExtended";
     case Syscall::SetAddressToClearOnThreadTermination:
       return "SetAddressToClearOnThreadTermination";
     case Syscall::AllocateMemoryPages:

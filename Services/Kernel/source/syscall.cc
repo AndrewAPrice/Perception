@@ -136,6 +136,13 @@ extern "C" void SyscallHandler(int syscall_number) {
     case Syscall::SetThreadSegment:
       SetThreadSegment(running_thread, currently_executing_thread_regs->rax);
       break;
+    case Syscall::SetThreadSegmentExtended: {
+      size_t mask = currently_executing_thread_regs->rdx;
+      SetThreadSegments(running_thread, 
+          currently_executing_thread_regs->rax, (mask & 1) != 0,
+          currently_executing_thread_regs->rbx, (mask & 2) != 0);
+      break;
+    }
     case Syscall::SetAddressToClearOnThreadTermination:
       // Align the address to 8 bytes to avoid crossing page boundaries.
       running_thread->address_to_clear_on_termination =
