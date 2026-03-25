@@ -55,44 +55,43 @@ void GetMultibootFramebufferDetails(size_t& physical_address, uint32& width,
 std::unique_ptr<MultibootModule> GetMultibootModule() {
 #ifdef PERCEPTION
   volatile register size_t syscall asm("rdi") = 60;
-  volatile register size_t address_and_flags asm("rdi");
-#ifndef optimized_BUILD_
-  volatile register size_t size asm("r11");
-#else
-  volatile register size_t size asm("rbp");
-#endif
-  volatile register size_t name_1 asm("rax");
-  volatile register size_t name_2 asm("rbx");
-  volatile register size_t name_3 asm("rdx");
-  volatile register size_t name_4 asm("rsi");
-  volatile register size_t name_5 asm("r8");
-  volatile register size_t name_6 asm("r9");
-  volatile register size_t name_7 asm("r10");
-  volatile register size_t name_8 asm("r12");
-  volatile register size_t name_9 asm("r13");
-  volatile register size_t name_10 asm("r14");
-  volatile register size_t name_11 asm("r15");
-
+  size_t address_and_flags;
+  size_t size;
+  size_t name_words[11];
   __asm__ __volatile__(
 #ifndef optimized_BUILD_
       R"(
     push %%rbp
     syscall
-    mov %%rbp, %%r11
+    mov %%rbp, %1
+    mov %%r8, %6
+    mov %%r9, %7
+    mov %%r10, %8
+    mov %%r12, %9
+    mov %%r13, %10
+    mov %%r14, %11
+    mov %%r15, %12
     pop %%rbp
   )"
 #else
-      "syscall\n"
+      R"(
+    syscall
+    mov %%r8, %6
+    mov %%r9, %7
+    mov %%r10, %8
+    mov %%r12, %9
+    mov %%r13, %10
+    mov %%r14, %11
+    mov %%r15, %12
+  )"
 #endif
-      : "=r"(address_and_flags), "=r"(size), "=r"(name_1), "=r"(name_2),
-        "=r"(name_3), "=r"(name_4), "=r"(name_5), "=r"(name_6), "=r"(name_7),
-        "=r"(name_8), "=r"(name_9), "=r"(name_10), "=r"(name_11)
-      : "r"(syscall)
+      : "=D"(address_and_flags), "=r"(size),
+        "=a"(name_words[0]), "=b"(name_words[1]), "=d"(name_words[2]),
+        "=S"(name_words[3]), "=r"(name_words[4]), "=r"(name_words[5]),
+        "=r"(name_words[6]), "=r"(name_words[7]), "=r"(name_words[8]),
+        "=r"(name_words[9]), "=r"(name_words[10])
+      : "D"(syscall)
       : "rcx"
-#ifdef optimized_BUILD_
-        ,
-        "r11"
-#endif
   );
 
   if (size == 0) return nullptr;
@@ -107,17 +106,17 @@ std::unique_ptr<MultibootModule> GetMultibootModule() {
   module_name[kMaximumModuleNameLength] = '\0';
 
   // Copy the string out of the registers into a char array.
-  ((size_t*)module_name)[0] = name_1;
-  ((size_t*)module_name)[1] = name_2;
-  ((size_t*)module_name)[2] = name_3;
-  ((size_t*)module_name)[3] = name_4;
-  ((size_t*)module_name)[4] = name_5;
-  ((size_t*)module_name)[5] = name_6;
-  ((size_t*)module_name)[6] = name_7;
-  ((size_t*)module_name)[7] = name_8;
-  ((size_t*)module_name)[8] = name_9;
-  ((size_t*)module_name)[9] = name_10;
-  ((size_t*)module_name)[10] = name_11;
+  ((size_t*)module_name)[0] = name_words[0];
+  ((size_t*)module_name)[1] = name_words[1];
+  ((size_t*)module_name)[2] = name_words[2];
+  ((size_t*)module_name)[3] = name_words[3];
+  ((size_t*)module_name)[4] = name_words[4];
+  ((size_t*)module_name)[5] = name_words[5];
+  ((size_t*)module_name)[6] = name_words[6];
+  ((size_t*)module_name)[7] = name_words[7];
+  ((size_t*)module_name)[8] = name_words[8];
+  ((size_t*)module_name)[9] = name_words[9];
+  ((size_t*)module_name)[10] = name_words[10];
 
   multiboot_module->name = std::string(module_name);
 
