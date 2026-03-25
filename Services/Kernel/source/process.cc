@@ -77,7 +77,8 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
 void ReleaseNotification(ProcessToNotifyOnExit *notification) {
   // Remove from target.
   notification->target->processes_to_notify_when_i_die.Remove(notification);
-  notification->target->processes_i_want_to_be_notified_of_when_they_die.Remove(
+  // Remove from notifyee.
+  notification->notifyee->processes_i_want_to_be_notified_of_when_they_die.Remove(
       notification);
   ObjectPool<ProcessToNotifyOnExit>::Release(notification);
 }

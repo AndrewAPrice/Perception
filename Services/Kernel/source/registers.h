@@ -19,9 +19,9 @@
 // A thread's registers. The code in syscall.asm, exceptions.asm, and
 // interrupts.asm depends on the layout of this struct.
 struct Registers {
-  size_t r15, r14, r13, r12, r11, r10, r9, r8;
-  size_t rsi, rdx, rcx, rbx, rax, rdi, rbp;
-  size_t rip, cs, rflags, rsp, ss;
+  uint64 r15, r14, r13, r12, r11, r10, r9, r8;
+  uint64 rsi, rdx, rcx, rbx, rax, rdi, rbp;
+  uint64 rip, cs, rflags, rsp, ss;
 };
 
 // Prints the registers, for debugging.

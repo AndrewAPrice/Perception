@@ -280,6 +280,7 @@ size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
   return addr;
 }
 
+
 // Frees a physical page.
 void FreePhysicalPage(size_t addr) {
   // Push this page onto the linked stack.
