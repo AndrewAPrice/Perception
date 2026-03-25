@@ -101,7 +101,7 @@ class Layout {
   float GetComputedPadding(YGEdge edge);
 
   void SetGap(float gap, YGGutter gutter = YGGutterAll);
-  float GetGap(YGEdge edge, YGGutter gutter);
+  YGValue GetGap(YGEdge edge, YGGutter gutter);
 
   void SetBorder(YGEdge edge, float border);
   float GetBorder(YGEdge edge);

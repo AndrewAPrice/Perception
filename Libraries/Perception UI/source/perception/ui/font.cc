@@ -16,11 +16,11 @@
 #include <memory>
 
 #include "include/core/SkFont.h"
-#include "include/core/SkFontStyle.h"
 #include "include/core/SkFontMgr.h"
+#include "include/core/SkFontStyle.h"
 #include "include/ports/SkFontConfigInterface.h"
 #include "include/ports/SkFontMgr_FontConfigInterface.h"
-#include "include/ports/SkFontConfigInterface.h"
+#include "include/ports/SkFontScanner_FreeType.h"
 
 namespace perception {
 namespace ui {
@@ -31,13 +31,14 @@ std::unique_ptr<SkFont> bold_12_ui_font;
 
 SkFontMgr *GetFontManager() {
   static sk_sp<SkFontMgr> font_manager = SkFontMgr_New_FCI(
-    sk_sp( SkFontConfigInterface::GetSingletonDirectInterface()));
+      sk_sp(SkFontConfigInterface::GetSingletonDirectInterface()),
+      SkFontScanner_Make_FreeType());
   return font_manager.get();
 }
 
-}  // namespace
+} // namespace
 
-SkFont* GetBook12UiFont() {
+SkFont *GetBook12UiFont() {
   if (!book_12_ui_font) {
     book_12_ui_font = std::make_unique<SkFont>(
         GetFontManager()->matchFamilyStyle(
@@ -49,7 +50,7 @@ SkFont* GetBook12UiFont() {
   return book_12_ui_font.get();
 }
 
-SkFont* GetBold12UiFont() {
+SkFont *GetBold12UiFont() {
   if (!bold_12_ui_font) {
     bold_12_ui_font = std::make_unique<SkFont>(
         GetFontManager()->matchFamilyStyle(
@@ -57,10 +58,9 @@ SkFont* GetBold12UiFont() {
             SkFontStyle(SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width,
                         SkFontStyle::kUpright_Slant)),
         12);
-
   }
   return bold_12_ui_font.get();
 }
 
-}  // namespace ui
-}  // namespace perception
+} // namespace ui
+} // namespace perception

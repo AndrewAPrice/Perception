@@ -201,7 +201,7 @@ void Layout::SetGap(float gap, YGGutter gutter) {
   YGNodeStyleSetGap(yoga_node_, gutter, gap);
 }
 
-float Layout::GetGap(YGEdge edge, YGGutter gutter) {
+YGValue Layout::GetGap(YGEdge edge, YGGutter gutter) {
   return YGNodeStyleGetGap(yoga_node_, gutter);
 }
 
