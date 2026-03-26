@@ -47,17 +47,21 @@ using ::perception::Status;
 
 namespace {
 
+// Uncomment to be very verbose with where shared libraries are loaded.
+// #define VERBOSE
+
 // Loads all of the dependencies for an executable, returning an array
 // containing the executable and all depedendecies.
-std::optional<std::vector<std::shared_ptr<ElfFile>>> LoadDependencies(
-    std::shared_ptr<ElfFile> executable_file) {
+std::optional<std::vector<std::shared_ptr<ElfFile>>>
+LoadDependencies(std::shared_ptr<ElfFile> executable_file) {
   std::set<std::string> loaded_dependencies;
   std::queue<std::string> dependencies_to_load;
 
   executable_file->ForEachDependentLibrary([&](std::string_view library_sv) {
     //     std::cout << "Dependent library: " << library_sv << std::endl;
     std::string library_name = std::string(library_sv);
-    if (loaded_dependencies.contains(library_name)) return;
+    if (loaded_dependencies.contains(library_name))
+      return;
     //   std::cout << "queuing: " << library_sv << std::endl;
 
     loaded_dependencies.insert(library_name);
@@ -77,7 +81,8 @@ std::optional<std::vector<std::shared_ptr<ElfFile>>> LoadDependencies(
                 << executable_file->File().Name() << ": " << name;
 
       // Unload all loaded files.
-      for (auto& loaded_file : loaded_elf_files) DecrementElfFile(loaded_file);
+      for (auto &loaded_file : loaded_elf_files)
+        DecrementElfFile(loaded_file);
       return std::nullopt;
     }
 
@@ -85,7 +90,8 @@ std::optional<std::vector<std::shared_ptr<ElfFile>>> LoadDependencies(
 
     elf_library->ForEachDependentLibrary([&](std::string_view library_sv) {
       std::string library_name = std::string(library_sv);
-      if (loaded_dependencies.contains(library_name)) return;
+      if (loaded_dependencies.contains(library_name))
+        return;
 
       loaded_dependencies.insert(library_name);
       dependencies_to_load.push(library_name);
@@ -95,7 +101,7 @@ std::optional<std::vector<std::shared_ptr<ElfFile>>> LoadDependencies(
   return loaded_elf_files;
 }
 
-}  // namespace
+} // namespace
 
 StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
                                               std::string_view name) {
@@ -124,7 +130,8 @@ StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
 
   auto dependencies = std::move(*opt_dependencies);
   cleanup = [&]() {
-    for (auto& dependency : dependencies) DecrementElfFile(dependency);
+    for (auto &dependency : dependencies)
+      DecrementElfFile(dependency);
   };
 
   // Detecting if something is a driver if the device manager launches it
@@ -144,7 +151,7 @@ StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
     return Status::INTERNAL_ERROR;
   }
 
-  std::map<size_t, void*> child_memory_pages;
+  std::map<size_t, void *> child_memory_pages;
   std::map<std::string, size_t> symbols_to_addresses;
 
   // From this point on, child_memory_pages must be cleaned up before returning
@@ -154,7 +161,8 @@ StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
       ReleaseMemoryPages(address_and_page.second, 1);
 
     DestroyChildProcess(child_pid);
-    for (auto& dependency : dependencies) DecrementElfFile(dependency);
+    for (auto &dependency : dependencies)
+      DecrementElfFile(dependency);
   };
 
   InitFiniFunctions init_fini_functions;
@@ -166,6 +174,10 @@ StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
   load_addresses_of_elf_files.reserve(dependencies.size());
   for (auto dependency : dependencies) {
     load_addresses_of_elf_files.push_back(next_free_address);
+#if VERBOSE
+    std::cout << "Loading " << dependency->File().Name() << " at " << std::hex
+              << next_free_address << std::dec << std::endl;
+#endif
     auto status_or_next_free_address =
         dependency->LoadIntoAddressSpaceAndReturnNextFreeAddress(
             child_pid, next_free_address, child_memory_pages,
@@ -213,6 +225,7 @@ StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
   StartExecutingChildProcess(child_pid, elf_file->EntryAddress(/*offset=*/0),
                              /*params=*/0);
 
-  for (auto& dependency : dependencies) DecrementElfFile(dependency);
+  for (auto &dependency : dependencies)
+    DecrementElfFile(dependency);
   return Status::OK;
 }
