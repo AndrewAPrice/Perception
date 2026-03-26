@@ -368,7 +368,7 @@ void ElfFile::FindInterestingSections() {
       init_array_section_header_ = &section_header;
     } else if (!strcmp(section_name, ".fini")) {
       std::cout << File().Name()
-                << " contains an .fini section instead of .init_array, and "
+                << " contains an .fini section instead of .fini_array, and "
                    "support is flakey."
                 << std::endl;
       fini_section_header_ = &section_header;
