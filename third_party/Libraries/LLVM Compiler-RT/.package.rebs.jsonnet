@@ -3,4 +3,7 @@
   source_directories: [
     'source',
   ],
+  defines: [
+    'CRT_HAS_INITFINI_ARRAY',
+  ],
 }
