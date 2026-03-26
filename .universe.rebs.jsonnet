@@ -13,7 +13,7 @@
       else
         ' -g -O2 ',
     local c_command_prefix = cpp_compiler + c_optimizations +
-                             ' -c --target=x86_64-unknown-none-elf -fdata-sections -ffunction-sections -nostdinc -mno-red-zone -fPIC',
+                             ' -c --target=x86_64-unknown-none-elf -fdata-sections -ffunction-sections -nostdinc -mno-red-zone -fPIC -isystem "${clangresources}/include"',
     local cpp_command = c_command_prefix + ' -std=c++23 -nostdinc++ ${cdefines} ${cincludes} -MD -MF ${deps file} -o ${out} ${in}',
     cpp: cpp_command,
     cc: cpp_command,
@@ -82,7 +82,6 @@
   else
     [],
   dependencies: [
-    'libclang compiler headers',
     'libcxx',
     'LLVM Compiler-RT',
     'musl',
