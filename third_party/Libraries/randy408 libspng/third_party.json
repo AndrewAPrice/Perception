@@ -1,0 +1,21 @@
+{
+  "repositories": [
+    {
+      "url": "https://github.com/randy408/libspng.git",
+      "type": "git",
+      "placeholder": "git"
+    }
+  ],
+  "operations": [
+    {
+      "operation": "copy",
+      "source": "${git}/spng/spng.c",
+      "destination": "source/spng.c"
+    },
+    {
+      "operation": "copy",
+      "source": "${git}/spng/spng.h",
+      "destination": "public/spng.h"
+    }
+  ]
+}
