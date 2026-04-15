@@ -55,7 +55,7 @@ constexpr int kPaddingDistance = 3;
 
 StatusOr<std::vector<char>> LoadWindowButtonsFile() {
   // Open the file in binary mode and position the file pointer at the end.
-  std::ifstream file(kWindowsButtonPath, std::ios::binary);
+  std::ifstream file((std::string(kWindowsButtonPath)), std::ios::binary);
   if (!file || !file.is_open()) {
     std::cout << "Cannot open " << kWindowsButtonPath << std::endl;
     return Status::FILE_NOT_FOUND;
