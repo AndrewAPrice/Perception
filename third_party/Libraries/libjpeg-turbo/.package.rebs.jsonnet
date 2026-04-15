@@ -45,4 +45,7 @@
   source_directories: [
     'source',
   ],
+  dependencies+: [
+    'randy408 libspng',
+  ],
 }
