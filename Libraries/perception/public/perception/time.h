@@ -42,3 +42,7 @@ void AfterTimeSinceKernelStarted(std::chrono::microseconds time,
                                  std::function<void()> at_time);
 
 }  // namespace perception
+
+// Standard C function to get the current time since the system started, in
+// seconds.
+extern "C" double getTime();

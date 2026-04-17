@@ -161,3 +161,9 @@ void AfterTimeSinceKernelStarted(std::chrono::microseconds time,
 }
 
 }  // namespace perception
+
+// Standard C function to get the current time since the system started, in
+// seconds.
+extern "C" double getTime() {
+  return (double)perception::GetTimeSinceKernelStarted().count() / 1000000.0;
+}

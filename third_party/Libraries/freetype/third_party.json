@@ -23,7 +23,11 @@
             "operation": "copy",
             "source": "${git}/include/freetype/config",
             "destination": "public/freetype/config",
-            "extensions": [".h"]
+            "extensions": [".h"],
+            "replace": [{
+                "file": "public/freetype/config/ftmodule.h",
+                "replacements": [["FT_USE_MODULE( FT_Driver_ClassRec, hvf_driver_class )", "/* FT_USE_MODULE( FT_Driver_ClassRec, hvf_driver_class ) */"]]
+            }]
         },
         {
             "operation": "copy",

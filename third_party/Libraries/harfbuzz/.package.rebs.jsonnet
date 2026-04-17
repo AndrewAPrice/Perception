@@ -12,6 +12,9 @@
     'public/graph',
     'public/OT/Var/VARC'
   ],
+  files_to_ignore: [
+    'source/harfbuzz-world.cc',
+  ],
   dependencies+: [
     'freetype',
     'unicode-org icu',
