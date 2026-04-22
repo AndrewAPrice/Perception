@@ -126,4 +126,4 @@ std::unique_ptr<MultibootModule> GetMultibootModule() {
 #endif  // PERCEPTIOn
 }
 
-}  // namespace perception}  // namespace perception
+}  // namespace perception
