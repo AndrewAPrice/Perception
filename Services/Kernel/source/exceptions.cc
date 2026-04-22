@@ -19,6 +19,7 @@
 #include "idt.h"
 #include "interrupts.asm.h"
 #include "interrupts.h"
+#include "io.h"
 #include "physical_allocator.h"
 #include "process.h"
 #include "registers.h"
@@ -31,6 +32,8 @@
 #include "virtual_allocator.h"
 
 namespace {
+
+#define QUIT_QEMU_ON_ANY_EXCEPTION
 
 // On an exception, print a core dump instead of anything else.
 constexpr bool kCoreDumpOnException = true;
@@ -55,7 +58,7 @@ void PrintException(bool in_kernel, int exception_no, size_t cr2,
   if (in_kernel) {
     print << " in kernel";
   } else {
-    Process* process = running_thread->process;
+    Process *process = running_thread->process;
     print << " by PID " << process->pid << " (" << process->name << ") in TID "
           << running_thread->id;
   }
@@ -67,14 +70,14 @@ void PrintException(bool in_kernel, int exception_no, size_t cr2,
   PrintRegistersAndStackTrace();
   if (exception == Exception::PageFault) {
     // Print the free address ranges to help debug what's happening.
-    VirtualAddressSpace& address_space =
+    VirtualAddressSpace &address_space =
         in_kernel ? KernelAddressSpace()
                   : running_thread->process->virtual_address_space;
     address_space.PrintFreeAddressRanges();
   }
 }
 
-}  // namespace
+} // namespace
 
 // Register the CPU exception interrupts.
 void RegisterExceptionInterrupts() {
@@ -114,49 +117,57 @@ void RegisterExceptionInterrupts() {
 #endif
 }
 
-const char* GetExceptionName(Exception exception) {
+const char *GetExceptionName(Exception exception) {
   switch (exception) {
-    case Exception::DivisionByZero:
-      return "Division By Zero";
-    case Exception::Debug:
-      return "Debug";
-    case Exception::NonMaskableInterrupt:
-      return "Non Maskable Interrupt";
-    case Exception::Breakpoint:
-      return "Breakpoint";
-    case Exception::IntoDetectedOverflow:
-      return "Into Detected Overflow";
-    case Exception::OutOfBounds:
-      return "Out of Bounds";
-    case Exception::InvalidOpcode:
-      return "Invalid Opcode";
-    case Exception::NoCoprocessor:
-      return "No Coprocessor";
-    case Exception::DoubleFault:
-      return "Double Fault";
-    case Exception::CoprocessorSegment:
-      return "Coprocessor Segment";
-    case Exception::BadTSS:
-      return "Bad TSS";
-    case Exception::SegmentNotPreset:
-      return "Segment Not Present";
-    case Exception::StackFault:
-      return "Stack Fault";
-    case Exception::GeneralProtectionFault:
-      return "General Protection Fault";
-    case Exception::PageFault:
-      return "Page Fault";
-    case Exception::UnknownInterrupt:
-      return "Unknown Interrupt";
-    case Exception::CoprocessorFault:
-      return "Coprocessor Fault";
-    case Exception::AlignmentCheck:
-      return "Alignment Check";
-    case Exception::MachineCheck:
-      return "Machine Check";
-    default:
-      return "Unknown";
+  case Exception::DivisionByZero:
+    return "Division By Zero";
+  case Exception::Debug:
+    return "Debug";
+  case Exception::NonMaskableInterrupt:
+    return "Non Maskable Interrupt";
+  case Exception::Breakpoint:
+    return "Breakpoint";
+  case Exception::IntoDetectedOverflow:
+    return "Into Detected Overflow";
+  case Exception::OutOfBounds:
+    return "Out of Bounds";
+  case Exception::InvalidOpcode:
+    return "Invalid Opcode";
+  case Exception::NoCoprocessor:
+    return "No Coprocessor";
+  case Exception::DoubleFault:
+    return "Double Fault";
+  case Exception::CoprocessorSegment:
+    return "Coprocessor Segment";
+  case Exception::BadTSS:
+    return "Bad TSS";
+  case Exception::SegmentNotPreset:
+    return "Segment Not Present";
+  case Exception::StackFault:
+    return "Stack Fault";
+  case Exception::GeneralProtectionFault:
+    return "General Protection Fault";
+  case Exception::PageFault:
+    return "Page Fault";
+  case Exception::UnknownInterrupt:
+    return "Unknown Interrupt";
+  case Exception::CoprocessorFault:
+    return "Coprocessor Fault";
+  case Exception::AlignmentCheck:
+    return "Alignment Check";
+  case Exception::MachineCheck:
+    return "Machine Check";
+  default:
+    return "Unknown";
   }
+}
+
+// Exits QEMU. Requires staring QEMU with:
+//   -device isa-debug-exit,iobase=0xf4,iosize=0x04.
+void ExitQemu() {
+#ifndef __TEST__
+  WriteIOByte(0xf4, 0x10);
+#endif
 }
 
 // The exception handler.
@@ -165,7 +176,7 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
   Exception exception = static_cast<Exception>(exception_no);
   if (exception == Exception::PageFault && running_thread != nullptr) {
     if (MaybeHandleSharedMessagePageFault(cr2))
-      JumpIntoThread();  // Doesn't return.
+      JumpIntoThread(); // Doesn't return.
   }
 
   bool in_kernel = currently_executing_thread_regs == nullptr ||
@@ -173,7 +184,12 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
                    IsKernelAddress(currently_executing_thread_regs->rip);
   PrintException(in_kernel, exception_no, cr2, error_code);
 
+#ifdef QUIT_QEMU_ON_ANY_EXCEPTION
+  ExitQemu();
+#endif
+
   if (in_kernel) {
+    ExitQemu();
 #ifndef __TEST__
     asm("cli");
     asm("hlt");
@@ -181,6 +197,10 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
   } else {
     // Terminate the process.
     DestroyProcess(running_thread->process);
-    JumpIntoThread();  // Doesn't return.
+    if (!AreAnyProcessesRunning()) {
+      print << "All processes terminated.\n";
+      ExitQemu();
+    }
+    JumpIntoThread(); // Doesn't return.
   }
 }

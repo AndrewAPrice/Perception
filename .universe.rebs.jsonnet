@@ -91,6 +91,6 @@
   local fs_path = '${temp directory}/fs/',
   global_run_command:
     'grub-mkrescue -o "' + iso_path + '" "' + fs_path + '"&&' +
-    'qemu-system-x86_64 -boot d -cdrom "' + iso_path + '" -m 512 -serial stdio',
+    'qemu-system-x86_64 -boot d -cdrom "' + iso_path + '" -m 512 -serial stdio -device isa-debug-exit,iobase=0xf4,iosize=0x04',
 
 }
