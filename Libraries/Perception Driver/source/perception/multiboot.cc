@@ -19,7 +19,7 @@
 namespace perception {
 
 // Maximum module name length.
-constexpr int kMaximumModuleNameLength = 88;
+constexpr int kMaximumModuleNameLength = 80;
 
 // Gets the details of the framebuffer set up by the bootloader.
 void GetMultibootFramebufferDetails(size_t& physical_address, uint32& width,
@@ -126,4 +126,4 @@ std::unique_ptr<MultibootModule> GetMultibootModule() {
 #endif  // PERCEPTIOn
 }
 
-}  // namespace perception
+}  // namespace perception}  // namespace perception

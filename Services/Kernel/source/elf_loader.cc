@@ -29,7 +29,8 @@ namespace {
 
 // Is this a valid ELF header?
 bool IsValidElfHeader(Elf64_Ehdr* header) {
-  if (header->e_ident[EI_MAG0] != ELFMAG0 ||
+  if (header == nullptr ||
+      header->e_ident[EI_MAG0] != ELFMAG0 ||
       header->e_ident[EI_MAG1] != ELFMAG1 ||
       header->e_ident[EI_MAG2] != ELFMAG2 ||
       header->e_ident[EI_MAG3] != ELFMAG3) {
@@ -62,6 +63,7 @@ bool IsValidElfHeader(Elf64_Ehdr* header) {
 // Figures out the number of segments in the binary.
 size_t GetNumberOfSegments(const Elf64_Ehdr* header, size_t memory_start,
                            size_t memory_end) {
+  if (header == nullptr) return 0;
   if (header->e_phnum == PN_XNUM) {
     // The number of program headers is too large to fit into e_phnum. Instead,
     // it's found in the field sh_info of section 0.

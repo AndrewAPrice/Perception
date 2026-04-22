@@ -36,7 +36,7 @@ ElfFile::ElfFile(std::unique_ptr<class File> file)
 
   // Make sure the file has a valid ELF header.
   auto header = ElfHeader();
-  if (!header & !IsValidElfHeader(*header)) return;
+  if (header == nullptr || !IsValidElfHeader(*header)) return;
 
   // Make sure there are valid section headers in the file.
   number_of_sections_ = header->e_shnum;

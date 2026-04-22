@@ -18,7 +18,7 @@
 
 struct Process;
 
-#define MODULE_NAME_WORDS 11
+#define MODULE_NAME_WORDS 10
 #define MODULE_NAME_LENGTH (MODULE_NAME_WORDS * 8)
 
 // Parses the name of the multiboot module, which has the permissions of the
