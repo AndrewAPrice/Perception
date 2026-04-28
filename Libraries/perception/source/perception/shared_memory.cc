@@ -127,7 +127,7 @@ void GrowSharedMemory(size_t id, size_t new_size_in_pages, void*& ptr,
 #if PERCEPTION
   volatile register size_t syscall_num asm("rdi") = 62;
   volatile register size_t id_r asm("rax") = id;
-  volatile register size_t new_size_r asm("rbx") = size_in_pages;
+  volatile register size_t new_size_r asm("rbx") = new_size_in_pages;
   volatile register size_t size_r asm("rax");
   volatile register size_t address_r asm("rbx");
 
