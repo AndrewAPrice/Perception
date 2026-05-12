@@ -11,7 +11,10 @@
             "operation": "copy",
             "source": "${git}/src/thread/x86_64",
             "destination": "source/thread",
-            "recursive": true
+            "recursive": true,
+            "exclude": [
+                "${@}/source/thread/__set_thread_area.s"
+            ]
         },
         {
             "operation": "copy",
