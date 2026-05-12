@@ -66,6 +66,11 @@ struct Thread {
   // If not 0, the virtual address in the process's space to clear on
   // termination of the thread. Must be 8-byte aligned.
   size_t address_to_clear_on_termination;
+
+  // Is this thread currently executing a syscall?
+#ifdef DEBUG
+  bool in_syscall;
+#endif
 };
 
 // Initialize threads.

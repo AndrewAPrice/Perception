@@ -105,6 +105,9 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param) {
 
   thread->address_to_clear_on_termination = 0;
   thread->uses_fpu_registers = true;
+#ifdef DEBUG
+  thread->in_syscall = false;
+#endif
 
   return thread;
 }

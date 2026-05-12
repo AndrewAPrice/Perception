@@ -61,6 +61,11 @@ void PrintException(bool in_kernel, int exception_no, size_t cr2,
     Process *process = running_thread->process;
     print << " by PID " << process->pid << " (" << process->name << ") in TID "
           << running_thread->id;
+#ifdef DEBUG
+    if (running_thread->in_syscall) {
+      print << " (during syscall)";
+    }
+#endif
   }
 
   if (exception == Exception::PageFault) {
@@ -181,7 +186,7 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
 
   bool in_kernel = currently_executing_thread_regs == nullptr ||
                    running_thread == nullptr ||
-                   IsKernelAddress(currently_executing_thread_regs->rip);
+                   ((currently_executing_thread_regs->cs & 3) == 0);
   PrintException(in_kernel, exception_no, cr2, error_code);
 
 #ifdef QUIT_QEMU_ON_ANY_EXCEPTION

@@ -54,6 +54,9 @@ int last_printing_process = -1;
 bool last_char_was_newline = false;
 
 extern "C" void SyscallHandler(int syscall_number) {
+#ifdef DEBUG
+  if (running_thread) running_thread->in_syscall = true;
+#endif
   switch (static_cast<Syscall>(syscall_number)) {
     default:
       print << "Syscall " << GetSystemCallName(syscall_number) << " ("
@@ -226,7 +229,7 @@ extern "C" void SyscallHandler(int syscall_number) {
     case Syscall::JoinSharedMemory: {
       SharedMemoryInProcess *shared_memory = JoinSharedMemory(
           running_thread->process, currently_executing_thread_regs->rax);
-
+ 
       if (shared_memory == nullptr) {
         // Could not join the shared memory block.
         currently_executing_thread_regs->rax = 0;
@@ -234,7 +237,8 @@ extern "C" void SyscallHandler(int syscall_number) {
         currently_executing_thread_regs->rdx = 0;
       } else {
         // Joined the shared memory block.
-        currently_executing_thread_regs->rax = shared_memory->mapped_pages;
+        currently_executing_thread_regs->rax =
+            shared_memory->shared_memory->size_in_pages;
         currently_executing_thread_regs->rbx = shared_memory->virtual_address;
         currently_executing_thread_regs->rdx =
             shared_memory->shared_memory->flags;
@@ -671,4 +675,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       DisableAndOutputProfiling(running_thread->process);
       break;
   }
+#ifdef DEBUG
+  if (running_thread) running_thread->in_syscall = false;
+#endif
 }
