@@ -42,15 +42,16 @@ constexpr size_t kIsExecuteDisabled = (1L << 63L);
 
 }  // namespace PageTableEntryBits
 
-// An initial statically allocated FreeMemoryRange that we can use to represent
-// the initial range of free memory before we can dynamically allocate memory.
+// An initial statically allocated FreeMemoryRange representing
+// the initial range of free memory before dynamic memory allocation is
+// available.
 VirtualAddressSpace::FreeMemoryRange initial_kernel_memory_range;
 
 // The currently loaded virtual address space.
 VirtualAddressSpace* current_address_space = nullptr;
 
 // A dud page table entry with all but the ownership and present bit set.
-// We use a zeroed out entry to mean there's no page here, but this is
+// A zeroed out entry indicates there's no page here, but this is
 // actually reserved, such as for lazily allocated shared buffer.
 constexpr size_t kDudPageEntry = (~(1 | (1 << 9)));
 
@@ -262,8 +263,8 @@ size_t VirtualAddressSpace::FindAndReserveFreePageRange(size_t pages) {
     return OUT_OF_MEMORY;
   }
 
-  // Find a free chunk of memory in the virutal address space that is either
-  // equal to or greater than what we need.
+  // Find a free chunk of memory in the virtual address space that is either
+  // equal to or greater than the requested size.
   FreeMemoryRange* fmr =
       free_chunks_by_size_.SearchForItemGreaterThanOrEqualToValue(pages);
   if (fmr == nullptr) {
@@ -279,14 +280,14 @@ size_t VirtualAddressSpace::FindAndReserveFreePageRange(size_t pages) {
 
   RemoveFreeMemoryRange(fmr);
   if (fmr->pages == pages) {
-    // This is exactly the size we need! We can use this whole block.
+    // This is exactly the size requested! The entire block can be used.
     size_t address = fmr->start_address;
 
     ObjectPool<FreeMemoryRange>::Release(fmr);
 
     return address;
   } else {
-    // This memory address is bigger than what we need, so shrink it.
+    // This memory address is larger than requested, so shrink it.
     size_t address = fmr->start_address;
 
     fmr->start_address += pages * PAGE_SIZE;
@@ -368,7 +369,7 @@ size_t VirtualAddressSpace::AllocatePagesBelowMaxBaseAddress(
   size_t start = FindAndReserveFreePageRange(pages);
   if (start == OUT_OF_MEMORY) return OUT_OF_MEMORY;
 
-  // Allocate each page we've found.
+  // Allocate each page in the range.
   size_t addr = start;
   for (size_t i = 0; i < pages; i++, addr += PAGE_SIZE) {
     // Get a physical page.
@@ -585,7 +586,7 @@ void VirtualAddressSpace::SetMemoryAccessRights(size_t address, size_t rights) {
   // Check that the address space owns the page.
   if ((last_entry & PageTableEntryBits::kIsOwned) == 0) return;
 
-  // Remove the bits we might be set.
+  // Remove the bits that might be set.
   last_entry &= ~(PageTableEntryBits::kIsExecuteDisabled |
                   PageTableEntryBits::kIsWritable);
 
@@ -687,7 +688,7 @@ bool VirtualAddressSpace::MarkVirtualAddressAsUsed(size_t address) {
     // Split this free memory block into two.
     auto block_after = ObjectPool<FreeMemoryRange>::Allocate();
     if (block_after == nullptr) {
-      // Out of memory, undo what we did above.
+      // Out of memory, undo the block removal.
       AddFreeMemoryRange(block_before);
       return false;
     }
@@ -804,8 +805,8 @@ bool VirtualAddressSpace::MapPhysicalPageImpl(
                                      !is_kernel_address, own);
 
   if (this == current_address_space || is_kernel_address) {
-    // We need to flush the TLB because we are either in this address space or
-    // it's kernel memory (which we're always in the address space of.)
+    // The TLB must be flushed because either this address space is active, or
+    // it's kernel memory (which is always active).
     FlushVirtualPage(virtualaddr);
   }
   return true;
@@ -862,7 +863,7 @@ void VirtualAddressSpace::UnmapVirtualPage(size_t virtualaddr, bool free) {
   if (virtualaddr != 0) MarkAddressRangeAsFree(virtualaddr, 1);
 
   if (this == current_address_space || IsKernelAddress(virtualaddr)) {
-    // Flush the TLB if we are in this address space or if it's a kernel page.
+    // Flush the TLB if this address space is active or if it's a kernel page.
     FlushVirtualPage(virtualaddr);
   }
 
