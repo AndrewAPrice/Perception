@@ -51,7 +51,7 @@ void SharedMemoryWriteStream::CopyDataIntoStream(const void* data, size_t size,
     if (!shared_memory_->Grow(offset + size)) return;
     shared_memory_->Mutex().lock();
 
-    data = **shared_memory_;
+    data_ = **shared_memory_;
     shared_memory_size_ = shared_memory_->GetSize();
   }
 
