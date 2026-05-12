@@ -315,17 +315,17 @@ void InitializeIdeController(uint8 bus, uint8 slot, uint8 function,
 void InitializeIdeControllers() {
   PciDeviceFilters filters;
 
-  {
-    auto &base_class_filter = filters.filters.emplace_back();
-    base_class_filter.key = PciDeviceFilter::Key::BASE_CLASS;
-    base_class_filter.value = 0x01;
-  }
+  PciDeviceFilter base_class_filter;
+  base_class_filter.key = PciDeviceFilter::Key::BASE_CLASS;
+  base_class_filter.value = 0x01;
+  filters.filters.push_back(base_class_filter);
 
-  {
-    auto &base_class_filter = filters.filters.emplace_back();
-    base_class_filter.key = PciDeviceFilter::Key::SUB_CLASS;
-    base_class_filter.value = 0x01;
-  }
+  PciDeviceFilter sub_class_filter;
+  sub_class_filter.key = PciDeviceFilter::Key::SUB_CLASS;
+  sub_class_filter.value = 0x01;
+  filters.filters.push_back(sub_class_filter);
+
+
 
   auto status_or_devices = GetService<DeviceManager>().QueryPciDevices(filters);
   if (!status_or_devices) return;
