@@ -67,8 +67,8 @@ struct Thread {
   // termination of the thread. Must be 8-byte aligned.
   size_t address_to_clear_on_termination;
 
-  // Is this thread currently executing a syscall?
 #ifdef DEBUG
+  // Is this thread currently executing a syscall?
   bool in_syscall;
 #endif
 };
