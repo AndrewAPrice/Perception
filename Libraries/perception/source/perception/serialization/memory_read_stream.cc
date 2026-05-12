@@ -14,7 +14,6 @@
 
 #include "perception/serialization/memory_read_stream.h"
 
-#include <cmath>
 #include <cstring>
 #include <functional>
 
@@ -51,7 +50,7 @@ void MemoryReadStream::CopyDataOutOfStream(void* data, size_t size) {
 }
 
 bool MemoryReadStream::ContainsAtLeast(size_t bytes) {
-  return current_offset_ + bytes < size_;
+  return current_offset_ + bytes <= size_;
 }
 
 void MemoryReadStream::SkipForward(size_t size) { current_offset_ += size; }
