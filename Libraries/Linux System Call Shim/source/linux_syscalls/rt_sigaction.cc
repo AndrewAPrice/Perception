@@ -23,8 +23,8 @@ namespace linux_syscalls {
 long rt_sigaction() {
   perception::DebugPrinterSingleton
       << "System call rt_sigaction is unimplemented.\n";
-  return -ENOSYS;
+  return 0; // Pretend it succeeded.
 }
 
-}  // namespace linux_syscalls
-}  // namespace perception
+} // namespace linux_syscalls
+} // namespace perception

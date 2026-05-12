@@ -23,7 +23,7 @@ namespace linux_syscalls {
 long rt_sigprocmask() {
   perception::DebugPrinterSingleton
       << "System call rt_sigprocmask is unimplemented.\n";
-  return -ENOSYS;
+  return 0; // Pretend it succeeded.
 }
 
 }  // namespace linux_syscalls

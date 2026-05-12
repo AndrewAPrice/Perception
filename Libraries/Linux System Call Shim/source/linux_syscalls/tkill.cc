@@ -22,8 +22,8 @@ namespace linux_syscalls {
 
 long tkill() {
   perception::DebugPrinterSingleton << "System call tkill is unimplemented.\n";
-  return -ENOSYS;
+  return 0; // Pretend it succeeded.
 }
 
-}  // namespace linux_syscalls
-}  // namespace perception
+} // namespace linux_syscalls
+} // namespace perception
