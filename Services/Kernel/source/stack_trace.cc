@@ -76,6 +76,10 @@ void PrintStackTrace() {
 }  // namespace
 
 void PrintRegistersAndStackTrace() {
-  PrintRegisters(currently_executing_thread_regs);
-  PrintStackTrace();
+  if (currently_executing_thread_regs != nullptr) {
+    PrintRegisters(currently_executing_thread_regs);
+    PrintStackTrace();
+  } else {
+    print << "No currently executing thread to print registers and stack trace.\n";
+  }
 }
