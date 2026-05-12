@@ -31,10 +31,13 @@ namespace {
 constexpr uint32 kLoadedMultibootTagType = 0xFFFFFFFF;
 
 // The next multiboot module to pass to a process.
-multiboot_tag *next_multiboot_module_to_pass_to_process;
+multiboot_tag* next_multiboot_module_to_pass_to_process;
 
 // The number of multiboot modules to pass to a process.
 size_t multiboot_modules_to_pass_to_process;
+
+// The end of the multiboot tags.
+size_t multiboot_end;
 
 // Whether a module has been passed into at least one process.
 bool has_passed_a_module_into_at_least_one_process = false;
@@ -44,7 +47,7 @@ bool has_passed_a_module_into_at_least_one_process = false;
 size_t pid_of_process_that_modules_can_be_passed_to;
 
 // Returns whether a process can be passed a module.
-bool CanProcessRequestModule(Process *process) {
+bool CanProcessRequestModule(Process* process) {
   if (has_passed_a_module_into_at_least_one_process) {
     if (pid_of_process_that_modules_can_be_passed_to != process->pid) {
       // This isn't the same process that modules were previously passed ot.
@@ -61,17 +64,17 @@ bool CanProcessRequestModule(Process *process) {
 }
 
 // Returns the following multiboot tag.
-multiboot_tag *NextMultibootTag(multiboot_tag *tag) {
-  return (multiboot_tag *)((size_t)tag + (size_t)((tag->size + 7) & ~7));
+multiboot_tag* NextMultibootTag(multiboot_tag* tag) {
+  return (multiboot_tag*)((size_t)tag + (size_t)((tag->size + 7) & ~7));
 }
 
 // Loads a multiboot module into a process. `process` and `tag` are inputs. All
 // other parameters are outputs.
-void LoadMultibootModuleIntoProcess(Process *process, multiboot_tag_module *tag,
-                                    size_t &address_and_flags, size_t &size,
-                                    char *name) {
+void LoadMultibootModuleIntoProcess(Process* process, multiboot_tag_module* tag,
+                                    size_t& address_and_flags, size_t& size,
+                                    char* name) {
   // Parse the command line into the name.
-  char *cmdline = tag->cmdline;
+  char* cmdline = tag->cmdline;
   size_t name_length = 0;
   bool is_driver = false;
   bool can_create_processes = false;
@@ -110,8 +113,8 @@ void LoadMultibootModuleIntoProcess(Process *process, multiboot_tag_module *tag,
 
 }  // namespace
 
-bool ParseMultibootModuleName(char **name, size_t *name_length, bool *is_driver,
-                              bool *can_create_processes) {
+bool ParseMultibootModuleName(char** name, size_t* name_length, bool* is_driver,
+                              bool* can_create_processes) {
   *name_length = strlen(*name);
 
   while (true) {
@@ -151,21 +154,26 @@ bool ParseMultibootModuleName(char **name, size_t *name_length, bool *is_driver,
 
 void LoadMultibootModules() {
   // Now in higher half memory, so VIRTUAL_MEMORY_OFFSET must be added.
-  multiboot_info *higher_half_multiboot_info =
-      (multiboot_info *)((size_t)&MultibootInfo + VIRTUAL_MEMORY_OFFSET);
+  multiboot_info* higher_half_multiboot_info =
+      (multiboot_info*)((size_t)&MultibootInfo + VIRTUAL_MEMORY_OFFSET);
+
+  size_t multiboot_address =
+      higher_half_multiboot_info->addr + VIRTUAL_MEMORY_OFFSET;
+  multiboot_end = multiboot_address + *(uint32*)multiboot_address;
 
   multiboot_modules_to_pass_to_process = 0;
   next_multiboot_module_to_pass_to_process =
-      (multiboot_tag *)(size_t)(higher_half_multiboot_info->addr + 8 +
-                                VIRTUAL_MEMORY_OFFSET);
+      (multiboot_tag*)(size_t)(higher_half_multiboot_info->addr + 8 +
+                               VIRTUAL_MEMORY_OFFSET);
   has_passed_a_module_into_at_least_one_process = false;
 
   // Loop through the multiboot sections.
-  for (multiboot_tag *tag = next_multiboot_module_to_pass_to_process;
-       tag->type != MULTIBOOT_TAG_TYPE_END; tag = NextMultibootTag(tag)) {
+  for (multiboot_tag* tag = next_multiboot_module_to_pass_to_process;
+       tag->type != MULTIBOOT_TAG_TYPE_END && (size_t)tag < multiboot_end;
+       tag = NextMultibootTag(tag)) {
     // Found a multiboot module.
     if (tag->type == MULTIBOOT_TAG_TYPE_MODULE) {
-      multiboot_tag_module *module_tag = (multiboot_tag_module *)tag;
+      multiboot_tag_module* module_tag = (multiboot_tag_module*)tag;
       size_t size = module_tag->mod_end - module_tag->mod_start;
       if (size == 0) {
         // Replace the tag so empty modules get skipped over later.
@@ -186,9 +194,9 @@ void LoadMultibootModules() {
   }
 }
 
-void LoadNextMultibootModuleIntoProcess(Process *process,
-                                        size_t &address_and_flags, size_t &size,
-                                        char *name) {
+void LoadNextMultibootModuleIntoProcess(Process* process,
+                                        size_t& address_and_flags, size_t& size,
+                                        char* name) {
   if (!HasRemainingUnloadedMultibootModules() ||
       !CanProcessRequestModule(process)) {
     // There are no more modules to load.
@@ -198,9 +206,9 @@ void LoadNextMultibootModuleIntoProcess(Process *process,
 
   // Loop over the multiboot tags to find either the end of the multiboot tags
   // or a module.
-  multiboot_tag *tag = next_multiboot_module_to_pass_to_process;
+  multiboot_tag* tag = next_multiboot_module_to_pass_to_process;
   for (; tag->type != MULTIBOOT_TAG_TYPE_END &&
-         tag->type != MULTIBOOT_TAG_TYPE_MODULE;
+         tag->type != MULTIBOOT_TAG_TYPE_MODULE && (size_t)tag < multiboot_end;
        tag = NextMultibootTag(tag)) {
   }
 
@@ -210,7 +218,7 @@ void LoadNextMultibootModuleIntoProcess(Process *process,
     size = 0;
   } else {
     // Found a valid module to pass to a process.
-    LoadMultibootModuleIntoProcess(process, (multiboot_tag_module *)tag,
+    LoadMultibootModuleIntoProcess(process, (multiboot_tag_module*)tag,
                                    address_and_flags, size, name);
 
     // Jump to the next module so the subsequent call returns a new module.
