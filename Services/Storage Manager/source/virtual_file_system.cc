@@ -17,12 +17,12 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include "memory_mapped_file.h"
 #include "perception/fibers.h"
-#include "perception/processes.h"
 
 using ::file_systems::FileSystem;
 using ::perception::DirectoryEntry;
@@ -39,6 +39,7 @@ namespace {
 
 std::map<std::string, std::unique_ptr<FileSystem>, std::less<>>
     mounted_file_systems;
+std::mutex file_system_mutex;
 
 std::map<ProcessId, std::vector<std::unique_ptr<File>>>
     open_files_by_process_id;
@@ -46,7 +47,7 @@ std::map<ProcessId, std::vector<std::unique_ptr<File>>>
 std::map<ProcessId, std::vector<std::unique_ptr<MemoryMappedFile>>>
     open_memory_mapped_files_by_process_id;
 
-// We save the first mounted file system, and shortcut /Applications,
+// Save the first mounted file system, and shortcut /Applications,
 // /Libraries into it.
 std::string first_mounted_file_system = "";
 
@@ -70,7 +71,8 @@ std::string GetMountNameForFileSystem(FileSystem& file_system) {
   }
 }
 
-void UnmountFileSystem(const std::string mount_name) {
+static void UnmountFileSystem(const std::string mount_name) {
+  std::lock_guard<std::mutex> lock(file_system_mutex);
   auto itr = mounted_file_systems.find(mount_name);
   if (itr == mounted_file_systems.end()) return;
   std::cout << "Unmounting " << itr->second->GetFileSystemType() << " on "
@@ -102,14 +104,15 @@ Status ExtractMountPointAndPath(std::string_view path,
 
   if (mount_point == "Libraries" || mount_point == "Applications") {
     if (first_mounted_file_system.empty()) {
-      // Sleep until we have mounted a file system.
+      // Sleep until there is a mounted file system.
       fibers_waiting_for_first_file_system.push_back(
           GetCurrentlyExecutingFiber());
       Sleep();
 
       if (first_mounted_file_system.empty()) {
-        std::cout << "We were rewoken with no first mounted file system."
-                  << std::endl;
+        std::cout
+            << "VFS service was rewoken with no first mounted file system."
+            << std::endl;
         return Status::FILE_NOT_FOUND;
       }
     }
@@ -128,6 +131,7 @@ StatusOr<std::unique_ptr<File>> OpenFileInternal(std::string_view path,
   RETURN_ON_ERROR(
       ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
 
+  std::lock_guard<std::mutex> lock(file_system_mutex);
   // Does the mount point exist?
   auto mount_point_itr = mounted_file_systems.find(mount_point);
   if (mount_point_itr == mounted_file_systems.end()) {
@@ -142,6 +146,7 @@ StatusOr<std::unique_ptr<File>> OpenFileInternal(std::string_view path,
 }  // namespace
 
 void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
+  std::lock_guard<std::mutex> lock(file_system_mutex);
   std::string mount_name = GetMountNameForFileSystem(*file_system);
   std::cout << "Mounting " << file_system->GetFileSystemType() << " on "
             << file_system->GetDeviceName() << " as /" << mount_name << "/"
@@ -210,6 +215,8 @@ StatusOr<MemoryMappedFile*> OpenMemoryMappedFile(
   RETURN_ON_ERROR(
       ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
 
+  std::lock_guard<std::mutex> lock(file_system_mutex);
+
   if (mount_point.empty()) {
     // Querying '/'.
     file_exists = true;
@@ -249,7 +256,7 @@ void CloseFile(::perception::ProcessId sender, File* file) {
   // Iterate through the files owned by the sender.
   for (auto itr_2 = itr->second.begin(); itr_2 != itr->second.end(); itr_2++) {
     if (itr_2->get() == file) {
-      // We found our file.
+      // Found the file.
       itr->second.erase(itr_2);
       return;
     }
@@ -268,7 +275,7 @@ void CloseMemoryMappedFile(::perception::ProcessId sender,
   // Iterate through the memory mapped files owned by the sender.
   for (auto itr_2 = itr->second.begin(); itr_2 != itr->second.end(); itr_2++) {
     if (itr_2->get() == mmfile) {
-      // We found our file.
+      // Found the file.
       itr->second.erase(itr_2);
       return;
     }
@@ -282,11 +289,19 @@ bool ForEachEntryInDirectory(
   if (directory.empty() || directory[0] != '/') return true;
 
   if (directory == "/") {
+    if (first_mounted_file_system.empty()) {
+      // Wait for the first mounted file system so the method doesn't return an
+      // empty root directory too early.
+      fibers_waiting_for_first_file_system.push_back(
+          GetCurrentlyExecutingFiber());
+      Sleep();
+    }
+    std::lock_guard<std::mutex> lock(file_system_mutex);
     int index = 0;
     // Iterating the root directory, return each mount point.
     for (const auto& mounted_file_system : mounted_file_systems) {
       if (count != 0 && index >= offset + count) {
-        // We are terminating early, but there is still more to
+        // Terminating early, but there is still more to
         // iterate.
         return false;
       }
@@ -302,6 +317,7 @@ bool ForEachEntryInDirectory(
     std::string_view mount_point, path_on_mount_point;
     ExtractMountPointAndPath(directory, mount_point, path_on_mount_point);
 
+    std::lock_guard<std::mutex> lock(file_system_mutex);
     // Does the mount point exist?
     auto mount_point_itr = mounted_file_systems.find(mount_point);
     if (mount_point_itr == mounted_file_systems.end())
@@ -332,6 +348,7 @@ StatusOr<FileStatistics> GetFileStatistics(std::string_view path) {
       ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
 
   // Does the mount point exist?
+  std::lock_guard<std::mutex> lock(file_system_mutex);
   auto mount_point_itr = mounted_file_systems.find(mount_point);
   if (mount_point_itr == mounted_file_systems.end()) {
     FileStatistics response;
