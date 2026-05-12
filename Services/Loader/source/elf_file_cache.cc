@@ -17,19 +17,21 @@
 
 #include <iostream>
 #include <map>
-#include <string>
+#include <string_view>
 
 namespace {
 
 // Loaded ELF files by name.
-std::multimap<std::string, std::shared_ptr<ElfFile>> elf_files_by_name;
+std::multimap<std::string_view, std::shared_ptr<ElfFile>, std::less<>>
+    elf_files_by_name;
 
 // Loaded ELF files by path.
-std::multimap<std::string, std::shared_ptr<ElfFile>> elf_files_by_path;
+std::multimap<std::string_view, std::shared_ptr<ElfFile>, std::less<>>
+    elf_files_by_path;
 
 // Returns an ELF file if it is cached. First checks by name, then by path.
 // Returns an empty shared_ptr if no ELF file can be found.
-std::shared_ptr<ElfFile> GetCachedElfFile(const std::string& name) {
+std::shared_ptr<ElfFile> GetCachedElfFile(std::string_view name) {
   auto itr_by_name = elf_files_by_name.find(name);
   if (itr_by_name != elf_files_by_name.end()) return itr_by_name->second;
 
@@ -41,7 +43,7 @@ std::shared_ptr<ElfFile> GetCachedElfFile(const std::string& name) {
 
 // Loads an ELF file (by name or path), then caches and returns it. Returns an
 // empty shared_ptr if the ELF file cannot be loaded.
-std::shared_ptr<ElfFile> LoadAndCacheElfFile(const std::string& name) {
+std::shared_ptr<ElfFile> LoadAndCacheElfFile(std::string_view name) {
   auto file = LoadFile(name);
   if (!file) {
     std::cout << "Cannot load file: " << name << std::endl;
@@ -61,7 +63,7 @@ std::shared_ptr<ElfFile> LoadAndCacheElfFile(const std::string& name) {
 
 }  // namespace
 
-std::shared_ptr<ElfFile> LoadOrIncrementElfFile(const std::string& name) {
+std::shared_ptr<ElfFile> LoadOrIncrementElfFile(std::string_view name) {
   // Look for a cached ELF file.
   auto elf_file = GetCachedElfFile(name);
   // Load an ELF file if there was no cached file.

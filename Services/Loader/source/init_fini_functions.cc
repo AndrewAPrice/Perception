@@ -43,7 +43,7 @@ void InitFiniFunctions::AddFunctionSection(
 
 void InitFiniFunctions::PopulateInMemory(
     size_t start_address, std::map<size_t, void *> &child_memory_pages,
-    std::map<std::string, size_t> &symbols_to_addresses) {
+    std::map<std::string_view, size_t> &symbols_to_addresses) {
   // Create the first page.
   size_t write_address = start_address;
   size_t write_page_index = 0xFFFFFFFFFFFFFFFF;

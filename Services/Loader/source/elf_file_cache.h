@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include <memory>
-#include <string>
+#include <string_view>
 
 #include "elf_file.h"
 
@@ -22,7 +22,7 @@
 // attempts to load it from. Can return an empty shared_ptr if there is no file
 // could be found or loaded. This also automatically increments a reference count
 // to the ELF file, so it must be passed back to `DecrementElfFile`.
-std::shared_ptr<ElfFile> LoadOrIncrementElfFile(const std::string& name);
+std::shared_ptr<ElfFile> LoadOrIncrementElfFile(std::string_view name);
 
 // Decrements a reference count to an Elf file, removing it from the cache if it
 // reaches 0.

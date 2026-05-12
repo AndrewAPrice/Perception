@@ -14,7 +14,6 @@
 
 #include "loader.h"
 
-#include <filesystem>
 #include <iostream>
 #include <optional>
 #include <queue>
@@ -26,10 +25,8 @@
 #include "file.h"
 #include "init_fini_functions.h"
 #include "memory.h"
-#include "multiboot.h"
 #include "perception/memory.h"
 #include "perception/memory_span.h"
-#include "perception/multiboot.h"
 #include "perception/processes.h"
 #include "process.h"
 #include "status.h"
@@ -152,7 +149,7 @@ StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
   }
 
   std::map<size_t, void *> child_memory_pages;
-  std::map<std::string, size_t> symbols_to_addresses;
+  std::map<std::string_view, size_t> symbols_to_addresses;
 
   // From this point on, child_memory_pages must be cleaned up before returning
   // if the child process isn't succesfully spawned.

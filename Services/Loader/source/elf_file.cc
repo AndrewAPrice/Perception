@@ -16,7 +16,6 @@
 
 #include <iostream>
 #include <memory>
-#include <span>
 
 #include "elf.h"
 #include "elf_header.h"
@@ -28,6 +27,10 @@
 using ::perception::kPageSize;
 using ::perception::MemorySpan;
 using ::perception::Status;
+
+// Where the high memory for the kernel starts. This is to make sure ELF files
+// only try to load into valid user space memory.
+constexpr size_t kKernelAddressStart = 0x8000000000000000;
 
 ElfFile::ElfFile(std::unique_ptr<class File> file)
     : file_(std::move(file)), instances_(0) {
@@ -102,9 +105,14 @@ void ElfFile::ForEachDependentLibrary(
     for (const Elf64_Dyn& dynamic_entry : dynamic_entries) {
       if (dynamic_entry.d_tag != DT_NEEDED) continue;
 
-      const char* str = DynamicString(dynamic_entry.d_un.d_val);
-      if (str == nullptr) continue;
-      on_each(std::string_view(str, strlen(str)));
+      auto str_or = DynamicString(dynamic_entry.d_un.d_val);
+      if (!str_or) {
+        std::cout << "Malformed dynamic string in " << File().Name()
+                  << std::endl;
+        continue;
+      }
+
+      on_each(*str_or);
     }
   }
 }
@@ -112,7 +120,7 @@ void ElfFile::ForEachDependentLibrary(
 StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
     ::perception::ProcessId child_pid, size_t offset,
     std::map<size_t, void*>& child_memory_pages,
-    std::map<std::string, size_t>& symbols_to_addresses,
+    std::map<std::string_view, size_t>& symbols_to_addresses,
     InitFiniFunctions& init_fini_functions) {
   // Load shared memory segments.
   for (const auto& address_and_shared_memory : read_only_segments_) {
@@ -179,7 +187,12 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
       if (ELF64_ST_BIND(symbol.st_info) == STB_LOCAL)
         continue;  // Skip local symbols.
 
-      std::string name = DynamicString(symbol.st_name);
+      auto name_or = DynamicString(symbol.st_name);
+      if (!name_or) continue;
+
+      std::string_view name = *name_or;
+      if (name.length() > 255) continue;  // Skip unreasonably long names.
+
       bool is_weak = ELF64_ST_BIND(symbol.st_info) == STB_WEAK;
       if (!is_weak || !symbols_to_addresses.contains(name)) {
         size_t address = symbol.st_value + offset;
@@ -196,7 +209,7 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
 
 Status ElfFile::FixUpRelocations(
     std::map<size_t, void*>& child_memory_pages, size_t offset,
-    const std::map<std::string, size_t>& symbols_to_addresses,
+    const std::map<std::string_view, size_t>& symbols_to_addresses,
     size_t module_id) {
   auto relocation_section_headers = GetRelocationSectionHeaders();
   if (relocation_section_headers.empty()) return Status::OK;
@@ -229,18 +242,37 @@ Status ElfFile::FixUpRelocations(
           if (symbol.st_shndx == SHN_UNDEF) {
             // The symbol is not defined in this image, so it needs to be
             // resolved from another image.
-            std::string name = DynamicString(symbol.st_name);
-            auto itr = symbols_to_addresses.find(name);
-            if (itr == symbols_to_addresses.end()) {
+            auto name_or = DynamicString(symbol.st_name);
+            if (!name_or) {
               if (ELF64_ST_BIND(symbol.st_info) == STB_WEAK) {
-                // Missing weak symbols are fine.
                 value = 0;
               } else {
-                std::cout << "Cannot find needed symbol: " << name << std::endl;
+                std::cout << "Cannot find needed symbol (missing or malformed)"
+                          << std::endl;
                 return Status::INVALID_ARGUMENT;
               }
             } else {
-              value = itr->second;
+              std::string_view name = *name_or;
+              auto itr = symbols_to_addresses.find(name);
+              if (itr != symbols_to_addresses.end() &&
+                  itr->second >= kKernelAddressStart) {
+                std::cout << "WARNING: Symbol " << name
+                          << " resolved to kernel address: 0x" << std::hex
+                          << itr->second << std::dec << " for " << file_->Name()
+                          << std::endl;
+              }
+              if (itr == symbols_to_addresses.end()) {
+                if (ELF64_ST_BIND(symbol.st_info) == STB_WEAK) {
+                  // Missing weak symbols are fine.
+                  value = 0;
+                } else {
+                  std::cout << "Cannot find needed symbol: " << name
+                            << std::endl;
+                  return Status::INVALID_ARGUMENT;
+                }
+              } else {
+                value = itr->second;
+              }
             }
           } else {
             // The symbol is defined here.
@@ -312,67 +344,79 @@ std::span<const Elf64_Phdr> ElfFile::ProgramSegmentHeaders() {
       header->e_phoff, number_of_program_segments_);
 }
 
-const char* ElfFile::SectionHeaderString(int index) {
-  if (!section_header_string_table_) return nullptr;
-  if (index >= section_header_string_table_.Length()) return nullptr;
-  return &((const char*)*section_header_string_table_)[index];
+std::optional<std::string_view> ElfFile::SectionHeaderString(int index) {
+  return GetStringFromTable(section_header_string_table_, index);
 }
 
-const char* ElfFile::DynamicString(int index) {
-  if (!dynamic_string_table_) return nullptr;
-  if (index >= dynamic_string_table_.Length()) return nullptr;
-  return &((const char*)*dynamic_string_table_)[index];
+std::optional<std::string_view> ElfFile::DynamicString(int index) {
+  return GetStringFromTable(dynamic_string_table_, index);
+}
+
+std::optional<std::string_view> ElfFile::GetStringFromTable(
+    const ::perception::MemorySpan& table, size_t index) {
+  if (!table) return std::nullopt;
+  if (index >= table.Length()) return std::nullopt;
+
+  const char* table_ptr = (const char*)*table;
+  if (table_ptr == nullptr) return std::nullopt;
+
+  const char* str = &table_ptr[index];
+  size_t max_len = table.Length() - index;
+  size_t len = 0;
+  while (len < max_len && str[len] != '\0') len++;
+
+  if (len == max_len) {
+    return std::nullopt;
+  }
+
+  return std::string_view(str, len);
 }
 
 void ElfFile::FindInterestingSections() {
   for (const auto& section_header : SectionHeaders()) {
     /* std::cout << "Section in " << File().Name()
-              << " name: " << SectionHeaderString(section_header.sh_name)
+              << " name: " << (SectionHeaderString(section_header.sh_name) ?
+              *SectionHeaderString(section_header.sh_name) : "unknown")
               << " size: " << std::dec << section_header.sh_size
               << " from: " << std::hex << section_header.sh_addr << " to "
               << (section_header.sh_offset + section_header.sh_addr)
               << std::endl; */
-    const char* section_name = SectionHeaderString(section_header.sh_name);
-    if (section_name == nullptr) continue;
+    auto section_name_or = SectionHeaderString(section_header.sh_name);
+    if (!section_name_or) continue;
+    std::string_view section_name = *section_name_or;
 
-    if (!strcmp(section_name, ".got")) {
+    if (section_name == ".got") {
       got_section_header_ = &section_header;
-      //      std::cout << "Find GOT!\n";
-    } else if (!strcmp(section_name, ".got.plt")) {
+    } else if (section_name == ".got.plt") {
       got_plt_section_header_ = &section_header;
-      //      std::cout << "Find GOT.PLT!\n";
-    } else if (!strcmp(section_name, ".dynamic")) {
+    } else if (section_name == ".dynamic") {
       dynamic_section_header_ = &section_header;
-      //      std::cout << "Find DYNAMIC!\n";
-    } else if (!strcmp(section_name, ".rela.dyn")) {
+    } else if (section_name == ".rela.dyn") {
       rela_dyn_section_header_ = &section_header;
-      //      std::cout << "Find RELA.DYN!\n";
-    } else if (!strcmp(section_name, ".rela.plt")) {
+    } else if (section_name == ".rela.plt") {
       rela_plt_section_header_ = &section_header;
-      //     std::cout << "Find RELA.PLT!\n";
-    } else if (!strcmp(section_name, ".dynsym")) {
+    } else if (section_name == ".dynsym") {
       dynsym_section_header_ = &section_header;
-      //     std::cout << "Find DYNSYM!\n";
-    } else if (!strcmp(section_name, ".dynstr")) {
+    } else if (section_name == ".dynstr") {
       dynamic_string_table_ = memory_span_.SubSpan(section_header.sh_offset,
                                                    section_header.sh_size);
-    } else if (!strcmp(section_name, ".preinit_array")) {
+    } else if (section_name == ".preinit_array") {
       preinit_array_section_header_ = &section_header;
-    } else if (!strcmp(section_name, ".init")) {
+    } else if (section_name == ".init") {
       std::cout << File().Name()
                 << " contains an .init section instead of .init_array, and "
                    "support is flakey."
                 << std::endl;
       init_section_header_ = &section_header;
-    } else if (!strcmp(section_name, ".init_array")) {
+    } else if (section_name == ".init_array") {
       init_array_section_header_ = &section_header;
-    } else if (!strcmp(section_name, ".fini")) {
+    } else if (section_name == ".fini") {
       std::cout << File().Name()
                 << " contains an .fini section instead of .fini_array, and "
                    "support is flakey."
                 << std::endl;
       fini_section_header_ = &section_header;
-    } else if (!strcmp(section_name, ".fini_array")) {
+    } else if (section_name == ".fini_array") {
       fini_array_section_header_ = &section_header;
     }
   }

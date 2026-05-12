@@ -42,7 +42,7 @@ class InitFiniFunctions {
   // the symbols to these tables in `symbols_to_addresses`.
   void PopulateInMemory(size_t start_address,
                         std::map<size_t, void*>& child_memory_pages,
-                        std::map<std::string, size_t>& symbols_to_addresses);
+                        std::map<std::string_view, size_t>& symbols_to_addresses);
 
  private:
   // Returns a pointer to an array of arrays for a given section. Returns

@@ -16,7 +16,6 @@
 
 #include <iostream>
 #include <map>
-#include <string>
 
 #include "elf_file.h"
 #include "elf_file_cache.h"
@@ -32,7 +31,7 @@ using ::perception::MultibootModule;
 namespace {
 
 // Multiboot modules indexed by name.
-std::map<std::string, std::unique_ptr<MultibootModule>>
+std::map<std::string_view, std::unique_ptr<MultibootModule>>
     multiboot_modules_by_name;
 
 // Whether the multiboot modules are currently being loaded.
@@ -47,7 +46,7 @@ void ParseMultibootModules() {
       return;
     }
 
-    std::string name = multiboot_module->name;
+    std::string_view name = multiboot_module->name;
     multiboot_modules_by_name[name] = std::move(multiboot_module);
   }
 }
@@ -62,7 +61,7 @@ void LoadMultibootModules() {
   // Collect a list of program names to load. Do this seperately first then
   // iterate over the names and multiboot_modules_by_name will be mutated as
   // modules are utilized.
-  std::vector<std::string> elf_modules;
+  std::vector<std::string_view> elf_modules;
   for (const auto& name_and_module : multiboot_modules_by_name) {
     const auto& module = name_and_module.second;
     if (IsValidElfFile(module->data))
@@ -74,8 +73,8 @@ void LoadMultibootModules() {
   // automatically released, and all other ELF modules that may depend on it
   // then lose their references.
   std::vector<std::shared_ptr<ElfFile>> multiboot_elf_files;
-  std::vector<std::string> programs_to_load;
-  for (const std::string& elf_module : elf_modules) {
+  std::vector<std::string_view> programs_to_load;
+  for (const std::string_view& elf_module : elf_modules) {
     auto elf_file = LoadOrIncrementElfFile(elf_module);
     if (elf_file) {
       multiboot_elf_files.push_back(elf_file);
@@ -87,11 +86,11 @@ void LoadMultibootModules() {
 
   // Load the multiboot programs.
   auto pid = GetProcessId();
-  for (const std::string& program_to_load : programs_to_load)
+  for (std::string_view program_to_load : programs_to_load)
     (void)LoadProgram(pid, program_to_load);
 
   // Decrease the held references to the multiboot modules.
-  std::vector<std::string> mulitboot_files_without_references;
+  std::vector<std::string_view> mulitboot_files_without_references;
   for (auto& multiboot_elf_file : multiboot_elf_files) {
     DecrementElfFile(multiboot_elf_file);
     if (!multiboot_elf_file->AreThereStillReferences())
@@ -114,7 +113,7 @@ void LoadMultibootModules() {
 
 std::unique_ptr<::perception::MultibootModule> GetMultibootModule(
     std::string_view name) {
-  auto itr = multiboot_modules_by_name.find(std::string(name));
+  auto itr = multiboot_modules_by_name.find(name);
   if (itr == multiboot_modules_by_name.end()) return {};
 
   auto multiboot_module = std::move(itr->second);

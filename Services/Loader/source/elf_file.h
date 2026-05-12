@@ -67,7 +67,7 @@ class ElfFile {
   StatusOr<size_t> LoadIntoAddressSpaceAndReturnNextFreeAddress(
       ::perception::ProcessId child_pid, size_t offset,
       std::map<size_t, void*>& child_memory_pages,
-      std::map<std::string, size_t>& symbols_to_addresses,
+      std::map<std::string_view, size_t>& symbols_to_addresses,
       InitFiniFunctions& init_fini_functions);
 
   // Fix up relocations in a child process for this ELF file after the
@@ -79,7 +79,7 @@ class ElfFile {
   // representing this ELF file in this process.
   ::perception::Status FixUpRelocations(
       std::map<size_t, void*>& child_memory_pages, size_t offset,
-      const std::map<std::string, size_t>& symbols_to_addresses,
+      const std::map<std::string_view, size_t>& symbols_to_addresses,
       size_t module_id);
 
   // Increments a reference count for this ELF file.
@@ -103,11 +103,15 @@ class ElfFile {
   // Returns a list of program segment headers.
   std::span<const Elf64_Phdr> ProgramSegmentHeaders();
 
-  // Returns a section header string from an index, or nullptr.
-  const char* SectionHeaderString(int index);
+  // Returns a section header string from an index.
+  std::optional<std::string_view> SectionHeaderString(int index);
 
-  // Returns a dynamic string from an index, or nullptr.
-  const char* DynamicString(int index);
+  // Returns a dynamic string from an index.
+  std::optional<std::string_view> DynamicString(int index);
+
+  // Safely reads a null-terminated string from a string table.
+  std::optional<std::string_view> GetStringFromTable(
+      const ::perception::MemorySpan& table, size_t index);
 
   // Scans the section headers and records the interesting sections for later.
   void FindInterestingSections();
