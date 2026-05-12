@@ -279,6 +279,9 @@ exception_common_stub:
 
     ; Move these values out of the interrupt handler
     mov rbp, [currently_executing_thread_regs]
+    test rbp, rbp
+    jz .no_current_thread
+
     pop qword [rbp + 9 * 8] ; rdx
     pop qword [rbp + 13 * 8] ; rdi
     pop qword [rbp + 14 * 8] ; rbp
@@ -347,3 +350,13 @@ exception_common_stub:
     mov rax, ExceptionHandler
     call rax
     jmp JumpIntoThread
+
+.no_current_thread:
+    mov rdi, [rsp + 24] ; exception number
+    mov rdx, [rsp + 32] ; error code
+    mov rsp, [interrupt_stack_top]
+    mov rsi, cr2
+    mov rax, ExceptionHandler
+    call rax
+    cli
+    hlt
