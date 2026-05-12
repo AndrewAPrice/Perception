@@ -11,7 +11,14 @@
             "operation": "copy",
             "source": "${git}/expat/lib",
             "destination": "source",
-            "extensions": [".c"]
+            "extensions": [".c"],
+            "exclude": [
+                "${@}/source/random_arc4random.c",
+                "${@}/source/random_arc4random_buf.c",
+                "${@}/source/random_getentropy.c",
+                "${@}/source/random_getrandom.c",
+                "${@}/source/random_rand_s.c"
+            ]
         },
         {
             "operation": "copy",
