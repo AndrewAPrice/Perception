@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "types.h"
+#include <exception>
 
 // Some compilers mangle `main` (such as clang), others don't (such as GCC). To
 // be consistent, expose a weak `_main` to crt0.asm to calls the mangled main.
@@ -67,6 +67,18 @@ void CallArrayOfFunctions(size_t *first_address_ptr, size_t *last_address_ptr) {
   }
 }
 
+// Debug prints a string via syscalling the kernel.
+void DebugPrint(const char *str) {
+  // Directly call the syscall to avoid depending on the Perception library.
+  while (*str) {
+    volatile register size_t syscall_num asm("rdi") = 0;
+    volatile register size_t param1 asm("rax") = *str;
+    __asm__ __volatile__("syscall" ::"r"(syscall_num), "r"(param1)
+                         : "rcx", "r11");
+    str++;
+  }
+}
+
 // Returns whether is is a statically linked application.
 bool IsStaticallyLinked() {
   size_t addr;
@@ -75,12 +87,27 @@ bool IsStaticallyLinked() {
   return addr == 0;
 }
 
+// Custom handler for when an exception is thrown but not caught.
+void CustomTerminateHandler() {
+  DebugPrint("Unhandled exception occurred! Terminating process.\n");
+  // Directly call the syscalls to avoid depending on the Perception library.
+
+  // Syscall 26: PrintRegistersAndStack
+  volatile register size_t syscall_num __asm__("rdi") = 26;
+  __asm__ __volatile__("syscall" ::"r"(syscall_num) : "rcx", "r11");
+
+  // Syscall 6: TerminateThisProcess
+  volatile register size_t syscall_num2 __asm__("rdi") = 6;
+  __asm__ __volatile__("syscall" ::"r"(syscall_num2) : "rcx", "r11");
+}
+
 } // namespace
 
 extern "C" {
 
 // Calls global initializers.
 __attribute__((visibility("default"))) void __libc_start_init() {
+  std::set_terminate(CustomTerminateHandler);
   _init();
 
   if (IsStaticallyLinked()) {
