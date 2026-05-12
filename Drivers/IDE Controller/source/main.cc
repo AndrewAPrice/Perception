@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <memory>
-#include <vector>
-
 #include "ide.h"
 #include "interrupts.h"
 #include "perception/scheduler.h"
