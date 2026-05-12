@@ -177,7 +177,7 @@ Status IdeStorageDevice::Read(const StorageDeviceReadRequest& request) {
       while (1) {
         uint8_t status = Read8BitsFromPort(ATA_COMMAND(bus));
         if (status & ATA_SR_ERR) {
-          std::cout << "Device has en error.";
+          std::cout << "Device has an error.";
           return ::perception::Status::INTERNAL_ERROR;
         }
         if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ)) break;
