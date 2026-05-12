@@ -31,7 +31,7 @@
 #define HAVE_GETPAGESIZE 1
 
 /* Define to 1 if you have the `getrandom' function. */
-#define HAVE_GETRANDOM 1
+// #define HAVE_GETRANDOM 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -58,7 +58,7 @@
 #define HAVE_STRING_H 1
 
 /* Define to 1 if you have `syscall' and `SYS_getrandom'. */
-#define HAVE_SYSCALL_GETRANDOM 1
+// #define HAVE_SYSCALL_GETRANDOM 1
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
@@ -106,7 +106,7 @@
 
 #if ! defined(_WIN32)
 /* Define to include code reading entropy from `/dev/urandom'. */
-// #define XML_DEV_URANDOM
+#define XML_DEV_URANDOM 1
 #endif
 
 /* Define to make parameter entity parsing functionality available. */
