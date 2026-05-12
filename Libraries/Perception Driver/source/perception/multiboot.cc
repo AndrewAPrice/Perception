@@ -19,7 +19,7 @@
 namespace perception {
 
 // Maximum module name length.
-constexpr int kMaximumModuleNameLength = 80;
+constexpr int kMaximumModuleNameLength = 11 * 8;
 
 // Gets the details of the framebuffer set up by the bootloader.
 void GetMultibootFramebufferDetails(size_t& physical_address, uint32& width,
@@ -103,21 +103,12 @@ std::unique_ptr<MultibootModule> GetMultibootModule() {
 
   // Add an extra byte for the null terminator.
   char module_name[kMaximumModuleNameLength + 1];
-  module_name[kMaximumModuleNameLength] = '\0';
 
   // Copy the string out of the registers into a char array.
-  ((size_t*)module_name)[0] = name_words[0];
-  ((size_t*)module_name)[1] = name_words[1];
-  ((size_t*)module_name)[2] = name_words[2];
-  ((size_t*)module_name)[3] = name_words[3];
-  ((size_t*)module_name)[4] = name_words[4];
-  ((size_t*)module_name)[5] = name_words[5];
-  ((size_t*)module_name)[6] = name_words[6];
-  ((size_t*)module_name)[7] = name_words[7];
-  ((size_t*)module_name)[8] = name_words[8];
-  ((size_t*)module_name)[9] = name_words[9];
-  ((size_t*)module_name)[10] = name_words[10];
-
+  for (int i = 0; i < 11; ++i) {
+    ((size_t *)module_name)[i] = name_words[i];
+  }
+  module_name[kMaximumModuleNameLength] = '\0';
   multiboot_module->name = std::string(module_name);
 
   return multiboot_module;
