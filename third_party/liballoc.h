@@ -20,7 +20,9 @@
 
 //This lets you prefix malloc and friends
 //#define PREFIX(func)		k ## func
+#ifndef PREFIX
  #define PREFIX(func)		func
+#endif
 
 #ifdef __cplusplus
 extern "C" {
