@@ -134,6 +134,9 @@ Process* CreateProcess(bool is_driver, bool can_create_processes);
 // destroying all of it's threads!
 void DestroyProcess(Process* process);
 
+// Returns whether any processes are running.
+bool AreAnyProcessesRunning();
+
 // Registers that a process wants to be notified if another process dies.
 void NotifyProcessOnDeath(Process* target, Process* notifyee, size_t event_id);
 

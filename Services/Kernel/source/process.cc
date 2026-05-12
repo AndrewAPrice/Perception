@@ -183,6 +183,8 @@ void DestroyProcess(Process *process) {
   free(process);
 }
 
+bool AreAnyProcessesRunning() { return !all_processes.IsEmpty(); }
+
 // Registers that a process wants to be notified if another process dies.
 void NotifyProcessOnDeath(Process *target, Process *notifyee, size_t event_id) {
   auto notification = ObjectPool<ProcessToNotifyOnExit>::Allocate();
