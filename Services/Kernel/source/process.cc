@@ -52,7 +52,6 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
     free(proc);
     return nullptr;
   }
-  proc->allocated_pages = 0;
 
   // Various linked lists of that should be initialized to nullptr.
   proc->parent = nullptr;

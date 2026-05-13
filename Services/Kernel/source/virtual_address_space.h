@@ -101,6 +101,9 @@ class VirtualAddressSpace {
   // Whether this is the kernel's address space.
   bool IsKernelAddressSpace();
 
+  // The number of allocated pages.
+  size_t GetAllocatedPages() const { return allocated_pages_; }
+
   // Represents a free range of a virtual address space.
   struct FreeMemoryRange {
     // The start address of this free range.
@@ -147,6 +150,9 @@ class VirtualAddressSpace {
 
   // Physical address of the PML4 for this virtual address space.
   size_t pml4_;
+
+  // The number of allocated pages.
+  size_t allocated_pages_ = 0;
 
   // Linked list of free memory ranges.
   LinkedList<FreeMemoryRange, &FreeMemoryRange::node> free_memory_ranges_;

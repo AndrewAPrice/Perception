@@ -62,8 +62,6 @@ struct Process {
   // The virtual address space that is unique to this process.
   VirtualAddressSpace virtual_address_space;
 
-  // The number of allocated pages.
-  size_t allocated_pages;  // The number of allocated pages.
 
   // Queued messages sent to this process, waiting to be consumed.
   LinkedList<Message, &Message::node> queued_messages;
