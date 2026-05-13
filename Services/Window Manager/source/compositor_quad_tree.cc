@@ -64,7 +64,6 @@ void CompositorQuadTree::DrawAreaToWindowManagerTexture(
       // Already copying into the window manager's texture.
       return;
     }
-    overlapping_rect->stage = QuadRectangleStage::OPAQUE_TO_WINDOW_MANAGER;
 
     // Add each part that peaks out behind our new rectangle.
     CreateSubRectanglesForEachBackgroundPartThatPokesOut(*overlapping_rect,
