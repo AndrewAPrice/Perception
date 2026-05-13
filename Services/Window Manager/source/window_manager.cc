@@ -54,10 +54,13 @@ StatusOr<CreateWindowResponse> WindowManager::CreateWindow(
   return response;
 }
 
-Status WindowManager::CloseWindow(const BaseWindow::Client& window,
+Status WindowManager::CloseWindow(const BaseWindow::Client& window_listener,
                                   ::perception::ProcessId /*sender*/) {
-  std::cout << "Implement WindowManager::HandleCloseWindow" << std::endl;
-  return Status::UNIMPLEMENTED;
+  auto window = GetWindowWithListener(window_listener);
+  if (!window) return Status::INVALID_ARGUMENT;
+
+  window->Close();
+  return Status::OK;
 }
 
 Status WindowManager::SetWindowTexture(
