@@ -224,12 +224,13 @@ size_t GetPhysicalPage() {
 }
 
 size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
+  bool cleaned_up = false;
+retry:
   if (next_free_page_address == OUT_OF_PHYSICAL_PAGES) {
-    // Ran out of memory. Try to clean up some memory.
+    if (cleaned_up) return OUT_OF_PHYSICAL_PAGES;
     CleanUpObjectPools();
-
+    cleaned_up = true;
     if (next_free_page_address == OUT_OF_PHYSICAL_PAGES) {
-      // No more free pages.
       return OUT_OF_PHYSICAL_PAGES;
     }
   }
@@ -260,7 +261,11 @@ size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address) {
       addr = *previous_bp;
 
       if (addr == OUT_OF_PHYSICAL_PAGES) {
-        // The end of the stack has been reached.
+        if (!cleaned_up) {
+          CleanUpObjectPools();
+          cleaned_up = true;
+          goto retry;
+        }
         return OUT_OF_PHYSICAL_PAGES;
       }
     } while (addr > max_base_address);
