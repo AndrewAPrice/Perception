@@ -91,10 +91,8 @@ Point dragging_origin;
 
 // The edges being dragged. If all are false, then the entire window
 // is being dragged.
-bool dragging_left_edge = false;
-bool dragging_right_edge = false;
-bool dragging_top_edge = false;
-bool dragging_bottom_edge = false;
+bool dragging_min_edge[2] = {false, false};
+bool dragging_max_edge[2] = {false, false};
 
 // Returns whether the window listener can be used for creating a new window.
 bool CanUseWindowListenerForNewWindow(BaseWindow::Client window_listener) {
@@ -136,10 +134,10 @@ void DrawAlphaWindowFramePart(const Rectangle& screen_area,
 void StopDragging() {
   DisableHighlighter();
   dragging_window = nullptr;
-  dragging_left_edge = false;
-  dragging_right_edge = false;
-  dragging_top_edge = false;
-  dragging_bottom_edge = false;
+  for (int d = 0; d < 2; d++) {
+    dragging_min_edge[d] = false;
+    dragging_max_edge[d] = false;
+  }
 }
 
 void ValidateWindowBounds(Rectangle& bounds) {
@@ -264,24 +262,21 @@ bool Window::MouseEvent(const Point& point,
   if (IsDragging()) {
     bool resizing = false;
 
-    auto new_screen_area = GetScreenArea();
+    auto original_screen_area = GetScreenArea();
+    auto new_screen_area = original_screen_area;
     Point drag_offset = point - dragging_origin;
-    if (dragging_left_edge) {
-      new_screen_area.origin.x += drag_offset.x;
-      new_screen_area.size.width -= drag_offset.x;
-      resizing = true;
-    } else if (dragging_right_edge) {
-      new_screen_area.size.width += drag_offset.x;
-      resizing = true;
-    }
-
-    if (dragging_top_edge) {
-      new_screen_area.origin.y += drag_offset.y;
-      new_screen_area.size.height -= drag_offset.y;
-      resizing = true;
-    } else if (dragging_bottom_edge) {
-      new_screen_area.size.height += drag_offset.y;
-      resizing = true;
+    for (int d = 0; d < 2; d++) {
+      if (dragging_min_edge[d]) {
+        float new_size = original_screen_area.size[d] - drag_offset[d];
+        new_screen_area.size[d] = std::max(kMinimumWindowSize, new_size);
+        new_screen_area.origin[d] = original_screen_area.origin[d] +
+                                    original_screen_area.size[d] -
+                                    new_screen_area.size[d];
+        resizing = true;
+      } else if (dragging_max_edge[d]) {
+        new_screen_area.size[d] += drag_offset[d];
+        resizing = true;
+      }
     }
 
     if (!resizing) {
@@ -356,20 +351,15 @@ bool Window::MouseEvent(const Point& point,
 
   if (check_for_begin_resizing) {
     // Check for the beginning of drags.
-    if (point.x <= screen_area.MinX() + kDragBorder / 2.0f) {
-      dragging_left_edge = true;
-      dragging_window = this;
-    } else if (point.x >= screen_area.MaxX() - kDragBorder / 2.0f) {
-      dragging_right_edge = true;
-      dragging_window = this;
-    }
-
-    if (point.y <= screen_area.MinY() + kDragBorder / 2.0f) {
-      dragging_top_edge = true;
-      dragging_window = this;
-    } else if (point.y >= screen_area.MaxY() - kDragBorder / 2.0f) {
-      dragging_bottom_edge = true;
-      dragging_window = this;
+    for (int d = 0; d < 2; d++) {
+      if (point[d] <= screen_area.origin[d] + kDragBorder / 2.0f) {
+        dragging_min_edge[d] = true;
+        dragging_window = this;
+      } else if (point[d] >= screen_area.origin[d] + screen_area.size[d] -
+                                 kDragBorder / 2.0f) {
+        dragging_max_edge[d] = true;
+        dragging_window = this;
+      }
     }
 
     if (IsDragging()) {
@@ -526,10 +516,10 @@ void Window::StartDragging() {
   if (!IsFocused() || dragging_window != nullptr) return;
 
   dragging_window = this;
-  dragging_left_edge = false;
-  dragging_right_edge = false;
-  dragging_top_edge = false;
-  dragging_bottom_edge = false;
+  for (int d = 0; d < 2; d++) {
+    dragging_min_edge[d] = false;
+    dragging_max_edge[d] = false;
+  }
 
   dragging_origin = GetMousePosition();
 }
