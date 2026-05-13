@@ -174,10 +174,12 @@ const Point& GetMousePosition() { return mouse_position; }
 
 void DrawMouse(const Rectangle& draw_area) {
   auto mouse_bounds = MouseBounds();
-  if (!draw_area.Intersects(mouse_bounds)) {
+  auto intersection = draw_area.Intersection(mouse_bounds);
+  if (!intersection) {
     // The mouse is outside of the draw area.
     return;
   }
 
-  CopyAlphaBlendedTexture(mouse_bounds, mouse_texture_id, {0.0f, 0.0f});
+  Point offset = intersection->origin - mouse_bounds.origin;
+  CopyAlphaBlendedTexture(*intersection, mouse_texture_id, offset);
 }
