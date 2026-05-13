@@ -545,7 +545,14 @@ Rectangle Window::GetScreenAreaWithFrame() const {
 
 const Rectangle& Window::GetScreenArea() const { return screen_area_; }
 
-void Window::SetTextureId(int texture_id) { texture_id_ = texture_id; }
+void Window::SetTextureId(int texture_id) {
+  texture_id_ = texture_id;
+  if (!is_visible_) {
+    Show();
+  } else {
+    Invalidate();
+  }
+}
 
 void Window::CommonInit() {
   is_visible_ = false;
