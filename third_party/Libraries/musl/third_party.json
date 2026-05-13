@@ -108,6 +108,14 @@
                         [
                             "// weak_alias(libc_start_init, __libc_start_init);",
                             "weak_alias(libc_start_init, __libc_start_init);"
+                        ],
+                        [
+                            "int __libc_start_main(int (*main)(int,char **,char **), int argc, char **argv,\n\tvoid (*init_dummy)(), void(*fini_dummy)(), void(*ldso_dummy)())\n{",
+                            "static void (*g_init_dummy)();\nint __libc_start_main(int (*main)(int,char **,char **), int argc, char **argv,\n\tvoid (*init_dummy)(), void(*fini_dummy)(), void(*ldso_dummy)())\n{\n\tg_init_dummy = init_dummy;"
+                        ],
+                        [
+                            "__libc_start_init();",
+                            "if (g_init_dummy) g_init_dummy(); else __libc_start_init();"
                         ]
                     ]
                 }
@@ -211,19 +219,6 @@
             "source": "${git}/src/locale",
             "destination": "source/locale",
             "recursive": true
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/src/malloc",
-            "destination": "source/malloc",
-            "recursive": true,
-            "exclude": [
-                "${@}/source/malloc/oldmalloc",
-                "${@}/source/malloc/oldmalloc/aligned_alloc.c",
-                "${@}/source/malloc/oldmalloc/malloc.c",
-                "${@}/source/malloc/oldmalloc/malloc_impl.h",
-                "${@}/source/malloc/oldmalloc/malloc_usable_size.c"
-            ]
         },
         {
             "operation": "copy",
