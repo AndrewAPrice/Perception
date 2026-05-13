@@ -833,9 +833,6 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  // std::cout << "The bootloader has set up a " << width << "x" <<
-  //  height << " (" << (int)bpp << "-bit) framebuffer." << std::endl;
-
   if (bpp != 15 && bpp != 16 && bpp != 24 && bpp != 32) {
     std::cout << "The framebuffer is not 15, 16, 24, or 32 bits per pixel."
               << std::endl;
