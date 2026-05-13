@@ -178,74 +178,19 @@ StatusOr<MatchFontResponse> FontManager::MatchFont(
     const MatchFontRequest& request) {
   std::scoped_lock lock(mutex_);
 
-  // Most of this is copied from SkFontConfigInterface_direct.cpp from Skia
-  // then customized for Perception.
-  FcPattern* pattern = FcPatternCreate();
-  if (!request.family_name.empty()) {
-    FcPatternAddString(pattern, FC_FAMILY,
-                       (FcChar8*)request.family_name.c_str());
+  std::string font_path = "/Libraries/Fonts/assets/DejaVuSans.ttf";
+  if (request.style.weight == FontStyle::Weight::BOLD) {
+    font_path = "/Libraries/Fonts/assets/DejaVuSans-Bold.ttf";
   }
 
-  PopulateFcPatternFromFontStyle(request.style, *pattern);
-
-  FcPatternAddBool(pattern, FC_SCALABLE, FcTrue);
-  FcConfigSubstitute(config_, pattern, FcMatchPattern);
-  FcDefaultSubstitute(pattern);
-
-  const char* post_config_family = GetString(pattern, FC_FAMILY);
-  if (!post_config_family) {
-    // we can just continue with an empty name, e.g. default font
-    post_config_family = "";
-  }
-
-  FcResult result;
-  FcFontSet* font_set = FcFontSort(config_, pattern, 0, nullptr, &result);
-
-  if (!font_set || font_set->nfont == 0) {
-    FcPatternDestroy(pattern);
-    return ::perception::Status::INTERNAL_ERROR;
-  }
-
-  FcPattern* match = font_set->fonts[0];
-  if (!match) {
-    FcPatternDestroy(pattern);
-    FcFontSetDestroy(font_set);
-    return ::perception::Status::INTERNAL_ERROR;
-  }
-
-  post_config_family = GetString(match, FC_FAMILY);
-  if (!post_config_family) {
-    FcFontSetDestroy(font_set);
-    return perception::Status::INTERNAL_ERROR;
-  }
-
-  const char* c_filename = GetString(match, FC_FILE);
-  if (!c_filename) {
-    FcFontSetDestroy(font_set);
-    return perception::Status::INTERNAL_ERROR;
-  }
-
-  const char* sysroot = (const char*)FcConfigGetSysRoot(config_);
-  std::string resolved_filename;
-  if (sysroot) {
-    resolved_filename = sysroot;
-  }
-  resolved_filename += c_filename;
-
-  int face_index = GetInt(*match, FC_INDEX, 0);
-
-  FcFontSetDestroy(font_set);
-
-  RETURN_ON_ERROR(MakeSureFontIsLoaded(resolved_filename));
+  RETURN_ON_ERROR(MakeSureFontIsLoaded(font_path));
 
   MatchFontResponse response;
-  response.face_index = face_index;
-  response.family_name = post_config_family;
+  response.face_index = 0;
+  response.family_name = request.family_name.empty() ? "DejaVuSans" : request.family_name;
   response.data.type = FontData::Type::BUFFER;
-  response.data.buffer = font_data_by_path[resolved_filename]->buffer;
-
-  PopulateFontStyleFromFcPattern(*match, response.style);
-
+  response.data.buffer = font_data_by_path[font_path]->buffer;
+  response.style = request.style;
   return response;
 }
 
