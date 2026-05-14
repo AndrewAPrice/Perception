@@ -268,6 +268,7 @@ Status IdeStorageDevice::Read(const StorageDeviceReadRequest& request) {
           current_destination_page[offset_in_buffer_page] = (b >> 8) & 0xFF;
           bytes_to_copy--;
           buffer_offset++;
+          skip_bytes = 0;
         } else if (bytes_to_copy == 1) {
           // We only want one more byte so read just the first byte.
           current_destination_page[offset_in_buffer_page] = b & 0xFF;
