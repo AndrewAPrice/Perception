@@ -16,6 +16,7 @@
 
 #include <iostream>
 
+#include "perception/debug.h"
 #include "perception/liballoc.h"
 
 #ifndef PERCEPTION
@@ -25,22 +26,29 @@
 
 namespace perception {
 namespace {
-size_t kOutOfMemory = 1;
-}
+
+constexpr size_t kOutOfMemory = 1;
+
+}  // namespace
 
 void* AllocateMemoryPages(size_t number) {
 #if PERCEPTION
-  volatile register size_t syscall_num asm("rdi") = 12;
-  volatile register size_t param1 asm("rax") = number;
-  volatile register size_t return_val asm("rax");
+  volatile register size_t syscall_num __asm__("rdi") = 12;
+  volatile register size_t param1 __asm__("rax") = number;
+  volatile register size_t param2 __asm__("rdx") = 0;
+  volatile register size_t return_val __asm__("rax");
 
   __asm__ __volatile__("syscall\n"
                        : "=r"(return_val)
-                       : "r"(syscall_num), "r"(param1)
+                       : "r"(syscall_num), "r"(param1), "r"(param2)
                        : "rcx", "r11");
-  if (return_val == kOutOfMemory)
+  if (return_val == kOutOfMemory) {
+    DebugPrinterSingleton << "AllocateMemoryPages returned out of memory\n";
     return nullptr;
-  else
+  } else if (return_val == 0) {
+    DebugPrinterSingleton << "AllocateMemoryPages returned 0\n";
+    return nullptr;
+  } else
     return (void*)return_val;
 #else
   return malloc(kPageSize * number);
@@ -118,9 +126,9 @@ size_t GetPhysicalAddressOfVirtualAddress(size_t virtual_address) {
                        : "=r"(return_val)
                        : "r"(syscall_num), "r"(param1)
                        : "rcx", "r11");
-  if (return_val == kOutOfMemory)
+  if (return_val == kOutOfMemory) {
     return 0;
-  else {
+  } else {
     size_t offset_in_page = virtual_address & (kPageSize - 1);
     return return_val + offset_in_page;
   }
@@ -215,12 +223,35 @@ void SetMemoryAccessRights(void* address, size_t pages, bool can_write,
 // Function that runs if a virtual function implementation is missing. Should
 // never be called but needs to exist. extern "C" void __cxa_pure_virtual() {}
 
+#include <stddef.h>
+
+extern "C" {
+void* malloc(size_t);
+void free(void*);
+}
+
 // Functions to support new/delete.
-void* operator new(long unsigned int size) { return malloc(size); }
+void* operator new(long unsigned int size) {
+  void* p = malloc(size);
+  if (p == nullptr) {
+    perception::DebugPrinterSingleton << "malloc() returned nullptr\n";
+  }
+  return p;
+}
 
-void* operator new[](long unsigned int size) { return malloc(size); }
+void* operator new[](long unsigned int size) {
+  void* p = malloc(size);
+  if (p == nullptr) {
+    perception::DebugPrinterSingleton << "malloc() returned nullptr\n";
+  }
+  return p;
+}
 
-void operator delete(void* address, long unsigned int size) { free(address); }
+void operator delete(void* address) noexcept { free(address); }
 
-void operator delete[](void* address, long unsigned int size) { free(address); }
+void operator delete[](void* address) noexcept { free(address); }
+
+void operator delete(void* address, long unsigned int size) noexcept { free(address); }
+
+void operator delete[](void* address, long unsigned int size) noexcept { free(address); }
 #endif
