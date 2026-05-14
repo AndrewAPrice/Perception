@@ -55,15 +55,23 @@ constexpr int kPaddingDistance = 3;
 
 StatusOr<std::vector<char>> LoadWindowButtonsFile() {
   // Open the file in binary mode and position the file pointer at the end.
-  std::ifstream file((std::string(kWindowsButtonPath)), std::ios::binary);
+  std::ifstream file(std::string(kWindowsButtonPath),
+                     std::ios::binary | std::ios::ate);
   if (!file || !file.is_open()) {
     std::cout << "Cannot open " << kWindowsButtonPath << std::endl;
     return Status::FILE_NOT_FOUND;
   }
 
-  // Read the entire file into a vector.
-  return std::vector<char>((std::istreambuf_iterator<char>(file)),
-                           std::istreambuf_iterator<char>());
+  std::streamsize size = file.tellg();
+  file.seekg(0, std::ios::beg);
+
+  std::vector<char> buffer(size);
+  if (!file.read(buffer.data(), size)) {
+    std::cout << "Cannot read " << kWindowsButtonPath << std::endl;
+    return Status::INTERNAL_ERROR;
+  }
+
+  return buffer;
 }
 
 struct VoidPtrDeleter {
@@ -164,19 +172,11 @@ Point WindowButtonTextureOffset(
 }
 
 WindowButton GetWindowButtonAtPoint(int x, bool is_resizable) {
-  if (is_resizable) {
-    if (x >= kSecondButtonThreshold) {
-      return WindowButton::Close;
-    } else if (x >= kFirstButtonThreshold) {
-      return WindowButton::Minimize;
-    } else {
-      return WindowButton::ToggleFullScreen;
-    }
-  } else {
-    if (x >= kFirstButtonThreshold) {
-      return WindowButton::Close;
-    } else {
-      return WindowButton::Minimize;
-    }
-  }
+  // If the window is not resizable, the ToggleFullScreen button is omitted,
+  // shifting the remaining button positions by one button size.
+  if (!is_resizable) x += kButtonSize;
+
+  if (x >= kSecondButtonThreshold) return WindowButton::Close;
+  if (x >= kFirstButtonThreshold) return WindowButton::Minimize;
+  return WindowButton::ToggleFullScreen;
 }
