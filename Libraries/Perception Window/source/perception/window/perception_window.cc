@@ -68,8 +68,15 @@ class PerceptionWindow : public Window,
                          public MouseListener::Server,
                          public KeyboardListener::Server {
  public:
-  PerceptionWindow() : created_(true), rebuild_texture_(true) {}
-  virtual ~PerceptionWindow() {}
+  PerceptionWindow()
+      : created_(true),
+        rebuild_texture_(true),
+        texture_id_(0),
+        frontbuffer_texture_id_(0),
+        is_keyboard_captive_(false),
+        is_mouse_captive_(false),
+        is_focused_(false) {}
+  virtual ~PerceptionWindow() { ReleaseTextures(); }
 
   void SetInitialProperties(int width, int height, bool is_double_buffered) {
     width_ = width;
