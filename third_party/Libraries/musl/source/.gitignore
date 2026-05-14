@@ -2,3 +2,4 @@
 !.gitignore
 !internal/
 !thread/
+!alloc_hooks.c

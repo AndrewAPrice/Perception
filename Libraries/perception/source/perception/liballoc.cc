@@ -56,14 +56,6 @@ size_t malloc_usable_size(void* ptr) {
   }
   return 0;
 }
-
-void* __libc_malloc(size_t size) { return malloc(size); }
-
-void* __libc_realloc(void* ptr, size_t size) { return realloc(ptr, size); }
-
-void* __libc_calloc(size_t nmemb, size_t size) { return calloc(nmemb, size); }
-
-void __libc_free(void* ptr) { free(ptr); }
 }
 
 struct InitLiballoc {
