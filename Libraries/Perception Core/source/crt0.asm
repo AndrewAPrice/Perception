@@ -32,11 +32,6 @@ envp:
 
 ; This is the entrypoint where programs begin running.
 _start:
-	; Diagnostics: print 'A' using Syscall 0
-	mov rdi, 0                  ; syscall 0
-	mov rax, 0x41               ; 'A'
-	syscall
-
 	lea rdi, [_main wrt ..plt]
 	mov rsi, 0                  ; argc = 0
 	lea rdx, [envp]            ; argv = envp address
