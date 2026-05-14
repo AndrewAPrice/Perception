@@ -281,8 +281,7 @@ bool Window::MouseEvent(const Point& point,
 
     if (!resizing) {
       // Handle dragging the entire window.
-      new_screen_area.origin.x += drag_offset.x;
-      new_screen_area.origin.y += drag_offset.y;
+      new_screen_area.origin += drag_offset;
     }
 
     ValidateWindowBounds(new_screen_area);
