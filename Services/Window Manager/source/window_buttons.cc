@@ -13,8 +13,6 @@
 // limitations under the License.
 #include "window_buttons.h"
 
-#include <cmath>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <vector>
