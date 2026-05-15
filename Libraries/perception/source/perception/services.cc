@@ -119,6 +119,16 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
   volatile register size_t pid_1 asm("rbp");
 #endif
   volatile register size_t message_id_1 asm("rax");
+  volatile register size_t pid_2 asm("rbx");
+  volatile register size_t message_id_2 asm("rdx");
+  volatile register size_t pid_3 asm("rsi");
+  volatile register size_t message_id_3 asm("r8");
+  volatile register size_t pid_4 asm("r9");
+  volatile register size_t message_id_4 asm("r10");
+  volatile register size_t pid_5 asm("r12");
+  volatile register size_t message_id_5 asm("r13");
+  volatile register size_t pid_6 asm("r14");
+  volatile register size_t message_id_6 asm("r15");
 
   __asm__ __volatile__(
 #ifndef optimized_BUILD_
@@ -132,7 +142,10 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
 #else
       "syscall\n"
 #endif
-      : "=r"(number_of_services), "=r"(message_id_1), "=r"(pid_1)
+      : "=r"(number_of_services), "=r"(message_id_1), "=r"(pid_1), "=r"(pid_2),
+        "=r"(message_id_2), "=r"(pid_3), "=r"(message_id_3), "=r"(pid_4),
+        "=r"(message_id_4), "=r"(pid_5), "=r"(message_id_5), "=r"(pid_6),
+        "=r"(message_id_6)
       : "r"(syscall), "r"(min_pid), "r"(min_message_id), "r"(name_1),
         "r"(name_2), "r"(name_3), "r"(name_4), "r"(name_5), "r"(name_6),
         "r"(name_7), "r"(name_8), "r"(name_9), "r"(name_10)
@@ -142,6 +155,18 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
         "r11"
 #endif
   );
+
+  // Suppress compiler warnings about unused variables.
+  (void)pid_2;
+  (void)message_id_2;
+  (void)pid_3;
+  (void)message_id_3;
+  (void)pid_4;
+  (void)message_id_4;
+  (void)pid_5;
+  (void)message_id_5;
+  (void)pid_6;
+  (void)message_id_6;
 
   if (number_of_services < 1) {
     return false;

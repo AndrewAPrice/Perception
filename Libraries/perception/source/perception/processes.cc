@@ -100,6 +100,18 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
 
   // We only care about the first PID.
   volatile register size_t number_of_processes asm("rdi");
+  volatile register size_t pid_2 asm("rax");
+  volatile register size_t pid_3 asm("rbx");
+  volatile register size_t pid_4 asm("rdx");
+  volatile register size_t pid_5 asm("rsi");
+  volatile register size_t pid_6 asm("r8");
+  volatile register size_t pid_7 asm("r9");
+  volatile register size_t pid_8 asm("r10");
+  volatile register size_t pid_9 asm("r12");
+  volatile register size_t pid_10 asm("r13");
+  volatile register size_t pid_11 asm("r14");
+  volatile register size_t pid_12 asm("r15");
+
   __asm__ __volatile__(
 #ifndef optimized_BUILD_
       R"(
@@ -110,9 +122,11 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
     pop %%rbp
 	)"
 #else
-  __asm__ __volatile__("syscall\n"
+      "syscall\n"
 #endif
-      : "=r"(number_of_processes), "=r"(pid_1)
+      : "=r"(number_of_processes), "=r"(pid_1), "=r"(pid_2), "=r"(pid_3),
+        "=r"(pid_4), "=r"(pid_5), "=r"(pid_6), "=r"(pid_7), "=r"(pid_8),
+        "=r"(pid_9), "=r"(pid_10), "=r"(pid_11), "=r"(pid_12)
       : "r"(syscall), "r"(min_pid), "r"(name_1), "r"(name_2), "r"(name_3),
         "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8),
         "r"(name_9), "r"(name_10), "r"(name_11)
@@ -122,6 +136,19 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
         "r11"
 #endif
   );
+
+  // Suppress compiler warnings about unused variables.
+  (void)pid_2;
+  (void)pid_3;
+  (void)pid_4;
+  (void)pid_5;
+  (void)pid_6;
+  (void)pid_7;
+  (void)pid_8;
+  (void)pid_9;
+  (void)pid_10;
+  (void)pid_11;
+  (void)pid_12;
 
   if (number_of_processes == 0) return false;
 
