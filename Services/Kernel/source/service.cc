@@ -178,7 +178,7 @@ Service* FindNextServiceWithName(char* service_name,
         return service;
       }
       // Jump to the next service.
-      service = process->services.NextItem(previous_service);
+      service = process->services.NextItem(service);
     }
 
     // Jump to the next process.
