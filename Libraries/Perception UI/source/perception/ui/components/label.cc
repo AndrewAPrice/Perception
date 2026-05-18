@@ -32,7 +32,8 @@ namespace ui {
 namespace components {
 
 Label::Label()
-    : color_(kLabelTextColor),
+    : font_(nullptr),
+      color_(kLabelTextColor),
       text_alignment_(TextAlignment::TopLeft),
       text_needs_realignment_(true) {}
 
