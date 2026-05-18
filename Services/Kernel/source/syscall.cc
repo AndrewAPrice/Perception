@@ -66,6 +66,7 @@ extern "C" void SyscallHandler(int syscall_number) {
               << running_thread->process->pid;
       }
       print << ") is unimplemented.\n";
+      PrintRegistersAndStackTrace();
       break;
     case Syscall::PrintDebugCharacter: {
       if (last_printing_process != running_thread->process->pid) {
