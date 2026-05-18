@@ -107,6 +107,10 @@ void UiWindow::StartDragging() {
   if (base_window_) base_window_->StartDragging();
 }
 
+void UiWindow::Focus() {
+  if (base_window_) base_window_->Focus();
+}
+
 void UiWindow::WindowClosed() {
   std::scoped_lock lock(window_mutex_);
   for (auto& handler : on_close_functions_) handler();

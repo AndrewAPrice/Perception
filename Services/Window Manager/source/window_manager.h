@@ -53,4 +53,8 @@ class WindowManager : public ::perception::window::WindowManager::Server {
   ::perception::Status StartDraggingWindow(
       const ::perception::window::BaseWindow::Client& window_listener,
       ::perception::ProcessId sender) override;
+
+  ::perception::Status FocusWindow(
+      const ::perception::window::BaseWindow::Client& window_listener,
+      ::perception::ProcessId sender) override;
 };

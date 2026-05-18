@@ -127,7 +127,8 @@ class InvalidateWindowParameters : public serialization::Serializable {
   X(6, InvalidateWindow, void, InvalidateWindowParameters)      \
   X(7, GetMaximumWindowSize, Size, void)                        \
   X(8, GetDisplayEnvironment, DisplayEnvironment, void)         \
-  X(9, StartDraggingWindow, void, BaseWindow::Client)
+  X(9, StartDraggingWindow, void, BaseWindow::Client)           \
+  X(10, FocusWindow, void, BaseWindow::Client)
 DEFINE_PERCEPTION_SERVICE(WindowManager, "perception.window.WindowManager",
                           METHOD_LIST)
 #undef METHOD_LIST

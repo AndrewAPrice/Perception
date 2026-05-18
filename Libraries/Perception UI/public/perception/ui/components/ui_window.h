@@ -107,6 +107,9 @@ class UiWindow : public window::WindowDelegate,
   bool IsFocused() const;
   void StartDragging();
 
+  // Focus on the window, bringing it to the front.
+  void Focus();
+
   void Draw();
   void GetNodesAt(
       const Point& point,

@@ -55,7 +55,7 @@ StatusOr<CreateWindowResponse> WindowManager::CreateWindow(
 }
 
 Status WindowManager::CloseWindow(const BaseWindow::Client& window_listener,
-                                  ::perception::ProcessId /*sender*/) {
+                                  ::perception::ProcessId sender) {
   auto window = GetWindowWithListener(window_listener);
   if (!window) return Status::INVALID_ARGUMENT;
 
