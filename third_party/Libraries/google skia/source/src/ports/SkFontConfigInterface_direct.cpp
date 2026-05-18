@@ -194,7 +194,10 @@ bool SkFontConfigInterfaceDirect::matchFamilyName(const char familyName[],
   FontStyleFromSkFontStyle(style, request.style);
 
   auto status_or_response = GetService<FontManager>().MatchFont(request);
-  if (!status_or_response.Ok()) return false;
+  if (!status_or_response.Ok()) {
+    std::cout << "FontManager::MatchFont failed!" << std::endl;
+    return false;
+  }
 
   if (outIdentity) {
     outIdentity->fTTCIndex = status_or_response->face_index;
@@ -223,10 +226,37 @@ bool SkFontConfigInterfaceDirect::matchFamilyName(const char familyName[],
   return true;
 }
 
+class SkSharedMemoryStream : public SkMemoryStream {
+ public:
+  SkSharedMemoryStream(std::shared_ptr<::perception::SharedMemory> buffer)
+      : SkMemoryStream(**buffer, buffer->GetSize()), fBuffer(std::move(buffer)) {}
+  ~SkSharedMemoryStream() override = default;
+
+ protected:
+  SkMemoryStream* onDuplicate() const override {
+    return new SkSharedMemoryStream(fBuffer);
+  }
+  SkMemoryStream* onFork() const override {
+    return new SkSharedMemoryStream(fBuffer);
+  }
+
+ private:
+  std::shared_ptr<::perception::SharedMemory> fBuffer;
+};
+
 SkStreamAsset* SkFontConfigInterfaceDirect::openStream(
     const FontIdentity& identity) {
   if (identity.fIsBuffer) {
-    return new SkMemoryStream(**identity.fBuffer, identity.fBuffer->GetSize());
+    if (!identity.fBuffer) {
+      std::cout << "ERROR: identity.fBuffer is nullptr!" << std::endl;
+      return nullptr;
+    }
+    bool joined = identity.fBuffer->Join();
+    if (!joined || **identity.fBuffer == nullptr) {
+      std::cout << "ERROR: Failed to join/map SharedMemory font buffer!" << std::endl;
+      return nullptr;
+    }
+    return new SkSharedMemoryStream(identity.fBuffer);
 
   } else {
     return SkStream::MakeFromFile(identity.fString.c_str()).release();
