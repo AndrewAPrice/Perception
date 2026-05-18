@@ -30,6 +30,10 @@ constexpr int kStackTraceDepth = 100;
 
 // Prints a stack trace for the currently running process.
 void PrintStackTrace() {
+  if (currently_executing_thread_regs == nullptr) {
+    print << "Can't print stack trace because no thread is executing.\n";
+    return;
+  }
   VirtualAddressSpace& address_space =
       running_thread->process->virtual_address_space;
   size_t rbp = currently_executing_thread_regs->rbp;
@@ -80,6 +84,7 @@ void PrintRegistersAndStackTrace() {
     PrintRegisters(currently_executing_thread_regs);
     PrintStackTrace();
   } else {
-    print << "No currently executing thread to print registers and stack trace.\n";
+    print << "No currently executing thread to print registers and stack "
+             "trace.\n";
   }
 }
