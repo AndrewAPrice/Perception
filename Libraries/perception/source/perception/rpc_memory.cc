@@ -171,8 +171,9 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForReceivingFromProcess(
 
 void SetMemoryBufferAsReadyForSendingNextMessageToProcess(
     SharedMemory& shared_memory) {
-  std::scoped_lock lock(shared_memory.Mutex());
+  (void)shared_memory.Join();
   if (shared_memory.CanWrite()) {
+    std::scoped_lock lock(shared_memory.Mutex());
     *(unsigned char*)*shared_memory = 0;
   } else {
     std::cout << "Can't write to the shared memory sent to this process. The "

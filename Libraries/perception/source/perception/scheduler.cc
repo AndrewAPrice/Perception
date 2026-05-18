@@ -307,7 +307,9 @@ Fiber* Scheduler::GetFiberToHandleMessage(ProcessId senders_pid,
   }
 
   // Create a fiber to call the handler.
-  return Fiber::Create(handler, senders_pid, message_data);
+  Fiber* fiber = Fiber::Create(handler, senders_pid, message_data);
+  handler.reset();
+  return fiber;
 }
 
 }  // namespace perception

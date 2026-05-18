@@ -30,45 +30,28 @@ void RegisterService(perception::MessageId message_id, std::string_view name) {
   memset(service_name_words, 0, kMaxServiceNameLength);
   memcpy(service_name_words, &name[0], name.size());
 
-  volatile register size_t syscall asm("rdi") = 32;
-#ifndef optimized_BUILD_
-  volatile register size_t message_id_r asm("r11") = (size_t)message_id;
-#else
-  volatile register size_t message_id_r asm("rbp") = (size_t)message_id;
-#endif
-  volatile register size_t name_1 asm("rax") = service_name_words[0];
-  volatile register size_t name_2 asm("rbx") = service_name_words[1];
-  volatile register size_t name_3 asm("rdx") = service_name_words[2];
-  volatile register size_t name_4 asm("rsi") = service_name_words[3];
-  volatile register size_t name_5 asm("r8") = service_name_words[4];
-  volatile register size_t name_6 asm("r9") = service_name_words[5];
-  volatile register size_t name_7 asm("r10") = service_name_words[6];
-  volatile register size_t name_8 asm("r12") = service_name_words[7];
-  volatile register size_t name_9 asm("r13") = service_name_words[8];
-  volatile register size_t name_10 asm("r14") = service_name_words[9];
+  volatile register size_t rdi_val asm("rdi") = 32;
+  volatile register size_t r15_val asm("r15") = (size_t)message_id;
+  volatile register size_t rax_val asm("rax") = service_name_words[0];
+  volatile register size_t rbx_val asm("rbx") = service_name_words[1];
+  volatile register size_t rdx_val asm("rdx") = service_name_words[2];
+  volatile register size_t rsi_val asm("rsi") = service_name_words[3];
+  volatile register size_t r8_val asm("r8") = service_name_words[4];
+  volatile register size_t r9_val asm("r9") = service_name_words[5];
+  volatile register size_t r10_val asm("r10") = service_name_words[6];
+  volatile register size_t r12_val asm("r12") = service_name_words[7];
+  volatile register size_t r13_val asm("r13") = service_name_words[8];
+  volatile register size_t r14_val asm("r14") = service_name_words[9];
 
   __asm__ __volatile__(
-
-#ifndef optimized_BUILD_
-      R"(
-    push %%rbp
-    mov %%r11, %%rbp
-    syscall
-    pop %%rbp
-  )"
-#else
+      "push %%rbp\n"
+      "mov %%r15, %%rbp\n"
       "syscall\n"
-#endif
-      ::"r"(syscall),
-      "r"(message_id_r), "r"(name_1), "r"(name_2), "r"(name_3), "r"(name_4),
-      "r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8), "r"(name_9),
-      "r"(name_10)
-      : "rcx"
-#if optimized_BUILD_
-        ,
-        "r11"
-#endif
-  );
+      "pop %%rbp\n" ::"r"(rdi_val),
+      "r"(r15_val), "r"(rax_val), "r"(rbx_val), "r"(rdx_val), "r"(rsi_val),
+      "r"(r8_val), "r"(r9_val), "r"(r10_val), "r"(r12_val), "r"(r13_val),
+      "r"(r14_val)
+      : "rcx", "r11", "memory");
 #endif
 }
 
@@ -93,80 +76,55 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
   memset(service_name_words, 0, kMaxServiceNameLength);
   memcpy(service_name_words, &name[0], name.size());
 
-  volatile register size_t syscall asm("rdi") = 34;
-#ifndef optimized_BUILD_
-  volatile register size_t min_pid asm("r11") = 0;
-#else
-  volatile register size_t min_pid asm("rbp") = 0;
-#endif
-  volatile register size_t min_message_id asm("rax") = 0;
-  volatile register size_t name_1 asm("rbx") = service_name_words[0];
-  volatile register size_t name_2 asm("rdx") = service_name_words[1];
-  volatile register size_t name_3 asm("rsi") = service_name_words[2];
-  volatile register size_t name_4 asm("r8") = service_name_words[3];
-  volatile register size_t name_5 asm("r9") = service_name_words[4];
-  volatile register size_t name_6 asm("r10") = service_name_words[5];
-  volatile register size_t name_7 asm("r12") = service_name_words[6];
-  volatile register size_t name_8 asm("r13") = service_name_words[7];
-  volatile register size_t name_9 asm("r14") = service_name_words[8];
-  volatile register size_t name_10 asm("r15") = service_name_words[9];
-
-  // We only care about the first service.
-  volatile register size_t number_of_services asm("rdi");
-#ifndef optimized_BUILD_
-  volatile register size_t pid_1 asm("r11");
-#else
-  volatile register size_t pid_1 asm("rbp");
-#endif
-  volatile register size_t message_id_1 asm("rax");
-  volatile register size_t pid_2 asm("rbx");
-  volatile register size_t message_id_2 asm("rdx");
-  volatile register size_t pid_3 asm("rsi");
-  volatile register size_t message_id_3 asm("r8");
-  volatile register size_t pid_4 asm("r9");
-  volatile register size_t message_id_4 asm("r10");
-  volatile register size_t pid_5 asm("r12");
-  volatile register size_t message_id_5 asm("r13");
-  volatile register size_t pid_6 asm("r14");
-  volatile register size_t message_id_6 asm("r15");
+  size_t number_of_services;
+  size_t pid_1;
+  size_t message_id_1;
 
   __asm__ __volatile__(
-#ifndef optimized_BUILD_
-      R"(
-    push %%rbp
-    mov %%r11, %%rbp
-    syscall
-    mov %%rbp, %%r11
-    pop %%rbp
-  )"
-#else
-      "syscall\n"
-#endif
-      : "=r"(number_of_services), "=r"(message_id_1), "=r"(pid_1), "=r"(pid_2),
-        "=r"(message_id_2), "=r"(pid_3), "=r"(message_id_3), "=r"(pid_4),
-        "=r"(message_id_4), "=r"(pid_5), "=r"(message_id_5), "=r"(pid_6),
-        "=r"(message_id_6)
-      : "r"(syscall), "r"(min_pid), "r"(min_message_id), "r"(name_1),
-        "r"(name_2), "r"(name_3), "r"(name_4), "r"(name_5), "r"(name_6),
-        "r"(name_7), "r"(name_8), "r"(name_9), "r"(name_10)
-      : "rcx"
-#if optimized_BUILD_
-        ,
-        "r11"
-#endif
-  );
+      "push %%rbx\n"
+      "push %%r12\n"
+      "push %%r13\n"
+      "push %%r14\n"
+      "push %%r15\n"
 
-  // Suppress compiler warnings about unused variables.
-  (void)pid_2;
-  (void)message_id_2;
-  (void)pid_3;
-  (void)message_id_3;
-  (void)pid_4;
-  (void)message_id_4;
-  (void)pid_5;
-  (void)message_id_5;
-  (void)pid_6;
-  (void)message_id_6;
+      "push %3\n"
+
+      "mov 0(%%rsp), %%r11\n"
+      "mov 0(%%r11), %%rbx\n"
+      "mov 8(%%r11), %%rdx\n"
+      "mov 16(%%r11), %%rsi\n"
+      "mov 24(%%r11), %%r8\n"
+      "mov 32(%%r11), %%r9\n"
+      "mov 40(%%r11), %%r10\n"
+      "mov 48(%%r11), %%r12\n"
+      "mov 56(%%r11), %%r13\n"
+      "mov 64(%%r11), %%r14\n"
+      "mov 72(%%r11), %%r15\n"
+
+      "add $8, %%rsp\n"
+
+      "push %%rbp\n"
+
+      "mov $34, %%rdi\n"
+      "mov $0, %%rbp\n"
+      "mov $0, %%rax\n"
+      "syscall\n"
+
+      "mov %%rbp, %%r11\n"
+      "pop %%rbp\n"
+
+      "mov %%rdi, %0\n"
+      "mov %%r11, %1\n"
+      "mov %%rax, %2\n"
+
+      "pop %%r15\n"
+      "pop %%r14\n"
+      "pop %%r13\n"
+      "pop %%r12\n"
+      "pop %%rbx\n"
+      : "=m"(number_of_services), "=m"(pid_1), "=m"(message_id_1)
+      : "r"(service_name_words)
+      : "rax", "rdi", "rdx", "rsi", "rcx", "r8", "r9", "r10", "r11", "memory");
 
   if (number_of_services < 1) {
     return false;
@@ -195,14 +153,14 @@ void ForEachInstanceOfService(
 
   // Keep looping over all of the pages until we have a result.
   while (true) {
-    // Fetch this page of results.
     volatile register size_t syscall asm("rdi") = 34;
 #ifndef optimized_BUILD_
-    volatile register size_t min_pid asm("r11") = starting_pid;
+    volatile register size_t starting_pid_r asm("r11") = starting_pid;
 #else
-    volatile register size_t min_pid asm("rbp") = starting_pid;
+    volatile register size_t starting_pid_r asm("rbp") = starting_pid;
 #endif
-    volatile register size_t min_message_id asm("rax") = starting_message_id;
+    volatile register size_t starting_message_id_r asm("rax") = starting_message_id;
+
     volatile register size_t name_1 asm("rbx") = service_name_words[0];
     volatile register size_t name_2 asm("rdx") = service_name_words[1];
     volatile register size_t name_3 asm("rsi") = service_name_words[2];
@@ -216,21 +174,21 @@ void ForEachInstanceOfService(
 
     volatile register size_t number_of_services_r asm("rdi");
 #ifndef optimized_BUILD_
-    volatile register size_t pid_1_r asm("r11");
+    volatile register size_t pid_1 asm("r11");
 #else
-    volatile register size_t pid_1_r asm("rbp");
+    volatile register size_t pid_1 asm("rbp");
 #endif
-    volatile register size_t message_id_1_r asm("rax");
-    volatile register size_t pid_2_r asm("rbx");
-    volatile register size_t message_id_2_r asm("rdx");
-    volatile register size_t pid_3_r asm("rsi");
-    volatile register size_t message_id_3_r asm("r8");
-    volatile register size_t pid_4_r asm("r9");
-    volatile register size_t message_id_4_r asm("r10");
-    volatile register size_t pid_5_r asm("r12");
-    volatile register size_t message_id_5_r asm("r13");
-    volatile register size_t pid_6_r asm("r14");
-    volatile register size_t message_id_6_r asm("r15");
+    volatile register size_t message_id_1 asm("rax");
+    volatile register size_t pid_2 asm("rbx");
+    volatile register size_t message_id_2 asm("rdx");
+    volatile register size_t pid_3 asm("rsi");
+    volatile register size_t message_id_3 asm("r8");
+    volatile register size_t pid_4 asm("r9");
+    volatile register size_t message_id_4 asm("r10");
+    volatile register size_t pid_5 asm("r12");
+    volatile register size_t message_id_5 asm("r13");
+    volatile register size_t pid_6 asm("r14");
+    volatile register size_t message_id_6 asm("r15");
 
     __asm__ __volatile__(
 #ifndef optimized_BUILD_
@@ -240,18 +198,17 @@ void ForEachInstanceOfService(
     syscall
     mov %%rbp, %%r11
     pop %%rbp
-    )"
+			)"
 #else
         "syscall\n"
 #endif
-        : "=r"(number_of_services_r), "=r"(pid_1_r), "=r"(message_id_1_r),
-          "=r"(pid_2_r), "=r"(message_id_2_r), "=r"(pid_3_r),
-          "=r"(message_id_3_r), "=r"(pid_4_r), "=r"(message_id_4_r),
-          "=r"(pid_5_r), "=r"(message_id_5_r), "=r"(pid_6_r),
-          "=r"(message_id_6_r)
-        : "r"(syscall), "r"(min_pid), "r"(min_message_id), "r"(name_1),
-          "r"(name_2), "r"(name_3), "r"(name_4), "r"(name_5), "r"(name_6),
-          "r"(name_7), "r"(name_8), "r"(name_9), "r"(name_10), "r"(name_10)
+        : "=r"(number_of_services_r), "=r"(pid_1), "=r"(message_id_1),
+          "=r"(pid_2), "=r"(message_id_2), "=r"(pid_3), "=r"(message_id_3),
+          "=r"(pid_4), "=r"(message_id_4), "=r"(pid_5), "=r"(message_id_5),
+          "=r"(pid_6), "=r"(message_id_6)
+        : "r"(syscall), "r"(starting_pid_r), "r"(starting_message_id_r),
+          "r"(name_1), "r"(name_2), "r"(name_3), "r"(name_4), "r"(name_5),
+          "r"(name_6), "r"(name_7), "r"(name_8), "r"(name_9), "r"(name_10)
         : "rcx"
 #ifdef optimized_BUILD_
           ,
@@ -260,33 +217,24 @@ void ForEachInstanceOfService(
     );
 
     size_t number_of_services = number_of_services_r;
-    size_t pid_1 = pid_1_r;
-    size_t message_id_1 = message_id_1_r;
-    size_t pid_2 = pid_2_r;
-    size_t message_id_2 = message_id_2_r;
-    size_t pid_3 = pid_3_r;
-    size_t message_id_3 = message_id_3_r;
-    size_t pid_4 = pid_4_r;
-    size_t message_id_4 = message_id_4_r;
-    size_t pid_5 = pid_5_r;
-    size_t message_id_5 = message_id_5_r;
-    size_t pid_6 = pid_6_r;
-    size_t message_id_6 = message_id_6_r;
+    size_t pids[6] = {pid_1, pid_2, pid_3, pid_4, pid_5, pid_6};
+    size_t message_ids[6] = {message_id_1, message_id_2, message_id_3,
+                             message_id_4, message_id_5, message_id_6};
 
     // Call backs.
-    if (number_of_services >= 1) on_each_service(pid_1, message_id_1);
-    if (number_of_services >= 2) on_each_service(pid_2, message_id_2);
-    if (number_of_services >= 3) on_each_service(pid_3, message_id_3);
-    if (number_of_services >= 4) on_each_service(pid_4, message_id_4);
-    if (number_of_services >= 5) on_each_service(pid_5, message_id_5);
-    if (number_of_services >= 6) on_each_service(pid_6, message_id_6);
+    if (number_of_services >= 1) on_each_service(pids[0], message_ids[0]);
+    if (number_of_services >= 2) on_each_service(pids[1], message_ids[1]);
+    if (number_of_services >= 3) on_each_service(pids[2], message_ids[2]);
+    if (number_of_services >= 4) on_each_service(pids[3], message_ids[3]);
+    if (number_of_services >= 5) on_each_service(pids[4], message_ids[4]);
+    if (number_of_services >= 6) on_each_service(pids[5], message_ids[5]);
 
     // We don't have another page of results.
     if (number_of_services <= 6) return;
 
     // Start the next page just afer the last process ID of this page.
-    starting_pid = pid_6;
-    starting_message_id = message_id_6 + 1;
+    starting_pid = pids[5];
+    starting_message_id = message_ids[5] + 1;
   }
 #endif
 }
@@ -301,42 +249,45 @@ std::string GetServiceName(ProcessId pid, MessageId message_id) {
   char service_name[kMaxServiceNameLength + 1];
   service_name[kMaxServiceNameLength] = '\0';
 
-  volatile register size_t syscall asm("rdi") = 47;
-  volatile register size_t pid_r asm("rax") = pid;
-  volatile register size_t message_id_r asm("rbx") = message_id;
+  size_t was_service_found;
+  size_t* name_ptr = (size_t*)service_name;
 
-  volatile register size_t was_service_found asm("rdi");
-  volatile register size_t name_1 asm("rax");
-  volatile register size_t name_2 asm("rbx");
-  volatile register size_t name_3 asm("rdx");
-  volatile register size_t name_4 asm("rsi");
-  volatile register size_t name_5 asm("r8");
-  volatile register size_t name_6 asm("r9");
-  volatile register size_t name_7 asm("r10");
-  volatile register size_t name_8 asm("r12");
-  volatile register size_t name_9 asm("r13");
-  volatile register size_t name_10 asm("r14");
+  __asm__ __volatile__(
+      "push %%rbx\n"
+      "push %%r12\n"
+      "push %%r13\n"
+      "push %%r14\n"
 
-  __asm__ __volatile__("syscall\n"
-                       : "=r"(was_service_found), "=r"(name_1), "=r"(name_2),
-                         "=r"(name_3), "=r"(name_4), "=r"(name_5), "=r"(name_6),
-                         "=r"(name_7), "=r"(name_8), "=r"(name_9), "=r"(name_10)
-                       : "r"(syscall), "r"(pid_r), "r"(message_id_r)
-                       : "rcx", "r11");
+      "push %3\n"
+
+      "mov %1, %%rax\n"
+      "mov %2, %%rbx\n"
+      "mov $47, %%rdi\n"
+      "syscall\n"
+
+      "pop %%r11\n"
+
+      "mov %%rdi, %0\n"
+      "mov %%rax, 0(%%r11)\n"
+      "mov %%rbx, 8(%%r11)\n"
+      "mov %%rdx, 16(%%r11)\n"
+      "mov %%rsi, 24(%%r11)\n"
+      "mov %%r8, 32(%%r11)\n"
+      "mov %%r9, 40(%%r11)\n"
+      "mov %%r10, 48(%%r11)\n"
+      "mov %%r12, 56(%%r11)\n"
+      "mov %%r13, 64(%%r11)\n"
+      "mov %%r14, 72(%%r11)\n"
+
+      "pop %%r14\n"
+      "pop %%r13\n"
+      "pop %%r12\n"
+      "pop %%rbx\n"
+      : "=m"(was_service_found)
+      : "r"(pid), "r"(message_id), "r"(name_ptr)
+      : "rax", "rdi", "rdx", "rsi", "rcx", "r8", "r9", "r10", "r11", "memory");
 
   if (!was_service_found) return "";
-
-  // Copy the string out of the registers into a char array.
-  ((size_t*)service_name)[0] = name_1;
-  ((size_t*)service_name)[1] = name_2;
-  ((size_t*)service_name)[2] = name_3;
-  ((size_t*)service_name)[3] = name_4;
-  ((size_t*)service_name)[4] = name_5;
-  ((size_t*)service_name)[5] = name_6;
-  ((size_t*)service_name)[6] = name_7;
-  ((size_t*)service_name)[7] = name_8;
-  ((size_t*)service_name)[8] = name_9;
-  ((size_t*)service_name)[9] = name_10;
 
   return std::string(service_name);
 }
@@ -363,45 +314,28 @@ MessageId NotifyOnEachNewServiceInstance(
   memset(service_name_words, 0, kMaxServiceNameLength);
   memcpy(service_name_words, &name[0], name.size());
 
-  volatile register size_t syscall asm("rdi") = 35;
-#ifndef optimized_BUILD_
-  volatile register size_t message_id_r asm("r11") = message_id;
-#else
-  volatile register size_t message_id_r asm("rbp") = message_id;
-#endif
-  volatile register size_t name_1 asm("rax") = service_name_words[0];
-  volatile register size_t name_2 asm("rbx") = service_name_words[1];
-  volatile register size_t name_3 asm("rdx") = service_name_words[2];
-  volatile register size_t name_4 asm("rsi") = service_name_words[3];
-  volatile register size_t name_5 asm("r8") = service_name_words[4];
-  volatile register size_t name_6 asm("r9") = service_name_words[5];
-  volatile register size_t name_7 asm("r10") = service_name_words[6];
-  volatile register size_t name_8 asm("r12") = service_name_words[7];
-  volatile register size_t name_9 asm("r13") = service_name_words[8];
-  volatile register size_t name_10 asm("r14") = service_name_words[9];
+  volatile register size_t rdi_val asm("rdi") = 35;
+  volatile register size_t r15_val asm("r15") = (size_t)message_id;
+  volatile register size_t rax_val asm("rax") = service_name_words[0];
+  volatile register size_t rbx_val asm("rbx") = service_name_words[1];
+  volatile register size_t rdx_val asm("rdx") = service_name_words[2];
+  volatile register size_t rsi_val asm("rsi") = service_name_words[3];
+  volatile register size_t r8_val asm("r8") = service_name_words[4];
+  volatile register size_t r9_val asm("r9") = service_name_words[5];
+  volatile register size_t r10_val asm("r10") = service_name_words[6];
+  volatile register size_t r12_val asm("r12") = service_name_words[7];
+  volatile register size_t r13_val asm("r13") = service_name_words[8];
+  volatile register size_t r14_val asm("r14") = service_name_words[9];
 
   __asm__ __volatile__(
-
-#ifndef optimized_BUILD_
-      R"(
-    push %%rbp
-    mov %%r11, %%rbp
-    syscall
-    pop %%rbp
-  )"
-#else
+      "push %%rbp\n"
+      "mov %%r15, %%rbp\n"
       "syscall\n"
-#endif
-      ::"r"(syscall),
-      "r"(message_id_r), "r"(name_1), "r"(name_2), "r"(name_3), "r"(name_4),
-      "r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8), "r"(name_9),
-      "r"(name_10)
-      : "rcx"
-#if optimized_BUILD_
-        ,
-        "r11"
-#endif
-  );
+      "pop %%rbp\n" ::"r"(rdi_val),
+      "r"(r15_val), "r"(rax_val), "r"(rbx_val), "r"(rdx_val), "r"(rsi_val),
+      "r"(r8_val), "r"(r9_val), "r"(r10_val), "r"(r12_val), "r"(r13_val),
+      "r"(r14_val)
+      : "rcx", "r11", "memory");
 
   return message_id;
 #else

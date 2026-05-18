@@ -178,13 +178,19 @@ void Fiber::CallRootFunction(Fiber* fiber) {
 // Calls the message handler for a fiber.
 void Fiber::CallMessageHandler(
     FiberLocalMessageHandler* local_message_handler) {
-  auto message_handler = local_message_handler->message_handler.lock();
-  if (message_handler == nullptr) {
-    return;  // No longer listening for this message.
+  bool has_handler = false;
+  {
+    auto message_handler = local_message_handler->message_handler.lock();
+    if (message_handler != nullptr) {
+      has_handler = true;
+      message_handler->handler_function(local_message_handler->senders_pid,
+                                        local_message_handler->message_data);
+    }
   }
 
-  message_handler->handler_function(local_message_handler->senders_pid,
-                                    local_message_handler->message_data);
+  if (!has_handler) {
+    // No longer listening for this message.
+  }
 
   local_message_handler->~FiberLocalMessageHandler();
   TerminateFiber(GetCurrentlyExecutingFiber());

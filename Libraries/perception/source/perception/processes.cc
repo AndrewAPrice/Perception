@@ -290,44 +290,47 @@ std::string GetProcessName(ProcessId pid) {
   char process_name[kMaximumProcessNameLength + 1];
   process_name[kMaximumProcessNameLength] = '\0';
 
-  volatile register size_t syscall asm("rdi") = 29;
-  volatile register size_t pid_r asm("rax") = pid;
+  size_t was_process_found;
+  size_t* name_ptr = (size_t*)process_name;
 
-  volatile register size_t was_process_found asm("rdi");
-  volatile register size_t name_1 asm("rax");
-  volatile register size_t name_2 asm("rbx");
-  volatile register size_t name_3 asm("rdx");
-  volatile register size_t name_4 asm("rsi");
-  volatile register size_t name_5 asm("r8");
-  volatile register size_t name_6 asm("r9");
-  volatile register size_t name_7 asm("r10");
-  volatile register size_t name_8 asm("r12");
-  volatile register size_t name_9 asm("r13");
-  volatile register size_t name_10 asm("r14");
-  volatile register size_t name_11 asm("r15");
+  __asm__ __volatile__(
+      "push %%rbx\n"
+      "push %%r12\n"
+      "push %%r13\n"
+      "push %%r14\n"
+      "push %%r15\n"
 
-  __asm__ __volatile__("syscall\n"
-                       : "=r"(was_process_found), "=r"(name_1), "=r"(name_2),
-                         "=r"(name_3), "=r"(name_4), "=r"(name_5), "=r"(name_6),
-                         "=r"(name_7), "=r"(name_8), "=r"(name_9),
-                         "=r"(name_10), "=r"(name_11)
-                       : "r"(syscall), "r"(pid_r)
-                       : "rcx", "r11");
+      "push %2\n"
+
+      "mov %1, %%rax\n"
+      "mov $29, %%rdi\n"
+      "syscall\n"
+
+      "pop %%r11\n"
+
+      "mov %%rdi, %0\n"
+      "mov %%rax, 0(%%r11)\n"
+      "mov %%rbx, 8(%%r11)\n"
+      "mov %%rdx, 16(%%r11)\n"
+      "mov %%rsi, 24(%%r11)\n"
+      "mov %%r8, 32(%%r11)\n"
+      "mov %%r9, 40(%%r11)\n"
+      "mov %%r10, 48(%%r11)\n"
+      "mov %%r12, 56(%%r11)\n"
+      "mov %%r13, 64(%%r11)\n"
+      "mov %%r14, 72(%%r11)\n"
+      "mov %%r15, 80(%%r11)\n"
+
+      "pop %%r15\n"
+      "pop %%r14\n"
+      "pop %%r13\n"
+      "pop %%r12\n"
+      "pop %%rbx\n"
+      : "=m"(was_process_found)
+      : "r"(pid), "r"(name_ptr)
+      : "rax", "rdi", "rdx", "rsi", "rcx", "r8", "r9", "r10", "r11", "memory");
 
   if (!was_process_found) return "";
-
-  // Copy the string out of the registers into a char array.
-  ((size_t*)process_name)[0] = name_1;
-  ((size_t*)process_name)[1] = name_2;
-  ((size_t*)process_name)[2] = name_3;
-  ((size_t*)process_name)[3] = name_4;
-  ((size_t*)process_name)[4] = name_5;
-  ((size_t*)process_name)[5] = name_6;
-  ((size_t*)process_name)[6] = name_7;
-  ((size_t*)process_name)[7] = name_8;
-  ((size_t*)process_name)[8] = name_9;
-  ((size_t*)process_name)[9] = name_10;
-  ((size_t*)process_name)[10] = name_11;
 
   return std::string(process_name);
 #else
@@ -342,18 +345,15 @@ bool DoesProcessExist(ProcessId pid) {
   char process_name[kMaximumProcessNameLength + 1];
   process_name[kMaximumProcessNameLength] = '\0';
 
-  volatile register size_t syscall asm("rdi") = 29;
-  volatile register size_t pid_r asm("rax") = pid;
-
-  volatile register size_t was_process_found asm("rdi");
+  register size_t syscall asm("rdi") = 29;
+  register size_t pid_r asm("rax") = pid;
 
   __asm__ __volatile__("syscall\n"
-                       : "=r"(was_process_found)
-                       : "r"(syscall), "r"(pid_r)
-                       : "rbx", "rcx", "rdx", "rsi", "r8", "r9", "r10", "r11",
-                         "r12", "r13", "r14", "r15");
+                       : "+r"(syscall), "+r"(pid_r)
+                       :: "rbx", "rcx", "rdx", "rsi", "r8", "r9", "r10", "r11",
+                          "r12", "r13", "r14", "r15");
 
-  return was_process_found;
+  return syscall != 0;
 #endif
 }
 
