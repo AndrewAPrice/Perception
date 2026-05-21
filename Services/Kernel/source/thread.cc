@@ -120,8 +120,7 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
   }
 
   // Free the thread's stack.
-  for (int i = 0; i < STACK_PAGES; i++, thread->stack += PAGE_SIZE)
-    thread->process->virtual_address_space.FreePages(thread->stack, 1);
+  thread->process->virtual_address_space.FreePages(thread->stack, STACK_PAGES);
 
   Process* process = thread->process;
 
@@ -143,7 +142,7 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
     // Get the physical page.
     size_t physical_page =
         thread->process->virtual_address_space.GetPhysicalAddress(
-            offset_in_page,
+            page,
             /*ignore_unowned_pages=*/false);
     if (physical_page != OUT_OF_MEMORY) {
       // If this virtual page was actually assigned to a physical address,

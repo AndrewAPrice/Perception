@@ -130,3 +130,62 @@ TEST(ElfLoaderLoadProcessTest) {
   // Clean up
   DestroyProcess(process);
 }
+
+TEST(ElfLoaderInvalidSegmentsTest) {
+  InitializeObjectPools();
+  InitializeProcesses();
+  InitializeThreads();
+  InitializeVirtualAllocator();
+
+  MockElf elf;
+
+  // Set up ELF64 Header (valid)
+  elf.header.e_ident[EI_MAG0] = ELFMAG0;
+  elf.header.e_ident[EI_MAG1] = ELFMAG1;
+  elf.header.e_ident[EI_MAG2] = ELFMAG2;
+  elf.header.e_ident[EI_MAG3] = ELFMAG3;
+  elf.header.e_ident[EI_CLASS] = ELFCLASS64;
+  elf.header.e_ident[EI_DATA] = ELFDATA2LSB;
+  elf.header.e_ident[EI_VERSION] = EV_CURRENT;
+
+  elf.header.e_type = ET_EXEC;
+  elf.header.e_machine = EM_X86_64;
+  elf.header.e_version = EV_CURRENT;
+  elf.header.e_entry = 0x1000;
+  elf.header.e_phoff = offsetof(MockElf, phdr);
+  elf.header.e_shoff = 0;
+  elf.header.e_flags = 0;
+  elf.header.e_ehsize = sizeof(Elf64_Ehdr);
+  elf.header.e_phentsize = sizeof(Elf64_Phdr);
+  elf.header.e_phnum = 1;
+  elf.header.e_shentsize = 0;
+  elf.header.e_shnum = 0;
+  elf.header.e_shstrndx = SHN_UNDEF;
+
+  // Program Segment Header - Invalid/Overflowing Virtual Address
+  elf.phdr.p_type = PT_LOAD;
+  elf.phdr.p_flags = PF_R | PF_X;
+  elf.phdr.p_offset = offsetof(MockElf, program_data);
+  elf.phdr.p_vaddr =
+      0xFFFFFFFFFFFFFF00ULL;  // load virtual address that overflows
+  elf.phdr.p_paddr = 0xFFFFFFFFFFFFFF00ULL;
+  elf.phdr.p_filesz = 32;
+  elf.phdr.p_memsz = 0x1000;  // would wrap around to a small positive number
+  elf.phdr.p_align = 4096;
+
+  // Try loading it - should be rejected!
+  bool success = LoadElfProcess((size_t)&elf, (size_t)&elf + sizeof(MockElf),
+                                (char*)"- my_bad_process");
+  ASSERT(success, false);
+
+  // Program Segment Header - Invalid filesz > memsz
+  elf.phdr.p_vaddr = 0x400000;
+  elf.phdr.p_paddr = 0x400000;
+  elf.phdr.p_filesz = 32;
+  elf.phdr.p_memsz = 16;  // filesz > memsz (invalid!)
+
+  // Try loading it - should be rejected!
+  success = LoadElfProcess((size_t)&elf, (size_t)&elf + sizeof(MockElf),
+                           (char*)"- my_bad_process2");
+  ASSERT(success, false);
+}

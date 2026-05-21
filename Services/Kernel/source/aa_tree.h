@@ -83,6 +83,7 @@ struct AATree {
       AATreeNode* next = node->next;
       next->previous = nullptr;
       next->left = node->left;
+      next->level = node->level;
       if (next->left != nullptr) next->left->parent = next;
       next->right = node->right;
       if (next->right != nullptr) next->right->parent = next;
@@ -295,6 +296,7 @@ struct AATree {
       // Copy the existing node's tree fields over to the new node.
       node_to_insert->left = parent->left;
       node_to_insert->right = parent->right;
+      node_to_insert->level = parent->level;
       if (node_to_insert->left != nullptr)
         node_to_insert->left->parent = node_to_insert;
       if (node_to_insert->right != nullptr)

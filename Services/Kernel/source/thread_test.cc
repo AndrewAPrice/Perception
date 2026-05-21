@@ -49,3 +49,40 @@ TEST(ThreadLifecycleAndReclamationTest) {
   // Clean up parent
   DestroyProcess(p1);
 }
+
+TEST(ThreadAddressClearOnTerminationTest) {
+  InitializeObjectPools();
+  InitializeProcesses();
+  InitializeThreads();
+  InitializeVirtualAllocator();
+
+  Process* p1 = CreateProcess(false, true);
+  ASSERT(p1 != nullptr, true);
+
+  // Allocate a page in p1.
+  size_t page_addr = p1->virtual_address_space.AllocatePages(1);
+  ASSERT(page_addr != OUT_OF_MEMORY, true);
+
+  // Write a non-zero value to the page.
+  size_t offset = 16;
+  size_t target_address = page_addr + offset;
+  
+  size_t physical_page = p1->virtual_address_space.GetPhysicalAddress(page_addr, false);
+  ASSERT(physical_page != OUT_OF_MEMORY, true);
+  
+  volatile uint64* ptr = (volatile uint64*)((size_t)TemporarilyMapPhysicalPages(physical_page, 1) + offset);
+  *ptr = 0xDEADBEEF;
+  ASSERT(*ptr, (uint64)0xDEADBEEF);
+
+  // Create a thread and set address_to_clear_on_termination.
+  Thread* t1 = CreateThread(p1, 0x1000, 42);
+  ASSERT(t1 != nullptr, true);
+  t1->address_to_clear_on_termination = target_address;
+
+  // Destroy the thread. This automatically destroys p1 as it is the last thread.
+  DestroyThread(t1, /*process_being_destroyed=*/false);
+
+  // Verify that the target address is now cleared to 0.
+  ptr = (volatile uint64*)((size_t)TemporarilyMapPhysicalPages(physical_page, 1) + offset);
+  ASSERT(*ptr, 0ULL);
+}

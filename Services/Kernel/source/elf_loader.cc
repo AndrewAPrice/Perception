@@ -154,9 +154,21 @@ bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
       continue;
     }
 
-    if (segment_header->p_vaddr + segment_header->p_memsz >
-        VIRTUAL_MEMORY_OFFSET) {
-      print << "Trying to load data into kernel memory.\n";
+    // Validate memory size and virtual address range
+    if (segment_header->p_vaddr >= VIRTUAL_MEMORY_OFFSET ||
+        segment_header->p_memsz > VIRTUAL_MEMORY_OFFSET ||
+        segment_header->p_vaddr + segment_header->p_memsz >
+            VIRTUAL_MEMORY_OFFSET ||
+        segment_header->p_vaddr + segment_header->p_memsz <
+            segment_header->p_vaddr) {
+      print << "Trying to load data into kernel memory or invalid segment "
+               "size.\n";
+      return false;
+    }
+
+    // Validate that file size is not greater than memory size
+    if (segment_header->p_filesz > segment_header->p_memsz) {
+      print << "Segment file size is greater than memory size.\n";
       return false;
     }
 
@@ -165,11 +177,11 @@ bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
       size_t from_start = memory_start + segment_header->p_offset;
       size_t from_size = segment_header->p_filesz;
 
-      if (from_start + from_size > memory_end) {
-        // Segment is out of bounds of the ELF file.
+      if (from_start + from_size > memory_end ||
+          from_start + from_size < from_start) {
+        // Segment is out of bounds of the ELF file or overflows.
         print << "Segment is trying to load memory that is out of bounds of "
-                 "the "
-                 "file.\n";
+                 "the file.\n";
         return false;
       }
 

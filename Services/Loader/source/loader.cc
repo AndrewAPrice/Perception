@@ -172,8 +172,6 @@ StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
   for (auto dependency : dependencies) {
     load_addresses_of_elf_files.push_back(next_free_address);
 #if VERBOSE
-    std::cout << "Loading " << dependency->File().Name() << " at " << std::hex
-              << next_free_address << std::dec << std::endl;
 #endif
     auto status_or_next_free_address =
         dependency->LoadIntoAddressSpaceAndReturnNextFreeAddress(

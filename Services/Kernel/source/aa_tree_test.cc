@@ -81,4 +81,61 @@ TEST(AATreeTest) {
     free(nodes[i]);
   }
   free(nodes);
+
+  // Test duplicate entries.
+  {
+    TestAATree tree2;
+    Node n1{100, {}};
+    Node n2{100, {}};
+    Node n3{100, {}};
+    Node n4{50, {}};
+    Node n5{150, {}};
+
+    tree2.Insert(&n4);
+    tree2.Insert(&n1);
+    tree2.Insert(&n2);
+    tree2.Insert(&n3);
+    tree2.Insert(&n5);
+
+    ASSERT(tree2.CountNodes(), (size_t)5);
+
+    // Remove n3 (which is the front of the duplicate list for 100).
+    tree2.Remove(&n3);
+    ASSERT(tree2.CountNodes(), (size_t)4);
+    ASSERT(tree2.SearchForItemEqualToValue(100) == &n2 ||
+               tree2.SearchForItemEqualToValue(100) == &n1,
+           true);
+
+    // Remove n2.
+    tree2.Remove(&n2);
+    ASSERT(tree2.CountNodes(), (size_t)3);
+    ASSERT(tree2.SearchForItemEqualToValue(100) == &n1, true);
+
+    // Remove n1.
+    tree2.Remove(&n1);
+    ASSERT(tree2.CountNodes(), (size_t)2);
+    ASSERT(tree2.SearchForItemEqualToValue(100) == nullptr, true);
+  }
+
+  // Test duplicate entries with level > 1.
+  {
+    TestAATree tree3;
+    Node n10{10, {}};
+    Node n20_a{20, {}};
+    Node n30{30, {}};
+    Node n20_b{20, {}};
+
+    tree3.Insert(&n10);
+    tree3.Insert(&n20_a);
+    tree3.Insert(&n30);  // n20_a should be root at level 2.
+
+    ASSERT(n20_a.node.level, 2);
+
+    // Insert duplicate 20.
+    tree3.Insert(&n20_b);
+
+    // n20_b is now root, replacing n20_a.
+    // Its level should be 2.
+    ASSERT(n20_b.node.level, 2);
+  }
 }
