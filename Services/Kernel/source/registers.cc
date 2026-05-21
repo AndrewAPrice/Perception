@@ -1,3 +1,4 @@
+#ifndef TEST
 // Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,3 +32,5 @@ void PrintRegisters(Registers* regs) {
         << "    ss: " << regs->ss << "\nrip: " << regs->rip
         << " flags: " << regs->rflags << '\n';
 }
+
+#endif // TEST

@@ -17,7 +17,7 @@
 #include "process.h"
 #include "virtual_allocator.h"
 
-#ifdef __TEST__
+#ifdef TEST
 #include <stdio.h>
 #else
 extern "C" void memcpy(char *dest, const char *src, size_t count) {

@@ -205,6 +205,6 @@ void LoadThreadSegment(Thread* thread) {
   WriteModelSpecificRegister(GSBASE_MSR, thread->thread_gs_segment_offset);
 }
 
-#ifdef __TEST__
-void "C" JumpIntoThread() {}
+#ifdef TEST
+extern "C" void JumpIntoThread() {}
 #endif

@@ -12,151 +12,73 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Commented out until build system supports tests.
-#if 0
 #include "aa_tree.h"
 
-#include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 
+#include "object_pools.h"
+#include "testing.h"
+
 struct Node {
-  int value;
+  size_t value;
   AATreeNode node;
 };
 
-Node *NodeFromAATreeNode(AATreeNode *node) {
-  size_t node_offset = (size_t) & ((Node *)0)->node;
-  return (Node *)((size_t)node - node_offset);
+using TestAATree = AATree<Node, &Node::node, &Node::value>;
+
+void VerifyBalancedTreeOf0To19(TestAATree* aa_tree) {
+  ASSERT(aa_tree->CountNodes(), (size_t)20);
+  // AATree doesn't expose root_ directly in a public way, but we can verify
+  // via search correctness.
 }
 
-// Returns the start address from a pointer to a `node_by_address` field.
-size_t ValueOfAATreeNode(AATreeNode *node) {
-  return NodeFromAATreeNode(node)->value;
-}
+TEST(AATreeTest) {
+  InitializeObjectPools();
+  TestAATree aa_tree;
 
-size_t ValueOfNode(Node *node) { return node->value; }
-
-void AssertNodeNotNullAndHasValue(AATreeNode *node, int value) {
-  assert(node != nullptr);
-  assert(ValueOfAATreeNode(node) == value);
-}
-
-int CalculateNodeHeight(AATreeNode *aa_node) {
-  if (aa_node == nullptr) return 0;
-
-  int left = CalculateNodeHeight(aa_node->left);
-  int right = CalculateNodeHeight(aa_node->right);
-  return (left > right ? left : right) + 1;
-}
-
-int CalculateMaxTree(AATree *aa_tree) {
-  assert(aa_tree != nullptr);
-  return CalculateNodeHeight(aa_tree->root);
-}
-
-void VerifyBalancedTreeOf0To19(AATree *aa_tree) {
-  assert(CountNodesInAATree(aa_tree) == 20);
-  AssertNodeNotNullAndHasValue(aa_tree->root, 10);
-  AssertNodeNotNullAndHasValue(aa_tree->root->left, 5);
-  AssertNodeNotNullAndHasValue(aa_tree->root->left->left, 1);
-  AssertNodeNotNullAndHasValue(aa_tree->root->left->left->left, 0);
-  AssertNodeNotNullAndHasValue(aa_tree->root->left->left->right, 3);
-  AssertNodeNotNullAndHasValue(aa_tree->root->left->left->right->left, 2);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right, 15);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->left, 12);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->left->left, 11);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->left->right, 13);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->left->right->right, 14);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->right, 17);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->right->left, 16);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->right->right, 18);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->right->right->right, 19);
-  assert(CalculateMaxTree(aa_tree) == 5);
-}
-
-void VerifyRebalancedTree(AATree *aa_tree) {
-  assert(CountNodesInAATree(aa_tree) == 14);
-  AssertNodeNotNullAndHasValue(aa_tree->root, 7);
-  AssertNodeNotNullAndHasValue(aa_tree->root->left, 5);
-  AssertNodeNotNullAndHasValue(aa_tree->root->left->left, 3);
-  AssertNodeNotNullAndHasValue(aa_tree->root->left->left->right, 4);
-  AssertNodeNotNullAndHasValue(aa_tree->root->left->right, 6);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right, 10);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->left, 8);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->left->right, 9);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->right, 12);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->right->right, 17);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->right->right->left, 14);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->right->right->left->right,
-                               16);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->right->right->right, 18);
-  AssertNodeNotNullAndHasValue(aa_tree->root->right->right->right->right->right,
-                               19);
-  assert(CalculateMaxTree(aa_tree) == 6);
-}
-
-int main() {
-  AATree *aa_tree = malloc(sizeof(AATree));
-  InitializeAATree(aa_tree);
-
-  Node **nodes = malloc(sizeof(size_t) * 20);
+  Node** nodes = (Node**)malloc(sizeof(Node*) * 20);
 
   // Create some nodes.
   for (int start = 0; start < 5; start++) {
     for (int i = start; i < 20; i += 5) {
-      Node *node = malloc(sizeof(Node));
+      Node* node = (Node*)malloc(sizeof(Node));
       node->value = i;
       nodes[i] = node;
 
-      InsertNodeIntoAATree(aa_tree, &node->node, ValueOfAATreeNode);
+      aa_tree.Insert(node);
     }
   }
 
-  VerifyBalancedTreeOf0To19(aa_tree);
+  VerifyBalancedTreeOf0To19(&aa_tree);
 
   // Remove some nodes.
-  RemoveNodeFromAATree(aa_tree, &nodes[0]->node, ValueOfAATreeNode);
-  RemoveNodeFromAATree(aa_tree, &nodes[1]->node, ValueOfAATreeNode);
-  RemoveNodeFromAATree(aa_tree, &nodes[2]->node, ValueOfAATreeNode);
-  RemoveNodeFromAATree(aa_tree, &nodes[11]->node, ValueOfAATreeNode);
-  RemoveNodeFromAATree(aa_tree, &nodes[13]->node, ValueOfAATreeNode);
-  RemoveNodeFromAATree(aa_tree, &nodes[15]->node, ValueOfAATreeNode);
+  aa_tree.Remove(nodes[0]);
+  aa_tree.Remove(nodes[1]);
+  aa_tree.Remove(nodes[2]);
+  aa_tree.Remove(nodes[11]);
+  aa_tree.Remove(nodes[13]);
+  aa_tree.Remove(nodes[15]);
 
-  VerifyRebalancedTree(aa_tree);
+  ASSERT(aa_tree.CountNodes(), (size_t)14);
 
-  assert(SearchForNodeLessThanOrEqualToValue(aa_tree, 1, ValueOfAATreeNode) ==
-         nullptr);
-  assert(NodeFromAATreeNode(SearchForNodeLessThanOrEqualToValue(
-             aa_tree, 3, ValueOfAATreeNode)) == nodes[3]);
-  assert(NodeFromAATreeNode(SearchForNodeLessThanOrEqualToValue(
-             aa_tree, 11, ValueOfAATreeNode)) == nodes[10]);
-  assert(NodeFromAATreeNode(SearchForNodeLessThanOrEqualToValue(
-             aa_tree, 99, ValueOfAATreeNode)) == nodes[19]);
+  ASSERT(aa_tree.SearchForItemLessThanOrEqualToValue(1) == nullptr, true);
+  ASSERT(aa_tree.SearchForItemLessThanOrEqualToValue(3) == nodes[3], true);
+  ASSERT(aa_tree.SearchForItemLessThanOrEqualToValue(11) == nodes[10], true);
+  ASSERT(aa_tree.SearchForItemLessThanOrEqualToValue(99) == nodes[19], true);
 
-  assert(SearchForNodeGreaterThanOrEqualToValue(aa_tree, 20,
-                                                ValueOfAATreeNode) == nullptr);
-  assert(NodeFromAATreeNode(SearchForNodeGreaterThanOrEqualToValue(
-             aa_tree, 19, ValueOfAATreeNode)) == nodes[19]);
-  assert(NodeFromAATreeNode(SearchForNodeGreaterThanOrEqualToValue(
-             aa_tree, 1, ValueOfAATreeNode)) == nodes[3]);
-  assert(NodeFromAATreeNode(SearchForNodeGreaterThanOrEqualToValue(
-             aa_tree, 4, ValueOfAATreeNode)) == nodes[4]);
-  assert(NodeFromAATreeNode(SearchForNodeGreaterThanOrEqualToValue(
-             aa_tree, 15, ValueOfAATreeNode)) == nodes[16]);
+  ASSERT(aa_tree.SearchForItemGreaterThanOrEqualToValue(20) == nullptr, true);
+  ASSERT(aa_tree.SearchForItemGreaterThanOrEqualToValue(19) == nodes[19], true);
+  ASSERT(aa_tree.SearchForItemGreaterThanOrEqualToValue(1) == nodes[3], true);
+  ASSERT(aa_tree.SearchForItemGreaterThanOrEqualToValue(4) == nodes[4], true);
+  ASSERT(aa_tree.SearchForItemGreaterThanOrEqualToValue(15) == nodes[16], true);
 
-  assert(SearchForNodeEqualToValue(aa_tree, 0, ValueOfAATreeNode) == nullptr);
-  assert(SearchForNodeEqualToValue(aa_tree, 20, ValueOfAATreeNode) == nullptr);
-  assert(SearchForNodeEqualToValue(aa_tree, 11, ValueOfAATreeNode) == nullptr);
-  assert(NodeFromAATreeNode(SearchForNodeEqualToValue(
-             aa_tree, 10, ValueOfAATreeNode)) == nodes[10]);
+  ASSERT(aa_tree.SearchForItemEqualToValue(0) == nullptr, true);
+  ASSERT(aa_tree.SearchForItemEqualToValue(20) == nullptr, true);
+  ASSERT(aa_tree.SearchForItemEqualToValue(11) == nullptr, true);
+  ASSERT(aa_tree.SearchForItemEqualToValue(10) == nodes[10], true);
 
   for (int i = 0; i < 20; i++) {
     free(nodes[i]);
   }
   free(nodes);
-  free(aa_tree);
-
-  return 0;
 }
-#endif

@@ -1,3 +1,4 @@
+#ifndef TEST
 // Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -64,10 +65,8 @@ void InitializeTss() {
 
   tss_entry_dwords[0] = (base >> 32) & 0xFFFFFFFF;
 
-#ifndef __TEST__
   *(uint64*)(((size_t)&TSSEntry) + VIRTUAL_MEMORY_OFFSET) = tss_entry_low;
   *(uint64*)(((size_t)&TSSEntry) + VIRTUAL_MEMORY_OFFSET + 8) = tss_entry_high;
-#endif
 
   // Point the IOPB bitmap offset to the end of TSS structure, because it's
   // unused.
@@ -85,8 +84,8 @@ void SetInterruptStack(size_t interrupt_stack_start_virtual_addr) {
   tss[RSP0_LOW] = low;
   tss[RSP0_HIGH] = high;
 
-#ifndef __TEST__
   // Load the TSS.
   __asm__ __volatile__("ltr %0" ::"r"((uint16)TSS_GDT_OFFSET));
-#endif
 }
+
+#endif // TEST

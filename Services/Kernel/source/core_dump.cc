@@ -1,3 +1,4 @@
+#ifndef TEST
 // Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -402,3 +403,5 @@ void PrintCoreDump(Process *process, Thread *target_thread, int exception_no,
                    size_t cr2, size_t error_code) {}
 
 #endif  // SUPPORTS_CORE_DUMPING
+
+#endif // TEST

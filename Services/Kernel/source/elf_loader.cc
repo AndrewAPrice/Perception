@@ -19,11 +19,12 @@
 #include "physical_allocator.h"
 #include "process.h"
 #include "scheduler.h"
-#include "string.h"
+#include "kernel_string.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "virtual_address_space.h"
 #include "virtual_allocator.h"
+#include "memory.h"
 
 namespace {
 

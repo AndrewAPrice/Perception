@@ -1,7 +1,20 @@
 {
+  statically_link: 0,
+  include_directories: [
+    'source',
+  ],
+  dependencies: [],
+} + (if is_testing then {
+  files_to_ignore: [
+    'source/boot.asm',
+    'source/exceptions.asm',
+    'source/interrupts.asm',
+    'source/syscall.asm',
+    'source/multiboot.asm',
+  ]
+} else {
   local cpp_compiler = 'clang',
   local linker = 'ld.lld',
-  statically_link: 0,
   build_commands: {
     // C and C++:
     local c_optimizations =
@@ -24,8 +37,4 @@
     else ' -g ',
   linker_command:
     linker + linker_optimizations + ' -z max-page-size=4096 -T Services/Kernel/source/linker.ld -o ${out} ${in}',
-  include_directories: [
-    'source',
-  ],
-  dependencies: [],
-}
+})

@@ -1,3 +1,4 @@
+#ifndef TEST
 // Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -106,9 +107,7 @@ int GetIndexForSyscall(int syscall) {
 // Returns the number of cycles executed on this CPU since boot.
 size_t NumberOfCPUCyclesSinceBoot() {
   unsigned hi, lo;
-#ifndef __TEST__
   __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
-#endif
   return ((unsigned long long)lo) | (((unsigned long long)hi) << 32);
 }
 
@@ -265,3 +264,5 @@ extern "C" void ProfileEnteringKernelSpaceForSyscall(int syscall) {
 extern "C" void ProfileSwitchToUserSpace() {
   FinishProfilingKernelSpaceEvent();
 }
+
+#endif // TEST

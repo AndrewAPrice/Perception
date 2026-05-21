@@ -1,3 +1,4 @@
+#ifndef TEST
 // Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -86,7 +87,6 @@ void PrintException(bool in_kernel, int exception_no, size_t cr2,
 
 // Register the CPU exception interrupts.
 void RegisterExceptionInterrupts() {
-#ifndef __TEST__
   SetIdtEntry(0, (size_t)isr0, 0x08, 0x8E);
   SetIdtEntry(1, (size_t)isr1, 0x08, 0x8E);
   SetIdtEntry(2, (size_t)isr2, 0x08, 0x8E);
@@ -119,7 +119,6 @@ void RegisterExceptionInterrupts() {
   SetIdtEntry(29, (size_t)isr29, 0x08, 0x8E);
   SetIdtEntry(30, (size_t)isr30, 0x08, 0x8E);
   SetIdtEntry(31, (size_t)isr31, 0x08, 0x8E);
-#endif
 }
 
 const char *GetExceptionName(Exception exception) {
@@ -169,11 +168,7 @@ const char *GetExceptionName(Exception exception) {
 
 // Exits QEMU. Requires staring QEMU with:
 //   -device isa-debug-exit,iobase=0xf4,iosize=0x04.
-void ExitQemu() {
-#ifndef __TEST__
-  WriteIOByte(0xf4, 0x10);
-#endif
-}
+void ExitQemu() { WriteIOByte(0xf4, 0x10); }
 
 // The exception handler.
 extern "C" void ExceptionHandler(int exception_no, size_t cr2,
@@ -195,10 +190,8 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
 
   if (in_kernel) {
     ExitQemu();
-#ifndef __TEST__
     asm("cli");
     asm("hlt");
-#endif
   } else {
     // Terminate the process.
     DestroyProcess(running_thread->process);
@@ -209,3 +202,5 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
     JumpIntoThread(); // Doesn't return.
   }
 }
+
+#endif  // TEST

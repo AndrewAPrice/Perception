@@ -14,13 +14,13 @@
 #pragma once
 
 #include "types.h"
-#ifdef __TEST__
-#include <string.h>
-
-#else
+#if defined(TEST)
+#include <cstring>
+#endif
 
 class Process;
 
+#if !defined(TEST)
 // Copies `count` bytes from `src` to `dest`.
 extern "C" void memcpy(char *dest, const char *src, size_t count);
 

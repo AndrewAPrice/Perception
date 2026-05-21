@@ -1,3 +1,4 @@
+#ifndef TEST
 #include "syscall.h"
 
 #include "framebuffer.h"
@@ -41,13 +42,11 @@ namespace {
 }  // namespace
 
 void InitializeSystemCalls() {
-#ifndef __TEST__
   WriteModelSpecificRegister(STAR, KERNEL_SEGMENT_BASE | USER_SEGMENT_BASE);
   WriteModelSpecificRegister(LSTAR, (size_t)syscall_entry);
   // Disable interrupts duing syscalls.
   WriteModelSpecificRegister(IA32_FMASK, INTERRUPT_MASK);
 //  SetInterruptHandler(0x80, (size_t)syscall_isr, 0x08, 0x8E);
-#endif
 }
 
 int last_printing_process = -1;
@@ -686,3 +685,5 @@ extern "C" void SyscallHandler(int syscall_number) {
   if (running_thread) running_thread->in_syscall = false;
 #endif
 }
+
+#endif // TEST

@@ -57,7 +57,7 @@ class Set {
     SetNode* node = tree_.SearchForItemEqualToValue(static_cast<size_t>(value));
     if (node == nullptr) return;
 
-    nodes_.Remove(value);
+    nodes_.Remove(node);
     tree_.Remove(node);
     ObjectPool<SetNode>::Release(node);
   }

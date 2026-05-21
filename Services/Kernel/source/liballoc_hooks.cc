@@ -1,4 +1,4 @@
-#ifndef __TEST__
+#ifndef TEST
 #include "physical_allocator.h"
 #include "text_terminal.h"
 #include "virtual_address_space.h"
@@ -57,4 +57,5 @@ int liballoc_free(void* addr, size_t pages) {
 
 }  // extern "C"
 
-#endif
+
+#endif // TEST

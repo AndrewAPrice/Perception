@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,23 +13,23 @@
 // limitations under the License.
 #pragma once
 
-#ifdef __TEST__
-#include <string.h>
-#endif  // __TEST__
+#if defined(TEST) || defined(TEST)
+#include <cstring>
+#endif  // TEST
 
 #include "types.h"
 
 // Copies a string.
-void CopyString(const char *source, size_t buffer_size, size_t strlen,
-                char *dest);
+void CopyString(const char* source, size_t buffer_size, size_t strlen,
+                char* dest);
 
-#ifndef __TEST__
+#ifndef TEST
 // Compares two strings and returns if they're equal.
-bool strcmp(void *a, void *b, size_t count);
+bool strcmp(void* a, void* b, size_t count);
 
 // Measures the size of a string.
-size_t strlen(const char *str);
+size_t strlen(const char* str);
 #endif
 
 // Measures the size of a string with a maximum length.
-size_t strlen_s(const char *str, size_t max);
+size_t strlen_s(const char* str, size_t max);

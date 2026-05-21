@@ -9,7 +9,7 @@
 
 // Paging structures made at boot time, these can be freed after the virtual
 // allocator has been initialized.
-#ifdef __TEST__
+#ifdef TEST
 size_t Pml4[512];
 size_t Pdpt[512];
 size_t Pd[512];
@@ -66,7 +66,7 @@ void InitializeVirtualAllocator() {
   // Flush and load the kernel's new and final PML4.
   kernel_address_space.SwitchToAddressSpace();
 
-#ifndef __TEST__
+#ifndef TEST
   // Reclaim the PML4, PDPT, PD set up at boot time.
   kernel_address_space.FreePages((size_t)&Pml4 + VIRTUAL_MEMORY_OFFSET, 1);
   kernel_address_space.FreePages((size_t)&Pdpt + VIRTUAL_MEMORY_OFFSET, 1);
@@ -78,11 +78,12 @@ VirtualAddressSpace &KernelAddressSpace() { return kernel_address_space; }
 
 // Flush the CPU lookup for a particular virtual address.
 void FlushVirtualPage(size_t addr) {
-#ifndef __TEST__
+#ifndef TEST
   __asm__ __volatile__("invlpg (%0)" : : "b"(addr) : "memory");
 #endif
 }
 
+#ifndef TEST
 // Maps a physical page so that we can access it - use this before the virtual
 // allocator has been initialized.
 void *TemporarilyMapPhysicalMemoryPreVirtualMemory(
@@ -127,6 +128,7 @@ void *TemporarilyMapPhysicalPages(size_t addr, size_t index) {
   // Return a pointer to the virtual address of the requested physical memory.
   return (void *)temp_addr;
 }
+#endif
 
 // Maps shared memory into a process's virtual address space. Returns nullptr
 // if there was an issue.

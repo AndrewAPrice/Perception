@@ -1,3 +1,4 @@
+#ifndef TEST
 #include "physical_allocator.h"
 
 #include "../../../third_party/multiboot2.h"
@@ -9,17 +10,10 @@
 #include "virtual_allocator.h"
 
 // Start of the free memory on boot.
-#ifdef __TEST__
-size_t bssEnd = 0;
-#else
 extern size_t bssEnd;
-#endif
 
 namespace {
 
-#ifdef __TEST__
-multiboot_info MultibootInfo;
-#endif
 // Physical memory is divided into 4kb pages. A linked stack of them is kept,
 // allowing pages to be popped off and pushed onto it. This pointer points to
 // the top of the stack (next free page), and the first thing in that page will
@@ -306,3 +300,5 @@ bool IsPageAlignedAddress(size_t address) { return (address % PAGE_SIZE) == 0; }
 size_t RoundDownToPageAlignedAddress(size_t address) {
   return address - (address % PAGE_SIZE);
 }
+
+#endif // TEST

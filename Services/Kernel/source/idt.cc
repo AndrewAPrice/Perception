@@ -1,3 +1,4 @@
+#ifndef TEST
 #include "idt.h"
 
 #include "memory.h"
@@ -55,9 +56,7 @@ void InitializeIdt() {
   memset((char *)idt, 0, sizeof(idt_entry) * 256);
 
 // Load the new IDT pointer, which is in virtual address space.
-#ifndef __TEST__
   __asm__ __volatile__("lidt (%0)" : : "b"((size_t)&idt_p));
-#endif
 }
 
 void SetIdtEntry(unsigned char num, size_t handler_address, unsigned short sel,
@@ -72,3 +71,5 @@ void SetIdtEntry(unsigned char num, size_t handler_address, unsigned short sel,
   idt[num].zero = 0;
 }
 
+
+#endif // TEST

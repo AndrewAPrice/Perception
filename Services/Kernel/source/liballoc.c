@@ -1,3 +1,4 @@
+#ifndef TEST
 // Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,3 +16,5 @@
 #define NULL ((void*)0)
 
 #include "../../../third_party/liballoc.c"
+
+#endif // TEST

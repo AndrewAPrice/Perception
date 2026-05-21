@@ -1,7 +1,8 @@
 #pragma once
 
-#ifdef __TEST__
+#if defined(TEST) || defined(TEST)
 #include <sys/types.h>
+#include <stddef.h>
 #else
 typedef unsigned long long int size_t;
 #endif

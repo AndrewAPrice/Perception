@@ -58,7 +58,7 @@ class LinkedList {
 
     auto* item_node = ItemToNode(item);
     item_node->previous = next_node->previous;
-    item_node->next = next_node->next;
+    item_node->next = next_node;
 
     next_node->previous->next = item_node;
     next_node->previous = item_node;

@@ -16,13 +16,14 @@
 
 #include "../../../third_party/multiboot2.h"
 #include "elf_loader.h"
+#include "kernel_string.h"
 #include "physical_allocator.h"
 #include "process.h"
-#include "string.h"
 #include "text_terminal.h"
 #include "virtual_address_space.h"
 #include "virtual_allocator.h"
 
+#ifndef TEST
 namespace {
 
 // A tag type to set for multiboot modules that have been loaded, so they are
@@ -110,8 +111,8 @@ void LoadMultibootModuleIntoProcess(Process* process, multiboot_tag_module* tag,
   if (is_driver) address_and_flags |= 1;
   if (can_create_processes) address_and_flags |= 2;
 }
-
 }  // namespace
+#endif // TEST
 
 bool ParseMultibootModuleName(char** name, size_t* name_length, bool* is_driver,
                               bool* can_create_processes) {
@@ -152,6 +153,7 @@ bool ParseMultibootModuleName(char** name, size_t* name_length, bool* is_driver,
   }
 }
 
+#ifndef TEST
 void LoadMultibootModules() {
   // Now in higher half memory, so VIRTUAL_MEMORY_OFFSET must be added.
   multiboot_info* higher_half_multiboot_info =
@@ -236,3 +238,5 @@ void LoadNextMultibootModuleIntoProcess(Process* process,
 bool HasRemainingUnloadedMultibootModules() {
   return multiboot_modules_to_pass_to_process > 0;
 }
+
+#endif  // TEST

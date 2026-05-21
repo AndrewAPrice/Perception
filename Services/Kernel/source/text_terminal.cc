@@ -1,12 +1,10 @@
+#ifndef TEST
 #include "text_terminal.h"
 
 #include "io.h"
 #include "string_view.h"
 #include "virtual_allocator.h"
 
-#ifdef __TEST__
-#include <stdio.h>
-#endif
 
 // The text terminal is implemented by outputting over COM1.
 namespace {
@@ -34,12 +32,8 @@ Printer::Printer() : number_format_(NumberFormat::Decimal) {}
 
 // Prints a single character.
 Printer& Printer::operator<<(char c) {
-#ifdef __TEST__
-  printf("%c", c);
-#else
   while ((ReadIOByte(kPort + 5) & 0x20) == 0);
   WriteIOByte(kPort, c);
-#endif
   return *this;
 }
 
@@ -142,3 +136,5 @@ void InitializePrinter() {
   // initialized explicitly.
   print = Printer();
 }
+
+#endif // TEST

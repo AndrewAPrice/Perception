@@ -1,3 +1,4 @@
+#ifndef TEST
 // Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +16,6 @@
 #include "text_terminal.h"
 #include "types.h"
 
-#ifndef __TEST__
 #define STACK_CHK_GUARD 0x595e9fbd94fda766
 
 uint64 __stack_chk_guard = STACK_CHK_GUARD;
@@ -27,4 +27,5 @@ __attribute__((noreturn)) void __stack_chk_fail(void) {
     asm("hlt");
   }
 }
-#endif
+
+#endif // TEST

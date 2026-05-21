@@ -1,3 +1,4 @@
+#ifndef TEST
 // Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -83,3 +84,5 @@ void PopulateRegistersWithFramebufferDetails(Registers *regs) {
   regs->rsi = (size_t)framebuffer_pitch;
   regs->r8 = (size_t)framebuffer_bits_per_pixel;
 }
+
+#endif // TEST

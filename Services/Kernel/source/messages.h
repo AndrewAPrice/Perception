@@ -40,3 +40,7 @@ void LoadNextMessageIntoThread(Thread* thread);
 // Sleeps a thread until an message. Returns if the thread is now asleep, or
 // false if a message was loaded.
 bool SleepThreadUntilMessage(Thread* thread);
+
+// Gets the next message queued for a process. Returns nullptr if there are no
+// messages queued.
+Message* GetNextQueuedMessage(Process* receiver);

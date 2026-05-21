@@ -1,3 +1,4 @@
+#ifndef TEST
 #include "scheduler.h"
 
 #include "interrupts.h"
@@ -34,10 +35,8 @@ void InitializeScheduler() {
   currently_executing_thread_regs = (Registers *)malloc(sizeof(Registers));
   if (!currently_executing_thread_regs) {
     print << "Could not allocate object to store the kernel's registers.";
-#ifndef __TEST__
     __asm__ __volatile__("cli");
     __asm__ __volatile__("hlt");
-#endif
   }
   idle_regs = currently_executing_thread_regs;
 }
@@ -50,9 +49,7 @@ void ScheduleNextThread() {
   if (running_thread) {
     // A thread was currently executing.
     if (running_thread->uses_fpu_registers) {
-#ifndef __TEST__
       asm volatile("fxsave %0" ::"m"(*running_thread->fpu_registers));
-#endif
     }
     // Move to the next awake thread.
     next = awake_threads.NextItem(running_thread);
@@ -81,9 +78,7 @@ void ScheduleNextThread() {
   running_thread->process->virtual_address_space.SwitchToAddressSpace();
 
   if (running_thread->uses_fpu_registers) {
-#ifndef __TEST__
     asm volatile("fxrstor %0" ::"m"(*running_thread->fpu_registers));
-#endif
   }
   LoadThreadSegment(running_thread);
 
@@ -118,3 +113,5 @@ void ScheduleThreadIfWeAreHalted() {
     ScheduleNextThread();
   }
 }
+
+#endif // TEST

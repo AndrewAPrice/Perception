@@ -1,3 +1,4 @@
+#ifndef TEST
 // Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,3 +38,4 @@ extern "C" void* __cxa_begin_catch(void* exceptionObject) {
   print << "C++ exception called in the terminal.\n";
   std::terminate();
 }
+#endif // TEST

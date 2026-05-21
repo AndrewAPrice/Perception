@@ -1,3 +1,4 @@
+#ifndef TEST
 #include "../../../third_party/multiboot2.h"
 #include "framebuffer.h"
 #include "interrupts.h"
@@ -17,7 +18,6 @@
 #include "tss.h"
 #include "virtual_allocator.h"
 
-#ifndef __TEST__
 extern "C" void kmain() {
   InitializePrinter();
   // Make sure the system was booted with a multiboot2 bootloader - this is
@@ -57,4 +57,5 @@ extern "C" void kmain() {
     asm("hlt");
   }
 }
-#endif
+
+#endif // TEST

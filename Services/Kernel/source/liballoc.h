@@ -14,14 +14,14 @@
 
 #pragma once
 
-#ifdef __TEST__
+#if defined(TEST) || defined(TEST)
 #include <stdlib.h>
 #else
 #include "../../../third_party/liballoc.h"
-#endif
 
 // To support placement new.
 inline void *operator new(unsigned long, void *p) throw() { return p; }
 inline void *operator new[](unsigned long, void *p) throw() { return p; }
 inline void operator delete(void *, void *) throw() {};
 inline void operator delete[](void *, void *) throw() {};
+#endif

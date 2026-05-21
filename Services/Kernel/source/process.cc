@@ -9,7 +9,7 @@
 #include "profiling.h"
 #include "scheduler.h"
 #include "service.h"
-#include "string.h"
+#include "kernel_string.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "timer.h"
@@ -241,7 +241,8 @@ bool DoProcessNamesMatch(const char *a, const char *b) {
 // the first process with the name. Returns nullptr if there are no more
 // processes with the provided name.
 Process *FindNextProcessWithName(const char *name, Process *start_from) {
-  Process *potential_process = start_from;
+  Process *potential_process =
+      start_from == nullptr ? all_processes.FirstItem() : start_from;
   // Loop over every process.
   while (potential_process != nullptr) {
     if (name[0] == 0 || DoProcessNamesMatch(name, potential_process->name))

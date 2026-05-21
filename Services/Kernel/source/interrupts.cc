@@ -1,3 +1,4 @@
+#ifndef TEST
 // Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,7 +55,6 @@ void RemapIrqsToNotOverlapWithCpuExceptions() {
 void RegisterInterruptHandlers() {
   RemapIrqsToNotOverlapWithCpuExceptions();
 
-#ifndef __TEST__
   SetIdtEntry(32, (size_t)irq0, 0x08, 0x8E);
   SetIdtEntry(33, (size_t)irq1, 0x08, 0x8E);
   SetIdtEntry(34, (size_t)irq2, 0x08, 0x8E);
@@ -71,7 +71,6 @@ void RegisterInterruptHandlers() {
   SetIdtEntry(45, (size_t)irq13, 0x08, 0x8E);
   SetIdtEntry(46, (size_t)irq14, 0x08, 0x8E);
   SetIdtEntry(47, (size_t)irq15, 0x08, 0x8E);
-#endif
 }
 
 // Allocates a stack to use for interrupts.
@@ -253,3 +252,5 @@ extern "C" void CommonHardwareInterruptHandler(int interrupt_number) {
   // If so, jump straight into the thread upon return.
   ScheduleThreadIfWeAreHalted();
 }
+
+#endif // TEST

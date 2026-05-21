@@ -19,6 +19,7 @@
 #include "scheduler.h"
 #include "thread.h"
 #include "virtual_allocator.h"
+#include "memory.h"
 
 namespace {
 
@@ -613,8 +614,11 @@ void VirtualAddressSpace::SetMemoryAccessRights(size_t address, size_t rights) {
 void VirtualAddressSpace::SwitchToAddressSpace() {
   if (this != current_address_space) {
     current_address_space = this;
-#ifndef __TEST__
+#ifndef TEST
     __asm__ __volatile__("mov %0, %%cr3" ::"b"(pml4_));
+#else
+    extern size_t mock_cr3;
+    mock_cr3 = pml4_;
 #endif
   }
 }
@@ -655,7 +659,7 @@ void VirtualAddressSpace::MapKernelMemoryPreVirtualMemory(
                            /*throw_exception_on_access=*/false,
                            assign_page_table)) {
     print << "Out of memory during kernel initialization.\n";
-#ifndef __TEST__
+#ifndef TEST
     __asm__ __volatile__("hlt");
 #endif
   }
