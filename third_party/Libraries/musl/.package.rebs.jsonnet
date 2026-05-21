@@ -7,6 +7,7 @@
   public_include_directories: [
     'include',
   ],
+  skip_for_tests: true,
   include_directories: [
     'source',
     'source/include',
