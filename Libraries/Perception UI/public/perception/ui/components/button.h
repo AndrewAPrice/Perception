@@ -45,6 +45,7 @@ class Button : public UniqueIdentifiableType<Button> {
           layout.SetMinHeight(24.0f);
           layout.SetAlignItems(YGAlignCenter);
           layout.SetJustifyContent(YGJustifyCenter);
+          layout.SetPadding(YGEdgeHorizontal, 4.0f);
         },
         [](Block& block) {
           block.SetBorderRadius(4.0f);
@@ -62,6 +63,8 @@ class Button : public UniqueIdentifiableType<Button> {
     return BasicButton(on_push, Label::BasicLabel(text), modifiers...);
   }
 
+  enum class ButtonStyle { DEFAULT, RED };
+
   Button();
   void SetNode(std::weak_ptr<Node> node);
 
@@ -74,21 +77,29 @@ class Button : public UniqueIdentifiableType<Button> {
   void SetPushedColor(uint32 color);
   uint32 GetPushedColor() const;
 
+  void SetLabelColor(uint32 color);
+  uint32 GetLabelColor() const;
+
+  void SetButtonStyle(ButtonStyle style);
+
   void OnPush(std::function<void()> on_push);
 
  private:
   uint32 idle_color_;
   uint32 hover_color_;
   uint32 pushed_color_;
+  uint32 label_color_;
 
   bool is_hovering_;
   bool is_pushed_;
   std::vector<std::function<void()>> on_push_;
 
+  std::weak_ptr<Node> node_;
   std::weak_ptr<components::Block> block_;
 
   void UpdateFillColor();
   uint32 GetFillColor();
+  void UpdateLabelColor();
 
   void MouseHover(const Point& point);
   void MouseLeave();

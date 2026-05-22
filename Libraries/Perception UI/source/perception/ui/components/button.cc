@@ -29,10 +29,12 @@ Button::Button()
     : idle_color_(kButtonBackgroundColor),
       hover_color_(kButtonBackgroundHoverColor),
       pushed_color_(kButtonBackgroundPushedColor),
+      label_color_(kButtonTextColor),
       is_hovering_(false),
       is_pushed_(false) {}
 
 void Button::SetNode(std::weak_ptr<Node> node) {
+  node_ = node;
   if (node.expired()) {
     block_.reset();
     return;
@@ -48,6 +50,7 @@ void Button::SetNode(std::weak_ptr<Node> node) {
   strong_node->SetBlocksHitTest(true);
 
   UpdateFillColor();
+  UpdateLabelColor();
 }
 
 void Button::SetIdleColor(uint32 color) {
@@ -66,7 +69,7 @@ void Button::SetHoverColor(uint32 color) {
   if (!is_pushed_ && !is_hovering_) UpdateFillColor();
 }
 
-uint32 Button::GetHoverColor() const { return pushed_color_; }
+uint32 Button::GetHoverColor() const { return hover_color_; }
 
 void Button::SetPushedColor(uint32 color) {
   if (pushed_color_ == color) return;
@@ -77,6 +80,30 @@ void Button::SetPushedColor(uint32 color) {
 
 uint32 Button::GetPushedColor() const { return pushed_color_; }
 
+void Button::SetLabelColor(uint32 color) {
+  if (label_color_ == color) return;
+  label_color_ = color;
+  UpdateLabelColor();
+}
+
+uint32 Button::GetLabelColor() const { return label_color_; }
+
+void Button::SetButtonStyle(ButtonStyle style) {
+  if (style == ButtonStyle::DEFAULT) {
+    idle_color_ = kButtonBackgroundColor;
+    hover_color_ = kButtonBackgroundHoverColor;
+    pushed_color_ = kButtonBackgroundPushedColor;
+    label_color_ = kButtonTextColor;
+  } else if (style == ButtonStyle::RED) {
+    idle_color_ = 0xFFD32F2F;
+    hover_color_ = 0xFFEF5350;
+    pushed_color_ = 0xFFB71C1C;
+    label_color_ = 0xFFFFFFFF;
+  }
+  UpdateFillColor();
+  UpdateLabelColor();
+}
+
 void Button::OnPush(std::function<void()> on_push) {
   on_push_.push_back(on_push);
 }
@@ -85,6 +112,16 @@ void Button::UpdateFillColor() {
   if (block_.expired()) return;
   auto strong_block = block_.lock();
   strong_block->SetFillColor(GetFillColor());
+}
+
+void Button::UpdateLabelColor() {
+  if (node_.expired()) return;
+  auto strong_node = node_.lock();
+  for (auto& child : strong_node->GetChildren()) {
+    if (auto label = child->Get<components::Label>()) {
+      label->SetColor(label_color_);
+    }
+  }
 }
 
 uint32 Button::GetFillColor() {
