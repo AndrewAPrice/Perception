@@ -58,6 +58,8 @@ class Window : public std::enable_shared_from_this<Window> {
       const std::function<bool(Window&)>& on_each_window);
   static Window* GetWindowBeingDragged();
   static void MouseNotHoveringOverWindowContents();
+  static ::perception::window::Cursor GetCursorAtPoint(
+      const ::perception::ui::Point& point);
   bool MouseEvent(const ::perception::ui::Point& point,
                   std::optional<MouseButtonEvent> button_event);
 
@@ -74,6 +76,9 @@ class Window : public std::enable_shared_from_this<Window> {
 
   void SetTextureId(int texture_id);
   void SetSize(const ::perception::window::Size& size);
+
+  void SetCursor(::perception::window::Cursor cursor);
+  ::perception::window::Cursor GetCursor() const;
 
   // Next/previous windows in the Z-order of things. Public for visibility from
   // LinkedList.
@@ -120,6 +125,9 @@ class Window : public std::enable_shared_from_this<Window> {
   ::perception::devices::KeyboardListener::Client keyboard_listener_;
 
   ::perception::devices::MouseListener::Client mouse_listener_;
+
+  // Preferred cursor style for this window.
+  ::perception::window::Cursor cursor_;
 };
 
 std::shared_ptr<Window> GetWindowWithListener(

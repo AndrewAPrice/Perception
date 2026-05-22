@@ -61,4 +61,8 @@ class WindowManager : public ::perception::window::WindowManager::Server {
   ::perception::Status SetWindowSize(
       const ::perception::window::SetWindowSizeParameters& parameters,
       ::perception::ProcessId sender) override;
+
+  ::perception::Status SetWindowCursor(
+      const ::perception::window::SetWindowCursorParameters& parameters,
+      ::perception::ProcessId sender) override;
 };

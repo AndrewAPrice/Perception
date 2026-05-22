@@ -48,6 +48,7 @@ void Button::SetNode(std::weak_ptr<Node> node) {
       std::bind_front(&Button::MouseButtonDown, this));
   strong_node->OnMouseButtonUp(std::bind_front(&Button::MouseButtonUp, this));
   strong_node->SetBlocksHitTest(true);
+  strong_node->SetCursor(window::Cursor::Poke);
 
   UpdateFillColor();
   UpdateLabelColor();

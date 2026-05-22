@@ -16,6 +16,7 @@
 #include <memory>
 #include <string>
 
+#include "perception/window/cursor.h"
 #include "perception/window/size.h"
 
 namespace perception {
@@ -114,6 +115,9 @@ class Window {
   // user pressed the mouse button down while under something draggable, e.g.
   // the title bar.
   virtual void StartDragging() = 0;
+
+  // Sets the mouse cursor style for this window.
+  virtual void SetCursor(Cursor cursor) = 0;
 
   // Notifies that there's an update ready for thr window and the new contents
   // need to be presented. The delegate will be called to draw the actual

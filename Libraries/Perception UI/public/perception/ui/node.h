@@ -28,6 +28,7 @@
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
 #include "perception/ui/size.h"
+#include "perception/window/cursor.h"
 #include "perception/window/mouse_button.h"
 #include "yoga/Yoga.h"
 
@@ -205,6 +206,10 @@ class Node : public std::enable_shared_from_this<Node> {
   // Notifies the node that it needs to be redrawn.
   void Invalidate();
 
+  // Sets the preferred mouse cursor when hovering over this node.
+  void SetCursor(window::Cursor cursor);
+  std::optional<window::Cursor> GetCursor() const;
+
   // Whether this node handles mouse leave events.
   bool DoesHandleMouseLeaveEvents();
 
@@ -240,6 +245,7 @@ class Node : public std::enable_shared_from_this<Node> {
   bool handles_mouse_events_;
   bool blocks_hit_test_;
   Point scroll_offset_;
+  std::optional<window::Cursor> cursor_;
 
   std::function<Size(float, YGMeasureMode, float, YGMeasureMode)>
       measure_function_;

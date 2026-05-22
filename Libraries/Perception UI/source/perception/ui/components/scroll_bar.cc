@@ -46,6 +46,7 @@ void ScrollBar::SetNode(std::weak_ptr<Node> node) {
   if (node.expired()) return;
   auto strong_node = node.lock();
   strong_node->SetBlocksHitTest(true);
+  strong_node->SetCursor(window::Cursor::Drag);
   strong_node->OnDraw(std::bind_front(&ScrollBar::Draw, this));
   strong_node->SetMeasureFunction(std::bind_front(&ScrollBar::Measure, this));
   strong_node->OnMouseHover(std::bind_front(&ScrollBar::MouseHover, this));

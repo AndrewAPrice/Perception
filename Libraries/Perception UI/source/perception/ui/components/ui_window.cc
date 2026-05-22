@@ -171,9 +171,21 @@ void UiWindow::MouseLeft() {
 void UiWindow::MouseHovered(const window::MouseHoverEvent& event) {
   std::scoped_lock lock(window_mutex_);
   Point point{.x = (float)event.x, .y = (float)event.y};
-  HandleMouseEvent(point, [this](Node& node, const Point& point_in_node) {
-    node.MouseHover(point_in_node);
-  });
+
+  std::optional<window::Cursor> active_cursor;
+
+  HandleMouseEvent(point,
+                   [&active_cursor](Node& node, const Point& point_in_node) {
+                     node.MouseHover(point_in_node);
+                     auto opt_cursor = node.GetCursor();
+                     if (opt_cursor && !active_cursor.has_value()) {
+                       active_cursor = *opt_cursor;
+                     }
+                   });
+
+  if (base_window_) {
+    base_window_->SetCursor(active_cursor.value_or(window::Cursor::Pointer));
+  }
 }
 
 void UiWindow::PrintUiHierarchy() {

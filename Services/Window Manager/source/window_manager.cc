@@ -138,3 +138,14 @@ Status WindowManager::SetWindowSize(
   window->SetSize(parameters.size);
   return Status::OK;
 }
+
+Status WindowManager::SetWindowCursor(
+    const ::perception::window::SetWindowCursorParameters& parameters,
+    ::perception::ProcessId sender) {
+  auto window = GetWindowWithListener(parameters.window);
+  if (!window || sender != parameters.window.ServerProcessId())
+    return Status::INVALID_ARGUMENT;
+
+  window->SetCursor(parameters.cursor);
+  return Status::OK;
+}

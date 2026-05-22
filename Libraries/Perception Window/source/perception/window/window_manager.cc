@@ -74,5 +74,11 @@ void InvalidateWindowParameters::Serialize(
   serializer.Float("Bottom", bottom);
 }
 
+void SetWindowCursorParameters::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.Serializable("Window", window);
+  serializer.Integer("Cursor", cursor);
+}
+
 }  // namespace window
 }  // namespace perception

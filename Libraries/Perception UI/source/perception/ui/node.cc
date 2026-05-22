@@ -271,6 +271,10 @@ void Node::Invalidate() {
   for (const auto& handler : on_invalidate_functions_) handler();
 }
 
+void Node::SetCursor(window::Cursor cursor) { cursor_ = cursor; }
+
+std::optional<window::Cursor> Node::GetCursor() const { return cursor_; }
+
 bool Node::DoesHandleMouseLeaveEvents() {
   return !on_mouse_leave_functions_.empty();
 }

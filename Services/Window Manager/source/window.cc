@@ -198,6 +198,103 @@ std::shared_ptr<Window> GetWindowWithListener(
   return window_itr->second;
 }
 
+void Window::SetCursor(::perception::window::Cursor cursor) {
+  if (cursor_ == cursor) return;
+  cursor_ = cursor;
+  InvalidateMouse();
+}
+
+::perception::window::Cursor Window::GetCursor() const { return cursor_; }
+
+::perception::window::Cursor Window::GetCursorAtPoint(const Point& point) {
+  ::perception::window::Cursor cursor = ::perception::window::Cursor::Pointer;
+
+  if (dragging_window) {
+    bool min_x = dragging_min_edge[0];
+    bool max_x = dragging_max_edge[0];
+    bool min_y = dragging_min_edge[1];
+    bool max_y = dragging_max_edge[1];
+    if ((min_x || max_x) || (min_y || max_y)) {
+      // We are resizing!
+      if ((min_x && min_y) || (max_x && max_y)) {
+        return ::perception::window::Cursor::ResizeDiagonalTopLeftBottomRight;
+      } else if ((min_x && max_y) || (max_x && min_y)) {
+        return ::perception::window::Cursor::ResizeDiagonalTopRightBottomLeft;
+      } else if (min_x || max_x) {
+        return ::perception::window::Cursor::ResizeHorizontal;
+      } else {
+        return ::perception::window::Cursor::ResizeVertical;
+      }
+    }
+    return dragging_window->GetCursor();
+  }
+
+  (void)Window::ForEachFrontToBackWindow([&](Window& window) {
+    if (!window.IsVisible()) return false;
+
+    auto screen_area = window.GetScreenArea();
+    Rectangle hit_area;
+
+    if (window.is_resizable_) {
+      hit_area = {.origin = screen_area.origin -
+                            Point{kDragBorder / 2.0f, kDragBorder / 2.0f},
+                  .size = screen_area.size + Size{kDragBorder, kDragBorder}};
+    } else {
+      hit_area = {.origin = screen_area.origin -
+                            Point{kFrameThickness, kFrameThickness},
+                  .size = screen_area.size +
+                          Size{kFrameThickness * 2.0f, kFrameThickness * 2.0f}};
+    }
+
+    if (!hit_area.Contains(point)) {
+      return false;  // Keep looking
+    }
+
+    // The point is over this window!
+    // 1. Check if it's over the resizable edge of the window.
+    if (window.is_resizable_) {
+      bool is_min_x = point.x <= screen_area.origin.x + kDragBorder / 2.0f;
+      bool is_max_x = point.x >= screen_area.origin.x + screen_area.size.width -
+                                     kDragBorder / 2.0f;
+      bool is_min_y = point.y <= screen_area.origin.y + kDragBorder / 2.0f;
+      bool is_max_y = point.y >= screen_area.origin.y +
+                                     screen_area.size.height -
+                                     kDragBorder / 2.0f;
+
+      if (is_min_x || is_max_x || is_min_y || is_max_y) {
+        // It's on a resizable edge!
+        if ((is_min_x && is_min_y) || (is_max_x && is_max_y)) {
+          cursor =
+              ::perception::window::Cursor::ResizeDiagonalTopLeftBottomRight;
+        } else if ((is_min_x && is_max_y) || (is_max_x && is_min_y)) {
+          cursor =
+              ::perception::window::Cursor::ResizeDiagonalTopRightBottomLeft;
+        } else if (is_min_x || is_max_x) {
+          cursor = ::perception::window::Cursor::ResizeHorizontal;
+        } else {
+          cursor = ::perception::window::Cursor::ResizeVertical;
+        }
+        return true;  // Stop searching
+      }
+    }
+
+    // 2. Check if it's over one of the window's system buttons.
+    if (window.AreWindowButtonsVisible()) {
+      auto window_button_area = window.WindowButtonScreenArea();
+      if (window_button_area.Contains(point)) {
+        cursor = ::perception::window::Cursor::Poke;
+        return true;
+      }
+    }
+
+    // 3. Otherwise, it's over the window's contents.
+    cursor = window.GetCursor();
+    return true;  // Stop searching
+  });
+
+  return cursor;
+}
+
 void Window::Focus() {
   if (IsFocused() || !IsVisible()) return;
 
@@ -589,6 +686,7 @@ void Window::SetSize(const ::perception::window::Size& size) {
 
 void Window::CommonInit() {
   is_visible_ = false;
+  cursor_ = ::perception::window::Cursor::Pointer;
 
   auto screen_size = GetScreenSize();
   screen_area_.size = {.width = screen_area_.size.width >= 1.0f

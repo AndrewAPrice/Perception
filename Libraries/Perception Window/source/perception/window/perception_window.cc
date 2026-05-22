@@ -138,6 +138,13 @@ class PerceptionWindow : public Window,
     GetService<WindowManager>().StartDraggingWindow(*this, nullptr);
   }
 
+  void SetCursor(Cursor cursor) override {
+    SetWindowCursorParameters message;
+    message.window = *this;
+    message.cursor = cursor;
+    GetService<WindowManager>().SetWindowCursor(message, nullptr);
+  }
+
   void Present() override {
     WindowDrawBuffer buffer;
     buffer.width = width_;

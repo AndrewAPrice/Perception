@@ -31,3 +31,5 @@ const ::perception::ui::Point& GetMousePosition();
 // Preps the overlays for drawing, which will mark which areas need to be drawn
 // to the window manager's texture and not directly to the screen.
 void DrawMouse(const ::perception::ui::Rectangle& draw_area);
+
+void InvalidateMouse();

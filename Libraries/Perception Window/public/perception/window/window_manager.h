@@ -21,6 +21,7 @@
 #include "perception/serialization/serializable.h"
 #include "perception/service_macros.h"
 #include "perception/window/base_window.h"
+#include "perception/window/cursor.h"
 #include "perception/window/size.h"
 
 namespace perception {
@@ -126,6 +127,14 @@ class InvalidateWindowParameters : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
+class SetWindowCursorParameters : public serialization::Serializable {
+ public:
+  BaseWindow::Client window;
+  Cursor cursor;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
 #define METHOD_LIST(X)                                          \
   X(1, CreateWindow, CreateWindowResponse, CreateWindowRequest) \
   X(2, CloseWindow, void, BaseWindow::Client)                   \
@@ -137,7 +146,8 @@ class InvalidateWindowParameters : public serialization::Serializable {
   X(8, GetDisplayEnvironment, DisplayEnvironment, void)         \
   X(9, StartDraggingWindow, void, BaseWindow::Client)           \
   X(10, FocusWindow, void, BaseWindow::Client)                  \
-  X(11, SetWindowSize, void, SetWindowSizeParameters)
+  X(11, SetWindowSize, void, SetWindowSizeParameters)           \
+  X(12, SetWindowCursor, void, SetWindowCursorParameters)
 DEFINE_PERCEPTION_SERVICE(WindowManager, "perception.window.WindowManager",
                           METHOD_LIST)
 #undef METHOD_LIST

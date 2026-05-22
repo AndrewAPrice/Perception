@@ -24,7 +24,12 @@ template class UniqueIdentifiableType<ui::components::TitleBar>;
 namespace ui {
 namespace components {
 
-void TitleBar::SetNode(std::weak_ptr<Node> node) { node_ = node; }
+void TitleBar::SetNode(std::weak_ptr<Node> node) {
+  node_ = node;
+  if (!node.expired()) {
+    node.lock()->SetCursor(window::Cursor::Drag);
+  }
+}
 
 void TitleBar::HookUpWindowNode(Node& window_node) {
   auto ui_window = window_node.Get<UiWindow>();

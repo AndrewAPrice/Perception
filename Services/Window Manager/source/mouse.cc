@@ -45,46 +45,167 @@ using ::perception::ui::Size;
 namespace {
 
 Point mouse_position;
-int mouse_texture_id;
+Rectangle last_mouse_bounds;
 
-constexpr uint32 kMousePointer[] = {
-    0xFF000000, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xFF000000,
-    0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xFF000000, 0xFFFFFFFF,
-    0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-    0x00000000, 0x00000000, 0x00000000, 0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF,
-    0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-    0x00000000, 0x00000000, 0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-    0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-    0x00000000, 0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-    0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-    0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-    0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0xFF000000,
-    0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-    0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0xFF000000, 0xFFFFFFFF,
-    0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-    0xFFC3C3C3, 0xFF000000, 0x00000000, 0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF,
-    0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-    0xFFC3C3C3, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-    0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0xFF000000,
-    0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-    0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000,
-    0xFF000000, 0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0xFFC3C3C3, 0xFFFFFFFF,
-    0xFFFFFFFF, 0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0xFF000000,
-    0xFFC3C3C3, 0xFF000000, 0x00000000, 0xFF000000, 0xFFC3C3C3, 0xFFFFFFFF,
-    0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0xFF000000, 0xFF000000,
-    0x00000000, 0x00000000, 0xFF000000, 0xFFC3C3C3, 0xFFFFFFFF, 0xFFFFFFFF,
-    0xFFC3C3C3, 0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-    0x00000000, 0x00000000, 0xFF000000, 0xFFC3C3C3, 0xFFC3C3C3, 0xFFC3C3C3,
-    0xFF000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-    0x00000000, 0x00000000, 0xFF000000, 0xFF000000, 0xFF000000, 0x00000000,
-    0x00000000};
+const char* kPointerSprite =
+    "BB.........\n"
+    "BGB........\n"
+    "BWGB.......\n"
+    "BWWGB......\n"
+    "BWWWGB.....\n"
+    "BWWWWGB....\n"
+    "BWWWWWGB...\n"
+    "BWWWWWWGB..\n"
+    "BWWWWWWWGB.\n"
+    "BWWWWWWWWGB\n"
+    "BWWWWWBBBBB\n"
+    "BWWBWWB....\n"
+    "BWB.BWWB...\n"
+    "BB..BWWB...\n"
+    ".....BBBB..\n"
+    "...........\n"
+    "...........";
 
-constexpr Size kMousePointerSize = {11, 17};
+const char* kPokeSprite =
+    "...BBB.......\n"
+    "...BWGB......\n"
+    "...BWWGB.....\n"
+    "...BWWGBBB...\n"
+    "...BWWGBWGBBB\n"
+    ".BBBWWGBWGBWB\n"
+    "BWGBWWGBWGBWB\n"
+    "BWWWWWGBWGBWB\n"
+    "BWWWWWWWWWWGB\n"
+    "BWWWWWWWWWWGB\n"
+    "BWWWWWWWWWWGB\n"
+    "BWWWWWWWWWWGB\n"
+    "BWWWWWWWWWWGB\n"
+    ".BWWWWWWWWGB.\n"
+    "..BBBBBBBB...";
+
+const char* kDragSprite =
+    "...BBBGBBB...\n"
+    "...BWWGBWGBBB\n"
+    ".BBBWWGBWGBWB\n"
+    "BWGBWWGBWGBWB\n"
+    "BWWWWWGBWGBWB\n"
+    "BWWWWWWWWWWGB\n"
+    "BWWWWWWWWWWGB\n"
+    "BWWWWWWWWWWGB\n"
+    "BWWWWWWWWWWGB\n"
+    "BWWWWWWWWWWGB\n"
+    ".BWWWWWWWWGB.\n"
+    "..BBBBBBBB...";
+
+const char* kResizeVerticalSprite =
+    ".....B.....\n"
+    "....BWB....\n"
+    "...BWWWB...\n"
+    "..BWWWWWB..\n"
+    ".BWWWWWWWB.\n"
+    "BWWWWWWWWWB\n"
+    "BBBBWWWBBBB\n"
+    "...BWWWB...\n"
+    "...BWWWB...\n"
+    "...BWWWB...\n"
+    "...BWWWB...\n"
+    "...BWWWB...\n"
+    "BBBBWWWBBBB\n"
+    "BWWWWWWWWWB\n"
+    ".BWWWWWWWB.\n"
+    "..BWWWWWB..\n"
+    "...BWWWB...\n"
+    "....BWB....\n"
+    ".....B....";
+
+const char* kResizeHorizontalSprite =
+    ".....BB.....BB.....\n"
+    "....BWB.....BWB....\n"
+    "...BWWB.....BWWB...\n"
+    "..BWWWB.....BWWWB..\n"
+    ".BWWWWBBBBBBBWWWWB.\n"
+    "BWWWWWWWWWWWWWWWWWB\n"
+    ".BWWWWWWWWWWWWWWWB.\n"
+    "..BWWWBBBBBBBWWWB..\n"
+    "...BWWB.....BWWB...\n"
+    "....BWB.....BWB....\n"
+    ".....BB.....BB.....";
+
+const char* kResizeDiagonalTopLeftBottomRightSprite =
+    "BBBBBBBBB....\n"
+    "BWWWWWWB.....\n"
+    "BWWWWWB......\n"
+    "BWWWWBB......\n"
+    "BWWWWWB.....B\n"
+    "BWWBWWWB...BB\n"
+    "BWB.BWWWB.BWB\n"
+    "BB...BWWWWWWB\n"
+    "B.....BWWWWWB\n"
+    ".......BWWWWB\n"
+    "......BWWWWWB\n"
+    ".....BWWWWWWB\n"
+    "....BBBBBBBBB";
+
+const char* kResizeDiagonalTopRightBottomLeftSprite =
+    "....BBBBBBBBB\n"
+    ".....BWWWWWWB\n"
+    "......BWWWWWB\n"
+    ".......BWWWWB\n"
+    "B.....BWWWWWB\n"
+    "BB...BWWWBWWB\n"
+    "BWB.BWWWB.BWB\n"
+    "BWWBWWWB...BB\n"
+    "BWWWWWB.....B\n"
+    "BWWWWB.......\n"
+    "BWWWWWB......\n"
+    "BWWWWWWB.....\n"
+    "BBBBBBBBB....";
+
+struct CursorDef {
+  const char* sprite;
+  Size size;
+  Point hotspot;
+  int texture_id;
+};
+
+CursorDef cursor_defs[] = {
+    {kPointerSprite, {11, 17}, {0, 0}, 0},
+    {kPokeSprite, {13, 15}, {5, 1}, 0},
+    {kDragSprite, {13, 12}, {6, 6}, 0},
+    {kResizeHorizontalSprite, {19, 11}, {9, 5}, 0},
+    {kResizeVerticalSprite, {11, 19}, {5, 9}, 0},
+    {kResizeDiagonalTopLeftBottomRightSprite, {13, 13}, {6, 6}, 0},
+    {kResizeDiagonalTopRightBottomLeftSprite, {13, 13}, {6, 6}, 0}};
+
+void LoadSprite(std::string_view sprite, int width, int height,
+                uint32* destination) {
+  int x = 0, y = 0;
+  for (char c : sprite) {
+    if (c == '\n') {
+      x = 0;
+      y++;
+      continue;
+    }
+    if (x < width && y < height) {
+      uint32 color = 0x00000000;  // transparent
+      if (c == 'B')
+        color = 0xFF000000;  // Black border
+      else if (c == 'W')
+        color = 0xFFFFFFFF;  // White fill
+      else if (c == 'G')
+        color = 0xFFC3C3C3;  // Gray highlight/shadow
+      destination[y * width + x] = color;
+      x++;
+    }
+  }
+}
 
 Rectangle MouseBounds() {
-  return Rectangle{.origin = mouse_position, .size = kMousePointerSize};
+  auto cursor_type = Window::GetCursorAtPoint(mouse_position);
+  int idx = static_cast<int>(cursor_type);
+  if (idx < 0 || idx >= 7) idx = 0;
+  const auto& def = cursor_defs[idx];
+  return Rectangle{.origin = mouse_position - def.hotspot, .size = def.size};
 }
 
 class MyMouseListener : public MouseListener::Server {
@@ -103,18 +224,13 @@ class MyMouseListener : public MouseListener::Server {
 
     // Has the mouse moved?
     if (old_mouse_position != mouse_position) {
-      // Invalidate the area under the cursor.
-      Rectangle new_mouse_area{.origin = mouse_position,
-                               .size = kMousePointerSize};
-      Rectangle old_mouse_area{.origin = old_mouse_position,
-                               .size = kMousePointerSize};
-      InvalidateScreen(new_mouse_area.Union(old_mouse_area));
-
       // Test if any of the dialogs (from front to back) can handle this
       // click.
       (void)Window::ForEachFrontToBackWindow([](Window& window) {
         return window.MouseEvent(mouse_position, std::nullopt);
       });
+
+      InvalidateMouse();
     }
 
     return Status::OK;
@@ -153,21 +269,23 @@ void InitializeMouse() {
         mouse_device.SetMouseListener(*mouse_listener);
       });
 
-  // Create a texture for the mouse.
-  graphics::CreateTextureRequest create_texture_request;
-  create_texture_request.size.width = kMousePointerSize.width;
-  create_texture_request.size.height = kMousePointerSize.height;
+  // Create a texture for each cursor.
+  for (int i = 0; i < 7; i++) {
+    auto& def = cursor_defs[i];
+    graphics::CreateTextureRequest create_texture_request;
+    create_texture_request.size.width = def.size.width;
+    create_texture_request.size.height = def.size.height;
 
-  auto create_texture_response =
-      GetService<GraphicsDevice>().CreateTexture(create_texture_request);
-  mouse_texture_id = create_texture_response->texture.id;
-  create_texture_response->pixel_buffer->Apply([](void* data, size_t) {
-    uint32* destination = (uint32*)data;
-    for (int i = 0; i < kMousePointerSize.width * kMousePointerSize.height;
-         i++) {
-      destination[i] = kMousePointer[i];
-    }
-  });
+    auto create_texture_response =
+        GetService<GraphicsDevice>().CreateTexture(create_texture_request);
+    def.texture_id = create_texture_response->texture.id;
+    create_texture_response->pixel_buffer->Apply([&def](void* data, size_t) {
+      uint32* destination = (uint32*)data;
+      LoadSprite(def.sprite, def.size.width, def.size.height, destination);
+    });
+  }
+
+  last_mouse_bounds = MouseBounds();
 }
 
 const Point& GetMousePosition() { return mouse_position; }
@@ -180,6 +298,19 @@ void DrawMouse(const Rectangle& draw_area) {
     return;
   }
 
+  auto cursor_type = Window::GetCursorAtPoint(mouse_position);
+  int idx = static_cast<int>(cursor_type);
+  if (idx < 0 || idx >= 7) idx = 0;
+  const auto& def = cursor_defs[idx];
+
   Point offset = intersection->origin - mouse_bounds.origin;
-  CopyAlphaBlendedTexture(*intersection, mouse_texture_id, offset);
+  CopyAlphaBlendedTexture(*intersection, def.texture_id, offset);
+
+  last_mouse_bounds = mouse_bounds;
+}
+
+void InvalidateMouse() {
+  auto new_bounds = MouseBounds();
+  InvalidateScreen(last_mouse_bounds.Union(new_bounds));
+  last_mouse_bounds = new_bounds;
 }
