@@ -33,7 +33,27 @@ namespace components {
 // A bar that controls a scrollable area.
 class ScrollBar : public UniqueIdentifiableType<ScrollBar> {
  public:
+  static constexpr float kWidth = 12.0f;
+
   enum class Direction { VERTICAL, HORIZONTAL };
+
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> HorizontalScrollBar(Modifiers... modifiers) {
+    return Node::Empty(
+        [](ScrollBar& scroll_bar) {
+          scroll_bar.SetDirection(Direction::HORIZONTAL);
+        },
+        modifiers...);
+  }
+
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> VerticalScrollBar(Modifiers... modifiers) {
+    return Node::Empty(
+        [](ScrollBar& scroll_bar) {
+          scroll_bar.SetDirection(Direction::VERTICAL);
+        },
+        modifiers...);
+  }
 
   ScrollBar();
 

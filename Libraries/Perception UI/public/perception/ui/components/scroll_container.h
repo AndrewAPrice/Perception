@@ -22,86 +22,107 @@
 #include "perception/ui/size.h"
 #include "perception/type_id.h"
 
-/*
 namespace perception {
 namespace ui {
 namespace components {
 
 // A container with optional scroll bars.
-class ScrollContainer : std::enable_shared_from_this<ScrollContainer> {
+class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
+                        public std::enable_shared_from_this<ScrollContainer> {
  public:
+  ScrollContainer();
+
   template <typename... Modifiers>
   static std::shared_ptr<Node> BidirectionalScrollContainer(
       std::shared_ptr<Node> scroll_content, Modifiers... modifiers) {
-    std::shared_ptr<ScrollContainer> scroll_container;
+    std::shared_ptr<Node> scroll_container_node;
     std::shared_ptr<ScrollBar> horizontal_scroll_bar, vertical_scroll_bar;
 
     auto node = Container::HorizontalContainer(
         Container::VerticalContainer(
+            [](Layout& layout) {
+              layout.SetFlexGrow(1.0f);
+              layout.SetFlexShrink(1.0f);
+            },
             Node::Empty(
-                [](Layout& layout) { layout.SetOverflow(YGOverflowScroll); },
-                &scroll_container, scroll_content),
-            ScrollBar::HoriziontalScrollBar(&horizontal_scroll_bar)),
+                [](Layout& layout) {
+                  layout.SetOverflow(YGOverflowScroll);
+                  layout.SetFlexGrow(1.0f);
+                  layout.SetFlexShrink(1.0f);
+                },
+                &scroll_container_node, scroll_content),
+            ScrollBar::HorizontalScrollBar(&horizontal_scroll_bar)),
         ScrollBar::VerticalScrollBar(&vertical_scroll_bar),
         [&](ScrollContainer& container) {
           container.SetContentAndContainerNodes(scroll_content,
-                                                scroll_container);
+                                                scroll_container_node);
           container.SetHorizontalScrollBar(horizontal_scroll_bar);
-          container.SeVerticalScrollBar(vertical_scroll_bar);
+          container.SetVerticalScrollBar(vertical_scroll_bar);
         });
 
+    node->Apply(modifiers...);
     return node;
   }
 
   template <typename... Modifiers>
   static std::shared_ptr<Node> VerticalScrollContainer(
       std::shared_ptr<Node> scroll_content, Modifiers... modifiers) {
-    std::shared_ptr<ScrollContainer> scroll_container;
+    std::shared_ptr<Node> scroll_container_node;
     std::shared_ptr<ScrollBar> vertical_scroll_bar;
 
     auto node = Container::HorizontalContainer(
         Node::Empty(
-            [](Layout& layout) { layout.SetOverflow(YGOverflowScroll); },
-            &scroll_container, scroll_content),
+            [](Layout& layout) {
+              layout.SetOverflow(YGOverflowScroll);
+              layout.SetFlexGrow(1.0f);
+              layout.SetFlexShrink(1.0f);
+            },
+            &scroll_container_node, scroll_content),
         ScrollBar::VerticalScrollBar(&vertical_scroll_bar),
         [&](ScrollContainer& container) {
           container.SetContentAndContainerNodes(scroll_content,
-                                                scroll_container);
-          container.SeVerticalScrollBar(vertical_scroll_bar);
+                                                scroll_container_node);
+          container.SetVerticalScrollBar(vertical_scroll_bar);
         });
 
+    node->Apply(modifiers...);
     return node;
   }
 
   template <typename... Modifiers>
   static std::shared_ptr<Node> HorizontalScrollContainer(
       std::shared_ptr<Node> scroll_content, Modifiers... modifiers) {
-    std::shared_ptr<ScrollContainer> scroll_container;
+    std::shared_ptr<Node> scroll_container_node;
     std::shared_ptr<ScrollBar> horizontal_scroll_bar;
 
     auto node = Container::VerticalContainer(
         Node::Empty(
-            [](Layout& layout) { layout.SetOverflow(YGOverflowScroll); },
-            &scroll_container, scroll_content),
-        ScrollBar::HoriziontalScrollBar(&horizontal_scroll_bar),
+            [](Layout& layout) {
+              layout.SetOverflow(YGOverflowScroll);
+              layout.SetFlexGrow(1.0f);
+              layout.SetFlexShrink(1.0f);
+            },
+            &scroll_container_node, scroll_content),
+        ScrollBar::HorizontalScrollBar(&horizontal_scroll_bar),
         [&](ScrollContainer& container) {
           container.SetContentAndContainerNodes(scroll_content,
-                                                scroll_container);
+                                                scroll_container_node);
           container.SetHorizontalScrollBar(horizontal_scroll_bar);
         });
 
+    node->Apply(modifiers...);
     return node;
   }
 
   void SetNode(std::weak_ptr<Node> node);
 
-  void SetContentPosition(Point& position);
+  void SetContentPosition(const Point& position);
   Point ContentPosition();
   void SetContentAndContainerNodes(std::weak_ptr<Node> scroll_content,
                                    std::weak_ptr<Node> scroll_container);
 
   void SetHorizontalScrollBar(std::weak_ptr<ScrollBar> horizontal_scroll_bar);
-  void SeVerticalScrollBar(std::weak_ptr<ScrollBar> vertical_scroll_bar);
+  void SetVerticalScrollBar(std::weak_ptr<ScrollBar> vertical_scroll_bar);
 
   Size ContentSize();
   Size ContainerSize();
@@ -122,5 +143,7 @@ class ScrollContainer : std::enable_shared_from_this<ScrollContainer> {
 
 }  // namespace components
 }  // namespace ui
+
+extern template class UniqueIdentifiableType<ui::components::ScrollContainer>;
+
 }  // namespace perception
-*/
