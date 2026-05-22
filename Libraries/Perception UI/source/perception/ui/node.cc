@@ -342,6 +342,20 @@ YGSize Node::Measure(const YGNode* node, float width, YGMeasureMode width_mode,
   }
 }
 
+void Node::PrintHierarchy(int indent) {
+  std::string indent_str(indent * 2, ' ');
+
+  std::cout << indent_str << "{\n";
+  std::cout << indent_str << "  \"node\": \"" << this << "\",\n";
+  std::cout << indent_str << "  \"hidden\": " << (IsHidden() ? "true" : "false")
+            << ",\n";
+
+  // Print calculated layout values
+  auto layout = GetLayout();
+  std::cout << indent_str << "  \"calculated_layout\": {\n";
+  std::cout << indent_str << "    \"left\": " << layout.GetLeft() << ",\n";
+  std::cout << indent_str << "    \"top\": " << layout.GetTop() << ",\n";
+  std::cout << indent_str << "    \"width\": " << layout.GetCalculatedWidth()
             << ",\n";
   std::cout << indent_str << "    \"height\": " << layout.GetCalculatedHeight()
             << "\n";
@@ -349,6 +363,7 @@ YGSize Node::Measure(const YGNode* node, float width, YGMeasureMode width_mode,
 
   // Check for components
   if (auto label = Get<components::Label>()) {
+    std::cout << ",\n" << indent_str << "  \"label\": {\n";
     std::cout << indent_str << "    \"text\": \"" << label->GetText()
               << "\",\n";
     std::cout << indent_str << "    \"color\": \"0x" << std::hex
