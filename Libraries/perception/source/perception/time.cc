@@ -80,9 +80,7 @@ std::chrono::microseconds GetTimeSinceKernelStarted() {
 size_t GetClockCyclesSinceBoot() {
 #ifdef PERCEPTION
   unsigned hi, lo;
-#ifndef __TEST__
   __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
-#endif
   return ((unsigned long long)lo) | (((unsigned long long)hi) << 32);
 #else
   return 0;
