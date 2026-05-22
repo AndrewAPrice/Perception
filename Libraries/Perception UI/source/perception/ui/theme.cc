@@ -68,5 +68,13 @@ float kContainerBorderWidth = 1.0f;
 float kContainerBorderRadius = kButtonCornerRadius;
 float kContainerPadding = kMarginAroundWidgets;
 
+uint32 kGroupBoxBackgroundColor = SkColorSetARGB(0xff, 0xf5, 0xf5, 0xf5);
+uint32 kGroupBoxBorderColor = SkColorSetARGB(0xff, 0xe0, 0xe0, 0xe0);
+float kGroupBoxBorderWidth = 1.0f;
+float kGroupBoxBorderRadius = 4.0f;
+float kGroupBoxPadding = 8.0f;
+uint32 kGroupBoxTitleColor = SkColorSetARGB(0xff, 0x33, 0x33, 0x33);
+float kGroupBoxTitleMarginBottom = 4.0f;
+
 }  // namespace ui
 }  // namespace perception

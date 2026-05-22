@@ -60,5 +60,14 @@ extern float kContainerBorderWidth;
 extern float kContainerBorderRadius;
 extern float kContainerPadding;
 
+extern uint32 kGroupBoxBackgroundColor;
+extern uint32 kGroupBoxBorderColor;
+extern float kGroupBoxBorderWidth;
+extern float kGroupBoxBorderRadius;
+extern float kGroupBoxPadding;
+extern uint32 kGroupBoxTitleColor;
+extern float kGroupBoxTitleMarginBottom;
+
+
 }  // namespace ui
 }  // namespace perception
