@@ -58,6 +58,7 @@ Process* CreateProcess(bool is_driver, bool can_create_processes) {
   proc->child_processes = nullptr;
   proc->next_child_process_in_parent = nullptr;
   proc->messages_queued = 0;
+  proc->service_count = 0;
 
   // Threads.
   proc->thread_count = 0;

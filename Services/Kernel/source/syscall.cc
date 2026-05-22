@@ -219,6 +219,7 @@ extern "C" void SyscallHandler(int syscall_number) {
         currently_executing_thread_regs->rax = 0;
         currently_executing_thread_regs->rbx = 0;
         currently_executing_thread_regs->rdx = 0;
+        currently_executing_thread_regs->rsi = 0;
         break;
       }
 
@@ -230,6 +231,8 @@ extern "C" void SyscallHandler(int syscall_number) {
           process->virtual_address_space.GetAllocatedPages() * PAGE_SIZE;
       currently_executing_thread_regs->rbx = process->creation_timestamp;
       currently_executing_thread_regs->rdx = CalculateCompactCpuUsage(process);
+
+      currently_executing_thread_regs->rsi = process->service_count;
       break;
     }
     case Syscall::GetTotalSystemMemory:

@@ -107,6 +107,9 @@ struct Process {
   // must iterate them from front to back.
   LinkedList<Service, &Service::node_in_process> services;
 
+  // Number of services registered by this process.
+  size_t service_count;
+
   // Linked list of shared memory mapped into this process.
   LinkedList<SharedMemoryInProcess, &SharedMemoryInProcess::node_in_process>
       joined_shared_memories;

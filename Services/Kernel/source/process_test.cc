@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "process.h"
+#include "service.h"
 #include "virtual_allocator.h"
 #include "testing.h"
 #include "object_pools.h"
@@ -37,4 +38,30 @@ TEST(ProcessLifecycleTest) {
   // Clean up
   DestroyProcess(p1);
   ASSERT(AreAnyProcessesRunning(), false);
+}
+
+TEST(ProcessServicesCountTest) {
+  InitializeObjectPools();
+  InitializeProcesses();
+  InitializeServices();
+
+  Process* p1 = CreateProcess(false, false);
+  ASSERT(p1 != nullptr, true);
+
+  // Initially 0 services
+  ASSERT(p1->service_count, (size_t)0);
+
+  // Register a service
+  RegisterService((char*)"my_cool_service", p1, 101);
+  ASSERT(p1->service_count, (size_t)1);
+
+  // Register another service
+  RegisterService((char*)"another_service", p1, 102);
+  ASSERT(p1->service_count, (size_t)2);
+
+  // Unregister one service
+  UnregisterServiceByMessageId(p1, 101);
+  ASSERT(p1->service_count, (size_t)1);
+
+  DestroyProcess(p1);
 }

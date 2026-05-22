@@ -73,6 +73,7 @@ void RegisterService(char* service_name, Process* process, size_t message_id) {
     }
     process->services.InsertAfter(previous_service, service);
   }
+  process->service_count++;
 
   // Notify everyone listening for this new service.
   for (ProcessToNotifyWhenServiceAppears* notification :
@@ -106,6 +107,7 @@ void UnregisterService(Service* service) {
     ObjectPool<ProcessToNotifyWhenServiceDisappears>::Release(notification);
   }
   service->process->services.Remove(service);
+  service->process->service_count--;
   ObjectPool<Service>::Release(service);
 }
 

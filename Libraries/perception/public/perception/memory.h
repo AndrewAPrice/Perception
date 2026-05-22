@@ -44,10 +44,12 @@ size_t GetTotalSystemMemory();
 // - memory_used: memory allocated to the process in bytes.
 // - creation_timestamp: timestamp when the process was created (in microseconds
 // since boot).
+// - registered_services: number of services the process has registered.
 // - cpu_percentages: array populated with the CPU percentage of each core (size
 // must be at least 8).
 void GetProcessHealthMetrics(ProcessId pid, size_t& memory_used,
                              size_t& creation_timestamp,
+                             size_t& registered_services,
                              uint8* cpu_percentages);
 
 // Controls whether the kernel actively tracks CPU usage metrics for this
