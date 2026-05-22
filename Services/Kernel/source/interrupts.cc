@@ -71,6 +71,7 @@ void RegisterInterruptHandlers() {
   SetIdtEntry(45, (size_t)irq13, 0x08, 0x8E);
   SetIdtEntry(46, (size_t)irq14, 0x08, 0x8E);
   SetIdtEntry(47, (size_t)irq15, 0x08, 0x8E);
+  SetIdtEntry(48, (size_t)apic_timer_interrupt, 0x08, 0x8E);
 }
 
 // Allocates a stack to use for interrupts.
@@ -230,9 +231,18 @@ void UnregisterAllMessagesToForOnInterruptForProcess(Process* process) {
 
 // The common handler that is called when a hardware interrupt occurs.
 extern "C" void CommonHardwareInterruptHandler(int interrupt_number) {
-  if (interrupt_number == 0) {
-    // The only hardware interrupt the microkernel knows about - the timer.
+  if (interrupt_number == 16) {
+    // The Local APIC Timer interrupt.
     TimerHandler();
+#ifndef TEST
+    extern void SendLapicEoi();
+    SendLapicEoi();
+#endif
+  } else if (interrupt_number == 0) {
+    // The legacy PIT periodic timer.
+    TimerHandler();
+    // Send an EOI to the master interrupt controller.
+    WriteIOByte(0x20, 0x20);
   } else {
     // Send messages to any processes listening for this interrupt.
     for (MessageToFireOnInterrupt* message :
@@ -243,10 +253,10 @@ extern "C" void CommonHardwareInterruptHandler(int interrupt_number) {
     // If the IDT entry that was invoked was greater than 40 (IRQ 8-15) an EOI
     // needs to be sent to the slave controller.
     if (interrupt_number >= 8) WriteIOByte(0xA0, 0x20);
-  }
 
-  // Send an EOI to the master interrupt controller.
-  WriteIOByte(0x20, 0x20);
+    // Send an EOI to the master interrupt controller.
+    WriteIOByte(0x20, 0x20);
+  }
 
   // Interrupt could have awoken a thread when the system was currently halted.
   // If so, jump straight into the thread upon return.

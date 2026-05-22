@@ -56,6 +56,12 @@ struct Thread {
   // here.
   size_t time_slices;
 
+  // The remaining timeslice for this thread in microseconds.
+  size_t remaining_timeslice_microseconds;
+
+  // The timestamp (in microseconds since boot) when this thread started its current run.
+  size_t current_run_start_timestamp;
+
   // The linked queue of threads in the process that are waiting for messages.
   LinkedListNode node_sleeping_for_messages;
   bool thread_is_waiting_for_message : 1;

@@ -207,11 +207,31 @@ extern "C" void SyscallHandler(int syscall_number) {
     case Syscall::GetFreeSystemMemory:
       currently_executing_thread_regs->rax = free_pages * PAGE_SIZE;
       break;
-    case Syscall::GetMemoryUsedByProcess:
+    case Syscall::GetProcessHealthMetrics: {
+      Process* process = nullptr;
+      if (currently_executing_thread_regs->rax == 0) {
+        process = running_thread->process;
+      } else {
+        process = GetProcessFromPid(currently_executing_thread_regs->rax);
+      }
+
+      if (process == nullptr) {
+        currently_executing_thread_regs->rax = 0;
+        currently_executing_thread_regs->rbx = 0;
+        currently_executing_thread_regs->rdx = 0;
+        break;
+      }
+
+      // Catch up the running process's lazy CPU percentages for past epochs
+      // so it's accurate when reading them.
+      if (IsCpuTrackingActive()) CatchUpProcessCpuUsage(process);
+
       currently_executing_thread_regs->rax =
-          running_thread->process->virtual_address_space.GetAllocatedPages() *
-          PAGE_SIZE;
+          process->virtual_address_space.GetAllocatedPages() * PAGE_SIZE;
+      currently_executing_thread_regs->rbx = process->creation_timestamp;
+      currently_executing_thread_regs->rdx = CalculateCompactCpuUsage(process);
       break;
+    }
     case Syscall::GetTotalSystemMemory:
       currently_executing_thread_regs->rax = total_system_memory;
       break;
@@ -679,6 +699,10 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     case Syscall::DisableAndOutputProfiling:
       DisableAndOutputProfiling(running_thread->process);
+      break;
+    case Syscall::SetThatProcessCaresAboutCpuTracking:
+      SetThatProcessCaresAboutCpuTracking(
+          running_thread->process, currently_executing_thread_regs->rax != 0);
       break;
   }
 #ifdef DEBUG

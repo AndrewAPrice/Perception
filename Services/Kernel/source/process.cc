@@ -1,6 +1,7 @@
 #include "process.h"
 
 #include "interrupts.h"
+#include "kernel_string.h"
 #include "liballoc.h"
 #include "linked_list.h"
 #include "messages.h"
@@ -9,7 +10,6 @@
 #include "profiling.h"
 #include "scheduler.h"
 #include "service.h"
-#include "kernel_string.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "timer.h"
@@ -33,9 +33,9 @@ void InitializeProcesses() {
 }
 
 // Creates a process, returns ERROR if there was an error.
-Process *CreateProcess(bool is_driver, bool can_create_processes) {
+Process* CreateProcess(bool is_driver, bool can_create_processes) {
   // Create a memory space for it.
-  Process *proc = (Process *)malloc(sizeof(Process));
+  Process* proc = (Process*)malloc(sizeof(Process));
   if (proc == nullptr) return nullptr;  // Out of memory.
 
   new (proc) Process();
@@ -43,7 +43,7 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->can_create_processes = can_create_processes;
 
   // Assign a name and process ID.
-  memset((char *)proc->name, 0, PROCESS_NAME_LENGTH + 1);  // Clear the name.
+  memset((char*)proc->name, 0, PROCESS_NAME_LENGTH + 1);  // Clear the name.
   last_assigned_pid++;
   proc->pid = last_assigned_pid;
 
@@ -66,6 +66,16 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
   proc->has_enabled_profiling = 0;
   proc->cycles_spent_executing_while_profiled = 0;
 
+  // Initialize CPU usage statistics.
+  proc->creation_timestamp = GetCurrentTimestampInMicroseconds();
+  proc->last_updated_epoch = 0;
+  proc->is_on_active_list_this_epoch = false;
+  proc->tracking_cpu_usage = false;
+  for (int c = 0; c < MAX_CORES; c++) {
+    proc->cpu_time_in_current_epoch[c] = 0;
+    proc->rolling_cpu_percentage[c] = 0;
+  }
+
   // Add to the linked list of running processes.
   all_processes.AddBack(proc);
   return proc;
@@ -73,18 +83,18 @@ Process *CreateProcess(bool is_driver, bool can_create_processes) {
 
 // Releases a ProcessToNotifyOnExit object and disconnects it from the
 // linked lists.
-void ReleaseNotification(ProcessToNotifyOnExit *notification) {
+void ReleaseNotification(ProcessToNotifyOnExit* notification) {
   // Remove from target.
   notification->target->processes_to_notify_when_i_die.Remove(notification);
   // Remove from notifyee.
-  notification->notifyee->processes_i_want_to_be_notified_of_when_they_die.Remove(
-      notification);
+  notification->notifyee->processes_i_want_to_be_notified_of_when_they_die
+      .Remove(notification);
   ObjectPool<ProcessToNotifyOnExit>::Release(notification);
 }
 
 // Removes a child process of a parent, and returns true if the process was a
 // non-nullptr child of the parent before removal.
-bool RemoveChildProcessOfParent(Process *parent, Process *child) {
+bool RemoveChildProcessOfParent(Process* parent, Process* child) {
   if (child == nullptr) return false;
 
   if (parent->child_processes == nullptr)
@@ -100,8 +110,8 @@ bool RemoveChildProcessOfParent(Process *parent, Process *child) {
   }
 
   // Iterate through the list starting from the second child.
-  Process *previous_child = parent->child_processes;
-  Process *child_in_parent = previous_child->next_child_process_in_parent;
+  Process* previous_child = parent->child_processes;
+  Process* child_in_parent = previous_child->next_child_process_in_parent;
 
   while (child_in_parent != nullptr) {
     if (child_in_parent == child) {
@@ -122,12 +132,15 @@ bool RemoveChildProcessOfParent(Process *parent, Process *child) {
 }
 
 // Destroys a process.
-void DestroyProcess(Process *process) {
+void DestroyProcess(Process* process) {
   // Destroy child processes that haven't started.
   while (process->child_processes != nullptr)
     DestroyProcess(process->child_processes);
 
   NotifyProfilerThatProcessExited(process);
+
+  // Automatically unsubscribe from CPU tracking subscriptions.
+  RemoveProcessFromCpuTracking(process);
 
   // Remove from the parent.
   if (process->parent) RemoveChildProcessOfParent(process->parent, process);
@@ -161,14 +174,14 @@ void DestroyProcess(Process *process) {
   process->virtual_address_space.~VirtualAddressSpace();
 
   // Free all notifications being waited on for processes to die.
-  while (auto *notification =
+  while (auto* notification =
              process->processes_i_want_to_be_notified_of_when_they_die
                  .FirstItem()) {
     ReleaseNotification(notification);
   }
 
   // Notify the processes that were wanting to know when this process died.
-  while (auto *notification =
+  while (auto* notification =
              process->processes_to_notify_when_i_die.FirstItem()) {
     SendKernelMessageToProcess(notification->notifyee, notification->event_id,
                                process->pid, 0, 0, 0, 0);
@@ -185,7 +198,7 @@ void DestroyProcess(Process *process) {
 bool AreAnyProcessesRunning() { return !all_processes.IsEmpty(); }
 
 // Registers that a process wants to be notified if another process dies.
-void NotifyProcessOnDeath(Process *target, Process *notifyee, size_t event_id) {
+void NotifyProcessOnDeath(Process* target, Process* notifyee, size_t event_id) {
   auto notification = ObjectPool<ProcessToNotifyOnExit>::Allocate();
   if (notification == nullptr) return;
 
@@ -198,7 +211,7 @@ void NotifyProcessOnDeath(Process *target, Process *notifyee, size_t event_id) {
       notification);
 }
 
-void StopNotifyingProcessOnDeath(Process *notifyee, size_t event_id) {
+void StopNotifyingProcessOnDeath(Process* notifyee, size_t event_id) {
   // Find the notification.
   for (auto notification :
        notifyee->processes_i_want_to_be_notified_of_when_they_die) {
@@ -209,29 +222,29 @@ void StopNotifyingProcessOnDeath(Process *notifyee, size_t event_id) {
 
 // Returns a process with the provided pid, returns nullptr if it doesn't
 // exist.
-Process *GetProcessFromPid(size_t pid) {
+Process* GetProcessFromPid(size_t pid) {
   // Walk through the linked list to find our process.
-  for (Process *proc : all_processes)
+  for (Process* proc : all_processes)
     if (proc->pid == pid) return proc;
 
-  return (Process *)nullptr;
+  return (Process*)nullptr;
 }
 
 // Returns a process with the provided pid, and if it doesn't exist, returns
 // the process with the next highest pid. Returns nullptr if no process exists
 // with a pid >= pid.
-Process *GetProcessOrNextFromPid(size_t pid) {
+Process* GetProcessOrNextFromPid(size_t pid) {
   // Walk through the linked list to find our process.
-  for (Process *proc : all_processes)
+  for (Process* proc : all_processes)
     if (proc->pid >= pid) return proc;
 
-  return (Process *)nullptr;
+  return (Process*)nullptr;
 }
 
 // Do two process names (of length PROCESS_NAME_LENGTH) match?
-bool DoProcessNamesMatch(const char *a, const char *b) {
+bool DoProcessNamesMatch(const char* a, const char* b) {
   for (int word = 0; word < PROCESS_NAME_WORDS; word++)
-    if (((size_t *)a)[word] != ((size_t *)b)[word]) return false;
+    if (((size_t*)a)[word] != ((size_t*)b)[word]) return false;
 
   return true;
 }
@@ -240,8 +253,8 @@ bool DoProcessNamesMatch(const char *a, const char *b) {
 // length PROCESS_NAME_LENGTH). last_process may be nullptr if you want to fetch
 // the first process with the name. Returns nullptr if there are no more
 // processes with the provided name.
-Process *FindNextProcessWithName(const char *name, Process *start_from) {
-  Process *potential_process =
+Process* FindNextProcessWithName(const char* name, Process* start_from) {
+  Process* potential_process =
       start_from == nullptr ? all_processes.FirstItem() : start_from;
   // Loop over every process.
   while (potential_process != nullptr) {
@@ -258,9 +271,9 @@ Process *FindNextProcessWithName(const char *name, Process *start_from) {
 
 // Creates a child process. The parent process must be allowed to create
 // children. Returns ERROR if there was an error.
-Process *CreateChildProcess(Process *parent, char *name, size_t bitfield) {
+Process* CreateChildProcess(Process* parent, char* name, size_t bitfield) {
   if (!parent->can_create_processes) return nullptr;
-  Process *child_process =
+  Process* child_process =
       CreateProcess(/*is_driver=*/bitfield & (1 << 0),
                     /*can_create_processes=*/bitfield & (1 << 2));
   if (child_process == nullptr) {
@@ -273,14 +286,14 @@ Process *CreateChildProcess(Process *parent, char *name, size_t bitfield) {
   parent->child_processes = child_process;
   child_process->parent = parent;
 
-  CopyString((char *)name, PROCESS_NAME_LENGTH, PROCESS_NAME_LENGTH,
-             (char *)child_process->name);
+  CopyString((char*)name, PROCESS_NAME_LENGTH, PROCESS_NAME_LENGTH,
+             (char*)child_process->name);
   return child_process;
 }
 
-bool IsProcessAChildOfParent(Process *parent, Process *child) {
+bool IsProcessAChildOfParent(Process* parent, Process* child) {
   if (child == nullptr) return false;
-  Process *proc = parent->child_processes;
+  Process* proc = parent->child_processes;
   while (proc != nullptr) {
     if (proc == child) return true;
     proc = proc->next_child_process_in_parent;
@@ -291,7 +304,7 @@ bool IsProcessAChildOfParent(Process *parent, Process *child) {
 // Unmaps a memory page from the parent and assigns it to the child. The memory
 // is unmapped from the calling process regardless of if this call succeeds. If
 // the page already exists in the child process, nothing is set.
-void SetChildProcessMemoryPage(Process *parent, Process *child,
+void SetChildProcessMemoryPage(Process* parent, Process* child,
                                size_t source_address,
                                size_t destination_address) {
   // Get the physical address from the parent.
@@ -343,11 +356,11 @@ void SetChildProcessMemoryPage(Process *parent, Process *child,
 // The child process will no longer be in the `creating` state. The calling
 // process must be the child process's creator. The child process will begin
 // executing and will no longer terminate if the creator terminates.
-void StartExecutingChildProcess(Process *parent, Process *child,
+void StartExecutingChildProcess(Process* parent, Process* child,
                                 size_t entry_address, size_t params) {
   if (!RemoveChildProcessOfParent(parent, child)) return;
 
-  Thread *thread = CreateThread(child, entry_address, params);
+  Thread* thread = CreateThread(child, entry_address, params);
 
   if (!thread) {
     print << "Out of memory to create the thread.\n";
@@ -359,12 +372,12 @@ void StartExecutingChildProcess(Process *parent, Process *child,
 }
 
 // Destroys a process in the `creating` state.
-void DestroyChildProcess(Process *parent, Process *child) {
+void DestroyChildProcess(Process* parent, Process* child) {
   if (!RemoveChildProcessOfParent(parent, child)) return;
   DestroyProcess(child);
 }
 
-Process *GetNextProcess(Process *process) {
+Process* GetNextProcess(Process* process) {
   if (process == nullptr) return all_processes.FirstItem();
 
   return all_processes.NextItem(process);

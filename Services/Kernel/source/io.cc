@@ -17,4 +17,23 @@ void WriteModelSpecificRegister(uint64 msr, uint64 value) {
   asm volatile("wrmsr" : : "c"(msr), "a"(low), "d"(high));
 }
 
+uint64 ReadModelSpecificRegister(uint64 msr) {
+  uint32 low, high;
+  asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
+  return ((uint64)high << 32) | low;
+}
+
+uint64 ReadTimestampCounter() {
+  uint32 low, high;
+  asm volatile("rdtsc" : "=a"(low), "=d"(high));
+  return ((uint64)high << 32) | low;
+}
+
+void GetCpuId(uint32 leaf, uint32* eax, uint32* ebx, uint32* ecx, uint32* edx) {
+  asm volatile("cpuid"
+               : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx)
+               : "a"(leaf));
+}
+
 #endif // TEST
+

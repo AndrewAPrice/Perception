@@ -37,6 +37,7 @@ void ScheduleThread(Thread *thread) {}
 void UnscheduleThread(Thread *thread) {}
 void ScheduleThreadIfWeAreHalted() {}
 void ScheduleNextThread() {}
+bool HasAtLeast2AwakeThreads() { return false; }
 
 // Mocks for Physical Allocator globals
 size_t total_system_memory = 0;
@@ -100,7 +101,12 @@ void UnregisterAllMessagesToForOnInterruptForProcess(Process* proc) {}
 
 // Mocks for IO functions
 void WriteIOByte(unsigned short port, unsigned char data) {}
-void WriteModelSpecificRegister(unsigned long long msr, unsigned long long value) {}
+void WriteModelSpecificRegister(uint64 msr, uint64 value) {}
+uint64 ReadModelSpecificRegister(uint64 msr) { return 0; }
+uint64 ReadTimestampCounter() { return 0; }
+void GetCpuId(uint32 leaf, uint32* eax, uint32* ebx, uint32* ecx, uint32* edx) {
+  *eax = *ebx = *ecx = *edx = 0;
+}
 
 // Mocks for debug Printer
 Printer print;

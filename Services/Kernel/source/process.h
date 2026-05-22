@@ -12,6 +12,7 @@
 
 #define PROCESS_NAME_WORDS 11
 #define PROCESS_NAME_LENGTH (PROCESS_NAME_WORDS * 8)
+#define MAX_CORES 1
 
 struct MessageToFireOnInterrupt;
 struct Message;
@@ -120,6 +121,31 @@ struct Process {
   // The number of CPU cycles spent executing this process while it has been
   // profiled.
   size_t cycles_spent_executing_while_profiled;
+
+  // The timestamp (in microseconds since boot) when this process was created.
+  size_t creation_timestamp;
+
+  // The CPU time (in microseconds) spent by this process in the current epoch
+  // per core.
+  size_t cpu_time_in_current_epoch[MAX_CORES];
+
+  // The rolling CPU percentage byte representation (0 to 255) per core.
+  uint8 rolling_cpu_percentage[MAX_CORES];
+
+  // The epoch index when the rolling CPU percentage was last caught up/updated.
+  size_t last_updated_epoch;
+
+  // Is this process currently tracked on the active list for the current epoch?
+  bool is_on_active_list_this_epoch;
+
+  // Is this process currently subscribing to CPU tracking?
+  bool tracking_cpu_usage;
+
+  // Node for the active processes list this epoch.
+  LinkedListNode node_active_this_epoch;
+
+  // Node for the CPU tracking subscriptions list.
+  LinkedListNode node_cpu_tracking_subscription;
 };
 
 // Initializes the internal structures for tracking processes.

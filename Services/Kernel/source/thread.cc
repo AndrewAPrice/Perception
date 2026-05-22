@@ -90,6 +90,8 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param) {
 
   // The thread hasn't ran for any time slices yet.
   thread->time_slices = 0;
+  thread->remaining_timeslice_microseconds = 10000;
+  thread->current_run_start_timestamp = 0;
 
   // The thread isn't sleeping waiting for messages.
   thread->thread_is_waiting_for_message = false;

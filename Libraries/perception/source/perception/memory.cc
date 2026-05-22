@@ -182,18 +182,50 @@ size_t GetTotalSystemMemory() {
 #endif
 }
 
-size_t GetMemoryUsedByProcess() {
+void GetProcessHealthMetrics(ProcessId pid, size_t& memory_used,
+                             size_t& creation_timestamp,
+                             uint8* cpu_percentages) {
 #if PERCEPTION
   volatile register size_t syscall_num asm("rdi") = 15;
-  volatile register size_t return_val asm("rax");
+  volatile register size_t rax_io asm("rax") = pid;
+  volatile register size_t creation_timestamp_r asm("rbx");
+  volatile register size_t packed_cpu_r asm("rdx");
 
   __asm__ __volatile__("syscall\n"
-                       : "=r"(return_val)
+                       : "+r"(rax_io), "=r"(creation_timestamp_r),
+                         "=r"(packed_cpu_r)
                        : "r"(syscall_num)
                        : "rcx", "r11");
-  return return_val;
+
+  memory_used = rax_io;
+  creation_timestamp = creation_timestamp_r;
+
+  if (cpu_percentages != nullptr) {
+    size_t packed = packed_cpu_r;
+    for (int i = 0; i < 8; i++) {
+      cpu_percentages[i] = (uint8)((packed >> (i * 8)) & 0xFF);
+    }
+  }
 #else
-  return 0;
+  memory_used = 0;
+  creation_timestamp = 0;
+  if (cpu_percentages != nullptr) {
+    for (int i = 0; i < 8; i++) {
+      cpu_percentages[i] = 0;
+    }
+  }
+#endif
+}
+
+void SetThatProcessCaresAboutCpuTracking(bool active) {
+#if PERCEPTION
+  volatile register size_t syscall_num asm("rdi") = 64;
+  volatile register size_t param_r asm("rax") = active ? 1 : 0;
+
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "r"(syscall_num), "r"(param_r)
+                       : "rcx", "r11");
 #endif
 }
 

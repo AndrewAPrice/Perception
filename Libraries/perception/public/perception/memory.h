@@ -39,7 +39,21 @@ size_t GetFreeSystemMemory();
 
 size_t GetTotalSystemMemory();
 
-size_t GetMemoryUsedByProcess();
+// Exposes the process's health metrics:
+// - pid: the ID of the process to query, or 0 for the current process.
+// - memory_used: memory allocated to the process in bytes.
+// - creation_timestamp: timestamp when the process was created (in microseconds
+// since boot).
+// - cpu_percentages: array populated with the CPU percentage of each core (size
+// must be at least 8).
+void GetProcessHealthMetrics(ProcessId pid, size_t& memory_used,
+                             size_t& creation_timestamp,
+                             uint8* cpu_percentages);
+
+// Controls whether the kernel actively tracks CPU usage metrics for this
+// process. This should be set to 'true' by process managers or monitoring
+// applications to enable tracking.
+void SetThatProcessCaresAboutCpuTracking(bool active);
 
 void SetMemoryAccessRights(void* address, size_t pages, bool can_write,
                            bool can_execute);

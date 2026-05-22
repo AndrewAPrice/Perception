@@ -63,8 +63,8 @@ const char *GetSystemCallName(Syscall syscall) {
       return "GetPhysicalAddressOfVirtualAddress";
     case Syscall::GetFreeSystemMemory:
       return "GetFreeSystemMemory";
-    case Syscall::GetMemoryUsedByProcess:
-      return "GetMemoryUsedByProcess";
+    case Syscall::GetProcessHealthMetrics:
+      return "GetProcessHealthMetrics";
     case Syscall::GetTotalSystemMemory:
       return "GetTotalSystemMemory";
     case Syscall::CreateSharedMemory:
@@ -147,6 +147,8 @@ const char *GetSystemCallName(Syscall syscall) {
       return "SendMessageAtTimestamp";
     case Syscall::GetCurrentTimestamp:
       return "GetCurrentTimestamp";
+    case Syscall::SetThatProcessCaresAboutCpuTracking:
+      return "SetThatProcessCaresAboutCpuTracking";
   }
 }
 

@@ -30,6 +30,7 @@
 [GLOBAL irq13]
 [GLOBAL irq14]
 [GLOBAL irq15]
+[GLOBAL apic_timer_interrupt]
 [EXTERN CommonHardwareInterruptHandler]
 [EXTERN currently_executing_thread_regs]
 [EXTERN interrupt_stack_top]
@@ -115,6 +116,11 @@ irq14:
 irq15:
 	; cli
 	push 15
+	jmp irq_common_stub
+
+apic_timer_interrupt:
+	; cli
+	push 16
 	jmp irq_common_stub
 
 irq_common_stub:

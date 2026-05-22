@@ -22,3 +22,27 @@ void SendMessageToProcessAtMicroseconds(Process* process, size_t timestamp,
 
 // Cancel all timer events that could be scheduled for a process.
 void CancelAllTimerEventsForProcess(Process* process);
+
+// Reprograms the APIC timer to fire at the next scheduling or event deadline.
+void ReprogramTimerForNextDeadline();
+
+// Updates the currently executing thread's remaining timeslice by measuring
+// elapsed TSC time.
+void UpdateRunningThreadTimeslice();
+
+// Performs lazy-evaluation catch-up and decay for process CPU rolling average.
+void CatchUpProcessCpuUsage(Process* process);
+
+// Calculates CPU usage bytes across up to 8 cores (1 byte per core).
+size_t CalculateCompactCpuUsage(Process* process);
+
+// Sets whether a process cares about CPU tracking. Tracking what is using the
+// CPU is only active if at least one process cares about it.
+void SetThatProcessCaresAboutCpuTracking(Process* process, bool active);
+
+// Removes the process from CPU tracking. Call this when a process is being
+// destroyed.
+void RemoveProcessFromCpuTracking(Process* process);
+
+// Returns whether CPU tracking is active.
+bool IsCpuTrackingActive();
