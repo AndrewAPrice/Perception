@@ -69,6 +69,10 @@ constexpr float kDropFrameThickness = 2;
 constexpr float kMinimumWindowSize = 64;
 constexpr float kMinimumVisibleWindow = 8;
 
+// Constant to treat the 2nd window button as a "Print UI Hierarchy" debugging
+// tool.
+constexpr bool kTreatMinimizeButtonAsPrintUiHierarchy = true;
+
 // Windows, mapped by their listeners.
 std::map<BaseWindow::Client, std::shared_ptr<Window>> windows_by_listeners;
 
@@ -645,7 +649,11 @@ void Window::HandleWindowButtonClick() {
       Close();
       break;
     case WindowButton::Minimize:
-      std::cout << "TODO: Implement minimize." << std::endl;
+      if (kTreatMinimizeButtonAsPrintUiHierarchy) {
+        window_listener_.PrintUiHierarchy(nullptr);
+      } else {
+        std::cout << "TODO: Implement minimize." << std::endl;
+      }
       break;
     case WindowButton::ToggleFullScreen:
       std::cout << "TODO: Implement toggle full screen." << std::endl;

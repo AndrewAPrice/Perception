@@ -176,6 +176,20 @@ void UiWindow::MouseHovered(const window::MouseHoverEvent& event) {
   });
 }
 
+void UiWindow::PrintUiHierarchy() {
+  std::scoped_lock lock(window_mutex_);
+  if (node_.expired()) return;
+  auto node = node_.lock();
+  std::cout << "--------------------------------------------------"
+            << std::endl;
+  std::cout << "UI HIERARCHY FOR WINDOW: " << title_ << std::endl;
+  std::cout << "--------------------------------------------------"
+            << std::endl;
+  node->PrintHierarchy(0);
+  std::cout << "--------------------------------------------------"
+            << std::endl;
+}
+
 void UiWindow::Draw() {
   if (!created_) Create();
 
@@ -229,6 +243,12 @@ void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
 
     skia_surface_ =
         SkSurfaces::WrapPixels(image_info, pixel_data_, buffer_width_ * 4);
+    if (!skia_surface_) {
+      std::cout << "[UI Window Error] Skia surface wrapping failed! Buffer: "
+                << pixel_data_ << " Size: " << buffer_width_ << "x"
+                << buffer_height_ << std::endl;
+      return;
+    }
   }
 
   // Set up the DrawContext to draw into back buffer.
@@ -251,6 +271,14 @@ void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
   }
 
   node->GetLayout().CalculateIfDirty(buffer_width_, buffer_height_);
+
+  float root_w = node->GetLayout().GetCalculatedWidth();
+  float root_h = node->GetLayout().GetCalculatedHeight();
+  if (root_w <= 0.0f || root_h <= 0.0f) {
+    std::cout << "[UI Window Warning] Root node has invalid calculated size: "
+              << root_w << "x" << root_h << std::endl;
+  }
+
   node->Draw(draw_context);
 }
 
@@ -296,6 +324,8 @@ void UiWindow::Create() {
 
   for (auto& handler : on_resize_functions_) handler();
 
+  layout.SetWidth((float)buffer_width_);
+  layout.SetHeight((float)buffer_height_);
   layout.Calculate((float)buffer_width_, (float)buffer_height_);
   InvalidateRender();
   created_ = true;

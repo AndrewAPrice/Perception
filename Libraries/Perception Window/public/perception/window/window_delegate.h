@@ -63,6 +63,8 @@ class WindowDelegate {
   virtual void KeyboardCaptivityChanged() {}
 
   virtual void ToggledFullScreen(bool is_full_screen) {}
+  
+  virtual void PrintUiHierarchy() {}
 };
 
 }  // namespace window

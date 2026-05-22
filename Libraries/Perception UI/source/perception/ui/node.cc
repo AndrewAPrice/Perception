@@ -14,9 +14,12 @@
 
 #include "perception/ui/node.h"
 
+#include <cmath>
 #include <iostream>
 #include <map>
 
+#include "perception/ui/components/block.h"
+#include "perception/ui/components/label.h"
 #include "perception/ui/draw_context.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/measurements.h"
@@ -336,6 +339,53 @@ YGSize Node::Measure(const YGNode* node, float width, YGMeasureMode width_mode,
   } else {
     return {.width = CalculateMeasuredLength(width_mode, width, 0.0f),
             .height = CalculateMeasuredLength(height_mode, height, 0.0f)};
+  }
+}
+
+            << ",\n";
+  std::cout << indent_str << "    \"height\": " << layout.GetCalculatedHeight()
+            << "\n";
+  std::cout << indent_str << "  }";
+
+  // Check for components
+  if (auto label = Get<components::Label>()) {
+    std::cout << indent_str << "    \"text\": \"" << label->GetText()
+              << "\",\n";
+    std::cout << indent_str << "    \"color\": \"0x" << std::hex
+              << label->GetColor() << std::dec << "\"\n";
+    std::cout << indent_str << "  }";
+  }
+
+  if (auto block = Get<components::Block>()) {
+    std::cout << ",\n" << indent_str << "  \"block\": {\n";
+    std::cout << indent_str << "    \"fill_color\": \"0x" << std::hex
+              << block->GetFillColor() << std::dec << "\",\n";
+    std::cout << indent_str << "    \"border_color\": \"0x" << std::hex
+              << block->GetBorderColor() << std::dec << "\",\n";
+    std::cout << indent_str
+              << "    \"border_width\": " << block->GetBorderWidth() << "\n";
+    std::cout << indent_str << "  }";
+  }
+
+  // Children
+  if (!children_.empty()) {
+    std::cout << ",\n" << indent_str << "  \"children\": [\n";
+    bool first = true;
+    for (auto& child : children_) {
+      if (!first) {
+        std::cout << ",\n";
+      }
+      first = false;
+      child->PrintHierarchy(indent + 2);
+    }
+    std::cout << "\n" << indent_str << "  ]\n";
+  } else {
+    std::cout << "\n";
+  }
+
+  std::cout << indent_str << "}";
+  if (indent == 0) {
+    std::cout << std::endl;
   }
 }
 

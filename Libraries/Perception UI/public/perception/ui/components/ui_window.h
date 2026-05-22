@@ -131,6 +131,8 @@ class UiWindow : public window::WindowDelegate,
 
   virtual void MouseHovered(const window::MouseHoverEvent& event) override;
 
+  virtual void PrintUiHierarchy() override;
+
   void InvalidateRender();
 
  private:

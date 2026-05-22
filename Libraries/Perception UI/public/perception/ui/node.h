@@ -220,6 +220,9 @@ class Node : public std::enable_shared_from_this<Node> {
 
   Size GetSize();
 
+  // Recursively print the UI node hierarchy.
+  void PrintHierarchy(int indent = 0);
+
   template <typename... Modifiers>
   void Apply(Modifiers... modifiers) {
     ([this](auto&& modifier) { ApplySingleModifier(modifier); }(modifiers),

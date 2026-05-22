@@ -23,7 +23,8 @@ namespace window {
   X(2, Closed, void, void)        \
   X(3, GainedFocus, void, void) \
   X(4, LostFocus, void, void)     \
-  X(5, DisplayEnvironmentChanged, void, void)
+  X(5, DisplayEnvironmentChanged, void, void) \
+  X(6, PrintUiHierarchy, void, void)
 
 DEFINE_PERCEPTION_SERVICE(BaseWindow, "perception.window.BaseWindow",
                           METHOD_LIST)
