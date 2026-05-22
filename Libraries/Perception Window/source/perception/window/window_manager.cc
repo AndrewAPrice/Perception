@@ -60,6 +60,11 @@ void SetWindowTitleParameters::Serialize(
   serializer.String("Title", title);
 }
 
+void SetWindowSizeParameters::Serialize(serialization::Serializer& serializer) {
+  serializer.Serializable("Window", window);
+  serializer.Serializable("Size", size);
+}
+
 void InvalidateWindowParameters::Serialize(
     serialization::Serializer& serializer) {
   serializer.Serializable("Window", window);

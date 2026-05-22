@@ -57,4 +57,8 @@ class WindowManager : public ::perception::window::WindowManager::Server {
   ::perception::Status FocusWindow(
       const ::perception::window::BaseWindow::Client& window_listener,
       ::perception::ProcessId sender) override;
+
+  ::perception::Status SetWindowSize(
+      const ::perception::window::SetWindowSizeParameters& parameters,
+      ::perception::ProcessId sender) override;
 };

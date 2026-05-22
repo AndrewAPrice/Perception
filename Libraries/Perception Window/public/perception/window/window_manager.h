@@ -110,6 +110,14 @@ class SetWindowTitleParameters : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
+class SetWindowSizeParameters : public serialization::Serializable {
+ public:
+  BaseWindow::Client window;
+  Size size;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
 class InvalidateWindowParameters : public serialization::Serializable {
  public:
   BaseWindow::Client window;
@@ -128,7 +136,8 @@ class InvalidateWindowParameters : public serialization::Serializable {
   X(7, GetMaximumWindowSize, Size, void)                        \
   X(8, GetDisplayEnvironment, DisplayEnvironment, void)         \
   X(9, StartDraggingWindow, void, BaseWindow::Client)           \
-  X(10, FocusWindow, void, BaseWindow::Client)
+  X(10, FocusWindow, void, BaseWindow::Client)                  \
+  X(11, SetWindowSize, void, SetWindowSizeParameters)
 DEFINE_PERCEPTION_SERVICE(WindowManager, "perception.window.WindowManager",
                           METHOD_LIST)
 #undef METHOD_LIST

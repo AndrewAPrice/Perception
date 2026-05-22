@@ -98,7 +98,11 @@ class PerceptionWindow : public Window,
 
   void SetSize(int width, int height) override {
     if (width_ == width && height_ == height) return;
-    std::cout << "PerceptionWindow::SetSize is not implemented." << std::endl;
+
+    SetWindowSizeParameters message;
+    message.window = *this;
+    message.size = Size((float)width, (float)height);
+    GetService<WindowManager>().SetWindowSize(message);
   }
 
   float GetScale() override { return 1.0f; };

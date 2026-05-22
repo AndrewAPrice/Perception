@@ -290,30 +290,47 @@ bool Window::MouseEvent(const Point& point,
 
     ValidateWindowBounds(new_screen_area);
 
-    if (button_event && !button_event->is_pressed_down &&
-        button_event->button == MouseButton::Left) {
-      // Released the drag.
-      StopDragging();
+    if (resizing) {
+      if (button_event && !button_event->is_pressed_down &&
+          button_event->button == MouseButton::Left) {
+        // Released the drag.
+        StopDragging();
 
-      if (screen_area_ != new_screen_area) {
-        bool resized = screen_area_.size != new_screen_area.size;
+        if (screen_area_ != new_screen_area) {
+          bool resized = screen_area_.size != new_screen_area.size;
 
-        // The bounds have changed. Update the frame and invalidate the
-        // screen where both the old frame and the new frames are.
-        auto old_area_with_frame = GetScreenAreaWithFrame();
-        screen_area_ = new_screen_area;
-        auto new_area_with_frame = GetScreenAreaWithFrame();
+          // The bounds have changed. Update the frame and invalidate the
+          // screen where both the old frame and the new frames are.
+          auto old_area_with_frame = GetScreenAreaWithFrame();
+          screen_area_ = new_screen_area;
+          auto new_area_with_frame = GetScreenAreaWithFrame();
 
-        if (resized) Resized();
-        InvalidateScreen(old_area_with_frame.Union(new_area_with_frame));
+          if (resized) Resized();
+          InvalidateScreen(old_area_with_frame.Union(new_area_with_frame));
+        }
+      } else {
+        // Still dragging.
+        new_screen_area.origin -=
+            Point{.x = kFrameThickness, .y = kFrameThickness};
+        new_screen_area.size += Size{.width = 2.0f * kFrameThickness,
+                                     .height = 2.0f * kFrameThickness};
+        SetHighlighter(new_screen_area);
       }
     } else {
-      // Still dragging.
-      new_screen_area.origin -=
-          Point{.x = kFrameThickness, .y = kFrameThickness};
-      new_screen_area.size += Size{.width = 2.0f * kFrameThickness,
-                                   .height = 2.0f * kFrameThickness};
-      SetHighlighter(new_screen_area);
+      if (button_event && !button_event->is_pressed_down &&
+          button_event->button == MouseButton::Left) {
+        // Released the drag.
+        StopDragging();
+      } else {
+        // Still dragging. Update the screen area immediately!
+        if (screen_area_ != new_screen_area) {
+          auto old_area_with_frame = GetScreenAreaWithFrame();
+          screen_area_ = new_screen_area;
+          auto new_area_with_frame = GetScreenAreaWithFrame();
+          InvalidateScreen(old_area_with_frame.Union(new_area_with_frame));
+          dragging_origin = point;
+        }
+      }
     }
     return true;
   }
@@ -545,6 +562,29 @@ void Window::SetTextureId(int texture_id) {
   } else {
     Invalidate();
   }
+}
+
+void Window::SetSize(const ::perception::window::Size& size) {
+  auto screen_size = GetScreenSize();
+  float new_w = std::max(kMinimumWindowSize,
+                         std::min(screen_size.width, std::round(size.width)));
+  float new_h = std::max(kMinimumWindowSize,
+                         std::min(screen_size.height, std::round(size.height)));
+
+  if (screen_area_.size.width == new_w && screen_area_.size.height == new_h)
+    return;
+
+  auto old_area_with_frame = GetScreenAreaWithFrame();
+
+  screen_area_.size.width = new_w;
+  screen_area_.size.height = new_h;
+
+  ValidateWindowBounds(screen_area_);
+
+  auto new_area_with_frame = GetScreenAreaWithFrame();
+
+  Resized();
+  InvalidateScreen(old_area_with_frame.Union(new_area_with_frame));
 }
 
 void Window::CommonInit() {

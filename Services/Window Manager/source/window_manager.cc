@@ -16,14 +16,16 @@
 
 #include <iostream>
 
-#include "compositor.h"
 #include "perception/launcher.h"
+#include "perception/services.h"
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
 #include "screen.h"
 #include "status.h"
 #include "window.h"
 
+using ::perception::FindFirstInstanceOfService;
+using ::perception::Launcher;
 using ::perception::ProcessId;
 using ::perception::Status;
 using ::perception::ui::Point;
@@ -80,9 +82,8 @@ Status WindowManager::SetWindowTitle(const SetWindowTitleParameters& parameters,
 }
 
 Status WindowManager::SystemButtonPushed() {
-  // TODO: show launcher
-  // ShowLauncher();
-
+  auto launcher = FindFirstInstanceOfService<Launcher>();
+  if (launcher) launcher->ShowLauncher(nullptr);
   return Status::OK;
 }
 
@@ -114,5 +115,26 @@ Status WindowManager::StartDraggingWindow(
     return Status::INVALID_ARGUMENT;
 
   window->StartDragging();
+  return Status::OK;
+}
+
+Status WindowManager::FocusWindow(const BaseWindow::Client& window_listener,
+                                  ::perception::ProcessId sender) {
+  auto window = GetWindowWithListener(window_listener);
+  if (!window || sender != window_listener.ServerProcessId())
+    return Status::INVALID_ARGUMENT;
+
+  window->Focus();
+  return Status::OK;
+}
+
+Status WindowManager::SetWindowSize(
+    const ::perception::window::SetWindowSizeParameters& parameters,
+    ::perception::ProcessId sender) {
+  auto window = GetWindowWithListener(parameters.window);
+  if (!window || sender != parameters.window.ServerProcessId())
+    return Status::INVALID_ARGUMENT;
+
+  window->SetSize(parameters.size);
   return Status::OK;
 }

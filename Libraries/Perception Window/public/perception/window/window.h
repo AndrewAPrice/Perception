@@ -16,6 +16,8 @@
 #include <memory>
 #include <string>
 
+#include "perception/window/size.h"
+
 namespace perception {
 namespace window {
 

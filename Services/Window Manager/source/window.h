@@ -73,6 +73,7 @@ class Window : public std::enable_shared_from_this<Window> {
   bool IsVisible() const { return is_visible_; }
 
   void SetTextureId(int texture_id);
+  void SetSize(const ::perception::window::Size& size);
 
   // Next/previous windows in the Z-order of things. Public for visibility from
   // LinkedList.
