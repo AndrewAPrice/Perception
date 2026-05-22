@@ -286,9 +286,9 @@ Size ScrollBar::Measure(float width, YGMeasureMode width_mode, float height,
     case Direction::HORIZONTAL:
       return {
           .width = CalculateMeasuredLength(width_mode, width, 0.0f),
-          .height = CalculateMeasuredLength(height_mode, height, kMinFabSize)};
+          .height = CalculateMeasuredLength(height_mode, height, ScrollBar::kWidth)};
     case Direction::VERTICAL:
-      return {.width = CalculateMeasuredLength(width_mode, width, kMinFabSize),
+      return {.width = CalculateMeasuredLength(width_mode, width, ScrollBar::kWidth),
               .height = CalculateMeasuredLength(height_mode, height, 0.0f)};
     default:
       return {.width = CalculateMeasuredLength(width_mode, width, 0.0f),

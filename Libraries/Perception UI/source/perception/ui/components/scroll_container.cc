@@ -11,17 +11,23 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #include "perception/ui/components/scroll_container.h"
 
 #include "perception/ui/components/scroll_bar.h"
-/*
+
 namespace perception {
+
+template class UniqueIdentifiableType<ui::components::ScrollContainer>;
+
 namespace ui {
 namespace components {
 
+ScrollContainer::ScrollContainer() : has_calculated_content_size_(false) {}
+
 void ScrollContainer::SetNode(std::weak_ptr<Node> node) {}
 
-void ScrollContainer::SetContentPosition(Point& position) {
+void ScrollContainer::SetContentPosition(const Point& position) {
   auto scroll_container = scroll_container_.lock();
   if (!scroll_container) return;
 
@@ -56,8 +62,8 @@ void ScrollContainer::SetContentAndContainerNodes(
 }
 
 void ScrollContainer::SetHorizontalScrollBar(
-    std::weak_ptr<ScrollBar> horiziontal_scroll_bar) {
-  scroll_bars_[0] = horiziontal_scroll_bar;
+    std::weak_ptr<ScrollBar> horizontal_scroll_bar) {
+  scroll_bars_[0] = horizontal_scroll_bar;
   RegisterScrollBarListener(scroll_bars_[0]);
 }
 
@@ -71,7 +77,7 @@ Size ScrollContainer::ContentSize() {
   auto scroll_content = scroll_content_.lock();
   if (!scroll_content) return Size{0.0f, 0.0f};
 
-  auto scroll_content_layout = scroll_content.Layout();
+  auto scroll_content_layout = scroll_content->GetLayout();
   return {.width = scroll_content_layout.GetRight(),
           .height = scroll_content_layout.GetBottom()};
 }
@@ -80,7 +86,7 @@ Size ScrollContainer::ContainerSize() {
   auto scroll_container = scroll_container_.lock();
   if (!scroll_container) return Size{0.0f, 0.0f};
 
-  return scroll_content.Layout().GetCalculatedSize();
+  return scroll_container->GetLayout().GetCalculatedSize();
 }
 
 void ScrollContainer::RegisterScrollBarListener(
@@ -89,10 +95,10 @@ void ScrollContainer::RegisterScrollBarListener(
   if (!strong_scroll_bar) return;
 
   std::weak_ptr<ScrollContainer> weak_this = shared_from_this();
-  strong_scroll_bar->OnScroll([weak_this] {
+  strong_scroll_bar->OnScroll([weak_this](float value) {
     auto strong_this = weak_this.lock();
     if (strong_this) strong_this->MoveContentToScrollBarPosition();
-  })
+  });
 }
 
 void ScrollContainer::UpdateScrollBars() {
@@ -102,9 +108,9 @@ void ScrollContainer::UpdateScrollBars() {
   // Return if there are no scroll bars.
   if (!scroll_bars[0] && !scroll_bars[1]) return;
 
-  Point content_position = GetContentPosition();
-  Size content_size = GetContentSize();
-  Size container_size = GetContainerSize();
+  Point content_position = ContentPosition();
+  Size content_size = ContentSize();
+  Size container_size = ContainerSize();
 
   for (int i = 0; i < 2; i++) {
     if (!scroll_bars[i]) continue;
@@ -125,4 +131,3 @@ float ScrollContainer::GetScrollBarValue(int dimension) {
 }  // namespace components
 }  // namespace ui
 }  // namespace perception
-  */
