@@ -16,18 +16,23 @@
 #include <sstream>
 #include <vector>
 
+#include "include/core/SkFont.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/button.h"
 #include "perception/ui/components/container.h"
 #include "perception/ui/components/label.h"
+#include "perception/ui/components/scroll_container.h"
 #include "perception/ui/components/ui_window.h"
+#include "perception/ui/font.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
 
 using ::perception::HandOverControl;
 using ::perception::TerminateProcess;
+using ::perception::ui::DrawContext;
+using ::perception::ui::GetBook12UiFont;
 using ::perception::ui::Layout;
 using ::perception::ui::Node;
 using ::perception::ui::TextAlignment;
@@ -35,6 +40,7 @@ using ::perception::ui::components::Block;
 using ::perception::ui::components::Button;
 using ::perception::ui::components::Container;
 using ::perception::ui::components::Label;
+using ::perception::ui::components::ScrollContainer;
 using ::perception::ui::components::UiWindow;
 
 namespace {
@@ -51,23 +57,101 @@ double current_number = 0.0;
 bool any_number = false;
 bool decimal_pressed = false;
 double decimal_multiplier = 0.1;
+bool just_calculated = false;
+bool scroll_to_bottom_requested = false;
 
 std::shared_ptr<Label> display;
-std::shared_ptr<Node> terminal_content;
+std::shared_ptr<Node> history_content;
+std::shared_ptr<ScrollContainer> history_scroll_view;
 
-void UpdateDisplay() {
-  // std::to_string converts the number to fixed decimal places, which doesn't
-  // behave as you'd expect a calculator to.
-  std::stringstream buffer;
-  buffer << current_number;
-  if (decimal_pressed && decimal_multiplier == 0.1) {
-    display->SetText(buffer.str() + ".");
-  } else {
-    display->SetText(buffer.str());
+SkFont* GetBook10UiFont() {
+  static std::unique_ptr<SkFont> book_10_ui_font;
+  if (!book_10_ui_font) {
+    book_10_ui_font = std::make_unique<SkFont>(*GetBook12UiFont());
+    book_10_ui_font->setSize(10.0f);
+  }
+  return book_10_ui_font.get();
+}
+
+std::string GetOperatorString(Operation op) {
+  switch (op) {
+    case ADD:
+      return "+";
+    case SUBTRACT:
+      return "-";
+    case DIVIDE:
+      return "/";
+    case MULTIPLY:
+      return "x";
+    default:
+      return "";
   }
 }
 
+std::string FormatFinishedNumber(double number) {
+  std::stringstream buffer;
+  buffer << number;
+  return buffer.str();
+}
+
+std::string FormatCurrentNumber() {
+  std::stringstream buffer;
+  buffer << current_number;
+  if (decimal_pressed && decimal_multiplier == 0.1) {
+    return buffer.str() + ".";
+  } else {
+    return buffer.str();
+  }
+}
+
+void UpdateDisplay() {
+  if (operation == NOTHING) {
+    display->SetText(FormatCurrentNumber());
+  } else {
+    std::string expr =
+        FormatFinishedNumber(last_number) + " " + GetOperatorString(operation);
+    if (any_number) {
+      expr += " " + FormatCurrentNumber();
+    }
+    display->SetText(expr);
+  }
+}
+
+void AddToHistory(const std::string& expression, const std::string& result) {
+  auto entry = Container::VerticalContainer(
+      [](Layout& layout) {
+        layout.SetAlignSelf(YGAlignStretch);
+        layout.SetGap(2.0f);
+        layout.SetPadding(YGEdgeBottom, 6.0f);
+      },
+      Label::BasicLabel(
+          expression,
+          [](Label& label) {
+            label.SetTextAlignment(TextAlignment::MiddleLeft);
+            label.SetFont(GetBook10UiFont());
+            label.SetColor(SkColorSetARGB(0xFF, 0x77, 0x77, 0x77));
+          },
+          [](Layout& layout) { layout.SetAlignSelf(YGAlignStretch); }),
+      Label::BasicLabel(
+          result,
+          [](Label& label) {
+            label.SetTextAlignment(TextAlignment::MiddleRight);
+            label.SetFont(GetBook12UiFont());
+          },
+          [](Layout& layout) { layout.SetAlignSelf(YGAlignStretch); }));
+
+  history_content->AddChild(entry);
+  scroll_to_bottom_requested = true;
+}
+
 void PressNumber(int number) {
+  if (just_calculated) {
+    current_number = 0.0;
+    any_number = false;
+    decimal_pressed = false;
+    just_calculated = false;
+  }
+
   if (!any_number) {
     current_number = static_cast<double>(number);
   } else if (decimal_pressed) {
@@ -82,11 +166,22 @@ void PressNumber(int number) {
 }
 
 void PressFlipSign() {
+  if (just_calculated) {
+    just_calculated = false;
+    any_number = true;
+  }
   current_number *= -1;
   UpdateDisplay();
 }
 
 void PressDecimal() {
+  if (just_calculated) {
+    current_number = 0.0;
+    any_number = false;
+    decimal_pressed = false;
+    just_calculated = false;
+  }
+
   if (decimal_pressed) return;
 
   decimal_pressed = true;
@@ -99,26 +194,39 @@ void PressDecimal() {
 }
 
 void PressEquals() {
+  if (operation == NOTHING) return;
+
+  std::string expr = FormatFinishedNumber(last_number) + " " +
+                     GetOperatorString(operation) + " " + FormatCurrentNumber();
+  double result = 0.0;
+
   switch (operation) {
-    default:
-      return;
     case ADD:
-      current_number = last_number + current_number;
+      result = last_number + current_number;
       break;
     case SUBTRACT:
-      current_number = last_number - current_number;
+      result = last_number - current_number;
       break;
     case DIVIDE:
-      if (current_number != 0) current_number = last_number / current_number;
+      if (current_number != 0.0) {
+        result = last_number / current_number;
+      }
       break;
     case MULTIPLY:
-      current_number = last_number * current_number;
+      result = last_number * current_number;
       break;
+    default:
+      return;
   }
+
+  AddToHistory(expr, FormatFinishedNumber(result));
+
+  current_number = result;
   operation = NOTHING;
-  UpdateDisplay();
   any_number = false;
   decimal_pressed = false;
+  just_calculated = true;
+  UpdateDisplay();
 }
 
 void PressOperator(Operation new_operator) {
@@ -129,29 +237,47 @@ void PressOperator(Operation new_operator) {
   any_number = false;
   decimal_pressed = false;
   current_number = 0.0;
+  just_calculated = false;
   UpdateDisplay();
 }
 
 void PressClear() {
   current_number = 0.0;
+  last_number = 0.0;
+  operation = NOTHING;
+  any_number = false;
   decimal_pressed = false;
+  just_calculated = false;
   UpdateDisplay();
 }
 
 }  // namespace
 
 int main(int argc, char* argv[]) {
-  //  terminal_content = Node(FlexDirection(YGFlexDirectionColumn));
-  /*for (int i = 0; i < 80; i++) {
-    terminal_content->AddChild(
-        std::make_shared<Label>()->SetLabel("Hello")->ToSharedPtr());
-  }*/
+  history_content = Container::VerticalContainer([](Layout& layout) {
+    layout.SetFlexGrow(1.0f);
+    layout.SetAlignSelf(YGAlignStretch);
+    layout.SetJustifyContent(YGJustifyFlexEnd);
+    layout.SetWidthPercent(100.0f);
+  });
 
-  /*auto terminal_container =
-     ScrollContainer(terminal_content, ShowVerticalScrollBar(),
-                     FillColor(kTerminalBackgroundColor), BorderWidth(0.0f),
-                     BorderRadius(0.0f), FlexGrow(1.0),
-                     AlignSelf(YGAlignStretch), Margin(YGEdgeAll, 0.0f));*/
+  history_content->OnDrawPostChildren([](const DrawContext& context) {
+    if (scroll_to_bottom_requested) {
+      float max_y = history_scroll_view->ContentSize().height -
+                    history_scroll_view->ContainerSize().height;
+      if (max_y < 0.0f) max_y = 0.0f;
+      history_scroll_view->SetContentPosition({.x = 0.0f, .y = max_y});
+      scroll_to_bottom_requested = false;
+    }
+  });
+
+  std::shared_ptr<Node> history_scroll_container =
+      ScrollContainer::VerticalScrollContainer(
+          history_content, &history_scroll_view, [](Layout& layout) {
+            layout.SetFlexGrow(1.0f);
+            layout.SetAlignSelf(YGAlignStretch);
+            layout.SetPadding(YGEdgeAll, 8.0f);
+          });
 
   auto terminal_container = Block::SolidColor(
       kTerminalBackgroundColor,
@@ -160,25 +286,29 @@ int main(int argc, char* argv[]) {
         layout.SetAlignSelf(YGAlignStretch);
         layout.SetMargin(YGEdgeAll, 0.f);
       },
-      Label::BasicLabel(
-          "",
-          [](Label& label) {
-            label.SetTextAlignment(TextAlignment::MiddleCenter);
-          },
+      Container::VerticalContainer(
           [](Layout& layout) {
+            layout.SetFlexGrow(1.0f);
             layout.SetAlignSelf(YGAlignStretch);
-            layout.SetFlexGrow(1.0);
+            layout.SetGap(0.0f);
           },
-          &display));
-  /*
-    window->OnResize([](float width, float height) {
-      bool is_landscape = width > height;
-      if (auto top_level_widget =
-              Widget::GetWidgetWithId(kTopLevelWidgetId).lock()) {
-        top_level_widget->SetFlexDirection(
-            is_landscape ? YGFlexDirectionRowReverse : YGFlexDirectionColumn);
-      }
-    });*/
+          history_scroll_container,
+          Block::SolidColor(SkColorSetARGB(0xFF, 0xE0, 0xE0, 0xE0),
+                            [](Layout& layout) {
+                              layout.SetAlignSelf(YGAlignStretch);
+                              layout.SetHeight(1.0f);
+                            }),
+          Label::BasicLabel(
+              "",
+              [](Label& label) {
+                label.SetTextAlignment(TextAlignment::MiddleRight);
+              },
+              [](Layout& layout) {
+                layout.SetAlignSelf(YGAlignStretch);
+                layout.SetHeight(40.0f);
+                layout.SetPadding(YGEdgeHorizontal, 12.0f);
+              },
+              &display)));
 
   auto button_panel = Block::SolidColor(
       kButtonPanelBackgroundColor,
