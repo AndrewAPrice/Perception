@@ -32,7 +32,15 @@ namespace components {
 // shadows:
 // https://skia.googlesource.com/skia/+/2e551697dc56/modules/skottie/src/effects/ShadowStyles.cpp?autodive=0%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F
 
-Block::Block() : needs_draw_(false), needs_draw_post_children_(false) {}
+Block::Block()
+    : needs_draw_(false),
+      needs_draw_post_children_(false),
+      needs_hit_test_(false),
+      border_color_(0),
+      border_width_(0.0f),
+      border_radius_(0.0f),
+      fill_color_(0),
+      clip_contents_(false) {}
 
 void Block::SetNode(std::weak_ptr<Node> node) {
   node_ = node;

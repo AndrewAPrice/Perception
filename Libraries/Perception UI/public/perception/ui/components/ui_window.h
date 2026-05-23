@@ -148,6 +148,7 @@ class UiWindow : public window::WindowDelegate,
   bool invalidated_;
   bool created_;
   bool is_resizable_;
+  bool is_drawing_;
 
   void Create();
 
@@ -168,7 +169,7 @@ class UiWindow : public window::WindowDelegate,
 
   sk_sp<SkSurface> skia_surface_;
 
-  std::mutex window_mutex_;
+  std::recursive_mutex window_mutex_;
 
   std::set<std::weak_ptr<Node>, NodeWeakPtrComparator>
       nodes_to_notify_when_mouse_leaves_;

@@ -18,8 +18,12 @@
 #include <iostream>
 #include <map>
 
+#include "include/core/SkCanvas.h"
+#include "include/core/SkRect.h"
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/label.h"
+#include "perception/ui/components/scroll_bar.h"
+#include "perception/ui/components/scroll_container.h"
 #include "perception/ui/draw_context.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/measurements.h"
@@ -99,11 +103,22 @@ void Node::Draw(DrawContext& draw_context) {
   if (clip_children) {
     auto intersecting_clipping_bounds =
         draw_context.clipping_bounds.Intersection(draw_context.area);
-    if (intersecting_clipping_bounds) {
+    if (intersecting_clipping_bounds &&
+        intersecting_clipping_bounds->size.width > 0.0f &&
+        intersecting_clipping_bounds->size.height > 0.0f) {
       Rectangle old_clipping_bounds = draw_context.clipping_bounds;
       draw_context.clipping_bounds = *intersecting_clipping_bounds;
 
+      draw_context.skia_canvas->save();
+      draw_context.skia_canvas->clipRect(
+          SkRect::MakeXYWH(intersecting_clipping_bounds->origin.x,
+                           intersecting_clipping_bounds->origin.y,
+                           intersecting_clipping_bounds->size.width,
+                           intersecting_clipping_bounds->size.height));
+
       DrawChildren(draw_context);
+
+      draw_context.skia_canvas->restore();
 
       draw_context.clipping_bounds = old_clipping_bounds;
     }
@@ -236,8 +251,8 @@ bool Node::GetNodesAt(
     return false;
 
   Layout layout = GetLayout();
-  Point point_without_margin{.x = point.x - layout.GetLeft(),
-                             .y = point.y - layout.GetTop()};
+  Point point_without_margin{.x = point.x - layout.GetLeft() + scroll_offset_.x,
+                             .y = point.y - layout.GetTop() + scroll_offset_.y};
 
   bool child_blocks_hit_test = false;
 
@@ -299,8 +314,7 @@ Rectangle Node::GetAreaRelativeToParent() {
 
 Point Node::GetPositionRelativeToParent() {
   Layout layout = GetLayout();
-  Point position = {.x = layout.GetLeft(), .y = layout.GetTop()};
-  return position - scroll_offset_;
+  return {.x = layout.GetLeft(), .y = layout.GetTop()};
 }
 
 Size Node::GetSize() {
@@ -314,7 +328,10 @@ void Node::SetParent(std::weak_ptr<Node> parent) { parent_ = parent; }
 void Node::DrawChildren(DrawContext& draw_context) {
   if (children_.empty()) return;
   Layout layout = GetLayout();
+  Point old_origin = draw_context.area.origin;
+  draw_context.area.origin -= scroll_offset_;
   for (auto& child : children_) child->Draw(draw_context);
+  draw_context.area.origin = old_origin;
 }
 
 void Node::InvalidateWhenDirtied() {
@@ -383,6 +400,42 @@ void Node::PrintHierarchy(int indent) {
               << block->GetBorderColor() << std::dec << "\",\n";
     std::cout << indent_str
               << "    \"border_width\": " << block->GetBorderWidth() << "\n";
+    std::cout << indent_str << "  }";
+  }
+
+  if (scroll_offset_.x != 0.0f || scroll_offset_.y != 0.0f) {
+    std::cout << ",\n" << indent_str << "  \"scroll_offset\": {\n";
+    std::cout << indent_str << "    \"x\": " << scroll_offset_.x << ",\n";
+    std::cout << indent_str << "    \"y\": " << scroll_offset_.y << "\n";
+    std::cout << indent_str << "  }";
+  }
+
+  if (auto scroll_bar = Get<components::ScrollBar>()) {
+    std::cout << ",\n" << indent_str << "  \"scroll_bar\": {\n";
+    std::cout << indent_str << "    \"direction\": "
+              << (scroll_bar->GetDirection() ==
+                          components::ScrollBar::Direction::VERTICAL
+                      ? "\"vertical\""
+                      : "\"horizontal\"")
+              << ",\n";
+    std::cout << indent_str << "    \"value\": " << scroll_bar->GetValue()
+              << "\n";
+    std::cout << indent_str << "  }";
+  }
+
+  if (auto scroll_container = Get<components::ScrollContainer>()) {
+    std::cout << ",\n" << indent_str << "  \"scroll_container\": {\n";
+    std::cout << indent_str << "    \"content_position\": {"
+              << "\"x\": " << scroll_container->ContentPosition().x
+              << ", \"y\": " << scroll_container->ContentPosition().y << "},\n";
+    std::cout << indent_str << "    \"content_size\": {"
+              << "\"width\": " << scroll_container->ContentSize().width
+              << ", \"height\": " << scroll_container->ContentSize().height
+              << "},\n";
+    std::cout << indent_str << "    \"container_size\": {"
+              << "\"width\": " << scroll_container->ContainerSize().width
+              << ", \"height\": " << scroll_container->ContainerSize().height
+              << "}\n";
     std::cout << indent_str << "  }";
   }
 

@@ -16,6 +16,7 @@
 
 #include <iostream>
 
+#include "include/core/SkCanvas.h"
 #include "include/core/SkColorSpace.h"
 #include "include/core/SkGraphics.h"
 #include "include/core/SkSurface.h"
@@ -48,6 +49,7 @@ UiWindow::UiWindow()
     : created_(false),
       background_color_(kBackgroundWindowColor),
       invalidated_(false),
+      is_drawing_(false),
       buffer_width_(0),
       buffer_height_(0) {
   SkGraphics::Init();  // See if this isn't needed.
@@ -208,10 +210,10 @@ void UiWindow::Draw() {
   std::scoped_lock lock(window_mutex_);
 
   if (!invalidated_) return;
+  invalidated_ = false;
   if (base_window_) {
     base_window_->Present();
   }
-  invalidated_ = false;
 }
 
 void UiWindow::GetNodesAt(
@@ -225,7 +227,7 @@ void UiWindow::GetNodesAt(
 }
 
 void UiWindow::InvalidateRender() {
-  if (invalidated_) {
+  if (invalidated_ && !is_drawing_) {
     return;
   }
 
@@ -241,6 +243,7 @@ void UiWindow::InvalidateRender() {
 
 void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
                           window::Rectangle& invalidated_area) {
+  std::scoped_lock lock(window_mutex_);
   if (node_.expired()) return;
   auto node = node_.lock();
   if (!skia_surface_ || buffer_width_ != buffer.width ||
@@ -291,7 +294,14 @@ void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
               << root_w << "x" << root_h << std::endl;
   }
 
+  is_drawing_ = true;
   node->Draw(draw_context);
+  is_drawing_ = false;
+
+  if (skia_surface_) {
+    SkPixmap pixmap;
+    skia_surface_->peekPixels(&pixmap);
+  }
 }
 
 void UiWindow::Create() {

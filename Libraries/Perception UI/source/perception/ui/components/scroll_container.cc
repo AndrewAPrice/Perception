@@ -14,7 +14,10 @@
 
 #include "perception/ui/components/scroll_container.h"
 
+#include <algorithm>
+
 #include "perception/ui/components/scroll_bar.h"
+#include "perception/ui/draw_context.h"
 
 namespace perception {
 
@@ -31,7 +34,19 @@ void ScrollContainer::SetContentPosition(const Point& position) {
   auto scroll_container = scroll_container_.lock();
   if (!scroll_container) return;
 
-  scroll_container->SetOffset(position);
+  Size content_size = ContentSize();
+  Size container_size = ContainerSize();
+
+  float max_x = content_size.width - container_size.width;
+  float max_y = content_size.height - container_size.height;
+
+  if (max_x < 0.0f) max_x = 0.0f;
+  if (max_y < 0.0f) max_y = 0.0f;
+
+  Point clamped_position = {.x = std::max(std::min(position.x, max_x), 0.0f),
+                            .y = std::max(std::min(position.y, max_y), 0.0f)};
+
+  scroll_container->SetOffset(clamped_position);
 }
 
 Point ScrollContainer::ContentPosition() {
@@ -59,6 +74,11 @@ void ScrollContainer::SetContentAndContainerNodes(
 
   strong_scroll_container->OnInvalidate(invalidation_handler);
   strong_scroll_content->OnInvalidate(invalidation_handler);
+
+  strong_scroll_container->OnDraw([weak_this](const DrawContext& context) {
+    auto strong_this = weak_this.lock();
+    if (strong_this) strong_this->UpdateScrollBars();
+  });
 }
 
 void ScrollContainer::SetHorizontalScrollBar(
@@ -78,8 +98,8 @@ Size ScrollContainer::ContentSize() {
   if (!scroll_content) return Size{0.0f, 0.0f};
 
   auto scroll_content_layout = scroll_content->GetLayout();
-  return {.width = scroll_content_layout.GetRight(),
-          .height = scroll_content_layout.GetBottom()};
+  return {.width = scroll_content_layout.GetCalculatedWidth(),
+          .height = scroll_content_layout.GetCalculatedHeight()};
 }
 
 Size ScrollContainer::ContainerSize() {
@@ -108,9 +128,36 @@ void ScrollContainer::UpdateScrollBars() {
   // Return if there are no scroll bars.
   if (!scroll_bars[0] && !scroll_bars[1]) return;
 
+  // Force dirty the scroll content's Yoga layout so that Yoga does NOT reuse
+  // stale cached layout bounds after content shifts or resizing events!
+  auto scroll_content = scroll_content_.lock();
+  if (scroll_content) {
+    auto layout = scroll_content->GetLayout();
+    if (scroll_bars[1]) {
+      layout.SetHeightAuto();
+    }
+    if (scroll_bars[0]) {
+      layout.SetWidthAuto();
+    }
+  }
+
   Point content_position = ContentPosition();
   Size content_size = ContentSize();
   Size container_size = ContainerSize();
+
+  float max_x = content_size.width - container_size.width;
+  float max_y = content_size.height - container_size.height;
+  if (max_x < 0.0f) max_x = 0.0f;
+  if (max_y < 0.0f) max_y = 0.0f;
+
+  Point clamped_position = {
+      .x = std::max(std::min(content_position.x, max_x), 0.0f),
+      .y = std::max(std::min(content_position.y, max_y), 0.0f)};
+
+  if (clamped_position != content_position) {
+    SetContentPosition(clamped_position);
+    content_position = clamped_position;
+  }
 
   for (int i = 0; i < 2; i++) {
     if (!scroll_bars[i]) continue;

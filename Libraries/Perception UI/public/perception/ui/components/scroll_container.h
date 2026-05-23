@@ -43,12 +43,16 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
             [](Layout& layout) {
               layout.SetFlexGrow(1.0f);
               layout.SetFlexShrink(1.0f);
+              layout.SetMinHeight(0.0f);
+              layout.SetMinWidth(0.0f);
             },
             Node::Empty(
                 [](Layout& layout) {
                   layout.SetOverflow(YGOverflowScroll);
                   layout.SetFlexGrow(1.0f);
                   layout.SetFlexShrink(1.0f);
+                  layout.SetMinHeight(0.0f);
+                  layout.SetMinWidth(0.0f);
                 },
                 &scroll_container_node, scroll_content),
             ScrollBar::HorizontalScrollBar(&horizontal_scroll_bar)),
@@ -59,6 +63,10 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
           container.SetHorizontalScrollBar(horizontal_scroll_bar);
           container.SetVerticalScrollBar(vertical_scroll_bar);
         });
+
+    scroll_content->GetLayout().SetFlexShrink(0.0f);
+    node->GetLayout().SetMinHeight(0.0f);
+    node->GetLayout().SetMinWidth(0.0f);
 
     node->Apply(modifiers...);
     return node;
@@ -76,6 +84,7 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
               layout.SetOverflow(YGOverflowScroll);
               layout.SetFlexGrow(1.0f);
               layout.SetFlexShrink(1.0f);
+              layout.SetMinHeight(0.0f);
             },
             &scroll_container_node, scroll_content),
         ScrollBar::VerticalScrollBar(&vertical_scroll_bar),
@@ -84,6 +93,9 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
                                                 scroll_container_node);
           container.SetVerticalScrollBar(vertical_scroll_bar);
         });
+
+    scroll_content->GetLayout().SetFlexShrink(0.0f);
+    node->GetLayout().SetMinHeight(0.0f);
 
     node->Apply(modifiers...);
     return node;
@@ -101,6 +113,7 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
               layout.SetOverflow(YGOverflowScroll);
               layout.SetFlexGrow(1.0f);
               layout.SetFlexShrink(1.0f);
+              layout.SetMinWidth(0.0f);
             },
             &scroll_container_node, scroll_content),
         ScrollBar::HorizontalScrollBar(&horizontal_scroll_bar),
@@ -109,6 +122,9 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
                                                 scroll_container_node);
           container.SetHorizontalScrollBar(horizontal_scroll_bar);
         });
+
+    scroll_content->GetLayout().SetFlexShrink(0.0f);
+    node->GetLayout().SetMinWidth(0.0f);
 
     node->Apply(modifiers...);
     return node;

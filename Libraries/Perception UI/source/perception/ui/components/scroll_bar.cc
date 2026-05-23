@@ -94,6 +94,10 @@ void ScrollBar::SetValue(float minimum, float maximum, float value,
   maximum_ = maximum;
   value_ = value;
   size_ = size;
+
+  if (!node_.expired()) {
+    node_.lock()->Invalidate();
+  }
 }
 
 float ScrollBar::GetValue() const { return value_; }
@@ -101,11 +105,11 @@ float ScrollBar::GetValue() const { return value_; }
 std::pair<float, float> ScrollBar::CalculateFabOffsetAndSize(
     float available_length) const {
   float range = maximum_ - minimum_;
-  if (range == 0.0f) {
+  if (range <= size_ || range == 0.0f) {
     return {0.0f, available_length};
   }
   // Percentage of the scroll bar that the fab takes up.
-  float size = available_length / range;
+  float size = size_ / range;
   // Percentage of the scroll bar to be offset into.
   float offset = (value_ - minimum_) / range;
 
@@ -269,13 +273,17 @@ void ScrollBar::Draw(const DrawContext& draw_context) {
   uint32 fab_color = GetFabColor();
   if (fab_color == 0) return;
 
+  Rectangle rectangle = draw_context.area;
+  if (rectangle.size.width <= 0.0f || rectangle.size.height <= 0.0f) return;
+
+  AdjustRectangleForFab(rectangle);
+  if (rectangle.size.width <= 0.0f || rectangle.size.height <= 0.0f) return;
+
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor(GetFabColor());
+  p.setColor(fab_color);
   p.setStyle(SkPaint::kFill_Style);
 
-  Rectangle rectangle = draw_context.area;
-  AdjustRectangleForFab(rectangle);
   draw_context.skia_canvas->drawRect({rectangle.origin.x, rectangle.origin.y,
                                       rectangle.MaxX(), rectangle.MaxY()},
                                      p);
