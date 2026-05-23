@@ -42,6 +42,8 @@ long pread64(int fd, void *buf, long count, off_t offset) {
 
   // Return to the old offset.
   file->file.offset_in_file = old_ofset;
+
+  return bytes_read;
 }
 
 }  // namespace linux_syscalls
