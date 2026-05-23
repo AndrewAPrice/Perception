@@ -39,3 +39,6 @@ class File {
 // empty pointer if the file can't be loaded. Files are not cached or recycled.
 // This powers the functions in elf_file_cache.h.
 std::unique_ptr<File> LoadFile(std::string_view name);
+
+// Returns a path to a file if it can be resolved.
+std::optional<std::string> GetPathToFile(std::string_view name_sv);

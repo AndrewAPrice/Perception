@@ -62,38 +62,6 @@ std::string_view GetTrimmedLibraryName(std::string_view library_name) {
   return library_name;
 }
 
-// Returns a path to a file.
-std::optional<std::string> GetPathToFile(std::string_view name_sv) {
-  if (name_sv.size() == 0) return std::nullopt;
-
-  std::string name = std::string(name_sv);
-  if (name[0] == '/') {
-    // This is a fully qualified path. Check that it exists.
-    if (!std::filesystem::exists(name)) return std::nullopt;
-    return name;
-  }
-  // Check /Applications/ first, since it's the first mount point.
-  std::string path_suffix, path;
-  std::string_view trimmed_name = GetTrimmedLibraryName(name_sv);
-  if (trimmed_name != name) {
-    path_suffix = "/" + std::string(trimmed_name) + "/" + name;
-    path = "/Libraries" + path_suffix;
-
-  } else {
-    path_suffix = "/" + name + "/" + name + ".app";
-    path = "/Applications" + path_suffix;
-  }
-  if (std::filesystem::exists(path)) return path;
-
-  // Check each mounted disk.
-  for (const auto& root_entry : std::filesystem::directory_iterator("/")) {
-    std::string disk_path = std::string(root_entry.path()) + path;
-    if (std::filesystem::exists(disk_path)) return disk_path;
-  }
-
-  // Can't find the application anywhere.
-  return std::nullopt;
-}
 
 // Represents a file loaded from disk.
 class DiskFile : public File {
@@ -223,3 +191,37 @@ std::unique_ptr<File> LoadFile(std::string_view name) {
   std::cout << "Cannot find \"" << name << "\" to load." << std::endl;
   return nullptr;
 }
+
+// Returns a path to a file.
+std::optional<std::string> GetPathToFile(std::string_view name_sv) {
+  if (name_sv.size() == 0) return std::nullopt;
+
+  std::string name = std::string(name_sv);
+  if (name[0] == '/') {
+    // This is a fully qualified path. Check that it exists.
+    if (!std::filesystem::exists(name)) return std::nullopt;
+    return name;
+  }
+  // Check /Applications/ first, since it's the first mount point.
+  std::string path_suffix, path;
+  std::string_view trimmed_name = GetTrimmedLibraryName(name_sv);
+  if (trimmed_name != name) {
+    path_suffix = "/" + std::string(trimmed_name) + "/" + name;
+    path = "/Libraries" + path_suffix;
+
+  } else {
+    path_suffix = "/" + name + "/" + name + ".app";
+    path = "/Applications" + path_suffix;
+  }
+  if (std::filesystem::exists(path)) return path;
+
+  // Check each mounted disk.
+  for (const auto& root_entry : std::filesystem::directory_iterator("/")) {
+    std::string disk_path = std::string(root_entry.path()) + path;
+    if (std::filesystem::exists(disk_path)) return disk_path;
+  }
+
+  // Can't find the application anywhere.
+  return std::nullopt;
+}
+
