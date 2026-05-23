@@ -309,6 +309,11 @@ class PerceptionWindow : public Window,
 
   virtual Status DisplayEnvironmentChanged() override { return Status::OK; }
 
+  virtual Status PrintUiHierarchy() override {
+    if (!delegate_.expired()) delegate_.lock()->PrintUiHierarchy();
+    return Status::OK;
+  }
+
  private:
   std::weak_ptr<WindowDelegate> delegate_;
   std::mutex mutex_;
