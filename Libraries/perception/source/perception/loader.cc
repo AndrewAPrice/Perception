@@ -18,9 +18,39 @@
 
 namespace perception {
 
+namespace {
+
+struct StringSerializable : public serialization::Serializable {
+  std::string* value;
+  StringSerializable(std::string* value) : value(value) {}
+  virtual void Serialize(serialization::Serializer& serializer) override {
+    serializer.String("Value", *value);
+  }
+};
+
+}  // namespace
+
 void LoadApplicationRequest::Serialize(
     serialization::Serializer& serializer) {
   serializer.String("Name", name);
+  serializer.ArrayOfSerializables(
+      "Arguments", arguments.size(),
+      [this](const std::function<void(class serialization::Serializable&)>&
+                 serialize_entry) {
+        for (auto& argument : arguments) {
+          StringSerializable entry(&argument);
+          serialize_entry(entry);
+        }
+      },
+      [this](int elements,
+             const std::function<void(class serialization::Serializable&)>&
+                 deserialize_entry) {
+        arguments.resize(elements);
+        for (int i = 0; i < elements; ++i) {
+          StringSerializable entry(&arguments[i]);
+          deserialize_entry(entry);
+        }
+      });
 }
 
 void LoadApplicationResponse::Serialize(

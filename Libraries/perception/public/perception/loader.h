@@ -15,6 +15,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "perception/serialization/serializable.h"
 #include "perception/service_macros.h"
@@ -27,7 +28,11 @@ class Serializer;
 
 class LoadApplicationRequest : public serialization::Serializable {
  public:
+  // The name or path of the application to load.
   std::string name;
+
+  // Optional arguments to pass to the application.
+  std::vector<std::string> arguments;
 
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
