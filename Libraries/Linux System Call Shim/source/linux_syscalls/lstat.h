@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/stat.h>
+#pragma once
+
+struct kstat;
 
 namespace perception {
 namespace linux_syscalls {
 
-long lstat(const char* pathname, struct stat* statbuf);
-
+long lstat(const char* pathname, struct kstat* statbuf);
 }
 }  // namespace perception

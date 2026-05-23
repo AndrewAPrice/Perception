@@ -538,7 +538,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_fspick:
       return ::perception::linux_syscalls::fspick();
     case SYS_fstat:
-      return ::perception::linux_syscalls::fstat(a1, (struct stat *)a2);
+      return ::perception::linux_syscalls::fstat(a1, (struct kstat*)a2);
     case SYS_fstatfs:
       return ::perception::linux_syscalls::fstatfs(a1, (struct statfs *)a2);
     case SYS_fsync:
@@ -685,8 +685,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
       return ::perception::linux_syscalls::lsetxattr();
     case SYS_lstat:
       return ::perception::linux_syscalls::lstat(
-          reinterpret_cast<const char *>(a1),
-          reinterpret_cast<struct stat *>(a2));
+          reinterpret_cast<const char*>(a1),
+          reinterpret_cast<struct kstat*>(a2));
     case SYS_madvise:
       return ::perception::linux_syscalls::madvise();
     case SYS_mbind:
@@ -761,8 +761,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
       return ::perception::linux_syscalls::nanosleep();
     case SYS_newfstatat:
       return ::perception::linux_syscalls::newfstatat(
-          static_cast<int>(a1), reinterpret_cast<const char *>(a2),
-          reinterpret_cast<struct stat *>(a3), static_cast<int>(a4));
+          static_cast<int>(a1), reinterpret_cast<const char*>(a2),
+          reinterpret_cast<struct kstat*>(a3), static_cast<int>(a4));
     case SYS_nfsservctl:
       return ::perception::linux_syscalls::nfsservctl();
     case SYS_open:
@@ -999,8 +999,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_splice:
       return ::perception::linux_syscalls::splice();
     case SYS_stat:
-      return ::perception::linux_syscalls::stat((const char *)a1,
-                                                (struct stat *)a2);
+      return ::perception::linux_syscalls::stat((const char*)a1,
+                                                (struct kstat*)a2);
     case SYS_statfs:
       return ::perception::linux_syscalls::statfs((const char *)a1,
                                                   (struct statfs *)a2);

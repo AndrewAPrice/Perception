@@ -14,6 +14,8 @@
 
 #include "linux_syscalls/stat.h"
 
+#include <errno.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #include "perception/services.h"
@@ -22,7 +24,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long stat(const char* pathname, struct stat* statbuf) {
+long stat(const char* pathname, struct kstat* statbuf) {
   auto status_or_response =
       GetService<StorageManager>().GetFileStatistics({pathname});
   if (!status_or_response) {
@@ -35,7 +37,7 @@ long stat(const char* pathname, struct stat* statbuf) {
     return -1;
   }
 
-  memset(statbuf, 0, sizeof(struct stat));
+  memset(statbuf, 0, sizeof(struct kstat));
   switch (status_or_response->type) {
     case DirectoryEntry::Type::DIRECTORY:
       statbuf->st_mode = S_IFDIR;

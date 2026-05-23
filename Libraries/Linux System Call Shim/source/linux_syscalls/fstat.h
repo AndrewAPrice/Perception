@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-struct stat;
+#pragma once
+
+struct kstat;
 
 namespace perception {
 namespace linux_syscalls {
 
-long fstat(long fd, struct stat* statbuf);
-
+long fstat(long fd, struct kstat* statbuf);
 }
 }  // namespace perception

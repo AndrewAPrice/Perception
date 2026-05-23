@@ -18,7 +18,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long lstat(const char* pathname, struct stat* statbuf) {
+long lstat(const char* pathname, struct kstat* statbuf) {
   return ::perception::linux_syscalls::stat(pathname, statbuf);
 }
 

@@ -14,22 +14,24 @@
 
 #include "linux_syscalls/fstat.h"
 
+#include <errno.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #include "files.h"
-#include "perception/debug.h"
+#include "linux_syscalls/stat.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long fstat(long fd, struct stat* statbuf) {
+long fstat(long fd, struct kstat* statbuf) {
   auto file_descriptor = GetFileDescriptor(fd);
   if (!file_descriptor) {
     errno = EINVAL;
     return -1;
   }
 
-  memset(statbuf, 0, sizeof(struct stat));
+  memset(statbuf, 0, sizeof(struct kstat));
   if (file_descriptor->type == FileDescriptor::DIRECTORY) {
     statbuf->st_mode = S_IFDIR;
   } else if (file_descriptor->type == FileDescriptor::FILE) {

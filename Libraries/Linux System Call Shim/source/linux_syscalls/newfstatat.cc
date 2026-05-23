@@ -18,7 +18,8 @@
 namespace perception {
 namespace linux_syscalls {
 
-long newfstatat(int dirfd, const char* pathname, struct stat* statbuf, int flags) {
+long newfstatat(int dirfd, const char* pathname, struct kstat* statbuf,
+                int flags) {
   return ::perception::linux_syscalls::stat(pathname, statbuf);
 }
 
