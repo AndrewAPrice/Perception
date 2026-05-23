@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <string_view>
 
@@ -173,6 +174,8 @@ class UiWindow : public window::WindowDelegate,
 
   std::set<std::weak_ptr<Node>, NodeWeakPtrComparator>
       nodes_to_notify_when_mouse_leaves_;
+
+  std::optional<window::Cursor> last_cursor_;
 
   void HandleMouseEvent(
       const Point& point,

@@ -185,8 +185,11 @@ void UiWindow::MouseHovered(const window::MouseHoverEvent& event) {
                      }
                    });
 
-  if (base_window_) {
-    base_window_->SetCursor(active_cursor.value_or(window::Cursor::Pointer));
+  window::Cursor preferred_cursor =
+      active_cursor.value_or(window::Cursor::Pointer);
+  if (base_window_ && (!last_cursor_ || *last_cursor_ != preferred_cursor)) {
+    last_cursor_ = preferred_cursor;
+    base_window_->SetCursor(preferred_cursor);
   }
 }
 
