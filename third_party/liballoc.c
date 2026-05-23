@@ -263,6 +263,10 @@ void *PREFIX(imalloc)(size_t req_size)
 		#endif
 		return PREFIX(malloc)(1);
 	}
+
+	// Align size to a multiple of ALIGNMENT to ensure structural and pointer alignment.
+	if ( size % ALIGNMENT )
+		size = size + (ALIGNMENT - (size % ALIGNMENT));
 	
 
 	if ( l_memRoot == NULL )
