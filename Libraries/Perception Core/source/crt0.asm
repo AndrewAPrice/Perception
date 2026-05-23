@@ -32,9 +32,19 @@ envp:
 
 ; This is the entrypoint where programs begin running.
 _start:
+	mov rsi, 0                  ; Default argc = 0
+	lea rdx, [envp]             ; Default argv = envp address
+
+	test rdi, rdi               ; Check if args_address is NULL
+	jz .no_args                 ; If NULL, keep default 0, envp
+
+	; We have arguments!
+	mov rsi, [rdi]              ; Load argc from [args_address]
+	add rdi, 8                  ; argv points to args_address + 8
+	mov rdx, rdi                ; Set argv in rdx
+
+.no_args:
 	lea rdi, [_main wrt ..plt]
-	mov rsi, 0                  ; argc = 0
-	lea rdx, [envp]            ; argv = envp address
 	; Call the C entry point.
 	lea rcx, [__libc_start_init wrt ..plt]
 	lea r8, [__libc_exit_fini wrt ..plt]

@@ -41,9 +41,9 @@ void InitFiniFunctions::AddFunctionSection(
   array->push_back((*section_header)->sh_addr + offset);
 }
 
-void InitFiniFunctions::PopulateInMemory(
-    size_t start_address, std::map<size_t, void *> &child_memory_pages,
-    std::map<std::string_view, size_t> &symbols_to_addresses) {
+size_t InitFiniFunctions::PopulateInMemory(
+    size_t start_address, std::map<size_t, void*>& child_memory_pages,
+    std::map<std::string_view, size_t>& symbols_to_addresses) {
   // Create the first page.
   size_t write_address = start_address;
   size_t write_page_index = 0xFFFFFFFFFFFFFFFF;
@@ -108,6 +108,8 @@ void InitFiniFunctions::PopulateInMemory(
 
   symbols_to_addresses["__fini_functions"] = write_address;
   write_appended_functions(fini_functions_);
+
+  return write_address;
 }
 
 std::vector<std::pair<size_t, size_t>> *InitFiniFunctions::GetArrayOfArrays(

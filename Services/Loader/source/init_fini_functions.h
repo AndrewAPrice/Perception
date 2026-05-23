@@ -40,9 +40,9 @@ class InitFiniFunctions {
   // Populates a table of arrays and functions in a child process's memory at
   // `start_address`. Allocates the memory in `child_memory_pages`. Populates
   // the symbols to these tables in `symbols_to_addresses`.
-  void PopulateInMemory(size_t start_address,
-                        std::map<size_t, void*>& child_memory_pages,
-                        std::map<std::string_view, size_t>& symbols_to_addresses);
+  size_t PopulateInMemory(
+      size_t start_address, std::map<size_t, void*>& child_memory_pages,
+      std::map<std::string_view, size_t>& symbols_to_addresses);
 
  private:
   // Returns a pointer to an array of arrays for a given section. Returns
