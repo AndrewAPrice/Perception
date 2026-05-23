@@ -38,7 +38,7 @@ In order to remain backwards/forward compatible, the method calls to the seriali
 
 You can serialize fields that themselves are serializble with `serializer.Serializable(...)`. You can also pass this a `std::shared_ptr<Serializable>` and it will only serialize if the `shared_ptr` isn't empty (and set the `shared_ptr` if the field is found).
 
-You can serialize an `std::vector<Serializable>` or `std::vector<stdd:shared_ptr<Serilizable>>` with `serializer.ArrayOfSerializables(...)`.
+You can serialize an `std::vector<Serializable>` or `std::vector<std:shared_ptr<Serilizable>>` with `serializer.ArrayOfSerializables(...)`.
 
 Do not put anything behind loops that can run a dynamic number of times. Conditions are risky - make sure each field is serialized or kipped on every run.
 
