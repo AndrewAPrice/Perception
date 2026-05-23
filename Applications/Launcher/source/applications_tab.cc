@@ -100,22 +100,14 @@ void OpenContainingFolder(int index) {
   const std::vector<Application>& applications = GetApplications();
   if (index < 0 || index >= applications.size()) return;
 
-  // Find the File Manager application path.
-  std::string file_manager_path = "";
-  for (const auto& app : applications) {
-    if (app.name == "File Manager") {
-      file_manager_path = app.path;
-      break;
-    }
-  }
-
-  if (file_manager_path.empty()) {
-    std::cerr << "File Manager not found!" << std::endl;
-    return;
+  std::filesystem::path app_path(applications[index].path);
+  std::string containing_folder = app_path.parent_path().string();
+  if (containing_folder.empty() || containing_folder.back() != '/') {
+    containing_folder += '/';
   }
 
   LoadApplicationRequest request;
-  request.name = file_manager_path;
+  request.name = containing_folder;
 
   GetService<Loader>().LaunchApplication(request, nullptr);
 }
