@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+
 namespace perception {
 namespace linux_syscalls {
 
-long newfstatat();
+long newfstatat(int dirfd, const char* pathname, struct stat* statbuf, int flags);
 
 }
 }  // namespace perception

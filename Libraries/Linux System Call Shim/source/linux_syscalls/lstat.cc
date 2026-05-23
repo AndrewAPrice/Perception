@@ -13,16 +13,13 @@
 // limitations under the License.
 
 #include "linux_syscalls/lstat.h"
-
-#include "perception/debug.h"
-#include <errno.h>
+#include "linux_syscalls/stat.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long lstat() {
-  perception::DebugPrinterSingleton << "System call lstat is unimplemented.\n";
-  return -ENOSYS;
+long lstat(const char* pathname, struct stat* statbuf) {
+  return ::perception::linux_syscalls::stat(pathname, statbuf);
 }
 
 }  // namespace linux_syscalls

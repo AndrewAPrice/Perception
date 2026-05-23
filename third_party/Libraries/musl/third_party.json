@@ -13,8 +13,15 @@
             "destination": "source/thread",
             "recursive": true,
             "exclude": [
-                "${@}/source/thread/__set_thread_area.s"
+                "${@}/source/thread/__set_thread_area.s",
+                "${@}/source/thread/clone.s",
+                "${@}/source/thread/syscall_cp.s"
             ]
+        },
+        {
+            "operation": "copy",
+            "source": "${@}/assets/syscall_cp.s",
+            "destination": "source/thread/syscall_cp.s"
         },
         {
             "operation": "copy",
@@ -327,7 +334,10 @@
             "operation": "copy",
             "source": "${git}/src/process/x86_64",
             "destination": "source/process",
-            "recursive": true
+            "recursive": true,
+            "exclude": [
+                "${@}/source/process/vfork.s"
+            ]
         },
         {
             "operation": "readFilesInDirectory",
@@ -508,6 +518,24 @@
             "outputs": [
                 "include/bits/syscall.h"
             ]
+        },
+        {
+            "operation": "copy",
+            "source": "${@}/assets/process",
+            "destination": "source/process",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${@}/assets/thread",
+            "destination": "source/thread",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${@}/assets/internal",
+            "destination": "source/internal",
+            "recursive": true
         }
     ]
 }

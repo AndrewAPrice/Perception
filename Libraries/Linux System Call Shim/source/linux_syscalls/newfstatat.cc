@@ -13,17 +13,13 @@
 // limitations under the License.
 
 #include "linux_syscalls/newfstatat.h"
-
-#include "perception/debug.h"
-#include <errno.h>
+#include "linux_syscalls/stat.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long newfstatat() {
-  perception::DebugPrinterSingleton
-      << "System call newfstatat is unimplemented.\n";
-  return -ENOSYS;
+long newfstatat(int dirfd, const char* pathname, struct stat* statbuf, int flags) {
+  return ::perception::linux_syscalls::stat(pathname, statbuf);
 }
 
 }  // namespace linux_syscalls

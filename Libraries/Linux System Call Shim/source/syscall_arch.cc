@@ -684,7 +684,9 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_lsetxattr:
       return ::perception::linux_syscalls::lsetxattr();
     case SYS_lstat:
-      return ::perception::linux_syscalls::lstat();
+      return ::perception::linux_syscalls::lstat(
+          reinterpret_cast<const char *>(a1),
+          reinterpret_cast<struct stat *>(a2));
     case SYS_madvise:
       return ::perception::linux_syscalls::madvise();
     case SYS_mbind:
@@ -758,7 +760,9 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_nanosleep:
       return ::perception::linux_syscalls::nanosleep();
     case SYS_newfstatat:
-      return ::perception::linux_syscalls::newfstatat();
+      return ::perception::linux_syscalls::newfstatat(
+          static_cast<int>(a1), reinterpret_cast<const char *>(a2),
+          reinterpret_cast<struct stat *>(a3), static_cast<int>(a4));
     case SYS_nfsservctl:
       return ::perception::linux_syscalls::nfsservctl();
     case SYS_open:

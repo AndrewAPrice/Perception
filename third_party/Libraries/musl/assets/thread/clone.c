@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/stat.h>
+#define _GNU_SOURCE
+#include <errno.h>
+#include "syscall.h"
 
-namespace perception {
-namespace linux_syscalls {
-
-long lstat(const char* pathname, struct stat* statbuf);
-
+hidden int __clone(int (*fn)(void *), void *child_stack, int flags, void *arg, ...) {
+	return -ENOSYS;
 }
-}  // namespace perception
