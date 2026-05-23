@@ -15,11 +15,13 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "status.h"
 #include "types.h"
 
 // Loads an program with a given name or path. Returns the Process ID of the
 // newly created process on success.
-StatusOr< ::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
-                                               std::string_view name);
+StatusOr< ::perception::ProcessId> LoadProgram(
+    ::perception::ProcessId creator, std::string_view name,
+    const std::vector<std::string>& arguments = {});

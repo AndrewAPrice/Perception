@@ -23,8 +23,16 @@ using ::perception::ProcessId;
 StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
     const ::perception::LoadApplicationRequest& request,
   ProcessId sender) {
-  std::cout << "Requested to load " << request.name << std::endl;
-  ASSIGN_OR_RETURN(auto child_pid, LoadProgram(sender, request.name));
+  std::string name_to_load = request.name;
+  std::vector<std::string> arguments = request.arguments;
+
+  if (!name_to_load.empty() && name_to_load.back() == '/') {
+    arguments.insert(arguments.begin(), name_to_load);
+    name_to_load = "File Manager";
+  }
+
+  ASSIGN_OR_RETURN(auto child_pid,
+                   LoadProgram(sender, name_to_load, arguments));
 
   ::perception::LoadApplicationResponse response;
   response.process = child_pid;

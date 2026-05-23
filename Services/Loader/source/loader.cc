@@ -45,7 +45,7 @@ using ::perception::Status;
 namespace {
 
 // Uncomment to be very verbose with where shared libraries are loaded.
-// #define VERBOSE
+// #define VERBOSE 1
 
 // Loads all of the dependencies for an executable, returning an array
 // containing the executable and all depedendecies.
@@ -100,8 +100,9 @@ LoadDependencies(std::shared_ptr<ElfFile> executable_file) {
 
 } // namespace
 
-StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
-                                              std::string_view name) {
+StatusOr<::perception::ProcessId> LoadProgram(
+    ::perception::ProcessId creator, std::string_view name,
+    const std::vector<std::string>& arguments) {
   auto elf_file = LoadOrIncrementElfFile(std::string(name));
   if (!elf_file) {
     std::cout << "Cannot find ELF file for " << name << std::endl;
@@ -172,6 +173,9 @@ StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
   for (auto dependency : dependencies) {
     load_addresses_of_elf_files.push_back(next_free_address);
 #if VERBOSE
+    std::cout << "Loading " << dependency->File().Name() << " in process "
+              << name << " at " << std::hex << next_free_address << std::dec
+              << std::endl;
 #endif
     auto status_or_next_free_address =
         dependency->LoadIntoAddressSpaceAndReturnNextFreeAddress(
@@ -191,8 +195,8 @@ StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
   }
 
   // Create the init and fini arrays.
-  init_fini_functions.PopulateInMemory(next_free_address, child_memory_pages,
-                                       symbols_to_addresses);
+  next_free_address = init_fini_functions.PopulateInMemory(
+      next_free_address, child_memory_pages, symbols_to_addresses);
 
   // Fix up the ELF files.
   for (int i = 0; i < dependencies.size(); i++) {
@@ -209,6 +213,48 @@ StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
     return Status::INTERNAL_ERROR;
   }
 
+  size_t args_address = 0;
+  if (!arguments.empty()) {
+    size_t args_page_address =
+        (next_free_address + kPageSize - 1) & ~(kPageSize - 1);
+    next_free_address = args_page_address + kPageSize;
+
+    char* args_page = (char*)AllocateMemoryPages(1);
+    child_memory_pages[args_page_address] = args_page;
+    memset(args_page, 0, kPageSize);
+
+    size_t argc = arguments.size() + 1;
+    *(size_t*)args_page = argc;
+
+    size_t pointers_offset = 8;
+    size_t strings_offset = pointers_offset + 8 * (argc + 4);
+
+    // Write argv[0] pointing to the program name
+    size_t child_string_address = args_page_address + strings_offset;
+    *(size_t*)(args_page + pointers_offset) = child_string_address;
+    if (strings_offset + name.length() + 1 <= kPageSize) {
+      memcpy(args_page + strings_offset, name.data(), name.length());
+      args_page[strings_offset + name.length()] = '\0';
+      strings_offset += name.length() + 1;
+    }
+
+    // Write argv[1...] pointing to the arguments
+    for (size_t i = 0; i < arguments.size(); ++i) {
+      child_string_address = args_page_address + strings_offset;
+      *(size_t*)(args_page + pointers_offset + (i + 1) * 8) =
+          child_string_address;
+
+      std::string_view arg = arguments[i];
+      if (strings_offset + arg.length() + 1 > kPageSize) {
+        break;
+      }
+      memcpy(args_page + strings_offset, arg.data(), arg.length());
+      args_page[strings_offset + arg.length()] = '\0';
+      strings_offset += arg.length() + 1;
+    }
+    args_address = args_page_address;
+  }
+
   // Send the memory pages to the child.
   SendMemoryPagesToChild(child_pid, child_memory_pages);
 
@@ -218,7 +264,7 @@ StatusOr<::perception::ProcessId> LoadProgram(::perception::ProcessId creator,
   // Creates a thread in the a child process. The child process will begin
   // executing and will no longer terminate if the creator terminates.
   StartExecutingChildProcess(child_pid, elf_file->EntryAddress(/*offset=*/0),
-                             /*params=*/0);
+                             /*params=*/args_address);
 
   for (auto &dependency : dependencies)
     DecrementElfFile(dependency);
