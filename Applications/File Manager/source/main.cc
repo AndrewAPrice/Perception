@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
@@ -396,7 +398,19 @@ int main(int argc, char* argv[]) {
       [](UiWindow& window) { window.OnClose([]() { TerminateProcess(); }); },
       main_container);
 
-  NavigateTo("/");
+  std::string starting_directory = "/";
+  if (argc > 1) {
+    std::string arg = argv[1];
+    if (arg.size() > 1 && arg.back() == '/') {
+      arg.pop_back();
+    }
+    std::error_code ec;
+    if (std::filesystem::is_directory(arg, ec)) {
+      starting_directory = arg;
+    }
+  }
+
+  NavigateTo(starting_directory);
 
   HandOverControl();
   return 0;
