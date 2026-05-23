@@ -20,8 +20,7 @@
 #include "launcher_window.h"
 
 ::perception::Status Launcher::ShowLauncher() {
-  std::cout << "Show launcher." << std::endl;
-  //  ScanForApplications();
-  //  ShowLauncherWindow();
+  ScanForApplications();
+  ShowLauncherWindow();
   return ::perception::Status::OK;
 }

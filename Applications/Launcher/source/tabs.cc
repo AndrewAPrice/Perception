@@ -11,21 +11,23 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#if 0
+
 #include "tabs.h"
 
 #include <string_view>
 #include <vector>
 
 #include "applications_tab.h"
-#include "perception/ui/label.h"
+#include "perception/ui/components/label.h"
+#include "perception/ui/layout.h"
 #include "perception/ui/text_alignment.h"
 #include "perception/ui/node.h"
 #include "processes_tab.h"
 
-using ::perception::ui::Label;
 using ::perception::ui::TextAlignment;
+using ::perception::ui::components::Label;
 using ::perception::ui::Node;
+using ::perception::ui::Layout;
 
 std::string_view GetTabLabel(Tab tab) {
   switch (tab) {
@@ -42,19 +44,20 @@ std::vector<Tab> GetSidePanelTabsToShow() {
   return {Tab::APPLICATIONS, Tab::PROCESSES, Tab::SETTINGS};
 }
 
-std::shared_ptr<Widget> GetOrConstructTabContents(Tab tab) {
+std::shared_ptr<Node> GetOrConstructTabContents(Tab tab) {
   switch (tab) {
     case Tab::APPLICATIONS:
       return GetOrConstructApplicationsTab();
     case Tab::PROCESSES:
-    return GetOrConstructProcessesTab();
+      return GetOrConstructProcessesTab();
     case Tab::SETTINGS:
-      return std::make_shared<Label>()
-          ->SetTextAlignment(TextAlignment::MiddleCenter)
-          ->SetLabel("TODO: Settings")
-          ->SetHeightPercent(100.0f)
-          ->SetFlexGrow(1.0)
-          ->ToSharedPtr();
+      return Label::BasicLabel("TODO: Settings",
+          [](Layout& layout) {
+            layout.SetHeightPercent(100.0f);
+            layout.SetFlexGrow(1.0f);
+          },
+          [](Label& label) {
+            label.SetTextAlignment(TextAlignment::MiddleCenter);
+          });
   }
 }
-#endif

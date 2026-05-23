@@ -42,7 +42,8 @@ int main(int argc, char* argv[]) {
             label.SetTextAlignment(TextAlignment::MiddleCenter);
           }));
 
-  // auto launcher = std::make_unique<Launcher>();
+  auto launcher = std::make_unique<Launcher>();
+
   HandOverControl();
   return 0;
 }

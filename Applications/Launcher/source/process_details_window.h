@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,19 +14,14 @@
 
 #pragma once
 
-#include <memory>
+#include "perception/processes.h"
 
-#include "perception/ui/node.h"
+// Opens the process details window for a given process, or brings it to focus
+// if already open.
+void OpenProcessDetailsWindow(::perception::ProcessId pid);
 
-// Gets or constructs the processes tab of the launcher.
-std::shared_ptr<::perception::ui::Node> GetOrConstructProcessesTab();
+// Returns true if any process details windows are currently open.
+bool AreAnyProcessDetailsWindowsOpen();
 
-// Set visibility status of processes tab.
-void SetProcessesTabVisible(bool visible);
-
-// Returns true if the processes tab is currently visible.
-bool IsProcessesTabVisible();
-
-// Rebuilds/refreshes the list of running processes.
-void RebuildRunningProcesses();
-
+// Updates all open process details windows.
+void UpdateOpenProcessDetailsWindows();

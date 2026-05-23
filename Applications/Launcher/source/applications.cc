@@ -53,6 +53,9 @@ void MaybeLoadApplication(std::string_view path) {
     if (description_itr != data.end() && description_itr->is_string())
       description_itr->get_to(application.description);
 
+    std::string icon_path = std::string(path) + "/icon.rgba";
+    application.icon = ::perception::ui::Image::LoadImage(icon_path);
+
     applications.push_back(application);
 
     launcher_metadata_file.close();

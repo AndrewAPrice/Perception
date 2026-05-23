@@ -14,10 +14,11 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "nanosvg.h"
+#include "perception/ui/image.h"
 
 // Represents an application that can be launched.
 struct Application {
@@ -31,7 +32,7 @@ struct Application {
   std::string description;
 
   // The icon of the application.
-  NSVGimage* icon;
+  std::shared_ptr<::perception::ui::Image> icon;
 };
 
 // Scans for applications.

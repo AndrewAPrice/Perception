@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,19 +14,11 @@
 
 #pragma once
 
-#include <memory>
+// Increments process CPU tracking refcount.
+void IncrementCpuTracking();
 
-#include "perception/ui/node.h"
+// Decrements process CPU tracking refcount.
+void DecrementCpuTracking();
 
-// Gets or constructs the processes tab of the launcher.
-std::shared_ptr<::perception::ui::Node> GetOrConstructProcessesTab();
-
-// Set visibility status of processes tab.
-void SetProcessesTabVisible(bool visible);
-
-// Returns true if the processes tab is currently visible.
-bool IsProcessesTabVisible();
-
-// Rebuilds/refreshes the list of running processes.
-void RebuildRunningProcesses();
-
+// Starts the update/query fiber if not already running.
+void StartQueryFiber();
