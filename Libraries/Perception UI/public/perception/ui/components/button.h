@@ -60,7 +60,7 @@ class Button : public UniqueIdentifiableType<Button> {
   static std::shared_ptr<Node> TextButton(std::string_view text,
                                           std::function<void()> on_push,
                                           Modifiers... modifiers) {
-    return BasicButton(on_push, Label::BasicLabel(text), modifiers...);
+    return BasicButton(on_push, Label::SingleLineTruncated(text), modifiers...);
   }
 
   enum class ButtonStyle { DEFAULT, RED };

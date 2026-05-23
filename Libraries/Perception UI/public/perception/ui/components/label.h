@@ -15,14 +15,15 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "include/core/SkFont.h"
+#include "perception/type_id.h"
 #include "perception/ui/node.h"
 #include "perception/ui/point.h"
 #include "perception/ui/size.h"
 #include "perception/ui/text_alignment.h"
 #include "yoga/Yoga.h"
-#include "perception/type_id.h"
 
 namespace perception {
 
@@ -35,11 +36,38 @@ namespace components {
 // A label draws a piece of text.
 class Label : public UniqueIdentifiableType<Label> {
  public:
+  enum class TruncationMode {
+    // Keep wrapping text normally, clipping/overflowing if it exceeds bounds.
+    None = 0,
+
+    // Truncate at the last whole character that fits the layout width.
+    LastWholeCharacter = 1,
+
+    // Truncate at the last character/word that fits and append a unicode
+    // ellipsis "…".
+    Ellipsis = 2
+  };
+
+  // A basic label.
   template <typename... Modifiers>
   static std::shared_ptr<Node> BasicLabel(std::string_view text,
                                           Modifiers... modifiers) {
     return Node::Empty([text](Label& label) { label.SetText(text); },
                        modifiers...);
+  }
+
+  // A single line label that will truncate the text with an ellipsis if it is
+  // too long.
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> SingleLineTruncated(std::string_view text,
+                                                   Modifiers... modifiers) {
+    return Node::Empty(
+        [text](Label& label) {
+          label.SetText(text);
+          label.SetMaxLines(1);
+          label.SetTruncationMode(TruncationMode::Ellipsis);
+        },
+        modifiers...);
   }
 
   Label();
@@ -58,7 +86,28 @@ class Label : public UniqueIdentifiableType<Label> {
   void SetTextAlignment(TextAlignment text_alignment);
   TextAlignment GetTextAlignment();
 
+  // Sets the maximum number of lines to render.
+  // If max_lines is 0, there is no limit. Defaults to 0.
+  void SetMaxLines(int max_lines);
+  int GetMaxLines() const;
+
+  void SetTruncationMode(TruncationMode truncation_mode);
+  TruncationMode GetTruncationMode() const;
+
  private:
+  struct LaidOutLine {
+    std::string_view text_view;
+    std::string mutated_text;
+    Size size;
+
+    std::string_view GetText() const {
+      if (!mutated_text.empty()) {
+        return mutated_text;
+      }
+      return text_view;
+    }
+  };
+
   SkFont* font_;
   uint32_t color_;
   std::string text_;
@@ -68,11 +117,18 @@ class Label : public UniqueIdentifiableType<Label> {
   Point offset_;
   std::weak_ptr<Node> node_;
 
+  int max_lines_;
+  TruncationMode truncation_mode_;
+  std::vector<LaidOutLine> laid_out_lines_;
+  float last_layout_width_;
+  bool layout_is_dirty_;
+
   void Draw(const DrawContext& draw_context);
   Size Measure(float width, YGMeasureMode width_mode, float height,
                YGMeasureMode height_mode);
   void CalculateTextAlignmentOffsetsIfNeeded();
   void AssignDefaultFontIfUnassigned();
+  void LayoutText(float max_width);
 };
 
 }  // namespace components
