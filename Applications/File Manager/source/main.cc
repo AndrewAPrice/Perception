@@ -30,6 +30,7 @@
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/button.h"
 #include "perception/ui/components/container.h"
+#include "perception/ui/components/input_box.h"
 #include "perception/ui/components/label.h"
 #include "perception/ui/components/scroll_container.h"
 #include "perception/ui/components/ui_window.h"
@@ -47,6 +48,7 @@ using ::perception::Loader;
 using ::perception::TerminateProcess;
 using ::perception::ui::GetBold12UiFont;
 using ::perception::ui::GetBook12UiFont;
+using ::perception::ui::kTextBoxTextColor;
 using ::perception::ui::Layout;
 using ::perception::ui::Node;
 using ::perception::ui::Point;
@@ -54,9 +56,11 @@ using ::perception::ui::TextAlignment;
 using ::perception::ui::components::Block;
 using ::perception::ui::components::Button;
 using ::perception::ui::components::Container;
+using ::perception::ui::components::InputBox;
 using ::perception::ui::components::Label;
 using ::perception::ui::components::ScrollContainer;
 using ::perception::ui::components::UiWindow;
+using ButtonStyle = ::perception::ui::components::Button::ButtonStyle;
 using ::perception::window::MouseButton;
 
 namespace {
@@ -190,8 +194,9 @@ void NavigateTo(const std::string& path) {
 
   // Update path UI.
   if (path_label) {
-    path_label->Get<Label>()->SetText(current_path);
-    path_label->Invalidate();
+    auto input_box = path_label->Get<InputBox>();
+    input_box->SetText(current_path);
+    input_box->SetTextColor(kTextBoxTextColor);
   }
 
   // Update status.
@@ -203,20 +208,11 @@ void NavigateTo(const std::string& path) {
 
   // Update Back button appearance
   if (back_button) {
+    auto button = back_button->Get<Button>();
     if (current_path == "/") {
-      back_button->Get<Button>()->SetIdleColor(
-          SkColorSetARGB(0xFF, 0xD1, 0xD5, 0xDB));
-      back_button->Get<Button>()->SetHoverColor(
-          SkColorSetARGB(0xFF, 0xD1, 0xD5, 0xDB));
-      back_button->Get<Button>()->SetPushedColor(
-          SkColorSetARGB(0xFF, 0xD1, 0xD5, 0xDB));
+      button->SetButtonStyle(ButtonStyle::DISABLED);
     } else {
-      back_button->Get<Button>()->SetIdleColor(
-          SkColorSetARGB(0xFF, 0x4B, 0x55, 0x63));
-      back_button->Get<Button>()->SetHoverColor(
-          SkColorSetARGB(0xFF, 0x6B, 0x72, 0x80));
-      back_button->Get<Button>()->SetPushedColor(
-          SkColorSetARGB(0xFF, 0x37, 0x41, 0x51));
+      button->SetButtonStyle(ButtonStyle::SECONDARY);
     }
     back_button->Invalidate();
   }
@@ -232,6 +228,9 @@ void NavigateTo(const std::string& path) {
       std::string entry_path = entry.path().string();
       bool is_dir = entry.is_directory();
 
+      auto icon = CreateFileIcon(is_dir, name);
+      icon->GetLayout().SetMargin(YGEdgeRight, 12.0f);
+
       auto row = Container::HorizontalContainer(
           [](Layout& layout) {
             layout.SetWidthPercent(100.0f);
@@ -242,46 +241,43 @@ void NavigateTo(const std::string& path) {
           [](Block& block) {
             block.SetBorderRadius(6.0f);
             block.SetFillColor(0);  // Transparent
-          });
-
-      auto icon = CreateFileIcon(is_dir, name);
-      icon->GetLayout().SetMargin(YGEdgeRight, 12.0f);
-      row->AddChild(icon);
-
-      auto label = Label::BasicLabel(
-          name, [](Layout& layout) { layout.SetFlexGrow(1.0f); },
-          [](Label& label) {
-            label.SetTextAlignment(TextAlignment::MiddleLeft);
-            label.SetColor(0xFF1F2937);
-            label.SetFont(GetBook12UiFont());
-          });
-      row->AddChild(label);
-
-      row->OnMouseHover([row](const Point& point) {
-        uint32 hover_color = SkColorSetARGB(0xFF, 0xE5, 0xE7, 0xEB);
-        if (row->Get<Block>()->GetFillColor() != hover_color) {
-          row->Get<Block>()->SetFillColor(hover_color);
-          row->Invalidate();
-        }
-      });
-
-      row->OnMouseLeave([row]() {
-        row->Get<Block>()->SetFillColor(0);
-        row->Invalidate();
-      });
-
-      row->OnMouseButtonDown(
-          [entry_path, is_dir](const Point& point, MouseButton button) {
-            if (button == MouseButton::Left) {
-              if (is_dir) {
-                ::perception::Defer([entry_path]() { NavigateTo(entry_path); });
-              } else {
-                LoadApplicationRequest request;
-                request.name = entry_path;
-                GetService<Loader>().LaunchApplication(request, nullptr);
+          },
+          [entry_path, is_dir](Node& node) {
+            auto* row_ptr = &node;
+            node.OnMouseHover([row_ptr](const Point& point) {
+              uint32 hover_color = SkColorSetARGB(0xFF, 0xE5, 0xE7, 0xEB);
+              auto block = row_ptr->Get<Block>();
+              if (block->GetFillColor() != hover_color) {
+                block->SetFillColor(hover_color);
+                row_ptr->Invalidate();
               }
-            }
-          });
+            });
+            node.OnMouseLeave([row_ptr]() {
+              row_ptr->Get<Block>()->SetFillColor(0);
+              row_ptr->Invalidate();
+            });
+            node.OnMouseButtonDown(
+                [entry_path, is_dir](const Point& point, MouseButton button) {
+                  if (button == MouseButton::Left) {
+                    if (is_dir) {
+                      ::perception::Defer(
+                          [entry_path]() { NavigateTo(entry_path); });
+                    } else {
+                      LoadApplicationRequest request;
+                      request.name = entry_path;
+                      GetService<Loader>().LaunchApplication(request, nullptr);
+                    }
+                  }
+                });
+          },
+          icon,
+          Label::BasicLabel(
+              name, [](Layout& layout) { layout.SetFlexGrow(1.0f); },
+              [](Label& label) {
+                label.SetTextAlignment(TextAlignment::MiddleLeft);
+                label.SetColor(0xFF1F2937);
+                label.SetFont(GetBook12UiFont());
+              }));
 
       row_widgets.push_back(row);
     }
@@ -306,97 +302,94 @@ void GoBack() {
 }  // namespace
 
 int main(int argc, char* argv[]) {
-  auto main_container = Container::VerticalContainer(
-      [](Layout& layout) {
-        layout.SetFlexGrow(1.0f);
-        layout.SetFlexShrink(1.0f);
-        layout.SetMinHeight(0.0f);
-        layout.SetPadding(YGEdgeAll, 12.0f);
-        layout.SetGap(12.0f);
-      },
-      [](Block& block) { block.SetFillColor(0xFFF3F4F6); });
-
-  auto path_container = Container::HorizontalContainer(
-      [](Layout& layout) {
-        layout.SetFlexGrow(1.0f);
-        layout.SetAlignItems(YGAlignCenter);
-        layout.SetPadding(YGEdgeHorizontal, 12.0f);
-        layout.SetHeight(32.0f);
-      },
-      [](Block& block) {
-        block.SetFillColor(0xFFFFFFFF);
-        block.SetBorderColor(0xFFD1D5DB);
-        block.SetBorderWidth(1.0f);
-        block.SetBorderRadius(6.0f);
-      });
-
-  path_label = Label::BasicLabel(
-      "/", [](Layout& layout) { layout.SetFlexGrow(1.0f); },
-      [](Label& label) {
-        label.SetTextAlignment(TextAlignment::MiddleLeft);
-        label.SetColor(0xFF374151);
-        label.SetFont(GetBook12UiFont());
-      });
-  path_container->AddChild(path_label);
-
-  back_button = Button::TextButton(
-      "Back", []() { ::perception::Defer([]() { GoBack(); }); },
-      [](Layout& layout) {
-        layout.SetWidth(60.0f);
-        layout.SetHeight(32.0f);
-      },
-      [](Button& button) {
-        button.SetIdleColor(SkColorSetARGB(0xFF, 0x4B, 0x55, 0x63));
-        button.SetHoverColor(SkColorSetARGB(0xFF, 0x6B, 0x72, 0x80));
-        button.SetPushedColor(SkColorSetARGB(0xFF, 0x37, 0x41, 0x51));
-        button.SetLabelColor(0xFFFFFFFF);
-      });
-
-  auto header = Container::HorizontalContainer(
-      [](Layout& layout) {
-        layout.SetWidthPercent(100.0f);
-        layout.SetAlignItems(YGAlignCenter);
-        layout.SetGap(8.0f);
-      },
-      back_button, path_container);
-
-  files_list_container = Container::VerticalContainer([](Layout& layout) {
-    layout.SetWidthPercent(100.0f);
-    layout.SetPadding(YGEdgeAll, 6.0f);
-    layout.SetGap(4.0f);
-  });
-
-  auto scroll_view = ScrollContainer::VerticalScrollContainer(
-      files_list_container,
-      [](Block& block) {
-        block.SetFillColor(0xFFFFFFFF);
-        block.SetBorderColor(0xFFD1D5DB);
-        block.SetBorderWidth(1.0f);
-        block.SetBorderRadius(8.0f);
-      },
-      [](Layout& layout) {
-        layout.SetFlexGrow(1.0f);
-        layout.SetFlexShrink(1.0f);
-        layout.SetMinHeight(0.0f);
-        layout.SetWidthPercent(100.0f);
-      });
-
-  status_label = Label::BasicLabel(
-      "0 items", [](Layout& layout) { layout.SetMargin(YGEdgeLeft, 4.0f); },
-      [](Label& label) {
-        label.SetTextAlignment(TextAlignment::MiddleLeft);
-        label.SetColor(0xFF6B7280);
-        label.SetFont(GetBook12UiFont());
-      });
-
-  main_container->AddChild(header);
-  main_container->AddChild(scroll_view);
-  main_container->AddChild(status_label);
-
   auto window = UiWindow::ResizableWindowWithTitleBar(
       "File Manager",
       [](UiWindow& window) { window.OnClose([]() { TerminateProcess(); }); },
-      main_container);
+      [](Layout& layout) {
+        layout.SetWidth(300.0f);
+        layout.SetHeight(400.0f);
+      },
+      Container::VerticalContainer(
+          [](Layout& layout) {
+            layout.SetFlexGrow(1.0f);
+            layout.SetFlexShrink(1.0f);
+            layout.SetMinHeight(0.0f);
+            layout.SetPadding(YGEdgeAll, 12.0f);
+            layout.SetGap(12.0f);
+          },
+          [](Block& block) { block.SetFillColor(0xFFF3F4F6); },
+          // Header (Back button + Path input box)
+          Container::HorizontalContainer(
+              [](Layout& layout) {
+                layout.SetWidthPercent(100.0f);
+                layout.SetAlignItems(YGAlignCenter);
+                layout.SetGap(8.0f);
+              },
+              Button::TextButton(
+                  "Back", []() { ::perception::Defer([]() { GoBack(); }); },
+                  [](Layout& layout) {
+                    layout.SetWidth(60.0f);
+                    layout.SetHeight(32.0f);
+                  },
+                  [](Button& button) {
+                    button.SetButtonStyle(ButtonStyle::SECONDARY);
+                  },
+                  &back_button),
+              InputBox::BasicInputBox(
+                  "/",
+                  [](InputBox& input_box) {
+                    auto* input_ptr = &input_box;
+                    input_box.OnEnterPressed(
+                        [input_ptr](std::string_view text) {
+                          std::string path_str = std::string(text);
+                          struct stat st;
+                          if (stat(path_str.c_str(), &st) != 0 ||
+                              !S_ISDIR(st.st_mode)) {
+                            input_ptr->SetTextColor(0xFFB91C1C);
+                          } else {
+                            input_ptr->SetTextColor(kTextBoxTextColor);
+                            ::perception::Defer(
+                                [path_str]() { NavigateTo(path_str); });
+                          }
+                        });
+                  },
+                  [](Layout& layout) {
+                    layout.SetFlexGrow(1.0f);
+                    layout.SetFlexShrink(1.0f);
+                    layout.SetMinWidth(0.0f);
+                  },
+                  &path_label)),
+          // Files list scroll view
+          ScrollContainer::VerticalScrollContainer(
+              Container::VerticalContainer(
+                  [](Layout& layout) {
+                    layout.SetWidthPercent(100.0f);
+                    layout.SetPadding(YGEdgeAll, 6.0f);
+                    layout.SetGap(4.0f);
+                  },
+                  &files_list_container),
+              [](Block& block) {
+                block.SetFillColor(0xFFFFFFFF);
+                block.SetBorderColor(0xFFD1D5DB);
+                block.SetBorderWidth(1.0f);
+                block.SetBorderRadius(8.0f);
+              },
+              [](Layout& layout) {
+                layout.SetFlexGrow(1.0f);
+                layout.SetFlexShrink(1.0f);
+                layout.SetMinHeight(0.0f);
+                layout.SetWidthPercent(100.0f);
+              }),
+          // Status label
+          Label::BasicLabel(
+              "0 items",
+              [](Layout& layout) { layout.SetMargin(YGEdgeLeft, 4.0f); },
+              [](Label& label) {
+                label.SetTextAlignment(TextAlignment::MiddleLeft);
+                label.SetColor(0xFF6B7280);
+                label.SetFont(GetBook12UiFont());
+              },
+              &status_label)));
 
   std::string starting_directory = "/";
   if (argc > 1) {
