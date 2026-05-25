@@ -217,21 +217,6 @@ void Node::MouseButtonUp(const Point& point, window::MouseButton button) {
     handler(point, button);
 }
 
-void Node::OnGainFocus(std::function<void()> gain_focus_function) {
-  on_gain_focus_functions_.push_back(gain_focus_function);
-}
-
-void Node::GainFocus() {
-  for (const auto& handler : on_gain_focus_functions_) handler();
-}
-
-void Node::OnLoseFocus(std::function<void()> lose_focus_function) {
-  on_lose_focus_functions_.push_back(lose_focus_function);
-}
-
-void Node::LoseFocus() {
-  for (const auto& handler : on_gain_focus_functions_) handler();
-}
 
 void Node::OnInvalidate(std::function<void()> invalidate_function) {
   on_invalidate_functions_.push_back(invalidate_function);
