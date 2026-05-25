@@ -453,7 +453,11 @@ StatusOr<FileStatistics> Iso9660::GetFileStatistics(std::string_view path) {
   FileStatistics response;
   response.optimal_operation_size = optimal_operation_size_;
 
-  if (path.empty()) return response;
+  if (path.empty()) {
+    response.exists = true;
+    response.type = DirectoryEntry::Type::DIRECTORY;
+    return response;
+  }
 
   std::string_view directory, file_name;
   SplitPath(path, directory, file_name);

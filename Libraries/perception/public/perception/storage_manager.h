@@ -32,9 +32,9 @@ class DirectoryEntry : public serialization::Serializable {
   std::string name;
 
   enum class Type { FILE, DIRECTORY };
-  Type type;
+  Type type = Type::FILE;
 
-  uint64 size_in_bytes;
+  uint64 size_in_bytes = 0;
 
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
@@ -84,20 +84,20 @@ class ReadDirectoryResponse : public serialization::Serializable {
 
 class CheckPermissionsResponse : public serialization::Serializable {
  public:
-  bool exists;
-  bool can_read;
-  bool can_write;
-  bool can_execute;
+  bool exists = false;
+  bool can_read = false;
+  bool can_write = false;
+  bool can_execute = false;
 
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
 class FileStatistics : public serialization::Serializable {
  public:
-  bool exists;
-  DirectoryEntry::Type type;
-  uint64 size_in_bytes;
-  uint64 optimal_operation_size;
+  bool exists = false;
+  DirectoryEntry::Type type = DirectoryEntry::Type::FILE;
+  uint64 size_in_bytes = 0;
+  uint64 optimal_operation_size = 0;
 
   virtual void Serialize(serialization::Serializer& serializer) override;
 };

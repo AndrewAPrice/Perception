@@ -100,6 +100,26 @@ void Button::SetButtonStyle(ButtonStyle style) {
     hover_color_ = 0xFFEF5350;
     pushed_color_ = 0xFFB71C1C;
     label_color_ = 0xFFFFFFFF;
+  } else if (style == ButtonStyle::PRIMARY) {
+    idle_color_ = 0xFF4F46E5;
+    hover_color_ = 0xFF4338CA;
+    pushed_color_ = 0xFF312E81;
+    label_color_ = 0xFFFFFFFF;
+  } else if (style == ButtonStyle::SECONDARY) {
+    idle_color_ = 0xFF4B5563;
+    hover_color_ = 0xFF6B7280;
+    pushed_color_ = 0xFF374151;
+    label_color_ = 0xFFFFFFFF;
+  } else if (style == ButtonStyle::LIGHT) {
+    idle_color_ = 0xFFE5E7EB;
+    hover_color_ = 0xFFD1D5DB;
+    pushed_color_ = 0xFF9CA3AF;
+    label_color_ = 0xFF374151;
+  } else if (style == ButtonStyle::DISABLED) {
+    idle_color_ = 0xFFD1D5DB;
+    hover_color_ = 0xFFD1D5DB;
+    pushed_color_ = 0xFFD1D5DB;
+    label_color_ = 0xFF9CA3AF;
   }
   UpdateFillColor();
   UpdateLabelColor();

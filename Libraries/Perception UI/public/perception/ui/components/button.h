@@ -63,7 +63,7 @@ class Button : public UniqueIdentifiableType<Button> {
     return BasicButton(on_push, Label::SingleLineTruncated(text), modifiers...);
   }
 
-  enum class ButtonStyle { DEFAULT, RED };
+  enum class ButtonStyle { DEFAULT, RED, PRIMARY, SECONDARY, LIGHT, DISABLED };
 
   Button();
   void SetNode(std::weak_ptr<Node> node);
