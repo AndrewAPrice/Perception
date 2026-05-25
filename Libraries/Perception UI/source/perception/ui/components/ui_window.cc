@@ -22,6 +22,7 @@
 #include "include/core/SkSurface.h"
 #include "perception/draw.h"
 #include "perception/scheduler.h"
+#include "perception/ui/components/focusable.h"
 #include "perception/ui/draw_context.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
@@ -113,6 +114,57 @@ void UiWindow::Focus() {
   if (base_window_) base_window_->Focus();
 }
 
+void UiWindow::SetFocusedNode(std::shared_ptr<Node> node) {
+  std::scoped_lock lock(window_mutex_);
+  auto old_focused = focused_node_.lock();
+  if (old_focused == node) return;
+
+  focused_node_ = node;
+  InvalidateRender();
+}
+
+std::shared_ptr<Node> UiWindow::GetFocusedNode() const {
+  auto node = focused_node_.lock();
+  if (!node) return nullptr;
+
+  auto root = node_.lock();
+  if (!root) {
+    const_cast<UiWindow*>(this)->focused_node_.reset();
+    return nullptr;
+  }
+
+  auto current = node;
+  bool in_window = false;
+  while (current) {
+    if (current == root) {
+      in_window = true;
+      break;
+    }
+    current = current->GetParent().lock();
+  }
+
+  if (!in_window) {
+    const_cast<UiWindow*>(this)->focused_node_.reset();
+    return nullptr;
+  }
+
+  return node;
+}
+
+void UiWindow::KeyPressed(const window::KeyboardKeyEvent& event) {
+  std::scoped_lock lock(window_mutex_);
+  if (auto node = focused_node_.lock()) {
+    if (auto focusable = node->Get<Focusable>()) focusable->KeyDown(event);
+  }
+}
+
+void UiWindow::KeyReleased(const window::KeyboardKeyEvent& event) {
+  std::scoped_lock lock(window_mutex_);
+  if (auto node = focused_node_.lock()) {
+    if (auto focusable = node->Get<Focusable>()) focusable->KeyUp(event);
+  }
+}
+
 void UiWindow::WindowClosed() {
   std::scoped_lock lock(window_mutex_);
   for (auto& handler : on_close_functions_) handler();
@@ -139,6 +191,12 @@ void UiWindow::WindowResized() {
 }
 
 void UiWindow::WindowFocusChanged() {
+  std::scoped_lock lock(window_mutex_);
+  if (!IsFocused()) {
+    if (auto node = GetFocusedNode()) {
+      if (auto focusable = node->Get<Focusable>()) focusable->Unfocus();
+    }
+  }
   for (auto& handler : on_focus_changed_functions_) handler();
 }
 
@@ -149,6 +207,24 @@ void UiWindow::MouseClicked(const window::MouseClickEvent& event) {
   MouseButton button = event.button;
 
   if (event.was_pressed_down) {
+    Focus();
+    std::shared_ptr<Node> focusable_node = nullptr;
+    GetNodesAt(point,
+               [&focusable_node](Node& node, const Point& point_in_node) {
+                 if (!focusable_node && node.Get<Focusable>()) {
+                   focusable_node = node.ToSharedPtr();
+                 }
+               });
+    if (focusable_node) {
+      focusable_node->Get<Focusable>()->Focus();
+    } else {
+      if (auto current_focused = GetFocusedNode()) {
+        if (auto focusable = current_focused->Get<Focusable>()) {
+          focusable->Unfocus();
+        }
+      }
+    }
+
     HandleMouseEvent(point,
                      [this, button](Node& node, const Point& point_in_node) {
                        node.MouseButtonDown(point_in_node, button);
@@ -247,6 +323,7 @@ void UiWindow::InvalidateRender() {
 void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
                           window::Rectangle& invalidated_area) {
   std::scoped_lock lock(window_mutex_);
+  invalidated_ = false;
   if (node_.expired()) return;
   auto node = node_.lock();
   if (!skia_surface_ || buffer_width_ != buffer.width ||

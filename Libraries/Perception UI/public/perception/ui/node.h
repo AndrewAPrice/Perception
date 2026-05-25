@@ -188,18 +188,6 @@ class Node : public std::enable_shared_from_this<Node> {
   // node.
   bool BlocksHitTest();
 
-  // Adds a function to call when the node gains focus.
-  void OnGainFocus(std::function<void()> gain_focus_function);
-
-  // Tells the node it has gained focus.
-  void GainFocus();
-
-  // Adds a function to call when the node loses focus.
-  void OnLoseFocus(std::function<void()> lose_focus_function);
-
-  // Tells the node it has lost focus.
-  void LoseFocus();
-
   // Adds a function to call when the node becomes invalidated.
   void OnInvalidate(std::function<void()> on_invalidate_function);
 
@@ -260,8 +248,6 @@ class Node : public std::enable_shared_from_this<Node> {
       on_mouse_button_down_functions_;
   std::vector<std::function<void(const Point&, window::MouseButton)>>
       on_mouse_button_up_functions_;
-  std::vector<std::function<void()>> on_gain_focus_functions_;
-  std::vector<std::function<void()>> on_lose_focus_functions_;
 
   void SetParent(std::weak_ptr<Node> parent);
   void DrawChildren(DrawContext& draw_context);

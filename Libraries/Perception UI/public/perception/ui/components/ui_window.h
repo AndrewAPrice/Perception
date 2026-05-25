@@ -111,6 +111,9 @@ class UiWindow : public window::WindowDelegate,
   // Focus on the window, bringing it to the front.
   void Focus();
 
+  void SetFocusedNode(std::shared_ptr<Node> node);
+  std::shared_ptr<Node> GetFocusedNode() const;
+
   void Draw();
   void GetNodesAt(
       const Point& point,
@@ -133,6 +136,9 @@ class UiWindow : public window::WindowDelegate,
   virtual void MouseHovered(const window::MouseHoverEvent& event) override;
 
   virtual void PrintUiHierarchy() override;
+
+  virtual void KeyPressed(const window::KeyboardKeyEvent& event) override;
+  virtual void KeyReleased(const window::KeyboardKeyEvent& event) override;
 
   void InvalidateRender();
 
@@ -163,6 +169,7 @@ class UiWindow : public window::WindowDelegate,
   std::vector<std::function<void()>> on_focus_changed_functions_;
 
   std::weak_ptr<Node> node_mouse_is_over_;
+  std::weak_ptr<Node> focused_node_;
 
   void* pixel_data_;
   int buffer_width_;
