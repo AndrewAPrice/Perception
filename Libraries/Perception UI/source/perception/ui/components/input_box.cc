@@ -324,7 +324,7 @@ void InputBox::EnsureCursorVisible() {
 
 void InputBox::HandleKeyDown(const window::KeyboardKeyEvent& event) {
   KeyCode key = static_cast<KeyCode>(event.key);
-  if (IsShiftKey(key)) {
+  if (IsShiftKey(event.key)) {
     shift_pressed_ = true;
     return;
   }
