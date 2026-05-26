@@ -53,7 +53,13 @@ void MaybeLoadApplication(std::string_view path) {
     if (description_itr != data.end() && description_itr->is_string())
       description_itr->get_to(application.description);
 
-    std::string icon_path = std::string(path) + "/icon.rgba";
+    std::string svg_path = std::string(path) + "/icon.svg";
+    std::string rgba_path = std::string(path) + "/icon.rgba";
+    std::error_code ec_exists;
+    std::string icon_path =
+        (std::filesystem::exists(svg_path, ec_exists) && !ec_exists)
+            ? svg_path
+            : rgba_path;
     application.icon = ::perception::ui::Image::LoadImage(icon_path);
 
     applications.push_back(application);
@@ -72,11 +78,17 @@ void ScanForApplications() {
   if (applications_initialized) return;
   applications_initialized = true;
 
-  for (const auto& root_entry : std::filesystem::directory_iterator("/")) {
-    for (const auto& application_entry : std::filesystem::directory_iterator(
-             std::string(root_entry.path()) + "/Applications")) {
-      MaybeLoadApplication(std::string(application_entry.path()));
+  try {
+    for (const auto& root_entry : std::filesystem::directory_iterator("/")) {
+      std::string app_path = std::string(root_entry.path()) + "/Applications";
+      if (std::filesystem::exists(app_path)) {
+        for (const auto& app_entry :
+             std::filesystem::directory_iterator(app_path)) {
+          MaybeLoadApplication(std::string(app_entry.path()));
+        }
+      }
     }
+  } catch (...) {
   }
 }
 
