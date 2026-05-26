@@ -41,6 +41,13 @@ void InitFiniFunctions::AddFunctionSection(
   array->push_back((*section_header)->sh_addr + offset);
 }
 
+void InitFiniFunctions::AddEhFrameSection(
+    std::optional<const Elf64_Shdr*> section_header, size_t offset) {
+  if (!section_header) return;
+
+  eh_frames_.push_back((*section_header)->sh_addr + offset);
+}
+
 size_t InitFiniFunctions::PopulateInMemory(
     size_t start_address, std::map<size_t, void*>& child_memory_pages,
     std::map<std::string_view, size_t>& symbols_to_addresses) {
@@ -108,6 +115,9 @@ size_t InitFiniFunctions::PopulateInMemory(
 
   symbols_to_addresses["__fini_functions"] = write_address;
   write_appended_functions(fini_functions_);
+
+  symbols_to_addresses["__eh_frame_array"] = write_address;
+  write_appended_functions(eh_frames_);
 
   return write_address;
 }

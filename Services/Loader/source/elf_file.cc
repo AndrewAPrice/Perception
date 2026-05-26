@@ -418,6 +418,8 @@ void ElfFile::FindInterestingSections() {
       fini_section_header_ = &section_header;
     } else if (section_name == ".fini_array") {
       fini_array_section_header_ = &section_header;
+    } else if (section_name == ".eh_frame") {
+      eh_frame_section_header_ = &section_header;
     }
   }
 }
@@ -502,6 +504,8 @@ void ElfFile::AddToInitFiniFunctions(size_t offset,
                                          InitFiniFunctions::Init, offset);
   init_fini_functions.AddFunctionSection(fini_section_header_,
                                          InitFiniFunctions::Fini, offset);
+
+  init_fini_functions.AddEhFrameSection(eh_frame_section_header_, offset);
 }
 
 std::vector<const Elf64_Shdr*> ElfFile::GetRelocationSectionHeaders() {

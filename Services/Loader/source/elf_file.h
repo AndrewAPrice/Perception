@@ -171,6 +171,7 @@ class ElfFile {
   std::optional<const Elf64_Shdr*> init_array_section_header_;
   std::optional<const Elf64_Shdr*> fini_array_section_header_;
   std::optional<const Elf64_Shdr*> fini_section_header_;
+  std::optional<const Elf64_Shdr*> eh_frame_section_header_;
 
   // The read only segments to load into child processes. This is a set of
   // SharedMemory blocks to map into the child process and the non-offsetted

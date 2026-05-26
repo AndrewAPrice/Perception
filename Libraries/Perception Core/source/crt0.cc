@@ -27,6 +27,9 @@ extern __attribute__((__weak__)) size_t __init_array_start, __init_array_end,
     __fini_array_start, __fini_array_end, __fini_array_start, __fini_array_end,
     __preinit_array_of_arrays, __init_array_of_arrays, __fini_array_of_arrays,
     __init_functions, __fini_functions;
+extern __attribute__((__weak__)) size_t __eh_frame_array;
+__attribute__((__weak__)) void __unw_add_dynamic_eh_frame_section(
+    size_t eh_frame_start);
 }
 
 namespace {
@@ -109,6 +112,15 @@ extern "C" {
 __attribute__((visibility("default"))) void __libc_start_init() {
   std::set_terminate(CustomTerminateHandler);
   _init();
+
+  if (&__eh_frame_array != nullptr &&
+      __unw_add_dynamic_eh_frame_section != nullptr) {
+    size_t* array_ptr = &__eh_frame_array;
+    size_t count = array_ptr[0];
+    for (size_t i = 0; i < count; i++) {
+      __unw_add_dynamic_eh_frame_section(array_ptr[i + 1]);
+    }
+  }
 
   if (IsStaticallyLinked()) {
     CallArrayOfFunctions(&__init_array_start, &__init_array_end);

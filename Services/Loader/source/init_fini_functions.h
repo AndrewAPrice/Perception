@@ -37,6 +37,10 @@ class InitFiniFunctions {
   void AddFunctionSection(std::optional<const Elf64_Shdr*> section_header,
                           FunctionSection section, size_t offset);
 
+  // Maybe adds an eh_frame section that has been loaded at the given `offset`.
+  void AddEhFrameSection(std::optional<const Elf64_Shdr*> section_header,
+                         size_t offset);
+
   // Populates a table of arrays and functions in a child process's memory at
   // `start_address`. Allocates the memory in `child_memory_pages`. Populates
   // the symbols to these tables in `symbols_to_addresses`.
@@ -60,5 +64,5 @@ class InitFiniFunctions {
       fini_arrays_;
 
   // Array of functions.
-  std::vector<size_t> init_functions_, fini_functions_;
+  std::vector<size_t> init_functions_, fini_functions_, eh_frames_;
 };
