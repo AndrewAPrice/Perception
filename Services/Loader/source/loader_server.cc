@@ -21,11 +21,16 @@
 #include "extension_registry.h"
 #include "file.h"
 #include "loader.h"
+#include "perception/permissions.h"
 
 using ::perception::ProcessId;
 
 StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
     const ::perception::LoadApplicationRequest& request, ProcessId sender) {
+  if (!::perception::DoesProcessHavePermission(
+          sender, ::perception::Permission::CanLaunchPrograms)) {
+    return ::perception::Status::NOT_ALLOWED;
+  }
   std::string name_to_load = request.name;
   std::vector<std::string> arguments = request.arguments;
 
