@@ -15,8 +15,10 @@
 #include "storage_manager.h"
 
 #include <iostream>
+#include <string_view>
 
 #include "memory_mapped_file.h"
+#include "perception/permissions.h"
 #include "perception/processes.h"
 #include "virtual_file_system.h"
 
@@ -31,12 +33,81 @@ using ::perception::ReadDirectoryRequest;
 using ::perception::ReadDirectoryResponse;
 using ::perception::RequestWithFilePath;
 
+namespace {
+
+// Returns whether the path is in the application's own directory, which doesn't
+// require special permission to access.
+bool IsPathWithinApplicationDirectory(std::string_view path,
+                                      std::string_view process_name) {
+  if (path.empty() || path[0] != '/') {
+    return false;
+  }
+
+  // Skip the leading '/'
+  std::string_view remaining = path.substr(1);
+
+  // Find the first component
+  size_t slash_pos = remaining.find('/');
+  std::string_view first_comp = (slash_pos == std::string_view::npos)
+                                    ? remaining
+                                    : remaining.substr(0, slash_pos);
+
+  if (first_comp != "Applications") {
+    // If the first component is not "Applications", it could be the
+    // mount point. So skip the mount point and look at the next
+    // component.
+    if (slash_pos == std::string_view::npos) {
+      return false;  // Just a mount point, like "/Optical 1"
+    }
+    remaining = remaining.substr(slash_pos + 1);
+    slash_pos = remaining.find('/');
+    first_comp = (slash_pos == std::string_view::npos)
+                     ? remaining
+                     : remaining.substr(0, slash_pos);
+  }
+
+  // Now first_comp must be "Applications".
+  if (first_comp != "Applications") return false;
+
+  // Skip "Applications"/
+  if (slash_pos == std::string_view::npos) {
+    return false;  // Just "/Applications"
+  }
+  remaining = remaining.substr(slash_pos + 1);
+
+  // The next component must match process_name.
+  slash_pos = remaining.find('/');
+  std::string_view target_comp = (slash_pos == std::string_view::npos)
+                                     ? remaining
+                                     : remaining.substr(0, slash_pos);
+
+  return target_comp == process_name;
+}
+
+// Returns whether a process has permission to read a path.
+bool DoesProcessHavePermissionToReadPath(std::string_view path,
+                                         ProcessId sender) {
+  std::string process_name = GetProcessName(sender);
+  if (!process_name.empty() &&
+      IsPathWithinApplicationDirectory(path, process_name)) {
+    return true;
+  }
+
+  return ::perception::DoesProcessHavePermission(
+      sender, ::perception::Permission::CanReadAllFiles);
+}
+
+}  // namespace
+
 StorageManager::StorageManager() {}
 
 StorageManager::~StorageManager() {}
 
 StatusOr<OpenFileResponse> StorageManager::OpenFile(
     const RequestWithFilePath& request, ProcessId sender) {
+  if (!DoesProcessHavePermissionToReadPath(request.path, sender))
+    return ::perception::Status::NOT_ALLOWED;
+
   size_t size_in_bytes = 0;
   size_t optimal_operation_size = 0;
   ASSIGN_OR_RETURN(auto* file, ::OpenFile(request.path, size_in_bytes,
@@ -51,6 +122,8 @@ StatusOr<OpenFileResponse> StorageManager::OpenFile(
 
 StatusOr<OpenMemoryMappedFileResponse> StorageManager::OpenMemoryMappedFile(
     const RequestWithFilePath& request, ::perception::ProcessId sender) {
+  if (!DoesProcessHavePermissionToReadPath(request.path, sender))
+    return ::perception::Status::NOT_ALLOWED;
   ASSIGN_OR_RETURN(MemoryMappedFile * mmfile,
                    ::OpenMemoryMappedFile(request.path, sender));
   OpenMemoryMappedFileResponse response;
@@ -60,7 +133,9 @@ StatusOr<OpenMemoryMappedFileResponse> StorageManager::OpenMemoryMappedFile(
 }
 
 StatusOr<ReadDirectoryResponse> StorageManager::ReadDirectory(
-    const ReadDirectoryRequest& request) {
+    const ReadDirectoryRequest& request, ProcessId sender) {
+  if (!DoesProcessHavePermissionToReadPath(request.path, sender))
+    return ::perception::Status::NOT_ALLOWED;
   ReadDirectoryResponse response;
 
   response.has_more_entries = !ForEachEntryInDirectory(

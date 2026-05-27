@@ -31,7 +31,8 @@ class StorageManager : public ::perception::StorageManager::Server {
                        ::perception::ProcessId sender) override;
 
   virtual StatusOr<::perception::ReadDirectoryResponse> ReadDirectory(
-      const ::perception::ReadDirectoryRequest& request) override;
+      const ::perception::ReadDirectoryRequest& request,
+      ::perception::ProcessId sender) override;
 
   virtual StatusOr<::perception::CheckPermissionsResponse> CheckPermissions(
       const ::perception::RequestWithFilePath& request) override;
