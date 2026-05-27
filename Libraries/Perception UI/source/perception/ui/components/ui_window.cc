@@ -114,6 +114,14 @@ void UiWindow::Focus() {
   if (base_window_) base_window_->Focus();
 }
 
+void UiWindow::Close() {
+  std::scoped_lock lock(window_mutex_);
+  if (base_window_) {
+    base_window_.reset();
+    WindowClosed();
+  }
+}
+
 void UiWindow::SetFocusedNode(std::shared_ptr<Node> node) {
   std::scoped_lock lock(window_mutex_);
   auto old_focused = focused_node_.lock();

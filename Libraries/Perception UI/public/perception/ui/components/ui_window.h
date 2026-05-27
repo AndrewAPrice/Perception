@@ -111,6 +111,9 @@ class UiWindow : public window::WindowDelegate,
   // Focus on the window, bringing it to the front.
   void Focus();
 
+  // Closes the window .
+  void Close();
+
   void SetFocusedNode(std::shared_ptr<Node> node);
   std::shared_ptr<Node> GetFocusedNode() const;
 
