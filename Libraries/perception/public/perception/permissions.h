@@ -27,7 +27,14 @@ class Serializer;
 }
 
 // Permissions that processes can have.
-enum class Permission { CanReadAllFiles, CanLaunchPrograms };
+enum class Permission {
+  // Permission to read all files everywhere, not just files in the process's
+  // own directory. (The process's directory is defined as
+  // /Applications/<process> or /<Mount point>/Apps/<process>)
+  CanReadAllFiles,
+  // Permission to launch other programs.
+  CanLaunchPrograms
+};
 
 class DoesProcessHavePermissionRequest : public serialization::Serializable {
  public:
