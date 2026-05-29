@@ -20,9 +20,10 @@
 #include "perception/serialization/serializable.h"
 #include "perception/serialization/serializer.h"
 #include "perception/service_macros.h"
-#include "perception/socket.h"
+#include "perception/network/socket.h"
 
 namespace perception {
+namespace network {
 
 enum class SocketProtocol : uint8 { TCP = 0, UDP = 1 };
 
@@ -69,7 +70,8 @@ class ResolveHostResponse : public serialization::Serializable {
   X(2, ResolveHost, ResolveHostResponse, ResolveHostRequest)
 
 DEFINE_PERCEPTION_SERVICE(NetworkService, "perception.network.NetworkService",
-                          NETWORK_SERVICE_METHOD_LIST)
+                           NETWORK_SERVICE_METHOD_LIST)
 #undef NETWORK_SERVICE_METHOD_LIST
 
+}  // namespace network
 }  // namespace perception

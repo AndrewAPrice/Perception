@@ -22,6 +22,7 @@
 #include "perception/service_macros.h"
 
 namespace perception {
+namespace network {
 
 class IpAddress : public serialization::Serializable {
  public:
@@ -107,4 +108,5 @@ DEFINE_PERCEPTION_SERVICE(Socket, "perception.network.Socket",
                           SOCKET_METHOD_LIST)
 #undef SOCKET_METHOD_LIST
 
+}  // namespace network
 }  // namespace perception
