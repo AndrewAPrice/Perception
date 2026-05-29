@@ -1,0 +1,35 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/netsurf-browser/libdom.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/dom",
+            "destination": "public/dom",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/bindings",
+            "destination": "public/dom/bindings",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/bindings",
+            "destination": "source/bindings",
+            "recursive": true
+        }
+    ]
+}
