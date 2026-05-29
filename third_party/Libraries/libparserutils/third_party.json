@@ -1,0 +1,39 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/netsurf-browser/libparserutils.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "execute",
+            "command": "cd ${git} && perl build/make-aliases.pl",
+            "inputs": [
+                "${git}/build/make-aliases.pl",
+                "${git}/build/Aliases"
+            ],
+            "outputs": [
+                "${git}/src/charset/aliases.inc"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/charset/aliases.inc",
+            "destination": "source/charset/aliases.inc"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/parserutils",
+            "destination": "public/parserutils",
+            "recursive": true
+        }
+    ]
+}
