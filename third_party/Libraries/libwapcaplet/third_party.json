@@ -1,0 +1,23 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/netsurf-browser/libwapcaplet.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/libwapcaplet",
+            "destination": "public/libwapcaplet",
+            "recursive": true
+        }
+    ]
+}
