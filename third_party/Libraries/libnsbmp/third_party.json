@@ -1,0 +1,22 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/netsurf-browser/libnsbmp.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/libnsbmp.h",
+            "destination": "public/libnsbmp.h"
+        }
+    ]
+}
