@@ -1,0 +1,23 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/netsurf-browser/libnsutils.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include",
+            "destination": "public",
+            "recursive": true
+        }
+    ]
+}
