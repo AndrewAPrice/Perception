@@ -14,6 +14,7 @@
 
 #include "applications_tab.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <map>
@@ -33,6 +34,7 @@
 #include "perception/ui/components/image_view.h"
 #include "perception/ui/components/label.h"
 #include "perception/ui/components/scroll_container.h"
+#include "perception/ui/components/ui_window.h"
 #include "perception/ui/font.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
@@ -59,12 +61,139 @@ using ::perception::ui::components::Container;
 using ::perception::ui::components::ImageView;
 using ::perception::ui::components::Label;
 using ::perception::ui::components::ScrollContainer;
+using ::perception::ui::components::UiWindow;
 using ::perception::window::MouseButton;
 
 namespace {
 
 // The width of the selected application panel.
 double kSelectedApplicationPanelWidth = 280.0f;
+
+// The overlay node.
+std::shared_ptr<Node> launcher_overlay;
+
+// Active error dialog window nodes to keep them alive.
+std::vector<std::shared_ptr<Node>> active_error_dialogs;
+
+struct ErrorDialogState {
+  std::weak_ptr<Node> dialog_node;
+};
+
+// Returns an error message when an application fails to load.
+std::string ErrorMessageForApplicationLoading(std::string_view request_name,
+                                              ::perception::Status status) {
+  bool is_directory = !request_name.empty() && request_name.back() == '/';
+  std::string error_message =
+      is_directory ? "Failed to open " : "Failed to launch ";
+  error_message += std::string(request_name);
+
+  switch (status) {
+    case ::perception::Status::FILE_NOT_FOUND:
+      error_message +=
+          is_directory ? "\nDirectory not found." : "\nFile not found.";
+      break;
+    case ::perception::Status::NOT_ALLOWED:
+      error_message += "\nPermission denied.";
+      break;
+    case ::perception::Status::OUT_OF_MEMORY:
+      error_message += "\nOut of memory.";
+      break;
+    default:
+      error_message +=
+          "\nInternal error (" + std::to_string((int)status) + ").";
+      break;
+  }
+  return error_message;
+}
+
+// Shows an error dialog.
+void ShowErrorDialogForApplicationLoading(std::string_view request_name,
+                                          ::perception::Status status) {
+  auto state = std::make_shared<ErrorDialogState>();
+  std::string message = ErrorMessageForApplicationLoading(request_name, status);
+
+  auto main_container = Container::VerticalContainer(
+      [](Layout& layout) {
+        layout.SetFlexGrow(1.0f);
+        layout.SetPadding(YGEdgeAll, 16.0f);
+        layout.SetGap(16.0f);
+        layout.SetAlignItems(YGAlignStretch);
+      },
+      [](Block& block) {
+        block.SetFillColor(0xFFFFFFFF);  // White background
+      },
+      Label::BasicLabel(
+          message,
+          [](Layout& layout) {
+            layout.SetFlexGrow(1.0f);
+            layout.SetFlexShrink(1.0f);
+          },
+          [](Label& label) {
+            label.SetTextAlignment(TextAlignment::MiddleLeft);
+            label.SetColor(0xFF1F2937);  // Dark gray text
+          }),
+      Container::HorizontalContainer(
+          [](Layout& layout) {
+            layout.SetJustifyContent(YGJustifyFlexEnd);
+            layout.SetGap(12.0f);
+          },
+          Button::TextButton(
+              "OK",
+              [state]() {
+                auto strong_node = state->dialog_node.lock();
+                if (strong_node) {
+                  auto window = strong_node->Get<UiWindow>();
+                  if (window) window->Close();
+                }
+              },
+              [](Layout& layout) {
+                layout.SetWidth(80.0f);
+                layout.SetHeight(32.0f);
+              },
+              [](Button& button) {
+                button.SetButtonStyle(Button::ButtonStyle::PRIMARY);
+              })));
+
+  auto window_node = UiWindow::DialogWithTitleBar(
+      "Error",
+      [state](UiWindow& window) {
+        window.OnClose([state]() {
+          ::perception::Defer([state]() {
+            auto strong_node = state->dialog_node.lock();
+            if (strong_node) {
+              auto it = std::find(active_error_dialogs.begin(),
+                                  active_error_dialogs.end(), strong_node);
+              if (it != active_error_dialogs.end()) {
+                active_error_dialogs.erase(it);
+              }
+            }
+          });
+        });
+      },
+      [](Layout& layout) {
+        layout.SetWidth(320.0f);
+        layout.SetHeight(140.0f);
+      },
+      main_container, &state->dialog_node);
+
+  active_error_dialogs.push_back(window_node);
+}
+
+// Show the launcher overlay.
+void ShowOverlay() {
+  if (launcher_overlay) {
+    launcher_overlay->GetLayout().SetDisplay(YGDisplayFlex);
+    launcher_overlay->Invalidate();
+  }
+}
+
+// Hide the launcher overlay.
+void HideOverlay() {
+  if (launcher_overlay) {
+    launcher_overlay->GetLayout().SetDisplay(YGDisplayNone);
+    launcher_overlay->Invalidate();
+  }
+}
 
 // The widget containing the applications tab.
 std::shared_ptr<Node> applications_tab;
@@ -84,6 +213,18 @@ std::shared_ptr<Node> selected_application_icon;
 // The index of the currently selected application.
 int selected_application_index = -1;
 
+// Launches an application.
+void LaunchApplication(const LoadApplicationRequest& request) {
+  ShowOverlay();
+  GetService<Loader>().LaunchApplication(
+      request,
+      [request](::StatusOr<::perception::LoadApplicationResponse> response) {
+        HideOverlay();
+        if (!response.Ok())
+          ShowErrorDialogForApplicationLoading(request.name, response.Status());
+      });
+}
+
 // Launches an application based on its index in the list of applications.
 void LaunchApplication(int index) {
   const std::vector<Application>& applications = GetApplications();
@@ -92,7 +233,7 @@ void LaunchApplication(int index) {
   LoadApplicationRequest request;
   request.name = applications[index].path;
 
-  GetService<Loader>().LaunchApplication(request, nullptr);
+  LaunchApplication(request);
 }
 
 // Opens the containing folder of the application.
@@ -109,7 +250,7 @@ void OpenContainingFolder(int index) {
   LoadApplicationRequest request;
   request.name = containing_folder;
 
-  GetService<Loader>().LaunchApplication(request, nullptr);
+  LaunchApplication(request);
 }
 
 // Creates a beautiful premium colored letter-icon dynamically.
@@ -200,7 +341,8 @@ void SelectApplication(int index) {
   selected_application_icon->Invalidate();
 }
 
-// Creates a widget representing this application to use as a line in the scrollview.
+// Creates a widget representing this application to use as a line in the
+// scrollview.
 std::shared_ptr<Node> CreateApplicationRow(const Application& application,
                                            int index) {
   auto row = Container::HorizontalContainer(
@@ -360,7 +502,7 @@ std::shared_ptr<Node> GetOrConstructApplicationsTab() {
         button.SetLabelColor(SkColorSetARGB(0xFF, 0xFF, 0xFF, 0xFF));
       });
 
-  applications_tab = Container::HorizontalContainer(
+  auto inner_tab = Container::HorizontalContainer(
       [](Block& block) {
         block.SetBorderRadius(0.0f);
         block.SetBorderWidth(0.0f);
@@ -395,6 +537,27 @@ std::shared_ptr<Node> GetOrConstructApplicationsTab() {
           selected_application_icon, selected_application_title,
           selected_application_description, selected_application_path,
           launch_button, open_folder_button));
+
+  launcher_overlay = Node::Empty(
+      [](Layout& layout) {
+        layout.SetPositionType(YGPositionTypeAbsolute);
+        layout.SetPositionPercent(YGEdgeLeft, 0.0f);
+        layout.SetPositionPercent(YGEdgeTop, 0.0f);
+        layout.SetWidthPercent(100.0f);
+        layout.SetHeightPercent(100.0f);
+        layout.SetDisplay(YGDisplayNone);
+      },
+      [](Block& block) {
+        block.SetFillColor(SkColorSetARGB(0x80, 0x80, 0x80, 0x80));
+      },
+      [](Node& node) { node.SetBlocksHitTest(true); });
+
+  applications_tab = Container::VerticalContainer(
+      [](Layout& layout) {
+        layout.SetFlexGrow(1.0f);
+        layout.SetHeightPercent(100.0f);
+      },
+      inner_tab, launcher_overlay);
 
   if (!GetApplications().empty()) {
     SelectApplication(0);
