@@ -1,0 +1,7 @@
+{
+    "third_party/Libraries/libnspsl/public/nspsl.h": true,
+    "third_party/Libraries/libnspsl/source/Makefile": true,
+    "third_party/Libraries/libnspsl/source/genpubsuffix.pl": true,
+    "third_party/Libraries/libnspsl/source/nspsl.c": true,
+    "third_party/Libraries/libnspsl/source/psl.inc": true
+}
