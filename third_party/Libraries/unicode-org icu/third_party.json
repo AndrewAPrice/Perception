@@ -1,48 +1,48 @@
 {
     "repositories" : [
         {
-            "url": "https://github.com/unicode-org/icu.git",
-            "type": "git",
-            "placeholder": "git"
+            "url": "https://github.com/unicode-org/icu/releases/download/release-72-1/icu4c-72_1-src.zip",
+            "type": "zip",
+            "placeholder": "zip"
         }
     ],
     "operations" : [
         {
             "operation": "copy",
-            "source": "${git}/icu4c/source/common/",
+            "source": "${zip}/icu/source/common/",
             "destination": "source/common"
         },
         {
             "operation": "copy",
-            "source": "${git}/icu4c/source/common/unicode",
+            "source": "${zip}/icu/source/common/unicode",
             "destination": "public/unicode",
             "extension": [".h"]
         },
         {
             "operation": "copy",
-            "source": "${git}/icu4c/source/i18n",
+            "source": "${zip}/icu/source/i18n",
             "destination": "source/common"
         },
         {
             "operation": "copy",
-            "source": "${git}/icu4c/source/i18n/unicode",
+            "source": "${zip}/icu/source/i18n/unicode",
             "destination": "public/unicode",
             "extensions": [".h"]
         },
         {
             "operation": "copy",
-            "source": "${git}/icu4c/source/layoutex",
+            "source": "${zip}/icu/source/layoutex",
             "destination": "source/common"
         },
         {
             "operation": "copy",
-            "source": "${git}/icu4c/source/layoutex/layout",
+            "source": "${zip}/icu/source/layoutex/layout",
             "destination": "public/layout",
             "extensions": [".h"]
         },
         {
             "operation": "copy",
-            "source": "${git}/icu4c/source/stubdata",
+            "source": "${zip}/icu/source/stubdata",
             "destination": "source/stubdata"
         },
         {
