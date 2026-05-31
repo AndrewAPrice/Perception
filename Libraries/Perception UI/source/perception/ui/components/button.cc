@@ -15,6 +15,7 @@
 #include "perception/ui/components/button.h"
 
 #include "perception/ui/components/block.h"
+#include "perception/scheduler.h"
 #include "perception/ui/node.h"
 #include "perception/ui/theme.h"
 
@@ -180,7 +181,9 @@ void Button::MouseButtonUp(const Point& point, window::MouseButton button) {
 
   is_pushed_ = false;
   UpdateFillColor();
-  for (auto& handler : on_push_) handler();
+  for (auto& handler : on_push_) {
+    ::perception::DeferAfterEvents(handler);
+  }
 }
 
 }  // namespace components

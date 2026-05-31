@@ -9,4 +9,7 @@
   source_directories: [
     'source',
   ],
+  files_to_ignore: [
+    'source/xcsinc.c',
+  ],
 }
