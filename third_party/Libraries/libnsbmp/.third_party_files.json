@@ -1,7 +1,0 @@
-{
-    "third_party/Libraries/libnsbmp/public/libnsbmp.h": true,
-    "third_party/Libraries/libnsbmp/source/Makefile": true,
-    "third_party/Libraries/libnsbmp/source/README": true,
-    "third_party/Libraries/libnsbmp/source/libnsbmp.c": true,
-    "third_party/Libraries/libnsbmp/source/utils/log.h": true
-}
