@@ -1,7 +1,0 @@
-{
-    "third_party/Libraries/libnsgif/public/nsgif.h": true,
-    "third_party/Libraries/libnsgif/source/Makefile": true,
-    "third_party/Libraries/libnsgif/source/gif.c": true,
-    "third_party/Libraries/libnsgif/source/lzw.c": true,
-    "third_party/Libraries/libnsgif/source/lzw.h": true
-}
