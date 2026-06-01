@@ -26,41 +26,36 @@ namespace perception {
 namespace ui {
 namespace {
 
-std::unique_ptr<SkFont> book_12_ui_font;
-std::unique_ptr<SkFont> bold_12_ui_font;
-
-SkFontMgr *GetFontManager() {
+SkFontMgr* GetFontManager() {
   static sk_sp<SkFontMgr> font_manager = SkFontMgr_New_FCI(
       sk_sp(SkFontConfigInterface::GetSingletonDirectInterface()),
       SkFontScanner_Make_FreeType());
   return font_manager.get();
 }
 
-} // namespace
+}  // namespace
 
-SkFont *GetBook12UiFont() {
-  if (!book_12_ui_font) {
-    book_12_ui_font = std::make_unique<SkFont>(
-        GetFontManager()->matchFamilyStyle(
-            "DejaVuSans",
-            SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
-                        SkFontStyle::kUpright_Slant)),
-        12);
-  }
-  return book_12_ui_font.get();
+SkFont* GetBook12UiFont() {
+  static std::unique_ptr<SkFont> font = std::make_unique<SkFont>(
+      GetFontManager()->matchFamilyStyle(
+          "DejaVuSans",
+          SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
+                      SkFontStyle::kUpright_Slant)),
+      12);
+
+  return font.get();
 }
 
-SkFont *GetBold12UiFont() {
-  if (!bold_12_ui_font) {
-    bold_12_ui_font = std::make_unique<SkFont>(
-        GetFontManager()->matchFamilyStyle(
-            "DejaVuSans",
-            SkFontStyle(SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width,
-                        SkFontStyle::kUpright_Slant)),
-        12);
-  }
-  return bold_12_ui_font.get();
+SkFont* GetBold12UiFont() {
+  static std::unique_ptr<SkFont> font = std::make_unique<SkFont>(
+      GetFontManager()->matchFamilyStyle(
+          "DejaVuSans",
+          SkFontStyle(SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width,
+                      SkFontStyle::kUpright_Slant)),
+      12);
+
+  return font.get();
 }
 
-} // namespace ui
-} // namespace perception
+}  // namespace ui
+}  // namespace perception

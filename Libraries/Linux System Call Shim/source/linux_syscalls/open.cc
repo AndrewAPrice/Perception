@@ -14,6 +14,7 @@
 
 #include "linux_syscalls/open.h"
 
+#include <errno.h>
 #include "perception/debug.h"
 
 #include "files.h"
@@ -31,7 +32,9 @@ long open(const char* pathname, int flags, mode_t mode) {
 
   if (flags == 0) {
     long id = OpenFile(pathname);
-    if (id == -1) errno = EINVAL;
+    if (id < 0) {
+      return id;
+    }
     return id;
   } else {
     perception::DebugPrinterSingleton << "Invoking MUSL syscall open() on " << pathname
@@ -52,8 +55,7 @@ long open(const char* pathname, int flags, mode_t mode) {
     if (flags & O_SYNC) perception::DebugPrinterSingleton << " O_SYNC";
     if (flags & O_TRUNC) perception::DebugPrinterSingleton << " O_TRUNC";
     perception::DebugPrinterSingleton << '\n';
-    errno = EINVAL;
-    return -1;
+    return -EINVAL;
   }
 }
 
