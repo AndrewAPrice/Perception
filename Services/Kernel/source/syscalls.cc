@@ -149,6 +149,10 @@ const char *GetSystemCallName(Syscall syscall) {
       return "GetCurrentTimestamp";
     case Syscall::SetThatProcessCaresAboutCpuTracking:
       return "SetThatProcessCaresAboutCpuTracking";
+    case Syscall::SetThreadPriority:
+      return "SetThreadPriority";
+    case Syscall::SetFocusedProcess:
+      return "SetFocusedProcess";
   }
 }
 

@@ -37,7 +37,9 @@ void ScheduleThread(Thread *thread) {}
 void UnscheduleThread(Thread *thread) {}
 void ScheduleThreadIfWeAreHalted() {}
 void ScheduleNextThread() {}
-bool HasAtLeast2AwakeThreads() { return false; }
+bool NeedsTimesliceInterrupt(Thread* thread) { return false; }
+void SetFocusedProcess(Process* process) {}
+Process* GetFocusedProcess() { return nullptr; }
 
 // Mocks for Physical Allocator globals
 size_t total_system_memory = 0;

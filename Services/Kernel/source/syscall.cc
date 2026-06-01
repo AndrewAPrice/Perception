@@ -5,6 +5,7 @@
 #include "interrupts.asm.h"
 #include "interrupts.h"
 #include "io.h"
+#include "kernel_string.h"
 #include "messages.h"
 #include "multiboot_modules.h"
 #include "physical_allocator.h"
@@ -707,6 +708,51 @@ extern "C" void SyscallHandler(int syscall_number) {
       SetThatProcessCaresAboutCpuTracking(
           running_thread->process, currently_executing_thread_regs->rax != 0);
       break;
+    case Syscall::SetThreadPriority: {
+      size_t target_thread_id = currently_executing_thread_regs->rax;
+      size_t priority_val = currently_executing_thread_regs->rbx;
+
+      Thread* target_thread = nullptr;
+      if (target_thread_id == 0 || target_thread_id == running_thread->id) {
+        target_thread = running_thread;
+      } else {
+        target_thread =
+            GetThreadFromTid(running_thread->process, target_thread_id);
+      }
+
+      if (target_thread == nullptr) {
+        // Invalid thread ID or not part of the caller.
+        currently_executing_thread_regs->rax = 1;
+        break;
+      }
+
+      if (priority_val > static_cast<size_t>(ThreadPriority::Idle)) {
+        // Invalid priority level.
+        currently_executing_thread_regs->rax = 2;
+        break;
+      }
+
+      ThreadPriority new_priority = static_cast<ThreadPriority>(priority_val);
+      if (new_priority == ThreadPriority::InterruptDriver &&
+          !running_thread->process->is_driver) {
+        // Not a driver and trying to request InterruptDriver priority.
+        currently_executing_thread_regs->rax = 3;
+        break;
+      }
+
+      SetThreadPriority(target_thread, new_priority);
+      currently_executing_thread_regs->rax = 0;
+      break;
+    }
+    case Syscall::SetFocusedProcess: {
+      // Only the Window Manager can change the focused process.
+      if (!strcmp(running_thread->process->name, (void*)"Window Manager", 14)) {
+        size_t target_pid = currently_executing_thread_regs->rax;
+        Process* target = GetProcessFromPid(target_pid);
+        if (target != nullptr) SetFocusedProcess(target);
+      }
+      break;
+    }
   }
 #ifdef DEBUG
   if (running_thread) running_thread->in_syscall = false;

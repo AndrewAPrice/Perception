@@ -39,7 +39,8 @@ TEST(ThreadLifecycleAndReclamationTest) {
   ASSERT(child->thread_count, (unsigned short)1);
   ASSERT(GetThreadFromTid(child, t1->id), t1);
 
-  // Destroy the last thread. This should automatically trigger child process destruction!
+  // Destroy the last thread. This should automatically trigger child process
+  // destruction!
   DestroyThread(t1, /*process_being_destroyed=*/false);
 
   // Verify child process was automatically reclaimed
@@ -85,4 +86,35 @@ TEST(ThreadAddressClearOnTerminationTest) {
   // Verify that the target address is now cleared to 0.
   ptr = (volatile uint64*)((size_t)TemporarilyMapPhysicalPages(physical_page, 1) + offset);
   ASSERT(*ptr, 0ULL);
+}
+
+TEST(ThreadIsolationTest) {
+  InitializeObjectPools();
+  InitializeProcesses();
+  InitializeThreads();
+  InitializeVirtualAllocator();
+
+  // Create two distinct processes.
+  Process* p1 = CreateProcess(false, true);
+  Process* p2 = CreateProcess(false, true);
+  ASSERT(p1 != nullptr, true);
+  ASSERT(p2 != nullptr, true);
+
+  // Create a thread in each process.
+  Thread* t1 = CreateThread(p1, 0x1000, 42);
+  Thread* t2 = CreateThread(p2, 0x1000, 43);
+  ASSERT(t1 != nullptr, true);
+  ASSERT(t2 != nullptr, true);
+
+  // Verify that process 1 can see its own thread but not process 2's thread.
+  ASSERT(GetThreadFromTid(p1, t1->id), t1);
+  ASSERT(GetThreadFromTid(p1, t2->id) == nullptr, true);
+
+  // Verify that process 2 can see its own thread but not process 1's thread.
+  ASSERT(GetThreadFromTid(p2, t2->id), t2);
+  ASSERT(GetThreadFromTid(p2, t1->id) == nullptr, true);
+
+  // Clean up
+  DestroyThread(t1, /*process_being_destroyed=*/false);
+  DestroyThread(t2, /*process_being_destroyed=*/false);
 }

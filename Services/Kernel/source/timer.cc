@@ -373,7 +373,7 @@ void ReprogramTimerForNextDeadline() {
   size_t now = GetCurrentTimestampInMicroseconds();
   size_t next_deadline = 0;
 
-  if (HasAtLeast2AwakeThreads() && running_thread != nullptr) {
+  if (running_thread != nullptr && NeedsTimesliceInterrupt(running_thread)) {
     next_deadline = running_thread->current_run_start_timestamp +
                     running_thread->remaining_timeslice_microseconds;
   }

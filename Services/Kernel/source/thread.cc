@@ -93,6 +93,14 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param) {
   thread->remaining_timeslice_microseconds = 10000;
   thread->current_run_start_timestamp = 0;
 
+  // Initialize thread priority on spawn.
+  if (process->thread_count == 0) {
+    thread->priority = process->is_driver ? ThreadPriority::InterruptDriver
+                                          : ThreadPriority::Normal;
+  } else {
+    thread->priority = ThreadPriority::Background;
+  }
+
   // The thread isn't sleeping waiting for messages.
   thread->thread_is_waiting_for_message = false;
 

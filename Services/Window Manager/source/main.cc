@@ -18,6 +18,7 @@
 #include "highlighter.h"
 #include "mouse.h"
 #include "perception/scheduler.h"
+#include "perception/threads.h"
 #include "perception/ui/rectangle.h"
 #include "screen.h"
 #include "window.h"
@@ -28,6 +29,8 @@ using ::perception::WaitForMessagesThenReturn;
 using ::perception::ui::Rectangle;
 
 int main(int argc, char *argv[]) {
+  ::perception::SetThreadPriority(
+      ::perception::ThreadPriority::RealtimeService);
   InitializeScreen();
   InitializeMouse();
   InitializeCompositor();

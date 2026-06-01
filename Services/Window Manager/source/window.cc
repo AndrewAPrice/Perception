@@ -308,8 +308,10 @@ void Window::Focus() {
 
   Invalidate();
 
-  if (!window_listener_already_disappeared_)
+  if (!window_listener_already_disappeared_) {
+    ::perception::SetFocusedProcess(window_listener_.ServerProcessId());
     window_listener_.GainedFocus(nullptr);
+  }
 
   // We now want to send keyboard events to this window.
   GetService<KeyboardDevice>().SetKeyboardListener(keyboard_listener_, nullptr);
@@ -756,6 +758,7 @@ void Window::Unfocus() {
   if (!IsFocused()) return;
 
   focused_window = nullptr;
+  ::perception::SetFocusedProcess(0);
   if (IsDragging()) StopDragging();
   if (IsHovering()) hovering_window = nullptr;
 

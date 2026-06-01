@@ -837,3 +837,38 @@ Stop recording profiling and output the results via COM1.
 
 ### Output
 Nothing.
+
+# Scheduling
+
+## Set thread priority
+
+Sets the scheduling priority of the specified thread. Drivers can set their priority to `InterruptDriver` (0). Other processes can set their priority to `RealtimeService` (1), `InteractiveApp` (2), `Normal` (3), `Background` (4), or `Idle` (5).
+
+Note that `InterruptDriver` (0) and `RealtimeService` (1) are strict priority levels that preempt everything else immediately. Conversely, `Idle` (5) threads only run if there are no higher priority (0 to 4) threads awake in the system.
+
+### Input
+* `rdi` - 65
+* `rax` - The thread ID to modify (0 for the current thread).
+* `rbx` - The priority level (0 to 5).
+
+### Output
+* `rax` - Status code:
+  * 0 - Success.
+  * 1 - Invalid thread ID.
+  * 2 - Invalid priority level.
+  * 3 - Access denied (e.g., requesting `InterruptDriver` without driver permissions).
+
+## Set focused process
+
+Sets the process that is currently in the foreground/focused. Threads in the focused process with a priority of `Normal` (3) are dynamically elevated to `InteractiveApp` (2). When the process loses focus, its elevated threads are reverted back to `Normal`. Only the privileged `"Window Manager"` process can invoke this.
+
+### Input
+* `rdi` - 66
+* `rax` - The process ID of the process to focus (or 0 to clear focus).
+
+### Output
+* `rax` - Status code:
+  * 0 - Success.
+  * 1 - Process does not exist.
+  * 2 - Access denied (not the Window Manager).
+

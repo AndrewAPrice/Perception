@@ -2,6 +2,7 @@
 
 #include "linked_list.h"
 #include "registers.h"
+#include "scheduler.h"
 #include "types.h"
 
 struct Process;
@@ -49,6 +50,9 @@ struct Thread {
 
   // A linked list of awake threads, used by the scheduler.
   LinkedListNode node_in_scheduler;
+
+  // The dynamic priority of the thread.
+  ThreadPriority priority;
 
   // The number of time slices this thread has ran for. This might not be so
   // accurate as to how much processing time a thread has had because partial

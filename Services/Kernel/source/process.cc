@@ -149,6 +149,10 @@ void DestroyProcess(Process* process) {
   // Destroy all threads.
   DestroyThreadsForProcess(process, true);
 
+  // If this is the focused process, unfocus it, but after all threads are
+  // destroyed to reduce the amount of work it does.
+  if (GetFocusedProcess() == process) SetFocusedProcess(nullptr);
+
   UnregisterAllMessagesToForOnInterruptForProcess(process);
 
   while (!process->services_i_want_to_be_notified_of_when_they_appear.IsEmpty())

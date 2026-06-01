@@ -18,6 +18,7 @@
 #include "perception/devices/storage_device.h"
 #include "perception/scheduler.h"
 #include "perception/services.h"
+#include "perception/threads.h"
 #include "storage_manager.h"
 #include "virtual_file_system.h"
 
@@ -27,6 +28,8 @@ using ::perception::NotifyOnEachNewServiceInstance;
 using ::perception::devices::StorageDevice;
 
 int main(int argc, char *argv[]) {
+  ::perception::SetThreadPriority(
+      ::perception::ThreadPriority::RealtimeService);
   NotifyOnEachNewServiceInstance<StorageDevice>(
       [](StorageDevice::Client storage_device) {
         auto file_system = InitializeStorageDevice(storage_device);

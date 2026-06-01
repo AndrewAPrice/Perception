@@ -30,6 +30,10 @@ void Defer(const std::function<void()>& function);
 // incoming events have been handled.
 void DeferAfterEvents(const std::function<void()>& function);
 
+// Sets the focused process, that receives a temporary boost in priority. Only
+// the Window Manager can call this.
+void SetFocusedProcess(ProcessId pid);
+
 // Hand over control to the scheduler. This function never returns.
 void HandOverControl();
 

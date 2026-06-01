@@ -3,6 +3,18 @@
 
 struct Thread;
 struct Registers;
+struct Process;
+
+enum class ThreadPriority : uint8 {
+  InterruptDriver = 0,  // Hardware drivers
+  RealtimeService = 1,  // UI Compositor / Window Manager
+  InteractiveApp = 2,   // Focused GUI App (foreground)
+  Normal = 3,           // Background services (Net Manager, etc.)
+  Background = 4,       // CPU-heavy processes (compilers, etc.)
+  Idle = 5              // Strictly idle tasks (backups, etc.)
+};
+
+constexpr int kThreadPriorityCount = 6;
 
 // The currently running thread.
 extern Thread *running_thread;
@@ -19,8 +31,15 @@ void ScheduleNextThread();
 void ScheduleThread(Thread *thread);
 void UnscheduleThread(Thread *thread);
 
-// Returns whether there are at least two awake threads in the scheduler.
-bool HasAtLeast2AwakeThreads();
+// Set a thread's base priority and reschedule it if awake.
+void SetThreadPriority(Thread* thread, ThreadPriority priority);
+
+// Focused process elevation interface for Window Manager.
+void SetFocusedProcess(Process* process);
+Process* GetFocusedProcess();
+
+// Returns whether the running thread needs a timeslice interrupt.
+bool NeedsTimesliceInterrupt(Thread* thread);
 
 // Schedules a thread if we are currently halted - such as an interrupt
 // woke up a thread.

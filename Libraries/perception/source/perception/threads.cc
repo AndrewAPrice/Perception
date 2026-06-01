@@ -128,4 +128,25 @@ void SetAddressToClearOnThreadTermination(size_t address_to_clear) {
 #endif
 }
 
+bool SetThreadPriority(ThreadPriority priority) {
+  return SetThreadPriority(0, priority);
+}
+
+bool SetThreadPriority(ThreadId tid, ThreadPriority priority) {
+#ifdef PERCEPTION
+  volatile register size_t syscall_num asm("rdi") = 65;
+  volatile register size_t param1 asm("rax") = tid;
+  volatile register size_t param2 asm("rbx") = static_cast<size_t>(priority);
+  volatile register size_t return_val asm("rax");
+
+  __asm__ __volatile__("syscall\n"
+                       : "=r"(return_val)
+                       : "r"(syscall_num), "r"(param1), "r"(param2)
+                       : "rcx", "r11");
+  return return_val == 0;
+#else
+  return true;
+#endif
+}
+
 }  // namespace perception

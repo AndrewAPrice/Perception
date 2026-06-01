@@ -22,6 +22,36 @@ namespace perception {
 // Used to identify threads.
 typedef size_t ThreadId;
 
+enum class ThreadPriority : uint8 {
+  // Strictly preemptive priority. Hardware drivers (e.g., keyboard, mouse,
+  // disk, network). Preempts all lower-priority threads immediately,
+  // preventing them from running.
+  InterruptDriver = 0,
+
+  // Strictly preemptive priority. UI compositor, audio servers, Window Manager.
+  // Preempts all lower-priority threads immediately, preventing them from
+  // running.
+  RealtimeService = 1,
+
+  // Temporarily boosted priority of the focused application.
+  InteractiveApp = 2,
+
+  // Normal priority.
+  Normal = 3,
+
+  // Low priority worker threads, CPU-heavy compiling, and search indexing.
+  Background = 4,
+
+  // Only runs if the system is otherwise idle.
+  Idle = 5
+};
+
+// Sets the priority of the current thread.
+bool SetThreadPriority(ThreadPriority priority);
+
+// Sets the priority of a specific thread.
+bool SetThreadPriority(ThreadId tid, ThreadPriority priority);
+
 // Creates a thread. The provided (optional) parameter is passed through to the
 // newly running thread. It's unsafe for the entry_point function to simply
 // return. It should call TerminateThread() when no longer needed.

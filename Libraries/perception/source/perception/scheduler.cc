@@ -122,6 +122,15 @@ void DeferAfterEvents(const std::function<void()>& function) {
   Scheduler::ScheduleFiberAfterEvents(Fiber::Create(function));
 }
 
+void SetFocusedProcess(ProcessId pid) {
+#ifdef PERCEPTION
+  volatile register size_t syscall asm("rdi") = 66;
+  volatile register size_t param asm("rax") = pid;
+
+  __asm__ __volatile__("syscall\n" : : "r"(syscall), "r"(param) : "rcx", "r11");
+#endif
+}
+
 // Hand over control to the scheduler. This function never returns.
 void HandOverControl() {
   if (fiber_to_return_to_when_out_of_work != nullptr ||
