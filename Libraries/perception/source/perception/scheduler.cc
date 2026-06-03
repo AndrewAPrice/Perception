@@ -19,6 +19,7 @@
 
 #include "perception/fibers.h"
 #include "perception/messages.h"
+#include "perception/processes.h"
 
 namespace perception {
 namespace {
