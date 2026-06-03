@@ -101,8 +101,11 @@ class VirtualAddressSpace {
   // Whether this is the kernel's address space.
   bool IsKernelAddressSpace();
 
-  // The number of allocated pages.
-  size_t GetAllocatedPages() const { return allocated_pages_; }
+  // The number of unique allocated pages.
+  size_t GetUniquePages() const { return unique_pages_; }
+
+  // The number of shared allocated pages.
+  size_t GetSharedPages() const { return shared_pages_; }
 
   // Represents a free range of a virtual address space.
   struct FreeMemoryRange {
@@ -151,8 +154,11 @@ class VirtualAddressSpace {
   // Physical address of the PML4 for this virtual address space.
   size_t pml4_;
 
-  // The number of allocated pages.
-  size_t allocated_pages_ = 0;
+  // The number of unique allocated pages.
+  size_t unique_pages_ = 0;
+
+  // The number of shared allocated pages.
+  size_t shared_pages_ = 0;
 
   // Linked list of free memory ranges.
   LinkedList<FreeMemoryRange, &FreeMemoryRange::node> free_memory_ranges_;

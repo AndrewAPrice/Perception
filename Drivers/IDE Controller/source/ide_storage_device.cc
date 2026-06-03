@@ -281,6 +281,7 @@ Status IdeStorageDevice::Read(const StorageDeviceReadRequest& request) {
           buffer_offset += 2;
         }
       }
+      if (i + 1 < sectors_to_read) ResetInterrupt(device_->primary_channel);
     }
 
     if (assign_page) {
@@ -370,6 +371,7 @@ Status IdeStorageDevice::Read(const StorageDeviceReadRequest& request) {
         buffer_offset += bytes_read;
         skip_bytes = 0;
       }
+    }
   */
   return Status::OK;
 }

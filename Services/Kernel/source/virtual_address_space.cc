@@ -169,7 +169,8 @@ VirtualAddressSpace::~VirtualAddressSpace() {
 
 bool VirtualAddressSpace::InitializeUserSpace() {
   if (!CreateUserSpacePML4()) return false;
-  allocated_pages_ = 0;
+  unique_pages_ = 0;
+  shared_pages_ = 0;
 
   // Set up what memory ranges are free. x86-64 processors use 48-bit canonical
   // addresses, split into lower-half and higher-half memory.
@@ -239,8 +240,9 @@ void VirtualAddressSpace::InitializeKernelSpace(
                                   physical_temp_memory_page_table, true);
 
   start_of_free_kernel_memory = temp_memory_start + (2 * 1024 * 1024);
-  allocated_pages_ =
+  unique_pages_ =
       (start_of_free_kernel_memory - VIRTUAL_MEMORY_OFFSET) / PAGE_SIZE;
+  shared_pages_ = 0;
 
   // Hand create our first statically allocated FreeMemoryRange.
   initial_kernel_memory_range.start_address = start_of_free_kernel_memory;
@@ -283,7 +285,6 @@ size_t VirtualAddressSpace::FindAndReserveFreePageRange(size_t pages) {
   //      << (fmr->start_address + fmr->pages * PAGE_SIZE) << "\n";
 
   RemoveFreeMemoryRange(fmr);
-  allocated_pages_ += pages;
   if (fmr->pages == pages) {
     // This is exactly the size requested! The entire block can be used.
     size_t address = fmr->start_address;
@@ -521,7 +522,6 @@ void VirtualAddressSpace::MarkAddressRangeAsFree(size_t address, size_t pages) {
     fmr->pages = pages;
     AddFreeMemoryRange(fmr);
   }
-  allocated_pages_ -= pages;
 }
 
 size_t VirtualAddressSpace::GetPhysicalAddress(size_t virtualaddr,
@@ -812,11 +812,32 @@ bool VirtualAddressSpace::MapPhysicalPageImpl(
     return false;
   }
 
+  size_t old_entry = entry;
+
   // Write the new entry in the PML1.
   entry = throw_exception_on_access
               ? kDudPageEntry
               : CreatePageTableEntry(physicaladdr, can_write,
                                      !is_kernel_address, own);
+
+  if (old_entry == 0) {
+    if (throw_exception_on_access) {
+      shared_pages_++;
+    } else {
+      if (own) {
+        unique_pages_++;
+      } else {
+        shared_pages_++;
+      }
+    }
+  } else if (old_entry == kDudPageEntry) {
+    if (!throw_exception_on_access) {
+      if (own) {
+        shared_pages_--;
+        unique_pages_++;
+      }
+    }
+  }
 
   if (this == current_address_space || is_kernel_address) {
     // The TLB must be flushed because either this address space is active, or
@@ -871,6 +892,16 @@ void VirtualAddressSpace::UnmapVirtualPage(size_t virtualaddr, bool free) {
   // physical pages.
   if (free && (entry & PageTableEntryBits::kIsOwned) != 0)
     FreePhysicalPage(entry & ~(PAGE_SIZE - 1));
+
+  if (entry == kDudPageEntry) {
+    shared_pages_--;
+  } else if (entry != 0) {
+    if ((entry & PageTableEntryBits::kIsOwned) != 0) {
+      unique_pages_--;
+    } else {
+      shared_pages_--;
+    }
+  }
 
   // Remove this entry for the deepest page table.
   entry = 0;
