@@ -37,7 +37,7 @@ using ::perception::devices::StorageDeviceType;
 
 namespace {
 
-std::map<std::string, std::unique_ptr<FileSystem>, std::less<>>
+std::map<std::string, std::shared_ptr<FileSystem>, std::less<>>
     mounted_file_systems;
 std::mutex file_system_mutex;
 
@@ -131,14 +131,17 @@ StatusOr<std::unique_ptr<File>> OpenFileInternal(std::string_view path,
   RETURN_ON_ERROR(
       ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
 
-  std::lock_guard<std::mutex> lock(file_system_mutex);
-  // Does the mount point exist?
-  auto mount_point_itr = mounted_file_systems.find(mount_point);
-  if (mount_point_itr == mounted_file_systems.end()) {
-    return Status::FILE_NOT_FOUND;  // No mount point.
+  std::shared_ptr<FileSystem> fs;
+  {
+    std::lock_guard<std::mutex> lock(file_system_mutex);
+    // Does the mount point exist?
+    auto mount_point_itr = mounted_file_systems.find(mount_point);
+    if (mount_point_itr == mounted_file_systems.end()) {
+      return Status::FILE_NOT_FOUND;  // No mount point.
+    }
+    fs = mount_point_itr->second;
   }
 
-  FileSystem* fs = mount_point_itr->second.get();
   optimal_operation_size = fs->GetOptionalOperationSize();
   return fs->OpenFile(path_on_mount_point, size_in_bytes, sender);
 }
@@ -151,8 +154,8 @@ void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
   std::cout << "Mounting " << file_system->GetFileSystemType() << " on "
             << file_system->GetDeviceName() << " as /" << mount_name << "/"
             << std::endl;
-  auto* fs = file_system.get();
-  mounted_file_systems[mount_name] = std::move(file_system);
+  auto fs = std::shared_ptr<FileSystem>(std::move(file_system));
+  mounted_file_systems[mount_name] = fs;
   if (first_mounted_file_system.empty()) {
     first_mounted_file_system = mount_name;
 
@@ -215,8 +218,6 @@ StatusOr<MemoryMappedFile*> OpenMemoryMappedFile(
   RETURN_ON_ERROR(
       ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
 
-  std::lock_guard<std::mutex> lock(file_system_mutex);
-
   if (mount_point.empty()) {
     // Querying '/'.
     file_exists = true;
@@ -226,21 +227,26 @@ StatusOr<MemoryMappedFile*> OpenMemoryMappedFile(
     return Status::OK;
   }
 
-  // Does the mount point exist?
-  auto mount_point_itr = mounted_file_systems.find(mount_point);
-  if (mount_point_itr == mounted_file_systems.end()) {
-    // Mount point not found.
-    file_exists = false;
-    can_read = false;
-    can_write = false;
-    can_execute = false;
+  std::shared_ptr<FileSystem> fs;
+  {
+    std::lock_guard<std::mutex> lock(file_system_mutex);
+    // Does the mount point exist?
+    auto mount_point_itr = mounted_file_systems.find(mount_point);
+    if (mount_point_itr == mounted_file_systems.end()) {
+      // Mount point not found.
+      file_exists = false;
+      can_read = false;
+      can_write = false;
+      can_execute = false;
 
-    return Status::OK;
+      return Status::OK;
+    }
+    fs = mount_point_itr->second;
   }
 
   // Scan the directory within the file system.
-  mount_point_itr->second->CheckFilePermissions(
-      path_on_mount_point, file_exists, can_read, can_write, can_execute);
+  fs->CheckFilePermissions(path_on_mount_point, file_exists, can_read,
+                           can_write, can_execute);
 
   return Status::OK;
 }
@@ -317,15 +323,19 @@ bool ForEachEntryInDirectory(
     std::string_view mount_point, path_on_mount_point;
     ExtractMountPointAndPath(directory, mount_point, path_on_mount_point);
 
-    std::lock_guard<std::mutex> lock(file_system_mutex);
-    // Does the mount point exist?
-    auto mount_point_itr = mounted_file_systems.find(mount_point);
-    if (mount_point_itr == mounted_file_systems.end())
-      return true;  // No mount point.
+    std::shared_ptr<FileSystem> fs;
+    {
+      std::lock_guard<std::mutex> lock(file_system_mutex);
+      // Does the mount point exist?
+      auto mount_point_itr = mounted_file_systems.find(mount_point);
+      if (mount_point_itr == mounted_file_systems.end())
+        return true;  // No mount point.
+      fs = mount_point_itr->second;
+    }
 
     // Scan the directory within the file system.
-    return mount_point_itr->second->ForEachEntryInDirectory(
-        path_on_mount_point, offset, count, on_each_entry);
+    return fs->ForEachEntryInDirectory(path_on_mount_point, offset, count,
+                                       on_each_entry);
   }
 }
 
@@ -347,14 +357,18 @@ StatusOr<FileStatistics> GetFileStatistics(std::string_view path) {
   RETURN_ON_ERROR(
       ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
 
-  // Does the mount point exist?
-  std::lock_guard<std::mutex> lock(file_system_mutex);
-  auto mount_point_itr = mounted_file_systems.find(mount_point);
-  if (mount_point_itr == mounted_file_systems.end()) {
-    FileStatistics response;
-    response.exists = false;
-    return response;
+  std::shared_ptr<FileSystem> fs;
+  {
+    std::lock_guard<std::mutex> lock(file_system_mutex);
+    // Does the mount point exist?
+    auto mount_point_itr = mounted_file_systems.find(mount_point);
+    if (mount_point_itr == mounted_file_systems.end()) {
+      FileStatistics response;
+      response.exists = false;
+      return response;
+    }
+    fs = mount_point_itr->second;
   }
 
-  return mount_point_itr->second->GetFileStatistics(path_on_mount_point);
+  return fs->GetFileStatistics(path_on_mount_point);
 }

@@ -90,7 +90,9 @@ extern "C" void SyscallHandler(int syscall_number) {
     case Syscall::CreateThread: {
       Thread* new_thread = CreateThread(running_thread->process,
                                         currently_executing_thread_regs->rax,
-                                        currently_executing_thread_regs->rbx);
+                                        currently_executing_thread_regs->rbx,
+                                        currently_executing_thread_regs->rdx,
+                                        currently_executing_thread_regs->rsi);
       if (new_thread == 0) {
         currently_executing_thread_regs->rax = 0;
       } else {

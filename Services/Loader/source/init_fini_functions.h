@@ -41,6 +41,17 @@ class InitFiniFunctions {
   void AddEhFrameSection(std::optional<const Elf64_Shdr*> section_header,
                          size_t offset);
 
+  // Struct representing a TLS segment.
+  struct TlsSegment {
+    size_t image;
+    size_t len;
+    size_t size;
+    size_t align;
+  };
+
+  // Registers a TLS segment.
+  void AddTlsSegment(size_t image, size_t len, size_t size, size_t align);
+
   // Populates a table of arrays and functions in a child process's memory at
   // `start_address`. Allocates the memory in `child_memory_pages`. Populates
   // the symbols to these tables in `symbols_to_addresses`.
@@ -65,4 +76,7 @@ class InitFiniFunctions {
 
   // Array of functions.
   std::vector<size_t> init_functions_, fini_functions_, eh_frames_;
+
+  // Collected TLS segments.
+  std::vector<TlsSegment> tls_segments_;
 };

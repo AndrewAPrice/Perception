@@ -506,6 +506,16 @@ void ElfFile::AddToInitFiniFunctions(size_t offset,
                                          InitFiniFunctions::Fini, offset);
 
   init_fini_functions.AddEhFrameSection(eh_frame_section_header_, offset);
+
+  for (const auto& segment_header : ProgramSegmentHeaders()) {
+    if (segment_header.p_type == PT_TLS) {
+      init_fini_functions.AddTlsSegment(
+          segment_header.p_vaddr + offset,
+          segment_header.p_filesz,
+          segment_header.p_memsz,
+          segment_header.p_align);
+    }
+  }
 }
 
 std::vector<const Elf64_Shdr*> ElfFile::GetRelocationSectionHeaders() {

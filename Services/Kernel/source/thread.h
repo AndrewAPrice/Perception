@@ -38,6 +38,9 @@ struct Thread {
   // Offset of the thread's GS segment.
   size_t thread_gs_segment_offset;
 
+  // Did the kernel allocate this thread's stack?
+  bool stack_allocated_by_kernel : 1;
+
   // Virtual address of the thread's stack. This gets released when the thread
   // is destroyed.
   size_t stack;
@@ -87,7 +90,8 @@ struct Thread {
 void InitializeThreads();
 
 // Creates a thread for a process.
-Thread *CreateThread(Process *process, size_t entry_point, size_t param);
+Thread *CreateThread(Process *process, size_t entry_point, size_t param,
+                     size_t stack_pointer = 0, size_t tls_base = 0);
 
 // Destroys a thread.
 void DestroyThread(Thread *thread, bool process_being_destroyed);

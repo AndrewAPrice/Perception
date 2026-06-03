@@ -211,6 +211,53 @@ bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
   return true;
 }
 
+size_t CreateArgsPageForProcess(Process* process, const char* name, size_t phdr_addr, size_t phnum, size_t phent) {
+  VirtualAddressSpace& address_space = process->virtual_address_space;
+  size_t args_virtual_page = address_space.AllocatePages(1);
+  if (args_virtual_page == OUT_OF_MEMORY) return 0;
+
+  size_t physical_page = address_space.GetPhysicalAddress(args_virtual_page, false);
+  if (physical_page == OUT_OF_MEMORY) return 0;
+
+  char* temp_addr = (char*)TemporarilyMapPhysicalPages(physical_page, 1);
+  memset(temp_addr, 0, PAGE_SIZE);
+
+  // We have 1 argument: the name. So argc = 1.
+  size_t argc = 1;
+  *(size_t*)temp_addr = argc;
+
+  size_t pointers_offset = 8;
+  size_t strings_offset = pointers_offset + 8 * (argc + 12); // Space for argv, envp, auxv
+
+  // argv[0] = name
+  size_t child_string_address = args_virtual_page + strings_offset;
+  *(size_t*)(temp_addr + pointers_offset) = child_string_address;
+  
+  size_t name_len = strlen(name);
+  if (strings_offset + name_len + 1 <= PAGE_SIZE) {
+    memcpy(temp_addr + strings_offset, name, name_len);
+    temp_addr[strings_offset + name_len] = '\0';
+  }
+
+  // envp[0] = NULL is at pointers_offset + 8 * (argc + 1), which is already 0.
+
+  // auxv is at pointers_offset + 8 * (argc + 2)
+  size_t write_auxv_offset = pointers_offset + 8 * (argc + 2);
+  auto write_aux = [&](size_t type, size_t value) {
+    *(size_t*)(temp_addr + write_auxv_offset) = type;
+    *(size_t*)(temp_addr + write_auxv_offset + 8) = value;
+    write_auxv_offset += 16;
+  };
+
+  write_aux(3, phdr_addr);    // AT_PHDR = 3
+  write_aux(4, phnum);       // AT_PHNUM = 4
+  write_aux(5, phent);       // AT_PHENT = 5
+  write_aux(6, PAGE_SIZE);   // AT_PAGESZ = 6
+  write_aux(0, 0);           // AT_NULL = 0
+
+  return args_virtual_page;
+}
+
 }  // namespace
 
 bool LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
@@ -262,13 +309,42 @@ bool LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
 
   CopyString(name, PROCESS_NAME_LENGTH, name_length, (char*)process->name);
 
+  size_t phnum = GetNumberOfSegments(header, memory_start, memory_end);
+  size_t phent = header->e_phentsize;
+  size_t phdr_addr = 0;
+
+  Elf64_Phdr* segment_header = (Elf64_Phdr*)(memory_start + header->e_phoff);
+  for (int i = 0; i < phnum; i++, segment_header++) {
+    if ((size_t)segment_header + sizeof(Elf64_Phdr) > memory_end) {
+      break;
+    }
+    if (segment_header->p_type == PT_PHDR) {
+      phdr_addr = segment_header->p_vaddr;
+      break;
+    }
+  }
+  if (phdr_addr == 0) {
+    segment_header = (Elf64_Phdr*)(memory_start + header->e_phoff);
+    for (int i = 0; i < phnum; i++, segment_header++) {
+      if ((size_t)segment_header + sizeof(Elf64_Phdr) > memory_end) {
+        break;
+      }
+      if (segment_header->p_type == PT_LOAD && segment_header->p_offset == 0) {
+        phdr_addr = segment_header->p_vaddr + header->e_phoff;
+        break;
+      }
+    }
+  }
+
   if (!LoadSegments(header, memory_start, memory_end, process)) {
     print << "Can't load: " << name << ": Segments are bad.\n";
     DestroyProcess(process);
     return false;
   }
 
-  Thread* thread = CreateThread(process, header->e_entry, 0);
+  size_t args_address = CreateArgsPageForProcess(process, name, phdr_addr, phnum, phent);
+
+  Thread* thread = CreateThread(process, header->e_entry, args_address);
   if (!thread) {
     print << "Can't load: " << name
           << ": Out of memory to create the thread.\n";

@@ -26,7 +26,7 @@ size_t next_thread_id;
 
 // Initializes the registers for a thread.
 void InitializeRegisters(const Process& process, size_t entry_point,
-                         size_t param, Thread& thread) {
+                         size_t param, size_t stack_pointer, Thread& thread) {
   Registers& registers = thread.registers;
   // A parameter will be passed into 'rdi' (this can be used as a function argument.)
   registers.rdi = param;
@@ -34,11 +34,9 @@ void InitializeRegisters(const Process& process, size_t entry_point,
   // Sets the instruction pointer to the entry point.
   registers.rip = entry_point;
 
-  // Sets the stack pointer and stack base to the top of our stack. (Stacks grow
   // Sets the stack pointer and stack base to the top of the stack. (Stacks grow down!)
-  registers.rbp = registers.rsp = thread.stack + PAGE_SIZE * STACK_PAGES;
+  registers.rbp = registers.rsp = stack_pointer;
 
-  // Sets our code and stack segment selectors (the segments are defined in
   // Sets the code and stack segment selectors (the segments are defined in Gdt64 in boot.asm)
   registers.cs =
       0x20 | 3;  // '| 3' means ring 3. This is a user code, not kernel code.
@@ -63,7 +61,7 @@ void InitializeThreads() {
 }
 
 // Createss a thread.
-Thread* CreateThread(Process* process, size_t entry_point, size_t param) {
+Thread* CreateThread(Process* process, size_t entry_point, size_t param, size_t stack_pointer, size_t tls_base) {
   Thread* thread = ObjectPool<Thread>::Allocate();
   if (thread == nullptr) return nullptr;
 
@@ -74,15 +72,21 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param) {
   thread->id = next_thread_id;
   next_thread_id++;
 
-  // Sets up the stack by:
-  // 1) Finds a free page in the process's virtual address space.
-  thread->stack =
-      thread->process->virtual_address_space.AllocatePages(STACK_PAGES);
+  // Sets up the stack.
+  if (stack_pointer == 0) {
+    thread->stack =
+        thread->process->virtual_address_space.AllocatePages(STACK_PAGES);
+    thread->stack_allocated_by_kernel = true;
+    stack_pointer = thread->stack + PAGE_SIZE * STACK_PAGES;
+  } else {
+    thread->stack = 0;
+    thread->stack_allocated_by_kernel = false;
+  }
 
-  InitializeRegisters(*process, entry_point, param, *thread);
+  InitializeRegisters(*process, entry_point, param, stack_pointer, *thread);
 
-  // No thread segment.
-  thread->thread_fs_segment_offset = (size_t)nullptr;
+  // Set the TLS bases.
+  thread->thread_fs_segment_offset = tls_base;
   thread->thread_gs_segment_offset = (size_t)nullptr;
 
   // The thread isn't initially awake until we schedule it.
@@ -130,7 +134,9 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
   }
 
   // Free the thread's stack.
-  thread->process->virtual_address_space.FreePages(thread->stack, STACK_PAGES);
+  if (thread->stack_allocated_by_kernel) {
+    thread->process->virtual_address_space.FreePages(thread->stack, STACK_PAGES);
+  }
 
   Process* process = thread->process;
 

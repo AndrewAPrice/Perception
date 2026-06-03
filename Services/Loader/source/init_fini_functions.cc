@@ -48,6 +48,10 @@ void InitFiniFunctions::AddEhFrameSection(
   eh_frames_.push_back((*section_header)->sh_addr + offset);
 }
 
+void InitFiniFunctions::AddTlsSegment(size_t image, size_t len, size_t size, size_t align) {
+  tls_segments_.push_back({image, len, size, align});
+}
+
 size_t InitFiniFunctions::PopulateInMemory(
     size_t start_address, std::map<size_t, void*>& child_memory_pages,
     std::map<std::string_view, size_t>& symbols_to_addresses) {
@@ -118,6 +122,15 @@ size_t InitFiniFunctions::PopulateInMemory(
 
   symbols_to_addresses["__eh_frame_array"] = write_address;
   write_appended_functions(eh_frames_);
+
+  symbols_to_addresses["__tls_modules"] = write_address;
+  write_value(tls_segments_.size());
+  for (const auto& segment : tls_segments_) {
+    write_value(segment.image);
+    write_value(segment.len);
+    write_value(segment.size);
+    write_value(segment.align);
+  }
 
   return write_address;
 }
