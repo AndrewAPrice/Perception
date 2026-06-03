@@ -15,7 +15,7 @@
 #pragma once
 
 // The total number of system calls.
-#define NUMBER_OF_SYSCALLS 67
+#define NUMBER_OF_SYSCALLS 73
 
 // The canonical list of system calls, mapped to the system call number.
 enum class Syscall {
@@ -31,7 +31,7 @@ enum class Syscall {
   WaitAndSwitchToThread = 11,
   TerminateThisThread = 4,
   TerminateThread = 5,
-  Yield = 8,
+  // 8 is Free / Unassigned
   SetThreadSegment = 27,
   SetThreadSegmentExtended = 63,
   SetAddressToClearOnThreadTermination = 28,
@@ -95,7 +95,10 @@ enum class Syscall {
   // Profiling
   EnableProfiling = 55,
   DisableAndOutputProfiling = 56,
-  SetThatProcessCaresAboutCpuTracking = 64
+  SetThatProcessCaresAboutCpuTracking = 64,
+  RegisterSharedMemoryEvent = 70,
+  UnregisterSharedMemoryEvent = 71,
+  TriggerSharedMemoryEvent = 72
 };
 
 // Returns the name of a system call, by int.

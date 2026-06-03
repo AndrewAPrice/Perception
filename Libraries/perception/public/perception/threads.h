@@ -66,10 +66,6 @@ void TerminateThread();
 // Terminate the thread associaed with the provided thread id.
 void TerminateThread(ThreadId tid);
 
-// Yield's control of the currently running thread. This does not put the thread
-// to sleep, but rather passes control to the next thread.
-void Yield();
-
 // Sets the address for the thread's segment (FS).
 void SetThreadSegment(size_t segment_address);
 

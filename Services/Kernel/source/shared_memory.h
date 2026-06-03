@@ -14,8 +14,10 @@
 
 #pragma once
 
+#include "aa_tree.h"
 #include "linked_list.h"
 #include "set.h"
+#include "shared_memory_event.h"
 #include "types.h"
 
 struct Process;
@@ -110,8 +112,8 @@ struct SharedMemory {
   // loaded memory page that hasn't been loaded yet.
   size_t message_id_for_lazily_loaded_pages;
 
-  // Linked list of shared memory.
-  LinkedListNode all_shared_memories_node;
+  // Node for the AA-tree of all shared memories.
+  AATreeNode all_shared_memories_node;
 
   // Linked list of threads waiting for pages to become available in this shared
   // memory.
@@ -123,6 +125,10 @@ struct SharedMemory {
   LinkedList<SharedMemoryInProcess,
              &SharedMemoryInProcess::node_in_shared_memory>
       joined_processes;
+
+  // Linked list of events registered for this shared memory.
+  LinkedList<SharedMemoryEvent, &SharedMemoryEvent::node_in_shared_memory>
+      events;
 };
 
 // Initializes the internal structures for shared memory.
@@ -192,3 +198,17 @@ void GetSharedMemoryDetailsPertainingToProcess(Process* process,
 // Attempts to grow the size of a shared memory block.
 SharedMemoryInProcess* GrowSharedMemory(Process* process,
                                         size_t shared_memory_id, size_t pages);
+
+// Registers a shared memory event.
+void RegisterSharedMemoryEvent(Process* process, size_t shared_memory_id,
+                               size_t offset, size_t message_id);
+
+// Unregisters a shared memory event.
+void UnregisterSharedMemoryEvent(Process* process, size_t shared_memory_id,
+                                 size_t offset);
+
+// Triggers a shared memory event.
+void TriggerSharedMemoryEvent(size_t shared_memory_id, size_t offset);
+
+// Unregisters all shared memory events registered by the given process.
+void UnregisterAllSharedMemoryEventsForProcess(Process* process);

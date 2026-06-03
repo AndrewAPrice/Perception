@@ -542,4 +542,41 @@ void SharedMemory::Serialize(serialization::Serializer& serializer) {
   }
 }
 
+void SharedMemory::RegisterEvent(size_t offset, MessageId message_id) {
+#if PERCEPTION
+  __asm__ __volatile__(
+      "mov %0, %%rax\n"
+      "mov $70, %%rdi\n"
+      "mov %1, %%rbx\n"
+      "mov %2, %%rdx\n"
+      "syscall\n" ::"r"(shared_memory_id_),
+      "r"(offset), "r"(message_id)
+      : "rax", "rdi", "rbx", "rdx", "rcx", "r11", "memory");
+#endif
+}
+
+void SharedMemory::UnregisterEvent(size_t offset) {
+#if PERCEPTION
+  __asm__ __volatile__(
+      "mov %0, %%rax\n"
+      "mov $71, %%rdi\n"
+      "mov %1, %%rbx\n"
+      "syscall\n" ::"r"(shared_memory_id_),
+      "r"(offset)
+      : "rax", "rdi", "rbx", "rcx", "r11", "memory");
+#endif
+}
+
+void SharedMemory::TriggerEvent(size_t offset) {
+#if PERCEPTION
+  __asm__ __volatile__(
+      "mov %0, %%rax\n"
+      "mov $72, %%rdi\n"
+      "mov %1, %%rbx\n"
+      "syscall\n" ::"r"(shared_memory_id_),
+      "r"(offset)
+      : "rax", "rdi", "rbx", "rcx", "r11", "memory");
+#endif
+}
+
 }  // namespace perception

@@ -175,6 +175,9 @@ void DestroyProcess(Process* process) {
   while (!process->joined_shared_memories.IsEmpty())
     UnmapSharedMemoryFromProcess(process->joined_shared_memories.FirstItem());
 
+  // Free any shared memory events.
+  UnregisterAllSharedMemoryEventsForProcess(process);
+
   // Free the address space.
   process->virtual_address_space.~VirtualAddressSpace();
 

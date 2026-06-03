@@ -133,10 +133,6 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
-    case Syscall::Yield:
-      ScheduleNextThread();
-      JumpIntoThread();  // Doesn't return.
-      break;
     case Syscall::SetThreadSegment:
       SetThreadSegment(running_thread, currently_executing_thread_regs->rax);
       break;
@@ -221,6 +217,7 @@ extern "C" void SyscallHandler(int syscall_number) {
         currently_executing_thread_regs->rbx = 0;
         currently_executing_thread_regs->rdx = 0;
         currently_executing_thread_regs->rsi = 0;
+        currently_executing_thread_regs->rdi = 0;
         break;
       }
 
@@ -229,11 +226,13 @@ extern "C" void SyscallHandler(int syscall_number) {
       if (IsCpuTrackingActive()) CatchUpProcessCpuUsage(process);
 
       currently_executing_thread_regs->rax =
-          process->virtual_address_space.GetAllocatedPages() * PAGE_SIZE;
+          process->virtual_address_space.GetUniquePages() * PAGE_SIZE;
       currently_executing_thread_regs->rbx = process->creation_timestamp;
       currently_executing_thread_regs->rdx = CalculateCompactCpuUsage(process);
 
       currently_executing_thread_regs->rsi = process->service_count;
+      currently_executing_thread_regs->rdi =
+          process->virtual_address_space.GetSharedPages() * PAGE_SIZE;
       break;
     }
     case Syscall::GetTotalSystemMemory:
@@ -753,6 +752,24 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       break;
     }
+    case Syscall::RegisterSharedMemoryEvent:
+      RegisterSharedMemoryEvent(
+          running_thread->process,
+          currently_executing_thread_regs->rax,
+          currently_executing_thread_regs->rbx,
+          currently_executing_thread_regs->rdx);
+      break;
+    case Syscall::UnregisterSharedMemoryEvent:
+      UnregisterSharedMemoryEvent(
+          running_thread->process,
+          currently_executing_thread_regs->rax,
+          currently_executing_thread_regs->rbx);
+      break;
+    case Syscall::TriggerSharedMemoryEvent:
+      TriggerSharedMemoryEvent(
+          currently_executing_thread_regs->rax,
+          currently_executing_thread_regs->rbx);
+      break;
   }
 #ifdef DEBUG
   if (running_thread) running_thread->in_syscall = false;

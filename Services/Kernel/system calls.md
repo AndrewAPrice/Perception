@@ -113,16 +113,6 @@ Terminates a thread and releases its stack. If the provided thread ID matches th
 ### Output
 Nothing.
 
-## Yield
-
-Voluntarily hands execution over to the next scheduled thread.
-
-### Input
-* `rdi` - 8
-
-### Output
-Nothing.
-
 ## Set thread segment
 
 Sets the value of the FS segment base. Each thread can have its own FS segment base.
@@ -214,14 +204,19 @@ Returns the amount of free memory on the system that has not yet been allocated.
 ### Output
 * `rax` - The amount of free memory the system has, in bytes.
 
-## Get memory used by process
-Returns the amount of memory allocated to the currently running process.
+## Get health metrics about a process
+Returns health metrics (memory usage, CPU usage, etc.) about a process.
 
 ### Input
 * `rdi` - 15
+* `rax` - The Process ID to query, or `0` for the currently running process.
 
 ### Output
-* `rax` - The amount of memory allocated to this process, in bytes.
+* `rax` - Unique memory allocated to the process, in bytes. (Returns `0` if the process is not found).
+* `rbx` - The microsecond timestamp since boot when the process was created. (Returns `0` if the process is not found).
+* `rdx` - Compact CPU usage of the process, where each byte represents the rolling CPU percentage of a CPU core. (Returns `0` if the process is not found).
+* `rsi` - The number of services registered by the process. (Returns `0` if the process is not found).
+* `rdi` - Shared memory allocated to the process, in bytes. (Returns `0` if the process is not found).
 
 ## Get total system memory
 Returns the total amount of memory that the computer has.
@@ -871,4 +866,43 @@ Sets the process that is currently in the foreground/focused. Threads in the foc
   * 0 - Success.
   * 1 - Process does not exist.
   * 2 - Access denied (not the Window Manager).
+
+# Synchronization Events
+
+## Register Shared Memory Event
+
+Registers a shared memory event. When another process triggers the event on this shared memory block and offset, the kernel will send a message containing the registered `message_id` to the calling process.
+
+### Input
+* `rdi` - 70
+* `rax` - Shared memory ID
+* `rbx` - Offset in shared memory
+* `rdx` - Unique message ID to send
+
+### Output
+Nothing.
+
+## Unregister Shared Memory Event
+
+Unregisters a previously registered shared memory event.
+
+### Input
+* `rdi` - 71
+* `rax` - Shared memory ID
+* `rbx` - Offset in shared memory
+
+### Output
+Nothing.
+
+## Trigger Shared Memory Event
+
+Triggers a shared memory event, waking all registered processes by delivering their registered wakeup messages. The event registrations are one-shot and automatically cleaned up.
+
+### Input
+* `rdi` - 72
+* `rax` - Shared memory ID
+* `rbx` - Offset in shared memory
+
+### Output
+Nothing.
 

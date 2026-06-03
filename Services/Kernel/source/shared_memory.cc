@@ -31,8 +31,8 @@ namespace {
 // The last assigned shared memory ID.
 size_t last_assigned_shared_memory_id;
 
-// Linked list of all shared memory blocks.
-LinkedList<SharedMemory, &SharedMemory::all_shared_memories_node>
+// AA tree of all shared memory blocks.
+AATree<SharedMemory, &SharedMemory::all_shared_memories_node, &SharedMemory::id>
     all_shared_memories;
 
 // Creates a shared memory block.
@@ -65,7 +65,7 @@ SharedMemory* CreateSharedMemoryBlock(
   shared_memory->message_id_for_lazily_loaded_pages =
       message_id_for_lazily_loaded_pages;
 
-  all_shared_memories.AddBack(shared_memory);
+  all_shared_memories.Insert(shared_memory);
 
   if ((flags & SM_LAZILY_ALLOCATED) == 0) {
     // Not lazily allocated, so all pages should be
@@ -132,12 +132,7 @@ void MapSharedMemoryPageInEachProcess(SharedMemory* shared_memory,
 }
 
 SharedMemory* GetSharedMemoryFromId(size_t shared_memory_id) {
-  // Search for the shared memory block with the matching ID.
-  for (auto* shared_memory : all_shared_memories)
-    if (shared_memory->id == shared_memory_id) return shared_memory;
-
-  // Can't find any shared memory block with this ID.
-  return nullptr;
+  return all_shared_memories.SearchForItemEqualToValue(shared_memory_id);
 }
 
 void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
@@ -224,7 +219,8 @@ bool HandleSharedMessagePageFault(Process* process, SharedMemory* shared_memory,
 void InitializeSharedMemory() {
   last_assigned_shared_memory_id = 0;
   new (&all_shared_memories)
-      LinkedList<SharedMemory, &SharedMemory::all_shared_memories_node>();
+      AATree<SharedMemory, &SharedMemory::all_shared_memories_node,
+             &SharedMemory::id>();
 }
 
 // Creates a shared memory block and map it into a procses.
@@ -272,6 +268,13 @@ void ReleaseSharedMemoryBlock(SharedMemory* shared_memory) {
     }
   }
   free(shared_memory->physical_pages);
+
+  // Release any registered events.
+  while (auto* event = shared_memory->events.FirstItem()) {
+    shared_memory->events.Remove(event);
+    event->process->shared_memory_events.Remove(event);
+    ObjectPool<SharedMemoryEvent>::Release(event);
+  }
 
   // Remove us from the linked list of shared memory.
   all_shared_memories.Remove(shared_memory);
@@ -595,4 +598,68 @@ SharedMemoryInProcess* GrowSharedMemory(Process* process,
 
   // Rejoin into the larger shared memory.
   return RejoinSharedMemory(shared_memory_in_process);
+}
+
+void RegisterSharedMemoryEvent(Process* process, size_t shared_memory_id,
+                               size_t offset, size_t message_id) {
+  SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
+  if (shared_memory == nullptr) return;
+
+  for (auto* event : shared_memory->events) {
+    if (event->process == process && event->offset == offset) {
+      event->message_id = message_id;
+      return;
+    }
+  }
+
+  SharedMemoryEvent* event = ObjectPool<SharedMemoryEvent>::Allocate();
+  if (event == nullptr) return;
+
+  event->process = process;
+  event->shared_memory = shared_memory;
+  event->offset = offset;
+  event->message_id = message_id;
+
+  shared_memory->events.AddBack(event);
+  process->shared_memory_events.AddBack(event);
+}
+
+void UnregisterSharedMemoryEvent(Process* process, size_t shared_memory_id,
+                                 size_t offset) {
+  SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
+  if (shared_memory == nullptr) return;
+
+  for (auto* event : shared_memory->events) {
+    if (event->process == process && event->offset == offset) {
+      shared_memory->events.Remove(event);
+      process->shared_memory_events.Remove(event);
+      ObjectPool<SharedMemoryEvent>::Release(event);
+      return;
+    }
+  }
+}
+
+void TriggerSharedMemoryEvent(size_t shared_memory_id, size_t offset) {
+  SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
+  if (shared_memory == nullptr) return;
+
+  for (auto* event = shared_memory->events.FirstItem(); event != nullptr;) {
+    auto* next = shared_memory->events.NextItem(event);
+    if (event->offset == offset) {
+      SendKernelMessageToProcess(event->process, event->message_id, 0, 0, 0, 0,
+                                 0);
+      shared_memory->events.Remove(event);
+      event->process->shared_memory_events.Remove(event);
+      ObjectPool<SharedMemoryEvent>::Release(event);
+    }
+    event = next;
+  }
+}
+
+void UnregisterAllSharedMemoryEventsForProcess(Process* process) {
+  while (auto* event = process->shared_memory_events.FirstItem()) {
+    process->shared_memory_events.Remove(event);
+    event->shared_memory->events.Remove(event);
+    ObjectPool<SharedMemoryEvent>::Release(event);
+  }
 }

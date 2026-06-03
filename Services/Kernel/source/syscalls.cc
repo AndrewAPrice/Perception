@@ -43,8 +43,6 @@ const char *GetSystemCallName(Syscall syscall) {
       return "TerminateThisThread";
     case Syscall::TerminateThread:
       return "TerminateThread";
-    case Syscall::Yield:
-      return "Yield";
     case Syscall::SetThreadSegment:
       return "SetThreadSegment";
     case Syscall::SetThreadSegmentExtended:
@@ -153,6 +151,12 @@ const char *GetSystemCallName(Syscall syscall) {
       return "SetThreadPriority";
     case Syscall::SetFocusedProcess:
       return "SetFocusedProcess";
+    case Syscall::RegisterSharedMemoryEvent:
+      return "RegisterSharedMemoryEvent";
+    case Syscall::UnregisterSharedMemoryEvent:
+      return "UnregisterSharedMemoryEvent";
+    case Syscall::TriggerSharedMemoryEvent:
+      return "TriggerSharedMemoryEvent";
   }
 }
 

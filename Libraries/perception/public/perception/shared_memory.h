@@ -171,6 +171,15 @@ class SharedMemory : public serialization::Serializable {
 
   virtual void Serialize(serialization::Serializer& serializer) override;
 
+  // Registers a shared memory event.
+  void RegisterEvent(size_t offset, MessageId message_id);
+
+  // Unregisters a shared memory event.
+  void UnregisterEvent(size_t offset);
+
+  // Triggers a shared memory event.
+  void TriggerEvent(size_t offset);
+
  private:
   // The unique ID representhing this shared memory buffer on the system.
   size_t shared_memory_id_;

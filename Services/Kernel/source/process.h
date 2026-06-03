@@ -5,6 +5,7 @@
 #include "messages.h"
 #include "service.h"
 #include "shared_memory.h"
+#include "shared_memory_event.h"
 #include "thread.h"
 #include "timer_event.h"
 #include "types.h"
@@ -113,6 +114,10 @@ struct Process {
   // Linked list of shared memory mapped into this process.
   LinkedList<SharedMemoryInProcess, &SharedMemoryInProcess::node_in_process>
       joined_shared_memories;
+
+  // Linked list of shared memory events registered by this process.
+  LinkedList<SharedMemoryEvent, &SharedMemoryEvent::node_in_process>
+      shared_memory_events;
 
   // Linked list of timer events that are scheduled for this process.
   LinkedList<TimerEvent, &TimerEvent::node_in_process> timer_events;

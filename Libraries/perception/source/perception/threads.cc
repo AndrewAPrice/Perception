@@ -86,15 +86,6 @@ void TerminateThread(ThreadId tid) {
 #endif
 }
 
-void Yield() {
-#ifdef PERCEPTION
-  register unsigned long long int syscall_num asm("rdi") = 8;
-  __asm__("syscall\n" ::"r"(syscall_num) : "rcx", "r11");
-#else
-  (void)sched_yield();
-#endif
-}
-
 void SetThreadSegment(size_t segment_address) {
 #ifdef PERCEPTION
   __asm__ __volatile__("syscall\n"

@@ -9,6 +9,7 @@
 #include "service.h"
 #include "set.h"
 #include "shared_memory.h"
+#include "shared_memory_event.h"
 #include "thread.h"
 #include "timer_event.h"
 #include "virtual_address_space.h"
@@ -19,7 +20,7 @@
       ProcessToNotifyOnExit, ProcessToNotifyWhenServiceAppears,             \
       ProcessToNotifyWhenServiceDisappears, SetNode, Service, SharedMemory, \
       SharedMemoryInProcess, TimerEvent, Thread,                            \
-      ThreadWaitingForSharedMemoryPage
+      ThreadWaitingForSharedMemoryPage, SharedMemoryEvent
 
 // Initializer that can touch the private members of ObjectPool.
 class ObjectPoolHelper {
