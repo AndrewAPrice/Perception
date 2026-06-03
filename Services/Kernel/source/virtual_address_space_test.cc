@@ -85,3 +85,66 @@ TEST(VirtualAddressSpacePagingTest) {
   ASSERT((pt_entry & 4) != 0, true);         // UserSpace bit
   ASSERT((pt_entry & (1 << 9)) != 0, true);  // Owned bit
 }
+
+TEST(VirtualAddressSpaceTrackingTest) {
+  InitializeObjectPools();
+  InitializeProcesses();
+  InitializeVirtualAllocator();
+
+  // Create a user process
+  Process* proc = CreateProcess(false, false);
+  ASSERT(proc != nullptr, true);
+
+  proc->virtual_address_space.SwitchToAddressSpace();
+
+  // Initially unique and shared pages are 0
+  ASSERT(proc->virtual_address_space.GetUniquePages(), (size_t)0);
+  ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)0);
+
+  // Map virtual address 0x400000 to physical address 0x9000000 (owned/unique)
+  bool success = proc->virtual_address_space.MapPhysicalPageAt(
+      0x400000, 0x9000000, /*own=*/true, /*can_write=*/true,
+      /*throw_exception_on_access=*/false);
+  ASSERT(success, true);
+  ASSERT(proc->virtual_address_space.GetUniquePages(), (size_t)1);
+  ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)0);
+
+  // Map virtual address 0x401000 to physical address 0x9001000 (unowned/shared)
+  success = proc->virtual_address_space.MapPhysicalPageAt(
+      0x401000, 0x9001000, /*own=*/false, /*can_write=*/true,
+      /*throw_exception_on_access=*/false);
+  ASSERT(success, true);
+  ASSERT(proc->virtual_address_space.GetUniquePages(), (size_t)1);
+  ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)1);
+
+  // Map virtual address 0x402000 as a dud/lazy page (shared)
+  success = proc->virtual_address_space.MapPhysicalPageAt(
+      0x402000, 0, /*own=*/false, /*can_write=*/false,
+      /*throw_exception_on_access=*/true);
+  ASSERT(success, true);
+  ASSERT(proc->virtual_address_space.GetUniquePages(), (size_t)1);
+  ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)2);
+
+  // Replace dud page with a real page (still shared)
+  success = proc->virtual_address_space.MapPhysicalPageAt(
+      0x402000, 0x9002000, /*own=*/false, /*can_write=*/true,
+      /*throw_exception_on_access=*/false);
+  ASSERT(success, true);
+  ASSERT(proc->virtual_address_space.GetUniquePages(), (size_t)1);
+  ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)2);
+
+  // Unmap 0x400000 (unique page)
+  proc->virtual_address_space.FreePages(0x400000, 1);
+  ASSERT(proc->virtual_address_space.GetUniquePages(), (size_t)0);
+  ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)2);
+
+  // Unmap 0x401000 (shared page)
+  proc->virtual_address_space.FreePages(0x401000, 1);
+  ASSERT(proc->virtual_address_space.GetUniquePages(), (size_t)0);
+  ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)1);
+
+  // Unmap 0x402000 (shared page)
+  proc->virtual_address_space.FreePages(0x402000, 1);
+  ASSERT(proc->virtual_address_space.GetUniquePages(), (size_t)0);
+  ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)0);
+}

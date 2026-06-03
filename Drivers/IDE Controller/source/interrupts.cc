@@ -46,16 +46,10 @@ bool GetInterruptNumber(bool primary_bus) {
 
 void CommonInterruptHandler(uint16 bus, bool& interrupt_triggered,
                             std::vector<Fiber*>& waiting_on_interrupt) {
-  // Read the status bit.
-  //	(void)Read8BitsFromPort(ATA_COMMAND(bus));
-  /*uint8 status;
-  if (!((status = Read8BitsFromPort(ATA_COMMAND(bus))) & 0x8)
-          && !(status & 0x1)) {
-          // Device isn't ready, so the interrupt might not be from
-          // this device.
-          std::cout << "Device not ready" << std::endl;
-          return;
-  }*/
+  if (waiting_on_interrupt.empty()) {
+    // Acknowledge the interrupt on the IDE controller.
+    (void)Read8BitsFromPort(ATA_COMMAND(bus));
+  }
 
   if (interrupt_triggered) {
     // Interrupt already triggered but nothing has handled us
