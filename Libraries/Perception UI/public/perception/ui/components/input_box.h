@@ -45,6 +45,7 @@ class InputBox : public UniqueIdentifiableType<InputBox> {
 
   void SetText(std::string_view text);
   std::string GetText() const;
+  bool HasFocus() const;
 
   // Callback to use when the text has changed.
   void OnTextChanged(std::function<void(std::string_view)> handler);

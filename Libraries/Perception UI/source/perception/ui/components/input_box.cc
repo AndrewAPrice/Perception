@@ -133,6 +133,10 @@ void InputBox::SetText(std::string_view text) {
 
 std::string InputBox::GetText() const { return text_; }
 
+bool InputBox::HasFocus() const {
+  return focusable_ && focusable_->HasFocus();
+}
+
 void InputBox::OnTextChanged(std::function<void(std::string_view)> handler) {
   on_text_changed_handlers_.push_back(handler);
 }
