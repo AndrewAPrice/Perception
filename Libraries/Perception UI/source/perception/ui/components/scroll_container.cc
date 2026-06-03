@@ -68,16 +68,14 @@ void ScrollContainer::SetContentAndContainerNodes(
 
   std::weak_ptr<ScrollContainer> weak_this = shared_from_this();
   auto invalidation_handler = [weak_this] {
-    auto strong_this = weak_this.lock();
-    if (strong_this) strong_this->UpdateScrollBars();
+    if (auto strong_this = weak_this.lock()) strong_this->UpdateScrollBars();
   };
 
   strong_scroll_container->OnInvalidate(invalidation_handler);
   strong_scroll_content->OnInvalidate(invalidation_handler);
 
   strong_scroll_container->OnDraw([weak_this](const DrawContext& context) {
-    auto strong_this = weak_this.lock();
-    if (strong_this) strong_this->UpdateScrollBars();
+    if (auto strong_this = weak_this.lock()) strong_this->UpdateScrollBars();
   });
 }
 
@@ -116,8 +114,8 @@ void ScrollContainer::RegisterScrollBarListener(
 
   std::weak_ptr<ScrollContainer> weak_this = shared_from_this();
   strong_scroll_bar->OnScroll([weak_this](float value) {
-    auto strong_this = weak_this.lock();
-    if (strong_this) strong_this->MoveContentToScrollBarPosition();
+    if (auto strong_this = weak_this.lock())
+      strong_this->MoveContentToScrollBarPosition();
   });
 }
 

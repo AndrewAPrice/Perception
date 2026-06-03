@@ -18,6 +18,7 @@
 
 #include "perception/ui/components/ui_window.h"
 #include "perception/ui/node.h"
+#include "perception/ui/theme.h"
 
 namespace perception {
 template class UniqueIdentifiableType<ui::components::TitleBar>;
@@ -62,25 +63,25 @@ void TitleBar::SetTitleLabelNode(std::weak_ptr<Node> title_label_node) {
 
 float TitleBar::RightPaddingForWindowNode(Node& window_node) {
   auto ui_window = window_node.Get<UiWindow>();
-  if (!ui_window) return 6.f;
+  if (!ui_window) return kTitleBarRightPaddingWithoutButtons;
 
-  return ui_window->IsResizable() ? 60.0f : (60.0f - 18.0f);
+  return ui_window->IsResizable()
+             ? kTitleBarRightPaddingWithResizableButtons
+             : kTitleBarRightPaddingWithNonResizableButtons;
 }
 
 void TitleBar::WindowChangedFocus(UiWindow& window) {
   bool is_focused = window.IsFocused();
 
   // Change background color.
-  auto node = node_.lock();
-  if (node) {
+  if (auto node = node_.lock()) {
     node->GetOrAdd<Block>()->SetFillColor(
         is_focused ? kTitleBarFocusedBackgroundColor
                    : kTitleBarUnfocusedBackgroundColor);
   }
 
   // Change text color.
-  auto title_label_node = title_label_node_.lock();
-  if (title_label_node) {
+  if (auto title_label_node = title_label_node_.lock()) {
     title_label_node->GetOrAdd<Label>()->SetColor(
         is_focused ? kLabelOnDarkTextColor : kLabelTextColor);
   }

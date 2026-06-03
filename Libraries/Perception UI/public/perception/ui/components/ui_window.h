@@ -24,6 +24,7 @@
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSurface.h"
 #include "perception/type_id.h"
+#include "perception/ui/components/tab_bar.h"
 #include "perception/ui/components/title_bar.h"
 #include "perception/ui/node.h"
 #include "perception/ui/theme.h"
@@ -66,6 +67,21 @@ class UiWindow : public window::WindowDelegate,
         [](Layout& layout) {
           layout.SetFlexDirection(YGFlexDirectionColumn);
           layout.SetGap(8.0f);
+        },
+        modifiers...);
+    return std::move(window);
+  }
+
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> ResizableWindowWithTabBar(
+      std::shared_ptr<TabBar>* tab_bar_ptr, Modifiers... modifiers) {
+    auto window = ResizableWindow("");
+    auto tab_bar_node = TabBar::BasicTabBar(*window, tab_bar_ptr);
+    window->Apply(
+        tab_bar_node,
+        [](Layout& layout) {
+          layout.SetFlexDirection(YGFlexDirectionColumn);
+          layout.SetGap(0.0f);
         },
         modifiers...);
     return std::move(window);
@@ -186,6 +202,8 @@ class UiWindow : public window::WindowDelegate,
       nodes_to_notify_when_mouse_leaves_;
 
   std::optional<window::Cursor> last_cursor_;
+
+  std::weak_ptr<Node> mouse_captured_node_;
 
   void HandleMouseEvent(
       const Point& point,

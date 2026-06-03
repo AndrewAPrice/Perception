@@ -76,5 +76,32 @@ float kGroupBoxPadding = 8.0f;
 uint32 kGroupBoxTitleColor = SkColorSetARGB(0xff, 0x33, 0x33, 0x33);
 float kGroupBoxTitleMarginBottom = 4.0f;
 
+float kTitleBarRightPaddingWithoutButtons = 6.0f;
+float kTitleBarRightPaddingWithResizableButtons = 60.0f;
+float kTitleBarRightPaddingWithNonResizableButtons = 42.0f;
+float kTitleBarNegativeMargin = -8.0f;
+
+float kTabBarHeight = 27.0f;
+float kTabBarActiveTabHeight = 26.0f;
+float kTabBarInactiveTabHeight = 24.0f;
+float kTabBarMinTabWidth = 50.0f;
+float kTabBarMaxTabWidth = 150.0f;
+float kTabBarTabHorizontalPadding = 8.0f;
+float kTabBarTabCornerRadius = 4.0f;
+float kTabBarCloseButtonMarginLeft = 6.0f;
+float kTabBarCloseButtonPadding = 2.0f;
+float kTabBarCloseButtonWidth = 24.0f;
+float kTabBarBottomLineThickness = 1.0f;
+
+uint32 kTabBarBottomLineColor = SkColorSetARGB(0xFF, 0xD0, 0xD0, 0xD0);
+uint32 kTabBarActiveFocusedBackgroundColor = 0xFFF8F9FA;
+uint32 kTabBarActiveUnfocusedBackgroundColor = 0xFFE9ECEF;
+uint32 kTabBarInactiveBackgroundColor = 0xFFCED4DA;
+uint32 kTabBarHoverBackgroundColor = 0xFFDEE2E6;
+uint32 kTabBarActiveTextColor = 0xFF000000;
+uint32 kTabBarInactiveTextColor = 0xFF495057;
+uint32 kTabBarCloseButtonColor = 0xFF6C757D;
+uint32 kTabBarCloseButtonHoverColor = 0xFFDC3545;
+
 }  // namespace ui
 }  // namespace perception

@@ -44,8 +44,7 @@ std::shared_ptr<perception::SharedMemory> TurnPagesIntoSharedMemoryBlock(
       size, SharedMemory::kLazilyAllocated,
       [&weak_shared_memory](size_t offset_of_page) {
         // Should never get called. Assign this a blank page.
-        auto strong_shared_memory = weak_shared_memory.lock();
-        if (strong_shared_memory)
+        if (auto strong_shared_memory = weak_shared_memory.lock())
           strong_shared_memory->AssignPage(AllocateMemoryPages(1),
                                            offset_of_page);
       });

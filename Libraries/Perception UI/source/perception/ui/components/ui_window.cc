@@ -20,6 +20,7 @@
 #include "include/core/SkColorSpace.h"
 #include "include/core/SkGraphics.h"
 #include "include/core/SkSurface.h"
+#include "perception/debug.h"
 #include "perception/draw.h"
 #include "perception/scheduler.h"
 #include "perception/ui/components/focusable.h"
@@ -45,6 +46,22 @@ namespace perception {
 template class UniqueIdentifiableType<ui::components::UiWindow>;
 namespace ui {
 namespace components {
+
+namespace {
+
+// Translate a screen-space point to be node-space.
+Point ScreenPointToNodePoint(std::shared_ptr<Node> target, Point point) {
+  Point p = point;
+  auto current = target;
+  while (current) {
+    p = p - current->GetPositionRelativeToParent();
+    if (current != target) p = p + current->GetOffset();
+    current = current->GetParent().lock();
+  }
+  return p;
+}
+
+}  // namespace
 
 UiWindow::UiWindow()
     : created_(false),
@@ -217,12 +234,14 @@ void UiWindow::MouseClicked(const window::MouseClickEvent& event) {
   if (event.was_pressed_down) {
     Focus();
     std::shared_ptr<Node> focusable_node = nullptr;
-    GetNodesAt(point,
-               [&focusable_node](Node& node, const Point& point_in_node) {
-                 if (!focusable_node && node.Get<Focusable>()) {
-                   focusable_node = node.ToSharedPtr();
-                 }
-               });
+    std::shared_ptr<Node> clicked_node = nullptr;
+    GetNodesAt(point, [&focusable_node, &clicked_node](
+                          Node& node, const Point& point_in_node) {
+      if (!clicked_node) clicked_node = node.ToSharedPtr();
+      if (!focusable_node && node.Get<Focusable>()) {
+        focusable_node = node.ToSharedPtr();
+      }
+    });
     if (focusable_node) {
       focusable_node->Get<Focusable>()->Focus();
     } else {
@@ -233,15 +252,23 @@ void UiWindow::MouseClicked(const window::MouseClickEvent& event) {
       }
     }
 
+    if (clicked_node) mouse_captured_node_ = clicked_node;
+
     HandleMouseEvent(point,
                      [this, button](Node& node, const Point& point_in_node) {
                        node.MouseButtonDown(point_in_node, button);
                      });
   } else {
-    HandleMouseEvent(point,
-                     [this, button](Node& node, const Point& point_in_node) {
-                       node.MouseButtonUp(point_in_node, button);
-                     });
+    if (auto captured = mouse_captured_node_.lock()) {
+      Point local_point = ScreenPointToNodePoint(captured, point);
+      captured->MouseButtonUp(local_point, button);
+      mouse_captured_node_.reset();
+    } else {
+      HandleMouseEvent(point,
+                       [this, button](Node& node, const Point& point_in_node) {
+                         node.MouseButtonUp(point_in_node, button);
+                       });
+    }
   }
 }
 
@@ -260,14 +287,21 @@ void UiWindow::MouseHovered(const window::MouseHoverEvent& event) {
 
   std::optional<window::Cursor> active_cursor;
 
-  HandleMouseEvent(point,
-                   [&active_cursor](Node& node, const Point& point_in_node) {
-                     node.MouseHover(point_in_node);
-                     auto opt_cursor = node.GetCursor();
-                     if (opt_cursor && !active_cursor.has_value()) {
-                       active_cursor = *opt_cursor;
-                     }
-                   });
+  if (auto captured = mouse_captured_node_.lock()) {
+    Point local_point = ScreenPointToNodePoint(captured, point);
+    captured->MouseHover(local_point);
+    auto opt_cursor = captured->GetCursor();
+    if (opt_cursor) active_cursor = *opt_cursor;
+  } else {
+    HandleMouseEvent(point,
+                     [&active_cursor](Node& node, const Point& point_in_node) {
+                       node.MouseHover(point_in_node);
+                       auto opt_cursor = node.GetCursor();
+                       if (opt_cursor && !active_cursor.has_value()) {
+                         active_cursor = *opt_cursor;
+                       }
+                     });
+  }
 
   window::Cursor preferred_cursor =
       active_cursor.value_or(window::Cursor::Pointer);

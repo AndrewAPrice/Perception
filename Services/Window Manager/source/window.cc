@@ -327,11 +327,9 @@ void Window::Close() {
       message_id_to_notify_on_window_disappearence_);
 
   Defer([weak_this]() {
-    auto strong_this = weak_this.lock();
-    if (strong_this) {
-      // Remove the owner of the shared_ptr.
+    // Remove the owner of the shared_ptr.
+    if (auto strong_this = weak_this.lock())
       windows_by_listeners.erase(strong_this->window_listener_);
-    }
   });
 }
 
@@ -707,8 +705,7 @@ void Window::CommonInit() {
   std::weak_ptr<Window> weak_self = shared_from_this();
   message_id_to_notify_on_window_disappearence_ =
       window_listener_.NotifyOnDisappearance([weak_self]() {
-        auto strong_self = weak_self.lock();
-        if (strong_self) {
+        if (auto strong_self = weak_self.lock()) {
           strong_self->window_listener_already_disappeared_ = true;
           strong_self->Close();
         }

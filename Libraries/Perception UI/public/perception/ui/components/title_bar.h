@@ -63,8 +63,8 @@ class TitleBar : public std::enable_shared_from_this<TitleBar>, public UniqueIde
               [weak_title_bar](const Point&, window::MouseButton button) {
                 if (button != window::MouseButton::Left) return;
 
-                auto strong_title_bar = weak_title_bar.lock();
-                if (strong_title_bar) strong_title_bar->StartDraggingWindow();
+                if (auto strong_title_bar = weak_title_bar.lock())
+                  strong_title_bar->StartDraggingWindow();
               });
         },
         title_label, modifiers...);

@@ -68,6 +68,32 @@ extern float kGroupBoxPadding;
 extern uint32 kGroupBoxTitleColor;
 extern float kGroupBoxTitleMarginBottom;
 
+extern float kTitleBarRightPaddingWithoutButtons;
+extern float kTitleBarRightPaddingWithResizableButtons;
+extern float kTitleBarRightPaddingWithNonResizableButtons;
+extern float kTitleBarNegativeMargin;
+
+extern float kTabBarHeight;
+extern float kTabBarActiveTabHeight;
+extern float kTabBarInactiveTabHeight;
+extern float kTabBarMinTabWidth;
+extern float kTabBarMaxTabWidth;
+extern float kTabBarTabHorizontalPadding;
+extern float kTabBarTabCornerRadius;
+extern float kTabBarCloseButtonMarginLeft;
+extern float kTabBarCloseButtonPadding;
+extern float kTabBarCloseButtonWidth;
+extern float kTabBarBottomLineThickness;
+
+extern uint32 kTabBarBottomLineColor;
+extern uint32 kTabBarActiveFocusedBackgroundColor;
+extern uint32 kTabBarActiveUnfocusedBackgroundColor;
+extern uint32 kTabBarInactiveBackgroundColor;
+extern uint32 kTabBarHoverBackgroundColor;
+extern uint32 kTabBarActiveTextColor;
+extern uint32 kTabBarInactiveTextColor;
+extern uint32 kTabBarCloseButtonColor;
+extern uint32 kTabBarCloseButtonHoverColor;
 
 }  // namespace ui
 }  // namespace perception
