@@ -39,7 +39,17 @@ constexpr uint32 kDragFabColor = SkColorSetARGB(0xff, 0xC0, 0xC0, 0XC0);
 }  // namespace
 
 ScrollBar::ScrollBar()
-    : direction_(Direction::HORIZONTAL), always_show_(true) {}
+    : direction_(Direction::HORIZONTAL),
+      always_show_(true),
+      is_mouse_hovering_over_track_(false),
+      is_mouse_hovering_over_fab_(false),
+      is_dragging_(false),
+      drag_started_on_fab_(false),
+      fab_drag_offset_(0.0f),
+      minimum_(0.0f),
+      maximum_(0.0f),
+      value_(0.0f),
+      size_(0.0f) {}
 
 void ScrollBar::SetNode(std::weak_ptr<Node> node) {
   node_ = node;
@@ -123,7 +133,7 @@ float ScrollBar::CalculateDragPosition(float mouse_offset, float fab_length,
 
   float fab_offset = fab_length / 2.0f;
 
-  if (is_mouse_hovering_over_fab_) {
+  if (drag_started_on_fab_) {
     mouse_offset += fab_length / 2.0f - fab_drag_offset_;
   }
 
@@ -131,7 +141,9 @@ float ScrollBar::CalculateDragPosition(float mouse_offset, float fab_length,
   float clicked_track_pct =
       (mouse_offset - fab_offset) / track_clickable_length;
   clicked_track_pct = std::max(std::min(clicked_track_pct, 1.0f), 0.f);
-  return minimum_ + (clicked_track_pct * (maximum_ - minimum_));
+  float max_scroll_value = maximum_ - minimum_ - size_;
+  if (max_scroll_value < 0.0f) max_scroll_value = 0.0f;
+  return minimum_ + (clicked_track_pct * max_scroll_value);
 }
 
 void ScrollBar::AdjustRectangleForFab(Rectangle& rectangle) const {
@@ -212,6 +224,7 @@ void ScrollBar::MouseLeave() {
   is_mouse_hovering_over_track_ = false;
   is_mouse_hovering_over_fab_ = false;
   is_dragging_ = false;
+  drag_started_on_fab_ = false;
 
   if (previous_fab_color != GetFabColor() && !node_.expired())
     node_.lock()->Invalidate();
@@ -227,6 +240,7 @@ void ScrollBar::MouseButtonDown(const Point& point,
     // The user started to draw the fab. Record the grab position but don't move
     // the fab until the user moves the mouse.
     is_dragging_ = true;
+    drag_started_on_fab_ = true;
 
     auto strong_node = node_.lock();
     auto layout = strong_node->GetLayout();
@@ -252,6 +266,7 @@ void ScrollBar::MouseButtonDown(const Point& point,
   } else if (is_mouse_hovering_over_track_) {
     // User clicked the track, so move the fab to the track location.
     is_dragging_ = true;
+    drag_started_on_fab_ = false;
     MouseHover(point);
   }
 
@@ -264,6 +279,7 @@ void ScrollBar::MouseButtonUp(const Point& point, window::MouseButton button) {
   if (!is_dragging_) return;
   uint32 previous_fab_color = GetFabColor();
   is_dragging_ = false;
+  drag_started_on_fab_ = false;
 
   if (previous_fab_color != GetFabColor() && !node_.expired())
     node_.lock()->Invalidate();

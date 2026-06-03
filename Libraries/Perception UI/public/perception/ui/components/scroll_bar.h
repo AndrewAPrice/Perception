@@ -84,6 +84,7 @@ class ScrollBar : public UniqueIdentifiableType<ScrollBar> {
   bool always_show_;
 
   bool is_dragging_;
+  bool drag_started_on_fab_;
   float fab_drag_offset_;
 
   float minimum_;
