@@ -15,6 +15,7 @@
 #include "linux_syscalls/access.h"
 
 #include <unistd.h>
+#include <errno.h>
 
 #include "perception/debug.h"
 
@@ -31,16 +32,32 @@ long access(const char* pathname, int mode) {
   auto status_or_response = GetService<StorageManager>().CheckPermissions({pathname});
   if (status_or_response) {
     const auto& response = *status_or_response;
-    if (((mode & F_OK) && !response.exists) ||
-        ((mode & R_OK) && !response.can_read) ||
-        ((mode & W_OK) && !response.can_write) ||
-        ((mode & X_OK) && !response.can_execute)) {
-      return -1;
+    if (mode & F_OK) {
+      if (!response.exists) {
+        return -ENOENT;
+      }
+    }
+    if (mode & R_OK) {
+      if (!response.can_read) {
+        return -EACCES;
+      }
+    }
+    if (mode & W_OK) {
+      if (!response.can_write) {
+        return -EACCES;
+      }
+    }
+    if (mode & X_OK) {
+      if (!response.can_execute) {
+        return -EACCES;
+      }
     }
     return 0;
   } else {
-    errno = EINVAL;
-    return -1;
+    if (status_or_response.Status() == ::perception::Status::FILE_NOT_FOUND) {
+      return -ENOENT;
+    }
+    return -EINVAL;
   }
 }
 

@@ -397,9 +397,11 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS__sysctl:
       return ::perception::linux_syscalls::_sysctl();
     case SYS_accept:
-      return ::perception::linux_syscalls::accept();
+      return ::perception::linux_syscalls::accept((int)a1, (struct sockaddr*)a2,
+                                                  (socklen_t*)a3);
     case SYS_accept4:
-      return ::perception::linux_syscalls::accept4();
+      return ::perception::linux_syscalls::accept4(
+          (int)a1, (struct sockaddr*)a2, (socklen_t*)a3, (int)a4);
     case SYS_access:
       return ::perception::linux_syscalls::access(
           reinterpret_cast<const char *>(a1), a2);
@@ -416,7 +418,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_arch_prctl:
       return ::perception::linux_syscalls::arch_prctl(a1, a2);
     case SYS_bind:
-      return ::perception::linux_syscalls::bind();
+      return ::perception::linux_syscalls::bind(
+          (int)a1, (const struct sockaddr*)a2, (socklen_t)a3);
     case SYS_bpf:
       return ::perception::linux_syscalls::bpf();
     case SYS_brk:
@@ -438,7 +441,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_clock_getres:
       return ::perception::linux_syscalls::clock_getres();
     case SYS_clock_gettime:
-      return ::perception::linux_syscalls::clock_gettime();
+      return ::perception::linux_syscalls::clock_gettime((clockid_t)a1, (struct timespec *)a2);
     case SYS_clock_nanosleep:
       return ::perception::linux_syscalls::clock_nanosleep();
     case SYS_clock_settime:
@@ -450,7 +453,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_close:
       return ::perception::linux_syscalls::close(a1);
     case SYS_connect:
-      return ::perception::linux_syscalls::connect();
+      return ::perception::linux_syscalls::connect(
+          (int)a1, (const struct sockaddr*)a2, (socklen_t)a3);
     case SYS_copy_file_range:
       return ::perception::linux_syscalls::copy_file_range();
     case SYS_creat:
@@ -608,7 +612,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_gettid:
       return ::perception::linux_syscalls::gettid();
     case SYS_gettimeofday:
-      return ::perception::linux_syscalls::gettimeofday();
+      return ::perception::linux_syscalls::gettimeofday((struct timeval *)a1, (struct timezone *)a2);
     case SYS_getuid:
       return ::perception::linux_syscalls::getuid();
     case SYS_getxattr:
@@ -670,7 +674,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_linkat:
       return ::perception::linux_syscalls::linkat();
     case SYS_listen:
-      return ::perception::linux_syscalls::listen();
+      return ::perception::linux_syscalls::listen((int)a1, (int)a2);
     case SYS_listxattr:
       return ::perception::linux_syscalls::listxattr();
     case SYS_llistxattr:
@@ -993,7 +997,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_signalfd4:
       return ::perception::linux_syscalls::signalfd4();
     case SYS_socket:
-      return ::perception::linux_syscalls::socket();
+      return ::perception::linux_syscalls::socket((int)a1, (int)a2, (int)a3);
     case SYS_socketpair:
       return ::perception::linux_syscalls::socketpair();
     case SYS_splice:
@@ -1093,7 +1097,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_waitid:
       return ::perception::linux_syscalls::waitid();
     case SYS_write:
-      return ::perception::linux_syscalls::write();
+      return ::perception::linux_syscalls::write((int)a1, (const void *)a2, (size_t)a3);
     case SYS_writev:
       return ::perception::linux_syscalls::writev(a1, (struct iovec *)a2, a3);
     default:

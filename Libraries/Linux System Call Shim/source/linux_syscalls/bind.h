@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
+#include <sys/socket.h>
+
 namespace perception {
 namespace linux_syscalls {
 
-long bind();
-
+long bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen);
 }
 }  // namespace perception

@@ -14,25 +14,28 @@
 
 #include "linux_syscalls/futex.h"
 
-#include "perception/debug.h"
+#include <errno.h>
+
 #include <map>
 #include <vector>
 
 #include "../../../../third_party/Libraries/musl/source/internal/futex.h"
+#include "perception/debug.h"
 #include "perception/fibers.h"
+#include "perception/processes.h"
 
 namespace perception {
 namespace linux_syscalls {
 namespace {
 
-std::map<volatile int *, std::vector<Fiber *>>& FibersSleepingOnAddrs() {
-  static std::map<volatile int *, std::vector<Fiber *>> fibers_sleeping_on_addrs;
+std::map<volatile int*, std::vector<Fiber*>>& FibersSleepingOnAddrs() {
+  static std::map<volatile int*, std::vector<Fiber*>> fibers_sleeping_on_addrs;
   return fibers_sleeping_on_addrs;
 }
 
-}
+}  // namespace
 
-long futex(volatile int *addr, int op, int val, void *ts) {
+long futex(volatile int* addr, int op, int val, void* ts) {
   // Ignoring the timeout struct (ts) for now.
 
   // Ignore FUTEX_PRIVATE/FUTEX_CLOCK_REALTIME.
@@ -41,7 +44,9 @@ long futex(volatile int *addr, int op, int val, void *ts) {
   switch (op) {
     case FUTEX_WAIT: {
       // Sleep if *addr != val.
-      if (*addr != val) return EAGAIN;
+      if (*addr != val) {
+        return -EAGAIN;
+      }
 
       // Sleep, waiting for FUTEX_WAKE at this addr.
       auto itr = FibersSleepingOnAddrs().find(addr);
@@ -56,11 +61,13 @@ long futex(volatile int *addr, int op, int val, void *ts) {
     case FUTEX_WAKE: {
       // Wake up to 'val' listeners.
       auto itr = FibersSleepingOnAddrs().find(addr);
-      if (itr == FibersSleepingOnAddrs().end()) return 0;  // Nobody listening.
+      if (itr == FibersSleepingOnAddrs().end()) {
+        return 0;  // Nobody listening.
+      }
 
       if (itr->second.size() <= val) {
         // Wake up everybody.
-        for (Fiber *fiber_to_wake : itr->second) fiber_to_wake->WakeUp();
+        for (Fiber* fiber_to_wake : itr->second) fiber_to_wake->WakeUp();
 
         FibersSleepingOnAddrs().erase(itr);
       } else {
@@ -77,28 +84,36 @@ long futex(volatile int *addr, int op, int val, void *ts) {
       perception::DebugPrinterSingleton << "FUTEX_FD not implemented" << '\n';
       break;
     case FUTEX_REQUEUE:
-      perception::DebugPrinterSingleton << "FUTEX_REQUEUE not implemented" << '\n';
+      perception::DebugPrinterSingleton << "FUTEX_REQUEUE not implemented"
+                                        << '\n';
       break;
     case FUTEX_CMP_REQUEUE:
-      perception::DebugPrinterSingleton << "FUTEX_CMP_REQUEUE not implemented" << '\n';
+      perception::DebugPrinterSingleton << "FUTEX_CMP_REQUEUE not implemented"
+                                        << '\n';
       break;
     case FUTEX_WAKE_OP:
-      perception::DebugPrinterSingleton << "FUTEX_WAKE_OP not implemented" << '\n';
+      perception::DebugPrinterSingleton << "FUTEX_WAKE_OP not implemented"
+                                        << '\n';
       break;
     case FUTEX_LOCK_PI:
-      perception::DebugPrinterSingleton << "FUTEX_LOCK_PI not implemented" << '\n';
+      perception::DebugPrinterSingleton << "FUTEX_LOCK_PI not implemented"
+                                        << '\n';
       break;
     case FUTEX_UNLOCK_PI:
-      perception::DebugPrinterSingleton << "FUTEX_UNLOCK_PI not implemented" << '\n';
+      perception::DebugPrinterSingleton << "FUTEX_UNLOCK_PI not implemented"
+                                        << '\n';
       break;
     case FUTEX_TRYLOCK_PI:
-      perception::DebugPrinterSingleton << "FUTEX_TRYLOCK_PI not implemented" << '\n';
+      perception::DebugPrinterSingleton << "FUTEX_TRYLOCK_PI not implemented"
+                                        << '\n';
       break;
     case FUTEX_WAIT_BITSET:
-      perception::DebugPrinterSingleton << "FUTEX_WAIT_BITSET not implemented" << '\n';
+      perception::DebugPrinterSingleton << "FUTEX_WAIT_BITSET not implemented"
+                                        << '\n';
       break;
     default:
-      perception::DebugPrinterSingleton << "Unknown Futex syscall operation: " << (size_t)op << '\n';
+      perception::DebugPrinterSingleton
+          << "Unknown Futex syscall operation: " << (size_t)op << '\n';
       break;
   }
   return 0;

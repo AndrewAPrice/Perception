@@ -14,15 +14,27 @@
 
 #include "linux_syscalls/listen.h"
 
-#include "perception/debug.h"
 #include <errno.h>
+
+#include "files.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long listen() {
-  perception::DebugPrinterSingleton << "System call listen is unimplemented.\n";
-  return -ENOSYS;
+long listen(int sockfd, int backlog) {
+  auto descriptor = GetFileDescriptor(sockfd);
+  if (!descriptor || descriptor->type != FileDescriptor::SOCKET) {
+    errno = EBADF;
+    return -1;
+  }
+
+  auto status = descriptor->socket.socket.Listen();
+  if (status != Status::OK) {
+    errno = EOPNOTSUPP;
+    return -1;
+  }
+
+  return 0;
 }
 
 }  // namespace linux_syscalls

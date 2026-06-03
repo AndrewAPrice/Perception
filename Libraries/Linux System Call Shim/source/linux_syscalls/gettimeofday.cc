@@ -14,16 +14,21 @@
 
 #include "linux_syscalls/gettimeofday.h"
 
-#include "perception/debug.h"
 #include <errno.h>
+
+#include "perception/time.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long gettimeofday() {
-  perception::DebugPrinterSingleton
-      << "System call gettimeofday is unimplemented.\n";
-  return -ENOSYS;
+long gettimeofday(struct timeval* tv, struct timezone* tz) {
+  if (tv == nullptr) {
+    return -EFAULT;
+  }
+  auto microseconds = ::perception::GetTimeSinceKernelStarted();
+  tv->tv_sec = microseconds.count() / 1000000;
+  tv->tv_usec = microseconds.count() % 1000000;
+  return 0;
 }
 
 }  // namespace linux_syscalls

@@ -18,6 +18,7 @@
 
 #include "perception/file.h"
 #include "perception/memory_mapped_file.h"
+#include "perception/network/network_service.h"
 #include "perception/shared_memory.h"
 #include "perception/shared_memory_pool.h"
 
@@ -26,7 +27,7 @@ namespace perception {
 extern SharedMemoryPool<kPageSize> kSharedMemoryPool;
 
 struct FileDescriptor {
-  enum Type { DIRECTORY = 0, FILE = 1 };
+  enum Type { DIRECTORY = 0, FILE = 1, SOCKET = 2 };
   Type type;
 
   struct Directory {
@@ -41,10 +42,15 @@ struct FileDescriptor {
     size_t size_in_bytes;
     size_t offset_in_file;
   } file;
+
+  struct Socket {
+    perception::network::Socket::Client socket;
+  } socket;
 };
 
 long OpenDirectory(const char* path);
 long OpenFile(const char* path);
+long CreateSocketDescriptor(perception::network::Socket::Client socket);
 
 std::shared_ptr<FileDescriptor> GetFileDescriptor(long id);
 bool ReadAndIncrementFile(long id, void* buffer, long bytes);

@@ -21,8 +21,8 @@ namespace perception {
 namespace linux_syscalls {
 
 long madvise() {
-  // madvise is unimplemented but we'll silence it. madvise is used to hint to
-  // the system on how we expect this memory to be read, so the system can
+  // madvise is unimplemented but is silenced. madvise is used to hint to
+  // the system on how this memory is expected to be read, so the system can
   // optimize paging memory to disk, something Perception doesn't support.
   return -ENOSYS;
 }

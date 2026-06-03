@@ -15,6 +15,7 @@
 #include "files.h"
 
 #include <map>
+#include <errno.h>
 
 #include "perception/services.h"
 #include "perception/storage_manager.h"
@@ -29,7 +30,7 @@ namespace {
 
 std::map<long, std::shared_ptr<FileDescriptor>> open_files;
 
-long last_file_id = 0;
+long last_file_id = 2;
 
 long GetUniqueFileId() {
   last_file_id++;
@@ -65,7 +66,10 @@ long OpenDirectory(const char* path) {
 long OpenFile(const char* path) {
   auto status_or_response = GetService<StorageManager>().OpenFile({path});
   if (!status_or_response) {
-    return -1;
+    if (status_or_response.Status() == ::perception::Status::FILE_NOT_FOUND) {
+      return -ENOENT;
+    }
+    return -EINVAL;
   }
 
   auto descriptor = std::make_shared<FileDescriptor>();
@@ -74,6 +78,16 @@ long OpenFile(const char* path) {
   descriptor->file.path = path;
   descriptor->file.size_in_bytes = status_or_response->size_in_bytes;
   descriptor->file.offset_in_file = 0;
+
+  long id = GetUniqueFileId();
+  open_files[id] = descriptor;
+  return id;
+}
+
+long CreateSocketDescriptor(perception::network::Socket::Client socket) {
+  auto descriptor = std::make_shared<FileDescriptor>();
+  descriptor->type = FileDescriptor::SOCKET;
+  descriptor->socket.socket = socket;
 
   long id = GetUniqueFileId();
   open_files[id] = descriptor;
@@ -93,6 +107,8 @@ void CloseFile(long id) {
   if (itr == open_files.end()) return;
 
   if (itr->second->type == FileDescriptor::FILE) itr->second->file.file.Close();
+  if (itr->second->type == FileDescriptor::SOCKET)
+    itr->second->socket.socket.Close();
 
   open_files.erase(itr);
 }

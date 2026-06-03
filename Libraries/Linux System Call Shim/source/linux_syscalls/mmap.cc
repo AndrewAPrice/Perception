@@ -41,25 +41,26 @@ long mmap(long addr, long length, long prot, long flags, long fd, long offset) {
     return -1;
   }
 
-  if ((flags & MAP_PRIVATE) == 0) {
+  if ((flags & (MAP_PRIVATE | MAP_SHARED)) == 0) {
     perception::DebugPrinterSingleton
         << "mmap passed flags " << (size_t)flags
-        << " but we don't support not setting MAP_PRIVATE.\n";
+        << " but not setting MAP_PRIVATE or MAP_SHARED is unsupported.\n";
     errno = EINVAL;
     return -1;
   }
 
-  if ((flags & ~(MAP_ANON | MAP_PRIVATE)) != 0) {
-    perception::DebugPrinterSingleton << "mmap passed flags " << (size_t)flags
-                                      << " but we don't support anything other "
-                                         "than MAP_ANON and MAP_PRIVATE.\n";
+  if ((flags & ~(MAP_ANON | MAP_PRIVATE | MAP_SHARED)) != 0) {
+    perception::DebugPrinterSingleton
+        << "mmap passed flags " << (size_t)flags
+        << " but flags other than MAP_ANON, MAP_PRIVATE, and MAP_SHARED are "
+           "unsupported.\n";
     errno = EINVAL;
     return -1;
   }
 
   // 'prot' sepecifies if the memory can be executed, read, written, etc. The
-  // kernel doesn't yet support this level of control, so we make all program
-  // memory x/r/w and can ignore this parameter.
+  // kernel doesn't yet support this level of control, so all program
+  // memory is made x/r/w and this parameter can be ignored.
 
   if ((flags & MAP_ANON) != 0) {
     // Allocate 0-initialized memory.

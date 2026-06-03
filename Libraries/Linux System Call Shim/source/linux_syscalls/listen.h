@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
 namespace perception {
 namespace linux_syscalls {
 
-long listen();
-
+long listen(int sockfd, int backlog);
 }
 }  // namespace perception

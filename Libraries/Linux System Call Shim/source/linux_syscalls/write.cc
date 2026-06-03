@@ -14,15 +14,17 @@
 
 #include "linux_syscalls/write.h"
 
-#include "perception/debug.h"
-#include <errno.h>
+#include <sys/uio.h>
+#include "linux_syscalls/writev.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long write() {
-  perception::DebugPrinterSingleton << "System call write is unimplemented.\n";
-  return -ENOSYS;
+long write(int fd, const void *buf, size_t count) {
+  iovec iov;
+  iov.iov_base = const_cast<void*>(buf);
+  iov.iov_len = count;
+  return ::perception::linux_syscalls::writev(fd, &iov, 1);
 }
 
 }  // namespace linux_syscalls

@@ -15,7 +15,6 @@
 namespace perception {
 namespace linux_syscalls {
 
-long socket();
-
+long socket(int domain, int type, int protocol);
 }
 }  // namespace perception

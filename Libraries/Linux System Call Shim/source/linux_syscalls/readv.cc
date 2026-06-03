@@ -26,14 +26,48 @@
 namespace perception {
 namespace linux_syscalls {
 
-long readv(long fd, void* iov, long iovcnt) {
-  auto descriptor = GetFileDescriptor(fd);
-  if (!descriptor || descriptor->type != FileDescriptor::FILE) {
-    errno = EINVAL;
+using ::perception::network::ReceiveRequest;
+
+namespace {
+
+long ReadSocket(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
+                long iovcnt) {
+  // Count how many bytes to read.
+  size_t bytes_to_read = 0;
+  for (int io_entry = 0; io_entry < iovcnt; io_entry++) {
+    const auto& io = ((const iovec*)iov)[io_entry];
+    bytes_to_read += (size_t)io.iov_len;
+  }
+
+  if (bytes_to_read == 0) {
+    return 0;
+  }
+
+  ReceiveRequest request;
+  request.max_bytes = bytes_to_read;
+  auto status_or_res = descriptor->socket.socket.Receive(request);
+  if (!status_or_res) {
+    errno = ECONNRESET;
     return -1;
   }
 
-  // Count how many bytes we want to read.
+  std::string received_data = status_or_res->data;
+  size_t copied_bytes = 0;
+  for (int io_entry = 0;
+       io_entry < iovcnt && copied_bytes < received_data.length(); io_entry++) {
+    const auto& io = ((const iovec*)iov)[io_entry];
+    size_t to_copy =
+        std::min((size_t)io.iov_len, received_data.length() - copied_bytes);
+    memcpy(io.iov_base, &received_data[copied_bytes], to_copy);
+    copied_bytes += to_copy;
+  }
+
+  return copied_bytes;
+}
+
+long ReadFile(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
+              long iovcnt) {
+  // Count how many bytes to read.
   size_t bytes_to_read = 0;
   for (int io_entry = 0; io_entry < iovcnt; io_entry++) {
     const auto& io = ((const iovec*)iov)[io_entry];
@@ -45,15 +79,14 @@ long readv(long fd, void* iov, long iovcnt) {
                                               descriptor->file.offset_in_file);
 
   if (bytes_to_read == 0) {
-    // Nothing to read. Either the file is empty or we've read all that was
-    // in the file.
+    // Nothing to read. Either the file is empty or all contents have been read.
     return 0;
   }
 
   // Break into page size chunks.
   int num_chunks = (bytes_to_read + kPageSize - 1) / kPageSize;
 
-  // Grab a shared memory buffer that we'll use for communicating with the
+  // Grab a shared memory buffer used to communicate with the
   // storage service to copy chunks into.
   auto pooled_shared_memory = kSharedMemoryPool.GetSharedMemory();
   char* chunk_data = (char*)**pooled_shared_memory->shared_memory;
@@ -84,7 +117,7 @@ long readv(long fd, void* iov, long iovcnt) {
       return -1;
     }
 
-    // Copy from the buffer we share with Storage Manager into the buffers
+    // Copy from the shared buffer with Storage Manager into the buffers
     // passed into readv.
     size_t buffer_start_offset = 0;
     for (int io_entry = 0; io_entry < iovcnt; io_entry++) {
@@ -115,18 +148,39 @@ long readv(long fd, void* iov, long iovcnt) {
       buffer_start_offset += buffer_length;
     }
 
-    // Increment how much we've read for this chunk.
+    // Increment the amount read for this chunk.
     bytes_read += bytes_to_read_this_chunk;
     bytes_to_read -= bytes_to_read_this_chunk;
   }
 
   kSharedMemoryPool.ReleaseSharedMemory(pooled_shared_memory);
 
-  // Remember how far we've read into this file, so subsequent calls can
+  // Track how far the file has been read, so subsequent calls can
   // continue reading the following data in the file.
   descriptor->file.offset_in_file += bytes_read;
 
   return bytes_read;
+}
+
+}  // namespace
+
+long readv(long fd, void* iov, long iovcnt) {
+  auto descriptor = GetFileDescriptor(fd);
+  if (!descriptor) {
+    errno = EBADF;
+    return -1;
+  }
+
+  switch (descriptor->type) {
+    case FileDescriptor::SOCKET:
+      return ReadSocket(descriptor, iov, iovcnt);
+    case FileDescriptor::FILE:
+      return ReadFile(descriptor, iov, iovcnt);
+    case FileDescriptor::DIRECTORY:
+    default:
+      errno = EINVAL;
+      return -1;
+  }
 }
 
 }  // namespace linux_syscalls

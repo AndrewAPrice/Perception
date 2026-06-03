@@ -28,13 +28,14 @@ long stat(const char* pathname, struct kstat* statbuf) {
   auto status_or_response =
       GetService<StorageManager>().GetFileStatistics({pathname});
   if (!status_or_response) {
-    errno = EINVAL;
-    return -1;
+    if (status_or_response.Status() == ::perception::Status::FILE_NOT_FOUND) {
+      return -ENOENT;
+    }
+    return -EINVAL;
   }
 
   if (!status_or_response->exists) {
-    errno = ENOENT;
-    return -1;
+    return -ENOENT;
   }
 
   memset(statbuf, 0, sizeof(struct kstat));

@@ -14,22 +14,65 @@
 
 #include "linux_syscalls/writev.h"
 
+#include <errno.h>
+
+#include "files.h"
 #include "perception/debug.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long writev(long file_descriptor, struct iovec* buffers, long buffer_count) {
+using ::perception::network::SendRequest;
+
+namespace {
+
+long WriteSocket(const std::shared_ptr<FileDescriptor>& descriptor,
+                 struct iovec* buffers, long buffer_count) {
+  std::string data_to_send = "";
+  for (size_t i = 0; i < buffer_count; i++) {
+    const auto& buffer = buffers[i];
+    data_to_send.append((const char*)buffer.iov_base, buffer.iov_len);
+  }
+
+  SendRequest request;
+  request.data = data_to_send;
+  auto status = descriptor->socket.socket.Send(request);
+  if (status != Status::OK) {
+    errno = ECONNRESET;
+    return -1;
+  }
+
+  return data_to_send.length();
+}
+
+long WriteDefault(struct iovec* buffers, long buffer_count) {
   size_t bytes_written = 0;
   for (size_t i = 0; i < buffer_count; i++) {
     const auto& buffer = buffers[i];
 
     char* c = (char*)buffer.iov_base;
-    for (size_t j = 0; j < buffer.iov_len; j++, c++, bytes_written++) {
+    for (size_t j = 0; j < buffer.iov_len; j++, c++, bytes_written++)
       DebugPrinterSingleton << *c;
-    }
   }
   return bytes_written;
+}
+
+}  // namespace
+
+long writev(long file_descriptor, struct iovec* buffers, long buffer_count) {
+  auto descriptor = GetFileDescriptor(file_descriptor);
+  if (!descriptor) {
+    return WriteDefault(buffers, buffer_count);
+  }
+
+  switch (descriptor->type) {
+    case FileDescriptor::SOCKET:
+      return WriteSocket(descriptor, buffers, buffer_count);
+    case FileDescriptor::FILE:
+    case FileDescriptor::DIRECTORY:
+    default:
+      return WriteDefault(buffers, buffer_count);
+  }
 }
 
 }  // namespace linux_syscalls

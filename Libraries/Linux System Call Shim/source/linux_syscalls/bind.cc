@@ -14,15 +14,39 @@
 
 #include "linux_syscalls/bind.h"
 
-#include "perception/debug.h"
 #include <errno.h>
+#include <netinet/in.h>
+
+#include "files.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long bind() {
-  perception::DebugPrinterSingleton << "System call bind is unimplemented.\n";
-  return -ENOSYS;
+using ::perception::network::BindRequest;
+
+long bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen) {
+  auto descriptor = GetFileDescriptor(sockfd);
+  if (!descriptor || descriptor->type != FileDescriptor::SOCKET) {
+    errno = EBADF;
+    return -1;
+  }
+
+  if (addr->sa_family != AF_INET) {
+    errno = EAFNOSUPPORT;
+    return -1;
+  }
+
+  const struct sockaddr_in* addr_in = (const struct sockaddr_in*)addr;
+  BindRequest request;
+  request.port = ntohs(addr_in->sin_port);
+
+  auto status = descriptor->socket.socket.Bind(request);
+  if (status != Status::OK) {
+    errno = EADDRINUSE;
+    return -1;
+  }
+
+  return 0;
 }
 
 }  // namespace linux_syscalls

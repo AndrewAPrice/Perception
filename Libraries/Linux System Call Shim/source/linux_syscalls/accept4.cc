@@ -14,16 +14,16 @@
 
 #include "linux_syscalls/accept4.h"
 
-#include "perception/debug.h"
-#include <errno.h>
+#include "linux_syscalls/accept.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long accept4() {
-  perception::DebugPrinterSingleton
-      << "System call accept4 is unimplemented.\n";
-  return -ENOSYS;
+long accept4(int sockfd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
+  // accept4 just wraps around accept but could apply socket flags (like
+  // SOCK_NONBLOCK/SOCK_CLOEXEC). For this stub, the accept shim is called
+  // explicitly to resolve namespace ambiguity.
+  return ::perception::linux_syscalls::accept(sockfd, addr, addrlen);
 }
 
 }  // namespace linux_syscalls
