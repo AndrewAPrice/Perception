@@ -26,10 +26,9 @@ namespace perception {
 std::shared_ptr<SharedMemory> GetMemoryBufferForSendingToProcess(
     ProcessId process_id);
 
-// Returns the memory buffer for sending to a process, regardless of if it's in
-// use. May return an empty pointer.
 std::shared_ptr<SharedMemory>
-GetMemoryBufferForSendingToProcessRegardlessOfIfInUse(ProcessId process_id);
+GetMemoryBufferForSendingToProcessRegardlessOfIfInUse(ProcessId process_id,
+                                                      size_t shared_memory_id);
 
 // Returns the memory buffer sent here from a receiving process. Keeps it mapped
 // into memory (for fast reuse) until the process disappears.

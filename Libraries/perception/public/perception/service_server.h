@@ -131,6 +131,13 @@ class ServiceServer {
       if (response.Ok()) {
         // Send back response type.
         auto shared_memory = GetMemoryBufferForSendingToProcess(sender);
+        if (shared_memory == nullptr) {
+          response_data.param1 = static_cast<size_t>(Status::OUT_OF_MEMORY);
+          response_data.param2 = SIZE_MAX;
+          response_data.param3 = 0;
+          SendMessage(sender, response_data);
+          return;
+        }
         response_data.param4 = serialization::SerializeToSharedMemory(
             *response, *shared_memory, 1);
         response_data.param2 = shared_memory->GetId();

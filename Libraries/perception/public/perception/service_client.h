@@ -19,6 +19,7 @@
 #include <functional>
 
 #include "perception/messages.h"
+#include "perception/processes.h"
 #include "perception/rpc_memory.h"
 #include "perception/serialization/memory_read_stream.h"
 #include "perception/serialization/serializable.h"
@@ -37,8 +38,10 @@ class ServiceClient : public serialization::Serializable {
   template <class ResponseType, class RequestType>
   ResponseType SyncDispatch(const RequestType& request, size_t method_id) {
     MessageData message;
-    PrepareRequestMessageWithParameter<RequestType>(request, method_id,
-                                                    message);
+    if (!PrepareRequestMessageWithParameter<RequestType>(request, method_id,
+                                                         message)) {
+      return ResponseType(Status::OUT_OF_MEMORY);
+    }
     return SyncDispatch<ResponseType>(message);
   }
 
@@ -53,8 +56,15 @@ class ServiceClient : public serialization::Serializable {
   void AsyncDispatch(const RequestType& request, size_t method_id,
                      std::function<void(ResponseType)> on_response) {
     MessageData message;
-    PrepareRequestMessageWithParameter<RequestType>(request, method_id,
-                                                    message);
+    if (!PrepareRequestMessageWithParameter<RequestType>(request, method_id,
+                                                         message)) {
+      if (on_response) {
+        Defer([on_response]() {
+          on_response(ResponseType(Status::OUT_OF_MEMORY));
+        });
+      }
+      return;
+    }
     AsyncDispatch<ResponseType>(message, on_response);
   }
 
@@ -91,7 +101,8 @@ class ServiceClient : public serialization::Serializable {
     if (send_status != MessageStatus::SUCCESS) {
       if (message.param3 != SIZE_MAX) {
         auto shared_memory =
-            GetMemoryBufferForSendingToProcessRegardlessOfIfInUse(process_id_);
+            GetMemoryBufferForSendingToProcessRegardlessOfIfInUse(
+                process_id_, message.param3);
         if (shared_memory)
           SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
       }
@@ -121,7 +132,7 @@ class ServiceClient : public serialization::Serializable {
         if (message.param3 != SIZE_MAX) {
           auto shared_memory =
               GetMemoryBufferForSendingToProcessRegardlessOfIfInUse(
-                  process_id_);
+                  process_id_, message.param3);
           if (shared_memory)
             SetMemoryBufferAsReadyForSendingNextMessageToProcess(
                 *shared_memory);
@@ -190,16 +201,19 @@ class ServiceClient : public serialization::Serializable {
                                               MessageData& message);
 
   template <class RequestType>
-  void PrepareRequestMessageWithParameter(const RequestType& request,
+  bool PrepareRequestMessageWithParameter(const RequestType& request,
                                           size_t method_id,
                                           MessageData& message) {
     PrepareRequestMessage(method_id, message);
 
     auto shared_memory = GetMemoryBufferForSendingToProcess(process_id_);
+    if (!shared_memory) return false;
+
     message.param5 =
         serialization::SerializeToSharedMemory(request, *shared_memory, 1);
     message.param3 = shared_memory->GetId();
     message.param4 = shared_memory->GetSize();
+    return true;
   }
 
   ProcessId process_id_;
