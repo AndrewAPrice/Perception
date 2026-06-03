@@ -46,7 +46,6 @@ using ::perception::SleepForDuration;
 using ::perception::Write16BitsToPort;
 using ::perception::Write8BitsToPciConfig;
 using ::perception::Write8BitsToPort;
-using ::perception::Yield;
 using ::perception::devices::DeviceManager;
 using ::perception::devices::PciDevice;
 using ::perception::devices::PciDeviceFilter;
@@ -278,11 +277,11 @@ void InitializeIdeController(uint8 bus, uint8 slot, uint8 function,
 
   controller->channels[ATA_PRIMARY].io_base = (bar0 & 0xFFFC) + 0x1F0 * (!bar0);
   controller->channels[ATA_PRIMARY].control_base =
-      (bar1 & 0xFFFC) + 0x3F6 * (!bar1);
+      (bar1 & 0xFFFC) + 0x3F4 * (!bar1);
   controller->channels[ATA_SECONDARY].io_base =
       (bar2 & 0xFFFC) + 0x170 * (!bar2);
   controller->channels[ATA_SECONDARY].control_base =
-      (bar3 & 0xFFFC) + 0x736 * (!bar3);
+      (bar3 & 0xFFFC) + 0x374 * (!bar3);
   size_t bus_master_id = bar4;
   if (bus_master_id & 1) bus_master_id &= 0xFFFFFFFC;
   controller->channels[ATA_PRIMARY].bus_master_id = bus_master_id;
@@ -299,13 +298,30 @@ void InitializeIdeController(uint8 bus, uint8 slot, uint8 function,
 	}
 #endif
 
-  // Disable interrupts.
+  // Enable interrupts for probing.
   WriteByteToIdeController(&controller->channels[ATA_PRIMARY], ATA_REG_CONTROL,
-                           2);
+                           0);
   WriteByteToIdeController(&controller->channels[ATA_SECONDARY],
-                           ATA_REG_CONTROL, 2);
+                           ATA_REG_CONTROL, 0);
 
   MaybeInitializeIdeDevices(controller.get(), supports_dma);
+
+  // Re-enable interrupts on channels that have devices, and disable on those
+  // that don't.
+  bool primary_has_devices = false;
+  bool secondary_has_devices = false;
+  for (const auto& device : controller->devices) {
+    if (device->primary_channel) {
+      primary_has_devices = true;
+    } else {
+      secondary_has_devices = true;
+    }
+  }
+
+  WriteByteToIdeController(&controller->channels[ATA_PRIMARY], ATA_REG_CONTROL,
+                           primary_has_devices ? 0 : 2);
+  WriteByteToIdeController(&controller->channels[ATA_SECONDARY],
+                           ATA_REG_CONTROL, secondary_has_devices ? 0 : 2);
 
   ide_controllers.push_back(std::move(controller));
 }
@@ -338,7 +354,7 @@ void InitializeIdeControllers() {
   }
 }
 
-std::mutex &GetIdeMutex() { return ide_mutex; }
+std::mutex& GetIdeMutex() { return ide_mutex; }
 
 void SelectDriveOnBusIfNotSelected(bool is_primary_channel,
                                    bool is_primary_drive) {

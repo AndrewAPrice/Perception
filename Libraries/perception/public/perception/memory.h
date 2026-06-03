@@ -47,7 +47,8 @@ size_t GetTotalSystemMemory();
 // - registered_services: number of services the process has registered.
 // - cpu_percentages: array populated with the CPU percentage of each core (size
 // must be at least 8).
-void GetProcessHealthMetrics(ProcessId pid, size_t& memory_used,
+void GetProcessHealthMetrics(ProcessId pid, size_t& unique_memory_used,
+                             size_t& shared_memory_used,
                              size_t& creation_timestamp,
                              size_t& registered_services,
                              uint8* cpu_percentages);

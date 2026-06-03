@@ -182,24 +182,26 @@ size_t GetTotalSystemMemory() {
 #endif
 }
 
-void GetProcessHealthMetrics(ProcessId pid, size_t& memory_used,
+void GetProcessHealthMetrics(ProcessId pid, size_t& unique_memory_used,
+                             size_t& shared_memory_used,
                              size_t& creation_timestamp,
                              size_t& registered_services,
                              uint8* cpu_percentages) {
 #if PERCEPTION
-  volatile register size_t syscall_num asm("rdi") = 15;
   volatile register size_t rax_io asm("rax") = pid;
+  volatile register size_t rdi_io asm("rdi") = 15;
   volatile register size_t creation_timestamp_r asm("rbx");
   volatile register size_t packed_cpu_r asm("rdx");
   volatile register size_t registered_services_r asm("rsi");
 
   __asm__ __volatile__("syscall\n"
-                       : "+r"(rax_io), "=r"(creation_timestamp_r),
+                       : "+r"(rax_io), "+r"(rdi_io), "=r"(creation_timestamp_r),
                          "=r"(packed_cpu_r), "=r"(registered_services_r)
-                       : "r"(syscall_num)
+                       :
                        : "rcx", "r11");
 
-  memory_used = rax_io;
+  unique_memory_used = rax_io;
+  shared_memory_used = rdi_io;
   creation_timestamp = creation_timestamp_r;
   registered_services = registered_services_r;
 
@@ -210,7 +212,8 @@ void GetProcessHealthMetrics(ProcessId pid, size_t& memory_used,
     }
   }
 #else
-  memory_used = 0;
+  unique_memory_used = 0;
+  shared_memory_used = 0;
   creation_timestamp = 0;
   registered_services = 0;
   if (cpu_percentages != nullptr) {
