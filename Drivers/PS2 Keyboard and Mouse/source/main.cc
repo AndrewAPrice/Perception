@@ -240,7 +240,7 @@ std::unique_ptr<PS2KeyboardDevice> keyboard_device;
 
 void InterruptHandler(const uint8* bytes) {
   // Loop over each byte until the status is NULL or there are no more bytes.
-  for (int offset = 0; offset <= kMaxInterruptReadBytes && bytes[offset] != 0;
+  for (int offset = 0; offset < kMaxInterruptReadBytes && bytes[offset] != 0;
        offset += 2) {
     uint8 status = bytes[offset];
     if ((status & (1 << 6)) /** Parity error. */ ||
@@ -319,10 +319,11 @@ int main(int argc, char* argv[]) {
   InitializePS2Controller();
 
   // Listen to the interrupts.
-  for (int irq : {1, 12})
+  for (int irq : {1, 12}) {
     RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
         irq, /*status_port=*/0x64, /*mask=*/1, /*read_port=*/0x60,
         InterruptHandler);
+  }
 
   perception::HandOverControl();
   return 0;
