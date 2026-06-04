@@ -1,5 +1,8 @@
 *
 !.gitignore
-!internal/
-!thread/
 !alloc_hooks.c
+!env/
+!internal/
+!internal/version.h
+!process/
+!thread/
