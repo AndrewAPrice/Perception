@@ -34,19 +34,15 @@ namespace {
 int kPrimaryInterrupt = 14;
 int kSecondaryInterrupt = 15;
 
-bool primary_interrupt_triggered;
-bool secondary_interrupt_triggered;
+bool* primary_interrupt_triggered_ptr = nullptr;
+bool* secondary_interrupt_triggered_ptr = nullptr;
 
-std::vector<Fiber*> waiting_on_primary_interrupt;
-std::vector<Fiber*> waiting_on_secondary_interrupt;
-
-bool GetInterruptNumber(bool primary_bus) {
-  return primary_bus ? kPrimaryInterrupt : kSecondaryInterrupt;
-}
+std::atomic<Fiber*>* primary_waiter = nullptr;
+std::atomic<Fiber*>* secondary_waiter = nullptr;
 
 void CommonInterruptHandler(uint16 bus, bool& interrupt_triggered,
-                            std::vector<Fiber*>& waiting_on_interrupt) {
-  if (waiting_on_interrupt.empty()) {
+                            std::atomic<Fiber*>& waiting_on_interrupt) {
+  if (waiting_on_interrupt.load(std::memory_order_relaxed) == nullptr) {
     // Acknowledge the interrupt on the IDE controller.
     (void)Read8BitsFromPort(ATA_COMMAND(bus));
   }
@@ -59,73 +55,64 @@ void CommonInterruptHandler(uint16 bus, bool& interrupt_triggered,
 
   interrupt_triggered = true;
 
-  // Wake up each sleeping fiber. Iterating over the vector of
-  // fibers should be fiber safe but not thread safe.
-  for (Fiber* fiber : waiting_on_interrupt) {
+  Fiber* fiber =
+      waiting_on_interrupt.exchange(nullptr, std::memory_order_acq_rel);
+  if (fiber != nullptr) {
     fiber->WakeUp();
   }
-
-  waiting_on_interrupt.clear();
 }
 
 void PrimaryInterruptHandler() {
-  CommonInterruptHandler(ATA_BUS_PRIMARY, primary_interrupt_triggered,
-                         waiting_on_primary_interrupt);
+  if (primary_interrupt_triggered_ptr != nullptr) {
+    CommonInterruptHandler(ATA_BUS_PRIMARY, *primary_interrupt_triggered_ptr,
+                           *primary_waiter);
+  }
 }
 
 void SecondaryInterruptHandler() {
-  CommonInterruptHandler(ATA_BUS_SECONDARY, secondary_interrupt_triggered,
-                         waiting_on_secondary_interrupt);
+  if (secondary_interrupt_triggered_ptr != nullptr) {
+    CommonInterruptHandler(ATA_BUS_SECONDARY,
+                           *secondary_interrupt_triggered_ptr,
+                           *secondary_waiter);
+  }
 }
 
-void CommonResetInterrupt(bool& interrupt_triggered,
-                          std::vector<Fiber*>& waiting_on_interrupt) {
+}  // namespace
+
+void ResetInterrupt(std::atomic<Fiber*>& waiting_on_interrupt,
+                    bool& interrupt_triggered) {
   while (!interrupt_triggered) {
-    // Someone else is already waiting on
-    // this interrupt. Reset after the interrupt
-    // is called.
-    waiting_on_interrupt.push_back(GetCurrentlyExecutingFiber());
+    // Someone else is already waiting on this interrupt.
+    // Reset after the interrupt is called.
+    waiting_on_interrupt.store(GetCurrentlyExecutingFiber(),
+                               std::memory_order_release);
     Sleep();
   }
   interrupt_triggered = false;
 }
 
-void CommonWaitForInterrupt(bool& interrupt_triggered,
-                            std::vector<Fiber*>& waiting_on_interrupt) {
+void WaitForInterrupt(std::atomic<Fiber*>& waiting_on_interrupt,
+                      bool& interrupt_triggered) {
   if (interrupt_triggered) {
     // Interrupt has already triggered.
     return;
   }
 
-  waiting_on_interrupt.push_back(GetCurrentlyExecutingFiber());
+  waiting_on_interrupt.store(GetCurrentlyExecutingFiber(),
+                             std::memory_order_release);
   Sleep();
 }
 
-}  // namespace
-
-void ResetInterrupt(bool primary_bus) {
-  if (primary_bus) {
-    CommonResetInterrupt(primary_interrupt_triggered,
-                         waiting_on_primary_interrupt);
-  } else {
-    CommonResetInterrupt(secondary_interrupt_triggered,
-                         waiting_on_secondary_interrupt);
-  }
-}
-
-void WaitForInterrupt(bool primary_bus) {
-  if (primary_bus) {
-    CommonWaitForInterrupt(primary_interrupt_triggered,
-                           waiting_on_primary_interrupt);
-  } else {
-    CommonWaitForInterrupt(secondary_interrupt_triggered,
-                           waiting_on_secondary_interrupt);
-  }
-}
-
-void InitializeInterrupts() {
-  primary_interrupt_triggered = true;
-  secondary_interrupt_triggered = true;
+void InitializeInterrupts(std::atomic<Fiber*>& waiting_primary,
+                          bool& primary_triggered,
+                          std::atomic<Fiber*>& waiting_secondary,
+                          bool& secondary_triggered) {
+  primary_interrupt_triggered_ptr = &primary_triggered;
+  secondary_interrupt_triggered_ptr = &secondary_triggered;
+  *primary_interrupt_triggered_ptr = true;
+  *secondary_interrupt_triggered_ptr = true;
+  primary_waiter = &waiting_primary;
+  secondary_waiter = &waiting_secondary;
 
   // Listen to the interrupts.
   RegisterInterruptHandler(kPrimaryInterrupt, PrimaryInterruptHandler);

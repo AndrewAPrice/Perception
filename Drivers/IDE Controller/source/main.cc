@@ -13,18 +13,22 @@
 // limitations under the License.
 
 #include "ide.h"
-#include "interrupts.h"
 #include "perception/scheduler.h"
+#include "perception/fibers.h"
 #include "perception/processes.h"
 
 using ::perception::IsDuplicateInstanceOfProcess;
 using ::perception::HandOverControl;
+using ::perception::Fiber;
 
 int main(int argc, char *argv[]) {
   if (IsDuplicateInstanceOfProcess()) return 0;
 
-  InitializeInterrupts();
-  InitializeIdeControllers();
+  // Defer initialization to a fiber so that it runs in a fiber context
+  // allowing it to yield while waiting for worker threads.
+  Fiber::Create([]() {
+    InitializeIdeControllers();
+  })->WakeUp();
 
   HandOverControl();
   return 0;

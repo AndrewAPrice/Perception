@@ -14,8 +14,17 @@
 
 #pragma once
 
-void ResetInterrupt(bool primary_bus);
+#include <atomic>
 
-void WaitForInterrupt(bool primary_bus);
+#include "perception/fibers.h"
 
-void InitializeInterrupts();
+void ResetInterrupt(std::atomic<::perception::Fiber*>& waiting_on_interrupt,
+                    bool& interrupt_triggered);
+
+void WaitForInterrupt(std::atomic<::perception::Fiber*>& waiting_on_interrupt,
+                      bool& interrupt_triggered);
+
+void InitializeInterrupts(std::atomic<::perception::Fiber*>& waiting_primary,
+                          bool& primary_triggered,
+                          std::atomic<::perception::Fiber*>& waiting_secondary,
+                          bool& secondary_triggered);

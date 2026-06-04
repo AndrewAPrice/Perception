@@ -16,7 +16,7 @@
 
 #include "perception/devices/storage_device.h"
 
-class IdeDevice;
+struct IdeDevice;
 
 class IdeStorageDevice : public ::perception::devices::StorageDevice::Server {
  public:
@@ -29,19 +29,33 @@ class IdeStorageDevice : public ::perception::devices::StorageDevice::Server {
   ::perception::Status Read(
       const ::perception::devices::StorageDeviceReadRequest& request) override;
 
+  // Returns whether the device supports DMA.
+  bool SupportsDma() const { return supports_dma_; }
+
+  // Returns a pointer to the scratch page.
+  unsigned char* GetScratchPage() const { return scratch_page_; }
+
+  // Returns the physical address of the scratch page.
+  size_t GetScratchPagePhysicalAddress() const {
+    return scratch_page_physical_address_;
+  }
+
  private:
+  // The underlying physical IDE device.
   IdeDevice* device_;
 
-  // Does this device support Direct Memory Access?
+  // Whether this device supports Bus Master DMA.
   bool supports_dma_;
 
-  // Scratch page for DMA and storing the Physical Region Descriptor Table.
+  // Pointer to a 2-page memory area used for DMA support.
+  // - Page 0: Stores the Physical Region Descriptor Table (PRDT) used by the
+  // Bus Master DMA.
+  // - Page 1: Acts as a scratch sector buffer for DMA transfers that cannot be
+  // performed
+  //   directly (e.g., due to misalignment, 64KB boundary crossing, or partial
+  //   sector reads). It can hold up to 2 sectors (2048 bytes each).
   unsigned char* scratch_page_;
 
-  // Physical address of the scratch page.
+  // The physical address of the scratch_page_ allocation.
   size_t scratch_page_physical_address_;
-
-  // Sends an ATAPI command.
-  ::perception::Status SentAtapiPacketCommand(uint16 bus, uint8 atapi_command,
-                                              size_t lba, size_t num_sectors);
 };
