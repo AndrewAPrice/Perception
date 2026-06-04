@@ -28,16 +28,19 @@ size_t next_thread_id;
 void InitializeRegisters(const Process& process, size_t entry_point,
                          size_t param, size_t stack_pointer, Thread& thread) {
   Registers& registers = thread.registers;
-  // A parameter will be passed into 'rdi' (this can be used as a function argument.)
+  // A parameter will be passed into 'rdi' (this can be used as a function
+  // argument.)
   registers.rdi = param;
 
   // Sets the instruction pointer to the entry point.
   registers.rip = entry_point;
 
-  // Sets the stack pointer and stack base to the top of the stack. (Stacks grow down!)
+  // Sets the stack pointer and stack base to the top of the stack. (Stacks grow
+  // down!)
   registers.rbp = registers.rsp = stack_pointer;
 
-  // Sets the code and stack segment selectors (the segments are defined in Gdt64 in boot.asm)
+  // Sets the code and stack segment selectors (the segments are defined in
+  // Gdt64 in boot.asm)
   registers.cs =
       0x20 | 3;  // '| 3' means ring 3. This is a user code, not kernel code.
   registers.ss = 0x18 | 3;  // Likewise with user data, not kernel data.
@@ -61,7 +64,8 @@ void InitializeThreads() {
 }
 
 // Createss a thread.
-Thread* CreateThread(Process* process, size_t entry_point, size_t param, size_t stack_pointer, size_t tls_base) {
+Thread* CreateThread(Process* process, size_t entry_point, size_t param,
+                     size_t stack_pointer, size_t tls_base) {
   Thread* thread = ObjectPool<Thread>::Allocate();
   if (thread == nullptr) return nullptr;
 
@@ -91,6 +95,7 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param, size_t 
 
   // The thread isn't initially awake until we schedule it.
   thread->awake = false;
+  thread->wake_signal_pending = false;
 
   // The thread hasn't ran for any time slices yet.
   thread->time_slices = 0;
@@ -135,7 +140,8 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
 
   // Free the thread's stack.
   if (thread->stack_allocated_by_kernel) {
-    thread->process->virtual_address_space.FreePages(thread->stack, STACK_PAGES);
+    thread->process->virtual_address_space.FreePages(thread->stack,
+                                                     STACK_PAGES);
   }
 
   Process* process = thread->process;
@@ -205,7 +211,8 @@ void SetThreadSegment(Thread* thread, size_t address) {
 }
 
 // Set the thread's segments (FS and/or GS).
-void SetThreadSegments(Thread* thread, size_t fs_address, bool set_fs, size_t gs_address, bool set_gs) {
+void SetThreadSegments(Thread* thread, size_t fs_address, bool set_fs,
+                       size_t gs_address, bool set_gs) {
   if (set_fs) thread->thread_fs_segment_offset = fs_address;
   if (set_gs) thread->thread_gs_segment_offset = gs_address;
 

@@ -47,7 +47,7 @@ void InitializeSystemCalls() {
   WriteModelSpecificRegister(LSTAR, (size_t)syscall_entry);
   // Disable interrupts duing syscalls.
   WriteModelSpecificRegister(IA32_FMASK, INTERRUPT_MASK);
-//  SetInterruptHandler(0x80, (size_t)syscall_isr, 0x08, 0x8E);
+  //  SetInterruptHandler(0x80, (size_t)syscall_isr, 0x08, 0x8E);
 }
 
 int last_printing_process = -1;
@@ -104,22 +104,25 @@ extern "C" void SyscallHandler(int syscall_number) {
     case Syscall::GetThisThreadId:
       currently_executing_thread_regs->rax = running_thread->id;
       break;
-      /*
-        case Syscall::SleepThisThread:
-         print << "Implement Syscall::SleepThread\n";
-         break;
-       case Syscall::SleepThread:
-         print << "Implement SLEEP\n";
-         break;
-       case Syscall::WakeThread:
-         print << "Implement Syscall::WakeThread\n";
-         // TODO: if thread is waiting for event, set bad event id
-         break;
-       case Syscall::WaitAndSwitchToThread:
-         print << "Implement Syscall::WaitAndSwitchToThread\n";
-         // TODO: if thread is waiting for event, set bad event id
-         break;
-         */
+    case Syscall::SleepThisThread:
+      if (running_thread->wake_signal_pending) {
+        running_thread->wake_signal_pending = false;
+      } else {
+        UnscheduleThread(running_thread);
+      }
+      break;
+    case Syscall::WakeThread: {
+      Thread* thread = GetThreadFromTid(running_thread->process,
+                                        currently_executing_thread_regs->rax);
+      if (thread == nullptr) break;
+
+      if (thread->awake) {
+        thread->wake_signal_pending = true;
+      } else {
+        ScheduleThread(thread);
+      }
+      break;
+    }
     case Syscall::TerminateThisThread:
       DestroyThread(running_thread, false);
       JumpIntoThread();  // Doesn't return.
@@ -755,22 +758,19 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     }
     case Syscall::RegisterSharedMemoryEvent:
-      RegisterSharedMemoryEvent(
-          running_thread->process,
-          currently_executing_thread_regs->rax,
-          currently_executing_thread_regs->rbx,
-          currently_executing_thread_regs->rdx);
+      RegisterSharedMemoryEvent(running_thread->process,
+                                currently_executing_thread_regs->rax,
+                                currently_executing_thread_regs->rbx,
+                                currently_executing_thread_regs->rdx);
       break;
     case Syscall::UnregisterSharedMemoryEvent:
-      UnregisterSharedMemoryEvent(
-          running_thread->process,
-          currently_executing_thread_regs->rax,
-          currently_executing_thread_regs->rbx);
+      UnregisterSharedMemoryEvent(running_thread->process,
+                                  currently_executing_thread_regs->rax,
+                                  currently_executing_thread_regs->rbx);
       break;
     case Syscall::TriggerSharedMemoryEvent:
-      TriggerSharedMemoryEvent(
-          currently_executing_thread_regs->rax,
-          currently_executing_thread_regs->rbx);
+      TriggerSharedMemoryEvent(currently_executing_thread_regs->rax,
+                               currently_executing_thread_regs->rbx);
       break;
   }
 #ifdef DEBUG
@@ -778,4 +778,4 @@ extern "C" void SyscallHandler(int syscall_number) {
 #endif
 }
 
-#endif // TEST
+#endif  // TEST

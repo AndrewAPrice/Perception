@@ -38,7 +38,7 @@ struct Thread {
   // Offset of the thread's GS segment.
   size_t thread_gs_segment_offset;
 
-  // Did the kernel allocate this thread's stack?
+  // Whether the kernel allocated this thread's stack.
   bool stack_allocated_by_kernel : 1;
 
   // Virtual address of the thread's stack. This gets released when the thread
@@ -79,6 +79,9 @@ struct Thread {
   // If not 0, the virtual address in the process's space to clear on
   // termination of the thread. Must be 8-byte aligned.
   size_t address_to_clear_on_termination;
+
+  // Whether a wake signal was sent to this thread while it was awake.
+  bool wake_signal_pending : 1;
 
 #ifdef DEBUG
   // Is this thread currently executing a syscall?
