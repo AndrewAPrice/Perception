@@ -179,12 +179,14 @@ void OpenProcessDetailsWindow(ProcessId pid) {
   std::string proc_name = perception::GetProcessName(pid);
   if (proc_name.empty()) return;  // Process doesn't exist or name is empty.
 
-  size_t memory_used = 0;
+  size_t unique_memory = 0;
+  size_t shared_memory = 0;
   size_t creation_timestamp = 0;
   size_t registered_services = 0;
   uint8 cpu_percentages[8] = {0};
-  perception::GetProcessHealthMetrics(pid, memory_used, creation_timestamp,
-                                      registered_services, cpu_percentages);
+  perception::GetProcessHealthMetrics(pid, unique_memory, shared_memory,
+                                      creation_timestamp, registered_services,
+                                      cpu_percentages);
 
   // Increment CPU tracking ref count.
   IncrementCpuTracking();
@@ -333,11 +335,13 @@ void UpdateOpenProcessDetailsWindows() {
       pids_to_close.push_back(pid);
     } else {
       // Update UI of open process details window
-      size_t memory_used = 0;
+      size_t unique_memory = 0;
+      size_t shared_memory = 0;
       size_t creation_timestamp = 0;
       size_t registered_services = 0;
       uint8 cpu_percentages[8] = {0};
-      perception::GetProcessHealthMetrics(pid, memory_used, creation_timestamp,
+      perception::GetProcessHealthMetrics(pid, unique_memory, shared_memory,
+                                          creation_timestamp,
                                           registered_services, cpu_percentages);
 
       // Uptime label
@@ -350,8 +354,8 @@ void UpdateOpenProcessDetailsWindows() {
       // Memory label
       if (info.memory_label) {
         info.memory_label->SetText(
-            "Memory: " + std::to_string(memory_used / 1024) + " KB (" +
-            std::to_string(memory_used / 1024 / 1024) + " MB)");
+            "Unique Memory: " + std::to_string(unique_memory / 1024) + " KB, " +
+            "Shared Memory: " + std::to_string(shared_memory / 1024) + " KB");
       }
 
       // CPU labels

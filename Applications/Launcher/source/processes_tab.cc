@@ -76,8 +76,10 @@ class ProcessesDataSource : public Table::DataSource {
       case 2:
         return std::to_string(proc.registered_services);
       case 3:
-        return std::to_string(proc.memory_used / 1024) + " KB";
+        return std::to_string(proc.unique_memory / 1024) + " KB";
       case 4:
+        return std::to_string(proc.shared_memory / 1024) + " KB";
+      case 5:
         return std::to_string(((int)proc.cpu_percentage * 100) / 255) + "%";
       default:
         return "";
@@ -117,17 +119,20 @@ class ProcessesDataSource : public Table::DataSource {
       }
       active_pids.insert(pid);
 
-      size_t memory_used = 0;
+      size_t unique_memory = 0;
+      size_t shared_memory = 0;
       size_t creation_timestamp = 0;
       size_t registered_services = 0;
       uint8 cpu_percentages[8] = {0};
-      perception::GetProcessHealthMetrics(pid, memory_used, creation_timestamp,
+      perception::GetProcessHealthMetrics(pid, unique_memory, shared_memory,
+                                          creation_timestamp,
                                           registered_services, cpu_percentages);
 
       new_processes.push_back({.name = std::move(name),
                                .pid = pid,
                                .registered_services = registered_services,
-                               .memory_used = memory_used,
+                               .unique_memory = unique_memory,
+                               .shared_memory = shared_memory,
                                .cpu_percentage = cpu_percentages[0]});
     });
 
@@ -150,7 +155,8 @@ class ProcessesDataSource : public Table::DataSource {
     std::string name;
     ProcessId pid;
     size_t registered_services;
-    size_t memory_used;
+    size_t unique_memory;
+    size_t shared_memory;
     uint8 cpu_percentage;
   };
 
@@ -172,9 +178,11 @@ class ProcessesDataSource : public Table::DataSource {
                       return a.pid < b.pid;
                     case 2:  // Services
                       return a.registered_services < b.registered_services;
-                    case 3:  // Memory
-                      return a.memory_used < b.memory_used;
-                    case 4:  // CPU
+                    case 3:  // Unique Memory
+                      return a.unique_memory < b.unique_memory;
+                    case 4:  // Shared Memory
+                      return a.shared_memory < b.shared_memory;
+                    case 5:  // CPU
                       return a.cpu_percentage < b.cpu_percentage;
                     default:
                       return false;
@@ -187,9 +195,11 @@ class ProcessesDataSource : public Table::DataSource {
                       return a.pid > b.pid;
                     case 2:  // Services
                       return a.registered_services > b.registered_services;
-                    case 3:  // Memory
-                      return a.memory_used > b.memory_used;
-                    case 4:  // CPU
+                    case 3:  // Unique Memory
+                      return a.unique_memory > b.unique_memory;
+                    case 4:  // Shared Memory
+                      return a.shared_memory > b.shared_memory;
+                    case 5:  // CPU
                       return a.cpu_percentage > b.cpu_percentage;
                     default:
                       return false;
@@ -243,7 +253,9 @@ std::shared_ptr<Node> GetOrConstructProcessesTab() {
        .layout_modifier = [](Layout& layout) { layout.SetWidth(40.0f); }},
       {.title = "Services",
        .layout_modifier = [](Layout& layout) { layout.SetWidth(60.0f); }},
-      {.title = "Memory",
+      {.title = "Unique Memory",
+       .layout_modifier = [](Layout& layout) { layout.SetWidth(80.0f); }},
+      {.title = "Shared Memory",
        .layout_modifier = [](Layout& layout) { layout.SetWidth(80.0f); }},
       {.title = "CPU usage",
        .layout_modifier = [](Layout& layout) { layout.SetWidth(80.0f); }}};
