@@ -7,6 +7,8 @@
 [EXTERN profiling_enabling_count]
 [EXTERN ProfileSwitchToUserSpace]
 [EXTERN SyscallHandler]
+[EXTERN RescheduleWithIretq]
+[EXTERN JumpIntoThread]
 
 ; temp location to put the stack pointer while we manipulate the code
 sys_call_stack_pointer:
@@ -73,6 +75,12 @@ syscall_entry:
     mov rax, SyscallHandler
     call rax
 
+    ; Check if to return via iretq
+    mov rax, RescheduleWithIretq
+    call rax
+    test al, al
+    jnz .return_via_iretq
+
     ; Jump over profiling code if profiler isn't enabled.
     pushfq
     mov r8, [profiling_enabling_count]
@@ -108,9 +116,19 @@ syscall_entry:
     pop rax
     pop rdi
     pop rbp
+    ; rsp points to rip.
+    ; Check if the segment selector cs (at rsp + 8) is user mode (privilege level 3).
+    test qword [rsp + 8], 3
+    jz .return_to_kernel
+
     pop rcx ; pop rip into rcx
     add rsp, 8 ; skip cs
     pop r11 ; pop rflags into r11
     pop rsp
-
     o64 sysret
+
+.return_to_kernel:
+    iretq
+
+.return_via_iretq:
+    jmp JumpIntoThread

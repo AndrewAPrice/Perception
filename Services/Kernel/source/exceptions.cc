@@ -62,11 +62,7 @@ void PrintException(bool in_kernel, int exception_no, size_t cr2,
     Process *process = running_thread->process;
     print << " by PID " << process->pid << " (" << process->name << ") in TID "
           << running_thread->id;
-#ifdef DEBUG
-    if (running_thread->in_syscall) {
-      print << " (during syscall)";
-    }
-#endif
+    if (running_thread->in_syscall) print << " (during syscall)";
   }
 
   if (exception == Exception::PageFault) {

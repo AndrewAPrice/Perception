@@ -83,10 +83,8 @@ struct Thread {
   // Whether a wake signal was sent to this thread while it was awake.
   bool wake_signal_pending : 1;
 
-#ifdef DEBUG
   // Is this thread currently executing a syscall?
   bool in_syscall;
-#endif
 };
 
 // Initialize threads.

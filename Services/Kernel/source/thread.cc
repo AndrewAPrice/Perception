@@ -87,7 +87,11 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param,
     thread->stack_allocated_by_kernel = false;
   }
 
-  InitializeRegisters(*process, entry_point, param, stack_pointer, *thread);
+  size_t adjusted_stack_pointer = stack_pointer;
+  if (process->thread_count > 0) adjusted_stack_pointer -= 8;
+
+  InitializeRegisters(*process, entry_point, param, adjusted_stack_pointer,
+                      *thread);
 
   // Set the TLS bases.
   thread->thread_fs_segment_offset = tls_base;
@@ -124,9 +128,7 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param,
 
   thread->address_to_clear_on_termination = 0;
   thread->uses_fpu_registers = true;
-#ifdef DEBUG
   thread->in_syscall = false;
-#endif
 
   return thread;
 }

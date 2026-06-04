@@ -24,6 +24,7 @@
 #include "physical_allocator.h"
 #include "process.h"
 #include "scheduler.h"
+#include "text_terminal.h"
 #include "timer.h"
 #include "tss.h"
 #include "virtual_address_space.h"
@@ -99,9 +100,16 @@ void HandleInterruptMessage(MessageToFireOnInterrupt& message_to_fire) {
       // Clear the message.
       for (size_t i = 0; i < 5; i++) longs_to_send[i] = 0;
       int bytes_read = 0;
+      int iterations = 0;
 
       // Keep reading the status until the mask no longer matches.
       while (true) {
+        if (++iterations > 1000) {
+          print << "Kernel interrupt handler loop limit reached! status_port: "
+                << (size_t)params.status_port
+                << ", status_mask: " << (size_t)params.status_mask << "\n";
+          break;
+        }
         uint8 status = ReadIOByte(params.status_port);
         if ((status & params.status_mask) != params.status_mask)
           break;  // Status doesn't match mask, stop reading.

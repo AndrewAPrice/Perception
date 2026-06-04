@@ -54,9 +54,8 @@ int last_printing_process = -1;
 bool last_char_was_newline = false;
 
 extern "C" void SyscallHandler(int syscall_number) {
-#ifdef DEBUG
   if (running_thread) running_thread->in_syscall = true;
-#endif
+
   switch (static_cast<Syscall>(syscall_number)) {
     default:
       print << "Syscall " << GetSystemCallName(syscall_number) << " ("
@@ -773,9 +772,12 @@ extern "C" void SyscallHandler(int syscall_number) {
                                currently_executing_thread_regs->rbx);
       break;
   }
-#ifdef DEBUG
+
   if (running_thread) running_thread->in_syscall = false;
-#endif
+}
+
+extern "C" bool RescheduleWithIretq() {
+  return running_thread == nullptr || !running_thread->in_syscall;
 }
 
 #endif  // TEST
