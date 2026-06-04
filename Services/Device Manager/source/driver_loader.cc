@@ -39,12 +39,13 @@ void AddDriverToLoad(std::string_view driver_name) {
 }
 
 void LoadAllRemainingDrivers() {
+  auto loader = GetService<Loader>();
   for (const auto& driver_name : drivers_to_load) {
     if (DoesProcessExist(driver_name)) continue;
 
     LoadApplicationRequest request;
     request.name = driver_name;
-    GetService<Loader>().LaunchApplication(request, nullptr);
+    loader.LaunchApplication(request, nullptr);
   }
   drivers_to_load.clear();
 }
