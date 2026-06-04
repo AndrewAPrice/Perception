@@ -1,5 +1,0 @@
-{
-    "third_party/Libraries/libwapcaplet/public/libwapcaplet/libwapcaplet.h": true,
-    "third_party/Libraries/libwapcaplet/source/Makefile": true,
-    "third_party/Libraries/libwapcaplet/source/libwapcaplet.c": true
-}
