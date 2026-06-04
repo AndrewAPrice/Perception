@@ -16,17 +16,19 @@
 
 #include <errno.h>
 
+#include <atomic>
 #include <map>
 #include <vector>
 
 #include "../../../../third_party/Libraries/musl/source/internal/futex.h"
 #include "perception/debug.h"
 #include "perception/fibers.h"
-#include "perception/processes.h"
 
 namespace perception {
 namespace linux_syscalls {
 namespace {
+
+std::atomic_flag futex_lock = ATOMIC_FLAG_INIT;
 
 std::map<volatile int*, std::vector<Fiber*>>& FibersSleepingOnAddrs() {
   static std::map<volatile int*, std::vector<Fiber*>> fibers_sleeping_on_addrs;
@@ -44,39 +46,38 @@ long futex(volatile int* addr, int op, int val, void* ts) {
   switch (op) {
     case FUTEX_WAIT: {
       // Sleep if *addr != val.
-      if (*addr != val) {
-        return -EAGAIN;
-      }
+      if (*addr != val) return -EAGAIN;
 
-      // Sleep, waiting for FUTEX_WAKE at this addr.
-      auto itr = FibersSleepingOnAddrs().find(addr);
-      if (itr == FibersSleepingOnAddrs().end()) {
-        FibersSleepingOnAddrs()[addr] = {GetCurrentlyExecutingFiber()};
-      } else {
-        itr->second.push_back(GetCurrentlyExecutingFiber());
+      while (futex_lock.test_and_set(std::memory_order_acquire)) {
+        // Spin
       }
-      Sleep();
+      Fiber* current_fiber = ::perception::GetCurrentlyExecutingFiber();
+      FibersSleepingOnAddrs()[addr].push_back(current_fiber);
+      futex_lock.clear(std::memory_order_release);
+
+      ::perception::Sleep();
       return 0;
     }
     case FUTEX_WAKE: {
       // Wake up to 'val' listeners.
-      auto itr = FibersSleepingOnAddrs().find(addr);
-      if (itr == FibersSleepingOnAddrs().end()) {
-        return 0;  // Nobody listening.
+      std::vector<Fiber*> fibers_to_wake;
+
+      while (futex_lock.test_and_set(std::memory_order_acquire)) {
+        // Spin
       }
-
-      if (itr->second.size() <= val) {
-        // Wake up everybody.
-        for (Fiber* fiber_to_wake : itr->second) fiber_to_wake->WakeUp();
-
-        FibersSleepingOnAddrs().erase(itr);
-      } else {
-        // Only wake up a few listeners.
-        for (; val > 0; val--) {
-          itr->second.back()->WakeUp();
-          itr->second.pop_back();
+      auto itr = FibersSleepingOnAddrs().find(addr);
+      if (itr != FibersSleepingOnAddrs().end()) {
+        if (itr->second.size() <= val) {
+          fibers_to_wake = std::move(itr->second);
+          FibersSleepingOnAddrs().erase(itr);
+        } else {
+          fibers_to_wake.assign(itr->second.begin(), itr->second.begin() + val);
+          itr->second.erase(itr->second.begin(), itr->second.begin() + val);
         }
       }
+      futex_lock.clear(std::memory_order_release);
+
+      for (Fiber* fiber : fibers_to_wake) fiber->WakeUp();
 
       return 0;
     }
