@@ -14,14 +14,19 @@
             "recursive": true,
             "exclude": [
                 "${@}/source/thread/__set_thread_area.s",
-                "${@}/source/thread/clone.s",
-                "${@}/source/thread/syscall_cp.s"
+                "${@}/source/thread/clone.s"
+            ],
+            "replace": [
+                {
+                    "file": "source/thread/syscall_cp.s",
+                    "replacements": [
+                        [
+                            "__cp_begin:\n\tmov (%rdi),%eax\n\ttest %eax,%eax\n\tjnz __cp_cancel\n\tmov %rdi,%r11\n\tmov %rsi,%rax\n\tmov %rdx,%rdi\n\tmov %rcx,%rsi\n\tmov %r8,%rdx\n\tmov %r9,%r10\n\tmov 8(%rsp),%r8\n\tmov 16(%rsp),%r9\n\tmov %r11,8(%rsp)\n\tsyscall\n__cp_end:",
+                            "__cp_begin:\n\tmov (%rdi),%eax\n\ttest %eax,%eax\n\tjnz __cp_cancel\n\n\tpush %rbp\n\tmov %rsp,%rbp\n\n\t# Align stack to 16 bytes by pushing 8 bytes of padding first,\n\t# then the 7th argument z.\n\tpush $0\n\tpush 24(%rbp)\n\n\tmov %r8,%r10\n\tmov %r9,%r8\n\tmov 16(%rbp),%r9\n\n\tmov %rcx,%rax\n\tmov %r10,%rcx\n\n\tmov %rdx,%r10\n\tmov %rax,%rdx\n\n\tmov %rsi,%rdi\n\tmov %r10,%rsi\n\n\tcall __syscall6\n\n\tleave\n__cp_end:"
+                        ]
+                    ]
+                }
             ]
-        },
-        {
-            "operation": "copy",
-            "source": "${@}/assets/syscall_cp.s",
-            "destination": "source/thread/syscall_cp.s"
         },
         {
             "operation": "copy",
@@ -125,6 +130,23 @@
                             "if (g_init_dummy) g_init_dummy(); else __libc_start_init();"
                         ]
                     ]
+                },
+                {
+                    "file": "source/env/__init_tls.c",
+                    "replacements": [
+                        [
+                            "extern weak hidden const size_t _DYNAMIC[];",
+                            "extern weak hidden const size_t _DYNAMIC[];\nextern weak const size_t __tls_modules[];"
+                        ],
+                        [
+                            "static void static_init_tls(size_t *aux)\n{\n\tunsigned char *p;\n\tsize_t n;\n\tPhdr *phdr, *tls_phdr=0;\n\tsize_t base = 0;\n\tvoid *mem;\n\n\tfor (p=(void *)aux[AT_PHDR],n=aux[AT_PHNUM]; n; n--,p+=aux[AT_PHENT]) {",
+                            "static void static_init_tls(size_t *aux)\n{\n\tunsigned char *p;\n\tsize_t n;\n\tPhdr *phdr, *tls_phdr=0;\n\tsize_t base = 0;\n\tvoid *mem;\n\tstatic struct tls_module library_tls_modules[32];\n\n\tif (__tls_modules) {\n\t\tsize_t cnt = __tls_modules[0];\n\t\tif (cnt > 32) cnt = 32;\n\t\tlibc.tls_cnt = cnt;\n\t\tstruct tls_module *prev = 0;\n\t\tfor (size_t i = 0; i < cnt; i++) {\n\t\t\tstruct tls_module *m = &library_tls_modules[i];\n\t\t\tm->image = (void *)__tls_modules[1 + 4*i];\n\t\t\tm->len = __tls_modules[2 + 4*i];\n\t\t\tm->size = __tls_modules[3 + 4*i];\n\t\t\tm->align = __tls_modules[4 + 4*i];\n\t\t\tm->next = 0;\n\t\t\tif (prev) {\n\t\t\t\tprev->next = m;\n\t\t\t} else {\n\t\t\t\tlibc.tls_head = m;\n\t\t\t}\n\t\t\tprev = m;\n\t\t}\n\t} else {\n\t\tfor (p=(void *)aux[AT_PHDR],n=aux[AT_PHNUM]; n; n--,p+=aux[AT_PHENT]) {"
+                        ],
+                        [
+                            "\tif (tls_phdr) {\n\t\tmain_tls.image = (void *)(base + tls_phdr->p_vaddr);\n\t\tmain_tls.len = tls_phdr->p_filesz;\n\t\tmain_tls.size = tls_phdr->p_memsz;\n\t\tmain_tls.align = tls_phdr->p_align;\n\t\tlibc.tls_cnt = 1;\n\t\tlibc.tls_head = &main_tls;\n\t}\n\n\tmain_tls.size += (-main_tls.size - (uintptr_t)main_tls.image)\n\t\t& (main_tls.align-1);\n#ifdef TLS_ABOVE_TP\n\tmain_tls.offset = GAP_ABOVE_TP;\n\tmain_tls.offset += (-GAP_ABOVE_TP + (uintptr_t)main_tls.image)\n\t\t& (main_tls.align-1);\n#else\n\tmain_tls.offset = main_tls.size;\n#endif\n\tif (main_tls.align < MIN_TLS_ALIGN) main_tls.align = MIN_TLS_ALIGN;\n\n\tlibc.tls_align = main_tls.align;\n\tlibc.tls_size = 2*sizeof(void *) + sizeof(struct pthread)\n#ifdef TLS_ABOVE_TP\n\t\t+ main_tls.offset\n#endif\n\t\t+ main_tls.size + main_tls.align\n\t\t+ MIN_TLS_ALIGN-1 & -MIN_TLS_ALIGN;",
+                            "\tif (tls_phdr) {\n\t\tmain_tls.image = (void *)(base + tls_phdr->p_vaddr);\n\t\tmain_tls.len = tls_phdr->p_filesz;\n\t\tmain_tls.size = tls_phdr->p_memsz;\n\t\tmain_tls.align = tls_phdr->p_align;\n\t\tlibc.tls_cnt = 1;\n\t\tlibc.tls_head = &main_tls;\n\t}\n\t}\n\n\tsize_t current_offset = 0;\n\tsize_t max_align = MIN_TLS_ALIGN;\n\tfor (struct tls_module *m = libc.tls_head; m; m = m->next) {\n\t\t// if (m->align < MIN_TLS_ALIGN) m->align = MIN_TLS_ALIGN;\n\t\tif (m->align > max_align) max_align = m->align;\n\n#ifdef TLS_ABOVE_TP\n\t\tif (m == libc.tls_head) {\n\t\t\tm->offset = GAP_ABOVE_TP + (-GAP_ABOVE_TP + (uintptr_t)m->image) & (m->align-1);\n\t\t} else {\n\t\t\tm->offset = (current_offset + m->size + m->align - 1) & -m->align;\n\t\t}\n#else\n\t\tif (m == libc.tls_head && !__tls_modules) {\n\t\t\tm->size += (-m->size - (uintptr_t)m->image) & (m->align-1);\n\t\t\tm->offset = m->size;\n\t\t} else {\n\t\t\tm->offset = (current_offset + m->size + m->align - 1) & -m->align;\n\t\t}\n#endif\n\t\tcurrent_offset = m->offset;\n\t}\n\n\tlibc.tls_align = max_align;\n\tlibc.tls_size = 2*sizeof(void *) + sizeof(struct pthread)\n\t\t+ current_offset + libc.tls_align\n\t\t+ MIN_TLS_ALIGN-1 & -MIN_TLS_ALIGN;"
+                        ]
+                    ]
                 }
             ]
         },
@@ -162,7 +184,8 @@
             "destination": "source/internal",
             "recursive": true,
             "exclude": [
-                "${@}/source/internal/i386/defsysinfo.s"
+                "${@}/source/internal/i386/defsysinfo.s",
+                "${@}/source/internal/version.h"
             ]
         },
         {
@@ -518,24 +541,6 @@
             "outputs": [
                 "include/bits/syscall.h"
             ]
-        },
-        {
-            "operation": "copy",
-            "source": "${@}/assets/process",
-            "destination": "source/process",
-            "recursive": true
-        },
-        {
-            "operation": "copy",
-            "source": "${@}/assets/thread",
-            "destination": "source/thread",
-            "recursive": true
-        },
-        {
-            "operation": "copy",
-            "source": "${@}/assets/internal",
-            "destination": "source/internal",
-            "recursive": true
         }
     ]
 }
