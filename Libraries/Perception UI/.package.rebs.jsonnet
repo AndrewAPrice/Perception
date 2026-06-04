@@ -1,4 +1,5 @@
 {
+  skip_for_tests: true,
   package_type: 'library',
   public_include_directories: [
     'public',
@@ -9,6 +10,7 @@
   dependencies+: [
     'facebook yoga',
     'google skia',
+    'Nano SVG',
     'perception',
     'Perception Window',
   ],

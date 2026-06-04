@@ -1,4 +1,5 @@
 {
+  skip_for_tests: true,
   package_type: 'library',
   asset_directories: [
     'assets',

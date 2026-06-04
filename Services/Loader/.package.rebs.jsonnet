@@ -1,4 +1,5 @@
 {
+  skip_for_tests: true,
   dependencies+: [
     'elf',
     'perception',
