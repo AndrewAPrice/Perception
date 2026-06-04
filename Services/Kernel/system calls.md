@@ -40,6 +40,8 @@ Creates a new thread and schedules it for execution.
 * `rdi` - 1
 * `rax` - Entry point to begin executing.
 * `rbx` - Parameter to pass to the new thread.
+* `rdx` - Optional stack pointer (0 to allocate a 32KB stack in the kernel, or a non-zero address to use a custom user stack).
+* `rsi` - Optional thread-local storage (TLS) base address (0 if none).
 
 ### Output
 * `rax` - The ID of the created thread, or 0 if the thread could not be created.
