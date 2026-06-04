@@ -12,6 +12,9 @@
 #include "timer_event.h"
 #include "virtual_allocator.h"
 
+// Uncomment to see periodic process activity dumps to debug freezes.
+// #define VERBOSE_POLLING
+
 namespace {
 
 // The number of time slices (or how many times the timer triggers) per second.
@@ -194,6 +197,38 @@ void TimerHandler() {
   size_t now = GetCurrentTimestampInMicroseconds();
   size_t delta_time = now - microseconds_since_kernel_started;
   microseconds_since_kernel_started = now;
+
+#ifdef VERBOSE_POLLING
+  // Periodic process activity dump to debug freezes
+  static size_t last_dump_timestamp = 0;
+  if (microseconds_since_kernel_started - last_dump_timestamp >= 250000) {
+    last_dump_timestamp = microseconds_since_kernel_started;
+    print << "--- PROCESS ACTIVITY DUMP ---\n";
+    for (Process* proc = GetNextProcess(nullptr); proc != nullptr;
+         proc = GetNextProcess(proc)) {
+      print << "Process: " << proc->name << " (PID: " << proc->pid << ")";
+      if (proc->is_driver) print << " [Driver]";
+      print << "\n";
+      for (Thread* thread : proc->threads) {
+        print << "  Thread TID: " << thread->id;
+        if (thread->awake) {
+          print << " (AWAKE)";
+        } else {
+          print << " (ASLEEP)";
+          if (thread->thread_is_waiting_for_message) {
+            print << " waiting for msg";
+          }
+          if (thread->thread_is_waiting_for_shared_memory) {
+            print << " waiting for shm";
+          }
+        }
+        print << " Priority: " << (size_t)thread->priority << "\n";
+      }
+    }
+    print << "-------------------------\n";
+  }
+#endif
+
 #else
   size_t delta_time = (1000000 / TIME_SLICES_PER_SECOND);
   microseconds_since_kernel_started += delta_time;
@@ -386,15 +421,31 @@ void ReprogramTimerForNextDeadline() {
     }
   }
 
+#ifdef VERBOSE_POLLING
+  size_t max_duration =
+      250000;  // 250ms maximum duration to ensure periodic dumps.
+  if (next_deadline == 0) {
+    SetLapicTimerOneShot(max_duration);
+  } else {
+    size_t duration = max_duration;
+    if (next_deadline > now) {
+      duration = next_deadline - now;
+      if (duration > max_duration) duration = max_duration;
+    } else {
+      // Deadline is in the past or now, trigger immediately.
+      duration = 1;
+    }
+    SetLapicTimerOneShot(duration);
+  }
+#else
   if (next_deadline == 0) {
     DisableLapicTimer();
   } else {
     size_t duration = 0;
-    if (next_deadline > now) {
-      duration = next_deadline - now;
-    }
+    if (next_deadline > now) duration = next_deadline - now;
     SetLapicTimerOneShot(duration);
   }
+#endif
 #endif
 }
 
