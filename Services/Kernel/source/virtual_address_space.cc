@@ -586,7 +586,7 @@ void VirtualAddressSpace::SetMemoryAccessRights(size_t address, size_t rights) {
   size_t last_index = 0;
   // Walk the page table hierarchy.
   for (int level = 0; level < kNumPageTableLevels; level++) {
-    size_t* table = static_cast<size_t*>(
+    table = static_cast<size_t*>(
         TemporarilyMapPhysicalPages(last_entry & ~(PAGE_SIZE - 1), level));
     last_index = CalculateIndexForAddressInPageTable(level, address);
     last_entry = table[last_index];
