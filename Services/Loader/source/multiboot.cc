@@ -78,9 +78,7 @@ void LoadMultibootModules() {
     auto elf_file = LoadOrIncrementElfFile(elf_module);
     if (elf_file) {
       multiboot_elf_files.push_back(elf_file);
-      if (elf_file->IsExecutable()) {
-        programs_to_load.push_back(elf_module);
-      }
+      if (elf_file->IsExecutable()) programs_to_load.push_back(elf_module);
     }
   }
 
