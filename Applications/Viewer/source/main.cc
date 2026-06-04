@@ -17,12 +17,16 @@
 #include <string_view>
 #include <vector>
 
+#include "include/core/SkColor.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/time.h"
 #include "perception/ui/components/image_view.h"
+#include "perception/ui/components/label.h"
+#include "perception/ui/components/open_file_dialog.h"
 #include "perception/ui/components/ui_window.h"
 #include "perception/ui/image.h"
+#include "perception/ui/layout.h"
 #include "perception/ui/node.h"
 #include "perception/ui/resize_method.h"
 #include "perception/ui/text_alignment.h"
@@ -35,6 +39,7 @@ using ::perception::ui::Node;
 using ::perception::ui::ResizeMethod;
 using ::perception::ui::TextAlignment;
 using ::perception::ui::components::ImageView;
+using ::perception::ui::components::Label;
 using ::perception::ui::components::UiWindow;
 
 namespace {
@@ -42,11 +47,42 @@ namespace {
 int opened_instances = 0;
 std::vector<std::shared_ptr<Node>> open_windows;
 
+void ShowErrorDialog(std::string_view title, std::string_view message) {
+  opened_instances++;
+  auto window = UiWindow::DialogWithTitleBar(
+      title,
+      [](Layout& layout) {
+        layout.SetWidth(320.0f);
+        layout.SetHeight(140.0f);
+        layout.SetPadding(YGEdgeAll, 16.0f);
+      },
+      [](UiWindow& window) {
+        window.OnClose([]() {
+          opened_instances--;
+          if (opened_instances == 0) TerminateProcess();
+        });
+      },
+      Label::BasicLabel(
+          message,
+          [](Layout& layout) {
+            layout.SetFlexGrow(1.0f);
+            layout.SetJustifyContent(YGJustifyCenter);
+            layout.SetAlignContent(YGAlignCenter);
+          },
+          [](Label& label) {
+            label.SetTextAlignment(TextAlignment::MiddleCenter);
+          }));
+  open_windows.push_back(window);
+}
+
 void OpenImage(std::string_view path) {
   std::shared_ptr<::perception::ui::Image> image =
       ::perception::ui::Image::LoadImage(path);
   if (!image) {
-    std::cout << "Couldn't load " << path << std::endl;
+    ShowErrorDialog(
+        "Unsupported File",
+        std::string("The file \"") + std::string(path) +
+            "\" is not a valid svg, png, or other supported image file.");
     return;
   }
 
@@ -74,11 +110,22 @@ void OpenImage(std::string_view path) {
 }  // namespace
 
 int main(int argc, char* argv[]) {
-  OpenImage("/Optical 1/Sample Images/1546182636.svg");
-  OpenImage("/Optical 1/Sample Images/1530779823.svg");
-  OpenImage("/Optical 1/Sample Images/luca-bravo-O453M2Liufs-unsplash.jpg");
-  OpenImage(
-      "/Optical 1/Sample Images/stephen-leonardi-GUfLILZ-ufI-unsplash.jpg");
+  if (argc < 2) {
+    ::perception::ui::components::ShowOpenFileDialog(
+        [](bool succeeded, std::string_view path) {
+          if (succeeded) {
+            OpenImage(path);
+            if (opened_instances == 0) {
+              TerminateProcess();
+            }
+          } else {
+            TerminateProcess();
+          }
+        },
+        {".rgba", ".png", "svg", ".bmp", ".jpg", ".jpeg"}, "", "Open Image");
+  } else {
+    OpenImage(argv[1]);
+  }
 
   HandOverControl();
   return 0;
