@@ -12,16 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <sstream>
-#include <vector>
-
 #include "launcher.h"
 #include "perception/scheduler.h"
 #include "perception/ui/components/label.h"
 #include "perception/ui/components/ui_window.h"
 #include "perception/ui/layout.h"
-#include "perception/ui/node.h"
 
 using ::perception::HandOverControl;
 using ::perception::ui::Layout;
