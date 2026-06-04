@@ -27,7 +27,7 @@ namespace {
 // Tells the kernel to send us a message in a certain number of microseconds
 // from now.
 void SendMessageInMicrosecondsFromNow(size_t microseconds, size_t message_id) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 23;
   volatile register size_t microseconds_r asm("rax") = microseconds;
   volatile register size_t message_id_r asm("rbx") = message_id;
@@ -44,7 +44,7 @@ void SendMessageInMicrosecondsFromNow(size_t microseconds, size_t message_id) {
 // since the kernel started.
 void SendMessageAtMicrosecondsSinceKernelStart(size_t microseconds,
                                                size_t message_id) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 24;
   volatile register size_t microseconds_r asm("rax") = microseconds;
   volatile register size_t message_id_r asm("rbx") = message_id;
@@ -61,7 +61,7 @@ void SendMessageAtMicrosecondsSinceKernelStart(size_t microseconds,
 
 // Returns the time since the kernel started.
 std::chrono::microseconds GetTimeSinceKernelStarted() {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 25;
   volatile register size_t return_val asm("rax");
 
@@ -78,7 +78,7 @@ std::chrono::microseconds GetTimeSinceKernelStarted() {
 
 // Returns the number of CPU clock cycles since the processor turned on.
 size_t GetClockCyclesSinceBoot() {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   unsigned hi, lo;
   __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
   return ((unsigned long long)lo) | (((unsigned long long)hi) << 32);
@@ -90,32 +90,34 @@ size_t GetClockCyclesSinceBoot() {
 // Sleeps the current fiber and returns after the duration has passed.
 void SleepForDuration(std::chrono::microseconds time) {
   MessageId message_id = GenerateUniqueMessageId();
+  RegisterWakeUpHandler(message_id);
   SendMessageInMicrosecondsFromNow(time.count(), message_id);
 
   ProcessId pid;
   MessageData message_data;
-  do {
-    SleepUntilMessage(message_id, pid, message_data);
-
-    // Keep sleeping if the message wasn't from the kernel.
-  } while (pid != 0);
-  UnregisterMessageHandler(message_id);
+  while (true) {
+    SleepAndGetRawMessage(message_id, pid, message_data);
+    if (pid == 0) break;
+    // Re-register if it wasn't the kernel message.
+    RegisterWakeUpHandler(message_id);
+  }
 }
 
 // Sleeps the current fiber and returns after the duration since the
 // kernel started has passed.
 void SleepUntilTimeSinceKernelStarted(std::chrono::microseconds time) {
   MessageId message_id = GenerateUniqueMessageId();
+  RegisterWakeUpHandler(message_id);
   SendMessageAtMicrosecondsSinceKernelStart(time.count(), message_id);
 
   ProcessId pid;
   MessageData message_data;
-  do {
-    SleepUntilMessage(message_id, pid, message_data);
-
-    // Keep sleeping if the message wasn't from the kernel.
-  } while (pid != 0);
-  UnregisterMessageHandler(message_id);
+  while (true) {
+    SleepAndGetRawMessage(message_id, pid, message_data);
+    if (pid == 0) break;
+    // Re-register if it wasn't the kernel message.
+    RegisterWakeUpHandler(message_id);
+  }
 }
 
 // Calls the on_duration function after a duration has passed.

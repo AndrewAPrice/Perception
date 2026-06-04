@@ -15,6 +15,7 @@
 #include "perception/fibers.h"
 
 #include <iostream>
+#include <memory>
 
 #include "perception/memory.h"
 #include "perception/messages.h"
@@ -23,13 +24,15 @@
 namespace perception {
 namespace {
 
-constexpr int kNumberOfStackPages = 8;
+constexpr int kNumberOfStackPages = 256;
 
 // The currently executing fiber.
-/*thread_local*/ Fiber* currently_executing_fiber = nullptr;
+thread_local __attribute__((tls_model("initial-exec")))
+Fiber* currently_executing_fiber = nullptr;
 
 // Linked list of unused fibers we can recycle.
-/*thread_local*/ Fiber* next_free_fiber = nullptr;
+thread_local __attribute__((tls_model("initial-exec"))) Fiber* next_free_fiber =
+    nullptr;
 
 extern "C" void fiber_single_parameter_entrypoint();
 
@@ -42,30 +45,64 @@ extern "C" void jump_to_fiber(CalleePreservedRegisters* next);
 
 // Gets the currently executing fiber.
 Fiber* GetCurrentlyExecutingFiber() {
+  if (!IsPrimaryThread()) {
+    struct ThreadFiberHolder {
+      Fiber* fiber = nullptr;
+      ~ThreadFiberHolder() {
+        if (fiber != nullptr) delete fiber;
+      }
+    };
+    thread_local __attribute__((
+        tls_model("initial-exec"))) ThreadFiberHolder thread_fiber;
+    if (thread_fiber.fiber == nullptr) {
+      thread_fiber.fiber = new Fiber(GetThreadId());
+    }
+    return thread_fiber.fiber;
+  }
+
   if (currently_executing_fiber == nullptr) {
-    // The first time GetCurrentlyExecutingFiber is being called.
-    // We'll create a new fiber to wrap the currently executing
-    // fiber.
     currently_executing_fiber = new Fiber(false);
   }
 
   return currently_executing_fiber;
 }
 
-// Sleeps the currently executing fiber.
-void Sleep() { Scheduler::GetNextFiberToRun()->SwitchTo(); }
+// Sleeps the currently executing fiber or thread.
+void Sleep() {
+  if (IsPrimaryThread()) {
+    Scheduler::GetNextFiberToRun()->SwitchTo();
+  } else {
+#if defined(PERCEPTION) && !defined(TEST)
+    // Syscall 3: Sleep this thread
+    volatile register size_t syscall asm("rdi") = 3;
+    __asm__ __volatile__("syscall\n" : : "r"(syscall) : "rcx", "r11");
+#endif
+  }
+}
 
 // Initializes the fiber object. You probably want to use Fiber::Create()
 // instead.
-Fiber::Fiber(bool custom_stack) : is_scheduled_to_run_(false) {
+Fiber::Fiber(bool custom_stack)
+    : is_scheduled_to_run_(false), thread_id_(std::nullopt) {
   if (custom_stack) {
     bottom_of_stack_ = (size_t*)AllocateMemoryPages(kNumberOfStackPages);
-    // std::cout << "Created fiber with stack: " << std::hex
-    //          << (size_t)bottom_of_stack_ << "->"
-    //          << ((size_t)bottom_of_stack_ + kNumberOfStackPages * kPageSize)
-    //          << std::dec << std::endl;
   } else {
     bottom_of_stack_ = nullptr;
+  }
+}
+
+Fiber::Fiber(ThreadId thread_id)
+    : is_scheduled_to_run_(false),
+      thread_id_(thread_id),
+      bottom_of_stack_(nullptr) {}
+
+Fiber::~Fiber() {
+  if (bottom_of_stack_ != nullptr) {
+#if defined(PERCEPTION) && !defined(TEST)
+    ReleaseMemoryPages(bottom_of_stack_, kNumberOfStackPages);
+#else
+    free(bottom_of_stack_);
+#endif
   }
 }
 
@@ -150,6 +187,11 @@ Fiber* Fiber::Create() {
 
 // Switches to this fiber.
 void Fiber::SwitchTo() {
+  if (!IsPrimaryThread()) {
+    std::cerr << "Error: Fiber::SwitchTo called on non-primary thread!"
+              << std::endl;
+    return;
+  }
   Fiber* old_fiber = GetCurrentlyExecutingFiber();
 
   if (old_fiber == this) return;
@@ -160,12 +202,28 @@ void Fiber::SwitchTo() {
 
 // Jumps to this fiber, and forgets about the current context.
 void Fiber::JumpTo() {
+  if (!IsPrimaryThread()) {
+    std::cerr << "Error: Fiber::JumpTo called on non-primary thread!"
+              << std::endl;
+    return;
+  }
   currently_executing_fiber = this;
   jump_to_fiber(&this->registers_);
 }
 
 // Wakes up this fiber if it is sleeping.
-void Fiber::WakeUp() { Scheduler::ScheduleFiber(this); }
+void Fiber::WakeUp() {
+  if (thread_id_.has_value()) {
+#if defined(PERCEPTION) && !defined(TEST)
+    // Syscall 10: Wake thread
+    volatile register size_t syscall asm("rdi") = 10;
+    volatile register size_t rax asm("rax") = *thread_id_;
+    __asm__ __volatile__("syscall\n" : : "r"(syscall), "r"(rax) : "rcx", "r11");
+#endif
+  } else {
+    Scheduler::ScheduleFiber(this);
+  }
+}
 
 // Calls the root function of the fiber.
 void Fiber::CallRootFunction(Fiber* fiber) {

@@ -23,26 +23,32 @@ namespace perception {
 class Fiber;
 struct MessageData;
 
-// Defers running a function.
+// Defers running a function on the primary thread.
 void Defer(const std::function<void()>& function);
 
-// Defers running a function until after all other deferred functions and
-// incoming events have been handled.
+// Defers running a function on the primary thread until after all other
+// deferred functions and incoming events have been handled.
 void DeferAfterEvents(const std::function<void()>& function);
+
+// Runs a function in parallel in a new thread.
+void DeferInParallel(const std::function<void()>& function);
 
 // Sets the focused process, that receives a temporary boost in priority. Only
 // the Window Manager can call this.
 void SetFocusedProcess(ProcessId pid);
 
-// Hand over control to the scheduler. This function never returns.
+// Hand over control to the scheduler. This function never returns and must only
+// be called from the primary thread.
 void HandOverControl();
 
 // Runs all fibers, handles all events, then returns when there's
-// nothing else to do.
+// nothing else to do. This function must only be called from the primary
+// thread.
 void FinishAnyPendingWork();
 
 // Sleeps until a message is received, then handles all messages and
-// events and returns where there's nothing else to do.
+// events and returns where there's nothing else to do. This function must only
+// be called from the primary thread.
 void WaitForMessagesThenReturn();
 
 class Scheduler {

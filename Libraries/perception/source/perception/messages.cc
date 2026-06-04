@@ -14,6 +14,7 @@
 
 #include "perception/messages.h"
 
+#include <atomic>
 #include <map>
 
 #include "perception/fibers.h"
@@ -22,6 +23,26 @@
 
 namespace perception {
 namespace {
+
+struct Spinlock {
+  std::atomic_flag flag = ATOMIC_FLAG_INIT;
+  void Lock() {
+    while (flag.test_and_set(std::memory_order_acquire)) {
+    }
+  }
+  void Unlock() { flag.clear(std::memory_order_release); }
+};
+
+struct SpinlockLock {
+  Spinlock& lock_;
+  SpinlockLock(Spinlock& lock) : lock_(lock) { lock_.Lock(); }
+  ~SpinlockLock() { lock_.Unlock(); }
+};
+
+Spinlock& GetMessagesLock() {
+  static Spinlock lock;
+  return lock;
+}
 
 // The next unique message identifier.
 MessageId next_unique_message_id = 0;
@@ -33,7 +54,10 @@ std::map<MessageId, std::shared_ptr<MessageHandler>> handlers_by_message_id;
 
 // Generates a message identifier that is unique in this instance of the
 // process.
-MessageId GenerateUniqueMessageId() { return next_unique_message_id++; }
+MessageId GenerateUniqueMessageId() {
+  SpinlockLock lock(GetMessagesLock());
+  return next_unique_message_id++;
+}
 
 // Converts MessageStatus to Status.
 Status ToStatus(MessageStatus status) {
@@ -63,13 +87,13 @@ bool WereMemoryPagesSentInMessage(size_t metadata) {
 void DealWithUnhandledMessage(ProcessId sender,
                               const MessageData& message_data) {
   if (WereMemoryPagesSentInMessage(message_data.metadata)) {
-    // Release the memory that was sent to us.
+    // Release the memory that was sent.
     ReleaseMemoryPages((void*)message_data.param4, message_data.param5);
   }
 
   if (((message_data.metadata >> 1) & 0b11) != 0) {
-    // This is an RPC that expects a response. We need to respond
-    // to tell them this service or channel doesn't exist.
+    // This is an RPC that expects a response. Respond to indicate that the
+    // service or channel doesn't exist.
     MessageData message_data;
     message_data.message_id = message_data.param1;
     message_data.metadata = 0;
@@ -81,7 +105,7 @@ void DealWithUnhandledMessage(ProcessId sender,
 
 // Sends a message to a process.
 MessageStatus SendRawMessage(ProcessId pid, const MessageData& message_data) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 17;
   volatile register size_t pid_r asm("rbx") = pid;
   volatile register size_t message_id_r asm("rax") = message_data.message_id;
@@ -133,27 +157,29 @@ void RegisterMessageHandler(
 void RegisterRawMessageHandler(
     MessageId message_id,
     std::function<void(ProcessId, const MessageData&)> callback) {
+  auto handler = std::make_shared<MessageHandler>();
+  handler->fiber_to_wake_up = nullptr;
+  handler->handler_function = std::move(callback);
+
+  SpinlockLock lock(GetMessagesLock());
   // Erase already existing message handler.
   auto handlers_by_message_id_itr = handlers_by_message_id.find(message_id);
   if (handlers_by_message_id_itr != handlers_by_message_id.end())
     handlers_by_message_id.erase(handlers_by_message_id_itr);
 
-  auto handler = std::make_shared<MessageHandler>();
-  handler->fiber_to_wake_up = nullptr;
-  handler->handler_function = std::move(callback);
   handlers_by_message_id.emplace(
       std::make_pair(message_id, std::move(handler)));
 }
 
-// Unregisters the message handler, because we no longer care about handling
-// these messages.
+// Unregisters the message handler.
 void UnregisterMessageHandler(MessageId message_id) {
+  SpinlockLock lock(GetMessagesLock());
   auto handlers_by_message_id_itr = handlers_by_message_id.find(message_id);
   if (handlers_by_message_id_itr != handlers_by_message_id.end())
     handlers_by_message_id.erase(handlers_by_message_id_itr);
 }
 
-// Sleeps the current fiber until we receive a message. Waiting for a message
+// Sleeps the current fiber until a message is received. Waiting for a message
 // with a handler assigned to it will override that handler.
 void SleepUntilMessage(MessageId message_id, ProcessId& sender,
                        MessageData& message_data) {
@@ -166,22 +192,26 @@ void SleepUntilMessage(MessageId message_id, ProcessId& sender,
   }
 }
 
-// Sleeps the current fiber until we receive a message. Waiting for a message
-// with a handler assigned to it will override that handler. If you don't know
-// what you're doing and don't handle memory pages that are sent to you, this
-// can lead to memory leaks.
+// Sleeps the current fiber until a message is received. Waiting for a message
+// with a handler assigned to it will override that handler. If memory pages are
+// sent and not handled, this can lead to memory leaks.
 void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
                           MessageData& message_data) {
-  // Register the handler to wake us up.
+  // Register the handler to wake up the fiber.
   auto handler = std::make_shared<MessageHandler>();
   handler->fiber_to_wake_up = GetCurrentlyExecutingFiber();
-  handlers_by_message_id.emplace(
-      std::make_pair(message_id, std::move(handler)));
+
+  {
+    SpinlockLock lock(GetMessagesLock());
+    handlers_by_message_id.emplace(
+        std::make_pair(message_id, std::move(handler)));
+  }
 
   // Yield this fiber.
   Sleep();
 
-  // Get our handler.
+  // Get the handler.
+  SpinlockLock lock(GetMessagesLock());
   auto handler_itr = handlers_by_message_id.find(message_id);
   if (handler_itr == handlers_by_message_id.end()) {
     // This should never happen, but we'll have to return something.
@@ -192,12 +222,44 @@ void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
   sender = handler_itr->second->senders_pid;
   message_data = handler_itr->second->message_data;
 
-  // We can stop listening now.
+  // Stop listening.
+  handlers_by_message_id.erase(handler_itr);
+}
+
+void RegisterWakeUpHandler(MessageId message_id) {
+  auto handler = std::make_shared<MessageHandler>();
+  handler->fiber_to_wake_up = GetCurrentlyExecutingFiber();
+
+  SpinlockLock lock(GetMessagesLock());
+  handlers_by_message_id.emplace(
+      std::make_pair(message_id, std::move(handler)));
+}
+
+void SleepAndGetRawMessage(MessageId message_id, ProcessId& sender,
+                           MessageData& message_data) {
+  // Yield this fiber.
+  Sleep();
+
+  // Get the handler.
+  SpinlockLock lock(GetMessagesLock());
+  auto handler_itr = handlers_by_message_id.find(message_id);
+  if (handler_itr == handlers_by_message_id.end()) {
+    // This should never happen, but we'll have to return something.
+    sender = 0;
+    message_data = {};
+    return;
+  }
+
+  sender = handler_itr->second->senders_pid;
+  message_data = handler_itr->second->message_data;
+
+  // Stop listening.
   handlers_by_message_id.erase(handler_itr);
 }
 
 // Maybe returns a message handler for the given ID, or nullptr.
 std::shared_ptr<MessageHandler> GetMessageHandler(MessageId message_id) {
+  SpinlockLock lock(GetMessagesLock());
   auto handler_itr = handlers_by_message_id.find(message_id);
   if (handler_itr == handlers_by_message_id.end())
     return {};

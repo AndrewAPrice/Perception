@@ -14,7 +14,7 @@
 
 #include "perception/shared_memory.h"
 
-#ifndef PERCEPTION
+#if !defined(PERCEPTION) || defined(TEST)
 #include <map>
 #endif
 
@@ -35,7 +35,8 @@ constexpr size_t kDetails_IsLazilyAllocated = (1 << 2);
 // Can this process assign pages to this shared memory buffer?
 constexpr size_t kDetails_CanAssignPages = (1 << 3);
 
-#ifndef PERCEPTION
+#if !defined(PERCEPTION) || defined(TEST)
+
 // When we are not building for running on the Perception OS, we simulated
 // shared memory in the process's local memory.
 
@@ -48,7 +49,7 @@ struct SharedMemoryBlock {
 
 // The last unique buffer ID - where the first allocated buffer starts from 1
 // because 0 means invalid buffer.
-size_t last_unique_shared_buffer_id = 0;
+size_t last_unique_shared_buffer_id = 1;
 
 // A map of the shared memory buffer IDs to the allocated shared memory blocks.
 std::map<size_t, SharedMemoryBlock> shared_memory_blocks;
@@ -59,7 +60,7 @@ std::map<size_t, SharedMemoryBlock> shared_memory_blocks;
 void CreateSharedMemory(size_t size_in_pages, size_t flags,
                         size_t on_page_request_message_id, size_t& id,
                         void*& ptr) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   size_t rax_out, rbx_out;
   __asm__ __volatile__(
       "mov %2, %%rax\n"
@@ -89,7 +90,7 @@ void CreateSharedMemory(size_t size_in_pages, size_t flags,
 // Performs the system call to join a region of shared memory.
 void JoinSharedMemory(size_t id, void*& ptr, size_t& size_in_pages,
                       size_t& flags) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   size_t rax_out, rbx_out, rdx_out;
   __asm__ __volatile__(
       "mov %3, %%rax\n"
@@ -120,13 +121,13 @@ void JoinSharedMemory(size_t id, void*& ptr, size_t& size_in_pages,
   shared_memory_block_itr->second.references++;
   ptr = shared_memory_block_itr->second.data;
   size_in_pages = shared_memory_block_itr->second.size_in_pages;
-  flags = kJoinersCanWrite;
+  flags = SharedMemory::kJoinersCanWrite;
 #endif
 }
 
 void GrowSharedMemory(size_t id, size_t new_size_in_pages, void*& ptr,
                       size_t& size_in_pages) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   size_t rax_out, rbx_out;
   __asm__ __volatile__(
       "mov %2, %%rax\n"
@@ -154,7 +155,7 @@ void GrowSharedMemory(size_t id, size_t new_size_in_pages, void*& ptr,
 
   void* new_data =
       realloc(shared_memory_block.data, new_size_in_pages * kPageSize);
-  if (new_ptr != nullptr) {
+  if (new_data != nullptr) {
     free(shared_memory_block.data);
     shared_memory_block.data = new_data;
     shared_memory_block.size_in_pages = new_size_in_pages;
@@ -167,7 +168,7 @@ void GrowSharedMemory(size_t id, size_t new_size_in_pages, void*& ptr,
 
 // Performs the system call to release a region of shared memory.
 void ReleaseSharedMemory(size_t id) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall_num asm("rdi") = 44;
   volatile register size_t id_r asm("rax") = id;
 
@@ -349,7 +350,7 @@ bool SharedMemory::Grow(size_t size_in_bytes) {
 }
 
 bool SharedMemory::JoinChildProcess(ProcessId child_pid, size_t address) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall_num asm("rdi") = 61;
   volatile register size_t child_pid_r asm("rax") = child_pid;
   volatile register size_t shared_memory_id_r asm("rbx") = shared_memory_id_;
@@ -383,6 +384,7 @@ bool SharedMemory::IsLazilyAllocated() {
 }
 
 SharedMemoryDetails SharedMemory::GetDetails() {
+#if defined(PERCEPTION) && !defined(TEST)
   size_t rax_out, rbx_out;
   __asm__ __volatile__(
       "mov $58, %%rdi\n"
@@ -404,6 +406,15 @@ SharedMemoryDetails SharedMemory::GetDetails() {
       (rax_out & kDetails_CanAssignPages) == kDetails_CanAssignPages;
   details.SizeInBytes = rbx_out;
   return details;
+#else
+  SharedMemoryDetails details;
+  details.Exists = false;
+  details.CanWrite = false;
+  details.IsLazilyAllocated = false;
+  details.CanAssignPages = false;
+  details.SizeInBytes = 0;
+  return details;
+#endif
 }
 
 // Is this particular page allocated?
@@ -416,6 +427,7 @@ bool SharedMemory::IsPageAllocated(size_t offset_in_bytes) {
   if (!IsLazilyAllocated())
     return true;  // Not lazily allocated, so all memory is allocated.
 
+#if defined(PERCEPTION) && !defined(TEST)
   size_t rax_out;
   __asm__ __volatile__(
       "mov %1, %%rax\n"
@@ -428,6 +440,9 @@ bool SharedMemory::IsPageAllocated(size_t offset_in_bytes) {
       : "rax", "rdi", "rbx", "rcx", "r11", "memory");
 
   return rax_out == 1;
+#else
+  return true;
+#endif
 }
 
 std::optional<size_t> SharedMemory::GetPhysicalAddress(size_t offset_in_bytes) {
@@ -437,6 +452,7 @@ std::optional<size_t> SharedMemory::GetPhysicalAddress(size_t offset_in_bytes) {
   size_t page = (offset_in_bytes / kPageSize) * kPageSize;
   size_t offset_in_page = offset_in_bytes - page;
 
+#if defined(PERCEPTION) && !defined(TEST)
   size_t rax_out;
   __asm__ __volatile__(
       "mov %1, %%rax\n"
@@ -451,9 +467,13 @@ std::optional<size_t> SharedMemory::GetPhysicalAddress(size_t offset_in_bytes) {
   if (rax_out == 1) return std::nullopt;  // No physical address.
 
   return rax_out + offset_in_page;
+#else
+  return std::nullopt;
+#endif
 }
 
 void SharedMemory::AssignPage(void* page, size_t offset_in_bytes) {
+#if defined(PERCEPTION) && !defined(TEST)
   __asm__ __volatile__(
       "mov %0, %%rax\n"
       "mov $45, %%rdi\n"
@@ -462,9 +482,11 @@ void SharedMemory::AssignPage(void* page, size_t offset_in_bytes) {
       "syscall\n"
       :: "r"(shared_memory_id_), "r"(offset_in_bytes), "r"((size_t)page)
       : "rax", "rdi", "rbx", "rdx", "rcx", "r11", "memory");
+#endif
 }
 
 void SharedMemory::GrantPermissionToLazilyAllocatePage(ProcessId process_id) {
+#if defined(PERCEPTION) && !defined(TEST)
   __asm__ __volatile__(
       "mov %0, %%rax\n"
       "mov $57, %%rdi\n"
@@ -472,6 +494,7 @@ void SharedMemory::GrantPermissionToLazilyAllocatePage(ProcessId process_id) {
       "syscall\n"
       :: "r"(shared_memory_id_), "r"(process_id)
       : "rax", "rdi", "rbx", "rcx", "r11", "memory");
+#endif
 }
 
 // Returns the ID of the shared memory. Used to identify this shared memory
@@ -543,7 +566,7 @@ void SharedMemory::Serialize(serialization::Serializer& serializer) {
 }
 
 void SharedMemory::RegisterEvent(size_t offset, MessageId message_id) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   __asm__ __volatile__(
       "mov %0, %%rax\n"
       "mov $70, %%rdi\n"
@@ -556,7 +579,7 @@ void SharedMemory::RegisterEvent(size_t offset, MessageId message_id) {
 }
 
 void SharedMemory::UnregisterEvent(size_t offset) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   __asm__ __volatile__(
       "mov %0, %%rax\n"
       "mov $71, %%rdi\n"
@@ -568,7 +591,7 @@ void SharedMemory::UnregisterEvent(size_t offset) {
 }
 
 void SharedMemory::TriggerEvent(size_t offset) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   __asm__ __volatile__(
       "mov %0, %%rax\n"
       "mov $72, %%rdi\n"

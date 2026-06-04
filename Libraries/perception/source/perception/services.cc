@@ -23,7 +23,7 @@ constexpr int kMaxServiceNameLength = 80;
 }
 
 void RegisterService(perception::MessageId message_id, std::string_view name) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   if (name.size() > kMaxServiceNameLength) return;
 
   size_t service_name_words[kMaxServiceNameLength / 8];
@@ -56,7 +56,7 @@ void RegisterService(perception::MessageId message_id, std::string_view name) {
 }
 
 void UnregisterService(perception::MessageId message_id) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 33;
   volatile register size_t message_id_r asm("rax") = (size_t)message_id;
 
@@ -69,7 +69,7 @@ void UnregisterService(perception::MessageId message_id) {
 // service.
 bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
                                 MessageId& message) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   if (name.size() >= kMaxServiceNameLength) return false;
 
   size_t service_name_words[kMaxServiceNameLength / 8];
@@ -141,7 +141,7 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process,
 void ForEachInstanceOfService(
     std::string_view name,
     const std::function<void(ProcessId, MessageId)>& on_each_service) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   if (name.size() >= kMaxServiceNameLength) return;
 
   size_t service_name_words[kMaxServiceNameLength / 8];
@@ -245,6 +245,7 @@ void ForEachService(
 }
 
 std::string GetServiceName(ProcessId pid, MessageId message_id) {
+#if defined(PERCEPTION) && !defined(TEST)
   // Add an extra byte for the null terminator.
   char service_name[kMaxServiceNameLength + 1];
   service_name[kMaxServiceNameLength] = '\0';
@@ -290,6 +291,9 @@ std::string GetServiceName(ProcessId pid, MessageId message_id) {
   if (!was_service_found) return "";
 
   return std::string(service_name);
+#else
+  return "";
+#endif
 }
 
 // Calls the handler for each instance of the service that currently exists,
@@ -297,7 +301,7 @@ std::string GetServiceName(ProcessId pid, MessageId message_id) {
 MessageId NotifyOnEachNewServiceInstance(
     std::string_view name,
     const std::function<void(ProcessId, MessageId)>& on_each_service) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   if (name.size() > kMaxServiceNameLength) return 0;
 
   MessageId message_id = GenerateUniqueMessageId();
@@ -346,7 +350,7 @@ MessageId NotifyOnEachNewServiceInstance(
 // Stops calling the handler passed to NotifyOnEachService each time a new
 // instance of the service is registered.
 void StopNotifyingOnEachNewServiceInstance(MessageId message_id) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   UnregisterMessageHandler(message_id);
   volatile register size_t syscall_num asm("rdi") = 36;
   volatile register size_t message_id_r asm("rax") = message_id;
@@ -362,7 +366,7 @@ void StopNotifyingOnEachNewServiceInstance(MessageId message_id) {
 MessageId NotifyWhenServiceDisappears(
     ProcessId process_id, MessageId message_id,
     const std::function<void()>& on_disappearance) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   MessageId notification_message_id = GenerateUniqueMessageId();
   RegisterMessageHandler(notification_message_id,
                          [notification_message_id, on_disappearance](
@@ -398,7 +402,7 @@ MessageId NotifyWhenServiceDisappears(
 
 // No longer calls the handler when the service disappears.
 void StopNotifyWhenServiceDisappears(MessageId message_id) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   UnregisterMessageHandler(message_id);
   volatile register size_t syscall_num asm("rdi") = 38;
   volatile register size_t message_id_r asm("rax") = message_id;

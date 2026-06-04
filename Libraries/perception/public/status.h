@@ -16,6 +16,10 @@
 
 #include <utility>
 
+#ifdef OVERFLOW
+#undef OVERFLOW
+#endif
+
 namespace perception {
 
 enum class Status {

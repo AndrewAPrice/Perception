@@ -129,6 +129,13 @@ void SleepUntilMessage(MessageId message_id, ProcessId& sender,
 void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
                           MessageData& data);
 
+// Registers a handler to wake up the current fiber when a message is received.
+void RegisterWakeUpHandler(MessageId message_id);
+
+// Sleeps the current fiber and retrieves the raw message for message_id.
+void SleepAndGetRawMessage(MessageId message_id, ProcessId& sender,
+                           MessageData& data);
+
 // Maybe returns a message handler for the given ID, or nullptr.
 std::shared_ptr<MessageHandler> GetMessageHandler(MessageId message_id);
 

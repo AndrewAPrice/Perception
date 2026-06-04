@@ -97,8 +97,11 @@ class ServiceClient : public serialization::Serializable {
     MessageId message_id_of_response = GenerateUniqueMessageId();
     message.param2 = message_id_of_response;
 
+    RegisterWakeUpHandler(message_id_of_response);
+
     auto send_status = SendMessage(process_id_, message);
     if (send_status != MessageStatus::SUCCESS) {
+      UnregisterMessageHandler(message_id_of_response);
       if (message.param3 != SIZE_MAX) {
         auto shared_memory =
             GetMemoryBufferForSendingToProcessRegardlessOfIfInUse(
@@ -112,9 +115,12 @@ class ServiceClient : public serialization::Serializable {
 
     // Sleep until there is a response.
     ProcessId pid;
-    do {
-      SleepUntilMessage(message_id_of_response, pid, message);
-    } while (pid != process_id_);
+    while (true) {
+      SleepAndGetRawMessage(message_id_of_response, pid, message);
+      if (pid == process_id_) break;
+      // Re-register if it wasn't the expected sender.
+      RegisterWakeUpHandler(message_id_of_response);
+    }
 
     return LoadResponseFromMessageData<ResponseType>(pid, message);
   }

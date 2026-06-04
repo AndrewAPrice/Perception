@@ -74,9 +74,9 @@ void DoesProcessHavePermissionResponse::Serialize(
 }
 
 bool DoesProcessHavePermission(ProcessId process, Permission permission) {
-  if (auto cached = GetCachedPermission(process, permission)) {
-    return *cached;
-  }
+  if (auto cached = GetCachedPermission(process, permission)) return *cached;
+
+  auto permissions_client = GetService<PermissionsManager>();
 
   // Call the permissions manager.
   DoesProcessHavePermissionRequest request;
@@ -84,7 +84,7 @@ bool DoesProcessHavePermission(ProcessId process, Permission permission) {
   request.permission = permission;
 
   auto status_or_response =
-      GetService<PermissionsManager>().DoesProcessHavePermission(request);
+      permissions_client.DoesProcessHavePermission(request);
   if (!status_or_response.Ok()) return false;
 
   bool has_permission = status_or_response->has_permission;

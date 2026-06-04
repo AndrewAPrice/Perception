@@ -12,21 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
-
 #include "types.h"
 
 namespace perception {
 
 void EnableProfiling() {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 55;
   __asm__ __volatile__("syscall\n" ::"r"(syscall) : "rcx", "r11");
 #endif
 }
 
 void DisableAndOutputProfiling() {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 56;
   __asm__ __volatile__("syscall\n" ::"r"(syscall) : "rcx", "r11");
 #endif

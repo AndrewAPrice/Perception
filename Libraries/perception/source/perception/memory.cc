@@ -19,7 +19,7 @@
 #include "perception/debug.h"
 #include "perception/liballoc.h"
 
-#ifndef PERCEPTION
+#if !defined(PERCEPTION) || defined(TEST)
 #include <stdlib.h>
 #include <unistd.h>
 #endif
@@ -32,7 +32,7 @@ constexpr size_t kOutOfMemory = 1;
 }  // namespace
 
 void* AllocateMemoryPages(size_t number) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall_num __asm__("rdi") = 12;
   volatile register size_t param1 __asm__("rax") = number;
   volatile register size_t param2 __asm__("rdx") = 0;
@@ -57,7 +57,7 @@ void* AllocateMemoryPages(size_t number) {
 
 void* AllocateMemoryPagesBelowPhysicalAddressBase(
     size_t number, size_t max_base_address, size_t& first_physical_address) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall_num asm("rdi") = 49;
   volatile register size_t param1 asm("rax") = number;
   volatile register size_t param2 asm("rbx") = max_base_address;
@@ -82,7 +82,7 @@ void* AllocateMemoryPagesBelowPhysicalAddressBase(
 }
 
 void ReleaseMemoryPages(void* ptr, size_t number) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall_num asm("rdi") = 13;
   volatile register size_t param1 asm("rax") = (size_t)ptr;
   volatile register size_t param2 asm("rbx") = number;
@@ -97,7 +97,7 @@ void ReleaseMemoryPages(void* ptr, size_t number) {
 // Maps physical memory into this process's address space. Only drivers
 // may call this.
 void* MapPhysicalMemory(size_t physical_address, size_t pages) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall_num asm("rdi") = 41;
   volatile register size_t physical_address_r asm("rax") = physical_address;
   volatile register size_t pages_r asm("rbx") = pages;
@@ -117,7 +117,7 @@ void* MapPhysicalMemory(size_t physical_address, size_t pages) {
 }
 
 size_t GetPhysicalAddressOfVirtualAddress(size_t virtual_address) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall_num asm("rdi") = 50;
   volatile register size_t param1 asm("rax") = virtual_address;
   volatile register size_t return_val asm("rax");
@@ -138,7 +138,7 @@ size_t GetPhysicalAddressOfVirtualAddress(size_t virtual_address) {
 }
 
 bool MaybeResizePages(void** ptr, size_t current_number, size_t new_number) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   std::cout << "Implement MaybeResizePages." << std::endl;
   return false;
 #else
@@ -151,7 +151,7 @@ bool MaybeResizePages(void** ptr, size_t current_number, size_t new_number) {
 }
 
 size_t GetFreeSystemMemory() {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall_num asm("rdi") = 14;
   volatile register size_t return_val asm("rax");
 
@@ -166,7 +166,7 @@ size_t GetFreeSystemMemory() {
 }
 
 size_t GetTotalSystemMemory() {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall_num asm("rdi") = 16;
   volatile register size_t return_val asm("rax");
 
@@ -187,7 +187,7 @@ void GetProcessHealthMetrics(ProcessId pid, size_t& unique_memory_used,
                              size_t& creation_timestamp,
                              size_t& registered_services,
                              uint8* cpu_percentages) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t rax_io asm("rax") = pid;
   volatile register size_t rdi_io asm("rdi") = 15;
   volatile register size_t creation_timestamp_r asm("rbx");
@@ -225,7 +225,7 @@ void GetProcessHealthMetrics(ProcessId pid, size_t& unique_memory_used,
 }
 
 void SetThatProcessCaresAboutCpuTracking(bool active) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall_num asm("rdi") = 64;
   volatile register size_t param_r asm("rax") = active ? 1 : 0;
 
@@ -238,7 +238,7 @@ void SetThatProcessCaresAboutCpuTracking(bool active) {
 
 void SetMemoryAccessRights(void* address, size_t pages, bool can_write,
                            bool can_execute) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   size_t rights = 0;
   if (can_write) rights |= 1;
   if (can_execute) rights |= 2;
@@ -258,7 +258,7 @@ void SetMemoryAccessRights(void* address, size_t pages, bool can_write,
 
 }  // namespace perception
 
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
 // Function that runs if a virtual function implementation is missing. Should
 // never be called but needs to exist. extern "C" void __cxa_pure_virtual() {}
 

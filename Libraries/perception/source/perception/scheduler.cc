@@ -14,36 +14,75 @@
 
 #include "perception/scheduler.h"
 
+#include <atomic>
 #include <iostream>
 #include <memory>
 
 #include "perception/fibers.h"
 #include "perception/messages.h"
 #include "perception/processes.h"
+#include "perception/threads.h"
 
 namespace perception {
 namespace {
 
 // Queue of fibers that are scheduled to run.
-// NOTE: Thread local memory isn't always clear.
-/*thread_local*/ Fiber* first_scheduled_fiber = nullptr;
-/*thread_local*/ Fiber* last_scheduled_fiber = nullptr;
+Fiber* first_scheduled_fiber = nullptr;
+Fiber* last_scheduled_fiber = nullptr;
 
 // Queue of fibers that are scheduled to run after all other fibers and events
 // have been processed.
-/*thread_local*/ Fiber* first_late_scheduled_fiber = nullptr;
-/*thread_local*/ Fiber* last_late_scheduled_fiber = nullptr;
+Fiber* first_late_scheduled_fiber = nullptr;
+Fiber* last_late_scheduled_fiber = nullptr;
+
+struct Spinlock {
+  std::atomic_flag flag = ATOMIC_FLAG_INIT;
+  void Lock() {
+    while (flag.test_and_set(std::memory_order_acquire)) {
+    }
+  }
+  void Unlock() { flag.clear(std::memory_order_release); }
+};
+
+struct SpinlockLock {
+  Spinlock& lock_;
+  SpinlockLock(Spinlock& lock) : lock_(lock) { lock_.Lock(); }
+  ~SpinlockLock() { lock_.Unlock(); }
+};
+
+Spinlock& GetSchedulerLock() {
+  static Spinlock lock;
+  return lock;
+}
+
+// Dummy message identifier for waking up the primary thread.
+MessageId GetWakeUpMessageId() {
+  static MessageId wake_up_message_id = []() {
+    MessageId id = GenerateUniqueMessageId();
+    RegisterRawMessageHandler(id, [](ProcessId, const MessageData&) {});
+    return id;
+  }();
+  return wake_up_message_id;
+}
+
+void WakeUpPrimaryThread() {
+  MessageData message;
+  message.message_id = GetWakeUpMessageId();
+  message.metadata = 0;
+  SendMessage(GetProcessId(), message);
+}
 
 // The fiber to return to when there's no more work to do, instead of sleeping.
 // This is the caller of HandleEverything.
-/*thread_local*/ Fiber* fiber_to_return_to_when_out_of_work = nullptr;
-/*thread_local*/ Fiber* fiber_to_return_to_after_sleeping_when_out_of_work =
-    nullptr;
+thread_local __attribute__((tls_model("initial-exec")))
+Fiber* fiber_to_return_to_when_out_of_work = nullptr;
+thread_local __attribute__((tls_model("initial-exec")))
+Fiber* fiber_to_return_to_after_sleeping_when_out_of_work = nullptr;
 
 // Sleeps until a message. Returns true if a message was received.
 bool SleepThreadUntilMessage(ProcessId& senders_pid,
                              MessageData& message_data) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 19;
   volatile register size_t pid_r asm("rbx");
   volatile register size_t message_id_r asm("rax");
@@ -78,7 +117,7 @@ bool SleepThreadUntilMessage(ProcessId& senders_pid,
 
 // Polls for a message, returning false immediately if no message was received.
 bool PollForMessage(ProcessId& senders_pid, MessageData& message_data) {
-#if PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   // TODO: Handle metadata
   volatile register size_t syscall asm("rdi") = 18;
   volatile register size_t pid_r asm("rbx");
@@ -123,8 +162,20 @@ void DeferAfterEvents(const std::function<void()>& function) {
   Scheduler::ScheduleFiberAfterEvents(Fiber::Create(function));
 }
 
+void DeferInParallel(const std::function<void()>& function) {
+  auto* func_ptr = new std::function<void()>(function);
+  CreateThread(
+      [](void* param) {
+        auto* func = static_cast<std::function<void()>*>(param);
+        (*func)();
+        delete func;
+        TerminateThread();
+      },
+      func_ptr);
+}
+
 void SetFocusedProcess(ProcessId pid) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 66;
   volatile register size_t param asm("rax") = pid;
 
@@ -134,6 +185,12 @@ void SetFocusedProcess(ProcessId pid) {
 
 // Hand over control to the scheduler. This function never returns.
 void HandOverControl() {
+  if (!IsPrimaryThread()) {
+    std::cerr << "Error: HandOverControl called on non-primary thread!"
+              << std::endl;
+    return;
+  }
+
   if (fiber_to_return_to_when_out_of_work != nullptr ||
       fiber_to_return_to_after_sleeping_when_out_of_work != nullptr) {
     std::cerr << "::perception::HandOverControl can be nested inside of"
@@ -150,6 +207,12 @@ void HandOverControl() {
 // Runs all fibers, handles all events, then returns when there's
 // nothing else to do.
 void FinishAnyPendingWork() {
+  if (!IsPrimaryThread()) {
+    std::cerr << "Error: FinishAnyPendingWork called on non-primary thread!"
+              << std::endl;
+    return;
+  }
+
   if (fiber_to_return_to_when_out_of_work != nullptr ||
       fiber_to_return_to_after_sleeping_when_out_of_work != nullptr) {
     std::cerr << "::perception::FinishAnyPendingWork and "
@@ -168,6 +231,13 @@ void FinishAnyPendingWork() {
 }
 
 void WaitForMessagesThenReturn() {
+  if (!IsPrimaryThread()) {
+    std::cerr
+        << "Error: WaitForMessagesThenReturn called on non-primary thread!"
+        << std::endl;
+    return;
+  }
+
   if (fiber_to_return_to_when_out_of_work != nullptr ||
       fiber_to_return_to_after_sleeping_when_out_of_work != nullptr) {
     std::cerr << "::perception::FinishAnyPendingWork and "
@@ -189,118 +259,165 @@ void WaitForMessagesThenReturn() {
 
 // Gets the next fiber to run, or sleeps until there is one.
 Fiber* Scheduler::GetNextFiberToRun() {
-  // Return a fiber if there's one scheduled.
-  if (first_scheduled_fiber != nullptr) {
-    Fiber* fiber = first_scheduled_fiber;
-    first_scheduled_fiber = first_scheduled_fiber->next_scheduled_fiber_;
-
-    // There are no more fibers scheduled, make sure both the first
-    // and last pointers are nullptr.
-    if (first_scheduled_fiber == nullptr) {
-      last_scheduled_fiber = nullptr;
-    }
-
-    // Remove the fiber that is about to execute from the schedule.
-    fiber->is_scheduled_to_run_ = false;
-    return fiber;
+  if (!IsPrimaryThread()) {
+    std::cerr
+        << "Error: Scheduler::GetNextFiberToRun called on non-primary thread!"
+        << std::endl;
+    return nullptr;
   }
 
-  // Check if there are any messages.
-  ProcessId senders_pid;
-  MessageData message_data;
+  while (true) {
+    {
+      SpinlockLock lock(GetSchedulerLock());
+      if (first_scheduled_fiber != nullptr) {
+        Fiber* fiber = first_scheduled_fiber;
+        first_scheduled_fiber = first_scheduled_fiber->next_scheduled_fiber_;
 
-  if (fiber_to_return_to_when_out_of_work == nullptr &&
-      first_late_scheduled_fiber == nullptr) {
-    if (fiber_to_return_to_after_sleeping_when_out_of_work != nullptr) {
-      // Sleep first, then return immediately once there is no more work.
-      fiber_to_return_to_when_out_of_work =
-          fiber_to_return_to_after_sleeping_when_out_of_work;
+        // There are no more fibers scheduled, make sure both the first
+        // and last pointers are nullptr.
+        if (first_scheduled_fiber == nullptr) {
+          last_scheduled_fiber = nullptr;
+        }
+
+        // Remove the fiber that is about to execute from the schedule.
+        fiber->is_scheduled_to_run_ = false;
+        return fiber;
+      }
     }
 
-    // Nothing is waiting for to finish, so sleep for the next message.
-    while (true) {
-      if (!SleepThreadUntilMessage(senders_pid, message_data)) {
-        // The thread randomly woke without a message. This shouldn't
-        // happen.
-        continue;
+    // Check if there are any messages.
+    ProcessId senders_pid;
+    MessageData message_data;
+
+    bool has_late_scheduled_fibers = false;
+    {
+      SpinlockLock lock(GetSchedulerLock());
+      has_late_scheduled_fibers = (first_late_scheduled_fiber != nullptr);
+    }
+
+    if (fiber_to_return_to_when_out_of_work == nullptr &&
+        !has_late_scheduled_fibers) {
+      if (fiber_to_return_to_after_sleeping_when_out_of_work != nullptr) {
+        // Sleep first, then return immediately once there is no more work.
+        fiber_to_return_to_when_out_of_work =
+            fiber_to_return_to_after_sleeping_when_out_of_work;
       }
 
-      // Get the fiber to handle this message.
-      Fiber* fiber = GetFiberToHandleMessage(senders_pid, message_data);
+      // Nothing is waiting for to finish, so sleep for the next message.
+      while (true) {
+        if (!SleepThreadUntilMessage(senders_pid, message_data)) {
+          // The thread randomly woke without a message. This shouldn't
+          // happen.
+          continue;
+        }
 
-      // Is there a fiber to handle this message?
-      if (fiber != nullptr) return fiber;
+        // Get the fiber to handle this message.
+        Fiber* fiber = GetFiberToHandleMessage(senders_pid, message_data);
+
+        // Is there a fiber to handle this message?
+        if (fiber != nullptr) return fiber;
+
+        // Re-check scheduled fibers in case we were woken up by a secondary
+        // thread.
+        {
+          SpinlockLock lock(GetSchedulerLock());
+          if (first_scheduled_fiber != nullptr) {
+            break;
+          }
+        }
+      }
+    } else {
+      // Keep looping while there are messages.
+      while (PollForMessage(senders_pid, message_data)) {
+        // Get the fiber to handle this message.
+        Fiber* fiber = GetFiberToHandleMessage(senders_pid, message_data);
+
+        // Is there a fiber to handle this message?
+        if (fiber != nullptr) return fiber;
+      }
+
+      // There are no messages and there are no other fibers. Run any late
+      // fibers now.
+      {
+        SpinlockLock lock(GetSchedulerLock());
+        if (first_late_scheduled_fiber != nullptr) {
+          Fiber* fiber = first_late_scheduled_fiber;
+          first_late_scheduled_fiber =
+              first_late_scheduled_fiber->next_scheduled_fiber_;
+
+          // There are no more fibers scheduled, make sure both the first
+          // and last pointers are nullptr.
+          if (first_late_scheduled_fiber == nullptr)
+            last_late_scheduled_fiber = nullptr;
+
+          // Remove the fiber that is about to execute from the schedule.
+          fiber->is_scheduled_to_run_ = false;
+          return fiber;
+        }
+      }
+
+      // There are no messages and there are no fibers. Return to the caller of
+      // HandleEverything().
+      return fiber_to_return_to_when_out_of_work;
     }
-  } else {
-    // Keep looping while there are messages.
-    while (PollForMessage(senders_pid, message_data)) {
-      // Get the fiber to handle this message.
-      Fiber* fiber = GetFiberToHandleMessage(senders_pid, message_data);
-
-      // Is there a fiber to handle this message?
-      if (fiber != nullptr) return fiber;
-    }
-
-    // There are no messages and there are no other fibers. Run any late
-    // fibers now.
-    if (first_late_scheduled_fiber != nullptr) {
-      Fiber* fiber = first_late_scheduled_fiber;
-      first_late_scheduled_fiber =
-          first_late_scheduled_fiber->next_scheduled_fiber_;
-
-      // There are no more fibers scheduled, make sure both the first
-      // and last pointers are nullptr.
-      if (first_late_scheduled_fiber == nullptr)
-        last_late_scheduled_fiber = nullptr;
-
-      // Remove the fiber that is about to execute from the schedule.
-      fiber->is_scheduled_to_run_ = false;
-      return fiber;
-    }
-
-    // There are no messages and there are no fibers. Return to the caller of
-    // HandleEverything().
-    return fiber_to_return_to_when_out_of_work;
   }
 }
 
 // Schedules a fiber to run.
 void Scheduler::ScheduleFiber(Fiber* fiber) {
-  if (fiber->is_scheduled_to_run_)
-    // This fiber is already scheduled to run.
-    return;
-  fiber->is_scheduled_to_run_ = true;
-  fiber->next_scheduled_fiber_ = nullptr;
+  bool wake_up_primary = false;
+  {
+    SpinlockLock lock(GetSchedulerLock());
+    if (fiber->is_scheduled_to_run_)
+      // This fiber is already scheduled to run.
+      return;
+    fiber->is_scheduled_to_run_ = true;
+    fiber->next_scheduled_fiber_ = nullptr;
 
-  if (last_scheduled_fiber == nullptr) {
-    first_scheduled_fiber = fiber;
-    last_scheduled_fiber = fiber;
-  } else {
-    last_scheduled_fiber->next_scheduled_fiber_ = fiber;
-    last_scheduled_fiber = fiber;
+    if (last_scheduled_fiber == nullptr) {
+      first_scheduled_fiber = fiber;
+      last_scheduled_fiber = fiber;
+    } else {
+      last_scheduled_fiber->next_scheduled_fiber_ = fiber;
+      last_scheduled_fiber = fiber;
+    }
+
+    if (!IsPrimaryThread()) wake_up_primary = true;
   }
+
+  if (wake_up_primary) WakeUpPrimaryThread();
 }
 
 void Scheduler::ScheduleFiberAfterEvents(Fiber* fiber) {
-  if (fiber->is_scheduled_to_run_)
-    // This fiber is already scheduled to run.
-    return;
-  fiber->is_scheduled_to_run_ = true;
-  fiber->next_scheduled_fiber_ = nullptr;
+  bool wake_up_primary = false;
+  {
+    SpinlockLock lock(GetSchedulerLock());
+    if (fiber->is_scheduled_to_run_)
+      // This fiber is already scheduled to run.
+      return;
+    fiber->is_scheduled_to_run_ = true;
+    fiber->next_scheduled_fiber_ = nullptr;
 
-  if (last_late_scheduled_fiber == nullptr) {
-    first_late_scheduled_fiber = fiber;
-    last_late_scheduled_fiber = fiber;
-  } else {
-    last_late_scheduled_fiber->next_scheduled_fiber_ = fiber;
-    last_late_scheduled_fiber = fiber;
+    if (last_late_scheduled_fiber == nullptr) {
+      first_late_scheduled_fiber = fiber;
+      last_late_scheduled_fiber = fiber;
+    } else {
+      last_late_scheduled_fiber->next_scheduled_fiber_ = fiber;
+      last_late_scheduled_fiber = fiber;
+    }
+
+    if (!IsPrimaryThread()) wake_up_primary = true;
   }
+
+  if (wake_up_primary) WakeUpPrimaryThread();
 }
 
 // Returns a fiber to handle the message, or nullptr if there's
 // nothing to do.
 Fiber* Scheduler::GetFiberToHandleMessage(ProcessId senders_pid,
                                           const MessageData& message_data) {
+  if (message_data.message_id == GetWakeUpMessageId()) return nullptr;
+
   auto handler = GetMessageHandler(message_data.message_id);
   if (!handler) {
     // Message handler not defined.
@@ -313,6 +430,10 @@ Fiber* Scheduler::GetFiberToHandleMessage(ProcessId senders_pid,
     // will read when it wakes up.
     handler->senders_pid = senders_pid;
     handler->message_data = message_data;
+    if (handler->fiber_to_wake_up->IsThread()) {
+      handler->fiber_to_wake_up->WakeUp();
+      return nullptr;
+    }
     return handler->fiber_to_wake_up;
   }
 

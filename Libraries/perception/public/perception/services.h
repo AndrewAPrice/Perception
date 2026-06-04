@@ -17,9 +17,12 @@
 #include <types.h>
 
 #include <functional>
+#include <iostream>
 #include <mutex>
 #include <string>
 #include <string_view>
+
+#include <vector>
 
 #include "perception/fibers.h"
 
@@ -111,28 +114,49 @@ template <class ServiceType>
 static typename ServiceType::Client GetService() {
   static typename ServiceType::Client singleton;
   static std::mutex mutex;
+  static std::vector<::perception::Fiber*> waiting_fibers;
+  static MessageId listening_message_id = 0;
 
-  std::scoped_lock lock(mutex);
+  std::unique_lock lock(mutex);
 
   if (singleton.IsValid()) return singleton;
 
   auto main_fiber = ::perception::GetCurrentlyExecutingFiber();
-  auto listening_message_id = NotifyOnEachNewServiceInstance<ServiceType>(
-      [main_fiber](typename ServiceType::Client instance) {
-        if (!singleton.IsValid()) {
-          singleton = instance;
-          main_fiber->WakeUp();
-        }
-      });
+  waiting_fibers.push_back(main_fiber);
+
+  if (listening_message_id == 0) {
+    listening_message_id = NotifyOnEachNewServiceInstance<ServiceType>(
+        [](typename ServiceType::Client instance) {
+          std::scoped_lock lock(mutex);
+          if (!singleton.IsValid()) {
+            singleton = instance;
+            for (auto* fiber : waiting_fibers) {
+              fiber->WakeUp();
+            }
+            waiting_fibers.clear();
+          }
+        });
+  }
+
+  lock.unlock();
   ::perception::Sleep();
+  lock.lock();
 
-  StopNotifyingOnEachNewServiceInstance(listening_message_id);
+  if (listening_message_id != 0 && waiting_fibers.empty()) {
+    StopNotifyingOnEachNewServiceInstance(listening_message_id);
+    listening_message_id = 0;
+  }
 
-  (void)NotifyWhenServiceDisappears(
-      singleton, []() {
-        std::scoped_lock lock(mutex);
-        singleton = typename ServiceType::Client();
-      });
+  static bool registered_disappearance = false;
+  if (!registered_disappearance && singleton.IsValid()) {
+    registered_disappearance = true;
+    (void)NotifyWhenServiceDisappears(
+        singleton, []() {
+          std::scoped_lock lock(mutex);
+          singleton = typename ServiceType::Client();
+          registered_disappearance = false;
+        });
+  }
 
   return singleton;
 }

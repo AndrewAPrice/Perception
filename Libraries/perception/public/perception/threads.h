@@ -60,6 +60,12 @@ ThreadId CreateThread(void (*entry_point)(void*), void* param);
 // Gets the ID of the currently executing thread.
 ThreadId GetThreadId();
 
+// Returns whether the current thread is the primary/main thread.
+bool IsPrimaryThread();
+
+// Returns the Thread ID of the primary/main thread.
+ThreadId GetPrimaryThreadId();
+
 // Terminates the currently running thread.
 void TerminateThread();
 
@@ -76,5 +82,22 @@ void SetThreadSegments(std::optional<size_t> fs_address,
 // Set an address (that must be 8-byte aligned) to be cleared on the termination
 // of the currently executing thread.
 void SetAddressToClearOnThreadTermination(size_t address);
+
+// Yields execution of the current thread.
+inline void SleepThisThread() {
+#if defined(PERCEPTION) && !defined(TEST)
+  volatile register size_t syscall asm("rdi") = 3;
+  __asm__ __volatile__("syscall\n" : : "r"(syscall) : "rcx", "r11");
+#endif
+}
+
+// Wakes up a thread with the given ThreadId.
+inline void WakeThread(ThreadId tid) {
+#if defined(PERCEPTION) && !defined(TEST)
+  volatile register size_t syscall asm("rdi") = 10;
+  volatile register size_t rax asm("rax") = tid;
+  __asm__ __volatile__("syscall\n" : : "r"(syscall), "r"(rax) : "rcx", "r11");
+#endif
+}
 
 }  // namespace perception

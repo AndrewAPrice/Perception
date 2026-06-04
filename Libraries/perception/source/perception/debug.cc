@@ -14,14 +14,14 @@
 
 #include "perception/debug.h"
 
-#ifndef PERCEPTION
+#if !defined(PERCEPTION) || defined(TEST)
 #include <iostream>
 #endif
 
 namespace perception {
 
 DebugPrinter& DebugPrinter::operator<<(char c) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   register unsigned long long int syscall_num asm("rdi") = 0;
   register unsigned long long int param asm("rax") = c;
 
@@ -89,7 +89,7 @@ extern "C" void DebugPrint(char* str) { DebugPrinterSingleton << str; }
 extern "C" void DebugNumber(long l) { DebugPrinterSingleton << (size_t)l; }
 
 void DumpRegistersAndStackTrace() {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   register unsigned long long int syscall_num asm("rdi") = 26;
 
   __asm__("syscall\n" ::"r"(syscall_num) : "rcx", "r11");

@@ -29,7 +29,7 @@
 namespace perception {
 namespace {
 
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
 ProcessId InvokeSyscallToGetProcessId() {
   volatile register size_t syscall_num asm("rdi") = 39;
   volatile register size_t return_val asm("rax");
@@ -45,7 +45,7 @@ ProcessId InvokeSyscallToGetProcessId() {
 }  // namespace
 
 ProcessId GetProcessId() {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   return InvokeSyscallToGetProcessId();
 #else
   return 0;
@@ -53,7 +53,7 @@ ProcessId GetProcessId() {
 }
 
 void TerminateProcess() {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   register size_t syscall_num asm("rdi") = 6;
   __asm__("syscall\n" ::"r"(syscall_num) : "rcx", "r11");
 #else
@@ -63,7 +63,7 @@ void TerminateProcess() {
 
 // Terminates a process.
 void TerminateProcesss(ProcessId pid) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   register size_t syscall_num asm("rdi") = 7;
   register size_t pid_r asm("rax") = pid;
   __asm__("syscall\n" ::"r"(syscall_num), "r"(pid_r) : "rcx", "r11");
@@ -71,7 +71,7 @@ void TerminateProcesss(ProcessId pid) {
 }
 
 bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   if (name.size() > kMaximumProcessNameLength) return false;
 
   size_t process_name[kMaximumProcessNameLength / 8];
@@ -162,7 +162,7 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
 void ForEachProcessWithName(
     std::string_view name,
     const std::function<void(ProcessId)>& on_each_process) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   if (name.size() > kMaximumProcessNameLength) return;
 
   size_t process_name[kMaximumProcessNameLength / 8];
@@ -285,7 +285,7 @@ std::string GetProcessName() { return GetProcessName(GetProcessId()); }
 // Returns the name of a process, or an empty string if the process doesn't
 // exist.
 std::string GetProcessName(ProcessId pid) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   // Add an extra byte for the null terminator.
   char process_name[kMaximumProcessNameLength + 1];
   process_name[kMaximumProcessNameLength] = '\0';
@@ -340,7 +340,7 @@ std::string GetProcessName(ProcessId pid) {
 
 // Returns true if the process exists.
 bool DoesProcessExist(ProcessId pid) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   // Add an extra byte for the null terminator.
   char process_name[kMaximumProcessNameLength + 1];
   process_name[kMaximumProcessNameLength] = '\0';
@@ -368,7 +368,7 @@ bool DoesProcessExist(std::string_view name) {
 // handler has triggered.)
 MessageId NotifyUponProcessTermination(
     ProcessId pid, const std::function<void()>& on_termination) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   MessageId message_id = GenerateUniqueMessageId();
   RegisterMessageHandler(message_id, [message_id, on_termination](
                                          ProcessId sender, const MessageData&) {
@@ -394,7 +394,7 @@ MessageId NotifyUponProcessTermination(
 // Registers that we don't want to be notified anymore about a process
 // terminating.
 void StopNotifyingUponProcessTermination(MessageId message_id) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   UnregisterMessageHandler(message_id);
   volatile register size_t syscall_num asm("rdi") = 31;
   volatile register size_t message_id_r asm("rax") = message_id;
@@ -412,7 +412,7 @@ void StopNotifyingUponProcessTermination(MessageId message_id) {
 // if this process terminates.
 bool CreateChildProcess(std::string_view name, size_t bitfield,
                         ProcessId& pid) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   if (name.size() > kMaximumProcessNameLength) return false;
 
   size_t process_name[kMaximumProcessNameLength / 8];
@@ -475,7 +475,7 @@ bool CreateChildProcess(std::string_view name, size_t bitfield,
 // process, nothing is set.
 void SetChildProcessMemoryPage(ProcessId& child_pid, size_t source_address,
                                size_t destination_address) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 52;
   volatile register size_t pid_r asm("rax") = child_pid;
   volatile register size_t source_r asm("rbx") = source_address;
@@ -493,7 +493,7 @@ void SetChildProcessMemoryPage(ProcessId& child_pid, size_t source_address,
 // executing and will no longer terminate if the creator terminates.
 void StartExecutingChildProcess(ProcessId& child_pid, size_t entry_address,
                                 size_t params) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 53;
   volatile register size_t pid_r asm("rax") = child_pid;
   volatile register size_t entry_address_r asm("rbx") = entry_address;
@@ -519,7 +519,7 @@ bool IsDuplicateInstanceOfProcess() {
 
 // Destroys a child process that hasn't began executing.
 void DestroyChildProcess(ProcessId& child_pid) {
-#ifdef PERCEPTION
+#if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 54;
   volatile register size_t pid_r asm("rax") = child_pid;
 
