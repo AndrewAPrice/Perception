@@ -80,7 +80,8 @@ class ElfFile {
   ::perception::Status FixUpRelocations(
       std::map<size_t, void*>& child_memory_pages, size_t offset,
       const std::map<std::string_view, size_t>& symbols_to_addresses,
-      size_t module_id);
+      size_t module_id,
+      const std::map<size_t, size_t>& load_address_to_tls_offset);
 
   // Increments a reference count for this ELF file.
   void IncrementInstances();
@@ -93,7 +94,6 @@ class ElfFile {
   // Returns whether there is at least 1 reference to this ELF file.
   bool AreThereStillReferences() const;
 
- private:
   // Returns a pointer to the ELF header, or nullptr if it's not valid.
   const Elf64_Ehdr* ElfHeader();
 
@@ -103,6 +103,7 @@ class ElfFile {
   // Returns a list of program segment headers.
   std::span<const Elf64_Phdr> ProgramSegmentHeaders();
 
+ private:
   // Returns a section header string from an index.
   std::optional<std::string_view> SectionHeaderString(int index);
 

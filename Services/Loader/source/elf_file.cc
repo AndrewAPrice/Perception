@@ -210,7 +210,8 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
 Status ElfFile::FixUpRelocations(
     std::map<size_t, void*>& child_memory_pages, size_t offset,
     const std::map<std::string_view, size_t>& symbols_to_addresses,
-    size_t module_id) {
+    size_t module_id,
+    const std::map<size_t, size_t>& load_address_to_tls_offset) {
   auto relocation_section_headers = GetRelocationSectionHeaders();
   if (relocation_section_headers.empty()) return Status::OK;
 
@@ -288,6 +289,59 @@ Status ElfFile::FixUpRelocations(
         case 16:  // R_AMD64_DTPMOD64
           value = module_id;
           break;
+        case 18: {  // R_AMD64_TPOFF64
+          size_t symbol_index = ELF64_R_SYM(relocation_entry.r_info);
+          if (symbol_index >= symbols.size()) {
+            std::cout << "Symbol index is out of range." << std::endl;
+            return Status::INTERNAL_ERROR;
+          }
+          const auto& symbol = symbols[symbol_index];
+          size_t resolved_val = 0;
+          if (symbol_index == 0) {
+            resolved_val = offset;
+          } else if (symbol.st_shndx == SHN_UNDEF) {
+            auto name_or = DynamicString(symbol.st_name);
+            if (!name_or) {
+              std::cout << "Missing symbol name for TLS relocation"
+                        << std::endl;
+              return Status::INVALID_ARGUMENT;
+            }
+            std::string_view name = *name_or;
+            auto itr = symbols_to_addresses.find(name);
+            if (itr == symbols_to_addresses.end()) {
+              std::cout << "Cannot find TLS symbol: " << name << std::endl;
+              return Status::INVALID_ARGUMENT;
+            }
+            resolved_val = itr->second;
+          } else {
+            resolved_val = symbol.st_value + offset;
+          }
+
+          // Find the module that contains resolved_val.
+          size_t best_load_offset = 0xFFFFFFFFFFFFFFFF;
+          size_t best_tls_offset = 0;
+          for (const auto& [load_offset, tls_offset] :
+               load_address_to_tls_offset) {
+            if (load_offset <= resolved_val) {
+              if (best_load_offset == 0xFFFFFFFFFFFFFFFF ||
+                  load_offset > best_load_offset) {
+                best_load_offset = load_offset;
+                best_tls_offset = tls_offset;
+              }
+            }
+          }
+
+          if (best_load_offset == 0xFFFFFFFFFFFFFFFF) {
+            std::cout << "Failed to find module for TLS symbol address: 0x"
+                      << std::hex << resolved_val << std::dec << std::endl;
+            return Status::INTERNAL_ERROR;
+          }
+
+          size_t var_offset = resolved_val - best_load_offset;
+          // value is the TP-relative offset (which is negative)
+          value = var_offset - best_tls_offset + relocation_entry.r_addend;
+          break;
+        }
         default:
           // Documentation on the different types are here:
           // https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-54839.html#gentextid-15318

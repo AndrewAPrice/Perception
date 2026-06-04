@@ -198,11 +198,53 @@ StatusOr<::perception::ProcessId> LoadProgram(
   next_free_address = init_fini_functions.PopulateInMemory(
       next_free_address, child_memory_pages, symbols_to_addresses);
 
+  // Calculate correct TLS module IDs (1-indexed for modules that have TLS).
+  std::vector<size_t> tls_module_ids(dependencies.size(), 0);
+  size_t next_tls_module_id = 1;
+  for (int i = 0; i < dependencies.size(); i++) {
+    bool has_tls = false;
+    for (const auto& segment_header :
+         dependencies[i]->ProgramSegmentHeaders()) {
+      if (segment_header.p_type == PT_TLS) {
+        has_tls = true;
+        break;
+      }
+    }
+    if (has_tls) tls_module_ids[i] = next_tls_module_id++;
+  }
+
+  // Calculate static TLS offsets of each module in the child process's TLS
+  // block.
+  std::map<size_t, size_t> load_address_to_tls_offset;
+  size_t current_tls_offset = 0;
+  for (int i = 0; i < dependencies.size(); i++) {
+    const Elf64_Phdr* tls_phdr = nullptr;
+    for (const auto& phdr : dependencies[i]->ProgramSegmentHeaders()) {
+      if (phdr.p_type == PT_TLS) {
+        tls_phdr = &phdr;
+        break;
+      }
+    }
+    if (tls_phdr != nullptr) {
+      size_t align = tls_phdr->p_align;
+      if (align < 8) align = 8;
+      size_t size = tls_phdr->p_memsz;
+      current_tls_offset =
+          (current_tls_offset + size + align - 1) & ~(align - 1);
+      load_address_to_tls_offset[load_addresses_of_elf_files[i]] =
+          current_tls_offset;
+    }
+  }
+
   // Fix up the ELF files.
   for (int i = 0; i < dependencies.size(); i++) {
     if (dependencies[i]->FixUpRelocations(
             child_memory_pages, load_addresses_of_elf_files[i],
-            symbols_to_addresses, /*module_id=*/i + 1) != Status::OK) {
+            symbols_to_addresses, tls_module_ids[i],
+            load_address_to_tls_offset) != Status::OK) {
+      std::cout << "Loader ERROR: Relocation fix-up failed for "
+                << dependencies[i]->File().Name() << " in process " << name
+                << std::endl;
       something_went_wrong = true;
       break;
     }
@@ -213,47 +255,80 @@ StatusOr<::perception::ProcessId> LoadProgram(
     return Status::INTERNAL_ERROR;
   }
 
-  size_t args_address = 0;
-  if (!arguments.empty()) {
-    size_t args_page_address =
-        (next_free_address + kPageSize - 1) & ~(kPageSize - 1);
-    next_free_address = args_page_address + kPageSize;
+  size_t args_page_address =
+      (next_free_address + kPageSize - 1) & ~(kPageSize - 1);
+  next_free_address = args_page_address + kPageSize;
 
-    char* args_page = (char*)AllocateMemoryPages(1);
-    child_memory_pages[args_page_address] = args_page;
-    memset(args_page, 0, kPageSize);
+  char* args_page = (char*)AllocateMemoryPages(1);
+  child_memory_pages[args_page_address] = args_page;
+  memset(args_page, 0, kPageSize);
 
-    size_t argc = arguments.size() + 1;
-    *(size_t*)args_page = argc;
+  size_t argc = arguments.size() + 1;
+  *(size_t*)args_page = argc;
 
-    size_t pointers_offset = 8;
-    size_t strings_offset = pointers_offset + 8 * (argc + 4);
+  size_t pointers_offset = 8;
+  size_t strings_offset =
+      pointers_offset + 8 * (argc + 12);  // Space for argv, envp, auxv
 
-    // Write argv[0] pointing to the program name
-    size_t child_string_address = args_page_address + strings_offset;
-    *(size_t*)(args_page + pointers_offset) = child_string_address;
-    if (strings_offset + name.length() + 1 <= kPageSize) {
-      memcpy(args_page + strings_offset, name.data(), name.length());
-      args_page[strings_offset + name.length()] = '\0';
-      strings_offset += name.length() + 1;
+  // Write argv[0] pointing to the program name
+  size_t child_string_address = args_page_address + strings_offset;
+  *(size_t*)(args_page + pointers_offset) = child_string_address;
+  if (strings_offset + name.length() + 1 <= kPageSize) {
+    memcpy(args_page + strings_offset, name.data(), name.length());
+    args_page[strings_offset + name.length()] = '\0';
+    strings_offset += name.length() + 1;
+  }
+
+  // Write argv[1...] pointing to the arguments
+  for (size_t i = 0; i < arguments.size(); ++i) {
+    child_string_address = args_page_address + strings_offset;
+    *(size_t*)(args_page + pointers_offset + (i + 1) * 8) =
+        child_string_address;
+
+    std::string_view arg = arguments[i];
+    if (strings_offset + arg.length() + 1 > kPageSize) {
+      break;
     }
+    memcpy(args_page + strings_offset, arg.data(), arg.length());
+    args_page[strings_offset + arg.length()] = '\0';
+    strings_offset += arg.length() + 1;
+  }
 
-    // Write argv[1...] pointing to the arguments
-    for (size_t i = 0; i < arguments.size(); ++i) {
-      child_string_address = args_page_address + strings_offset;
-      *(size_t*)(args_page + pointers_offset + (i + 1) * 8) =
-          child_string_address;
+  // Write auxiliary vector entries
+  size_t write_auxv_offset = pointers_offset + 8 * (argc + 2);
+  auto write_aux = [&](size_t type, size_t value) {
+    *(size_t*)(args_page + write_auxv_offset) = type;
+    *(size_t*)(args_page + write_auxv_offset + 8) = value;
+    write_auxv_offset += 16;
+  };
 
-      std::string_view arg = arguments[i];
-      if (strings_offset + arg.length() + 1 > kPageSize) {
+  // Find the phdr details for the executable
+  size_t phdr_addr = 0;
+  size_t phnum = elf_file->ElfHeader()->e_phnum;
+  size_t phent = elf_file->ElfHeader()->e_phentsize;
+
+  for (const auto& phdr : elf_file->ProgramSegmentHeaders()) {
+    if (phdr.p_type == PT_PHDR) {
+      phdr_addr = phdr.p_vaddr;
+      break;
+    }
+  }
+  if (phdr_addr == 0) {
+    for (const auto& phdr : elf_file->ProgramSegmentHeaders()) {
+      if (phdr.p_type == PT_LOAD && phdr.p_offset == 0) {
+        phdr_addr = phdr.p_vaddr + elf_file->ElfHeader()->e_phoff;
         break;
       }
-      memcpy(args_page + strings_offset, arg.data(), arg.length());
-      args_page[strings_offset + arg.length()] = '\0';
-      strings_offset += arg.length() + 1;
     }
-    args_address = args_page_address;
   }
+
+  write_aux(3, phdr_addr);  // AT_PHDR = 3
+  write_aux(4, phnum);      // AT_PHNUM = 4
+  write_aux(5, phent);      // AT_PHENT = 5
+  write_aux(6, kPageSize);  // AT_PAGESZ = 6
+  write_aux(0, 0);          // AT_NULL = 0
+
+  size_t args_address = args_page_address;
 
   // Send the memory pages to the child.
   SendMemoryPagesToChild(child_pid, child_memory_pages);
