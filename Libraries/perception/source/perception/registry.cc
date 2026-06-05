@@ -27,7 +27,7 @@ StatusOr<serialization::Value> GetRegistryValue(RegistryCorpus corpus,
                                                 std::string_view r_namespace,
                                                 std::string_view key) {
   GetRegistryValueRequest request;
-  request.corpus = static_cast<uint8>(corpus);
+  request.corpus = corpus;
   request.r_namespace = std::string(r_namespace);
   request.key = std::string(key);
 
@@ -43,7 +43,7 @@ void SetRegistryValue(std::string_view key, const serialization::Value& value) {
 void SetRegistryValue(RegistryCorpus corpus, std::string_view r_namespace,
                       std::string_view key, const serialization::Value& value) {
   SetRegistryValueRequest request;
-  request.corpus = static_cast<uint8>(corpus);
+  request.corpus = corpus;
   request.r_namespace = std::string(r_namespace);
   request.key = std::string(key);
   request.value = value;
@@ -58,7 +58,7 @@ void DeleteRegistryValue(std::string_view key) {
 void DeleteRegistryValue(RegistryCorpus corpus, std::string_view r_namespace,
                          std::string_view key) {
   DeleteRegistryValueRequest request;
-  request.corpus = static_cast<uint8>(corpus);
+  request.corpus = corpus;
   request.r_namespace = std::string(r_namespace);
   request.key = std::string(key);
 
@@ -80,7 +80,7 @@ StatusOr<RegistryListenerToken> RegisterRegistryListener(
       [callback](ProcessId, const MessageData&) { callback(); });
 
   RegisterRegistryListenerRequest request;
-  request.corpus = static_cast<uint8>(corpus);
+  request.corpus = corpus;
   request.r_namespace = std::string(r_namespace);
   request.key = std::string(key);
   request.change_message_id = change_message_id;
@@ -110,7 +110,7 @@ StatusOr<std::vector<std::string>> GetRegistryKeys() {
 StatusOr<std::vector<std::string>> GetRegistryKeys(
     RegistryCorpus corpus, std::string_view r_namespace) {
   GetRegistryKeysRequest request;
-  request.corpus = static_cast<uint8>(corpus);
+  request.corpus = corpus;
   request.r_namespace = std::string(r_namespace);
 
   ASSIGN_OR_RETURN(auto response,

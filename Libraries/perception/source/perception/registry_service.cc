@@ -19,7 +19,7 @@
 namespace perception {
 
 void GetRegistryValueRequest::Serialize(serialization::Serializer& serializer) {
-  serializer.Integer("corpus", corpus);
+  serializer.Enum("corpus", corpus);
   serializer.String("namespace", r_namespace);
   serializer.String("key", key);
 }
@@ -30,7 +30,7 @@ void GetRegistryValueResponse::Serialize(
 }
 
 void SetRegistryValueRequest::Serialize(serialization::Serializer& serializer) {
-  serializer.Integer("corpus", corpus);
+  serializer.Enum("corpus", corpus);
   serializer.String("namespace", r_namespace);
   serializer.String("key", key);
   serializer.Serializable("value", value);
@@ -38,14 +38,14 @@ void SetRegistryValueRequest::Serialize(serialization::Serializer& serializer) {
 
 void DeleteRegistryValueRequest::Serialize(
     serialization::Serializer& serializer) {
-  serializer.Integer("corpus", corpus);
+  serializer.Enum("corpus", corpus);
   serializer.String("namespace", r_namespace);
   serializer.String("key", key);
 }
 
 void RegisterRegistryListenerRequest::Serialize(
     serialization::Serializer& serializer) {
-  serializer.Integer("corpus", corpus);
+  serializer.Enum("corpus", corpus);
   serializer.String("namespace", r_namespace);
   serializer.String("key", key);
   serializer.Integer("change_message_id", change_message_id);
@@ -57,7 +57,7 @@ void UnregisterRegistryListenerRequest::Serialize(
 }
 
 void GetRegistryKeysRequest::Serialize(serialization::Serializer& serializer) {
-  serializer.Integer("corpus", corpus);
+  serializer.Enum("corpus", corpus);
   serializer.String("namespace", r_namespace);
 }
 
@@ -66,7 +66,7 @@ void GetRegistryKeysResponse::Serialize(serialization::Serializer& serializer) {
 }
 
 void NamespaceInfo::Serialize(serialization::Serializer& serializer) {
-  serializer.Integer("corpus", corpus);
+  serializer.Enum("corpus", corpus);
   serializer.String("name", name);
 }
 

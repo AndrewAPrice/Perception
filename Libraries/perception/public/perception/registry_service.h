@@ -27,7 +27,7 @@ enum class RegistryCorpus : uint8 { APPLICATIONS = 0, LIBRARIES = 1 };
 
 class GetRegistryValueRequest : public serialization::Serializable {
  public:
-  uint8 corpus;
+  RegistryCorpus corpus;
   std::string r_namespace;
   std::string key;
 
@@ -43,7 +43,7 @@ class GetRegistryValueResponse : public serialization::Serializable {
 
 class SetRegistryValueRequest : public serialization::Serializable {
  public:
-  uint8 corpus;
+  RegistryCorpus corpus;
   std::string r_namespace;
   std::string key;
   serialization::Value value;
@@ -53,7 +53,7 @@ class SetRegistryValueRequest : public serialization::Serializable {
 
 class DeleteRegistryValueRequest : public serialization::Serializable {
  public:
-  uint8 corpus;
+  RegistryCorpus corpus;
   std::string r_namespace;
   std::string key;
 
@@ -62,7 +62,7 @@ class DeleteRegistryValueRequest : public serialization::Serializable {
 
 class RegisterRegistryListenerRequest : public serialization::Serializable {
  public:
-  uint8 corpus;
+  RegistryCorpus corpus;
   std::string r_namespace;
   std::string key;
   MessageId change_message_id;
@@ -79,7 +79,7 @@ class UnregisterRegistryListenerRequest : public serialization::Serializable {
 
 class GetRegistryKeysRequest : public serialization::Serializable {
  public:
-  uint8 corpus;
+  RegistryCorpus corpus;
   std::string r_namespace;
 
   virtual void Serialize(serialization::Serializer& serializer) override;
@@ -94,7 +94,7 @@ class GetRegistryKeysResponse : public serialization::Serializable {
 
 class NamespaceInfo : public serialization::Serializable {
  public:
-  uint8 corpus;
+  RegistryCorpus corpus;
   std::string name;
 
   virtual void Serialize(serialization::Serializer& serializer) override;
