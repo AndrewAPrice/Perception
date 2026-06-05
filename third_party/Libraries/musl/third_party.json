@@ -14,6 +14,7 @@
             "recursive": true,
             "exclude": [
                 "${@}/source/thread/__set_thread_area.s",
+                "${@}/source/thread/__unmapself.s",
                 "${@}/source/thread/clone.s"
             ],
             "replace": [
