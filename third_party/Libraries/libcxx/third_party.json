@@ -78,7 +78,22 @@
             "operation": "copy",
             "source": "${git}/libcxxabi/src",
             "destination": "source",
-            "recursive": true
+            "recursive": true,
+            "replace": [
+                {
+                    "file": "source/cxa_guard_impl.h",
+                    "replacements": [
+                        [
+                            "#include <stdlib.h>",
+                            "#include <stdlib.h>\n#if defined(PERCEPTION) && !defined(TEST)\n#include \"perception/fibers.h\"\n#endif"
+                        ],
+                        [
+                            "#if defined(__APPLE__) && _LIBCPP_HAS_THREAD_API_PTHREAD\nuint32_t PlatformThreadID() {\n  static_assert(sizeof(mach_port_t) == sizeof(uint32_t), \"\");\n  return static_cast<uint32_t>(pthread_mach_thread_np(std::__libcpp_thread_get_current_id()));\n}",
+                            "#if defined(PERCEPTION) && !defined(TEST)\nuint32_t PlatformThreadID() {\n  return static_cast<uint32_t>(reinterpret_cast<size_t>(::perception::GetCurrentlyExecutingFiber()));\n}\n#elif defined(__APPLE__) && _LIBCPP_HAS_THREAD_API_PTHREAD\nuint32_t PlatformThreadID() {\n  static_assert(sizeof(mach_port_t) == sizeof(uint32_t), \"\");\n  return static_cast<uint32_t>(pthread_mach_thread_np(std::__libcpp_thread_get_current_id()));\n}"
+                        ]
+                    ]
+                }
+            ]
         },
         {
             "operation": "copy",
