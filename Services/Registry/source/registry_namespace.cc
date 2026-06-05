@@ -14,9 +14,11 @@
 
 #include "registry_namespace.h"
 
+using ::StatusOr;
+using ::perception::MessageId;
+using ::perception::ProcessId;
 using ::perception::RegistryCorpus;
 using ::perception::Status;
-using ::perception::StatusOr;
 using ::perception::serialization::Value;
 
 RegistryNamespace::RegistryNamespace(RegistryCorpus corpus, std::string_view name)
@@ -26,21 +28,27 @@ StatusOr<Value> RegistryNamespace::GetValue(std::string_view key) {
   std::scoped_lock lock(mutex_);
   auto it = values_.find(key);
   if (it != values_.end()) {
-    return it->second;
+    return Value(it->second->GetValue());
   }
   return Status::FILE_NOT_FOUND;
 }
 
 void RegistryNamespace::SetValue(std::string_view key, const Value& value) {
   std::scoped_lock lock(mutex_);
-  values_[std::string(key)] = value;
+  auto& ptr = values_[std::string(key)];
+  if (!ptr) {
+    ptr = std::make_unique<RegistryValue>();
+  }
+  ptr->SetValue(value);
 }
 
 bool RegistryNamespace::SetDefaultValue(std::string_view key, const Value& value) {
   std::scoped_lock lock(mutex_);
   auto it = values_.find(key);
   if (it == values_.end()) {
-    values_[std::string(key)] = value;
+    auto ptr = std::make_unique<RegistryValue>();
+    ptr->SetValue(value);
+    values_[std::string(key)] = std::move(ptr);
     return true;
   }
   return false;
@@ -63,4 +71,29 @@ std::vector<std::string> RegistryNamespace::GetKeys() {
     keys.push_back(pair.first);
   }
   return keys;
+}
+
+void RegistryNamespace::RegisterListener(std::string_view key,
+                                         ProcessId process_id,
+                                         MessageId message_id) {
+  std::scoped_lock lock(mutex_);
+  auto& ptr = values_[std::string(key)];
+  if (!ptr) {
+    ptr = std::make_unique<RegistryValue>();
+  }
+  ptr->RegisterListener(process_id, message_id);
+}
+
+void RegistryNamespace::NotifyListeners(std::string_view key) {
+  RegistryValue* val_ptr = nullptr;
+  {
+    std::scoped_lock lock(mutex_);
+    auto it = values_.find(key);
+    if (it != values_.end()) {
+      val_ptr = it->second.get();
+    }
+  }
+  if (val_ptr) {
+    val_ptr->NotifyListeners();
+  }
 }

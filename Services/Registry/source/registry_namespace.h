@@ -19,10 +19,14 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <memory>
 
+#include "perception/messages.h"
+#include "perception/processes.h"
 #include "perception/registry.h"
 #include "perception/serialization/serializer.h"
-#include "perception/status.h"
+#include "status.h"
+#include "registry_value.h"
 
 class RegistryNamespace {
  public:
@@ -33,8 +37,7 @@ class RegistryNamespace {
   std::string_view GetName() const { return name_; }
 
   // Retrieve a value.
-  ::perception::StatusOr<::perception::serialization::Value> GetValue(
-      std::string_view key);
+  ::StatusOr<::perception::serialization::Value> GetValue(std::string_view key);
 
   // Set a value.
   void SetValue(std::string_view key,
@@ -51,9 +54,17 @@ class RegistryNamespace {
   // Get all keys.
   std::vector<std::string> GetKeys();
 
+  // Register a listener for a key.
+  void RegisterListener(std::string_view key,
+                        ::perception::ProcessId process_id,
+                        ::perception::MessageId message_id);
+
+  // Notify listeners watching a key.
+  void NotifyListeners(std::string_view key);
+
  private:
   ::perception::RegistryCorpus corpus_;
   std::string name_;
   std::mutex mutex_;
-  std::map<std::string, ::perception::serialization::Value, std::less<>> values_;
+  std::map<std::string, std::unique_ptr<RegistryValue>, std::less<>> values_;
 };

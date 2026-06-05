@@ -15,20 +15,19 @@
 #pragma once
 
 #include <memory>
-#include <string_view>
-#include <vector>
 
 #include "perception/processes.h"
-#include "perception/registry.h"
 #include "registry_namespace.h"
-#include "status.h"
 
-// Resolves a namespace. If r_namespace is empty, it uses the caller's process name.
-// Returns a std::shared_ptr to the RegistryNamespace.
-// Also keeps a cached map of ProcessId -> Namespace class.
-std::shared_ptr<RegistryNamespace> ResolveNamespace(
-    ::perception::RegistryCorpus corpus, std::string_view r_namespace,
-    ::perception::ProcessId caller);
+// Checks if the caller has permissions to read a namespace.
+bool CanReadNamespace(const std::shared_ptr<RegistryNamespace>& ns,
+                      std::string_view requested_namespace,
+                      ::perception::ProcessId caller);
 
-// Returns all namespaces.
-std::vector<::perception::NamespaceInfo> GetNamespaces();
+// Checks if the caller has permissions to write to a namespace.
+bool CanWriteNamespace(const std::shared_ptr<RegistryNamespace>& ns,
+                       std::string_view requested_namespace,
+                       ::perception::ProcessId caller);
+
+// Returns the process name from a PID, caching the result.
+std::string GetCachedProcessName(::perception::ProcessId pid);
