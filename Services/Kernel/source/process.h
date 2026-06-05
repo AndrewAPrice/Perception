@@ -1,5 +1,6 @@
 #pragma once
 
+#include "aa_tree.h"
 #include "interrupts.h"
 #include "linked_list.h"
 #include "messages.h"
@@ -80,13 +81,13 @@ struct Process {
              &MessageToFireOnInterrupt::node_in_process>
       messages_to_fire_on_interrupt;
 
-  // Linked list of threads.
-  LinkedList<Thread, &Thread::node_in_process> threads;
+  // Tree of threads.
+  AATree<Thread, &Thread::node_in_process, &Thread::id> threads;
   // Number of threads this process has.
   unsigned short thread_count;
 
-  // Linked list of processes.
-  LinkedListNode node_in_all_processes;
+  // Tree node of processes.
+  AATreeNode node_in_all_processes;
 
   // Linked lists of processes to notify when I die.
   LinkedList<ProcessToNotifyOnExit, &ProcessToNotifyOnExit::target_node>
@@ -103,16 +104,15 @@ struct Process {
              &ProcessToNotifyWhenServiceDisappears::node_in_process>
       services_i_want_to_be_notified_of_when_they_disappear;
 
-  // Linked list of services in this process. System calls that scan for
-  // services expect that services are added to the back of the list, and we
-  // must iterate them from front to back.
-  LinkedList<Service, &Service::node_in_process> services;
+  // Tree of services in this process.
+  AATree<Service, &Service::node_in_process, &Service::message_id> services;
 
   // Number of services registered by this process.
   size_t service_count;
 
-  // Linked list of shared memory mapped into this process.
-  LinkedList<SharedMemoryInProcess, &SharedMemoryInProcess::node_in_process>
+  // Tree of shared memory mapped into this process.
+  AATree<SharedMemoryInProcess, &SharedMemoryInProcess::node_in_process,
+         &SharedMemoryInProcess::virtual_address>
       joined_shared_memories;
 
   // Linked list of shared memory events registered by this process.

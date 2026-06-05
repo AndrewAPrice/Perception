@@ -40,19 +40,28 @@ TEST(ServiceRegistrationAndLookupTest) {
   Process* p1 = CreateTestProcess("Process1");
   ASSERT(p1 != nullptr, true);
 
-  // Register a service
+  // Register two services
   RegisterService((char*)"my_cool_service", p1, 101);
+  RegisterService((char*)"another_cool_service", p1, 102);
 
-  // Lookup the registered service
-  Service* svc = FindServiceByProcessAndMid(p1->pid, 101);
-  ASSERT(svc != nullptr, true);
-  ASSERT(svc->process, p1);
-  ASSERT(svc->message_id, (size_t)101);
+  // Lookup the registered services
+  Service* svc1 = FindServiceByProcessAndMid(p1->pid, 101);
+  ASSERT(svc1 != nullptr, true);
+  ASSERT(svc1->message_id, (size_t)101);
 
-  // Unregister the service
+  Service* svc2 = FindServiceByProcessAndMid(p1->pid, 102);
+  ASSERT(svc2 != nullptr, true);
+  ASSERT(svc2->message_id, (size_t)102);
+
+  // Unregister the second service (larger message ID)
+  UnregisterServiceByMessageId(p1, 102);
+  svc2 = FindServiceByProcessAndMid(p1->pid, 102);
+  ASSERT(svc2 == nullptr, true);
+
+  // Unregister the first service
   UnregisterServiceByMessageId(p1, 101);
-  svc = FindServiceByProcessAndMid(p1->pid, 101);
-  ASSERT(svc == nullptr, true);
+  svc1 = FindServiceByProcessAndMid(p1->pid, 101);
+  ASSERT(svc1 == nullptr, true);
 }
 
 TEST(ServiceNotificationsTest) {

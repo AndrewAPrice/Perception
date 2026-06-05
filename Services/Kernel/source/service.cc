@@ -52,27 +52,13 @@ void RegisterService(char* service_name, Process* process, size_t message_id) {
     ((size_t*)service->name)[i] = ((size_t*)service_name)[i];
   service->name[SERVICE_NAME_LENGTH - 1] = '\0';
 
-  // Add to the linked list of services in the process.
-  if (process->services.IsEmpty()) {
-    process->services.AddBack(service);
-  } else {
-    // FindNextServiceByPidAndMidWithName depends on the services being
-    // sorted in order of their message id. There could exist a scenario
-    // (such as a race condition) where services get registered out of order.
-    // Walk backwards from the end to find where to insert it.
-    Service* previous_service = process->services.LastItem();
-    while (previous_service != nullptr &&
-           service->message_id < previous_service->message_id) {
-      previous_service = process->services.PreviousItem(previous_service);
-    }
-
-    if (service->message_id == previous_service->message_id) {
-      // Trying to register multiple services with the same message ID.
-      ObjectPool<Service>::Release(service);
-      return;
-    }
-    process->services.InsertAfter(previous_service, service);
+  // Add to the tree of services in the process.
+  if (process->services.SearchForItemEqualToValue(message_id) != nullptr) {
+    // Trying to register multiple services with the same message ID.
+    ObjectPool<Service>::Release(service);
+    return;
   }
+  process->services.Insert(service);
   process->service_count++;
 
   // Notify everyone listening for this new service.
@@ -88,9 +74,8 @@ void RegisterService(char* service_name, Process* process, size_t message_id) {
 
 // Unregisters a service, and notifies anybody listening.
 void UnregisterServiceByMessageId(Process* process, size_t message_id) {
-  for (Service* service : process->services) {
-    if (message_id == service->message_id) return UnregisterService(service);
-  }
+  Service* service = process->services.SearchForItemEqualToValue(message_id);
+  if (service != nullptr) UnregisterService(service);
 }
 
 // Unregisters a service, and notifies anybody listening.
@@ -114,17 +99,13 @@ Service* FindServiceByProcessAndMid(size_t pid, size_t message_id) {
   Process* process = GetProcessFromPid(pid);
   if (process == nullptr) return nullptr;  // Process doesn't exist.
 
-  for (Service* service : process->services)
-    if (service->message_id == message_id) return service;
-
-  return nullptr;  // Service doesn't exist in process.
+  return process->services.SearchForItemEqualToValue(message_id);
 }
 
-// Returns the next service, starting at the provided process ID and message
-// ID.
 Service* FindNextServiceByPidAndMidWithName(char* service_name, size_t min_pid,
                                             size_t min_message_id) {
   Process* process = GetProcessOrNextFromPid(min_pid);
+  if (process == nullptr) return nullptr;
   // Starting from this mid is only relevant if
   // from the same process.
   if (process->pid != min_pid) min_message_id = 0;
@@ -132,20 +113,20 @@ Service* FindNextServiceByPidAndMidWithName(char* service_name, size_t min_pid,
   // Return if the next process is found, otherwise keep looping and
   // scanning the next processes for services.
   while (process != nullptr) {
-    // Keep looping through services in this process.
-    for (Service* service : process->services) {
+    // Search for the first service starting at min_message_id.
+    Service* service = process->services.SearchForItemGreaterThanOrEqualToValue(
+        min_message_id);
+    while (service != nullptr) {
       // Does this message meet the min message id threshold and also
       // have the same service name that is being looked for?
-      if (service->message_id >= min_message_id &&
-          (service_name[0] == 0 ||
-           DoServiceNamesMatch(service_name, service->name))) {
+      if (service_name[0] == 0 ||
+          DoServiceNamesMatch(service_name, service->name)) {
         // A service being looked for was found!
         return service;
       }
+      service = process->services.NextItem(service);
     }
 
-    // Jump to the next process, and reset the min mid we care
-    // about.
     // Jump to the next process, and reset the min mid that is cared about.
     process = GetNextProcess(process);
     min_message_id = 0;
@@ -216,7 +197,7 @@ void NotifyProcessWhenServiceAppears(char* service_name, Process* process,
       if (DoServiceNamesMatch(service_name, service->name)) {
         SendKernelMessageToProcess(process, message_id, service->process->pid,
                                    service->message_id, 0, 0, 0);
-      };
+      }
     }
     process_to_scan = GetNextProcess(process_to_scan);
   }

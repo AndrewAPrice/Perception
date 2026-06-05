@@ -139,15 +139,15 @@ TEST(AATreeTest) {
     ASSERT(n20_b.node.level, 2);
   }
 
-  // Test traversal (IsEmpty, GetFirstItem, GetLastItem, GetNextItem,
-  // GetPreviousItem) with unique and duplicate entries.
+  // Test traversal (IsEmpty, FirstItem, LastItem, NextItem,
+  // PreviousItem) with unique and duplicate entries.
   {
     TestAATree tree4;
     ASSERT(tree4.IsEmpty(), true);
-    ASSERT(tree4.GetFirstItem(), nullptr);
-    ASSERT(tree4.GetLastItem(), nullptr);
-    ASSERT(tree4.GetNextItem(nullptr), nullptr);
-    ASSERT(tree4.GetPreviousItem(nullptr), nullptr);
+    ASSERT(tree4.FirstItem(), nullptr);
+    ASSERT(tree4.LastItem(), nullptr);
+    ASSERT(tree4.NextItem(nullptr), nullptr);
+    ASSERT(tree4.PreviousItem(nullptr), nullptr);
 
     Node n10{10, {}};
     Node n20_a{20, {}};
@@ -156,49 +156,49 @@ TEST(AATreeTest) {
 
     tree4.Insert(&n20_a);
     ASSERT(tree4.IsEmpty(), false);
-    ASSERT(tree4.GetFirstItem(), &n20_a);
-    ASSERT(tree4.GetLastItem(), &n20_a);
-    ASSERT(tree4.GetNextItem(&n20_a), nullptr);
-    ASSERT(tree4.GetPreviousItem(&n20_a), nullptr);
-    ASSERT(tree4.GetNextItem(nullptr), nullptr);
-    ASSERT(tree4.GetPreviousItem(nullptr), nullptr);
+    ASSERT(tree4.FirstItem(), &n20_a);
+    ASSERT(tree4.LastItem(), &n20_a);
+    ASSERT(tree4.NextItem(&n20_a), nullptr);
+    ASSERT(tree4.PreviousItem(&n20_a), nullptr);
+    ASSERT(tree4.NextItem(nullptr), nullptr);
+    ASSERT(tree4.PreviousItem(nullptr), nullptr);
 
     tree4.Insert(&n10);
     tree4.Insert(&n30);
 
     // Now tree has 10, 20_a, 30.
-    ASSERT(tree4.GetFirstItem(), &n10);
-    ASSERT(tree4.GetLastItem(), &n30);
-    ASSERT(tree4.GetNextItem(nullptr), nullptr);
-    ASSERT(tree4.GetPreviousItem(nullptr), nullptr);
+    ASSERT(tree4.FirstItem(), &n10);
+    ASSERT(tree4.LastItem(), &n30);
+    ASSERT(tree4.NextItem(nullptr), nullptr);
+    ASSERT(tree4.PreviousItem(nullptr), nullptr);
 
     // Forward traversal starting at FirstItem: 10 -> 20_a -> 30
-    ASSERT(tree4.GetNextItem(tree4.GetFirstItem()), &n20_a);
-    ASSERT(tree4.GetNextItem(&n20_a), &n30);
-    ASSERT(tree4.GetNextItem(&n30), nullptr);
+    ASSERT(tree4.NextItem(tree4.FirstItem()), &n20_a);
+    ASSERT(tree4.NextItem(&n20_a), &n30);
+    ASSERT(tree4.NextItem(&n30), nullptr);
 
     // Backward traversal starting at LastItem: 30 -> 20_a -> 10
-    ASSERT(tree4.GetPreviousItem(tree4.GetLastItem()), &n20_a);
-    ASSERT(tree4.GetPreviousItem(&n20_a), &n10);
-    ASSERT(tree4.GetPreviousItem(&n10), nullptr);
+    ASSERT(tree4.PreviousItem(tree4.LastItem()), &n20_a);
+    ASSERT(tree4.PreviousItem(&n20_a), &n10);
+    ASSERT(tree4.PreviousItem(&n10), nullptr);
 
     // Insert duplicate 20.
     tree4.Insert(&n20_b);
 
     // Verify first and last items.
-    ASSERT(tree4.GetFirstItem(), &n10);
-    ASSERT(tree4.GetLastItem(), &n30);
+    ASSERT(tree4.FirstItem(), &n10);
+    ASSERT(tree4.LastItem(), &n30);
 
     // Forward traversal order: 10 -> 20_b -> 20_a -> 30
-    ASSERT(tree4.GetNextItem(tree4.GetFirstItem()), &n20_b);
-    ASSERT(tree4.GetNextItem(&n20_b), &n20_a);
-    ASSERT(tree4.GetNextItem(&n20_a), &n30);
-    ASSERT(tree4.GetNextItem(&n30), nullptr);
+    ASSERT(tree4.NextItem(tree4.FirstItem()), &n20_b);
+    ASSERT(tree4.NextItem(&n20_b), &n20_a);
+    ASSERT(tree4.NextItem(&n20_a), &n30);
+    ASSERT(tree4.NextItem(&n30), nullptr);
 
     // Backward traversal order: 30 -> 20_a -> 20_b -> 10
-    ASSERT(tree4.GetPreviousItem(tree4.GetLastItem()), &n20_a);
-    ASSERT(tree4.GetPreviousItem(&n20_a), &n20_b);
-    ASSERT(tree4.GetPreviousItem(&n20_b), &n10);
-    ASSERT(tree4.GetPreviousItem(&n10), nullptr);
+    ASSERT(tree4.PreviousItem(tree4.LastItem()), &n20_a);
+    ASSERT(tree4.PreviousItem(&n20_a), &n20_b);
+    ASSERT(tree4.PreviousItem(&n20_b), &n10);
+    ASSERT(tree4.PreviousItem(&n10), nullptr);
   }
 }

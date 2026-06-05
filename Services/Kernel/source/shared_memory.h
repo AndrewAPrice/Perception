@@ -76,8 +76,8 @@ struct SharedMemoryInProcess {
   // after this block was mapped into a process.
   size_t mapped_pages;
 
-  // The next shared memory block in the process.
-  LinkedListNode node_in_process;
+  // AA tree node of shared memory block in the process.
+  AATreeNode node_in_process;
 
   // Linked list in SharedMemory.
   LinkedListNode node_in_shared_memory;

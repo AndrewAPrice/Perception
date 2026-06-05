@@ -138,7 +138,7 @@ struct AATree {
 
   // Returns the first item in value order (item with the smallest value).
   // Returns nullptr if the tree is empty.
-  C* GetFirstItem() {
+  C* FirstItem() {
     AATreeNode* current = root_;
     if (current == nullptr) return nullptr;
     while (current->left != nullptr) current = current->left;
@@ -147,7 +147,7 @@ struct AATree {
 
   // Returns the last item in value order (item with the largest value).
   // Returns nullptr if the tree is empty.
-  C* GetLastItem() {
+  C* LastItem() {
     AATreeNode* current = root_;
     if (current == nullptr) return nullptr;
     while (current->right != nullptr) current = current->right;
@@ -157,7 +157,7 @@ struct AATree {
 
   // Gets the next item in value order (in-order successor).
   // Returns nullptr if `item` is nullptr or there is no successor.
-  C* GetNextItem(C* item) {
+  C* NextItem(C* item) {
     if (item == nullptr) return nullptr;
 
     AATreeNode* node = ItemToNode(item);
@@ -195,7 +195,7 @@ struct AATree {
 
   // Gets the previous item in value order (in-order predecessor).
   // Returns nullptr if `item` is nullptr or there is no predecessor.
-  C* GetPreviousItem(C* item) {
+  C* PreviousItem(C* item) {
     if (item == nullptr) return nullptr;
 
     AATreeNode* node = ItemToNode(item);
@@ -236,7 +236,7 @@ struct AATree {
     C* operator*() const { return item_; }
 
     Iterator& operator++() {
-      item_ = tree_->GetNextItem(item_);
+      item_ = tree_->NextItem(item_);
       return *this;
     }
 
@@ -249,7 +249,7 @@ struct AATree {
     C* item_;
   };
 
-  Iterator begin() { return Iterator(this, GetFirstItem()); }
+  Iterator begin() { return Iterator(this, FirstItem()); }
   Iterator end() { return Iterator(this, nullptr); }
 
  private:
@@ -452,13 +452,13 @@ struct AATree {
     }
   }
 
-  static AATreeNode* GetPredecessorOfAANode(AATreeNode* node) {
+  static AATreeNode* PredecessorOfAANode(AATreeNode* node) {
     node = node->left;
     while (node->right != nullptr) node = node->right;
     return node;
   }
 
-  static AATreeNode* GetSuccessorOfAANode(AATreeNode* node) {
+  static AATreeNode* SuccessorOfAANode(AATreeNode* node) {
     node = node->right;
     while (node->left != nullptr) node = node->left;
     return node;
@@ -476,7 +476,7 @@ struct AATree {
           return nullptr;
         } else {
           // Grab the next lowest value node from the right.
-          AATreeNode* new_node = GetSuccessorOfAANode(node);
+          AATreeNode* new_node = SuccessorOfAANode(node);
           // Remove the new node from the right.
           AATreeNode* new_right = RemoveNodeWithValueFromBelowAANode(
               node->right, ValueOfNode(new_node));
@@ -489,7 +489,7 @@ struct AATree {
         }
       } else {
         // Grab the next highest value node from the left.
-        AATreeNode* new_node = GetPredecessorOfAANode(node);
+        AATreeNode* new_node = PredecessorOfAANode(node);
 
         // Remove the new node from the left.
         AATreeNode* new_left = RemoveNodeWithValueFromBelowAANode(

@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "aa_tree.h"
 #include "linked_list.h"
 #include "types.h"
 
@@ -71,8 +72,8 @@ struct Service {
   // The name of the service.
   char name[SERVICE_NAME_LENGTH + 1];
 
-  // Linked list of registered services in this process.
-  LinkedListNode node_in_process;
+  // AA tree node of registered services in this process.
+  AATreeNode node_in_process;
 
   // Linked list of processes to notify when this disappears.
   LinkedList<ProcessToNotifyWhenServiceDisappears,

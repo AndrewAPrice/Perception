@@ -434,22 +434,18 @@ bool MaybeHandleSharedMessagePageFault(size_t address) {
 
   Process* process = running_thread->process;
 
-  // Loop through each shared memory in process.
-  for (SharedMemoryInProcess* shared_memory_in_process :
-       process->joined_shared_memories) {
-    // Does this address fall within the shared memory block?
-    if (address < shared_memory_in_process->virtual_address)
-      continue;  // Address is too low.
+  // Search the tree for the closest virtual address mapped block.
+  SharedMemoryInProcess* shared_memory_in_process =
+      process->joined_shared_memories.SearchForItemLessThanOrEqualToValue(
+          address);
+  if (shared_memory_in_process == nullptr) return false;
 
-    size_t page_in_shared_memory =
-        (address - shared_memory_in_process->virtual_address) / PAGE_SIZE;
+  SharedMemory* shared_memory = shared_memory_in_process->shared_memory;
+  size_t page_in_shared_memory =
+      (address - shared_memory_in_process->virtual_address) / PAGE_SIZE;
 
-    SharedMemory* shared_memory = shared_memory_in_process->shared_memory;
-    if (page_in_shared_memory >= shared_memory->size_in_pages)
-      continue;  // Address is too high.
-
-    // The address falls within this shared memory block.
-
+  // Check if it is within range (the address is already >= virtual_address).
+  if (page_in_shared_memory < shared_memory->size_in_pages) {
     if ((shared_memory->flags & SM_LAZILY_ALLOCATED) == 0)
       return false;  // This shared memory block isn't lazily allocated.
 
@@ -459,12 +455,8 @@ bool MaybeHandleSharedMessagePageFault(size_t address) {
       return HandleSharedMessagePageFault(process, shared_memory,
                                           page_in_shared_memory);
     }
-
-    // The page fault isn't because this page isn't allocated.
-    return false;
   }
 
-  // This address doesn't fall within shared memory.
   return false;
 }
 

@@ -20,7 +20,8 @@ namespace {
 // The number of time slices (or how many times the timer triggers) per second.
 #define TIME_SLICES_PER_SECOND 100
 volatile size_t microseconds_since_kernel_started;
-LinkedList<TimerEvent, &TimerEvent::node_in_all_timer_events>
+AATree<TimerEvent, &TimerEvent::node_in_all_timer_events,
+       &TimerEvent::timestamp_to_trigger_at>
     scheduled_timer_events;
 
 #ifdef PROFILING_ENABLED
@@ -288,7 +289,8 @@ void TimerHandler() {
 void InitializeTimer() {
   microseconds_since_kernel_started = 0;
   new (&scheduled_timer_events)
-      LinkedList<TimerEvent, &TimerEvent::node_in_all_timer_events>();
+      AATree<TimerEvent, &TimerEvent::node_in_all_timer_events,
+             &TimerEvent::timestamp_to_trigger_at>();
   new (&active_processes_this_epoch)
       LinkedList<Process, &Process::node_active_this_epoch>();
   new (&processes_subscribing_to_cpu_tracking)
@@ -331,16 +333,8 @@ void SendMessageToProcessAtMicroseconds(Process* process, size_t timestamp,
   timer_event->timestamp_to_trigger_at = timestamp;
   timer_event->message_id_to_send = message_id;
 
-  // Add to global queue, in assending order based on timestamp.
-  // Find the timer event we should insert ourselves before.
-  TimerEvent* next_scheduled_timer_event = scheduled_timer_events.FirstItem();
-  while (next_scheduled_timer_event != nullptr &&
-         next_scheduled_timer_event->timestamp_to_trigger_at < timestamp) {
-    next_scheduled_timer_event =
-        scheduled_timer_events.NextItem(next_scheduled_timer_event);
-  }
-
-  scheduled_timer_events.InsertBefore(next_scheduled_timer_event, timer_event);
+  // Add to global tree of scheduled timer events.
+  scheduled_timer_events.Insert(timer_event);
   // Add to process.
   process->timer_events.AddBack(timer_event);
 

@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "aa_tree.h"
 #include "linked_list.h"
 #include "types.h"
 
@@ -31,9 +32,8 @@ struct TimerEvent {
   // The message ID of the timer to send.
   size_t message_id_to_send;
 
-  // Linked list, ordered by timerstamp_to_trigger, of all
-  // scheduled TimerEvents.
-  LinkedListNode node_in_all_timer_events;
+  // Node in tree of all scheduled TimerEvents.
+  AATreeNode node_in_all_timer_events;
 
   // Linked list in the process.
   LinkedListNode node_in_process;

@@ -87,7 +87,11 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param,
     thread->stack_allocated_by_kernel = false;
   }
 
-  size_t adjusted_stack_pointer = stack_pointer;
+  // Make the satck pointer null-aligned.
+  size_t adjusted_stack_pointer = stack_pointer & ~15UL;
+  // Function entry points expect for non-primary threads to be stack aligned at
+  // 16 bytes - 8 bytes. This simulates how the return address in the call stack
+  // is right above it.
   if (process->thread_count > 0) adjusted_stack_pointer -= 8;
 
   InitializeRegisters(*process, entry_point, param, adjusted_stack_pointer,
@@ -117,8 +121,8 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param,
   // The thread isn't sleeping waiting for messages.
   thread->thread_is_waiting_for_message = false;
 
-  // Add this to the linked list of threads in the process.
-  process->threads.AddBack(thread);
+  // Add this to the tree of threads in the process.
+  process->threads.Insert(thread);
 
   // Increment the process's thread cont.
   process->thread_count++;
@@ -153,7 +157,7 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
   if (thread->thread_is_waiting_for_message)
     process->threads_sleeping_for_message.Remove(thread);
 
-  // Remove this thread from the process's linked list of threads.
+  // Remove this thread from the process's tree of threads.
   process->threads.Remove(thread);
 
   // The thread has a virtual address that should be cleared.
@@ -195,12 +199,8 @@ void DestroyThreadsForProcess(Process* process, bool process_being_destroyed) {
     DestroyThread(thread, process_being_destroyed);
 }
 
-// Returns a thread with the provided tid in process, return 0 if it doesn't
-// exist.
 Thread* GetThreadFromTid(Process* process, size_t tid) {
-  for (Thread* thread : process->threads)
-    if (thread->id == tid) return thread;
-  return 0;
+  return process->threads.SearchForItemEqualToValue(tid);
 }
 
 // Set the thread's segment offset (FS).

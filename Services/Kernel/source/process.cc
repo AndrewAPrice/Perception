@@ -21,15 +21,16 @@ namespace {
 // The last assigned process ID.
 size_t last_assigned_pid;
 
-//  Linked list of processes that are running.
-LinkedList<Process, &Process::node_in_all_processes> all_processes;
+//  Tree of processes that are running.
+AATree<Process, &Process::node_in_all_processes, &Process::pid> all_processes;
 
 }  // namespace
 
 // Initializes the internal structures for tracking processes.
 void InitializeProcesses() {
   last_assigned_pid = 0;
-  new (&all_processes) LinkedList<Process, &Process::node_in_all_processes>();
+  new (&all_processes)
+      AATree<Process, &Process::node_in_all_processes, &Process::pid>();
 }
 
 // Creates a process, returns ERROR if there was an error.
@@ -77,8 +78,8 @@ Process* CreateProcess(bool is_driver, bool can_create_processes) {
     proc->rolling_cpu_percentage[c] = 0;
   }
 
-  // Add to the linked list of running processes.
-  all_processes.AddBack(proc);
+  // Add to the tree of running processes.
+  all_processes.Insert(proc);
   return proc;
 }
 
@@ -166,14 +167,15 @@ void DestroyProcess(Process* process) {
         process->services_i_want_to_be_notified_of_when_they_disappear
             .FirstItem());
 
-  while (!process->services.IsEmpty())
-    UnregisterService(process->services.FirstItem());
+  while (auto* service = process->services.FirstItem())
+    UnregisterService(service);
 
   CancelAllTimerEventsForProcess(process);
 
   // Release any shared memory mapped into this process.
-  while (!process->joined_shared_memories.IsEmpty())
-    UnmapSharedMemoryFromProcess(process->joined_shared_memories.FirstItem());
+  while (auto* shared_memory_in_process =
+             process->joined_shared_memories.FirstItem())
+    UnmapSharedMemoryFromProcess(shared_memory_in_process);
 
   // Free any shared memory events.
   UnregisterAllSharedMemoryEventsForProcess(process);
@@ -196,7 +198,7 @@ void DestroyProcess(Process* process) {
     ReleaseNotification(notification);
   }
 
-  // Remove from linked list.
+  // Remove from tree.
   all_processes.Remove(process);
 
   // Free the process.
@@ -231,22 +233,14 @@ void StopNotifyingProcessOnDeath(Process* notifyee, size_t event_id) {
 // Returns a process with the provided pid, returns nullptr if it doesn't
 // exist.
 Process* GetProcessFromPid(size_t pid) {
-  // Walk through the linked list to find our process.
-  for (Process* proc : all_processes)
-    if (proc->pid == pid) return proc;
-
-  return (Process*)nullptr;
+  return all_processes.SearchForItemEqualToValue(pid);
 }
 
 // Returns a process with the provided pid, and if it doesn't exist, returns
 // the process with the next highest pid. Returns nullptr if no process exists
 // with a pid >= pid.
 Process* GetProcessOrNextFromPid(size_t pid) {
-  // Walk through the linked list to find our process.
-  for (Process* proc : all_processes)
-    if (proc->pid >= pid) return proc;
-
-  return (Process*)nullptr;
+  return all_processes.SearchForItemGreaterThanOrEqualToValue(pid);
 }
 
 // Do two process names (of length PROCESS_NAME_LENGTH) match?
@@ -387,6 +381,5 @@ void DestroyChildProcess(Process* parent, Process* child) {
 
 Process* GetNextProcess(Process* process) {
   if (process == nullptr) return all_processes.FirstItem();
-
   return all_processes.NextItem(process);
 }

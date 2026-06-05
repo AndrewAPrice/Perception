@@ -1,5 +1,6 @@
 #pragma once
 
+#include "aa_tree.h"
 #include "linked_list.h"
 #include "registers.h"
 #include "scheduler.h"
@@ -45,8 +46,8 @@ struct Thread {
   // is destroyed.
   size_t stack;
 
-  // A linked list of threads in the process.
-  LinkedListNode node_in_process;
+  // AA tree node of threads in the process.
+  AATreeNode node_in_process;
 
   // Is this thread awake?
   bool awake : 1;
