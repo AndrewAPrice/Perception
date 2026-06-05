@@ -17,6 +17,7 @@
 #include <atomic>
 #include <iostream>
 #include <memory>
+#include <thread>
 
 #include "perception/fibers.h"
 #include "perception/messages.h"
@@ -163,15 +164,7 @@ void DeferAfterEvents(const std::function<void()>& function) {
 }
 
 void DeferInParallel(const std::function<void()>& function) {
-  auto* func_ptr = new std::function<void()>(function);
-  CreateThread(
-      [](void* param) {
-        auto* func = static_cast<std::function<void()>*>(param);
-        (*func)();
-        delete func;
-        TerminateThread();
-      },
-      func_ptr);
+  std::thread(function).detach();
 }
 
 void SetFocusedProcess(ProcessId pid) {

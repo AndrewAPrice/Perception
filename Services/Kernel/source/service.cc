@@ -90,7 +90,6 @@ void RegisterService(char* service_name, Process* process, size_t message_id) {
 void UnregisterServiceByMessageId(Process* process, size_t message_id) {
   for (Service* service : process->services) {
     if (message_id == service->message_id) return UnregisterService(service);
-    if (message_id > service->message_id) return;  // Short circuit early.
   }
 }
 
