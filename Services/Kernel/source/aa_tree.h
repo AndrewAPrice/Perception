@@ -133,6 +133,101 @@ struct AATree {
     PrintAATreeNode(root_, '*', 1);
   }
 
+  // Returns whether the tree is empty.
+  bool IsEmpty() const { return root_ == nullptr; }
+
+  // Returns the first item in value order (item with the smallest value).
+  // Returns nullptr if the tree is empty.
+  C* GetFirstItem() {
+    AATreeNode* current = root_;
+    if (current == nullptr) return nullptr;
+    while (current->left != nullptr) current = current->left;
+    return NodeToItem(current);
+  }
+
+  // Returns the last item in value order (item with the largest value).
+  // Returns nullptr if the tree is empty.
+  C* GetLastItem() {
+    AATreeNode* current = root_;
+    if (current == nullptr) return nullptr;
+    while (current->right != nullptr) current = current->right;
+    while (current->next != nullptr) current = current->next;
+    return NodeToItem(current);
+  }
+
+  // Gets the next item in value order (in-order successor).
+  // Returns nullptr if `item` is nullptr or there is no successor.
+  C* GetNextItem(C* item) {
+    if (item == nullptr) return nullptr;
+
+    AATreeNode* node = ItemToNode(item);
+
+    // If there is another node with the same value, return it.
+    if (node->next != nullptr) return NodeToItem(node->next);
+
+    // Find the head of the duplicate list for the current node.
+    // In the tree structure, left/right/parent pointers are only valid on the
+    // head.
+    AATreeNode* main_node = node;
+    while (main_node->previous != nullptr) main_node = main_node->previous;
+
+    // If the node has a right child, the successor is the leftmost node in the
+    // right subtree.
+    if (main_node->right != nullptr) {
+      AATreeNode* current = main_node->right;
+      while (current->left != nullptr) {
+        current = current->left;
+      }
+      return NodeToItem(current);
+    }
+
+    // Otherwise, travel up parent pointers. Stop when we are the left child of
+    // a parent.
+    AATreeNode* current = main_node;
+    AATreeNode* parent = current->parent;
+    while (parent != nullptr && current == parent->right) {
+      current = parent;
+      parent = parent->parent;
+    }
+    if (parent == nullptr) return nullptr;
+    return NodeToItem(parent);
+  }
+
+  // Gets the previous item in value order (in-order predecessor).
+  // Returns nullptr if `item` is nullptr or there is no predecessor.
+  C* GetPreviousItem(C* item) {
+    if (item == nullptr) return nullptr;
+
+    AATreeNode* node = ItemToNode(item);
+
+    // If there is a previous node with the same value, return it.
+    if (node->previous != nullptr) return NodeToItem(node->previous);
+
+    // If the node has a left child, the predecessor is the rightmost node in
+    // the left subtree.
+    if (node->left != nullptr) {
+      AATreeNode* current = node->left;
+      while (current->right != nullptr) current = current->right;
+      // Return the last element in its duplicate list.
+      while (current->next != nullptr) current = current->next;
+      return NodeToItem(current);
+    }
+
+    // Otherwise, travel up parent pointers. Stop when we are the right child of
+    // a parent.
+    AATreeNode* current = node;
+    AATreeNode* parent = current->parent;
+    while (parent != nullptr && current == parent->left) {
+      current = parent;
+      parent = parent->parent;
+    }
+    if (parent == nullptr) return nullptr;
+    // Predecessor is the parent (or the last element in its duplicate list).
+    AATreeNode* last_dup = parent;
+    while (last_dup->next != nullptr) last_dup = last_dup->next;
+    return NodeToItem(last_dup);
+  }
+
  private:
   AATreeNode* SearchForNodeLessThanOrEqualToValue(size_t value) {
     // Try to find an exact match, and if one doesn't exist, return the the
