@@ -66,7 +66,7 @@ class BinaryDeserializer : public Serializer {
         current_field_index_(0),
         next_field_index_in_stream_(ReadVariableLengthInteger()) {}
 
-  virtual bool HasThisField() override {
+  virtual bool HasThisField(std::string_view name = "") override {
     return next_field_index_in_stream_ == current_field_index_;
   }
 

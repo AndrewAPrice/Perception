@@ -18,6 +18,8 @@
 
 #include <functional>
 #include <memory>
+#include <string_view>
+#include <vector>
 
 namespace perception {
 namespace serialization {
@@ -62,7 +64,7 @@ class Serializable;
 class Serializer {
  public:
   // Returns whether the data source has the next field, when deserializing.
-  virtual bool HasThisField() = 0;
+  virtual bool HasThisField(std::string_view name = "") = 0;
 
   // Return true if deserialzing.
   virtual bool IsDeserializing() = 0;
@@ -107,7 +109,7 @@ class Serializer {
   template <class S>
   void Serializable(std::string_view name, std::shared_ptr<S>& obj) {
     if (IsDeserializing()) {
-      if (HasThisField()) {
+      if (HasThisField(name)) {
         if (!obj) obj = std::make_shared<S>();
         this->Serializable(name, *obj);
       } else {

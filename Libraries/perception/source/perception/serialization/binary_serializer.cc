@@ -32,7 +32,7 @@ class BinarySerializer : public Serializer {
   BinarySerializer(WriteStream* write_stream)
       : write_stream_(write_stream), current_field_index_(0) {}
 
-  virtual bool HasThisField() override {
+  virtual bool HasThisField(std::string_view name = "") override {
     // Not needed for serializing.
     return false;
   }

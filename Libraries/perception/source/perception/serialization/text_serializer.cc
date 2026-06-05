@@ -1,5 +1,3 @@
-
-
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +15,7 @@
 
 #include <types.h>
 
+#include <functional>
 #include <string>
 
 #include "perception/serialization/serializable.h"
@@ -26,6 +25,7 @@ namespace perception {
 namespace serialization {
 
 namespace {
+
 class TextSerializer : public Serializer {
  public:
   TextSerializer(int indentation, std::string* output_string)
@@ -33,7 +33,7 @@ class TextSerializer : public Serializer {
     output_string_->append("{\n");
   }
 
-  virtual bool HasThisField() override {
+  virtual bool HasThisField(std::string_view name = "") override {
     // Not needed for serializing.
     return false;
   }
@@ -84,7 +84,30 @@ class TextSerializer : public Serializer {
     AppendIndentation();
     output_string_->append(name);
     output_string_->append(": \"");
-    output_string_->append(str);
+    // Escape string values
+    std::string escaped = "";
+    for (char c : str) {
+      switch (c) {
+        case '\n':
+          escaped += "\\n";
+          break;
+        case '\r':
+          escaped += "\\r";
+          break;
+        case '\t':
+          escaped += "\\t";
+          break;
+        case '\\':
+        case '"':
+          escaped += '\\';
+          escaped += c;
+          break;
+        default:
+          escaped += c;
+          break;
+      }
+    }
+    output_string_->append(escaped);
     output_string_->append("\"\n");
   }
 
