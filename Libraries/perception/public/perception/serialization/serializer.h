@@ -185,6 +185,10 @@ class Serializer {
         });
   }
 
+  virtual void ArrayOfStrings() = 0;
+  virtual void ArrayOfStrings(std::string_view name,
+                              std::vector<std::string>& arr) = 0;
+
  private:
   virtual void UnsignedInteger(std::string_view name, uint64& value) = 0;
   virtual void SignedInteger(std::string_view name, int64& value) = 0;

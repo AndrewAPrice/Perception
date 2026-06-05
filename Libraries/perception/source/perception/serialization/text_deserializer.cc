@@ -339,6 +339,30 @@ class TextDeserializer : public Serializer {
     current_field_index_++;
   }
 
+  virtual void ArrayOfStrings() override { current_field_index_++; }
+
+  virtual void ArrayOfStrings(std::string_view name,
+                              std::vector<std::string>& arr) override {
+    if (auto child = GetField(name)) {
+      if (child->type == TextNode::ARRAY) {
+        int elements = child->array_value.size();
+        arr.resize(elements);
+        for (int i = 0; i < elements; i++) {
+          auto item_node = child->array_value[i];
+          if (item_node && item_node->type == TextNode::STRING) {
+            arr[i] = item_node->string_value;
+          } else {
+            arr[i].clear();
+          }
+        }
+        current_field_index_++;
+        return;
+      }
+    }
+    arr.clear();
+    current_field_index_++;
+  }
+
  private:
   std::shared_ptr<TextNode> GetField(std::string_view name) {
     if (!node_ || node_->type != TextNode::OBJECT) return nullptr;

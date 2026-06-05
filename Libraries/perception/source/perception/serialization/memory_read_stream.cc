@@ -18,7 +18,9 @@
 #include <functional>
 
 #include "perception/serialization/binary_deserializer.h"
+#if defined(PERCEPTION) && !defined(TEST)
 #include "perception/shared_memory.h"
+#endif
 
 namespace perception {
 namespace serialization {
@@ -89,6 +91,7 @@ void DeserializeFromByteVector(Serializable& object,
   DeserializeFromMemory(object, &data[0], data.size());
 }
 
+#if defined(PERCEPTION) && !defined(TEST)
 void DeserializeFromSharedMemory(Serializable& object,
                                  SharedMemory& shared_memory, size_t offset,
                                  size_t size) {
@@ -104,6 +107,7 @@ void DeserializeFromSharedMemory(Serializable& object,
   size = std::min(shared_memory_size - offset, size);
   DeserializeFromMemory(object, ptr, size);
 }
+#endif
 
 void DeserializeToEmpty(Serializable& object) {
   DeserializeFromMemory(object, nullptr, 0);

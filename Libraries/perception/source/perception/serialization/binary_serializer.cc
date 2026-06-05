@@ -137,6 +137,35 @@ class BinarySerializer : public Serializer {
     current_field_index_++;
   }
 
+  virtual void ArrayOfStrings() override { current_field_index_++; }
+
+  virtual void ArrayOfStrings(std::string_view name,
+                              std::vector<std::string>& arr) override {
+    if (!arr.empty()) {
+      WriteVariableLengthInteger(current_field_index_);
+
+      // Reserve space for the size.
+      size_t size_position = write_stream_->CurrentOffset();
+      write_stream_->SkipForward(4);
+      size_t start_position = size_position + 4;
+
+      // Write the length of the array.
+      WriteVariableLengthInteger(arr.size());
+
+      // Serialize each string.
+      for (const auto& str : arr) {
+        WriteVariableLengthInteger(str.length());
+        write_stream_->CopyDataIntoStream(str.data(), str.length());
+      }
+
+      // Write the size.
+      uint32 size =
+          static_cast<uint32>(write_stream_->CurrentOffset() - start_position);
+      write_stream_->CopyDataIntoStream(&size, 4, size_position);
+    }
+    current_field_index_++;
+  }
+
  private:
   void WriteVariableLengthInteger(uint64 value) {
     while (value >= 0x80) {

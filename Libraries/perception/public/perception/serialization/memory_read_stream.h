@@ -24,7 +24,9 @@
 
 namespace perception {
 
+#if defined(PERCEPTION) && !defined(TEST)
 class SharedMemory;
+#endif
 
 namespace serialization {
 
@@ -58,10 +60,12 @@ void DeserializeFromMemory(Serializable& object, const void* data, size_t size);
 void DeserializeFromByteVector(Serializable& object,
                                const std::vector<std::byte>& data);
 
+#if defined(PERCEPTION) && !defined(TEST)
 // Deserializes a serializable from shared memory.
 void DeserializeFromSharedMemory(Serializable& object,
                                  SharedMemory& shared_memory, size_t offset,
                                  size_t size);
+#endif
 
 // Deserializes a serializable to a default state.
 void DeserializeToEmpty(Serializable& object);

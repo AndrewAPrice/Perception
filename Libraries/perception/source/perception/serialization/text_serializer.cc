@@ -162,6 +162,51 @@ class TextSerializer : public Serializer {
     output_string_->append("]\n");
   }
 
+  virtual void ArrayOfStrings() override {}
+
+  virtual void ArrayOfStrings(std::string_view name,
+                              std::vector<std::string>& arr) override {
+    if (arr.empty()) return;
+    AppendIndentation();
+    output_string_->append(name);
+    output_string_->append(": [\n");
+
+    int child_indentation = indentation_ + 2;
+
+    for (const auto& str : arr) {
+      for (int i = 0; i < child_indentation; ++i) output_string_->append(" ");
+      output_string_->append("\"");
+      // Escape string values
+      std::string escaped = "";
+      for (char c : str) {
+        switch (c) {
+          case '\n':
+            escaped += "\\n";
+            break;
+          case '\r':
+            escaped += "\\r";
+            break;
+          case '\t':
+            escaped += "\\t";
+            break;
+          case '\\':
+          case '"':
+            escaped += '\\';
+            escaped += c;
+            break;
+          default:
+            escaped += c;
+            break;
+        }
+      }
+      output_string_->append(escaped);
+      output_string_->append("\"\n");
+    }
+
+    AppendIndentation();
+    output_string_->append("]\n");
+  }
+
  private:
   void AppendIndentation() {
     for (int i = 0; i < indentation_; ++i) output_string_->append(" ");

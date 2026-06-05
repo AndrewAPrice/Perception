@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "perception/serialization/text_serializer.h"
+#include "perception/serialization/binary_serializer.h"
 
 #include <memory>
+#include <vector>
 
+#include "perception/serialization/binary_deserializer.h"
+#include "perception/serialization/memory_read_stream.h"
 #include "perception/serialization/serializable.h"
 #include "perception/serialization/serializer.h"
-#include "perception/serialization/text_deserializer.h"
+#include "perception/serialization/vector_write_stream.h"
 #include "testing.h"
 
 namespace {
@@ -59,7 +62,7 @@ class TestObject : public ::perception::serialization::Serializable {
 
 }  // namespace
 
-TEST(TextSerializationRoundtrip) {
+TEST(BinarySerializationRoundtrip) {
   TestObject obj1;
   obj1.bool_val = true;
   obj1.int_val = -12345;
@@ -86,13 +89,12 @@ TEST(TextSerializationRoundtrip) {
   obj1.string_array_val.push_back(
       "array string 4 with \"quotes\" and \\ backslashes!");
 
-  std::string serialized = ::perception::serialization::SerializeToString(obj1);
+  std::vector<std::byte> serialized =
+      ::perception::serialization::SerializeToByteVector(obj1);
 
   // Deserialize into obj2
   TestObject obj2;
-  bool success =
-      ::perception::serialization::DeserializeFromString(obj2, serialized);
-  EXPECT(true, success);
+  ::perception::serialization::DeserializeFromByteVector(obj2, serialized);
 
   EXPECT(obj1.bool_val, obj2.bool_val);
   EXPECT(obj1.int_val, obj2.int_val);

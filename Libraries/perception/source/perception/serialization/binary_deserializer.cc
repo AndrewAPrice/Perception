@@ -233,6 +233,30 @@ class BinaryDeserializer : public Serializer {
     current_field_index_++;
   }
 
+  virtual void ArrayOfStrings() override { Serializable(); }
+
+  virtual void ArrayOfStrings(std::string_view name,
+                              std::vector<std::string>& arr) override {
+    if (HasThisField()) {
+      uint32 size;
+      read_stream_->CopyDataOutOfStream(&size, 4);
+      read_stream_->ReadSubStream(size, [&arr](ReadStream& sub_stream) {
+        uint64 elements = ReadVariableLengthIntegerFromStream(sub_stream);
+        arr.resize(elements);
+        for (uint64 i = 0; i < elements; i++) {
+          uint64 string_length =
+              ReadVariableLengthIntegerFromStream(sub_stream);
+          arr[i].resize(string_length);
+          sub_stream.CopyDataOutOfStream(&arr[i][0], string_length);
+        }
+      });
+      next_field_index_in_stream_ = ReadVariableLengthInteger();
+    } else {
+      arr.clear();
+    }
+    current_field_index_++;
+  }
+
  private:
   uint64 ReadVariableLengthInteger() {
     return ReadVariableLengthIntegerFromStream(*read_stream_);
