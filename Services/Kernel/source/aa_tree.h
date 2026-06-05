@@ -228,6 +228,30 @@ struct AATree {
     return NodeToItem(last_dup);
   }
 
+  // Iterator for range-based for loops.
+  class Iterator {
+   public:
+    Iterator(AATree* tree, C* item) : tree_(tree), item_(item) {}
+
+    C* operator*() const { return item_; }
+
+    Iterator& operator++() {
+      item_ = tree_->GetNextItem(item_);
+      return *this;
+    }
+
+    bool operator!=(const Iterator& other) const {
+      return item_ != other.item_;
+    }
+
+   private:
+    AATree* tree_;
+    C* item_;
+  };
+
+  Iterator begin() { return Iterator(this, GetFirstItem()); }
+  Iterator end() { return Iterator(this, nullptr); }
+
  private:
   AATreeNode* SearchForNodeLessThanOrEqualToValue(size_t value) {
     // Try to find an exact match, and if one doesn't exist, return the the
