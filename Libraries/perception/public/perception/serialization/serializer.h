@@ -19,6 +19,7 @@
 #include <functional>
 #include <memory>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 namespace perception {
@@ -91,6 +92,20 @@ class Serializer {
         uint64 v = static_cast<uint64>(value);
         UnsignedInteger(name, v);
       }
+    }
+  }
+
+  template <class T>
+  void Enum(std::string_view name, T& value) {
+    static_assert(std::is_enum_v<T>, "T must be an enum type");
+    using UnderlyingType = std::underlying_type_t<T>;
+    if (IsDeserializing()) {
+      UnderlyingType v = 0;
+      Integer(name, v);
+      value = static_cast<T>(v);
+    } else {
+      UnderlyingType v = static_cast<UnderlyingType>(value);
+      Integer(name, v);
     }
   }
 
