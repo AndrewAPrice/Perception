@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "linux_syscalls/gettimeofday.h"
+#pragma once
 
-#include <errno.h>
-
-#include "linux_syscalls/time_helper.h"
+#include "types.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long gettimeofday(struct timeval* tv, struct timezone* tz) {
-  if (tv == nullptr) return -EFAULT;
-  uint64 microseconds = GetUtcTimeInMicroseconds();
-  tv->tv_sec = microseconds / 1000000;
-  tv->tv_usec = microseconds % 1000000;
-  return 0;
-}
+// Returns the current UTC time in microseconds.
+uint64 GetUtcTimeInMicroseconds();
 
 }  // namespace linux_syscalls
 }  // namespace perception

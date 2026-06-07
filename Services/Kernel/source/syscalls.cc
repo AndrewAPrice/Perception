@@ -151,6 +151,12 @@ const char *GetSystemCallName(Syscall syscall) {
       return "SetThreadPriority";
     case Syscall::SetFocusedProcess:
       return "SetFocusedProcess";
+    case Syscall::GetTimeInfo:
+      return "GetTimeInfo";
+    case Syscall::SetTimeInfo:
+      return "SetTimeInfo";
+    case Syscall::RegisterMessageForWhenTimeInfoChanges:
+      return "RegisterMessageForWhenTimeInfoChanges";
     case Syscall::RegisterSharedMemoryEvent:
       return "RegisterSharedMemoryEvent";
     case Syscall::UnregisterSharedMemoryEvent:

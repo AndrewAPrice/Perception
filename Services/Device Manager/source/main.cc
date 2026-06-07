@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
   InitializePci();
 
   AddDriverToLoad("PS2 Keyboard and Mouse");
+  AddDriverToLoad("CMOS");
   LoadVideoDriver();
 
   // Actually loading the drivers off disk issues RPCs that can come around and

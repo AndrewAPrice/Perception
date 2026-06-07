@@ -171,6 +171,8 @@ void DestroyProcess(Process* process) {
     UnregisterService(service);
 
   CancelAllTimerEventsForProcess(process);
+  CancelTimeInfoChangeSubscriptionsForProcess(process);
+
 
   // Release any shared memory mapped into this process.
   while (auto* shared_memory_in_process =

@@ -17,6 +17,7 @@
 #ifndef PERCEPTION
 #include <iostream>
 #endif
+#include <cstring>
 
 #include "perception/messages.h"
 #include "perception/scheduler.h"
@@ -158,6 +159,45 @@ void AfterTimeSinceKernelStarted(std::chrono::microseconds time,
 
         at_time();
       });
+}
+
+void GetTimeInfo(uint64& offset, double& tsc_multiplier) {
+#if defined(PERCEPTION) && !defined(TEST)
+  volatile register size_t syscall asm("rdi") = 67;
+  volatile register size_t offset_r asm("rax");
+  volatile register size_t multiplier_r asm("rbx");
+
+  __asm__ __volatile__("syscall\n"
+                       : "=r"(offset_r), "=r"(multiplier_r)
+                       : "r"(syscall)
+                       : "rcx", "r11");
+  offset = offset_r;
+  uint64 tsc_ticks_per_microsecond = multiplier_r;
+  tsc_multiplier = 1.0 / (double)tsc_ticks_per_microsecond;
+#else
+  offset = 0;
+  tsc_multiplier = 1.0;
+#endif
+}
+
+void SetTimeInfo(uint64 utc_microseconds) {
+#if defined(PERCEPTION) && !defined(TEST)
+  volatile register size_t syscall asm("rdi") = 68;
+  volatile register size_t utc_micros_r asm("rax") = utc_microseconds;
+
+  __asm__ __volatile__("syscall\n" ::"r"(syscall), "r"(utc_micros_r)
+                       : "rcx", "r11");
+#endif
+}
+
+void RegisterMessageForWhenTimeInfoChanges(MessageId message_id) {
+#if defined(PERCEPTION) && !defined(TEST)
+  volatile register size_t syscall asm("rdi") = 69;
+  volatile register size_t message_id_r asm("rax") = message_id;
+
+  __asm__ __volatile__("syscall\n" ::"r"(syscall), "r"(message_id_r)
+                       : "rcx", "r11");
+#endif
 }
 
 }  // namespace perception

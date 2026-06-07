@@ -771,6 +771,19 @@ extern "C" void SyscallHandler(int syscall_number) {
       TriggerSharedMemoryEvent(currently_executing_thread_regs->rax,
                                currently_executing_thread_regs->rbx);
       break;
+    case Syscall::GetTimeInfo:
+      GetTimeInfo(currently_executing_thread_regs->rax,
+                  currently_executing_thread_regs->rbx);
+      break;
+    case Syscall::SetTimeInfo:
+      if (running_thread->process->is_driver) {
+        SetTimeInfo(currently_executing_thread_regs->rax);
+      }
+      break;
+    case Syscall::RegisterMessageForWhenTimeInfoChanges:
+      RegisterMessageForWhenTimeInfoChanges(
+          running_thread->process, currently_executing_thread_regs->rax);
+      break;
   }
 
   if (running_thread) running_thread->in_syscall = false;

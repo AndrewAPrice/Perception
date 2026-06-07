@@ -908,3 +908,39 @@ Triggers a shared memory event, waking all registered processes by delivering th
 ### Output
 Nothing.
 
+# Time
+
+## Get Time Info
+
+Returns the current UTC offset and the TSC cycle-to-microsecond multiplier. 
+
+### Input
+* `rdi` - 67
+
+### Output
+* `rax` - UTC offset in microseconds
+* `rbx` - TSC multiplier bits (a C++ `double` cast to 64-bit bits)
+
+## Set Time Info
+
+Tells the kernel the current time in UTC so that the base UTC offset can be calculated relative to TSC cycle count. Only drivers can call this system call.
+
+### Input
+* `rdi` - 68
+* `rax` - UTC time in microseconds
+
+### Output
+* Nothing.
+
+## Register Message for When Time Info Changes
+
+Registers a message to be sent to this process when the UTC time info gets changed.
+
+### Input
+* `rdi` - 69
+* `rax` - The ID of the message to send when the time info changes. The message parameters will contain:
+  - `param1` - UTC offset in microseconds
+  - `param2` - TSC multiplier bits (a C++ `double` cast to 64-bit bits)
+
+### Output
+* Nothing.

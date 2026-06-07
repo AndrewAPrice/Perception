@@ -16,8 +16,18 @@
 
 #include <chrono>
 #include <functional>
+#include "types.h"
 
 namespace perception {
+
+// Returns the current UTC time info.
+void GetTimeInfo(uint64& offset, double& tsc_multiplier);
+
+// Tells the kernel the current time in UTC (only drivers can call this).
+void SetTimeInfo(uint64 utc_microseconds);
+
+// Registers a message to be sent when time info changes.
+void RegisterMessageForWhenTimeInfoChanges(MessageId message_id);
 
 // Returns the time since the kernel started.
 std::chrono::microseconds GetTimeSinceKernelStarted();

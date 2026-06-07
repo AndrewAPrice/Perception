@@ -48,7 +48,14 @@ Spinlock& GetMessagesLock() {
 MessageId next_unique_message_id = 0;
 
 // The handler for each message ID.
-std::map<MessageId, std::shared_ptr<MessageHandler>> handlers_by_message_id;
+std::map<MessageId, std::shared_ptr<MessageHandler>>* handlers_by_message_id_ptr = nullptr;
+
+std::map<MessageId, std::shared_ptr<MessageHandler>>& GetHandlersByMessageId() {
+  if (handlers_by_message_id_ptr == nullptr) {
+    handlers_by_message_id_ptr = new std::map<MessageId, std::shared_ptr<MessageHandler>>();
+  }
+  return *handlers_by_message_id_ptr;
+}
 
 }  // namespace
 
@@ -163,20 +170,22 @@ void RegisterRawMessageHandler(
 
   SpinlockLock lock(GetMessagesLock());
   // Erase already existing message handler.
-  auto handlers_by_message_id_itr = handlers_by_message_id.find(message_id);
-  if (handlers_by_message_id_itr != handlers_by_message_id.end())
-    handlers_by_message_id.erase(handlers_by_message_id_itr);
+  auto& handlers = GetHandlersByMessageId();
+  auto handlers_by_message_id_itr = handlers.find(message_id);
+  if (handlers_by_message_id_itr != handlers.end())
+    handlers.erase(handlers_by_message_id_itr);
 
-  handlers_by_message_id.emplace(
+  handlers.emplace(
       std::make_pair(message_id, std::move(handler)));
 }
 
 // Unregisters the message handler.
 void UnregisterMessageHandler(MessageId message_id) {
   SpinlockLock lock(GetMessagesLock());
-  auto handlers_by_message_id_itr = handlers_by_message_id.find(message_id);
-  if (handlers_by_message_id_itr != handlers_by_message_id.end())
-    handlers_by_message_id.erase(handlers_by_message_id_itr);
+  auto& handlers = GetHandlersByMessageId();
+  auto handlers_by_message_id_itr = handlers.find(message_id);
+  if (handlers_by_message_id_itr != handlers.end())
+    handlers.erase(handlers_by_message_id_itr);
 }
 
 // Sleeps the current fiber until a message is received. Waiting for a message
@@ -203,7 +212,7 @@ void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
 
   {
     SpinlockLock lock(GetMessagesLock());
-    handlers_by_message_id.emplace(
+    GetHandlersByMessageId().emplace(
         std::make_pair(message_id, std::move(handler)));
   }
 
@@ -212,8 +221,9 @@ void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
 
   // Get the handler.
   SpinlockLock lock(GetMessagesLock());
-  auto handler_itr = handlers_by_message_id.find(message_id);
-  if (handler_itr == handlers_by_message_id.end()) {
+  auto& handlers = GetHandlersByMessageId();
+  auto handler_itr = handlers.find(message_id);
+  if (handler_itr == handlers.end()) {
     // This should never happen, but we'll have to return something.
     message_data = {};
     return;
@@ -223,7 +233,7 @@ void SleepUntilRawMessage(MessageId message_id, ProcessId& sender,
   message_data = handler_itr->second->message_data;
 
   // Stop listening.
-  handlers_by_message_id.erase(handler_itr);
+  handlers.erase(handler_itr);
 }
 
 void RegisterWakeUpHandler(MessageId message_id) {
@@ -231,7 +241,7 @@ void RegisterWakeUpHandler(MessageId message_id) {
   handler->fiber_to_wake_up = GetCurrentlyExecutingFiber();
 
   SpinlockLock lock(GetMessagesLock());
-  handlers_by_message_id.emplace(
+  GetHandlersByMessageId().emplace(
       std::make_pair(message_id, std::move(handler)));
 }
 
@@ -242,8 +252,9 @@ void SleepAndGetRawMessage(MessageId message_id, ProcessId& sender,
 
   // Get the handler.
   SpinlockLock lock(GetMessagesLock());
-  auto handler_itr = handlers_by_message_id.find(message_id);
-  if (handler_itr == handlers_by_message_id.end()) {
+  auto& handlers = GetHandlersByMessageId();
+  auto handler_itr = handlers.find(message_id);
+  if (handler_itr == handlers.end()) {
     // This should never happen, but we'll have to return something.
     sender = 0;
     message_data = {};
@@ -254,14 +265,15 @@ void SleepAndGetRawMessage(MessageId message_id, ProcessId& sender,
   message_data = handler_itr->second->message_data;
 
   // Stop listening.
-  handlers_by_message_id.erase(handler_itr);
+  handlers.erase(handler_itr);
 }
 
 // Maybe returns a message handler for the given ID, or nullptr.
 std::shared_ptr<MessageHandler> GetMessageHandler(MessageId message_id) {
   SpinlockLock lock(GetMessagesLock());
-  auto handler_itr = handlers_by_message_id.find(message_id);
-  if (handler_itr == handlers_by_message_id.end())
+  auto& handlers = GetHandlersByMessageId();
+  auto handler_itr = handlers.find(message_id);
+  if (handler_itr == handlers.end())
     return {};
   else
     return handler_itr->second;

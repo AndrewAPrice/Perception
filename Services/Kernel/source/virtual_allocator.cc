@@ -165,8 +165,8 @@ SharedMemoryInProcess *MapSharedMemoryIntoProcessAtAddress(
   shared_memory_in_process->virtual_address = virtual_address;
   shared_memory_in_process->mapped_pages = shared_memory->size_in_pages;
 
-  // Add the shared memory to the process's linked list.
-  process->joined_shared_memories.AddBack(shared_memory_in_process);
+  // Add the shared memory to the process's tree.
+  process->joined_shared_memories.Insert(shared_memory_in_process);
 
   // Add the process to the shared memory.
   shared_memory->joined_processes.AddBack(shared_memory_in_process);

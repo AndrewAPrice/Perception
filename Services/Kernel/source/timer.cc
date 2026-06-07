@@ -2,7 +2,9 @@
 
 #include "interrupts.h"
 #include "io.h"
+#include "liballoc.h"
 #include "linked_list.h"
+#include "memory.h"
 #include "messages.h"
 #include "object_pool.h"
 #include "process.h"
@@ -13,9 +15,20 @@
 #include "virtual_allocator.h"
 
 // Uncomment to see periodic process activity dumps to debug freezes.
-// #define VERBOSE_POLLING
+// ç#define VERBOSE_POLLING
 
 namespace {
+
+struct TimeInfoChangeSubscription {
+  Process* process;
+  size_t message_id;
+  LinkedListNode node;
+};
+
+size_t utc_offset = 0;
+double tsc_multiplier = 1.0;
+LinkedList<TimeInfoChangeSubscription, &TimeInfoChangeSubscription::node>
+    time_info_change_subscriptions;
 
 // The number of time slices (or how many times the timer triggers) per second.
 #define TIME_SLICES_PER_SECOND 100
@@ -297,12 +310,19 @@ void InitializeTimer() {
       LinkedList<Process, &Process::node_cpu_tracking_subscription>();
   SetTimerPhase(TIME_SLICES_PER_SECOND);
 
+  utc_offset = 0;
 #ifndef TEST
   CalibrateTsc();
   InitializeLapic();
   CalibrateLapicTimer();
   SetLapicTimerOneShot(10000);
+  tsc_multiplier = 1.0 / (double)tsc_ticks_per_microsecond;
+#else
+  tsc_multiplier = 1.0;
 #endif
+  new (&time_info_change_subscriptions)
+      LinkedList<TimeInfoChangeSubscription,
+                 &TimeInfoChangeSubscription::node>();
 
 #ifdef PROFILING_ENABLED
   microseconds_until_next_profile = PROFILE_INTERVAL_IN_MICROSECONDS;
@@ -509,4 +529,48 @@ void RemoveProcessFromCpuTracking(Process* process) {
 
 bool IsCpuTrackingActive() {
   return !processes_subscribing_to_cpu_tracking.IsEmpty();
+}
+
+void GetTimeInfo(size_t& offset, size_t& multiplier) {
+  offset = utc_offset;
+  multiplier = tsc_ticks_per_microsecond;
+}
+
+void SetTimeInfo(size_t utc_microseconds) {
+#ifndef TEST
+  uint64 current_tsc = ReadTimestampCounter();
+  utc_offset = utc_microseconds - (current_tsc / tsc_ticks_per_microsecond);
+#else
+  utc_offset = utc_microseconds;
+#endif
+
+  for (auto* sub : time_info_change_subscriptions) {
+    SendKernelMessageToProcess(sub->process, sub->message_id, utc_offset,
+                               tsc_ticks_per_microsecond, 0, 0, 0);
+  }
+}
+
+void RegisterMessageForWhenTimeInfoChanges(Process* process,
+                                           size_t message_id) {
+  for (auto* sub : time_info_change_subscriptions) {
+    if (sub->process == process && sub->message_id == message_id) return;
+  }
+
+  auto* subscription =
+      (TimeInfoChangeSubscription*)malloc(sizeof(TimeInfoChangeSubscription));
+  subscription->process = process;
+  subscription->message_id = message_id;
+  time_info_change_subscriptions.AddBack(subscription);
+}
+
+void CancelTimeInfoChangeSubscriptionsForProcess(Process* process) {
+  auto* sub = time_info_change_subscriptions.FirstItem();
+  while (sub != nullptr) {
+    auto* next = time_info_change_subscriptions.NextItem(sub);
+    if (sub->process == process) {
+      time_info_change_subscriptions.Remove(sub);
+      free(sub);
+    }
+    sub = next;
+  }
 }

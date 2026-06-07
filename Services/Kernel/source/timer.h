@@ -46,3 +46,15 @@ void RemoveProcessFromCpuTracking(Process* process);
 
 // Returns whether CPU tracking is active.
 bool IsCpuTrackingActive();
+
+// Gets the current UTC offset and TSC multiplier.
+void GetTimeInfo(size_t& offset, size_t& multiplier);
+
+// Sets the current UTC time.
+void SetTimeInfo(size_t utc_microseconds);
+
+// Registers a process to receive a message when the time info changes.
+void RegisterMessageForWhenTimeInfoChanges(Process* process, size_t message_id);
+
+// Cancels all time info change subscriptions for a process.
+void CancelTimeInfoChangeSubscriptionsForProcess(Process* process);
