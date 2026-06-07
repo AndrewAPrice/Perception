@@ -19,12 +19,12 @@
 #include "perception/fibers.h"
 
 void ResetInterrupt(std::atomic<::perception::Fiber*>& waiting_on_interrupt,
-                    bool& interrupt_triggered);
+                    std::atomic<bool>& interrupt_triggered);
 
 void WaitForInterrupt(std::atomic<::perception::Fiber*>& waiting_on_interrupt,
-                      bool& interrupt_triggered);
+                      std::atomic<bool>& interrupt_triggered);
 
 void InitializeInterrupts(std::atomic<::perception::Fiber*>& waiting_primary,
-                          bool& primary_triggered,
+                          std::atomic<bool>& primary_triggered,
                           std::atomic<::perception::Fiber*>& waiting_secondary,
-                          bool& secondary_triggered);
+                          std::atomic<bool>& secondary_triggered);

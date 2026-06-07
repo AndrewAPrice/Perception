@@ -168,6 +168,11 @@ void ProbeChannelDevices(IdeChannel* channel) {
 
         uint8 atapi_packet[12] = {
             ATA_CMD_READ_DMA_EXT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        // Clear the interrupt triggered flag since the packet phase might have
+        // triggered a packet-ready interrupt to ignore during the read capacity
+        // command.
+        channel->interrupt_triggered.store(false, std::memory_order_release);
+
         for (int byte = 0; byte < 12; byte += 2) {
           Write16BitsToPort(ATA_DATA(bus), *(uint16*)&atapi_packet[byte]);
         }
@@ -400,6 +405,11 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
                               0,
                               0};
 
+    // Clear the interrupt triggered flag since the packet phase might have
+    // triggered a packet-ready interrupt to ignore during the DMA transfer
+    // phase.
+    channel->interrupt_triggered.store(false, std::memory_order_release);
+
     for (int byte = 0; byte < 12; byte += 2)
       Write16BitsToPort(ATA_DATA(bus), *(uint16*)&atapi_packet[byte]);
 
@@ -492,6 +502,11 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
                               uint8((sectors_to_read >> 0x00) & 0xFF),
                               0,
                               0};
+
+    // Clear the interrupt triggered flag since the packet phase might have
+    // triggered a packet-ready interrupt to ignore during the PIO data transfer
+    // phase.
+    channel->interrupt_triggered.store(false, std::memory_order_release);
 
     for (int byte = 0; byte < 12; byte += 2)
       Write16BitsToPort(ATA_DATA(bus), *(uint16*)&atapi_packet[byte]);

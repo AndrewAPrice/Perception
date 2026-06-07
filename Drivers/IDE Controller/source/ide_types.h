@@ -113,7 +113,7 @@ struct IdeChannel {
   std::atomic<::perception::Fiber*> waiting_on_interrupt;
 
   // True if an interrupt has been triggered.
-  bool interrupt_triggered;
+  std::atomic<bool> interrupt_triggered;
 
   // The devices connected to this channel.
   std::vector<std::unique_ptr<IdeDevice>> devices;

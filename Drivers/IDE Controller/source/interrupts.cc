@@ -34,13 +34,13 @@ namespace {
 int kPrimaryInterrupt = 14;
 int kSecondaryInterrupt = 15;
 
-bool* primary_interrupt_triggered_ptr = nullptr;
-bool* secondary_interrupt_triggered_ptr = nullptr;
+std::atomic<bool>* primary_interrupt_triggered_ptr = nullptr;
+std::atomic<bool>* secondary_interrupt_triggered_ptr = nullptr;
 
 std::atomic<Fiber*>* primary_waiter = nullptr;
 std::atomic<Fiber*>* secondary_waiter = nullptr;
 
-void CommonInterruptHandler(uint16 bus, bool& interrupt_triggered,
+void CommonInterruptHandler(uint16 bus, std::atomic<bool>& interrupt_triggered,
                             std::atomic<Fiber*>& waiting_on_interrupt) {
   if (waiting_on_interrupt.load(std::memory_order_relaxed) == nullptr) {
     // Acknowledge the interrupt on the IDE controller.
@@ -80,20 +80,16 @@ void SecondaryInterruptHandler() {
 }  // namespace
 
 void ResetInterrupt(std::atomic<Fiber*>& waiting_on_interrupt,
-                    bool& interrupt_triggered) {
-  while (!interrupt_triggered) {
-    // Someone else is already waiting on this interrupt.
-    // Reset after the interrupt is called.
-    waiting_on_interrupt.store(GetCurrentlyExecutingFiber(),
-                               std::memory_order_release);
-    Sleep();
+                    std::atomic<bool>& interrupt_triggered) {
+  if (!interrupt_triggered.load(std::memory_order_acquire)) {
+    std::cout << "IDE Controller Warning: ResetInterrupt called when interrupt_triggered is false (previous command failed early or timed out)." << std::endl;
   }
   interrupt_triggered = false;
 }
 
 void WaitForInterrupt(std::atomic<Fiber*>& waiting_on_interrupt,
-                      bool& interrupt_triggered) {
-  if (interrupt_triggered) {
+                      std::atomic<bool>& interrupt_triggered) {
+  if (interrupt_triggered.load(std::memory_order_acquire)) {
     // Interrupt has already triggered.
     return;
   }
@@ -104,9 +100,9 @@ void WaitForInterrupt(std::atomic<Fiber*>& waiting_on_interrupt,
 }
 
 void InitializeInterrupts(std::atomic<Fiber*>& waiting_primary,
-                          bool& primary_triggered,
+                          std::atomic<bool>& primary_triggered,
                           std::atomic<Fiber*>& waiting_secondary,
-                          bool& secondary_triggered) {
+                          std::atomic<bool>& secondary_triggered) {
   primary_interrupt_triggered_ptr = &primary_triggered;
   secondary_interrupt_triggered_ptr = &secondary_triggered;
   *primary_interrupt_triggered_ptr = true;
