@@ -1,0 +1,56 @@
+{
+  "name": "Loader",
+  "groups": [
+    {
+      "title": "File Associations",
+      "settings": [
+        {
+          "key": "associations",
+          "type": [
+            {
+              "name": "Extension",
+              "type": "string"
+            },
+            {
+              "name": "Application",
+              "type": "application"
+            }
+          ],
+          "description": "Mapping of file extensions to handler applications",
+          "default": [
+            [
+              "jpg",
+              "Viewer"
+            ],
+            [
+              "png",
+              "Viewer"
+            ],
+            [
+              "jpeg",
+              "Viewer"
+            ],
+            [
+              "svg",
+              "Viewer"
+            ],
+            [
+              "rgba",
+              "Viewer"
+            ],
+            [
+              "dir",
+              "File Manager"
+            ]
+          ]
+        },
+        {
+          "key": "launchOnBoot",
+          "type": "array",
+          "description": "List of applications to launch on boot",
+          "default": []
+        }
+      ]
+    }
+  ]
+}

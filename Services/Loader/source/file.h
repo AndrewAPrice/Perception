@@ -42,3 +42,6 @@ std::unique_ptr<File> LoadFile(std::string_view name);
 
 // Returns a path to a file if it can be resolved.
 std::optional<std::string> GetPathToFile(std::string_view name_sv);
+
+// Populates the file paths cache for applications and libraries.
+void PopulateFilePathsCache();

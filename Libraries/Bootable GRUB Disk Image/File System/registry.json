@@ -1,0 +1,104 @@
+{
+  "applications": {
+    "Loader": {
+      "associations": [
+        [
+          "jpg",
+          "Viewer"
+        ],
+        [
+          "png",
+          "Viewer"
+        ],
+        [
+          "jpeg",
+          "Viewer"
+        ],
+        [
+          "svg",
+          "Viewer"
+        ],
+        [
+          "rgba",
+          "Viewer"
+        ],
+        [
+          "dir",
+          "File Manager"
+        ]
+      ],
+      "launchOnBoot": [
+        "Font Manager",
+        "Network Manager",
+        "Window Manager",
+        "Launcher"
+      ]
+    },
+    "Permissions Manager": {
+      "granted_permissions": [
+        [
+          "Storage Manager",
+          "CanReadAllFiles",
+          true
+        ],
+        [
+          "Loader",
+          "CanReadAllFiles",
+          true
+        ],
+        [
+          "Loader",
+          "CanLaunchPrograms",
+          true
+        ],
+        [
+          "Device Manager",
+          "CanLaunchPrograms",
+          true
+        ],
+        [
+          "Font Manager",
+          "CanReadAllFiles",
+          true
+        ],
+        [
+          "Launcher",
+          "CanReadAllFiles",
+          true
+        ],
+        [
+          "Launcher",
+          "CanLaunchPrograms",
+          true
+        ],
+        [
+          "netsurf",
+          "CanReadAllFiles",
+          true
+        ],
+        [
+          "Registry",
+          "CanReadAllFiles",
+          true
+        ],
+        [
+          "Settings",
+          "CanViewAndModifyEntireRegistry",
+          true
+        ],
+        [
+          "Settings",
+          "CanReadAllFiles",
+          true
+        ]
+      ]
+    },
+    "netsurf": {
+      "homepage": "about:welcome",
+      "enable_javascript": true,
+      "load_images": true,
+      "block_advertisements": false,
+      "do_not_track": true
+    }
+  }
+}

@@ -1,5 +1,8 @@
 {
   skip_for_tests: true,
+  asset_directories: [
+    'assets',
+  ],
   dependencies+: [
     'elf',
     'perception',

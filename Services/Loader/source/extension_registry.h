@@ -38,5 +38,5 @@ struct ExtensionCommand {
 
 // Returns the command associated with a given path (file or directory).
 // Returns nullopt if no command is registered for the given path.
-std::optional<std::reference_wrapper<const ExtensionCommand>> GetCommandForPath(
+std::optional<ExtensionCommand> GetCommandForPath(
     std::string_view path);

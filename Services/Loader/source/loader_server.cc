@@ -15,13 +15,16 @@
 #include "loader_server.h"
 
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 
 #include "extension_registry.h"
 #include "file.h"
 #include "loader.h"
+#include "multiboot.h"
 #include "perception/permissions.h"
+#include "perception/processes.h"
 
 using ::perception::ProcessId;
 
@@ -36,11 +39,7 @@ StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
 
   int iterations = 0;
   while (true) {
-    if (iterations++ > 10) {
-      std::cout << "Loader error: Infinite loop detected while resolving \""
-                << request.name << "\"." << std::endl;
-      return ::perception::Status::INVALID_ARGUMENT;
-    }
+    if (iterations++ > 10) return ::perception::Status::INVALID_ARGUMENT;
 
     if (!name_to_load.empty() && name_to_load[0] == '/') {
       // It's a file or directory. Let's first check if it's a directory to
@@ -48,7 +47,10 @@ StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
       std::error_code ec;
       if (std::filesystem::is_directory(name_to_load, ec) &&
           name_to_load.back() != '/') {
-        name_to_load += "/";
+        if (name_to_load.size() < 4 ||
+            name_to_load.substr(name_to_load.size() - 4) != ".app") {
+          name_to_load += "/";
+        }
       }
 
       auto opt_command = GetCommandForPath(name_to_load);
@@ -58,7 +60,7 @@ StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
         return ::perception::Status::INVALID_ARGUMENT;
       }
 
-      const ExtensionCommand& command = opt_command->get();
+      const ExtensionCommand& command = *opt_command;
       if (command.action == ExtensionAction::EXECUTE) {
         break;
       } else {
@@ -77,10 +79,32 @@ StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
     }
   }
 
-  ASSIGN_OR_RETURN(auto child_pid,
+  ASSIGN_OR_RETURN(ProcessId child_pid,
                    LoadProgram(sender, name_to_load, arguments));
 
   ::perception::LoadApplicationResponse response;
   response.process = child_pid;
+  return response;
+}
+
+StatusOr<::perception::GetMultibootRegistryFileResponse>
+LoaderServer::GetMultibootRegistryFile(
+    const ::perception::GetMultibootRegistryFileRequest& request,
+    ::perception::ProcessId sender) {
+  if (::perception::GetProcessName(sender) != "Registry") {
+    return ::perception::Status::NOT_ALLOWED;
+  }
+
+  auto module = GetMultibootModule("registry.json");
+  if (!module) return ::perception::Status::FILE_NOT_FOUND;
+
+  auto shared_memory =
+      ::perception::SharedMemory::FromSize(module->data.Length(), 0);
+  if (!shared_memory) return ::perception::Status::OUT_OF_MEMORY;
+
+  std::memcpy(**shared_memory, *module->data, module->data.Length());
+
+  ::perception::GetMultibootRegistryFileResponse response;
+  response.registry_file = std::move(*shared_memory);
   return response;
 }

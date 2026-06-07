@@ -16,6 +16,7 @@
 
 #include <filesystem>
 #include <iostream>
+#include <map>
 #include <memory>
 
 #include "multiboot.h"
@@ -35,6 +36,10 @@ using ::perception::Status;
 using ::perception::StorageManager;
 
 namespace {
+
+std::map<std::string, std::string, std::less<>> cached_application_paths;
+std::map<std::string, std::string, std::less<>> cached_library_paths;
+bool is_cache_populated = false;
 
 // Extracts the name of an application from a path.
 // e.g. "/Applications/Calculator/Calculator.app" -> "Calculator"
@@ -198,10 +203,35 @@ std::optional<std::string> GetPathToFile(std::string_view name_sv) {
 
   std::string name = std::string(name_sv);
   if (name[0] == '/') {
+    if (is_cache_populated) {
+      std::string_view app_name = ExtractApplicationNameFromPath(name);
+      auto it = cached_application_paths.find(app_name);
+      if (it != cached_application_paths.end() && it->second == name) {
+        return name;
+      }
+      std::string_view lib_name = GetTrimmedLibraryName(app_name);
+      auto it_lib = cached_library_paths.find(lib_name);
+      if (it_lib != cached_library_paths.end() && it_lib->second == name) {
+        return name;
+      }
+    }
     // This is a fully qualified path. Check that it exists.
     if (!std::filesystem::exists(name)) return std::nullopt;
     return name;
   }
+
+  if (is_cache_populated) {
+    std::string_view trimmed_name = GetTrimmedLibraryName(name_sv);
+    if (trimmed_name != name_sv) {
+      auto it = cached_library_paths.find(trimmed_name);
+      if (it != cached_library_paths.end()) return it->second;
+    } else {
+      auto it = cached_application_paths.find(name_sv);
+      if (it != cached_application_paths.end()) return it->second;
+    }
+    return std::nullopt;
+  }
+
   // Check /Applications/ first, since it's the first mount point.
   std::string path_suffix, path;
   std::string_view trimmed_name = GetTrimmedLibraryName(name_sv);
@@ -225,3 +255,34 @@ std::optional<std::string> GetPathToFile(std::string_view name_sv) {
   return std::nullopt;
 }
 
+void PopulateFilePathsCache() {
+  std::error_code ec;
+  // Scan /Applications
+  for (const auto& entry :
+       std::filesystem::directory_iterator("/Applications", ec)) {
+    if (entry.is_directory()) {
+      std::string name = entry.path().filename().string();
+      std::string app_path = entry.path().string() + "/" + name + ".app";
+      cached_application_paths[name] = app_path;
+    }
+  }
+
+  // Scan /Libraries
+  for (const auto& entry :
+       std::filesystem::directory_iterator("/Libraries", ec)) {
+    if (entry.is_directory()) {
+      std::string name = entry.path().filename().string();
+      // Scan files inside this library directory
+      std::error_code lib_ec;
+      for (const auto& lib_file :
+           std::filesystem::directory_iterator(entry.path(), lib_ec)) {
+        std::string filename = lib_file.path().filename().string();
+        std::string_view trimmed = GetTrimmedLibraryName(filename);
+        if (trimmed != filename) {
+          cached_library_paths[std::string(trimmed)] = lib_file.path().string();
+        }
+      }
+    }
+  }
+  is_cache_populated = true;
+}
