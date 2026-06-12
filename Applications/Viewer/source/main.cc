@@ -122,7 +122,9 @@ int main(int argc, char* argv[]) {
             TerminateProcess();
           }
         },
-        {".rgba", ".png", "svg", ".bmp", ".jpg", ".jpeg"}, "", "Open Image");
+        {".rgba", ".png", ".svg", ".bmp", ".jpg", ".jpeg", ".webp", ".gif",
+         ".ico", ".wbmp"},
+        "", "Open Image");
   } else {
     OpenImage(argv[1]);
   }
