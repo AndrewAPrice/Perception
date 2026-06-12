@@ -14,8 +14,12 @@
 
 #include "permission_verbalization.h"
 
-namespace perception {
+using perception::Permission;
 
+namespace {
+
+// Returns a static string_view verbalization of a permission. Returns nullopt
+// if a permission isn't handled.
 std::optional<std::string_view> GetPermissionVerbalization(
     Permission permission) {
   switch (permission) {
@@ -23,9 +27,47 @@ std::optional<std::string_view> GetPermissionVerbalization(
       return "read all files";
     case Permission::CanLaunchPrograms:
       return "launch programs";
+    case Permission::CanViewAndModifyEntireRegistry:
+      return "view and modify the entire registry";
+    case Permission::CanUseNetworkDevice:
+      return "use the network device directly";
+    default:
+      return std::nullopt;
+  }
+}
+}  // namespace
+
+std::optional<std::string> GetPermissionRequestVerbalization(
+    std::string_view process_name, perception::Permission permission) {
+  auto verbalized_permission = GetPermissionVerbalization(permission);
+  if (!verbalized_permission.has_value()) {
+    return std::nullopt;
+  }
+
+  return std::string(process_name) + " is requesting permission to " +
+         std::string(*verbalized_permission) + ".";
+}
+
+std::optional<std::string_view> GetPermissionKey(Permission permission) {
+  switch (permission) {
+    case Permission::CanReadAllFiles:
+      return "CanReadAllFiles";
+    case Permission::CanLaunchPrograms:
+      return "CanLaunchPrograms";
+    case Permission::CanViewAndModifyEntireRegistry:
+      return "CanViewAndModifyEntireRegistry";
+    case Permission::CanUseNetworkDevice:
+      return "CanUseNetworkDevice";
     default:
       return std::nullopt;
   }
 }
 
-}  // namespace perception
+std::optional<Permission> ParsePermissionKey(std::string_view key) {
+  if (key == "CanReadAllFiles") return Permission::CanReadAllFiles;
+  if (key == "CanLaunchPrograms") return Permission::CanLaunchPrograms;
+  if (key == "CanViewAndModifyEntireRegistry")
+    return Permission::CanViewAndModifyEntireRegistry;
+  if (key == "CanUseNetworkDevice") return Permission::CanUseNetworkDevice;
+  return std::nullopt;
+}

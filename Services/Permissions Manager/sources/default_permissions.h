@@ -14,9 +14,8 @@
 
 #pragma once
 
-namespace perception {
-
 // Populates initial default permissions for essential services.
 void PopulateInitialPermissions();
 
-}  // namespace perception
+// Initializes registry-based permissions asynchronously.
+void InitializeRegistryPermissions();

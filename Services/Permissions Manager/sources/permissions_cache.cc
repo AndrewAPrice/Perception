@@ -18,7 +18,10 @@
 #include <mutex>
 #include <string>
 
-namespace perception {
+using perception::NotifyUponProcessTermination;
+using perception::Permission;
+using perception::ProcessId;
+
 namespace {
 
 // Mutex to protect the cache maps.
@@ -73,9 +76,7 @@ std::optional<bool> GetCachedProcessNamePermission(
   auto name_it = g_process_name_permissions.find(process_name);
   if (name_it != g_process_name_permissions.end()) {
     auto perm_it = name_it->second.find(permission);
-    if (perm_it != name_it->second.end()) {
-      return perm_it->second;
-    }
+    if (perm_it != name_it->second.end()) return perm_it->second;
   }
   return std::nullopt;
 }
@@ -87,5 +88,3 @@ void SetCachedProcessNamePermission(std::string_view process_name,
   g_process_name_permissions[std::string(process_name)][permission] =
       has_permission;
 }
-
-}  // namespace perception

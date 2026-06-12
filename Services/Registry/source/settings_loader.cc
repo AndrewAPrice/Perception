@@ -17,11 +17,9 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 
 #include "database.h"
 #include "nlohmann/json.hpp"
-#include "perception/serialization/text_deserializer.h"
 
 using json = ::nlohmann::json;
 using ::perception::RegistryCorpus;
@@ -38,6 +36,14 @@ Value JsonToValue(const json& j) {
     return Value(j.get<double>());
   } else if (j.is_string()) {
     return Value(j.get<std::string>());
+  } else if (j.is_object()) {
+    if (j.contains("r") && j.contains("g") && j.contains("b")) {
+      int r = j["r"].get<int>();
+      int g = j["g"].get<int>();
+      int b = j["b"].get<int>();
+      return Value(static_cast<uint32>((0xFF << 24) | ((r & 0xFF) << 16) |
+                                       ((g & 0xFF) << 8) | (b & 0xFF)));
+    }
   } else if (j.is_array()) {
     std::vector<Value> arr;
     for (const auto& item : j) arr.push_back(JsonToValue(item));

@@ -14,15 +14,19 @@
 
 #include "default_permissions.h"
 
+#include <optional>
+#include <string_view>
+
 #include "perception/permissions.h"
+#include "perception/registry.h"
+#include "permission_verbalization.h"
 #include "permissions_cache.h"
 
-namespace perception {
+using perception::Permission;
 
 void PopulateInitialPermissions() {
-  // Storage Manager can read all files.
-  SetCachedProcessNamePermission("Storage Manager", Permission::CanReadAllFiles,
-                                 true);
+  // Initial permissions that are needed before permissions can be fetched from
+  // the registry.
 
   // Loader can read all files and launch programs
   SetCachedProcessNamePermission("Loader", Permission::CanReadAllFiles, true);
@@ -32,19 +36,39 @@ void PopulateInitialPermissions() {
   SetCachedProcessNamePermission("Device Manager",
                                  Permission::CanLaunchPrograms, true);
 
-  // Font Manager can read all files.
-  SetCachedProcessNamePermission("Font Manager", Permission::CanReadAllFiles,
-                                 true);
-
-  // Launcher can read all files and launch programs.
-  SetCachedProcessNamePermission("Launcher", Permission::CanReadAllFiles, true);
-  SetCachedProcessNamePermission("Launcher", Permission::CanLaunchPrograms,
-                                 true);
-
-  // File Manager can read all files and launch programs
-  // SetCachedProcessNamePermission("File Manager", Permission::CanReadAllFiles,
-  // true); SetCachedProcessNamePermission("File Manager",
-  // Permission::CanLaunchPrograms, true);
+  SetCachedProcessNamePermission("Registry", Permission::CanReadAllFiles, true);
 }
 
-}  // namespace perception
+void LoadPermissionsFromRegistry() {
+  auto val_or = perception::GetRegistryValue("granted_permissions");
+  if (val_or.Ok()) {
+    const auto* array_val = val_or->ArrayValue();
+    if (array_val) {
+      for (const auto& entry_val : *array_val) {
+        const auto* entry = entry_val.ArrayValue();
+        if (entry && entry->size() >= 3) {
+          auto process_name_opt = (*entry)[0].StringValue();
+          auto perm_str_opt = (*entry)[1].StringValue();
+          auto allowed_opt = (*entry)[2].BoolValue();
+          if (process_name_opt && perm_str_opt && allowed_opt) {
+            if (auto perm = ParsePermissionKey(*perm_str_opt)) {
+              SetCachedProcessNamePermission(std::string(*process_name_opt),
+                                             *perm, *allowed_opt);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+void InitializeRegistryPermissions() {
+  perception::Defer([]() {
+    LoadPermissionsFromRegistry();
+
+    // Register a listener for changes to this key
+    (void)::perception::RegisterRegistryListener(
+        perception::RegistryCorpus::APPLICATIONS, "Permissions Manager",
+        "granted_permissions", []() { LoadPermissionsFromRegistry(); });
+  });
+}

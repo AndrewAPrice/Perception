@@ -1,0 +1,29 @@
+{
+  "name": "Permissions Manager",
+  "groups": [
+    {
+      "title": "System Permissions",
+      "settings": [
+        {
+          "key": "granted_permissions",
+          "type": [
+            {
+              "name": "Application",
+              "type": "application"
+            },
+            {
+              "name": "Permission",
+              "type": "permission"
+            },
+            {
+              "name": "Is allowed?",
+              "type": "boolean"
+            }
+          ],
+          "description": "System permissions granted to specific processes",
+          "default": []
+        }
+      ]
+    }
+  ]
+}

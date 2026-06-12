@@ -20,24 +20,22 @@
 #include "perception/permissions.h"
 #include "perception/processes.h"
 
-namespace perception {
-
 // Checks if a PID has a specific permission cached.
 // Returns std::nullopt if not in cache.
-std::optional<bool> GetCachedPidPermission(ProcessId pid,
-                                           Permission permission);
+std::optional<bool> GetCachedPidPermission(perception::ProcessId pid,
+                                           perception::Permission permission);
 
 // Sets a cached permission for a specific PID.
-void SetCachedPidPermission(ProcessId pid, Permission permission,
+void SetCachedPidPermission(perception::ProcessId pid,
+                            perception::Permission permission,
                             bool has_permission);
 
 // Checks if a process name has a specific permission cached.
 // Returns std::nullopt if not in cache.
 std::optional<bool> GetCachedProcessNamePermission(
-    std::string_view process_name, Permission permission);
+    std::string_view process_name, perception::Permission permission);
 
 // Sets a cached permission for a process name.
 void SetCachedProcessNamePermission(std::string_view process_name,
-                                    Permission permission, bool has_permission);
-
-}  // namespace perception
+                                    perception::Permission permission,
+                                    bool has_permission);

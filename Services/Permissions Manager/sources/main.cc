@@ -39,7 +39,6 @@
 using ::StatusOr;
 using ::perception::Fiber;
 using ::perception::GetCurrentlyExecutingFiber;
-using ::perception::GetPermissionVerbalization;
 using ::perception::GetProcessName;
 using ::perception::HandOverControl;
 using ::perception::NotifyUponProcessTermination;
@@ -77,12 +76,9 @@ class PermissionsManager : public ::perception::PermissionsManager::Server {
       ProcessId sender) override {
     ProcessId target_pid = request.process;
     Permission permission = request.permission;
-    std::cout << "Checking if " << GetProcessName(target_pid) << " ("
-              << target_pid << ") has permission "
-              << *GetPermissionVerbalization(permission) << std::endl;
-    // 1. Check the cached pid permissions first.
-    if (auto has_permission =
-            ::perception::GetCachedPidPermission(target_pid, permission)) {
+
+    // Check the cached pid permissions first.
+    if (auto has_permission = GetCachedPidPermission(target_pid, permission)) {
       ::perception::DoesProcessHavePermissionResponse response;
       response.has_permission = *has_permission;
       return response;
@@ -97,9 +93,9 @@ class PermissionsManager : public ::perception::PermissionsManager::Server {
       return response;
     }
 
-    // 2. Check the cached process name permissions.
-    if (auto has_permission = ::perception::GetCachedProcessNamePermission(
-            process_name, permission)) {
+    // Check the cached process name permissions.
+    if (auto has_permission =
+            GetCachedProcessNamePermission(process_name, permission)) {
       ::perception::DoesProcessHavePermissionResponse response;
       response.has_permission = *has_permission;
       return response;
@@ -108,20 +104,17 @@ class PermissionsManager : public ::perception::PermissionsManager::Server {
     // Check if the permission has a valid verbalization. If it doesn't,
     // this is not a valid permission that the Permissions Manager is aware of,
     // so just return false.
-    auto verbalization = GetPermissionVerbalization(permission);
+    auto verbalization =
+        GetPermissionRequestVerbalization(process_name, permission);
     if (!verbalization.has_value()) {
       ::perception::DoesProcessHavePermissionResponse response;
       response.has_permission = false;
       return response;
     }
 
-    // 3. Show a dialog (using the Perception UI framework) saying:
+    // Show a dialog saying:
     // "<Process name> is requesting permission to <verbalization of the
     // permission>."
-    std::string dialog_text = process_name + " is requesting permission to ";
-    dialog_text += *verbalization;
-    dialog_text += ".";
-
     Fiber* current_fiber = GetCurrentlyExecutingFiber();
 
     // Thread-safe or block-scope variables for recording user choice.
@@ -132,79 +125,6 @@ class PermissionsManager : public ::perception::PermissionsManager::Server {
       std::weak_ptr<Node> dialog_node;
     };
     auto state = std::make_shared<DialogState>();
-
-    // Construct layout using declarative Perception UI design patterns.
-    auto main_container = Container::VerticalContainer(
-        [](Layout& layout) {
-          layout.SetFlexGrow(1.0f);
-          layout.SetPadding(YGEdgeAll, 16.0f);
-          layout.SetGap(16.0f);
-          layout.SetAlignItems(YGAlignStretch);
-        },
-        [](Block& block) {
-          block.SetFillColor(0xFFFFFFFF);  // White card background
-        },
-        Label::BasicLabel(
-            dialog_text,
-            [](Layout& layout) {
-              layout.SetFlexGrow(1.0f);
-              layout.SetFlexShrink(1.0f);
-            },
-            [](Label& label) {
-              label.SetTextAlignment(TextAlignment::MiddleLeft);
-              label.SetColor(0xFF1F2937);  // Sleek gray text
-            }),
-        Checkbox::BasicCheckbox(
-            "Remember for all instances of this process.", false,
-            [state](bool checked) { state->remember = checked; },
-            [](Layout& layout) { layout.SetMargin(YGEdgeBottom, 8.0f); }),
-        Container::HorizontalContainer(
-            [](Layout& layout) {
-              layout.SetJustifyContent(YGJustifyFlexEnd);
-              layout.SetGap(12.0f);
-            },
-            Button::TextButton(
-                "Deny",
-                [current_fiber, state]() {
-                  state->approved = false;
-                  state->has_result = true;
-                  if (current_fiber) {
-                    current_fiber->WakeUp();
-                  }
-                  auto strong_node = state->dialog_node.lock();
-                  if (strong_node) {
-                    auto window = strong_node->Get<UiWindow>();
-                    if (window) window->Close();
-                  }
-                },
-                [](Layout& layout) {
-                  layout.SetWidth(80.0f);
-                  layout.SetHeight(32.0f);
-                },
-                [](Button& button) {
-                  button.SetButtonStyle(Button::ButtonStyle::LIGHT);
-                }),
-            Button::TextButton(
-                "Allow",
-                [current_fiber, state]() {
-                  state->approved = true;
-                  state->has_result = true;
-                  if (current_fiber) {
-                    current_fiber->WakeUp();
-                  }
-                  auto strong_node = state->dialog_node.lock();
-                  if (strong_node) {
-                    auto window = strong_node->Get<UiWindow>();
-                    if (window) window->Close();
-                  }
-                },
-                [](Layout& layout) {
-                  layout.SetWidth(80.0f);
-                  layout.SetHeight(32.0f);
-                },
-                [](Button& button) {
-                  button.SetButtonStyle(Button::ButtonStyle::PRIMARY);
-                })));
 
     auto window_node = UiWindow::DialogWithTitleBar(
         "Permission Request",
@@ -235,7 +155,78 @@ class PermissionsManager : public ::perception::PermissionsManager::Server {
           layout.SetWidth(360.0f);
           layout.SetHeight(180.0f);
         },
-        main_container, &state->dialog_node);
+        Container::VerticalContainer(
+            [](Layout& layout) {
+              layout.SetFlexGrow(1.0f);
+              layout.SetPadding(YGEdgeAll, 16.0f);
+              layout.SetGap(16.0f);
+              layout.SetAlignItems(YGAlignStretch);
+            },
+            [](Block& block) {
+              block.SetFillColor(0xFFFFFFFF);  // White card background
+            },
+            Label::BasicLabel(
+                *verbalization,
+                [](Layout& layout) {
+                  layout.SetFlexGrow(1.0f);
+                  layout.SetFlexShrink(1.0f);
+                },
+                [](Label& label) {
+                  label.SetTextAlignment(TextAlignment::MiddleLeft);
+                  label.SetColor(0xFF1F2937);  // Sleek gray text
+                }),
+            Checkbox::BasicCheckbox(
+                "Remember for all instances of this process.", false,
+                [state](bool checked) { state->remember = checked; },
+                [](Layout& layout) { layout.SetMargin(YGEdgeBottom, 8.0f); }),
+            Container::HorizontalContainer(
+                [](Layout& layout) {
+                  layout.SetJustifyContent(YGJustifyFlexEnd);
+                  layout.SetGap(12.0f);
+                },
+                Button::TextButton(
+                    "Deny",
+                    [current_fiber, state]() {
+                      state->approved = false;
+                      state->has_result = true;
+                      if (current_fiber) {
+                        current_fiber->WakeUp();
+                      }
+                      auto strong_node = state->dialog_node.lock();
+                      if (strong_node) {
+                        auto window = strong_node->Get<UiWindow>();
+                        if (window) window->Close();
+                      }
+                    },
+                    [](Layout& layout) {
+                      layout.SetWidth(80.0f);
+                      layout.SetHeight(32.0f);
+                    },
+                    [](Button& button) {
+                      button.SetButtonStyle(Button::ButtonStyle::LIGHT);
+                    }),
+                Button::TextButton(
+                    "Allow",
+                    [current_fiber, state]() {
+                      state->approved = true;
+                      state->has_result = true;
+                      if (current_fiber) {
+                        current_fiber->WakeUp();
+                      }
+                      auto strong_node = state->dialog_node.lock();
+                      if (strong_node) {
+                        auto window = strong_node->Get<UiWindow>();
+                        if (window) window->Close();
+                      }
+                    },
+                    [](Layout& layout) {
+                      layout.SetWidth(80.0f);
+                      layout.SetHeight(32.0f);
+                    },
+                    [](Button& button) {
+                      button.SetButtonStyle(Button::ButtonStyle::PRIMARY);
+                    }))),
+        &state->dialog_node);
 
     {
       std::scoped_lock lock(g_dialogs_mutex);
@@ -248,11 +239,9 @@ class PermissionsManager : public ::perception::PermissionsManager::Server {
 
     // Save the permission choice based on remember checkbox setting.
     if (state->remember) {
-      ::perception::SetCachedProcessNamePermission(process_name, permission,
-                                                   state->approved);
+      SetCachedProcessNamePermission(process_name, permission, state->approved);
     } else {
-      ::perception::SetCachedPidPermission(target_pid, permission,
-                                           state->approved);
+      SetCachedPidPermission(target_pid, permission, state->approved);
     }
 
     ::perception::DoesProcessHavePermissionResponse response;
@@ -263,10 +252,13 @@ class PermissionsManager : public ::perception::PermissionsManager::Server {
 
 int main(int argc, char* argv[]) {
   // Load default permissions for core services.
-  ::perception::PopulateInitialPermissions();
+  PopulateInitialPermissions();
 
   // Instantiate the server. The base Server class automatically registers it.
   auto permissions_manager = std::make_unique<PermissionsManager>();
+
+  // Initialize registry permissions asynchronously once Registry is ready.
+  InitializeRegistryPermissions();
 
   // Hand over control to the perception scheduler/event loop.
   HandOverControl();

@@ -27,11 +27,11 @@ void LoadMultibootRegistry() {
     ::perception::GetMultibootRegistryFileRequest req;
     auto res_or = loader.GetMultibootRegistryFile(req);
     if (res_or.Ok()) {
-      const char* data = res_or->registry_file.ToSpan().ToType<const char>();
-      size_t length = res_or->registry_file.ToSpan().Length();
-      std::cout << "Registry: Loaded multiboot registry.json (" << length
-                << " bytes)" << std::endl;
-      ParseRegistryData(std::string_view(data, length));
+      ::perception::SharedMemory registry_file(res_or->registry_file_id);
+      registry_file.Join();
+      ParseRegistryData(
+          std::string_view(registry_file.ToSpan().ToType<const char>(),
+                           registry_file.ToSpan().Length()));
     } else {
       std::cout << "Registry: No multiboot registry.json module found."
                 << std::endl;

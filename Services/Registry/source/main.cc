@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-
-#include "database.h"
 #include "mount_listener.h"
 #include "multiboot_loader.h"
-#include "perception/processes.h"
 #include "perception/services.h"
 #include "perception/storage_manager.h"
 #include "registry_server.h"
@@ -39,7 +35,6 @@ int main() {
   // Start the Registry server.
   RegistryServer server;
 
-  std::cout << "Registry service is ready." << std::endl;
   ::perception::HandOverControl();
   return 0;
 }

@@ -19,11 +19,13 @@
 
 #include "perception/permissions.h"
 
-namespace perception {
+// Returns a string asking whether a process can have a permission.
+std::optional<std::string> GetPermissionRequestVerbalization(
+    std::string_view process_name, perception::Permission permission);
 
-// Returns a static string_view verbalization of a permission. Returns nullopt
-// if a permission isn't handled.
-std::optional<std::string_view> GetPermissionVerbalization(
-    Permission permission);
+// Converts a permission to its key. e.g. "CanReadAllFiles"
+std::optional<std::string_view> GetPermissionKey(
+    perception::Permission permission);
 
-}  // namespace perception
+// Parses the permission from its key.
+std::optional<perception::Permission> ParsePermissionKey(std::string_view key);
