@@ -51,6 +51,7 @@
 
 /* ATAPI commands */
 #define ATAPI_CMD_READ 0xA8
+#define ATAPI_CMD_READ10 0x28
 #define ATAPI_CMD_EJECT 0x1B
 
 /* offset for the ATAPI identifiers */

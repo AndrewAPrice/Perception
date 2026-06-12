@@ -100,7 +100,7 @@ void InitializeIdeController(uint8 bus, uint8 slot, uint8 function,
     controller->channels[i].waiting_on_interrupt = nullptr;
     controller->channels[i].interrupt_triggered = true;
     controller->channels[i].worker_thread_sleeping.store(
-        false, std::memory_order_release);
+        false, std::memory_order_seq_cst);
     std::thread worker(ChannelWorkerThread, &controller->channels[i]);
     worker.detach();
   }
@@ -124,7 +124,7 @@ void InitializeIdeController(uint8 bus, uint8 slot, uint8 function,
 
     controller->channels[i].queue.Push(&req);
     if (controller->channels[i].worker_thread_sleeping.load(
-            std::memory_order_acquire)) {
+            std::memory_order_seq_cst)) {
       WakeThread(controller->channels[i].worker_thread_id);
     }
 

@@ -34,7 +34,9 @@ using ::perception::devices::StorageDeviceReadRequest;
 using ::perception::devices::StorageDeviceType;
 
 IdeStorageDevice::IdeStorageDevice(IdeDevice* device, bool supports_dma)
-    : device_(device), supports_dma_(supports_dma) {
+    : ::perception::devices::StorageDevice::Server({.defer_registration = true}),
+      device_(device),
+      supports_dma_(supports_dma) {
   if (supports_dma_) {
     scratch_page_ = (unsigned char*)AllocateMemoryPagesBelowPhysicalAddressBase(
         2, 0xFFFFFFFF - 2 * kPageSize, scratch_page_physical_address_);
@@ -43,6 +45,7 @@ IdeStorageDevice::IdeStorageDevice(IdeDevice* device, bool supports_dma)
     scratch_page_ = nullptr;
     scratch_page_physical_address_ = 0;
   }
+  StartServing();
 }
 
 IdeStorageDevice::~IdeStorageDevice() {
@@ -74,16 +77,18 @@ Status IdeStorageDevice::Read(const StorageDeviceReadRequest& request) {
     return ::perception::Status::INVALID_ARGUMENT;
   }
 
-  int64 bytes_to_copy = request.bytes_to_copy;
-  int64 device_offset_start = request.offset_on_device;
-  int64 buffer_offset = request.offset_in_buffer;
+  uint64 bytes_to_copy = request.bytes_to_copy;
+  uint64 device_offset_start = request.offset_on_device;
+  uint64 buffer_offset = request.offset_in_buffer;
 
   if (bytes_to_copy == 0) return Status::OK;  // Nothing to copy.
 
-  if (buffer_offset + bytes_to_copy > device_->size_in_bytes)
+  if (device_offset_start + bytes_to_copy < device_offset_start ||
+      device_offset_start + bytes_to_copy > device_->size_in_bytes)
     return Status::OVERFLOW;  // Reading beyond end of the device.
 
-  if (buffer_offset + bytes_to_copy > request.buffer->GetSize())
+  if (buffer_offset + bytes_to_copy < buffer_offset ||
+      buffer_offset + bytes_to_copy > request.buffer->GetSize())
     return Status::OVERFLOW;  // Writing beyond the end of the buffer.
 
   // Allocate request details on the fiber's stack.
@@ -106,7 +111,7 @@ Status IdeStorageDevice::Read(const StorageDeviceReadRequest& request) {
   if (!channel->queue.Push(&req)) return ::perception::Status::OUT_OF_MEMORY;
 
   // Wake worker thread if it is asleep.
-  if (channel->worker_thread_sleeping.load(std::memory_order_acquire))
+  if (channel->worker_thread_sleeping.load(std::memory_order_seq_cst))
     WakeThread(channel->worker_thread_id);
 
   // Yield the fiber until the request is processed by the worker thread.

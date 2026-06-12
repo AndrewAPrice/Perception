@@ -42,21 +42,21 @@ std::atomic<Fiber*>* secondary_waiter = nullptr;
 
 void CommonInterruptHandler(uint16 bus, std::atomic<bool>& interrupt_triggered,
                             std::atomic<Fiber*>& waiting_on_interrupt) {
-  if (waiting_on_interrupt.load(std::memory_order_relaxed) == nullptr) {
+  if (waiting_on_interrupt.load(std::memory_order_seq_cst) == nullptr) {
     // Acknowledge the interrupt on the IDE controller.
     (void)Read8BitsFromPort(ATA_COMMAND(bus));
   }
 
-  if (interrupt_triggered) {
+  if (interrupt_triggered.load(std::memory_order_seq_cst)) {
     // Interrupt already triggered but nothing has handled us
     // yet.
     return;
   }
 
-  interrupt_triggered = true;
+  interrupt_triggered.store(true, std::memory_order_seq_cst);
 
   Fiber* fiber =
-      waiting_on_interrupt.exchange(nullptr, std::memory_order_acq_rel);
+      waiting_on_interrupt.exchange(nullptr, std::memory_order_seq_cst);
   if (fiber != nullptr) {
     fiber->WakeUp();
   }
@@ -81,21 +81,31 @@ void SecondaryInterruptHandler() {
 
 void ResetInterrupt(std::atomic<Fiber*>& waiting_on_interrupt,
                     std::atomic<bool>& interrupt_triggered) {
-  if (!interrupt_triggered.load(std::memory_order_acquire)) {
+  if (!interrupt_triggered.load(std::memory_order_seq_cst)) {
     std::cout << "IDE Controller Warning: ResetInterrupt called when interrupt_triggered is false (previous command failed early or timed out)." << std::endl;
   }
-  interrupt_triggered = false;
+  interrupt_triggered.store(false, std::memory_order_seq_cst);
 }
 
 void WaitForInterrupt(std::atomic<Fiber*>& waiting_on_interrupt,
                       std::atomic<bool>& interrupt_triggered) {
-  if (interrupt_triggered.load(std::memory_order_acquire)) {
+  if (interrupt_triggered.load(std::memory_order_seq_cst)) {
     // Interrupt has already triggered.
     return;
   }
 
-  waiting_on_interrupt.store(GetCurrentlyExecutingFiber(),
-                             std::memory_order_release);
+  Fiber* expected = GetCurrentlyExecutingFiber();
+  waiting_on_interrupt.store(expected, std::memory_order_seq_cst);
+
+  if (interrupt_triggered.load(std::memory_order_seq_cst)) {
+    if (waiting_on_interrupt.compare_exchange_strong(
+            expected, nullptr, std::memory_order_seq_cst)) {
+      std::cout << "WaitForInterrupt bypassed sleep via double check!"
+                << std::endl;
+      return;
+    }
+  }
+
   Sleep();
 }
 

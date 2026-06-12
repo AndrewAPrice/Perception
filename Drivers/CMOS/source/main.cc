@@ -30,7 +30,7 @@ bool IsCmosUpdateInProgress() { return (ReadCmosRegister(0x0A) & 0x80) != 0; }
 
 void WaitForCmosUpdate() {
   while (IsCmosUpdateInProgress()) {
-    // brief busy wait
+    perception::SleepForDuration(std::chrono::milliseconds(1));
   }
 }
 

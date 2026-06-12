@@ -198,7 +198,7 @@ void ProbeChannelDevices(IdeChannel* channel) {
         Write8BitsToPort(ATA_ADDRESS2(bus), ATAPI_SECTOR_SIZE & 0xFF);
         Write8BitsToPort(ATA_ADDRESS3(bus), ATAPI_SECTOR_SIZE >> 8);
 
-        device->size_in_bytes = returnLba * blockLengthInBytes;
+        device->size_in_bytes = (uint64)(returnLba + 1) * blockLengthInBytes;
         device->is_writable = false;
 
         device->storage_device = std::make_unique<IdeStorageDevice>(
@@ -208,6 +208,83 @@ void ProbeChannelDevices(IdeChannel* channel) {
 
     channel->devices.push_back(std::move(device));
   }
+}
+
+void PrintSenseData(IdeChannel* channel, uint16 bus) {
+  if (channel->devices.empty()) return;
+
+  // Select drive
+  SelectDriveOnBusIfNotSelected(channel, channel->devices[0]->master_drive);
+
+  // Disable interrupts during this PIO command
+  Write8BitsToPort(ATA_DCR(bus), 0x02);
+
+  // Request 18 bytes of sense data
+  Write8BitsToPort(ATA_FEATURES(bus), 0);  // PIO mode
+  Write8BitsToPort(ATA_ADDRESS2(bus), 18 & 0xFF);
+  Write8BitsToPort(ATA_ADDRESS3(bus), 18 >> 8);
+
+  // Send packet command
+  Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_PACKET);
+
+  // Poll for BSY=0, DRQ=1
+  uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
+  int timeout = 1000;
+  while ((status & ATA_SR_BSY) || !(status & 0x08)) {
+    if (status & ATA_SR_ERR) {
+      std::cout << "REQUEST SENSE failed: Status = " << (int)status
+                << std::endl;
+      Write8BitsToPort(ATA_DCR(bus), 0x00);
+      return;
+    }
+    SleepForDuration(std::chrono::milliseconds(1));
+    status = Read8BitsFromPort(ATA_COMMAND(bus));
+    if (--timeout == 0) {
+      std::cout << "REQUEST SENSE timeout waiting for DRQ" << std::endl;
+      Write8BitsToPort(ATA_DCR(bus), 0x00);
+      return;
+    }
+  }
+
+  // Send REQUEST SENSE packet (12 bytes)
+  uint8 packet[12] = {0x03, 0, 0, 0, 18, 0, 0, 0, 0, 0, 0, 0};
+  for (int i = 0; i < 12; i += 2) {
+    Write16BitsToPort(ATA_DATA(bus), *(uint16*)&packet[i]);
+  }
+
+  // Poll for BSY=0
+  status = Read8BitsFromPort(ATA_COMMAND(bus));
+  timeout = 1000;
+  while ((status & ATA_SR_BSY)) {
+    SleepForDuration(std::chrono::milliseconds(1));
+    status = Read8BitsFromPort(ATA_COMMAND(bus));
+    if (--timeout == 0) {
+      std::cout << "REQUEST SENSE timeout waiting for data" << std::endl;
+      Write8BitsToPort(ATA_DCR(bus), 0x00);
+      return;
+    }
+  }
+
+  if (status & ATA_SR_ERR) {
+    std::cout << "REQUEST SENSE drive error: Status = " << (int)status
+              << std::endl;
+    Write8BitsToPort(ATA_DCR(bus), 0x00);
+    return;
+  }
+
+  // Read 18 bytes (9 words) of sense data
+  uint16 sense_buffer[9];
+  for (int i = 0; i < 9; i++) {
+    sense_buffer[i] = Read16BitsFromPort(ATA_DATA(bus));
+  }
+
+  uint8* sense = (uint8*)sense_buffer;
+  std::cout << "ATAPI Sense Data: Key = " << (int)(sense[2] & 0x0F)
+            << " ASC = " << (int)sense[12] << " ASCQ = " << (int)sense[13]
+            << std::endl;
+
+  // Re-enable interrupts
+  Write8BitsToPort(ATA_DCR(bus), 0x00);
 }
 
 Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
@@ -261,208 +338,322 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
     }
   };
 
-  if (can_do_dma) {
-    transfers.resize(sectors_to_read);
-
-    // If writing is disabled, allocate pages to assign to the shared memory
-    // later
-    if (!request->can_write) {
-      size_t start_page = request->offset_in_buffer / kPageSize;
-      size_t end_page =
-          (request->offset_in_buffer + request->bytes_to_copy - 1) / kPageSize;
-      size_t num_pages = end_page - start_page + 1;
-
-      allocated_pages.resize(num_pages, nullptr);
-      for (size_t p = 0; p < num_pages; p++) {
-        size_t page_index = start_page + p;
-        size_t page_offset = page_index * kPageSize;
-
-        void* new_page = AllocateMemoryPages(1);
-        allocated_pages[p] = new_page;
-
-        bool does_old_memory_exist =
-            request->shared_memory->IsPageAllocated(page_offset);
-        if (does_old_memory_exist) {
-          memcpy(new_page, &request->destination_buffer[page_offset],
-                 kPageSize);
-        } else {
-          memset(new_page, 0, kPageSize);
+  bool has_reset = false;
+  while (true) {
+    if (can_do_dma) {
+      uint16 bus_master_id = channel->registers.bus_master_id;
+      // Force allocation of lazy pages by reading/writing to them.
+      if (request->can_write) {
+        volatile uint8* ptr = request->destination_buffer;
+        size_t start = request->offset_in_buffer;
+        size_t end = request->offset_in_buffer + request->bytes_to_copy;
+        for (size_t addr = start; addr < end; addr += kPageSize) {
+          ptr[addr] = ptr[addr];
         }
-      }
-    }
-
-    size_t current_bytes_to_copy = request->bytes_to_copy;
-    size_t current_skip_bytes = skip_bytes;
-    size_t current_buffer_offset = request->offset_in_buffer;
-
-    for (size_t i = 0; i < sectors_to_read; i++) {
-      size_t copy_size =
-          std::min((size_t)ATAPI_SECTOR_SIZE - current_skip_bytes,
-                   (size_t)current_bytes_to_copy);
-      uint8* dest_addr = get_virtual_address(current_buffer_offset);
-
-      bool needs_scratch = false;
-      if (current_skip_bytes > 0 || copy_size < ATAPI_SECTOR_SIZE) {
-        needs_scratch = true;
-      } else {
-        size_t phys_start =
-            GetPhysicalAddressOfVirtualAddress((size_t)dest_addr);
-        size_t phys_end = GetPhysicalAddressOfVirtualAddress(
-            (size_t)(dest_addr + ATAPI_SECTOR_SIZE - 1));
-        if (phys_start != 0 && phys_start <= 0xFFFFFFFF &&
-            phys_end == phys_start + ATAPI_SECTOR_SIZE - 1 &&
-            (phys_start / 65536) == (phys_end / 65536)) {
-          transfers[i].phys_address = phys_start;
-        } else {
-          needs_scratch = true;
+        if (start < end) {
+          ptr[end - 1] = ptr[end - 1];
         }
       }
 
-      if (needs_scratch) {
-        if (scratch_sectors_used >= 2) {
-          can_do_dma = false;
+      // If writing is disabled, allocate pages to assign to the shared memory
+      // later (only if not already allocated from a previous attempt)
+      if (!request->can_write && allocated_pages.empty()) {
+        size_t start_page = request->offset_in_buffer / kPageSize;
+        size_t end_page =
+            (request->offset_in_buffer + request->bytes_to_copy - 1) /
+            kPageSize;
+        size_t num_pages = end_page - start_page + 1;
+
+        allocated_pages.resize(num_pages, nullptr);
+        for (size_t p = 0; p < num_pages; p++) {
+          size_t page_index = start_page + p;
+          size_t page_offset = page_index * kPageSize;
+
+          void* new_page = AllocateMemoryPages(1);
+          allocated_pages[p] = new_page;
+
+          bool does_old_memory_exist =
+              request->shared_memory->IsPageAllocated(page_offset);
+          if (does_old_memory_exist) {
+            memcpy(new_page, &request->destination_buffer[page_offset],
+                   kPageSize);
+          } else {
+            memset(new_page, 0, kPageSize);
+          }
+        }
+      }
+
+      SelectDriveOnBusIfNotSelected(channel, request->master_drive);
+
+      size_t total_sectors_to_read = sectors_to_read;
+      size_t sectors_already_read = 0;
+      size_t current_bytes_to_copy = request->bytes_to_copy;
+      size_t current_skip_bytes = skip_bytes;
+      size_t current_buffer_offset = request->offset_in_buffer;
+      bool command_failed = false;
+
+      while (sectors_already_read < total_sectors_to_read) {
+        size_t chunk_sectors =
+            std::min((size_t)256, total_sectors_to_read - sectors_already_read);
+        size_t chunk_start_lba = start_lba + sectors_already_read;
+
+        std::vector<SectorTransfer> chunk_transfers(chunk_sectors);
+        int chunk_scratch_sectors_used = 0;
+
+        for (size_t i = 0; i < chunk_sectors; i++) {
+          size_t copy_size =
+              std::min((size_t)ATAPI_SECTOR_SIZE - current_skip_bytes,
+                       (size_t)current_bytes_to_copy);
+          uint8* dest_addr = get_virtual_address(current_buffer_offset);
+
+          bool needs_scratch = false;
+          if (current_skip_bytes > 0 || copy_size < ATAPI_SECTOR_SIZE) {
+            needs_scratch = true;
+          } else {
+            size_t phys_start =
+                GetPhysicalAddressOfVirtualAddress((size_t)dest_addr);
+            size_t phys_end = GetPhysicalAddressOfVirtualAddress(
+                (size_t)(dest_addr + ATAPI_SECTOR_SIZE - 1));
+            if (phys_start != 0 && phys_start <= 0xFFFFFFFF &&
+                phys_end == phys_start + ATAPI_SECTOR_SIZE - 1 &&
+                (phys_start / 65536) == (phys_end / 65536)) {
+              chunk_transfers[i].phys_address = phys_start;
+            } else {
+              needs_scratch = true;
+            }
+          }
+
+          if (needs_scratch) {
+            if (chunk_scratch_sectors_used >= 2) {
+              std::cout << "Falling back to PIO because chunk scratch sectors "
+                           "used >= 2"
+                        << std::endl;
+              can_do_dma = false;
+              break;
+            }
+            chunk_transfers[i].use_scratch = true;
+            chunk_transfers[i].scratch_offset =
+                kPageSize + (chunk_scratch_sectors_used * ATAPI_SECTOR_SIZE);
+            chunk_transfers[i].phys_address =
+                GetPhysicalAddressOfVirtualAddress(
+                    (size_t)(storage_device->GetScratchPage() +
+                             chunk_transfers[i].scratch_offset));
+            chunk_transfers[i].dest_virtual_address = dest_addr;
+            chunk_transfers[i].copy_size = copy_size;
+            chunk_transfers[i].skip_bytes = current_skip_bytes;
+            chunk_scratch_sectors_used++;
+          } else {
+            chunk_transfers[i].use_scratch = false;
+            chunk_transfers[i].dest_virtual_address = dest_addr;
+          }
+
+          current_bytes_to_copy -= copy_size;
+          current_buffer_offset += copy_size;
+          current_skip_bytes = 0;
+        }
+
+        if (!can_do_dma) break;  // Fall back to PIO
+
+        // Populate PRDT (Physical Region Descriptor Table) for this chunk
+        uint32* prdt = (uint32*)storage_device->GetScratchPage();
+        for (size_t i = 0; i < chunk_sectors; i++) {
+          size_t prdt_offset = i * 2;
+          prdt[prdt_offset] = (uint32)chunk_transfers[i].phys_address;
+
+          uint16 byte_count = ATAPI_SECTOR_SIZE;
+          uint16 status = (i == chunk_sectors - 1) ? (1 << 15) : 0;
+          prdt[prdt_offset + 1] = byte_count | (status << 16);
+        }
+
+        // Stop DMA and set direction to read (bit 3 = 0)
+        Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), 0);
+        // Clear Interrupt and Error status bits
+        Write8BitsToPort(ATA_BMR_STATUS(bus_master_id), 6);
+        // Set PRDT address
+        Write32BitsToPort(
+            ATA_BMR_PRDT(bus_master_id),
+            (size_t)storage_device->GetScratchPagePhysicalAddress());
+
+        // Wait for the drive to be ready (not busy, not data-requesting)
+        uint8 ready_status = Read8BitsFromPort(ATA_COMMAND(bus));
+        int ready_timeout = 1000;
+        while ((ready_status & (ATA_SR_BSY | ATA_SR_DRQ))) {
+          SleepForDuration(std::chrono::milliseconds(1));
+          ready_status = Read8BitsFromPort(ATA_COMMAND(bus));
+          if (--ready_timeout == 0) {
+            std::cout
+                << "IDE Warning: Drive busy before command start! Status = "
+                << (int)ready_status << std::endl;
+            break;
+          }
+        }
+
+        // Disable interrupts during the packet-ready phase
+        Write8BitsToPort(ATA_DCR(bus), 0x02);
+
+        // Write Features / Address registers for DMA mode
+        Write8BitsToPort(ATA_FEATURES(bus), 1);  // DMA mode
+        Write8BitsToPort(ATA_ADDRESS2(bus), 0);
+        Write8BitsToPort(ATA_ADDRESS3(bus), 0);
+
+        // Send packet command
+        Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_PACKET);
+        ResetInterrupt(channel->waiting_on_interrupt,
+                       channel->interrupt_triggered);
+
+        // Poll while busy
+        uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
+        int poll_timeout = 100;
+        while ((status & ATA_SR_BSY) ||
+               !(status & (ATA_REG_SECCOUNT1 | ATA_REG_ERROR))) {
+          SleepForDuration(std::chrono::milliseconds(10));
+          status = Read8BitsFromPort(ATA_COMMAND(bus));
+          if (--poll_timeout == 0) {
+            std::cout << "IDE Error: Timeout waiting for packet command ready! "
+                         "Status = "
+                      << (int)status << std::endl;
+            break;
+          }
+        }
+
+        if (!(status & ATA_REG_SECCOUNT1) || (status & ATA_REG_ERROR)) {
+          Write8BitsToPort(ATA_DCR(bus),
+                           0x00);  // Re-enable interrupts on error
+          command_failed = true;
           break;
         }
-        transfers[i].use_scratch = true;
-        transfers[i].scratch_offset =
-            kPageSize + (scratch_sectors_used * ATAPI_SECTOR_SIZE);
-        transfers[i].phys_address = GetPhysicalAddressOfVirtualAddress(
-            (size_t)(storage_device->GetScratchPage() +
-                     transfers[i].scratch_offset));
-        transfers[i].dest_virtual_address = dest_addr;
-        transfers[i].copy_size = copy_size;
-        transfers[i].skip_bytes = current_skip_bytes;
-        scratch_sectors_used++;
-      } else {
-        transfers[i].use_scratch = false;
+
+        // Send the ATAPI packet
+        uint16 atapi_packet[6];
+        atapi_packet[0] = ATAPI_CMD_READ10 | (0 << 8);
+        atapi_packet[1] = ((chunk_start_lba >> 24) & 0xFF) |
+                          (((chunk_start_lba >> 16) & 0xFF) << 8);
+        atapi_packet[2] = ((chunk_start_lba >> 8) & 0xFF) |
+                          (((chunk_start_lba >> 0) & 0xFF) << 8);
+        atapi_packet[3] = 0 | (((chunk_sectors >> 8) & 0xFF) << 8);
+        atapi_packet[4] = ((chunk_sectors >> 0) & 0xFF) | (0 << 8);
+        atapi_packet[5] = 0;
+
+        // Re-enable interrupts before starting DMA transfer
+        Write8BitsToPort(ATA_DCR(bus), 0x00);
+
+        // Clear the interrupt triggered flag
+        channel->interrupt_triggered.store(false, std::memory_order_release);
+
+        // Start Bus Master DMA Engine
+        Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id),
+                         ATA_BMR_COMMAND_START_BIT);
+
+        for (int i = 0; i < 6; i++)
+          Write16BitsToPort(ATA_DATA(bus), atapi_packet[i]);
+
+        // Wait for the interrupt signaling end of transfer
+        WaitForInterrupt(channel->waiting_on_interrupt,
+                         channel->interrupt_triggered);
+
+        // Stop Bus Master DMA
+        Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), 0);
+
+        // Check IDE status register to acknowledge the interrupt and check for
+        // errors
+        uint8 ide_status = Read8BitsFromPort(ATA_COMMAND(bus));
+        if (ide_status & ATA_SR_ERR) {
+          uint8 error_reg =
+              ReadByteFromIdeController(&channel->registers, ATA_REG_ERROR);
+          std::cout << "IDE DMA Drive Error: Status = " << (int)ide_status
+                    << " Error Register = " << (int)error_reg << std::endl;
+          PrintSenseData(channel, bus);
+          command_failed = true;
+          break;
+        }
+
+        // Check bus master status
+        uint8 bmr_status = Read8BitsFromPort(ATA_BMR_STATUS(bus_master_id));
+        if (bmr_status & 2) {  // Error bit set
+          std::cout << "IDE DMA Bus Master Error: BMR Status = "
+                    << (int)bmr_status << std::endl;
+          command_failed = true;
+          break;
+        }
+
+        // Clear Interrupt and Error status bits in BMR status register
+        Write8BitsToPort(ATA_BMR_STATUS(bus_master_id), 6);
+
+        // Copy data from scratch buffer for any scratch sectors in this chunk
+        for (size_t i = 0; i < chunk_sectors; i++) {
+          if (chunk_transfers[i].use_scratch) {
+            memcpy(chunk_transfers[i].dest_virtual_address,
+                   storage_device->GetScratchPage() +
+                       chunk_transfers[i].scratch_offset +
+                       chunk_transfers[i].skip_bytes,
+                   chunk_transfers[i].copy_size);
+          }
+        }
+
+        sectors_already_read += chunk_sectors;
       }
 
-      current_bytes_to_copy -= copy_size;
-      current_buffer_offset += copy_size;
-      current_skip_bytes = 0;
+      if (can_do_dma && !command_failed) {
+        // If writing is disabled, assign all the allocated pages to shared
+        // memory
+        if (!request->can_write) {
+          size_t start_page = request->offset_in_buffer / kPageSize;
+          size_t end_page =
+              (request->offset_in_buffer + request->bytes_to_copy - 1) /
+              kPageSize;
+          size_t num_pages = end_page - start_page + 1;
+          for (size_t p = 0; p < num_pages; p++) {
+            size_t page_index = start_page + p;
+            request->shared_memory->AssignPage(allocated_pages[p],
+                                               page_index * kPageSize);
+          }
+        }
+
+        return Status::OK;
+      }
+
+      if (!can_do_dma) {
+        // Fallback to PIO, break out of loop to run PIO code below
+        break;
+      }
+
+      // command_failed is true
+      if (!has_reset) {
+        has_reset = true;
+        std::cout << "IDE DMA Read failed. Resetting channel and retrying..."
+                  << std::endl;
+
+        // Software Reset
+        Write8BitsToPort(ATA_DCR(bus), 0x04);  // SRST = 1
+        SleepForDuration(std::chrono::milliseconds(5));
+        Write8BitsToPort(ATA_DCR(bus), 0x00);  // SRST = 0
+        SleepForDuration(std::chrono::milliseconds(5));
+
+        // Re-select drive
+        SelectDriveOnBus(channel, request->master_drive);
+
+        // Reset status bits
+        Write8BitsToPort(ATA_BMR_STATUS(bus_master_id), 6);
+
+        continue;  // Retry the request from the beginning
+      } else {
+        // Already reset, still failed. Return failure.
+        if (!request->can_write) {
+          for (void* page : allocated_pages) {
+            if (page) ReleaseMemoryPages(page, 1);
+          }
+        }
+        return Status::INTERNAL_ERROR;
+      }
+    } else {
+      break;  // Run PIO fallback
     }
   }
 
-  if (can_do_dma) {
-    // Populate PRDT (Physical Region Descriptor Table)
-    uint32* prdt = (uint32*)storage_device->GetScratchPage();
-    for (size_t i = 0; i < sectors_to_read; i++) {
-      size_t prdt_offset = i * 2;
-      prdt[prdt_offset] = (uint32)transfers[i].phys_address;
-
-      uint16 byte_count = ATAPI_SECTOR_SIZE;
-      uint16 status = (i == sectors_to_read - 1) ? (1 << 15) : 0;
-      prdt[prdt_offset + 1] = byte_count | (status << 16);
-    }
-
-    uint16 bus_master_id = channel->registers.bus_master_id;
-
-    // Stop DMA and set direction to read (bit 3 = 0)
-    Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), 0);
-    // Clear Interrupt and Error status bits
-    Write8BitsToPort(ATA_BMR_STATUS(bus_master_id), 6);
-    // Set PRDT address
-    Write32BitsToPort(ATA_BMR_PRDT(bus_master_id),
-                      (size_t)storage_device->GetScratchPagePhysicalAddress());
-
-    // Write Features / Address registers for DMA mode
-    Write8BitsToPort(ATA_FEATURES(bus), 1);  // DMA mode
-    Write8BitsToPort(ATA_ADDRESS2(bus), 0);
-    Write8BitsToPort(ATA_ADDRESS3(bus), 0);
-
-    // Send packet command
-    Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_PACKET);
-    ResetInterrupt(channel->waiting_on_interrupt, channel->interrupt_triggered);
-
-    // Poll while busy
-    uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
-    while ((status & ATA_SR_BSY) ||
-           !(status & (ATA_REG_SECCOUNT1 | ATA_REG_ERROR))) {
-      SleepForDuration(std::chrono::milliseconds(10));
-      status = Read8BitsFromPort(ATA_COMMAND(bus));
-    }
-
-    if (status & ATA_REG_ERROR) {
-      if (!request->can_write) {
-        for (void* page : allocated_pages) {
-          if (page) ReleaseMemoryPages(page, 1);
-        }
-      }
-      return ::perception::Status::MISSING_MEDIA;
-    }
-
-    // Send the ATAPI packet
-    uint8 atapi_packet[12] = {ATAPI_CMD_READ,
-                              0,
-                              uint8((start_lba >> 0x18) & 0xFF),
-                              uint8((start_lba >> 0x10) & 0xFF),
-                              uint8((start_lba >> 0x08) & 0xFF),
-                              uint8((start_lba >> 0x00) & 0xFF),
-                              uint8((sectors_to_read >> 0x18) & 0xFF),
-                              uint8((sectors_to_read >> 0x10) & 0xFF),
-                              uint8((sectors_to_read >> 0x08) & 0xFF),
-                              uint8((sectors_to_read >> 0x00) & 0xFF),
-                              0,
-                              0};
-
-    // Clear the interrupt triggered flag since the packet phase might have
-    // triggered a packet-ready interrupt to ignore during the DMA transfer
-    // phase.
-    channel->interrupt_triggered.store(false, std::memory_order_release);
-
-    for (int byte = 0; byte < 12; byte += 2)
-      Write16BitsToPort(ATA_DATA(bus), *(uint16*)&atapi_packet[byte]);
-
-    // Start Bus Master DMA Engine
-    Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), ATA_BMR_COMMAND_START_BIT);
-
-    // Wait for the interrupt signaling end of transfer
-    WaitForInterrupt(channel->waiting_on_interrupt,
-                     channel->interrupt_triggered);
-
-    // Stop Bus Master DMA
-    Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), 0);
-
-    // Check status
-    uint8 bmr_status = Read8BitsFromPort(ATA_BMR_STATUS(bus_master_id));
-    if (bmr_status & 2) {  // Error bit set
-      if (!request->can_write) {
-        for (void* page : allocated_pages) {
-          if (page) ReleaseMemoryPages(page, 1);
-        }
-      }
-      std::cout << "IDE DMA Error: BMR Status = " << (int)bmr_status
-                << std::endl;
-      return Status::INTERNAL_ERROR;
-    }
-
-    // Copy data from scratch buffer for any scratch sectors
-    for (size_t i = 0; i < sectors_to_read; i++) {
-      if (transfers[i].use_scratch) {
-        memcpy(transfers[i].dest_virtual_address,
-               storage_device->GetScratchPage() + transfers[i].scratch_offset +
-                   transfers[i].skip_bytes,
-               transfers[i].copy_size);
-      }
-    }
-
-    // If writing is disabled, assign all the allocated pages to shared memory
-    if (!request->can_write) {
-      size_t start_page = request->offset_in_buffer / kPageSize;
-      size_t end_page =
-          (request->offset_in_buffer + request->bytes_to_copy - 1) / kPageSize;
-      size_t num_pages = end_page - start_page + 1;
-      for (size_t p = 0; p < num_pages; p++) {
-        size_t page_index = start_page + p;
-        request->shared_memory->AssignPage(allocated_pages[p],
-                                           page_index * kPageSize);
-      }
-    }
-
-    return Status::OK;
-  } else {
-    // If pages were allocated for DMA and a fallback to PIO occurs, free
-    // them first
+  // Fallback to PIO code path
+  {
+    // If pages were allocated for DMA and a fallback to PIO occurs, free them
+    // first
     if (!request->can_write) {
       for (void* page : allocated_pages) {
         if (page) ReleaseMemoryPages(page, 1);
@@ -609,11 +800,11 @@ void ChannelWorkerThread(IdeChannel* channel) {
   while (true) {
     IdeRequest* request = channel->queue.Pop();
     if (request == nullptr) {
-      channel->worker_thread_sleeping.store(true, std::memory_order_release);
+      channel->worker_thread_sleeping.store(true, std::memory_order_seq_cst);
       if (channel->queue.Peek() == nullptr) {
         SleepThisThread();
       }
-      channel->worker_thread_sleeping.store(false, std::memory_order_release);
+      channel->worker_thread_sleeping.store(false, std::memory_order_seq_cst);
       continue;
     }
 
