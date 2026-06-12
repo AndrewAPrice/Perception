@@ -1,0 +1,134 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/glennrp/libpng.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/png.h",
+            "destination": "public/png.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngconf.h",
+            "destination": "public/pngconf.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pnglibconf.h.prebuilt",
+            "destination": "public/pnglibconf.h",
+            "replace": [
+                {
+                    "file": "public/pnglibconf.h",
+                    "replacements": [
+                        ["#define PNG_TARGET_SPECIFIC_CODE_SUPPORTED", "/*#undef PNG_TARGET_SPECIFIC_CODE_SUPPORTED*/"]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngpriv.h",
+            "destination": "source/pngpriv.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngstruct.h",
+            "destination": "source/pngstruct.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pnginfo.h",
+            "destination": "source/pnginfo.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngtarget.h",
+            "destination": "source/pngtarget.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngdebug.h",
+            "destination": "source/pngdebug.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/png.c",
+            "destination": "source/png.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngerror.c",
+            "destination": "source/pngerror.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngget.c",
+            "destination": "source/pngget.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngmem.c",
+            "destination": "source/pngmem.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngpread.c",
+            "destination": "source/pngpread.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngread.c",
+            "destination": "source/pngread.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngrio.c",
+            "destination": "source/pngrio.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngrtran.c",
+            "destination": "source/pngrtran.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngrutil.c",
+            "destination": "source/pngrutil.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngset.c",
+            "destination": "source/pngset.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngtrans.c",
+            "destination": "source/pngtrans.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngwio.c",
+            "destination": "source/pngwio.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngwrite.c",
+            "destination": "source/pngwrite.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngwtran.c",
+            "destination": "source/pngwtran.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/pngwutil.c",
+            "destination": "source/pngwutil.c"
+        }
+    ]
+}

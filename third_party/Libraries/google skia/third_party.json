@@ -94,14 +94,9 @@
         {
             "operation": "copy",
             "source": "${git}/include/private",
-            "destination": "public/include/private"
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/include/private/base",
-            "destination": "public/include/private/base",
+            "destination": "public/include/private",
             "replace": [{
-                "file": "public/include/private/base/SkFeatures.h",
+                "file": "public/include/private/SkFeatures.h",
                 "replacements": [["defined(__GLIBC__) || defined(__GNU__) || defined(__unix__)","defined(__GLIBC__) || defined(__GNU__) || defined(__unix__) || defined(PERCEPTION)"]]
             }]
         },
@@ -153,21 +148,13 @@
             "source": "${git}/src/codec",
             "destination": "source/src/codec",
             "exclude": [
-                "source/src/codec/SkIcoCodec.cpp",
-                "source/src/codec/SkIcoCodec.h",
                 "source/src/codec/SkRawCodec.cpp",
                 "source/src/codec/SkRawCodec.h",
-                "source/src/codec/SkWuffsCodec.cpp",
-                "source/src/codec/SkWuffsCodec.h",
-                "source/src/codec/SkWebpCodec.cpp",
-                "source/src/codec/SkWebpCodec.h",
                 "source/src/codec/SkAvifCodec.cpp",
                 "source/src/codec/SkAvifCodec.h",
                 "source/src/codec/SkJpegxlCodec.cpp",
                 "source/src/codec/SkJpegxlCodec.h",
                 "source/src/codec/SkPngRustCodec.cpp",
-                "source/src/codec/SkPngCodec.cpp",
-                "source/src/codec/SkPngCodec.cpp.h",
                 "source/src/codec/SkPngRustDecoder.cpp",
                 "source/src/codec/SkPngRustCodec.h",
                 "source/src/codec/SkCodecColorProfileRust.cpp",
@@ -389,6 +376,12 @@
                 "source/src/ports/SkTypeface_win_dw.cpp",
                 "source/src/ports/SkTypeface_win_dw.h"
             ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/partition_alloc",
+            "destination": "source/src/partition_alloc",
+            "recursive": true
         },
         {
             "operation": "copy",

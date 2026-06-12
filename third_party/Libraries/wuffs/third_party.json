@@ -1,0 +1,16 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/google/wuffs-mirror-release-c.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/release/c/wuffs-v0.3.c",
+            "destination": "public/wuffs-v0.3.c"
+        }
+    ]
+}

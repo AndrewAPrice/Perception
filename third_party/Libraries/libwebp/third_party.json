@@ -1,0 +1,47 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/webmproject/libwebp.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/src/webp",
+            "destination": "public/src/webp"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/enc",
+            "destination": "public/src/enc",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/dec",
+            "destination": "source/src/dec"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/utils",
+            "destination": "source/src/utils"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/dsp",
+            "destination": "source/src/dsp"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/sharpyuv",
+            "destination": "source/sharpyuv"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/demux",
+            "destination": "source/src/demux"
+        }
+    ]
+}
