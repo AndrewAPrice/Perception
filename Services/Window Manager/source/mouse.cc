@@ -161,6 +161,25 @@ const char* kResizeDiagonalTopRightBottomLeftSprite =
     "BWWWWWWB.....\n"
     "BBBBBBBBB....";
 
+const char* kCaretSprite =
+    "BBBBBBB\n"
+    "BWWWWWB\n"
+    "BBBWBBB\n"
+    "..BWB..\n"
+    "..BWB..\n"
+    "..BWB..\n"
+    "..BWB..\n"
+    "..BWB..\n"
+    "..BWB..\n"
+    "..BWB..\n"
+    "..BWB..\n"
+    "..BWB..\n"
+    "..BWB..\n"
+    "..BWB..\n"
+    "BBBWBBB\n"
+    "BWWWWWB\n"
+    "BBBBBBB";
+
 struct CursorDef {
   const char* sprite;
   Size size;
@@ -175,7 +194,8 @@ CursorDef cursor_defs[] = {
     {kResizeHorizontalSprite, {19, 11}, {9, 5}, 0},
     {kResizeVerticalSprite, {11, 19}, {5, 9}, 0},
     {kResizeDiagonalTopLeftBottomRightSprite, {13, 13}, {6, 6}, 0},
-    {kResizeDiagonalTopRightBottomLeftSprite, {13, 13}, {6, 6}, 0}};
+    {kResizeDiagonalTopRightBottomLeftSprite, {13, 13}, {6, 6}, 0},
+    {kCaretSprite, {7, 17}, {3, 8}, 0}};
 
 void LoadSprite(std::string_view sprite, int width, int height,
                 uint32* destination) {
@@ -203,7 +223,7 @@ void LoadSprite(std::string_view sprite, int width, int height,
 Rectangle MouseBounds() {
   auto cursor_type = Window::GetCursorAtPoint(mouse_position);
   int idx = static_cast<int>(cursor_type);
-  if (idx < 0 || idx >= 7) idx = 0;
+  if (idx < 0 || idx >= 8) idx = 0;
   const auto& def = cursor_defs[idx];
   return Rectangle{.origin = mouse_position - def.hotspot, .size = def.size};
 }
@@ -270,7 +290,7 @@ void InitializeMouse() {
       });
 
   // Create a texture for each cursor.
-  for (int i = 0; i < 7; i++) {
+  for (int i = 0; i < 8; i++) {
     auto& def = cursor_defs[i];
     graphics::CreateTextureRequest create_texture_request;
     create_texture_request.size.width = def.size.width;
@@ -300,7 +320,7 @@ void DrawMouse(const Rectangle& draw_area) {
 
   auto cursor_type = Window::GetCursorAtPoint(mouse_position);
   int idx = static_cast<int>(cursor_type);
-  if (idx < 0 || idx >= 7) idx = 0;
+  if (idx < 0 || idx >= 8) idx = 0;
   const auto& def = cursor_defs[idx];
 
   Point offset = intersection->origin - mouse_bounds.origin;

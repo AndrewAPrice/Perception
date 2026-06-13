@@ -23,7 +23,8 @@ enum class Cursor {
   ResizeHorizontal = 3,
   ResizeVertical = 4,
   ResizeDiagonalTopLeftBottomRight = 5,
-  ResizeDiagonalTopRightBottomLeft = 6
+  ResizeDiagonalTopRightBottomLeft = 6,
+  Caret = 7
 };
 
 }  // namespace window
