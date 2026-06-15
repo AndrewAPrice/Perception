@@ -357,8 +357,11 @@ int main(int argc, char* argv[]) {
       "Calculator",
       [](UiWindow& window) { window.OnClose([]() { TerminateProcess(); }); },
       Container::HorizontalContainer(
-          [](Layout& layout) { layout.SetFlexGrow(1.0); }, button_panel,
-          terminal_container));
+          [](Layout& layout) {
+            layout.SetFlexGrow(1.0);
+            layout.SetWidth(400);
+          },
+          button_panel, terminal_container));
 
   HandOverControl();
   return 0;
