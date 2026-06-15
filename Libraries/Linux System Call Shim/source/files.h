@@ -45,6 +45,7 @@ struct FileDescriptor {
 
   struct Socket {
     perception::network::Socket::Client socket;
+    bool non_blocking = false;
   } socket;
 };
 

@@ -14,16 +14,33 @@
 
 #include "linux_syscalls/readlink.h"
 
-#include "perception/debug.h"
 #include <errno.h>
+#include <string.h>
+
+#include <algorithm>
+
+#include "perception/services.h"
+#include "perception/storage_manager.h"
+
+using ::perception::GetService;
+using ::perception::StorageManager;
 
 namespace perception {
 namespace linux_syscalls {
 
-long readlink() {
-  perception::DebugPrinterSingleton
-      << "System call readlink is unimplemented.\n";
-  return -ENOSYS;
+long readlink(const char* pathname, char* buf, size_t bufsiz) {
+  auto status_or_response = GetService<StorageManager>().ReadLink({pathname});
+  if (status_or_response) {
+    size_t chars_to_copy = std::min(status_or_response->path.size(), bufsiz);
+    memcpy(buf, status_or_response->path.c_str(), chars_to_copy);
+    return chars_to_copy;
+  } else {
+    if (status_or_response.Status() == ::perception::Status::FILE_NOT_FOUND) {
+      return -ENOENT;
+    } else {
+      return -EINVAL;
+    }
+  }
 }
 
 }  // namespace linux_syscalls

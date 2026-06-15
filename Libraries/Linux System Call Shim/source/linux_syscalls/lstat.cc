@@ -13,13 +13,45 @@
 // limitations under the License.
 
 #include "linux_syscalls/lstat.h"
+
+#include <errno.h>
+#include <string.h>
+#include <sys/stat.h>
+
 #include "linux_syscalls/stat.h"
+#include "perception/services.h"
+#include "perception/storage_manager.h"
+
+using ::perception::DirectoryEntry;
+using ::perception::GetService;
+using ::perception::StorageManager;
 
 namespace perception {
 namespace linux_syscalls {
 
 long lstat(const char* pathname, struct kstat* statbuf) {
-  return ::perception::linux_syscalls::stat(pathname, statbuf);
+  auto status_or_response =
+      GetService<StorageManager>().GetFileStatistics({pathname, true});
+  if (!status_or_response) {
+    if (status_or_response.Status() == ::perception::Status::FILE_NOT_FOUND)
+      return -ENOENT;
+    return -EINVAL;
+  }
+
+  if (!status_or_response->exists) return -ENOENT;
+
+  memset(statbuf, 0, sizeof(struct kstat));
+  if (status_or_response->is_link) {
+    statbuf->st_mode = S_IFLNK;
+    statbuf->st_size = status_or_response->size_in_bytes;
+  } else if (status_or_response->type == DirectoryEntry::Type::DIRECTORY) {
+    statbuf->st_mode = S_IFDIR;
+  } else {
+    statbuf->st_mode = S_IFREG;
+    statbuf->st_size = status_or_response->size_in_bytes;
+  }
+
+  return 0;
 }
 
 }  // namespace linux_syscalls

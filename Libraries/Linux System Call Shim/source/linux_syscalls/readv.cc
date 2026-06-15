@@ -32,11 +32,24 @@ namespace {
 
 long ReadSocket(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
                 long iovcnt) {
+  if (iovcnt < 0) {
+    errno = EINVAL;
+    return -1;
+  }
   // Count how many bytes to read.
   size_t bytes_to_read = 0;
   for (int io_entry = 0; io_entry < iovcnt; io_entry++) {
     const auto& io = ((const iovec*)iov)[io_entry];
+    if ((ssize_t)io.iov_len < 0) {
+      errno = EINVAL;
+      return -1;
+    }
     bytes_to_read += (size_t)io.iov_len;
+  }
+
+  if ((ssize_t)bytes_to_read < 0) {
+    errno = EINVAL;
+    return -1;
   }
 
   if (bytes_to_read == 0) {
@@ -44,13 +57,27 @@ long ReadSocket(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
   }
 
   ReceiveRequest request;
-  request.max_bytes = bytes_to_read;
+  request.max_bytes = std::min(bytes_to_read, (size_t)4096);
+  request.non_blocking = descriptor->socket.non_blocking;
   auto status_or_res = descriptor->socket.socket.Receive(request);
+
   if (!status_or_res) {
-    errno = ECONNRESET;
-    return -1;
+    ::perception::DebugPrinterSingleton << "ReadSocket: Receive RPC failed!\n";
+    return -ECONNRESET;
   }
 
+  if (status_or_res->data.empty()) {
+    if (status_or_res->closed) {
+      ::perception::DebugPrinterSingleton
+          << "ReadSocket: socket closed (EOF)\n";
+      return 0;
+    } else {
+      ::perception::DebugPrinterSingleton
+          << "ReadSocket: no data, non_blocking=" << (int64)request.non_blocking
+          << " -> returning -EAGAIN (" << (int64)-EAGAIN << ")\n";
+      return -EAGAIN;
+    }
+  }
   std::string received_data = status_or_res->data;
   size_t copied_bytes = 0;
   for (int io_entry = 0;
@@ -67,11 +94,24 @@ long ReadSocket(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
 
 long ReadFile(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
               long iovcnt) {
+  if (iovcnt < 0) {
+    errno = EINVAL;
+    return -1;
+  }
   // Count how many bytes to read.
   size_t bytes_to_read = 0;
   for (int io_entry = 0; io_entry < iovcnt; io_entry++) {
     const auto& io = ((const iovec*)iov)[io_entry];
+    if ((ssize_t)io.iov_len < 0) {
+      errno = EINVAL;
+      return -1;
+    }
     bytes_to_read += (size_t)io.iov_len;
+  }
+
+  if ((ssize_t)bytes_to_read < 0) {
+    errno = EINVAL;
+    return -1;
   }
 
   // Prune to how many bytes there actually are remaining in the file.
@@ -171,16 +211,21 @@ long readv(long fd, void* iov, long iovcnt) {
     return -1;
   }
 
+  long ret;
   switch (descriptor->type) {
     case FileDescriptor::SOCKET:
-      return ReadSocket(descriptor, iov, iovcnt);
+      ret = ReadSocket(descriptor, iov, iovcnt);
+      break;
     case FileDescriptor::FILE:
-      return ReadFile(descriptor, iov, iovcnt);
+      ret = ReadFile(descriptor, iov, iovcnt);
+      break;
     case FileDescriptor::DIRECTORY:
     default:
       errno = EINVAL;
-      return -1;
+      ret = -1;
+      break;
   }
+  return ret;
 }
 
 }  // namespace linux_syscalls

@@ -46,13 +46,15 @@ long fcntl(long fd, long cmd, long arg) {
       }
       break;
     case F_GETFL:
-      perception::DebugPrinterSingleton
-          << "Musl syscall fnctl called with unimplemented command F_GETFL\n";
-      break;
+      if (file_descriptor->type == FileDescriptor::SOCKET) {
+        return file_descriptor->socket.non_blocking ? O_NONBLOCK : 0;
+      }
+      return 0;
     case F_SETFL:
-      perception::DebugPrinterSingleton
-          << "Musl syscall fnctl called with unimplemented command F_SETFL\n";
-      break;
+      if (file_descriptor->type == FileDescriptor::SOCKET) {
+        file_descriptor->socket.non_blocking = (arg & O_NONBLOCK) != 0;
+      }
+      return 0;
     case F_SETLK:
       perception::DebugPrinterSingleton
           << "Musl syscall fnctl called with unimplemented command F_SETLK\n";

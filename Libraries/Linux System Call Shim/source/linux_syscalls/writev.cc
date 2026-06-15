@@ -31,15 +31,17 @@ long WriteSocket(const std::shared_ptr<FileDescriptor>& descriptor,
   std::string data_to_send = "";
   for (size_t i = 0; i < buffer_count; i++) {
     const auto& buffer = buffers[i];
-    data_to_send.append((const char*)buffer.iov_base, buffer.iov_len);
+    size_t to_append =
+        std::min((size_t)buffer.iov_len, 4096 - data_to_send.length());
+    data_to_send.append((const char*)buffer.iov_base, to_append);
+    if (data_to_send.length() >= 4096) break;
   }
 
   SendRequest request;
   request.data = data_to_send;
   auto status = descriptor->socket.socket.Send(request);
   if (status != Status::OK) {
-    errno = ECONNRESET;
-    return -1;
+    return -ECONNRESET;
   }
 
   return data_to_send.length();

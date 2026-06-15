@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stddef.h>
+
 namespace perception {
 namespace linux_syscalls {
 
-long readlinkat();
-
+long readlinkat(int dirfd, const char* pathname, char* buf, size_t bufsiz);
 }
 }  // namespace perception

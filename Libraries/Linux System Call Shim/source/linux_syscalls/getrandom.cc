@@ -14,16 +14,46 @@
 
 #include "linux_syscalls/getrandom.h"
 
-#include "perception/debug.h"
+#include <algorithm>
+#include <cstring>
 #include <errno.h>
+
+#include "perception/random.h"
 
 namespace perception {
 namespace linux_syscalls {
+namespace {
 
-long getrandom() {
-  perception::DebugPrinterSingleton
-      << "System call getrandom is unimplemented.\n";
-  return -ENOSYS;
+uint64_t xorshift64() {
+  static thread_local uint64_t state = 0;
+  if (state == 0) {
+    state = ::perception::RandomNumber();
+    if (state == 0) state = 1;
+  }
+  uint64_t x = state;
+  x ^= x >> 12;
+  x ^= x << 25;
+  x ^= x >> 27;
+  state = x;
+  return x * 0x2545F4914F6CDD1DULL;
+}
+
+}  // namespace
+
+long getrandom(void* buf, size_t buflen, unsigned int flags) {
+  if (buf == nullptr) return -EFAULT;
+
+  unsigned char* byte_ptr = reinterpret_cast<unsigned char*>(buf);
+  size_t bytes_written = 0;
+
+  while (bytes_written < buflen) {
+    uint64_t random_val = xorshift64();
+    size_t chunk_size = std::min(buflen - bytes_written, sizeof(uint64_t));
+    std::memcpy(byte_ptr + bytes_written, &random_val, chunk_size);
+    bytes_written += chunk_size;
+  }
+
+  return (long)buflen;
 }
 
 }  // namespace linux_syscalls

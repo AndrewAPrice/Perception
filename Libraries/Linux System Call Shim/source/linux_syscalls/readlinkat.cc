@@ -13,17 +13,13 @@
 // limitations under the License.
 
 #include "linux_syscalls/readlinkat.h"
-
-#include "perception/debug.h"
-#include <errno.h>
+#include "linux_syscalls/readlink.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long readlinkat() {
-  perception::DebugPrinterSingleton
-      << "System call readlinkat is unimplemented.\n";
-  return -ENOSYS;
+long readlinkat(int dirfd, const char* pathname, char* buf, size_t bufsiz) {
+  return ::perception::linux_syscalls::readlink(pathname, buf, bufsiz);
 }
 
 }  // namespace linux_syscalls

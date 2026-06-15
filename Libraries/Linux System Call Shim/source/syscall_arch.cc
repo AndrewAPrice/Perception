@@ -594,7 +594,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_getpriority:
       return ::perception::linux_syscalls::getpriority();
     case SYS_getrandom:
-      return ::perception::linux_syscalls::getrandom();
+      return ::perception::linux_syscalls::getrandom((void *)a1, (size_t)a2, (unsigned int)a3);
     case SYS_getresgid:
       return ::perception::linux_syscalls::getresgid();
     case SYS_getresuid:
@@ -839,9 +839,9 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_readahead:
       return ::perception::linux_syscalls::readahead();
     case SYS_readlink:
-      return ::perception::linux_syscalls::readlink();
+      return ::perception::linux_syscalls::readlink((const char *)a1, (char *)a2, (size_t)a3);
     case SYS_readlinkat:
-      return ::perception::linux_syscalls::readlinkat();
+      return ::perception::linux_syscalls::readlinkat((int)a1, (const char *)a2, (char *)a3, (size_t)a4);
     case SYS_readv:
       return (long)::perception::linux_syscalls::readv(a1, (void *)a2, a3);
     case SYS_reboot:

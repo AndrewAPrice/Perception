@@ -49,16 +49,21 @@ long getdents64(unsigned int fd, dirent *dirp, unsigned int count) {
   for (auto entry : status_or_response->entries) {
     if (return_index >= count / sizeof(dirent)) break;
 
-    switch (entry.type) {
-      case DirectoryEntry::Type::FILE:
-        dirp[return_index].d_type = DT_REG;
-        break;
-      case DirectoryEntry::Type::DIRECTORY:
-        dirp[return_index].d_type = DT_DIR;
-        break;
-      default:
-        perception::DebugPrinterSingleton << "Unhandled DirectoryEntry::Type " << (size_t)entry.type
-                  << " in Musl getdents64." << '\n';
+    if (entry.is_link) {
+      dirp[return_index].d_type = DT_LNK;
+    } else {
+      switch (entry.type) {
+        case DirectoryEntry::Type::FILE:
+          dirp[return_index].d_type = DT_REG;
+          break;
+        case DirectoryEntry::Type::DIRECTORY:
+          dirp[return_index].d_type = DT_DIR;
+          break;
+        default:
+          perception::DebugPrinterSingleton << "Unhandled DirectoryEntry::Type "
+                                            << (size_t)entry.type
+                                            << " in Musl getdents64." << '\n';
+      }
     }
 
     int chars_to_copy = entry.name.size();

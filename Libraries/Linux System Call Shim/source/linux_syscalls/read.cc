@@ -24,7 +24,7 @@ long read(int fd, void *buf, size_t count) {
   iovec iov;
   iov.iov_base = buf;
   iov.iov_len = count;
-  return readv(fd, &iov, 1);
+  return ::perception::linux_syscalls::readv(fd, &iov, 1);
 }
 
 }  // namespace linux_syscalls

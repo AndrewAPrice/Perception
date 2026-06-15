@@ -13,6 +13,10 @@
 // limitations under the License.
 
 #include "linux_syscalls/newfstatat.h"
+
+#include <fcntl.h>
+
+#include "linux_syscalls/lstat.h"
 #include "linux_syscalls/stat.h"
 
 namespace perception {
@@ -20,7 +24,11 @@ namespace linux_syscalls {
 
 long newfstatat(int dirfd, const char* pathname, struct kstat* statbuf,
                 int flags) {
-  return ::perception::linux_syscalls::stat(pathname, statbuf);
+  if ((flags & AT_SYMLINK_NOFOLLOW) != 0) {
+    return ::perception::linux_syscalls::lstat(pathname, statbuf);
+  } else {
+    return ::perception::linux_syscalls::stat(pathname, statbuf);
+  }
 }
 
 }  // namespace linux_syscalls

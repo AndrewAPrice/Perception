@@ -15,6 +15,7 @@
 #include "files.h"
 
 #include <map>
+#include <mutex>
 #include <errno.h>
 
 #include "perception/services.h"
@@ -27,6 +28,8 @@ using ::perception::StorageManager;
 
 namespace perception {
 namespace {
+
+std::mutex files_mutex;
 
 std::map<long, std::shared_ptr<FileDescriptor>> open_files;
 
@@ -50,6 +53,7 @@ std::map<size_t, std::shared_ptr<MemoryMappedFileEntry>>
 SharedMemoryPool<kPageSize> kSharedMemoryPool;
 
 long OpenDirectory(const char* path) {
+  std::lock_guard<std::mutex> lock(files_mutex);
   long id = GetUniqueFileId();
 
   auto descriptor = std::make_shared<FileDescriptor>();
@@ -79,6 +83,7 @@ long OpenFile(const char* path) {
   descriptor->file.size_in_bytes = status_or_response->size_in_bytes;
   descriptor->file.offset_in_file = 0;
 
+  std::lock_guard<std::mutex> lock(files_mutex);
   long id = GetUniqueFileId();
   open_files[id] = descriptor;
   return id;
@@ -89,12 +94,14 @@ long CreateSocketDescriptor(perception::network::Socket::Client socket) {
   descriptor->type = FileDescriptor::SOCKET;
   descriptor->socket.socket = socket;
 
+  std::lock_guard<std::mutex> lock(files_mutex);
   long id = GetUniqueFileId();
   open_files[id] = descriptor;
   return id;
 }
 
 std::shared_ptr<FileDescriptor> GetFileDescriptor(long id) {
+  std::lock_guard<std::mutex> lock(files_mutex);
   auto itr = open_files.find(id);
   if (itr == open_files.end())
     return std::shared_ptr<FileDescriptor>();
@@ -103,14 +110,18 @@ std::shared_ptr<FileDescriptor> GetFileDescriptor(long id) {
 }
 
 void CloseFile(long id) {
-  auto itr = open_files.find(id);
-  if (itr == open_files.end()) return;
+  std::shared_ptr<FileDescriptor> descriptor;
+  {
+    std::lock_guard<std::mutex> lock(files_mutex);
+    auto itr = open_files.find(id);
+    if (itr == open_files.end()) return;
+    descriptor = itr->second;
+    open_files.erase(itr);
+  }
 
-  if (itr->second->type == FileDescriptor::FILE) itr->second->file.file.Close();
-  if (itr->second->type == FileDescriptor::SOCKET)
-    itr->second->socket.socket.Close();
-
-  open_files.erase(itr);
+  if (descriptor->type == FileDescriptor::FILE) descriptor->file.file.Close();
+  if (descriptor->type == FileDescriptor::SOCKET)
+    descriptor->socket.socket.Close();
 }
 
 void* AddMemoryMappedFile(::perception::MemoryMappedFile::Client file,
@@ -123,6 +134,8 @@ void* AddMemoryMappedFile(::perception::MemoryMappedFile::Client file,
   mmfile->buffer = buffer;
   mmfile->first_page = (size_t)address;
   mmfile->last_page = ((size_t)address + size) & ~(kPageSize - 1);
+
+  std::lock_guard<std::mutex> lock(files_mutex);
   memory_mapped_files_by_first_page.insert(
       std::make_pair((size_t)address, mmfile));
 
@@ -130,12 +143,17 @@ void* AddMemoryMappedFile(::perception::MemoryMappedFile::Client file,
 }
 
 bool MaybeCloseMemoryMappedFile(size_t start_address) {
-  auto itr = memory_mapped_files_by_first_page.find(start_address);
-  if (itr == memory_mapped_files_by_first_page.end())
-    return false;  // Not a memory mapped file.
+  std::shared_ptr<MemoryMappedFileEntry> entry;
+  {
+    std::lock_guard<std::mutex> lock(files_mutex);
+    auto itr = memory_mapped_files_by_first_page.find(start_address);
+    if (itr == memory_mapped_files_by_first_page.end())
+      return false;  // Not a memory mapped file.
+    entry = itr->second;
+    memory_mapped_files_by_first_page.erase(itr);
+  }
 
-  itr->second->file.Close();
-  memory_mapped_files_by_first_page.erase(itr);
+  entry->file.Close();
   return true;
 }
 
