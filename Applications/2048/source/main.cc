@@ -278,7 +278,7 @@ int main(int argc, char* argv[]) {
               },
               Label::BasicLabel("2048"),
               Label::BasicLabel("Score: 0", &score_label),
-              Button::BasicButton(NewGame, Label::BasicLabel("New"))),
+              Button::BasicButton(NewGame, Label::BasicLabel("New Game"))),
           Block::SolidColor(
               0xFFBBADA0,
               [](Layout& layout) { layout.SetAlignSelf(YGAlignCenter); },
