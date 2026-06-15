@@ -230,8 +230,8 @@ YGValue Layout::GetWidth() { return YGNodeStyleGetWidth(yoga_node_); }
 float Layout::GetCalculatedWidth() { return YGNodeLayoutGetWidth(yoga_node_); }
 
 float Layout::GetCalculatedWidthWithMargin() {
-  return GetCalculatedWidth() + GetComputedPadding(YGEdgeLeft) +
-         GetComputedPadding(YGEdgeRight);
+  return GetCalculatedWidth() + GetComputedMargin(YGEdgeLeft) +
+         GetComputedMargin(YGEdgeRight);
 }
 
 void Layout::SetHeight(float height) {
@@ -251,8 +251,8 @@ float Layout::GetCalculatedHeight() {
 }
 
 float Layout::GetCalculatedHeightWithMargin() {
-  return GetCalculatedHeight() + GetComputedPadding(YGEdgeTop) +
-         GetComputedPadding(YGEdgeBottom);
+  return GetCalculatedHeight() + GetComputedMargin(YGEdgeTop) +
+         GetComputedMargin(YGEdgeBottom);
 }
 
 Size Layout::GetCalculatedSize() {
