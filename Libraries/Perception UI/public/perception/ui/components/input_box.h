@@ -57,14 +57,19 @@ class InputBox : public UniqueIdentifiableType<InputBox> {
   void SetTextColor(uint32 color);
   uint32 GetTextColor() const;
 
+  static void DrawTextBoxOuter(const DrawContext& draw_context, bool has_focus,
+                               bool is_hovering);
+
  private:
   std::weak_ptr<Node> node_;
   std::shared_ptr<Focusable> focusable_;
   SkFont* font_;
   std::string text_;
   size_t cursor_index_;
+  size_t selection_start_index_;
   float scroll_x_;
   bool shift_pressed_;
+  bool ctrl_pressed_;
   bool is_hovering_;
   bool is_pushed_;
   uint32 text_color_;
@@ -76,7 +81,7 @@ class InputBox : public UniqueIdentifiableType<InputBox> {
   Size Measure(float width, YGMeasureMode width_mode, float height,
                YGMeasureMode height_mode);
 
-  void MoveCursorToPoint(const Point& point);
+  void MoveCursorToPoint(const Point& point, bool extend_selection = false);
   void EnsureCursorVisible();
   void HandleKeyDown(const window::KeyboardKeyEvent& event);
   void HandleKeyUp(const window::KeyboardKeyEvent& event);

@@ -68,24 +68,31 @@ class Table : public UniqueIdentifiableType<Table> {
     std::shared_ptr<Node> rows_container;
 
     auto node = Container::VerticalContainer(
+        [&header_container, &rows_container, data_source,
+         columns](Table& table) {
+          table.Initialize(data_source, columns, header_container,
+                           rows_container);
+        },
         [](Block& block) {
-          block.SetFillColor(0xFFFFFFFF);    // White background
-          block.SetBorderColor(0xFFCCCCCC);  // Subtle border
-          block.SetBorderWidth(1.0f);        // Outline width
-          block.SetBorderRadius(4.0f);       // Rounded corners
+          block.SetFillColor(kTableBackgroundColor);
+          block.SetBorderColor(kTableBorderColor);
+          block.SetBorderWidth(kTableBorderWidth);
+          block.SetBorderRadius(kTableBorderRadius);
         },
         [](Layout& layout) {
           layout.SetFlexGrow(1.0f);
+          layout.SetFlexShrink(1.0f);
+          layout.SetMinHeight(0.0f);
           layout.SetGap(0.0f);
         },
         // Header row
         Container::HorizontalContainer(
             [](Block& block) {
-              block.SetFillColor(0xFFEAEAEA);  // Light gray background
+              block.SetFillColor(kTableHeaderBackgroundColor);
             },
             [](Layout& layout) {
               layout.SetWidthPercent(100.0f);
-              layout.SetPadding(YGEdgeVertical, 6.0f);
+              layout.SetPadding(YGEdgeVertical, kTableHeaderVerticalPadding);
               layout.SetGap(0.0f);
             },
             Node::Empty(
@@ -98,10 +105,10 @@ class Table : public UniqueIdentifiableType<Table> {
                 [](Layout& layout) { layout.SetWidth(ScrollBar::kWidth); })),
         // Divider
         Container::HorizontalContainer(
-            [](Block& block) { block.SetFillColor(0xFFCCCCCC); },
+            [](Block& block) { block.SetFillColor(kTableDividerColor); },
             [](Layout& layout) {
               layout.SetWidthPercent(100.0f);
-              layout.SetHeight(1.0f);
+              layout.SetHeight(kTableDividerHeight);
             }),
         // Scrollable body
         ScrollContainer::VerticalScrollContainer(
@@ -111,18 +118,14 @@ class Table : public UniqueIdentifiableType<Table> {
                   layout.SetWidthPercent(100.0f);
                 },
                 &rows_container),
-            [](Block& block) {
-              block.SetFillColor(0xFFFFFFFF);  // Solid white background
-            },
+            [](Block& block) { block.SetFillColor(kTableBackgroundColor); },
             [](Layout& layout) {
               layout.SetFlexGrow(1.0f);
+              layout.SetFlexShrink(1.0f);
+              layout.SetMinHeight(0.0f);
               layout.SetWidthPercent(100.0f);
               layout.SetGap(0.0f);
-            }),
-        [data_source, columns, header_container, rows_container](Table& table) {
-          table.Initialize(data_source, columns, header_container,
-                           rows_container);
-        });
+            }));
 
     node->Apply(modifiers...);
     return node;

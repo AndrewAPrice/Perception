@@ -36,12 +36,7 @@ TabBar::~TabBar() {}
 
 void TabBar::SetNode(std::weak_ptr<Node> node) {
   node_ = node;
-  if (node.expired()) {
-    return;
-  }
-  auto strong_node = node.lock();
-  strong_node->SetBlocksHitTest(true);
-
+  if (node.expired()) return;
   RebuildTabs();
 }
 
@@ -115,9 +110,10 @@ void TabBar::WindowChangedFocus(UiWindow& window) {
   }
 }
 
-void TabBar::AddTab(std::string_view label) {
+void TabBar::AddTab(std::string_view label, bool is_dimissable) {
   Tab new_tab;
   new_tab.label = std::string(label);
+  new_tab.is_dimissable = is_dimissable;
   tabs_.push_back(new_tab);
 
   if (selected_tab_index_ == -1) {
@@ -234,6 +230,7 @@ void TabBar::RebuildTabs() {
   // Construct the tabs.
   for (int i = 0; i < (int)tabs_.size(); i++) {
     bool is_active = (i == selected_tab_index_);
+    bool is_dimissable = tabs_[i].is_dimissable;
     std::string label_text = tabs_[i].label;
 
     tabs_[i].background_color =
@@ -248,7 +245,7 @@ void TabBar::RebuildTabs() {
         });
 
     std::shared_ptr<Node> tab_item;
-    if (is_active) {
+    if (is_active && is_dimissable) {
       auto close_btn = Label::SingleLineTruncated(
           "x",
           [](Layout& layout) {
@@ -284,22 +281,21 @@ void TabBar::RebuildTabs() {
             }
           });
 
-      tab_item =
-          TabBarItem(shared_from_this(), i, is_active, tab_lbl, close_btn);
+      tab_item = TabBarItem(shared_from_this(), i, is_active, is_dimissable,
+                            tab_lbl, close_btn);
     } else {
-      tab_item = TabBarItem(shared_from_this(), i, is_active, tab_lbl);
+      tab_item =
+          TabBarItem(shared_from_this(), i, is_active, is_dimissable, tab_lbl);
     }
 
     tabs_[i].tab_node = tab_item;
     tabs_container_->AddChild(tab_item);
   }
 
-  // 4. Add Suffix Node (if any)
-  if (suffix_node_) {
-    strong_node->AddChild(suffix_node_);
-  }
+  // Add Suffix Node (if any).
+  if (suffix_node_) strong_node->AddChild(suffix_node_);
 
-  // Trigger layout update
+  // Trigger layout update.
   strong_node->Invalidate();
 }
 

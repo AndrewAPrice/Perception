@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,24 +14,11 @@
 
 #pragma once
 
-#include <string_view>
-#include "include/core/SkFontStyle.h"
-
-class SkFont;
-
 namespace perception {
 namespace ui {
+struct DrawContext;
 
-SkFont* GetBook12UiFont();
-SkFont* GetBold12UiFont();
-
-SkFont* GetUiFont(std::string_view family_name = "", float size = 12.0f,
-                  bool bold = false, bool italic = false);
-
-SkFont* GetUiFont(std::string_view family_name, float size, int weight,
-                  SkFontStyle::Slant slant, int width);
-
-SkFont* LoadFont(std::string_view path, float size = 12.0f);
+void DrawRightAlignedArrow(const DrawContext& draw_context);
 
 }  // namespace ui
 }  // namespace perception

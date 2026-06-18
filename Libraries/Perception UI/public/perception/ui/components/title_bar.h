@@ -44,13 +44,14 @@ class TitleBar : public std::enable_shared_from_this<TitleBar>, public UniqueIde
     return Block::SolidColor(
         kTitleBarFocusedBackgroundColor, &weak_title_bar,
         [&window_node](Layout& layout) {
-          layout.SetMinHeight(24.0f);
+          layout.SetMinHeight(30.0f);
           layout.SetHeightAuto();
           layout.SetAlignItems(YGAlignFlexStart);
           for (auto edge : {YGEdgeTop, YGEdgeLeft, YGEdgeRight})
-            layout.SetMargin(edge, -8.0f);
-          for (auto edge : {YGEdgeTop, YGEdgeBottom, YGEdgeLeft})
+            layout.SetMargin(edge, kTitleBarNegativeMargin);
+          for (auto edge : {YGEdgeTop, YGEdgeLeft})
             layout.SetPadding(edge, 8.0f);
+          layout.SetPadding(YGEdgeBottom, 8.0f);
           layout.SetPadding(YGEdgeRight,
                             RightPaddingForWindowNode(window_node));
         },

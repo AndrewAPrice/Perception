@@ -157,6 +157,10 @@ void Layout::SetPositionPercent(YGEdge edge, float position) {
   YGNodeStyleSetPositionPercent(yoga_node_, edge, position);
 }
 
+void Layout::SetPositionAuto(YGEdge edge) {
+  YGNodeStyleSetPosition(yoga_node_, edge, YGUndefined);
+}
+
 YGValue Layout::GetPosition(YGEdge edge) {
   return YGNodeStyleGetPosition(yoga_node_, edge);
 }
@@ -187,6 +191,10 @@ void Layout::SetPadding(YGEdge edge, float padding) {
 
 void Layout::SetPaddingPercent(YGEdge edge, float padding) {
   YGNodeStyleSetPaddingPercent(yoga_node_, edge, padding);
+}
+
+void Layout::SetPaddingAuto(YGEdge edge) {
+  YGNodeStyleSetPadding(yoga_node_, edge, YGUndefined);
 }
 
 YGValue Layout::GetPadding(YGEdge edge) {
@@ -268,8 +276,12 @@ void Layout::SetMinWidth(float min_width) {
   YGNodeStyleSetMinWidth(yoga_node_, min_width);
 }
 
-void Layout::SetMinWidthPercent(float min_height) {
-  YGNodeStyleSetMinWidthPercent(yoga_node_, min_height);
+void Layout::SetMinWidthPercent(float min_width) {
+  YGNodeStyleSetMinWidthPercent(yoga_node_, min_width);
+}
+
+void Layout::SetMinWidthAuto() {
+  YGNodeStyleSetMinWidth(yoga_node_, YGUndefined);
 }
 
 YGValue Layout::GetMinWidth() { return YGNodeStyleGetMinWidth(yoga_node_); }
@@ -282,6 +294,10 @@ void Layout::SetMinHeightPercent(float min_height) {
   YGNodeStyleSetMinHeightPercent(yoga_node_, min_height);
 }
 
+void Layout::SetMinHeightAuto() {
+  YGNodeStyleSetMinHeight(yoga_node_, YGUndefined);
+}
+
 YGValue Layout::GetMinHeight() { return YGNodeStyleGetMinHeight(yoga_node_); }
 
 void Layout::SetMaxWidth(float max_width) {
@@ -292,6 +308,10 @@ void Layout::SetMaxWidthPercent(float max_width) {
   YGNodeStyleSetMaxWidthPercent(yoga_node_, max_width);
 }
 
+void Layout::SetMaxWidthAuto() {
+  YGNodeStyleSetMaxWidth(yoga_node_, YGUndefined);
+}
+
 YGValue Layout::GetMaxWidth() { return YGNodeStyleGetMaxWidth(yoga_node_); }
 
 void Layout::SetMaxHeight(float max_height) {
@@ -300,6 +320,10 @@ void Layout::SetMaxHeight(float max_height) {
 
 void Layout::SetMaxHeightPercent(float max_height) {
   YGNodeStyleSetMaxHeightPercent(yoga_node_, max_height);
+}
+
+void Layout::SetMaxHeightAuto() {
+  YGNodeStyleSetMaxHeight(yoga_node_, YGUndefined);
 }
 
 YGValue Layout::GetMaxHeight() { return YGNodeStyleGetMaxHeight(yoga_node_); }

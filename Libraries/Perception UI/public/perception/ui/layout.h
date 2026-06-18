@@ -87,6 +87,7 @@ class Layout {
 
   void SetPosition(YGEdge edge, float position);
   void SetPositionPercent(YGEdge edge, float position);
+  void SetPositionAuto(YGEdge edge);
   YGValue GetPosition(YGEdge edge);
 
   void SetMargin(YGEdge edge, float margin);
@@ -97,6 +98,7 @@ class Layout {
 
   void SetPadding(YGEdge edge, float padding);
   void SetPaddingPercent(YGEdge edge, float padding);
+  void SetPaddingAuto(YGEdge edge);
   YGValue GetPadding(YGEdge edge);
   float GetComputedPadding(YGEdge edge);
 
@@ -125,19 +127,23 @@ class Layout {
   Size GetCalculatedSizeWithMargin();
 
   void SetMinWidth(float min_width);
-  void SetMinWidthPercent(float min_height);
+  void SetMinWidthPercent(float min_width);
+  void SetMinWidthAuto();
   YGValue GetMinWidth();
 
   void SetMinHeight(float min_height);
   void SetMinHeightPercent(float min_height);
+  void SetMinHeightAuto();
   YGValue GetMinHeight();
 
   void SetMaxWidth(float max_width);
   void SetMaxWidthPercent(float max_width);
+  void SetMaxWidthAuto();
   YGValue GetMaxWidth();
 
   void SetMaxHeight(float max_height);
   void SetMaxHeightPercent(float max_height);
+  void SetMaxHeightAuto();
   YGValue GetMaxHeight();
 
   void SetAspectRatio(float aspect_ratio);

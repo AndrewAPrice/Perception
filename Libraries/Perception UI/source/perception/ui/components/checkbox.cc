@@ -60,9 +60,6 @@ void Checkbox::SetNode(std::weak_ptr<Node> node) {
     Toggle();
   });
 
-  strong_node->SetBlocksHitTest(true);
-  strong_node->SetCursor(window::Cursor::Poke);
-
   UpdateVisuals();
 }
 
@@ -78,15 +75,11 @@ void Checkbox::SetChecked(bool checked) {
   if (checked_ == checked) return;
   checked_ = checked;
   UpdateVisuals();
-  for (auto& handler : on_toggle_handlers_) {
-    handler(checked_);
-  }
+  for (auto& handler : on_toggle_handlers_) handler(checked_);
 }
 
 void Checkbox::OnToggle(std::function<void(bool)> on_toggle) {
-  if (on_toggle) {
-    on_toggle_handlers_.push_back(on_toggle);
-  }
+  if (on_toggle) on_toggle_handlers_.push_back(on_toggle);
 }
 
 void Checkbox::Initialize(std::shared_ptr<Node> indicator,
@@ -98,9 +91,7 @@ void Checkbox::Initialize(std::shared_ptr<Node> indicator,
   marker_ = marker;
   label_ = label;
   checked_ = checked;
-  if (on_toggle) {
-    on_toggle_handlers_.push_back(on_toggle);
-  }
+  if (on_toggle) on_toggle_handlers_.push_back(on_toggle);
   UpdateVisuals();
 }
 
@@ -108,15 +99,7 @@ void Checkbox::UpdateVisuals() {
   if (!indicator_) return;
 
   auto block = indicator_->GetOrAdd<components::Block>();
-  block->SetBorderColor(kButtonOutlineColor);
-
-  if (is_pushed_) {
-    block->SetFillColor(kButtonBackgroundPushedColor);
-  } else if (is_hovering_) {
-    block->SetFillColor(kButtonBackgroundHoverColor);
-  } else {
-    block->SetFillColor(kButtonBackgroundColor);
-  }
+  block->SetFillColor(GetFillColor());
 
   if (marker_) {
     auto marker_block = marker_->GetOrAdd<components::Block>();
@@ -142,6 +125,12 @@ void Checkbox::UpdateVisuals() {
 
 void Checkbox::Toggle() {
   SetChecked(!checked_);
+}
+
+uint32 Checkbox::GetFillColor() {
+  if (is_pushed_) return kButtonBackgroundPushedColor;
+  if (is_hovering_) return kButtonBackgroundHoverColor;
+  return kButtonBackgroundColor;
 }
 
 }  // namespace components

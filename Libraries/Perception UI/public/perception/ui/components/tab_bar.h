@@ -49,6 +49,7 @@ class TabBar : public std::enable_shared_from_this<TabBar>,
 
     auto container = Block::SolidColor(
         kTitleBarUnfocusedBackgroundColor, &weak_tab_bar,
+        [&window_node](Node& node) { node.SetBlocksHitTest(true); },
         [&window_node](Layout& layout) {
           layout.SetMinHeight(kTabBarHeight);
           layout.SetHeightAuto();
@@ -97,6 +98,7 @@ class TabBar : public std::enable_shared_from_this<TabBar>,
   template <typename... Modifiers>
   static std::shared_ptr<Node> TabBarItem(std::weak_ptr<TabBar> weak_tab_bar,
                                           int index, bool is_active,
+                                          bool is_dimissable,
                                           Modifiers... modifiers) {
     return Node::Empty(
         [is_active](Layout& layout) {
@@ -126,28 +128,29 @@ class TabBar : public std::enable_shared_from_this<TabBar>,
               strong_tab_bar->OnMouseLeaveTabBarItem(index);
           });
         },
-        [weak_tab_bar, index, is_active](Node& node) {
+        [weak_tab_bar, index, is_active, is_dimissable](Node& node) {
           std::weak_ptr<Node> weak_node = node.ToSharedPtr();
-          node.OnMouseButtonUp([weak_tab_bar, index, is_active, weak_node](
-                                   const Point& p, window::MouseButton button) {
-            if (button != window::MouseButton::Left) return;
-            if (auto strong_tab_bar = weak_tab_bar.lock()) {
-              if (is_active) {
-                if (auto strong_node = weak_node.lock()) {
-                  float tab_width = strong_node->GetSize().width;
-                  if (p.x > tab_width - kTabBarCloseButtonWidth) return;
+          node.OnMouseButtonUp(
+              [weak_tab_bar, index, is_active, is_dimissable, weak_node](
+                  const Point& p, window::MouseButton button) {
+                if (button != window::MouseButton::Left) return;
+                if (auto strong_tab_bar = weak_tab_bar.lock()) {
+                  if (is_active && is_dimissable) {
+                    if (auto strong_node = weak_node.lock()) {
+                      float tab_width = strong_node->GetSize().width;
+                      if (p.x > tab_width - kTabBarCloseButtonWidth) return;
+                    }
+                  }
+                  strong_tab_bar->OnClickTabBarItem(index);
                 }
-              }
-              strong_tab_bar->OnClickTabBarItem(index);
-            }
-          });
+              });
         },
         modifiers...);
   }
 
   void SetNode(std::weak_ptr<Node> node);
 
-  void AddTab(std::string_view label);
+  void AddTab(std::string_view label, bool is_dimissable = false);
   void RemoveTab(int index);
   void ClearTabs();
   void SelectTab(int index);
@@ -172,6 +175,7 @@ class TabBar : public std::enable_shared_from_this<TabBar>,
     std::string label;
     std::shared_ptr<Node> tab_node;
     uint32 background_color;
+    bool is_dimissable;
   };
 
   std::weak_ptr<Node> node_;

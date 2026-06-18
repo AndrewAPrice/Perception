@@ -89,7 +89,8 @@ std::vector<std::shared_ptr<Node>> active_dialogs;
 std::string last_opened_directory = "";
 
 // Creates a file icon.
-std::shared_ptr<Node> CreateFileIcon(bool is_directory, std::string_view name) {
+std::shared_ptr<Node> CreateFileIcon(bool is_directory, bool is_symlink,
+                                     std::string_view name) {
   uint32 bg_color;
   std::string letter = "";
 
@@ -149,6 +150,36 @@ std::shared_ptr<Node> CreateFileIcon(bool is_directory, std::string_view name) {
       });
 
   container->AddChild(letter_label);
+
+  if (is_symlink) {
+    auto shortcut_container = Node::Empty(
+        [](Layout& layout) {
+          layout.SetPositionType(YGPositionTypeAbsolute);
+          layout.SetPosition(YGEdgeBottom, -2.0f);
+          layout.SetPosition(YGEdgeRight, -2.0f);
+          layout.SetWidth(12.0f);
+          layout.SetHeight(12.0f);
+        },
+        [](Block& block) {
+          block.SetFillColor(0xFFFFFFFF);
+          block.SetBorderRadius(4.0f);
+          block.SetBorderColor(0xFF1F2937);
+          block.SetBorderWidth(1.0f);
+        });
+    shortcut_container->AddChild(Label::BasicLabel(
+        "↗",
+        [](Layout& layout) {
+          layout.SetWidth(10.0f);
+          layout.SetHeight(10.0f);
+        },
+        [](Label& label) {
+          label.SetTextAlignment(TextAlignment::MiddleCenter);
+          label.SetColor(0xFF1F2937);
+          label.SetFont(GetBold12UiFont());
+        }));
+    container->AddChild(shortcut_container);
+  }
+
   return container;
 }
 
@@ -164,6 +195,14 @@ void NavigateTo(const std::shared_ptr<OpenFileDialogState>& state,
 
   if (target_path.size() > 1 && target_path.back() == '/')
     target_path.pop_back();
+
+  std::error_code ec;
+  if (std::filesystem::is_symlink(target_path, ec)) {
+    auto resolved = std::filesystem::read_symlink(target_path, ec);
+    if (!ec && !resolved.empty()) {
+      target_path = resolved.string();
+    }
+  }
 
   std::vector<std::filesystem::directory_entry> folders;
   std::vector<std::filesystem::directory_entry> files;
@@ -262,7 +301,8 @@ void NavigateTo(const std::shared_ptr<OpenFileDialogState>& state,
       std::string entry_path = entry.path().string();
       bool is_dir = entry.is_directory();
 
-      auto icon = CreateFileIcon(is_dir, name);
+      bool is_symlink = entry.is_symlink(ec);
+      auto icon = CreateFileIcon(is_dir, is_symlink, name);
       icon->GetLayout().SetMargin(YGEdgeRight, 8.0f);
 
       auto row = Container::HorizontalContainer(

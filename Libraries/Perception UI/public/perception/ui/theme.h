@@ -20,6 +20,8 @@ namespace ui {
 extern uint32 kWidgetSpacing;
 
 extern uint32 kBackgroundWindowColor;
+extern float kUiWindowPadding;
+extern float kUiWindowTitleBarGap;
 extern float kMarginAroundWidgets;
 
 extern uint32 kLabelTextColor;
@@ -32,15 +34,69 @@ extern uint32 kButtonBackgroundColor;
 extern uint32 kButtonBackgroundHoverColor;
 extern uint32 kButtonBackgroundPushedColor;
 extern uint32 kButtonOutlineColor;
+extern uint32 kButtonBorderColor;
 extern uint32 kButtonTextColor;
-extern float kButtonCornerRadius;
+extern float kButtonBorderWidth;
+extern float kButtonBorderRadius;
+extern float kButtonPadding;
+extern float kButtonMinWidth;
+extern float kButtonMinHeight;
+
+extern float kCheckboxSize;
+extern float kCheckboxMarkerSize;
+extern float kCheckboxBorderRadius;
+extern float kCheckboxMarkerBorderRadius;
+extern float kCheckboxBorderWidth;
+extern uint32 kCheckboxTextColor;
+extern float kCheckboxSpacing;
+
+extern float kColorPickerDialogWidth;
+extern float kColorPickerDialogHeight;
+extern float kColorPickerDialogPadding;
+extern float kColorPickerDialogGap;
+extern uint32 kColorPickerDialogBackgroundColor;
+
+extern float kColorPickerRowGap;
+extern float kColorPickerLabelWidth;
+extern float kColorPickerValueLabelWidth;
+extern uint32 kColorPickerLabelColor;
+
+extern float kColorPickerPreviewHeight;
+extern float kColorPickerPreviewGap;
+extern uint32 kColorPickerPreviewBorderColor;
+extern float kColorPickerPreviewBorderWidth;
+extern float kColorPickerPreviewBorderRadius;
+
+extern float kColorPickerButtonWidth;
+extern float kColorPickerButtonHeight;
+
+extern float kComboBoxMinWidth;
+extern float kComboBoxMinHeight;
+extern float kComboBoxPaddingLeft;
+extern float kComboBoxPaddingRight;
+extern float kComboBoxBorderRadius;
+extern float kComboBoxBorderWidth;
+extern uint32 kComboBoxBorderColor;
 
 extern uint32 kTextBoxBackgroundColor;
 extern uint32 kTextBoxOutlineColor;
+extern uint32 kTextBoxOutlineHoverColor;
+extern uint32 kTextBoxOutlineFocusedColor;
 extern uint32 kTextBoxTextColor;
 extern float kTextBoxCornerRadius;
+extern float kTextBoxOutlineWidth;
+extern float kTextBoxOutlineFocusedWidth;
+extern float kTextBoxPadding;
+extern float kTextBoxCursorWidth;
+extern float kTextBoxDefaultWidth;
+extern uint32 kTextBoxSelectionColor;
 
 extern uint32 kTextBoxNonEditableTextColor;
+
+extern float kTextFieldPadding;
+extern float kTextFieldNewlineSelectionWidth;
+extern float kTextFieldMinSelectionWidth;
+extern float kTextFieldMinWrapWidth;
 
 extern uint32 kScrollBarFabBackgroundColor;
 extern uint32 kScrollBarFabBackgroundHoverColor;
@@ -94,6 +150,58 @@ extern uint32 kTabBarActiveTextColor;
 extern uint32 kTabBarInactiveTextColor;
 extern uint32 kTabBarCloseButtonColor;
 extern uint32 kTabBarCloseButtonHoverColor;
+
+extern uint32 kPopUpMenuBackgroundColor;
+extern uint32 kPopUpMenuBorderColor;
+extern float kPopUpMenuBorderWidth;
+extern float kPopUpMenuBorderRadius;
+extern float kPopUpMenuPadding;
+
+extern float kSliderMinWidth;
+extern float kSliderHeight;
+extern float kSliderTrackThickness;
+extern float kSliderThumbRadius;
+extern uint32 kSliderTrackColor;
+extern uint32 kSliderThumbColor;
+extern uint32 kSliderThumbHoverColor;
+
+extern uint32 kTableBackgroundColor;
+extern uint32 kTableBorderColor;
+extern float kTableBorderWidth;
+extern float kTableBorderRadius;
+
+extern uint32 kTableHeaderBackgroundColor;
+extern uint32 kTableHeaderTextColor;
+extern uint32 kTableHeaderHoverTextColor;
+extern float kTableHeaderVerticalPadding;
+extern float kTableHeaderCellHorizontalPadding;
+
+extern uint32 kTableDividerColor;
+extern float kTableDividerHeight;
+
+extern uint32 kTableCellTextColor;
+extern uint32 kTableCellHighlightColor;
+extern uint32 kTableCellTransparentColor;
+extern float kTableCellHorizontalPadding;
+extern float kTableCellVerticalPadding;
+
+extern uint32 kTooltipBackgroundColor;
+extern uint32 kTooltipBorderColor;
+extern float kTooltipBorderWidth;
+extern float kTooltipBorderRadius;
+extern float kTooltipPadding;
+extern float kTooltipMaxWidth;
+extern float kTooltipOffsetLeft;
+extern float kTooltipOffsetTop;
+extern uint32 kTooltipTextColor;
+
+extern float kTreeViewVerticalGap;
+extern float kTreeViewIndent;
+extern float kTreeViewToggleWidth;
+extern float kTreeViewToggleHeight;
+extern float kTreeViewItemHorizontalPadding;
+extern float kTreeViewItemGap;
+extern float kTreeViewItemBorderRadius;
 
 }  // namespace ui
 }  // namespace perception

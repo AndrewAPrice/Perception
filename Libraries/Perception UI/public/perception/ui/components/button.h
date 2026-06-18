@@ -23,6 +23,7 @@
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/label.h"
 #include "perception/ui/node.h"
+#include "perception/ui/theme.h"
 #include "perception/window/mouse_button.h"
 
 namespace perception {
@@ -39,20 +40,20 @@ class Button : public UniqueIdentifiableType<Button> {
   template <typename... Modifiers>
   static std::shared_ptr<Node> BasicButton(std::function<void()> on_push,
                                            Modifiers... modifiers) {
-    return Node::Empty(
-        [](Layout& layout) {
-          layout.SetMinWidth(24.0f);
-          layout.SetMinHeight(24.0f);
-          layout.SetAlignItems(YGAlignCenter);
-          layout.SetJustifyContent(YGJustifyCenter);
-          layout.SetPadding(YGEdgeHorizontal, 4.0f);
-        },
-        [](Block& block) {
-          block.SetBorderRadius(4.0f);
-          block.SetBorderWidth(1.0f);
-          block.SetBorderColor(0xFF000000);
-        },
-        [&on_push](Button& button) { button.OnPush(on_push); }, modifiers...);
+    return Node::Empty([&on_push](Button& button) { button.OnPush(on_push); },
+                       [](Layout& layout) {
+                         layout.SetMinWidth(kButtonMinWidth);
+                         layout.SetMinHeight(kButtonMinHeight);
+                         layout.SetAlignItems(YGAlignCenter);
+                         layout.SetJustifyContent(YGJustifyCenter);
+                         layout.SetPadding(YGEdgeHorizontal, kButtonPadding);
+                       },
+                       [](Block& block) {
+                         block.SetBorderRadius(kButtonBorderRadius);
+                         block.SetBorderWidth(kButtonBorderWidth);
+                         block.SetBorderColor(kButtonBorderColor);
+                       },
+                       modifiers...);
   }
 
   // Creates a text button.
@@ -67,6 +68,7 @@ class Button : public UniqueIdentifiableType<Button> {
 
   Button();
   void SetNode(std::weak_ptr<Node> node);
+  std::weak_ptr<Node> GetNode() const;
 
   void SetIdleColor(uint32 color);
   uint32 GetIdleColor() const;

@@ -15,6 +15,7 @@
 #include "perception/ui/components/table.h"
 
 #include "perception/scheduler.h"
+#include "perception/ui/theme.h"
 
 namespace perception {
 
@@ -40,9 +41,7 @@ void Table::SetNode(std::weak_ptr<Node> node) { node_ = node; }
 
 void Table::Refresh() {
   BuildTable();
-  if (!node_.expired()) {
-    node_.lock()->Invalidate();
-  }
+  if (!node_.expired()) node_.lock()->Invalidate();
 }
 
 void Table::OnCellSelect(std::function<void(int, int)> on_cell_select) {
@@ -84,31 +83,32 @@ void Table::BuildTable() {
   std::vector<std::shared_ptr<Node>> header_cells;
   for (int i = 0; i < static_cast<int>(columns_.size()); ++i) {
     std::string title = columns_[i].title;
-    if (i == sorted_column_index_) {
-      title += sort_ascending_ ? " ▲" : " ▼";
-    }
+    if (i == sorted_column_index_) title += sort_ascending_ ? " ▲" : " ▼";
 
     auto header_cell_node = Node::Empty(
         columns_[i].layout_modifier,
-        [](Layout& layout) { layout.SetPadding(YGEdgeHorizontal, 8.0f); },
+        [](Layout& layout) {
+          layout.SetPadding(YGEdgeHorizontal,
+                            kTableHeaderCellHorizontalPadding);
+        },
         Node::Empty([title](Label& label) {
           label.SetText(title);
           label.SetTextAlignment(TextAlignment::MiddleLeft);
-          label.SetColor(0xFF000000);  // Black font
+          label.SetColor(kTableHeaderTextColor);
         }));
 
     if (columns_[i].sortable) {
       header_cell_node->OnMouseHover([header_cell_node](const Point& point) {
         for (auto& child : header_cell_node->GetChildren()) {
           if (auto label = child->Get<Label>()) {
-            label->SetColor(0xFF555555);  // Dark gray hover
+            label->SetColor(kTableHeaderHoverTextColor);
           }
         }
       });
       header_cell_node->OnMouseLeave([header_cell_node]() {
         for (auto& child : header_cell_node->GetChildren()) {
           if (auto label = child->Get<Label>()) {
-            label->SetColor(0xFF000000);  // Back to black
+            label->SetColor(kTableHeaderTextColor);
           }
         }
       });
@@ -140,18 +140,15 @@ void Table::BuildTable() {
       std::string value = data_source_->GetCellValue(r, c);
       auto cell_node = Node::Empty(
           columns_[c].layout_modifier,
-          [](Block& block) {
-            block.SetFillColor(0x00000001);  // Default transparent background
-          },
+          [](Block& block) { block.SetFillColor(kTableCellTransparentColor); },
           [](Layout& layout) {
-            layout.SetPadding(YGEdgeHorizontal, 8.0f);
-            layout.SetPadding(YGEdgeVertical,
-                              4.0f);  // Vertical padding inside cell
+            layout.SetPadding(YGEdgeHorizontal, kTableCellHorizontalPadding);
+            layout.SetPadding(YGEdgeVertical, kTableCellVerticalPadding);
           },
           Node::Empty([value](Label& label) {
             label.SetText(value);
             label.SetTextAlignment(TextAlignment::MiddleLeft);
-            label.SetColor(0xFF000000);  // Black font
+            label.SetColor(kTableCellTextColor);
           }));
 
       cell_node->OnMouseHover(
@@ -173,9 +170,7 @@ void Table::BuildTable() {
     }
 
     auto row_node = Node::Empty(
-        [](Block& block) {
-          block.SetFillColor(0x00000001);  // Default transparent background
-        },
+        [](Block& block) { block.SetFillColor(kTableCellTransparentColor); },
         [](Layout& layout) {
           layout.SetFlexDirection(YGFlexDirectionRow);
           layout.SetWidthPercent(100.0f);
@@ -227,22 +222,20 @@ void Table::HoverCell(int r, int c) {
     callback(r, c);
   }
 
-  uint32 highlight_color = 0xFFF0F0F0;  // Very light gray highlight
-
   if (new_selectability == CellHighlightability::CellHighlightable) {
     if (auto block = cell_nodes_[r][c]->Get<Block>()) {
-      block->SetFillColor(highlight_color);
+      block->SetFillColor(kTableCellHighlightColor);
       cell_nodes_[r][c]->Invalidate();
     }
   } else if (new_selectability == CellHighlightability::RowHighlightable) {
     if (auto block = row_nodes_[r]->Get<Block>()) {
-      block->SetFillColor(highlight_color);
+      block->SetFillColor(kTableCellHighlightColor);
       row_nodes_[r]->Invalidate();
     }
   } else if (new_selectability == CellHighlightability::ColumnHighlightable) {
     for (int row = 0; row < static_cast<int>(cell_nodes_.size()); ++row) {
       if (auto block = cell_nodes_[row][c]->Get<Block>()) {
-        block->SetFillColor(highlight_color);
+        block->SetFillColor(kTableCellHighlightColor);
         cell_nodes_[row][c]->Invalidate();
       }
     }
@@ -277,22 +270,20 @@ void Table::LeaveCell(int r, int c) {
       data_source_->GetCellHighlightablity(r, c);
   if (selectability == CellHighlightability::NotHighlightable) return;
 
-  uint32 transparent_color = 0;
-
   if (selectability == CellHighlightability::CellHighlightable) {
     if (auto block = cell_nodes_[r][c]->Get<Block>()) {
-      block->SetFillColor(transparent_color);
+      block->SetFillColor(kTableCellTransparentColor);
       cell_nodes_[r][c]->Invalidate();
     }
   } else if (selectability == CellHighlightability::RowHighlightable) {
     if (auto block = row_nodes_[r]->Get<Block>()) {
-      block->SetFillColor(transparent_color);
+      block->SetFillColor(kTableCellTransparentColor);
       row_nodes_[r]->Invalidate();
     }
   } else if (selectability == CellHighlightability::ColumnHighlightable) {
     for (int row = 0; row < static_cast<int>(cell_nodes_.size()); ++row) {
       if (auto block = cell_nodes_[row][c]->Get<Block>()) {
-        block->SetFillColor(transparent_color);
+        block->SetFillColor(kTableCellTransparentColor);
         cell_nodes_[row][c]->Invalidate();
       }
     }

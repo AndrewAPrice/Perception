@@ -13,18 +13,88 @@
 // limitations under the License.
 #pragma once
 
+#include <string>
+#include <vector>
+
+#include "perception/serialization/serializable.h"
 #include "perception/service_macros.h"
 #include "perception/window/size.h"
 
 namespace perception {
 namespace window {
-#define METHOD_LIST(X)            \
-  X(1, SetSize, void, Size)       \
-  X(2, Closed, void, void)        \
+
+class DebugUiHierarchy : public serialization::Serializable {
+ public:
+  std::string json;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class CreateNodeResponse : public serialization::Serializable {
+ public:
+  uint64 temp_id;
+  uint64 real_id;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class TweakUiResponse : public serialization::Serializable {
+ public:
+  std::vector<CreateNodeResponse> create_node_responses;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class NodePropertyTweak : public serialization::Serializable {
+ public:
+  uint64 node_id;
+  std::string property_name;
+  std::string property_value;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class CreateNode : public serialization::Serializable {
+ public:
+  uint64 temp_id;
+  uint64 parent_node_id;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class DeleteNode : public serialization::Serializable {
+ public:
+  uint64 node_id;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class ReparentNode : public serialization::Serializable {
+ public:
+  uint64 node_id;
+  uint64 new_parent_node_id;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class TweakUiRequest : public serialization::Serializable {
+ public:
+  std::vector<NodePropertyTweak> property_tweaks;
+  std::vector<CreateNode> create_nodes;
+  std::vector<DeleteNode> delete_nodes;
+  std::vector<ReparentNode> reparent_nodes;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+#define METHOD_LIST(X) \
+  X(1, SetSize, void, Size) \
+  X(2, Closed, void, void) \
   X(3, GainedFocus, void, void) \
-  X(4, LostFocus, void, void)     \
+  X(4, LostFocus, void, void) \
   X(5, DisplayEnvironmentChanged, void, void) \
-  X(6, PrintUiHierarchy, void, void)
+  X(6, GetUiHierarchy, DebugUiHierarchy, void) \
+  X(7, TweakUi, TweakUiResponse, TweakUiRequest)
 
 DEFINE_PERCEPTION_SERVICE(BaseWindow, "perception.window.BaseWindow",
                           METHOD_LIST)

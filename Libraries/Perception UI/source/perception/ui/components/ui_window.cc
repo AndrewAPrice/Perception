@@ -23,6 +23,7 @@
 #include "perception/debug.h"
 #include "perception/draw.h"
 #include "perception/scheduler.h"
+#include "perception/services.h"
 #include "perception/ui/components/focusable.h"
 #include "perception/ui/draw_context.h"
 #include "perception/ui/layout.h"
@@ -39,7 +40,9 @@
 #include "perception/window/window.h"
 #include "perception/window/window_delegate.h"
 #include "perception/window/window_draw_buffer.h"
+#include "perception/window/window_manager.h"
 
+using ::perception::GetService;
 using ::perception::window::MouseButton;
 
 namespace perception {
@@ -51,14 +54,8 @@ namespace {
 
 // Translate a screen-space point to be node-space.
 Point ScreenPointToNodePoint(std::shared_ptr<Node> target, Point point) {
-  Point p = point;
-  auto current = target;
-  while (current) {
-    p = p - current->GetPositionRelativeToParent();
-    if (current != target) p = p + current->GetOffset();
-    current = current->GetParent().lock();
-  }
-  return p;
+  if (!target) return point;
+  return point - target->GetAbsolutePosition();
 }
 
 }  // namespace
@@ -69,7 +66,8 @@ UiWindow::UiWindow()
       invalidated_(false),
       is_drawing_(false),
       buffer_width_(0),
-      buffer_height_(0) {
+      buffer_height_(0),
+      next_focus_changed_handler_id_(1) {
   SkGraphics::Init();  // See if this isn't needed.
 }
 
@@ -115,7 +113,19 @@ void UiWindow::SetIsResizable(bool is_resizable) {
 bool UiWindow::IsResizable() const { return is_resizable_; }
 
 void UiWindow::OnFocusChanged(std::function<void()> on_focus_changed) {
-  on_focus_changed_functions_.push_back(on_focus_changed);
+  (void)NotifyOnFocusChanged(on_focus_changed);
+}
+
+uint64 UiWindow::NotifyOnFocusChanged(std::function<void()> on_focus_changed) {
+  std::scoped_lock lock(window_mutex_);
+  uint64 id = next_focus_changed_handler_id_++;
+  on_focus_changed_functions_[id] = on_focus_changed;
+  return id;
+}
+
+void UiWindow::StopNotifyingOnFocusChanged(uint64 handler_id) {
+  std::scoped_lock lock(window_mutex_);
+  on_focus_changed_functions_.erase(handler_id);
 }
 
 bool UiWindow::IsFocused() const {
@@ -192,6 +202,7 @@ void UiWindow::KeyReleased(const window::KeyboardKeyEvent& event) {
 
 void UiWindow::WindowClosed() {
   std::scoped_lock lock(window_mutex_);
+  base_window_.reset();
   for (auto& handler : on_close_functions_) handler();
 }
 
@@ -216,13 +227,18 @@ void UiWindow::WindowResized() {
 }
 
 void UiWindow::WindowFocusChanged() {
-  std::scoped_lock lock(window_mutex_);
-  if (!IsFocused()) {
-    if (auto node = GetFocusedNode()) {
-      if (auto focusable = node->Get<Focusable>()) focusable->Unfocus();
+  std::vector<std::function<void()>> handlers;
+  {
+    std::scoped_lock lock(window_mutex_);
+    if (!IsFocused()) {
+      if (auto node = GetFocusedNode()) {
+        if (auto focusable = node->Get<Focusable>()) focusable->Unfocus();
+      }
     }
+    for (auto& [id, handler] : on_focus_changed_functions_)
+      handlers.push_back(handler);
   }
-  for (auto& handler : on_focus_changed_functions_) handler();
+  for (auto& handler : handlers) handler();
 }
 
 void UiWindow::MouseClicked(const window::MouseClickEvent& event) {
@@ -237,18 +253,17 @@ void UiWindow::MouseClicked(const window::MouseClickEvent& event) {
     std::shared_ptr<Node> clicked_node = nullptr;
     GetNodesAt(point, [&focusable_node, &clicked_node](
                           Node& node, const Point& point_in_node) {
-      if (!clicked_node) clicked_node = node.ToSharedPtr();
-      if (!focusable_node && node.Get<Focusable>()) {
+      if (!clicked_node && node.DoesHandleMouseClickEvents())
+        clicked_node = node.ToSharedPtr();
+      if (!focusable_node && node.Get<Focusable>())
         focusable_node = node.ToSharedPtr();
-      }
     });
     if (focusable_node) {
       focusable_node->Get<Focusable>()->Focus();
     } else {
       if (auto current_focused = GetFocusedNode()) {
-        if (auto focusable = current_focused->Get<Focusable>()) {
+        if (auto focusable = current_focused->Get<Focusable>())
           focusable->Unfocus();
-        }
       }
     }
 
@@ -263,11 +278,6 @@ void UiWindow::MouseClicked(const window::MouseClickEvent& event) {
       Point local_point = ScreenPointToNodePoint(captured, point);
       captured->MouseButtonUp(local_point, button);
       mouse_captured_node_.reset();
-    } else {
-      HandleMouseEvent(point,
-                       [this, button](Node& node, const Point& point_in_node) {
-                         node.MouseButtonUp(point_in_node, button);
-                       });
     }
   }
 }
@@ -311,18 +321,88 @@ void UiWindow::MouseHovered(const window::MouseHoverEvent& event) {
   }
 }
 
-void UiWindow::PrintUiHierarchy() {
+void UiWindow::PopulateDebuggingNodes(std::shared_ptr<Node> node) {
+  if (!node) return;
+  uint64 node_id = reinterpret_cast<uint64>(node.get());
+  debugging_nodes_by_id_[node_id] = node;
+  for (auto& child : node->GetChildren()) PopulateDebuggingNodes(child);
+}
+
+window::DebugUiHierarchy UiWindow::GetUiHierarchy() {
   std::scoped_lock lock(window_mutex_);
-  if (node_.expired()) return;
+  window::DebugUiHierarchy hierarchy;
+  if (node_.expired()) return hierarchy;
   auto node = node_.lock();
-  std::cout << "--------------------------------------------------"
-            << std::endl;
-  std::cout << "UI HIERARCHY FOR WINDOW: " << title_ << std::endl;
-  std::cout << "--------------------------------------------------"
-            << std::endl;
-  node->PrintHierarchy(0);
-  std::cout << "--------------------------------------------------"
-            << std::endl;
+
+  debugging_nodes_by_id_.clear();
+  PopulateDebuggingNodes(node);
+
+  hierarchy.json = node->ToJson(title_);
+  return hierarchy;
+}
+
+window::TweakUiResponse UiWindow::TweakUi(
+    const window::TweakUiRequest& request) {
+  std::scoped_lock lock(window_mutex_);
+  window::TweakUiResponse response;
+
+  for (auto& tweak : request.property_tweaks) {
+    auto itr = debugging_nodes_by_id_.find(tweak.node_id);
+    if (itr != debugging_nodes_by_id_.end() && !itr->second.expired()) {
+      if (auto strong_node = itr->second.lock()) {
+        strong_node->TweakProperty(tweak.property_name, tweak.property_value);
+      }
+    }
+  }
+
+  for (auto& create : request.create_nodes) {
+    auto itr = debugging_nodes_by_id_.find(create.parent_node_id);
+    if (itr != debugging_nodes_by_id_.end() && !itr->second.expired()) {
+      if (auto parent_node = itr->second.lock()) {
+        auto new_node = Node::Empty();
+        parent_node->AddChild(new_node);
+        uint64 real_id = reinterpret_cast<uint64>(new_node.get());
+        debugging_nodes_by_id_[real_id] = new_node;
+
+        window::CreateNodeResponse create_resp;
+        create_resp.temp_id = create.temp_id;
+        create_resp.real_id = real_id;
+        response.create_node_responses.push_back(create_resp);
+      }
+    }
+  }
+
+  for (auto& del : request.delete_nodes) {
+    auto itr = debugging_nodes_by_id_.find(del.node_id);
+    if (itr != debugging_nodes_by_id_.end() && !itr->second.expired()) {
+      if (auto node_to_delete = itr->second.lock()) {
+        if (auto parent = node_to_delete->GetParent().lock()) {
+          parent->RemoveChild(node_to_delete);
+        }
+        debugging_nodes_by_id_.erase(itr);
+      }
+    }
+  }
+
+  for (auto& reparent : request.reparent_nodes) {
+    auto node_itr = debugging_nodes_by_id_.find(reparent.node_id);
+    auto parent_itr = debugging_nodes_by_id_.find(reparent.new_parent_node_id);
+    if (node_itr != debugging_nodes_by_id_.end() &&
+        !node_itr->second.expired() &&
+        parent_itr != debugging_nodes_by_id_.end() &&
+        !parent_itr->second.expired()) {
+      if (auto node = node_itr->second.lock()) {
+        if (auto new_parent = parent_itr->second.lock()) {
+          if (auto old_parent = node->GetParent().lock())
+            old_parent->RemoveChild(node);
+          new_parent->AddChild(node);
+        }
+      }
+    }
+  }
+
+  InvalidateRender();
+  return response;
 }
 
 void UiWindow::Draw() {
@@ -354,12 +434,8 @@ void UiWindow::InvalidateRender() {
 
   invalidated_ = true;
 
-  // auto weak_this = weak_from_this();
   auto self = shared_from_this();
-  DeferAfterEvents([self]() {
-    // if (!weak_this.expired()) weak_this.lock()->Draw();
-    self->Draw();
-  });
+  DeferAfterEvents([self]() { self->Draw(); });
 }
 
 void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,

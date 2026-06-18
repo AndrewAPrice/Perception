@@ -23,6 +23,7 @@
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/label.h"
 #include "perception/ui/node.h"
+#include "perception/ui/theme.h"
 
 namespace perception {
 namespace ui {
@@ -35,51 +36,49 @@ class Checkbox : public UniqueIdentifiableType<Checkbox> {
   static std::shared_ptr<Node> BasicCheckbox(
       std::string_view text, bool checked, std::function<void(bool)> on_toggle,
       Modifiers... modifiers) {
-    auto checkbox_ptr = std::make_shared<std::shared_ptr<Node>>();
-    auto indicator_ptr = std::make_shared<std::shared_ptr<Node>>();
-    auto marker_ptr = std::make_shared<std::shared_ptr<Node>>();
-    auto label_ptr = std::make_shared<std::shared_ptr<Node>>();
-
     auto marker = Node::Empty(
         [](Layout& layout) {
-          layout.SetWidth(8.0f);
-          layout.SetHeight(8.0f);
+          layout.SetWidth(kCheckboxMarkerSize);
+          layout.SetHeight(kCheckboxMarkerSize);
         },
-        [](Block& block) { block.SetBorderRadius(2.0f); });
+        [](Block& block) {
+          block.SetBorderRadius(kCheckboxMarkerBorderRadius);
+          block.SetFillColor(kButtonTextColor);
+        });
 
     auto indicator = Node::Empty(
         [](Layout& layout) {
-          layout.SetWidth(16.0f);
-          layout.SetHeight(16.0f);
-          layout.SetMinWidth(16.0f);
-          layout.SetMinHeight(16.0f);
+          layout.SetWidth(kCheckboxSize);
+          layout.SetHeight(kCheckboxSize);
+          layout.SetMinWidth(kCheckboxSize);
+          layout.SetMinHeight(kCheckboxSize);
           layout.SetAlignItems(YGAlignCenter);
           layout.SetJustifyContent(YGJustifyCenter);
         },
         [](Block& block) {
-          block.SetBorderRadius(4.0f);
-          block.SetBorderWidth(1.0f);
+          block.SetBorderColor(kButtonOutlineColor);
+          block.SetBorderRadius(kCheckboxBorderRadius);
+          block.SetBorderWidth(kCheckboxBorderWidth);
         });
 
     auto label = Node::Empty([text](Label& label_comp) {
       label_comp.SetText(text);
       label_comp.SetMaxLines(1);
-      label_comp.SetColor(0xFF1F2937);
+      label_comp.SetColor(kCheckboxTextColor);
     });
 
     auto checkbox_node = Node::Empty(
+        [](Node& node) {
+          node.SetBlocksHitTest(true);
+          node.SetCursor(window::Cursor::Poke);
+        },
         [](Layout& layout) {
           layout.SetFlexDirection(YGFlexDirectionRow);
           layout.SetAlignItems(YGAlignCenter);
-          layout.SetGap(8.0f);
+          layout.SetGap(kCheckboxSpacing);
         },
         indicator, label,
-        [checkbox_ptr, indicator_ptr, marker_ptr, label_ptr, marker, indicator,
-         label, checked, on_toggle](Checkbox& checkbox) {
-          *checkbox_ptr = checkbox.GetNode().lock();
-          *indicator_ptr = indicator;
-          *marker_ptr = marker;
-          *label_ptr = label;
+        [marker, indicator, label, checked, on_toggle](Checkbox& checkbox) {
           checkbox.Initialize(indicator, marker, label, checked, on_toggle);
         },
         modifiers...);
@@ -113,6 +112,7 @@ class Checkbox : public UniqueIdentifiableType<Checkbox> {
 
   void UpdateVisuals();
   void Toggle();
+  uint32 GetFillColor();
 };
 
 }  // namespace components

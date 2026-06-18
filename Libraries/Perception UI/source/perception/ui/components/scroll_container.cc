@@ -107,6 +107,39 @@ Size ScrollContainer::ContainerSize() {
   return scroll_container->GetLayout().GetCalculatedSize();
 }
 
+void ScrollContainer::ScrollIntoView(std::shared_ptr<Node> node) {
+  auto scroll_content = scroll_content_.lock();
+  auto scroll_container = scroll_container_.lock();
+  if (!scroll_content || !scroll_container || !node) return;
+
+  auto root = scroll_container;
+  while (auto parent = root->GetParent().lock()) root = parent;
+  root->GetLayout().CalculateIfDirty(root->GetLayout().GetCalculatedWidth(),
+                                     root->GetLayout().GetCalculatedHeight());
+
+  auto curr = node;
+  while (curr && curr != scroll_content) curr = curr->GetParent().lock();
+  if (curr != scroll_content) return;
+
+  Point rel_pos = node->GetPositionRelativeToNode(scroll_content);
+
+  Size node_size = node->GetSize();
+  Size container_size = ContainerSize();
+  Point scroll = ContentPosition();
+
+  Point new_pos;
+  for (int d = 0; d < 2; d++) {
+    if (rel_pos[d] + node_size[d] > scroll[d] + container_size[d])
+      new_pos[d] = rel_pos[d] + node_size[d] - container_size[d];
+    if (rel_pos[d] < new_pos[d]) new_pos[d] = rel_pos[d];
+  }
+
+  if (new_pos != rel_pos) {
+    SetContentPosition(new_pos);
+    UpdateScrollBars();
+  }
+}
+
 void ScrollContainer::RegisterScrollBarListener(
     std::weak_ptr<ScrollBar> scroll_bar) {
   auto strong_scroll_bar = scroll_bar.lock();
@@ -143,14 +176,11 @@ void ScrollContainer::UpdateScrollBars() {
   Size content_size = ContentSize();
   Size container_size = ContainerSize();
 
-  float max_x = content_size.width - container_size.width;
-  float max_y = content_size.height - container_size.height;
-  if (max_x < 0.0f) max_x = 0.0f;
-  if (max_y < 0.0f) max_y = 0.0f;
-
-  Point clamped_position = {
-      .x = std::max(std::min(content_position.x, max_x), 0.0f),
-      .y = std::max(std::min(content_position.y, max_y), 0.0f)};
+  Point clamped_position;
+  for (int d = 0; d < 2; d++) {
+    float max = std::max(content_size[d] - container_size[d], 0.0f);
+    clamped_position[d] = std::max(std::min(content_position[d], max), 0.0f);
+  }
 
   if (clamped_position != content_position) {
     SetContentPosition(clamped_position);

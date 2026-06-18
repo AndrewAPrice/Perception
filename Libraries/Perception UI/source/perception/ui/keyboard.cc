@@ -94,6 +94,8 @@ char ScancodeToAscii(uint8 scancode, bool shift) {
       return shift ? ':' : ';';
     case 0x28:
       return shift ? '"' : '\'';
+    case 0x29:
+      return shift ? '~' : '`';
     case 0x2B:
       return shift ? '|' : '\\';
 
@@ -120,8 +122,16 @@ char ScancodeToAscii(uint8 scancode, bool shift) {
       return shift ? '?' : '/';
 
     // Numpad / other symbols
+    case 0x0F:
+      return '\t';  // Tab
+    case 0x37:
+      return '*';  // KeypadAsterisk
     case 0x39:
       return ' ';  // Space
+    case 0x4A:
+      return '-';  // KeypadMinus
+    case 0x4E:
+      return '+';  // KeypadPlus
 
     default:
       return '\0';

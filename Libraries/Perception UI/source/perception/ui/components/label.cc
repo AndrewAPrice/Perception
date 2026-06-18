@@ -24,6 +24,7 @@
 #include "perception/ui/draw_context.h"
 #include "perception/ui/font.h"
 #include "perception/ui/measurements.h"
+#include "perception/ui/text_handling.h"
 #include "perception/ui/theme.h"
 
 namespace perception {
@@ -31,28 +32,6 @@ template class UniqueIdentifiableType<ui::components::Label>;
 
 namespace ui {
 namespace components {
-
-namespace {
-
-size_t GetNextUtf8CharLength(std::string_view s, size_t index) {
-  if (index >= s.length()) return 0;
-  unsigned char c = s[index];
-  if ((c & 0x80) == 0) return 1;
-  if ((c & 0xE0) == 0xC0) return 2;
-  if ((c & 0xF0) == 0xE0) return 3;
-  if ((c & 0xF8) == 0xF0) return 4;
-  return 1;
-}
-
-void RemoveLastUtf8Character(std::string& s) {
-  if (s.empty()) return;
-  s.pop_back();
-  while (!s.empty() && (static_cast<unsigned char>(s.back()) & 0xC0) == 0x80) {
-    s.pop_back();
-  }
-}
-
-}  // namespace
 
 Label::Label()
     : font_(nullptr),
@@ -145,9 +124,7 @@ Label::TruncationMode Label::GetTruncationMode() const {
 }
 
 void Label::LayoutText(float max_width) {
-  if (!layout_is_dirty_ && max_width == last_layout_width_) {
-    return;
-  }
+  if (!layout_is_dirty_ && max_width == last_layout_width_) return;
 
   AssignDefaultFontIfUnassigned();
 
@@ -385,12 +362,8 @@ void Label::Draw(const DrawContext& draw_context) {
 
   float block_height = 0.0f;
   if (!laid_out_lines_.empty()) {
-    if (laid_out_lines_.size() == 1) {
-      block_height = laid_out_lines_[0].size.height;
-    } else {
-      block_height = (laid_out_lines_.size() - 1) * line_height +
-                     (font_metrics.fDescent - font_metrics.fAscent);
-    }
+    block_height = (laid_out_lines_.size() - 1) * line_height +
+                   (font_metrics.fDescent - font_metrics.fAscent);
   }
 
   Size block_size = {.width = block_width, .height = block_height};
@@ -438,23 +411,18 @@ Size Label::Measure(float width, YGMeasureMode width_mode, float height,
   }
   LayoutText(max_width);
 
-  // Calculate the bounding box of laid out lines
+  // Calculate the bounding box of laid out lines.
   float block_width = 0.0f;
-  for (const auto& line : laid_out_lines_) {
+  for (const auto& line : laid_out_lines_)
     block_width = std::max(block_width, line.size.width);
-  }
 
   SkFontMetrics font_metrics;
   float line_height = font_->getMetrics(&font_metrics);
 
   float block_height = 0.0f;
   if (!laid_out_lines_.empty()) {
-    if (laid_out_lines_.size() == 1) {
-      block_height = laid_out_lines_[0].size.height;
-    } else {
-      block_height = (laid_out_lines_.size() - 1) * line_height +
-                     (font_metrics.fDescent - font_metrics.fAscent);
-    }
+    block_height = (laid_out_lines_.size() - 1) * line_height +
+                   (font_metrics.fDescent - font_metrics.fAscent);
   }
 
   return {.width = CalculateMeasuredLength(width_mode, width, block_width),

@@ -10,7 +10,7 @@
   dependencies+: [
     'facebook yoga',
     'google skia',
-    'Nano SVG',
+    'nlohmann json',
     'perception',
     'Perception Window',
   ],

@@ -25,9 +25,7 @@ namespace {
 
 std::shared_ptr<UiWindow> FindUiWindowOfNode(std::shared_ptr<Node> node) {
   while (node) {
-    if (auto ui_window = node->Get<UiWindow>()) {
-      return ui_window;
-    }
+    if (auto ui_window = node->Get<UiWindow>()) return ui_window;
     node = node->GetParent().lock();
   }
   return nullptr;
@@ -63,9 +61,8 @@ void Focusable::Focus() {
     if (auto ui_window = FindUiWindowOfNode(node)) {
       auto old_focused = ui_window->GetFocusedNode();
       if (old_focused && old_focused != node) {
-        if (auto focusable = old_focused->Get<Focusable>()) {
+        if (auto focusable = old_focused->Get<Focusable>())
           focusable->Unfocus();
-        }
       }
       ui_window->SetFocusedNode(node);
     }

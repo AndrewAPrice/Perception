@@ -44,7 +44,7 @@ class Window {
     // Whether the window is resizable.
     bool is_resizable;
 
-    // Whether the window buttons (close, minimize, etc.) should be hidden.
+    // Whether the window buttons (close, debug, etc.) should be hidden.
     bool hide_window_buttons;
 
     // Whether the window will be double buffered. If double buffering is

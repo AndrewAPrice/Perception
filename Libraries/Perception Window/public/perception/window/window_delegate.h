@@ -13,6 +13,8 @@
 // limitations under the License.
 #pragma once
 
+#include "perception/window/base_window.h"
+
 namespace perception {
 namespace window {
 
@@ -64,7 +66,8 @@ class WindowDelegate {
 
   virtual void ToggledFullScreen(bool is_full_screen) {}
   
-  virtual void PrintUiHierarchy() {}
+  virtual DebugUiHierarchy GetUiHierarchy() { return {}; }
+  virtual TweakUiResponse TweakUi(const TweakUiRequest& request) { return {}; }
 };
 
 }  // namespace window

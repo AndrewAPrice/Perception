@@ -20,6 +20,7 @@
 #include <optional>
 #include <set>
 #include <string_view>
+#include <unordered_map>
 
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSurface.h"
@@ -52,7 +53,7 @@ class UiWindow : public window::WindowDelegate,
           window.SetIsResizable(true);
         },
         [](Layout& layout) {
-          layout.SetPadding(YGEdgeAll, 8.f);
+          layout.SetPadding(YGEdgeAll, kUiWindowPadding);
           layout.SetGap(kWidgetSpacing);
         },
         modifiers...);
@@ -66,7 +67,7 @@ class UiWindow : public window::WindowDelegate,
         TitleBar::TextTitleBar(title, *window),
         [](Layout& layout) {
           layout.SetFlexDirection(YGFlexDirectionColumn);
-          layout.SetGap(8.0f);
+          layout.SetGap(kUiWindowTitleBarGap);
         },
         modifiers...);
     return std::move(window);
@@ -103,7 +104,7 @@ class UiWindow : public window::WindowDelegate,
         TitleBar::TextTitleBar(title, *window),
         [](Layout& layout) {
           layout.SetFlexDirection(YGFlexDirectionColumn);
-          layout.SetGap(8.0f);
+          layout.SetGap(kUiWindowTitleBarGap);
         },
         modifiers...);
     return std::move(window);
@@ -121,6 +122,8 @@ class UiWindow : public window::WindowDelegate,
   bool IsResizable() const;
   void FocusOnNode();
   void OnFocusChanged(std::function<void()> on_focus_changed);
+  uint64 NotifyOnFocusChanged(std::function<void()> on_focus_changed);
+  void StopNotifyingOnFocusChanged(uint64 handler_id);
   bool IsFocused() const;
   void StartDragging();
 
@@ -154,7 +157,9 @@ class UiWindow : public window::WindowDelegate,
 
   virtual void MouseHovered(const window::MouseHoverEvent& event) override;
 
-  virtual void PrintUiHierarchy() override;
+  virtual window::DebugUiHierarchy GetUiHierarchy() override;
+  virtual window::TweakUiResponse TweakUi(
+      const window::TweakUiRequest& request) override;
 
   virtual void KeyPressed(const window::KeyboardKeyEvent& event) override;
   virtual void KeyReleased(const window::KeyboardKeyEvent& event) override;
@@ -185,7 +190,8 @@ class UiWindow : public window::WindowDelegate,
   uint32 background_color_;
   std::vector<std::function<void()>> on_close_functions_;
   std::vector<std::function<void()>> on_resize_functions_;
-  std::vector<std::function<void()>> on_focus_changed_functions_;
+  std::unordered_map<uint64, std::function<void()>> on_focus_changed_functions_;
+  uint64 next_focus_changed_handler_id_;
 
   std::weak_ptr<Node> node_mouse_is_over_;
   std::weak_ptr<Node> focused_node_;
@@ -204,6 +210,9 @@ class UiWindow : public window::WindowDelegate,
   std::optional<window::Cursor> last_cursor_;
 
   std::weak_ptr<Node> mouse_captured_node_;
+
+  std::unordered_map<uint64, std::weak_ptr<Node>> debugging_nodes_by_id_;
+  void PopulateDebuggingNodes(std::shared_ptr<Node> node);
 
   void HandleMouseEvent(
       const Point& point,

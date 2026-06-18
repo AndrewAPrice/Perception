@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,24 +14,24 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
 #include <string_view>
-#include "include/core/SkFontStyle.h"
-
-class SkFont;
 
 namespace perception {
 namespace ui {
 
-SkFont* GetBook12UiFont();
-SkFont* GetBold12UiFont();
+class Node;
 
-SkFont* GetUiFont(std::string_view family_name = "", float size = 12.0f,
-                  bool bold = false, bool italic = false);
+// Serializes the node hierarchy and its components to a JSON string.
+std::string SerializeNode(Node& node, std::string_view window_title = "");
 
-SkFont* GetUiFont(std::string_view family_name, float size, int weight,
-                  SkFontStyle::Slant slant, int width);
+// Constructs a node hierarchy from a JSON string.
+std::shared_ptr<Node> DeserializeNode(std::string_view json_str);
 
-SkFont* LoadFont(std::string_view path, float size = 12.0f);
+// Tweaks a property on a node or its components from string values.
+void TweakNodeProperty(Node& node, std::string_view property_name,
+                       std::string_view property_value);
 
 }  // namespace ui
 }  // namespace perception

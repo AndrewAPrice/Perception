@@ -55,6 +55,8 @@ void Button::SetNode(std::weak_ptr<Node> node) {
   UpdateLabelColor();
 }
 
+std::weak_ptr<Node> Button::GetNode() const { return node_; }
+
 void Button::SetIdleColor(uint32 color) {
   if (idle_color_ == color) return;
   idle_color_ = color;
@@ -103,8 +105,8 @@ void Button::SetButtonStyle(ButtonStyle style) {
     label_color_ = 0xFFFFFFFF;
   } else if (style == ButtonStyle::PRIMARY) {
     idle_color_ = 0xFF4F46E5;
-    hover_color_ = 0xFF4338CA;
-    pushed_color_ = 0xFF312E81;
+    hover_color_ = 0xFF6366F1;
+    pushed_color_ = 0xFF4338CA;
     label_color_ = 0xFFFFFFFF;
   } else if (style == ButtonStyle::SECONDARY) {
     idle_color_ = 0xFF4B5563;
@@ -140,19 +142,14 @@ void Button::UpdateLabelColor() {
   if (node_.expired()) return;
   auto strong_node = node_.lock();
   for (auto& child : strong_node->GetChildren()) {
-    if (auto label = child->Get<components::Label>()) {
+    if (auto label = child->Get<components::Label>())
       label->SetColor(label_color_);
-    }
   }
 }
 
 uint32 Button::GetFillColor() {
-  if (is_pushed_) {
-    return pushed_color_;
-  }
-  if (is_hovering_) {
-    return hover_color_;
-  }
+  if (is_pushed_) return pushed_color_;
+  if (is_hovering_) return hover_color_;
 
   return idle_color_;
 }
@@ -181,9 +178,7 @@ void Button::MouseButtonUp(const Point& point, window::MouseButton button) {
 
   is_pushed_ = false;
   UpdateFillColor();
-  for (auto& handler : on_push_) {
-    ::perception::DeferAfterEvents(handler);
-  }
+  for (auto& handler : on_push_) ::perception::DeferAfterEvents(handler);
 }
 
 }  // namespace components

@@ -309,9 +309,17 @@ class PerceptionWindow : public Window,
 
   virtual Status DisplayEnvironmentChanged() override { return Status::OK; }
 
-  virtual Status PrintUiHierarchy() override {
-    if (!delegate_.expired()) delegate_.lock()->PrintUiHierarchy();
-    return Status::OK;
+  virtual StatusOr<DebugUiHierarchy> GetUiHierarchy() override {
+    if (!delegate_.expired()) {
+      return delegate_.lock()->GetUiHierarchy();
+    }
+    return Status::INTERNAL_ERROR;
+  }
+
+  virtual StatusOr<TweakUiResponse> TweakUi(
+      const TweakUiRequest& request) override {
+    if (!delegate_.expired()) return delegate_.lock()->TweakUi(request);
+    return Status::INTERNAL_ERROR;
   }
 
  private:
@@ -334,7 +342,8 @@ class PerceptionWindow : public Window,
     if (texture_id_ != 0) {
       // There is an old texture to release.
       GetService<GraphicsDevice>().DestroyTexture(
-          graphics::TextureReference(texture_id_));
+          graphics::TextureReference(texture_id_),
+          [](Status) {});
       texture_id_ = 0;
       texture_shared_memory_.reset();
     }
@@ -342,7 +351,8 @@ class PerceptionWindow : public Window,
     if (frontbuffer_texture_id_ != 0) {
       // There is an old texture to release.
       GetService<GraphicsDevice>().DestroyTexture(
-          graphics::TextureReference(frontbuffer_texture_id_));
+          graphics::TextureReference(frontbuffer_texture_id_),
+          [](Status) {});
       frontbuffer_texture_id_ = 0;
       frontbuffer_shared_memory_.reset();
     }

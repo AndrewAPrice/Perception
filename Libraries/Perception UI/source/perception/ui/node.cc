@@ -17,6 +17,7 @@
 #include <cmath>
 #include <iostream>
 #include <map>
+#include <sstream>
 
 #include "include/core/SkCanvas.h"
 #include "include/core/SkRect.h"
@@ -36,11 +37,12 @@ namespace ui {
 
 Node::Node()
     : yoga_node_(YGNodeNew()),
-      invalidate_when_dirtied_(false),
+      invalidate_when_dirtied_(true),
       invalidated_(false),
       handles_mouse_events_(false),
       scroll_offset_({.x = 0.0f, .y = 0.0f}) {
   YGNodeSetContext(yoga_node_, this);
+  YGNodeSetDirtiedFunc(yoga_node_, &Node::LayoutDirtied);
 }
 
 Node::~Node() {
@@ -59,21 +61,25 @@ void Node::AddChildren(const std::vector<std::shared_ptr<Node>>& children) {
 }
 
 void Node::AddChild(std::shared_ptr<Node> child) {
+  if (!child || YGNodeHasMeasureFunc(yoga_node_)) return;
   child->SetParent(shared_from_this());
   YGNodeInsertChild(yoga_node_, child->yoga_node_, children_.size());
   children_.push_back(child);
+  Invalidate();
 }
 
 void Node::RemoveChild(std::shared_ptr<Node> child) {
   child->SetParent({});
   children_.remove(child);
   YGNodeRemoveChild(yoga_node_, child->yoga_node_);
+  Invalidate();
 }
 
 void Node::RemoveChildren() {
   for (auto child : children_) child->SetParent({});
   children_.clear();
   YGNodeRemoveAllChildren(yoga_node_);
+  Invalidate();
 }
 
 const std::list<std::shared_ptr<Node>>& Node::GetChildren() {
@@ -88,7 +94,8 @@ void Node::Draw(DrawContext& draw_context) {
   draw_context.area.origin += position.origin;
   draw_context.area.size = position.size;
 
-  if (!draw_context.area.Intersects(draw_context.clipping_bounds)) {
+  bool intersects = draw_context.area.Intersects(draw_context.clipping_bounds);
+  if (!intersects) {
     draw_context.area = old_area;
     return;
   }
@@ -138,6 +145,9 @@ void Node::SetMeasureFunction(
     std::function<Size(float width, YGMeasureMode width_mode, float height,
                        YGMeasureMode height_mode)>
         measure_function) {
+  if (!children_.empty()) {
+    RemoveChildren();
+  }
   if (measure_function_) {
     std::cerr << "There are multiple measure functions set on the same node."
               << std::endl;
@@ -279,6 +289,11 @@ bool Node::DoesHandleMouseLeaveEvents() {
   return !on_mouse_leave_functions_.empty();
 }
 
+bool Node::DoesHandleMouseClickEvents() {
+  return !on_mouse_button_down_functions_.empty() ||
+         !on_mouse_button_up_functions_.empty();
+}
+
 bool Node::IsHidden() {
   return YGNodeStyleGetDisplay(yoga_node_) == YGDisplayNone;
 }
@@ -291,6 +306,47 @@ void Node::SetOffset(const Point& offset) {
   Invalidate();
 }
 
+const std::vector<std::string>& Node::GetComponentNames() const {
+  return component_names_;
+}
+
+bool Node::Draws() const {
+  return !on_draw_functions_.empty() ||
+         !on_draw_post_children_functions_.empty();
+}
+
+void Node::DrawSelfOnly(DrawContext& draw_context) {
+  for (const auto& draw_function : on_draw_functions_) {
+    draw_function(draw_context);
+  }
+  for (const auto& draw_function : on_draw_post_children_functions_) {
+    draw_function(draw_context);
+  }
+}
+
+bool Node::HasOnDraw() const {
+  return !on_draw_functions_.empty() ||
+         !on_draw_post_children_functions_.empty();
+}
+
+bool Node::HasOnMouseHover() const {
+  return !on_mouse_hover_functions_.empty();
+}
+
+bool Node::HasOnMouseLeave() const {
+  return !on_mouse_leave_functions_.empty();
+}
+
+bool Node::HasOnMouseButtonDown() const {
+  return !on_mouse_button_down_functions_.empty();
+}
+
+bool Node::HasOnMouseButtonUp() const {
+  return !on_mouse_button_up_functions_.empty();
+}
+
+bool Node::HasOnInvalidate() const { return !on_invalidate_functions_.empty(); }
+
 std::shared_ptr<Node> Node::ToSharedPtr() { return shared_from_this(); }
 
 Rectangle Node::GetAreaRelativeToParent() {
@@ -301,6 +357,21 @@ Point Node::GetPositionRelativeToParent() {
   Layout layout = GetLayout();
   return {.x = layout.GetLeft(), .y = layout.GetTop()};
 }
+
+Point Node::GetPositionRelativeToNode(std::shared_ptr<Node> ancestor) {
+  Point pos = {.x = 0.0f, .y = 0.0f};
+  auto curr = shared_from_this();
+  while (curr && curr != ancestor) {
+    pos += curr->GetPositionRelativeToParent();
+    if (auto parent = curr->GetParent().lock()) {
+      if (parent != ancestor) pos -= parent->GetOffset();
+    }
+    curr = curr->GetParent().lock();
+  }
+  return pos;
+}
+
+Point Node::GetAbsolutePosition() { return GetPositionRelativeToNode(nullptr); }
 
 Size Node::GetSize() {
   Layout layout = GetLayout();

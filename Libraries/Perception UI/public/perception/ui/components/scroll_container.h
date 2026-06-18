@@ -39,12 +39,21 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
     std::shared_ptr<ScrollBar> horizontal_scroll_bar, vertical_scroll_bar;
 
     auto node = Container::HorizontalContainer(
+        modifiers...,
+        [&](ScrollContainer& container) {
+          container.SetContentAndContainerNodes(scroll_content,
+                                                scroll_container_node);
+          container.SetHorizontalScrollBar(horizontal_scroll_bar);
+          container.SetVerticalScrollBar(vertical_scroll_bar);
+        },
+        [](Layout& layout) { layout.SetGap(0.0f); },
         Container::VerticalContainer(
             [](Layout& layout) {
               layout.SetFlexGrow(1.0f);
               layout.SetFlexShrink(1.0f);
               layout.SetMinHeight(0.0f);
               layout.SetMinWidth(0.0f);
+              layout.SetGap(0.0f);
             },
             Node::Empty(
                 [](Layout& layout) {
@@ -56,19 +65,13 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
                 },
                 &scroll_container_node, scroll_content),
             ScrollBar::HorizontalScrollBar(&horizontal_scroll_bar)),
-        ScrollBar::VerticalScrollBar(&vertical_scroll_bar),
-        [&](ScrollContainer& container) {
-          container.SetContentAndContainerNodes(scroll_content,
-                                                scroll_container_node);
-          container.SetHorizontalScrollBar(horizontal_scroll_bar);
-          container.SetVerticalScrollBar(vertical_scroll_bar);
-        });
+        ScrollBar::VerticalScrollBar(&vertical_scroll_bar));
 
     scroll_content->GetLayout().SetFlexShrink(0.0f);
     node->GetLayout().SetMinHeight(0.0f);
     node->GetLayout().SetMinWidth(0.0f);
+    node->GetLayout().SetFlexShrink(1.0f);
 
-    node->Apply(modifiers...);
     return node;
   }
 
@@ -79,6 +82,13 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
     std::shared_ptr<ScrollBar> vertical_scroll_bar;
 
     auto node = Container::HorizontalContainer(
+        modifiers...,
+        [&](ScrollContainer& container) {
+          container.SetContentAndContainerNodes(scroll_content,
+                                                scroll_container_node);
+          container.SetVerticalScrollBar(vertical_scroll_bar);
+        },
+        [](Layout& layout) { layout.SetGap(0.0f); },
         Node::Empty(
             [](Layout& layout) {
               layout.SetOverflow(YGOverflowScroll);
@@ -87,17 +97,12 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
               layout.SetMinHeight(0.0f);
             },
             &scroll_container_node, scroll_content),
-        ScrollBar::VerticalScrollBar(&vertical_scroll_bar),
-        [&](ScrollContainer& container) {
-          container.SetContentAndContainerNodes(scroll_content,
-                                                scroll_container_node);
-          container.SetVerticalScrollBar(vertical_scroll_bar);
-        });
+        ScrollBar::VerticalScrollBar(&vertical_scroll_bar));
 
     scroll_content->GetLayout().SetFlexShrink(0.0f);
     node->GetLayout().SetMinHeight(0.0f);
+    node->GetLayout().SetFlexShrink(1.0f);
 
-    node->Apply(modifiers...);
     return node;
   }
 
@@ -108,6 +113,13 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
     std::shared_ptr<ScrollBar> horizontal_scroll_bar;
 
     auto node = Container::VerticalContainer(
+        modifiers...,
+        [&](ScrollContainer& container) {
+          container.SetContentAndContainerNodes(scroll_content,
+                                                scroll_container_node);
+          container.SetHorizontalScrollBar(horizontal_scroll_bar);
+        },
+        [](Layout& layout) { layout.SetGap(0.0f); },
         Node::Empty(
             [](Layout& layout) {
               layout.SetOverflow(YGOverflowScroll);
@@ -116,17 +128,12 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
               layout.SetMinWidth(0.0f);
             },
             &scroll_container_node, scroll_content),
-        ScrollBar::HorizontalScrollBar(&horizontal_scroll_bar),
-        [&](ScrollContainer& container) {
-          container.SetContentAndContainerNodes(scroll_content,
-                                                scroll_container_node);
-          container.SetHorizontalScrollBar(horizontal_scroll_bar);
-        });
+        ScrollBar::HorizontalScrollBar(&horizontal_scroll_bar));
 
     scroll_content->GetLayout().SetFlexShrink(0.0f);
     node->GetLayout().SetMinWidth(0.0f);
+    node->GetLayout().SetFlexShrink(1.0f);
 
-    node->Apply(modifiers...);
     return node;
   }
 
@@ -142,6 +149,8 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
 
   Size ContentSize();
   Size ContainerSize();
+
+  void ScrollIntoView(std::shared_ptr<Node> node);
 
  private:
   std::weak_ptr<Node> scroll_content_;

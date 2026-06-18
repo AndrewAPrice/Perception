@@ -19,6 +19,8 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "perception/devices/mouse_listener.h"
@@ -67,8 +69,9 @@ class Node : public std::enable_shared_from_this<Node> {
     auto itr = components_.find(T::TypeId());
     if (itr != components_.end()) return;
 
-    component->SetNode(shared_from_this());
     components_.insert({T::TypeId(), component});
+    component_names_.push_back(std::string(T::ClassName()));
+    component->SetNode(shared_from_this());
   }
 
   template <typename T>
@@ -95,6 +98,17 @@ class Node : public std::enable_shared_from_this<Node> {
 
     return std::static_pointer_cast<T>(itr->second);
   }
+
+  const std::vector<std::string>& GetComponentNames() const;
+  bool Draws() const;
+  void DrawSelfOnly(DrawContext& draw_context);
+
+  bool HasOnDraw() const;
+  bool HasOnMouseHover() const;
+  bool HasOnMouseLeave() const;
+  bool HasOnMouseButtonDown() const;
+  bool HasOnMouseButtonUp() const;
+  bool HasOnInvalidate() const;
 
   void AddChildren(const std::vector<std::shared_ptr<Node>>& children);
   void AddChild(std::shared_ptr<Node> child);
@@ -201,6 +215,9 @@ class Node : public std::enable_shared_from_this<Node> {
   // Whether this node handles mouse leave events.
   bool DoesHandleMouseLeaveEvents();
 
+  // Whether this node handles mouse click (down/up) events.
+  bool DoesHandleMouseClickEvents();
+
   bool IsHidden();
 
   const Point& GetOffset() const;
@@ -211,10 +228,26 @@ class Node : public std::enable_shared_from_this<Node> {
 
   Point GetPositionRelativeToParent();
 
+  // Returns the position of this node relative to an ancestor node (or the root node
+  // if ancestor is nullptr), accounting for layout positions and scroll offsets.
+  Point GetPositionRelativeToNode(std::shared_ptr<Node> ancestor = nullptr);
+
+  // Returns the absolute screen position of this node relative to the root node.
+  Point GetAbsolutePosition();
+
   Size GetSize();
 
   // Recursively print the UI node hierarchy.
   void PrintHierarchy(int indent = 0);
+
+  // Serializes the node hierarchy and its components to a JSON string.
+  std::string ToJson(std::string_view window_title = "");
+
+  // Constructs a node hierarchy from a JSON string.
+  static std::shared_ptr<Node> FromJson(std::string_view json_str);
+
+  void TweakProperty(std::string_view property_name,
+                     std::string_view property_value);
 
   template <typename... Modifiers>
   void Apply(Modifiers... modifiers) {
@@ -226,6 +259,7 @@ class Node : public std::enable_shared_from_this<Node> {
   std::weak_ptr<Node> parent_;
   std::list<std::shared_ptr<Node>> children_;
   std::map<size_t, std::shared_ptr<void>> components_;
+  std::vector<std::string> component_names_;
 
   bool invalidated_;
   YGNode* yoga_node_;
@@ -271,6 +305,12 @@ class Node : public std::enable_shared_from_this<Node> {
   // Applies a single modifier that matches a node. In this case, it adds the
   // node as a child.
   void ApplySingleModifier(std::shared_ptr<Node> node) { AddChild(node); }
+
+  // Applies a single modifier that matches a vector of nodes. In this case, it
+  // adds the nodes as children.
+  void ApplySingleModifier(std::vector<std::shared_ptr<Node>> nodes) {
+    AddChildren(nodes);
+  }
 
   // Applies a single modifier that matches a pointer to a node pointer. In this
   // case, it stores the current node in the pointer.

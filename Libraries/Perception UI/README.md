@@ -155,9 +155,7 @@ std::shared_ptr<perception::ui::Node> RedSquareButton(
       block.SetBorderRadius(0.0f);
     },
     [&](Button& button) {
-      button.SetIdleColor(0xFF0000);
-      button.SetHoverColor(0xFFAAAA);
-      button.SetPushedColor(0xFF5555);
+      button.SetButtonStyle(Button::ButtonStyle::RED);
     },
     modifiers...);
 }

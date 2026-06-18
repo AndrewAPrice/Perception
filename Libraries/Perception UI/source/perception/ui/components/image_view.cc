@@ -95,6 +95,8 @@ void ImageView::SetResizeMethod(ResizeMethod method) {
 ResizeMethod ImageView::GetResizeMethod() const { return resize_method_; }
 
 void ImageView::Draw(const DrawContext& draw_context) {
+  if (!image_) return;
+
   if (draw_context.area.size != node_size_) {
     node_size_ = draw_context.area.size;
     needs_realignment_ = true;
@@ -107,12 +109,7 @@ void ImageView::Draw(const DrawContext& draw_context) {
   bool clip_contents = !image || display_size_.width > node_size_.width ||
                        display_size_.height > node_size_.height;
 
-  if (clip_contents) {
-    draw_context.skia_canvas->save();
-    /* SkPath path;
-     path.addRect(SkRect::MakeXYWH(x, y, width, height));
-     draw_context.skia_canvas->clipPath(path, SkClipOp::kIntersect, true);*/
-  }
+  draw_context.skia_canvas->save();
 
   if (image) {
     // This is a raster image.
@@ -139,7 +136,7 @@ void ImageView::Draw(const DrawContext& draw_context) {
     std::cout << "Not sure how to draw the provided image." << std::endl;
   }
 
-  if (clip_contents) draw_context.skia_canvas->restore();
+  draw_context.skia_canvas->restore();
 }
 
 Size ImageView::Measure(float width, YGMeasureMode width_mode, float height,
@@ -163,6 +160,7 @@ void ImageView::CalculateAlignmentOffsetsIfNeeded() {
 
 Size ImageView::GetImageSize(const Size& container_size) {
   if (image_) return image_->GetSize(container_size);
+  return {.width = 0.0f, .height = 0.0f};
 }
 
 }  // namespace components

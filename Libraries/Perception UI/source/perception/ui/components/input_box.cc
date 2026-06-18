@@ -24,10 +24,12 @@
 #include "include/core/SkPath.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkString.h"
+#include "perception/clipboard.h"
 #include "perception/ui/draw_context.h"
 #include "perception/ui/font.h"
-#include "perception/ui/measurements.h"
 #include "perception/ui/keyboard.h"
+#include "perception/ui/measurements.h"
+#include "perception/ui/text_handling.h"
 #include "perception/ui/theme.h"
 
 namespace perception {
@@ -35,34 +37,14 @@ template class UniqueIdentifiableType<ui::components::InputBox>;
 
 namespace ui {
 namespace components {
-namespace {
-
-size_t GetNextUtf8CharLength(std::string_view s, size_t index) {
-  if (index >= s.length()) return 0;
-  unsigned char c = s[index];
-  if ((c & 0x80) == 0) return 1;
-  if ((c & 0xE0) == 0xC0) return 2;
-  if ((c & 0xF0) == 0xE0) return 3;
-  if ((c & 0xF8) == 0xF0) return 4;
-  return 1;
-}
-
-size_t GetPreviousUtf8CharIndex(std::string_view s, size_t index) {
-  if (index == 0 || index > s.length()) return 0;
-  size_t prev = index - 1;
-  while (prev > 0 && (static_cast<unsigned char>(s[prev]) & 0xC0) == 0x80) {
-    prev--;
-  }
-  return prev;
-}
-
-}  // namespace
 
 InputBox::InputBox()
     : font_(nullptr),
       cursor_index_(0),
+      selection_start_index_(0),
       scroll_x_(0.0f),
       shift_pressed_(false),
+      ctrl_pressed_(false),
       is_hovering_(false),
       is_pushed_(false),
       text_color_(kTextBoxTextColor) {}
@@ -75,11 +57,15 @@ void InputBox::SetNode(std::weak_ptr<Node> node) {
   // Add the focusable component to our node.
   focusable_ = strong_node->GetOrAdd<Focusable>();
 
+  strong_node->SetBlocksHitTest(true);
+  strong_node->SetCursor(window::Cursor::Caret);
+
   strong_node->OnDraw(std::bind_front(&InputBox::Draw, this));
   strong_node->SetMeasureFunction(std::bind_front(&InputBox::Measure, this));
 
-  strong_node->OnMouseHover([this](const Point&) {
+  strong_node->OnMouseHover([this](const Point& point) {
     is_hovering_ = true;
+    if (is_pushed_) MoveCursorToPoint(point, true);
     if (auto strong = node_.lock()) strong->Invalidate();
   });
 
@@ -92,7 +78,7 @@ void InputBox::SetNode(std::weak_ptr<Node> node) {
       [this](const Point& point, window::MouseButton button) {
         if (button == window::MouseButton::Left) {
           is_pushed_ = true;
-          MoveCursorToPoint(point);
+          MoveCursorToPoint(point, shift_pressed_);
           if (auto strong = node_.lock()) strong->Invalidate();
         }
       });
@@ -110,6 +96,9 @@ void InputBox::SetNode(std::weak_ptr<Node> node) {
   });
 
   focusable_->OnUnfocus([this]() {
+    shift_pressed_ = false;
+    ctrl_pressed_ = false;
+    selection_start_index_ = cursor_index_;
     if (auto strong = node_.lock()) strong->Invalidate();
   });
 
@@ -124,6 +113,7 @@ void InputBox::SetText(std::string_view text) {
   if (text_ == text) return;
   text_ = text;
   cursor_index_ = text_.length();
+  selection_start_index_ = cursor_index_;
   scroll_x_ = 0.0f;
   EnsureCursorVisible();
   if (!node_.expired()) {
@@ -133,9 +123,7 @@ void InputBox::SetText(std::string_view text) {
 
 std::string InputBox::GetText() const { return text_; }
 
-bool InputBox::HasFocus() const {
-  return focusable_ && focusable_->HasFocus();
-}
+bool InputBox::HasFocus() const { return focusable_ && focusable_->HasFocus(); }
 
 void InputBox::OnTextChanged(std::function<void(std::string_view)> handler) {
   on_text_changed_handlers_.push_back(handler);
@@ -177,40 +165,15 @@ void InputBox::Draw(const DrawContext& draw_context) {
 
   bool has_focus = focusable_ && focusable_->HasFocus();
 
-  // 1. Draw Background
-  SkPaint bg_paint;
-  bg_paint.setAntiAlias(true);
-  bg_paint.setColor(kTextBoxBackgroundColor);
-  bg_paint.setStyle(SkPaint::kFill_Style);
-  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
-                                          kTextBoxCornerRadius,
-                                          kTextBoxCornerRadius, bg_paint);
+  DrawTextBoxOuter(draw_context, has_focus, is_hovering_);
 
-  // 2. Draw Outline
-  SkPaint outline_paint;
-  outline_paint.setAntiAlias(true);
-  outline_paint.setStyle(SkPaint::kStroke_Style);
-
-  if (has_focus) {
-    outline_paint.setColor(0xFF3B82F6);  // Premium Focused Blue
-    outline_paint.setStrokeWidth(2.0f);
-  } else if (is_hovering_) {
-    outline_paint.setColor(0xFF9CA3AF);  // Hovered grey
-    outline_paint.setStrokeWidth(1.0f);
-  } else {
-    outline_paint.setColor(kTextBoxOutlineColor);  // Standard border
-    outline_paint.setStrokeWidth(1.0f);
-  }
-  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
-                                          kTextBoxCornerRadius,
-                                          kTextBoxCornerRadius, outline_paint);
-
-  // 3. Draw Text with clipping
-  float padding = 8.0f;
+  // Draw Text with clipping.
+  float padding = kTextBoxPadding;
   draw_context.skia_canvas->save();
 
-  // Clip to the client area (inside border)
-  float clip_border = has_focus ? 2.0f : 1.0f;
+  // Clip to the client area (inside border).
+  float clip_border =
+      has_focus ? kTextBoxOutlineFocusedWidth : kTextBoxOutlineWidth;
   draw_context.skia_canvas->clipRect(SkRect::MakeXYWH(
       x + clip_border, y + clip_border, width - clip_border * 2.0f,
       height - clip_border * 2.0f));
@@ -219,25 +182,52 @@ void InputBox::Draw(const DrawContext& draw_context) {
   font_->getMetrics(&font_metrics);
   float font_height = font_metrics.fDescent - font_metrics.fAscent;
 
-  // Vertically center text
+  // Vertically center text.
   float text_y = y + (height - font_height) / 2.0f - font_metrics.fAscent;
+
+  float text_draw_x = x + padding - scroll_x_;
+
+  if (has_focus && selection_start_index_ != cursor_index_) {
+    size_t sel_start = std::min(selection_start_index_, cursor_index_);
+    size_t sel_end = std::max(selection_start_index_, cursor_index_);
+
+    float sel_x_start = text_draw_x;
+    if (sel_start > 0) {
+      sel_x_start = text_draw_x + font_->measureText(text_.data(), sel_start,
+                                                     SkTextEncoding::kUTF8);
+    }
+
+    float sel_x_end = text_draw_x;
+    if (sel_end > 0) {
+      sel_x_end = text_draw_x + font_->measureText(text_.data(), sel_end,
+                                                   SkTextEncoding::kUTF8);
+    }
+
+    SkPaint sel_paint;
+    sel_paint.setAntiAlias(true);
+    sel_paint.setColor(kTextBoxSelectionColor);
+    sel_paint.setStyle(SkPaint::kFill_Style);
+
+    float sel_y_top = y + (height - font_height) / 2.0f;
+    draw_context.skia_canvas->drawRect(
+        SkRect::MakeXYWH(sel_x_start, sel_y_top, sel_x_end - sel_x_start,
+                         font_height),
+        sel_paint);
+  }
 
   SkPaint text_paint;
   text_paint.setAntiAlias(true);
   text_paint.setColor(text_color_);
 
-  float text_draw_x = x + padding - scroll_x_;
   draw_context.skia_canvas->drawString(SkString(text_.data(), text_.length()),
                                        text_draw_x, text_y, *font_, text_paint);
 
   // 4. Draw Cursor if focused
-  if (has_focus) {
+  if (has_focus && selection_start_index_ == cursor_index_) {
     float cursor_offset_x = 0.0f;
     if (cursor_index_ > 0) {
-      SkRect bounds;
-      font_->measureText(text_.data(), cursor_index_, SkTextEncoding::kUTF8,
-                         &bounds);
-      cursor_offset_x = bounds.width();
+      cursor_offset_x = font_->measureText(text_.data(), cursor_index_,
+                                           SkTextEncoding::kUTF8);
     }
 
     float cursor_x = text_draw_x + cursor_offset_x;
@@ -250,7 +240,8 @@ void InputBox::Draw(const DrawContext& draw_context) {
     float cursor_y_bottom = cursor_y_top + font_height;
 
     draw_context.skia_canvas->drawRect(
-        SkRect::MakeXYWH(cursor_x, cursor_y_top, 1.5f, font_height),
+        SkRect::MakeXYWH(cursor_x, cursor_y_top, kTextBoxCursorWidth,
+                         font_height),
         cursor_paint);
   }
 
@@ -263,51 +254,31 @@ Size InputBox::Measure(float width, YGMeasureMode width_mode, float height,
   SkFontMetrics metrics;
   font_->getMetrics(&metrics);
   float font_height = metrics.fDescent - metrics.fAscent;
-  float preferred_height = font_height + 16.0f;  // 8px padding top & bottom
+  float preferred_height =
+      font_height + kTextBoxPadding * 2.0f;  // 8px padding top & bottom
 
   return {
-      .width = CalculateMeasuredLength(width_mode, width, 150.0f),
+      .width = CalculateMeasuredLength(width_mode, width, kTextBoxDefaultWidth),
       .height = CalculateMeasuredLength(height_mode, height, preferred_height)};
 }
 
-void InputBox::MoveCursorToPoint(const Point& point) {
+void InputBox::MoveCursorToPoint(const Point& point, bool extend_selection) {
   AssignDefaultFontIfUnassigned();
-  float padding = 8.0f;
+  float padding = kTextBoxPadding;
   float click_x = point.x - padding + scroll_x_;
 
-  size_t best_index = 0;
-  float best_distance = std::abs(click_x);
-
-  size_t idx = 0;
-  while (idx < text_.length()) {
-    size_t char_len = GetNextUtf8CharLength(text_, idx);
-    if (char_len == 0) break;
-    idx += char_len;
-
-    SkRect bounds;
-    font_->measureText(text_.data(), idx, SkTextEncoding::kUTF8, &bounds);
-    float char_x = bounds.width();
-    float dist = std::abs(char_x - click_x);
-    if (dist < best_distance) {
-      best_distance = dist;
-      best_index = idx;
-    } else {
-      break;
-    }
-  }
-  cursor_index_ = best_index;
+  cursor_index_ = FindClosestCursorIndex(text_, click_x, font_);
+  if (!extend_selection) selection_start_index_ = cursor_index_;
   EnsureCursorVisible();
 }
 
 void InputBox::EnsureCursorVisible() {
   AssignDefaultFontIfUnassigned();
-  float padding = 8.0f;
+  float padding = kTextBoxPadding;
   float cursor_offset_x = 0.0f;
   if (cursor_index_ > 0) {
-    SkRect bounds;
-    font_->measureText(text_.data(), cursor_index_, SkTextEncoding::kUTF8,
-                       &bounds);
-    cursor_offset_x = bounds.width();
+    cursor_offset_x =
+        font_->measureText(text_.data(), cursor_index_, SkTextEncoding::kUTF8);
   }
 
   if (auto strong = node_.lock()) {
@@ -333,13 +304,28 @@ void InputBox::HandleKeyDown(const window::KeyboardKeyEvent& event) {
     return;
   }
 
+  if (IsControlKey(event.key)) {
+    ctrl_pressed_ = true;
+    return;
+  }
+
   if (key == KeyCode::Backspace) {
-    if (cursor_index_ > 0) {
+    if (selection_start_index_ != cursor_index_) {
+      size_t sel_start = std::min(selection_start_index_, cursor_index_);
+      size_t sel_end = std::max(selection_start_index_, cursor_index_);
+      std::string new_text = text_.substr(0, sel_start) + text_.substr(sel_end);
+      text_ = new_text;
+      cursor_index_ = sel_start;
+      selection_start_index_ = sel_start;
+      EnsureCursorVisible();
+      NotifyTextChanged();
+    } else if (cursor_index_ > 0) {
       size_t prev_idx = GetPreviousUtf8CharIndex(text_, cursor_index_);
       std::string new_text =
           text_.substr(0, prev_idx) + text_.substr(cursor_index_);
       text_ = new_text;
       cursor_index_ = prev_idx;
+      selection_start_index_ = cursor_index_;
       EnsureCursorVisible();
       NotifyTextChanged();
     }
@@ -347,7 +333,16 @@ void InputBox::HandleKeyDown(const window::KeyboardKeyEvent& event) {
   }
 
   if (key == KeyCode::Delete) {
-    if (cursor_index_ < text_.length()) {
+    if (selection_start_index_ != cursor_index_) {
+      size_t sel_start = std::min(selection_start_index_, cursor_index_);
+      size_t sel_end = std::max(selection_start_index_, cursor_index_);
+      std::string new_text = text_.substr(0, sel_start) + text_.substr(sel_end);
+      text_ = new_text;
+      cursor_index_ = sel_start;
+      selection_start_index_ = sel_start;
+      EnsureCursorVisible();
+      NotifyTextChanged();
+    } else if (cursor_index_ < text_.length()) {
       size_t next_len = GetNextUtf8CharLength(text_, cursor_index_);
       std::string new_text = text_.substr(0, cursor_index_) +
                              text_.substr(cursor_index_ + next_len);
@@ -359,34 +354,76 @@ void InputBox::HandleKeyDown(const window::KeyboardKeyEvent& event) {
   }
 
   if (key == KeyCode::LeftArrow) {
-    if (cursor_index_ > 0) {
-      cursor_index_ = GetPreviousUtf8CharIndex(text_, cursor_index_);
-      EnsureCursorVisible();
-      if (auto strong = node_.lock()) strong->Invalidate();
+    if (shift_pressed_) {
+      if (cursor_index_ > 0) {
+        cursor_index_ = GetPreviousUtf8CharIndex(text_, cursor_index_);
+        EnsureCursorVisible();
+        if (auto strong = node_.lock()) strong->Invalidate();
+      }
+    } else {
+      if (selection_start_index_ != cursor_index_) {
+        cursor_index_ = std::min(selection_start_index_, cursor_index_);
+        selection_start_index_ = cursor_index_;
+        EnsureCursorVisible();
+        if (auto strong = node_.lock()) strong->Invalidate();
+      } else if (cursor_index_ > 0) {
+        cursor_index_ = GetPreviousUtf8CharIndex(text_, cursor_index_);
+        selection_start_index_ = cursor_index_;
+        EnsureCursorVisible();
+        if (auto strong = node_.lock()) strong->Invalidate();
+      }
     }
     return;
   }
 
   if (key == KeyCode::RightArrow) {
-    if (cursor_index_ < text_.length()) {
-      cursor_index_ += GetNextUtf8CharLength(text_, cursor_index_);
+    if (shift_pressed_) {
+      if (cursor_index_ < text_.length()) {
+        cursor_index_ += GetNextUtf8CharLength(text_, cursor_index_);
+        EnsureCursorVisible();
+        if (auto strong = node_.lock()) strong->Invalidate();
+      }
+    } else {
+      if (selection_start_index_ != cursor_index_) {
+        cursor_index_ = std::max(selection_start_index_, cursor_index_);
+        selection_start_index_ = cursor_index_;
+        EnsureCursorVisible();
+        if (auto strong = node_.lock()) strong->Invalidate();
+      } else if (cursor_index_ < text_.length()) {
+        cursor_index_ += GetNextUtf8CharLength(text_, cursor_index_);
+        selection_start_index_ = cursor_index_;
+        EnsureCursorVisible();
+        if (auto strong = node_.lock()) strong->Invalidate();
+      }
+    }
+    return;
+  }
+
+  if (key == KeyCode::Home) {
+    if (shift_pressed_) {
+      cursor_index_ = 0;
+      EnsureCursorVisible();
+      if (auto strong = node_.lock()) strong->Invalidate();
+    } else {
+      cursor_index_ = 0;
+      selection_start_index_ = 0;
       EnsureCursorVisible();
       if (auto strong = node_.lock()) strong->Invalidate();
     }
     return;
   }
 
-  if (key == KeyCode::Home) {
-    cursor_index_ = 0;
-    EnsureCursorVisible();
-    if (auto strong = node_.lock()) strong->Invalidate();
-    return;
-  }
-
   if (key == KeyCode::End) {
-    cursor_index_ = text_.length();
-    EnsureCursorVisible();
-    if (auto strong = node_.lock()) strong->Invalidate();
+    if (shift_pressed_) {
+      cursor_index_ = text_.length();
+      EnsureCursorVisible();
+      if (auto strong = node_.lock()) strong->Invalidate();
+    } else {
+      cursor_index_ = text_.length();
+      selection_start_index_ = text_.length();
+      EnsureCursorVisible();
+      if (auto strong = node_.lock()) strong->Invalidate();
+    }
     return;
   }
 
@@ -395,20 +432,80 @@ void InputBox::HandleKeyDown(const window::KeyboardKeyEvent& event) {
     return;
   }
 
+  if (ctrl_pressed_) {
+    char ascii = ScancodeToAscii(event.key, false);
+    if (ascii == 'c' || ascii == 'C') {
+      if (selection_start_index_ != cursor_index_) {
+        size_t sel_start = std::min(selection_start_index_, cursor_index_);
+        size_t sel_end = std::max(selection_start_index_, cursor_index_);
+        std::string selected_text =
+            text_.substr(sel_start, sel_end - sel_start);
+        ::perception::SetClipboard(selected_text);
+      }
+    } else if (ascii == 'x' || ascii == 'X') {
+      if (selection_start_index_ != cursor_index_) {
+        size_t sel_start = std::min(selection_start_index_, cursor_index_);
+        size_t sel_end = std::max(selection_start_index_, cursor_index_);
+        std::string selected_text =
+            text_.substr(sel_start, sel_end - sel_start);
+        ::perception::SetClipboard(selected_text);
+
+        text_ = text_.substr(0, sel_start) + text_.substr(sel_end);
+        cursor_index_ = sel_start;
+        selection_start_index_ = sel_start;
+        EnsureCursorVisible();
+        NotifyTextChanged();
+      }
+    } else if (ascii == 'v' || ascii == 'V') {
+      auto status_or_val = ::perception::GetClipboard();
+      if (status_or_val.Ok()) {
+        std::string clipboard_str = status_or_val->ToString();
+
+        if (!clipboard_str.empty()) {
+          size_t sel_start = std::min(selection_start_index_, cursor_index_);
+          size_t sel_end = std::max(selection_start_index_, cursor_index_);
+
+          text_ = text_.substr(0, sel_start) + clipboard_str +
+                  text_.substr(sel_end);
+          cursor_index_ = sel_start + clipboard_str.length();
+          selection_start_index_ = cursor_index_;
+          EnsureCursorVisible();
+          NotifyTextChanged();
+        }
+      }
+    }
+    return;
+  }
+
   char ascii = ScancodeToAscii(event.key, shift_pressed_);
   if (ascii != '\0') {
-    std::string new_text =
-        text_.substr(0, cursor_index_) + ascii + text_.substr(cursor_index_);
-    text_ = new_text;
-    cursor_index_ += 1;
-    EnsureCursorVisible();
-    NotifyTextChanged();
+    if (selection_start_index_ != cursor_index_) {
+      size_t sel_start = std::min(selection_start_index_, cursor_index_);
+      size_t sel_end = std::max(selection_start_index_, cursor_index_);
+      std::string new_text =
+          text_.substr(0, sel_start) + ascii + text_.substr(sel_end);
+      text_ = new_text;
+      cursor_index_ = sel_start + 1;
+      selection_start_index_ = cursor_index_;
+      EnsureCursorVisible();
+      NotifyTextChanged();
+    } else {
+      std::string new_text =
+          text_.substr(0, cursor_index_) + ascii + text_.substr(cursor_index_);
+      text_ = new_text;
+      cursor_index_ += 1;
+      selection_start_index_ = cursor_index_;
+      EnsureCursorVisible();
+      NotifyTextChanged();
+    }
   }
 }
 
 void InputBox::HandleKeyUp(const window::KeyboardKeyEvent& event) {
   if (IsShiftKey(event.key)) {
     shift_pressed_ = false;
+  } else if (IsControlKey(event.key)) {
+    ctrl_pressed_ = false;
   }
 }
 
@@ -429,6 +526,42 @@ void InputBox::NotifyEnterPressed() {
 
 void InputBox::AssignDefaultFontIfUnassigned() {
   if (font_ == nullptr) font_ = GetBook12UiFont();
+}
+
+void InputBox::DrawTextBoxOuter(const DrawContext& draw_context, bool has_focus,
+                                bool is_hovering) {
+  const float& x = draw_context.area.origin.x;
+  const float& y = draw_context.area.origin.y;
+  const float& width = draw_context.area.size.width;
+  const float& height = draw_context.area.size.height;
+
+  // 1. Draw Background
+  SkPaint bg_paint;
+  bg_paint.setAntiAlias(true);
+  bg_paint.setColor(kTextBoxBackgroundColor);
+  bg_paint.setStyle(SkPaint::kFill_Style);
+  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
+                                          kTextBoxCornerRadius,
+                                          kTextBoxCornerRadius, bg_paint);
+
+  // 2. Draw Outline
+  SkPaint outline_paint;
+  outline_paint.setAntiAlias(true);
+  outline_paint.setStyle(SkPaint::kStroke_Style);
+
+  if (has_focus) {
+    outline_paint.setColor(kTextBoxOutlineFocusedColor);
+    outline_paint.setStrokeWidth(kTextBoxOutlineFocusedWidth);
+  } else if (is_hovering) {
+    outline_paint.setColor(kTextBoxOutlineHoverColor);
+    outline_paint.setStrokeWidth(kTextBoxOutlineWidth);
+  } else {
+    outline_paint.setColor(kTextBoxOutlineColor);
+    outline_paint.setStrokeWidth(kTextBoxOutlineWidth);
+  }
+  draw_context.skia_canvas->drawRoundRect({x, y, x + width, y + height},
+                                          kTextBoxCornerRadius,
+                                          kTextBoxCornerRadius, outline_paint);
 }
 
 }  // namespace components
