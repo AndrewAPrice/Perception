@@ -21,6 +21,12 @@
 bool LoadPciDriver(uint8 base_class, uint8 sub_class, uint8 prog_if,
                    uint16 vendor_id, uint16 device_id, uint8 bus, uint8 slot,
                    uint8 function) {
+  if (vendor_id == 0x1AF4) {
+    AddDriverToLoad("Virtio");
+    if (device_id == 0x1050) FoundGraphicsDevice();
+    return true;
+  }
+
   switch (base_class) {
     case 0x01:  // Mass storage controller
       switch (sub_class) {

@@ -25,7 +25,9 @@ using ::perception::HandOverControl;
 
 namespace {
 
-void LoadVideoDriver() {
+void MaybeLoadFallbackVideoDriver() {
+  if (HasFoundGraphicsDevice()) return;
+
   size_t physical_address;
   uint32 width, height, pitch;
   uint8 bpp;
@@ -47,7 +49,7 @@ int main(int argc, char *argv[]) {
 
   AddDriverToLoad("PS2 Keyboard and Mouse");
   AddDriverToLoad("CMOS");
-  LoadVideoDriver();
+  MaybeLoadFallbackVideoDriver();
 
   // Actually loading the drivers off disk issues RPCs that can come around and
   // try to query for the Device Manager, so defer this action to be in a fiber.

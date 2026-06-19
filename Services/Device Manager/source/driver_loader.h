@@ -18,4 +18,11 @@
 
 void AddDriverToLoad(std::string_view driver_name);
 
+// Records that a graphics device has been found, so no need to use a fallback
+// driver.
+void FoundGraphicsDevice();
+
+// Whether a graphics device has been found.
+bool HasFoundGraphicsDevice();
+
 void LoadAllRemainingDrivers();

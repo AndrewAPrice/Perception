@@ -15,8 +15,8 @@
 #include "driver_loader.h"
 
 #include <iostream>
+#include <set>
 #include <string>
-#include <vector>
 
 #include "perception/loader.h"
 #include "perception/processes.h"
@@ -30,13 +30,18 @@ using ::perception::ProcessId;
 
 namespace {
 
-std::vector<std::string> drivers_to_load;
+std::set<std::string> drivers_to_load;
 
+bool found_graphics_device = false;
 }
 
 void AddDriverToLoad(std::string_view driver_name) {
-  drivers_to_load.push_back((std::string)driver_name);
+  drivers_to_load.insert((std::string)driver_name);
 }
+
+void FoundGraphicsDevice() { found_graphics_device = true; }
+
+bool HasFoundGraphicsDevice() { return found_graphics_device; }
 
 void LoadAllRemainingDrivers() {
   auto loader = GetService<Loader>();
