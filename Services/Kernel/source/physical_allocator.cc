@@ -29,13 +29,13 @@ size_t next_free_page_address;
 // the values are sure not to cross the 2MB page boundaries (which they
 // shouldn't).
 uint32 SafeReadUint32(uint32 *value) {
-  return *(uint32 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value,
+  return *(volatile uint32 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value,
                                                                  0);
 }
 
 // 64-bit equivalent to SafeReadUint32.
 uint64 SafeReadUint64(uint64 *value) {
-  return *(uint64 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value,
+  return *(volatile uint64 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value,
                                                                  0);
 }
 
@@ -43,9 +43,15 @@ uint64 SafeReadUint64(uint64 *value) {
 void CalculateStartOfFreeMemoryAtBoot() {
   start_of_free_memory_at_boot = (size_t)&bssEnd;
 
+  uint32 mb_addr = SafeReadUint32(&MultibootInfo.addr);
+  uint32 mb_total_size = SafeReadUint32((uint32 *)mb_addr);
+  if ((size_t)mb_addr + mb_total_size > start_of_free_memory_at_boot) {
+    start_of_free_memory_at_boot = (size_t)mb_addr + mb_total_size;
+  }
+
   // Loop through each of the tags in the multiboot.
   multiboot_tag *tag;
-  for (tag = (multiboot_tag *)(size_t)(SafeReadUint32(&MultibootInfo.addr) + 8);
+  for (tag = (multiboot_tag *)(size_t)(mb_addr + 8);
        SafeReadUint32(&tag->type) != MULTIBOOT_TAG_TYPE_END;
        tag =
            (multiboot_tag *)((size_t)tag +
@@ -58,6 +64,7 @@ void CalculateStartOfFreeMemoryAtBoot() {
 
     if (SafeReadUint32(&tag->type) == MULTIBOOT_TAG_TYPE_MODULE) {
       auto *module_tag = (multiboot_tag_module *)tag;
+      uint32 mod_start = SafeReadUint32(&module_tag->mod_start);
       uint32 mod_end = SafeReadUint32(&module_tag->mod_end);
 
       // If this is a multiboot module, make sure we're enough to fit
@@ -66,6 +73,11 @@ void CalculateStartOfFreeMemoryAtBoot() {
         start_of_free_memory_at_boot = mod_end;
       }
     }
+  }
+
+  size_t end_tag_end = (size_t)tag + 8;
+  if (end_tag_end > start_of_free_memory_at_boot) {
+    start_of_free_memory_at_boot = end_tag_end;
   }
 
   // Round up to the nearest whole page.
@@ -101,7 +113,7 @@ void InitializePhysicalAllocator() {
 
   // Loop through each of the tags in the multiboot.
   multiboot_tag *tag;
-  for (tag = (multiboot_tag *)(size_t)(MultibootInfo.addr + 8);
+  for (tag = (multiboot_tag *)(size_t)(SafeReadUint32(&MultibootInfo.addr) + 8);
        SafeReadUint32(&tag->type) != MULTIBOOT_TAG_TYPE_END;
        tag =
            (multiboot_tag *)((size_t)tag +
@@ -130,7 +142,6 @@ void InitializePhysicalAllocator() {
                                            (size_t)SafeReadUint32(
                                                &mmap_tag->entry_size))) {
         uint64 len = SafeReadUint64(&mmap->len);
-        total_system_memory += len;
 
         if (SafeReadUint32(&mmap->type) == MULTIBOOT_MEMORY_AVAILABLE) {
           // This memory is avaliable for usage (in contrast to memory that is
@@ -164,6 +175,7 @@ void InitializePhysicalAllocator() {
             next_free_page_address = page_addr;
 
             free_pages++;
+            total_system_memory += PAGE_SIZE;
           }
         }
       }

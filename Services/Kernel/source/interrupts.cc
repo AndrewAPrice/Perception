@@ -19,7 +19,7 @@
 #include "idt.h"
 #include "interrupts.asm.h"
 #include "io.h"
-#include "liballoc.h"
+#include "heap_allocator.h"
 #include "messages.h"
 #include "physical_allocator.h"
 #include "process.h"

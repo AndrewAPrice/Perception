@@ -37,6 +37,7 @@ void SetThreadPriority(Thread* thread, ThreadPriority priority);
 // Focused process elevation interface for Window Manager.
 void SetFocusedProcess(Process* process);
 Process* GetFocusedProcess();
+bool HasAwakeThreads();
 
 // Returns whether the running thread needs a timeslice interrupt.
 bool NeedsTimesliceInterrupt(Thread* thread);

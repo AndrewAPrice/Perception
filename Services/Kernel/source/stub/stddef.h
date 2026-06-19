@@ -1,5 +1,4 @@
-#ifndef TEST
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,8 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
+#include "types.h"
+
+typedef signed long long int ptrdiff_t;
+
+#ifndef offsetof
+#define offsetof(type, member) __builtin_offsetof(type, member)
+#endif
+
+#ifndef NULL
 #define NULL ((void*)0)
-
-#include "../../../third_party/liballoc.c"
-
-#endif // TEST
+#endif

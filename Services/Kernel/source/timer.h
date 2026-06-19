@@ -58,3 +58,6 @@ void RegisterMessageForWhenTimeInfoChanges(Process* process, size_t message_id);
 
 // Cancels all time info change subscriptions for a process.
 void CancelTimeInfoChangeSubscriptionsForProcess(Process* process);
+
+// Prints Local APIC registers for debugging.
+void PrintLapicRegisters();

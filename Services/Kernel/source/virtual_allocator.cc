@@ -99,11 +99,13 @@ void *TemporarilyMapPhysicalMemoryPreVirtualMemory(
   size_t virtual_address = temp_page_boot + addr_offset;
 
   // Check if it different to what is currently loaded.
-  if (Pd[511] != entry) {
+  volatile size_t *volatile_pd = (volatile size_t *)Pd;
+  if (volatile_pd[511] != entry) {
     // Map this to the last page of the page directory set up at boot time.
-    Pd[511] = entry;  // Flush the page table cache.
-    FlushVirtualPage(addr_start);
+    volatile_pd[511] = entry;  // Flush the page table cache.
+    FlushVirtualPage(temp_page_boot);
   }
+  __asm__ __volatile__("" : : : "memory");
 
   // Return a pointer to the virtual address of the requested physical memory.
   return (void *)(temp_page_boot + addr_offset);
@@ -118,12 +120,14 @@ void *TemporarilyMapPhysicalPages(size_t addr, size_t index) {
   size_t temp_addr = temp_memory_start + PAGE_SIZE * index;
 
   // Check if it's not already mapped.
-  if (temp_memory_page_table[index] != entry) {
+  volatile size_t *volatile_table = (volatile size_t *)temp_memory_page_table;
+  if (volatile_table[index] != entry) {
     // Map this page into the temporary page table.
-    temp_memory_page_table[index] = entry;
+    volatile_table[index] = entry;
     // Flush the page table cache.
     FlushVirtualPage(temp_addr);
   }
+  __asm__ __volatile__("" : : : "memory");
 
   // Return a pointer to the virtual address of the requested physical memory.
   return (void *)temp_addr;

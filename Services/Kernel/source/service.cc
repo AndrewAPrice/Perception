@@ -81,14 +81,11 @@ void UnregisterServiceByMessageId(Process* process, size_t message_id) {
 // Unregisters a service, and notifies anybody listening.
 void UnregisterService(Service* service) {
   while (!service->processes_to_notify_on_disappear.IsEmpty()) {
-    auto* notification = service->processes_to_notify_on_disappear.PopFront();
+    auto* notification = service->processes_to_notify_on_disappear.FirstItem();
     SendKernelMessageToProcess(notification->process, notification->message_id,
                                0, 0, 0, 0, 0);
 
-    service->processes_to_notify_on_disappear.Remove(notification);
-    notification->process->services_i_want_to_be_notified_of_when_they_disappear
-        .Remove(notification);
-    ObjectPool<ProcessToNotifyWhenServiceDisappears>::Release(notification);
+    StopNotifyingProcessWhenServiceDisappears(notification);
   }
   service->process->services.Remove(service);
   service->process->service_count--;
@@ -263,10 +260,17 @@ void NotifyProcessWhenServiceDisappears(Process* process,
 // Unregisters that a process wants to be notified when a service disappears.
 void StopNotifyingProcessWhenServiceDisappears(Process* process,
                                                size_t message_id) {
-  for (auto notification :
-       process->services_i_want_to_be_notified_of_when_they_disappear) {
+  for (auto* notification =
+           process->services_i_want_to_be_notified_of_when_they_disappear
+               .FirstItem();
+       notification != nullptr;) {
+    auto* next_notification =
+        process->services_i_want_to_be_notified_of_when_they_disappear.NextItem(
+            notification);
     if (notification->message_id == message_id)
-      return StopNotifyingProcessWhenServiceDisappears(notification);
+      StopNotifyingProcessWhenServiceDisappears(notification);
+
+    notification = next_notification;
   }
 }
 

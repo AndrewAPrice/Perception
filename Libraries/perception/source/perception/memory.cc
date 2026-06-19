@@ -17,7 +17,6 @@
 #include <iostream>
 
 #include "perception/debug.h"
-#include "perception/liballoc.h"
 
 #if !defined(PERCEPTION) || defined(TEST)
 #include <stdlib.h>
@@ -150,36 +149,40 @@ bool MaybeResizePages(void** ptr, size_t current_number, size_t new_number) {
 #endif
 }
 
-size_t GetFreeSystemMemory() {
+void GetSystemMemoryMetrics(size_t& total_memory, size_t& shared_memory,
+                            size_t& free_memory) {
 #if defined(PERCEPTION) && !defined(TEST)
-  volatile register size_t syscall_num asm("rdi") = 14;
-  volatile register size_t return_val asm("rax");
+  volatile register size_t rdi_io asm("rdi") = 14;
+  volatile register size_t total_r asm("rax");
+  volatile register size_t shared_r asm("rbx");
+  volatile register size_t free_r asm("rdx");
 
   __asm__ __volatile__("syscall\n"
-                       : "=r"(return_val)
-                       : "r"(syscall_num)
+                       : "=r"(total_r), "=r"(shared_r), "=r"(free_r)
+                       : "r"(rdi_io)
                        : "rcx", "r11");
-  return return_val;
-#else
-  return 0;
-#endif
-}
-
-size_t GetTotalSystemMemory() {
-#if defined(PERCEPTION) && !defined(TEST)
-  volatile register size_t syscall_num asm("rdi") = 16;
-  volatile register size_t return_val asm("rax");
-
-  __asm__ __volatile__("syscall\n"
-                       : "=r"(return_val)
-                       : "r"(syscall_num)
-                       : "rcx", "r11");
-  return return_val;
+  total_memory = total_r;
+  shared_memory = shared_r;
+  free_memory = free_r;
 #else
   long pages = sysconf(_SC_PHYS_PAGES);
   long page_size = sysconf(_SC_PAGE_SIZE);
-  return pages * page_size;
+  total_memory = pages * page_size;
+  shared_memory = 0;
+  free_memory = total_memory / 2;
 #endif
+}
+
+size_t GetFreeSystemMemory() {
+  size_t total, shared, free;
+  GetSystemMemoryMetrics(total, shared, free);
+  return free;
+}
+
+size_t GetTotalSystemMemory() {
+  size_t total, shared, free;
+  GetSystemMemoryMetrics(total, shared, free);
+  return total;
 }
 
 void GetProcessHealthMetrics(ProcessId pid, size_t& unique_memory_used,

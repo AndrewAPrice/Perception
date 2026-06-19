@@ -542,8 +542,9 @@ size_t VirtualAddressSpace::GetPhysicalAddress(size_t virtualaddr,
   if (ignore_unowned_pages && (last_entry & PageTableEntryBits::kIsOwned) == 0)
     return OUT_OF_MEMORY;
 
-  // Return the address of this entry.
-  return last_entry & ~(PAGE_SIZE - 1);
+  // Return the address of this entry, masking out flags and status bits (such
+  // as the No-Execute bit in bit 63).
+  return last_entry & 0x7FFFFFFFFFFFF000;
 }
 
 size_t VirtualAddressSpace::GetOrCreateVirtualPage(size_t virtualaddr) {

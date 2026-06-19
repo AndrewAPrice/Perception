@@ -36,7 +36,8 @@ void PrintStackTrace() {
     return;
   }
   VirtualAddressSpace& address_space =
-      running_thread->process->virtual_address_space;
+      (running_thread == nullptr) ? KernelAddressSpace()
+                                  : running_thread->process->virtual_address_space;
   size_t rbp = currently_executing_thread_regs->rbp;
   size_t rip = currently_executing_thread_regs->rip;
 

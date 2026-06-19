@@ -1,0 +1,76 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/mattconte/tlsf.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/tlsf.c",
+            "destination": "source/tlsf.c",
+            "replace": [
+                {
+                    "file": "source/tlsf.c",
+                    "replacements": [
+                        [
+                            "ALIGN_SIZE_LOG2 = 3,",
+                            "ALIGN_SIZE_LOG2 = 4,"
+                        ],
+                        [
+                            "tlsf_static_assert(sizeof(int) * CHAR_BIT == 32);",
+                            "tlsf_static_assert(ALIGN_SIZE == 16);\ntlsf_static_assert(sizeof(int) * CHAR_BIT == 32);"
+                        ],
+                        [
+                            "struct block_header_t* prev_phys_block;",
+                            "struct block_header_t* prev_phys_block;\n#if defined (TLSF_64BIT)\n\tsize_t padding_overlap;\n#endif"
+                        ],
+                        [
+                            "\tsize_t size;",
+                            "\tsize_t size;\n#if defined (TLSF_64BIT)\n\tsize_t padding_header;\n#endif"
+                        ],
+                        [
+                            "static const size_t block_header_overhead = sizeof(size_t);",
+                            "#if defined (TLSF_64BIT)\nstatic const size_t block_header_overhead = 16;\n#else\nstatic const size_t block_header_overhead = sizeof(size_t);\n#endif"
+                        ],
+                        [
+                            "offsetof(block_header_t, size) + sizeof(size_t);",
+                            "#if defined (TLSF_64BIT)\n\t32;\n#else\n\toffsetof(block_header_t, size) + sizeof(size_t);\n#endif"
+                        ],
+                        [
+                            "sizeof(block_header_t) - sizeof(block_header_t*);",
+                            "#if defined (TLSF_64BIT)\n\t32;\n#else\n\tsizeof(block_header_t) - sizeof(block_header_t*);\n#endif"
+                        ],
+                        [
+                            "\tblock_header_t* block =\n\t\toffset_to_block(pool, -(int)block_header_overhead);",
+                            "#if defined (TLSF_64BIT)\n\tblock_header_t* block = (block_header_t*)pool;\n#else\n\tblock_header_t* block =\n\t\toffset_to_block(pool, -(int)block_header_overhead);\n#endif"
+                        ],
+                        [
+                            "\tblock_header_t* block = offset_to_block(pool, -(int)block_header_overhead);",
+                            "#if defined (TLSF_64BIT)\n\tblock_header_t* block = (block_header_t*)pool;\n#else\n\tblock_header_t* block = offset_to_block(pool, -(int)block_header_overhead);\n#endif"
+                        ],
+                        [
+                            "return sizeof(control_t);",
+                            "return align_up(sizeof(control_t), ALIGN_SIZE);"
+                        ],
+                        [
+                            "return 2 * block_header_overhead;",
+                            "return block_start_offset + block_header_overhead;"
+                        ],
+                        [
+                            "\tblock = offset_to_block(mem, -(tlsfptr_t)block_header_overhead);",
+                            "#if defined (TLSF_64BIT)\n\tblock = (block_header_t*)mem;\n#else\n\tblock = offset_to_block(mem, -(tlsfptr_t)block_header_overhead);\n#endif"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/tlsf.h",
+            "destination": "public/tlsf.h"
+        }
+    ]
+}

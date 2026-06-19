@@ -2,7 +2,7 @@
 
 #include "interrupts.h"
 #include "io.h"
-#include "liballoc.h"
+#include "heap_allocator.h"
 #include "linked_list.h"
 #include "memory.h"
 #include "messages.h"
@@ -15,7 +15,7 @@
 #include "virtual_allocator.h"
 
 // Uncomment to see periodic process activity dumps to debug freezes.
-// ç#define VERBOSE_POLLING
+// #define VERBOSE_POLLING
 
 namespace {
 
@@ -285,6 +285,9 @@ void TimerHandler() {
     }
     scheduled_timer_events.Remove(timer_event);
 
+    // Remove from the process's timer list.
+    timer_event->process_to_send_message_to->timer_events.Remove(timer_event);
+
     // Send the message to the process.
     SendKernelMessageToProcess(timer_event->process_to_send_message_to,
                                timer_event->message_id_to_send, 0, 0, 0, 0, 0);
@@ -425,6 +428,8 @@ void ReprogramTimerForNextDeadline() {
   if (running_thread != nullptr && NeedsTimesliceInterrupt(running_thread)) {
     next_deadline = running_thread->current_run_start_timestamp +
                     running_thread->remaining_timeslice_microseconds;
+  } else if (running_thread == nullptr && HasAwakeThreads()) {
+    next_deadline = now;
   }
 
   TimerEvent* first_event = scheduled_timer_events.FirstItem();

@@ -35,6 +35,13 @@ size_t GetPhysicalAddressOfVirtualAddress(size_t virtual_address);
 
 bool MaybeResizePages(void** ptr, size_t current_number, size_t new_number);
 
+// Gets system memory metrics in bytes:
+// - total_memory: total memory in the system.
+// - shared_memory: shared memory allocated in the system.
+// - free_memory: free memory remaining in the system.
+void GetSystemMemoryMetrics(size_t& total_memory, size_t& shared_memory,
+                            size_t& free_memory);
+
 size_t GetFreeSystemMemory();
 
 size_t GetTotalSystemMemory();

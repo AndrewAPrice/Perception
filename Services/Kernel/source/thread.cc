@@ -1,7 +1,7 @@
 #include "thread.h"
 
 #include "io.h"
-#include "liballoc.h"
+#include "heap_allocator.h"
 #include "object_pool.h"
 #include "physical_allocator.h"
 #include "process.h"
@@ -20,7 +20,7 @@ namespace {
 #define GSBASE_MSR 0xC0000101
 
 // The number of stack pages.
-#define STACK_PAGES 8
+#define STACK_PAGES 64
 
 size_t next_thread_id;
 

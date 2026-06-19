@@ -42,9 +42,9 @@ enum class Syscall {
   ReleaseMemoryPages = 13,
   MapPhysicalMemory = 41,
   GetPhysicalAddressOfVirtualAddress = 50,
-  GetFreeSystemMemory = 14,
+  GetSystemMemoryMetrics = 14,
   GetProcessHealthMetrics = 15,
-  GetTotalSystemMemory = 16,
+  // 16 is Free / Unassigned
   CreateSharedMemory = 42,
   JoinSharedMemory = 43,
   JoinChildProcessInSharedMemory = 61,

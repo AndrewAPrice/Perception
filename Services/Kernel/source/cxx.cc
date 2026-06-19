@@ -21,7 +21,7 @@ namespace std {
 
 void terminate() {
   print << "std::terminate() called in kernel.\n";
-  asm("hlt");
+  asm volatile("hlt");
 }
 
 }  // namespace std

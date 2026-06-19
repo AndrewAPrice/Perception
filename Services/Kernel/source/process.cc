@@ -2,7 +2,7 @@
 
 #include "interrupts.h"
 #include "kernel_string.h"
-#include "liballoc.h"
+#include "heap_allocator.h"
 #include "linked_list.h"
 #include "messages.h"
 #include "object_pool.h"

@@ -16,7 +16,7 @@
 #include "tss.h"
 
 #include "boot.asm.h"
-#include "liballoc.h"
+#include "heap_allocator.h"
 #include "memory.h"
 #include "physical_allocator.h"
 #include "virtual_allocator.h"

@@ -17,6 +17,12 @@
 #include "text_terminal.h"
 #include "types.h"
 
+#define AA_TREE_LOOP_GUARD(counter) \
+  if (++counter > 100000) { \
+    print << "AATree infinite loop detected at line " << __LINE__ << "\n"; \
+    while(1); \
+  }
+
 // A node in an AA-tree.
 struct AATreeNode {
   // This node's level. This has to do with the tree structure and is not
@@ -141,7 +147,11 @@ struct AATree {
   C* FirstItem() {
     AATreeNode* current = root_;
     if (current == nullptr) return nullptr;
-    while (current->left != nullptr) current = current->left;
+    int loop_counter = 0;
+    while (current->left != nullptr) {
+      AA_TREE_LOOP_GUARD(loop_counter);
+      current = current->left;
+    }
     return NodeToItem(current);
   }
 
@@ -150,8 +160,16 @@ struct AATree {
   C* LastItem() {
     AATreeNode* current = root_;
     if (current == nullptr) return nullptr;
-    while (current->right != nullptr) current = current->right;
-    while (current->next != nullptr) current = current->next;
+    int loop_counter1 = 0;
+    while (current->right != nullptr) {
+      AA_TREE_LOOP_GUARD(loop_counter1);
+      current = current->right;
+    }
+    int loop_counter2 = 0;
+    while (current->next != nullptr) {
+      AA_TREE_LOOP_GUARD(loop_counter2);
+      current = current->next;
+    }
     return NodeToItem(current);
   }
 
@@ -169,13 +187,19 @@ struct AATree {
     // In the tree structure, left/right/parent pointers are only valid on the
     // head.
     AATreeNode* main_node = node;
-    while (main_node->previous != nullptr) main_node = main_node->previous;
+    int loop_counter1 = 0;
+    while (main_node->previous != nullptr) {
+      AA_TREE_LOOP_GUARD(loop_counter1);
+      main_node = main_node->previous;
+    }
 
     // If the node has a right child, the successor is the leftmost node in the
     // right subtree.
     if (main_node->right != nullptr) {
       AATreeNode* current = main_node->right;
+      int loop_counter2 = 0;
       while (current->left != nullptr) {
+        AA_TREE_LOOP_GUARD(loop_counter2);
         current = current->left;
       }
       return NodeToItem(current);
@@ -185,7 +209,9 @@ struct AATree {
     // a parent.
     AATreeNode* current = main_node;
     AATreeNode* parent = current->parent;
+    int loop_counter3 = 0;
     while (parent != nullptr && current == parent->right) {
+      AA_TREE_LOOP_GUARD(loop_counter3);
       current = parent;
       parent = parent->parent;
     }
@@ -207,9 +233,17 @@ struct AATree {
     // the left subtree.
     if (node->left != nullptr) {
       AATreeNode* current = node->left;
-      while (current->right != nullptr) current = current->right;
+      int loop_counter1 = 0;
+      while (current->right != nullptr) {
+        AA_TREE_LOOP_GUARD(loop_counter1);
+        current = current->right;
+      }
       // Return the last element in its duplicate list.
-      while (current->next != nullptr) current = current->next;
+      int loop_counter2 = 0;
+      while (current->next != nullptr) {
+        AA_TREE_LOOP_GUARD(loop_counter2);
+        current = current->next;
+      }
       return NodeToItem(current);
     }
 
@@ -217,14 +251,20 @@ struct AATree {
     // a parent.
     AATreeNode* current = node;
     AATreeNode* parent = current->parent;
+    int loop_counter3 = 0;
     while (parent != nullptr && current == parent->left) {
+      AA_TREE_LOOP_GUARD(loop_counter3);
       current = parent;
       parent = parent->parent;
     }
     if (parent == nullptr) return nullptr;
     // Predecessor is the parent (or the last element in its duplicate list).
     AATreeNode* last_dup = parent;
-    while (last_dup->next != nullptr) last_dup = last_dup->next;
+    int loop_counter4 = 0;
+    while (last_dup->next != nullptr) {
+      AA_TREE_LOOP_GUARD(loop_counter4);
+      last_dup = last_dup->next;
+    }
     return NodeToItem(last_dup);
   }
 
@@ -262,7 +302,9 @@ struct AATree {
     AATreeNode* highest_suitable_node = nullptr;
 
     AATreeNode* current_node = root_;
+    int loop_counter = 0;
     while (current_node != nullptr) {
+      AA_TREE_LOOP_GUARD(loop_counter);
       size_t current_value = ValueOfNode(current_node);
       if (current_value == value) return current_node;  // Exact match.
 
@@ -296,8 +338,10 @@ struct AATree {
     size_t lowest_suitable_node_value = 0;
     AATreeNode* lowest_suitable_node = nullptr;
     AATreeNode* current_node = root_;
+    int loop_counter = 0;
 
     while (current_node != nullptr) {
+      AA_TREE_LOOP_GUARD(loop_counter);
       size_t current_value = ValueOfNode(current_node);
       if (current_value == value) {
         return current_node;  // Exact match.
@@ -330,7 +374,9 @@ struct AATree {
     // Try to find an exact match.
 
     AATreeNode* current_node = root_;
+    int loop_counter = 0;
     while (current_node != nullptr) {
+      AA_TREE_LOOP_GUARD(loop_counter);
       size_t current_value = ValueOfNode(current_node);
       if (current_value == value) {
         return current_node;  // Exact match.
@@ -351,7 +397,9 @@ struct AATree {
 
     size_t count = 1;
     AATreeNode* next_node = node->next;
+    int loop_counter = 0;
     while (next_node != nullptr) {
+      AA_TREE_LOOP_GUARD(loop_counter);
       count++;
       next_node = next_node->next;
     }
@@ -454,13 +502,21 @@ struct AATree {
 
   static AATreeNode* PredecessorOfAANode(AATreeNode* node) {
     node = node->left;
-    while (node->right != nullptr) node = node->right;
+    int loop_counter = 0;
+    while (node->right != nullptr) {
+      AA_TREE_LOOP_GUARD(loop_counter);
+      node = node->right;
+    }
     return node;
   }
 
   static AATreeNode* SuccessorOfAANode(AATreeNode* node) {
     node = node->right;
-    while (node->left != nullptr) node = node->left;
+    int loop_counter = 0;
+    while (node->left != nullptr) {
+      AA_TREE_LOOP_GUARD(loop_counter);
+      node = node->left;
+    }
     return node;
   }
 

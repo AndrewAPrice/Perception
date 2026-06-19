@@ -1,8 +1,8 @@
 #include "object_pools.h"
 
+#include "heap_allocator.h"
 #include "interrupts.h"
 #include "io.h"
-#include "liballoc.h"
 #include "messages.h"
 #include "object_pool.h"
 #include "process.h"

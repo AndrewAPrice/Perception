@@ -59,12 +59,10 @@ const char *GetSystemCallName(Syscall syscall) {
       return "MapPhysicalMemory";
     case Syscall::GetPhysicalAddressOfVirtualAddress:
       return "GetPhysicalAddressOfVirtualAddress";
-    case Syscall::GetFreeSystemMemory:
-      return "GetFreeSystemMemory";
+    case Syscall::GetSystemMemoryMetrics:
+      return "GetSystemMemoryMetrics";
     case Syscall::GetProcessHealthMetrics:
       return "GetProcessHealthMetrics";
-    case Syscall::GetTotalSystemMemory:
-      return "GetTotalSystemMemory";
     case Syscall::CreateSharedMemory:
       return "CreateSharedMemory";
     case Syscall::JoinSharedMemory:

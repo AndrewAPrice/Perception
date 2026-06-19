@@ -2,7 +2,7 @@
 #include "scheduler.h"
 
 #include "interrupts.h"
-#include "liballoc.h"
+#include "heap_allocator.h"
 #include "linked_list.h"
 #include "process.h"
 #include "registers.h"
@@ -254,6 +254,8 @@ void SetFocusedProcess(Process* process) {
 }
 
 Process* GetFocusedProcess() { return focused_process; }
+
+bool HasAwakeThreads() { return awake_thread_count > 0; }
 
 bool NeedsTimesliceInterrupt(Thread* thread) {
   if (thread == nullptr) return false;

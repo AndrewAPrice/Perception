@@ -171,8 +171,12 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
                                  size_t error_code) {
   Exception exception = static_cast<Exception>(exception_no);
   if (exception == Exception::PageFault && running_thread != nullptr) {
-    if (MaybeHandleSharedMessagePageFault(cr2))
+    if (MaybeHandleSharedMessagePageFault(cr2)) {
+      if (running_thread == nullptr) {
+        ScheduleNextThread();
+      }
       JumpIntoThread(); // Doesn't return.
+    }
   }
 
   bool in_kernel = currently_executing_thread_regs == nullptr ||
@@ -186,8 +190,8 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
 
   if (in_kernel) {
     ExitQemu();
-    asm("cli");
-    asm("hlt");
+    asm volatile("cli");
+    asm volatile("hlt");
   } else {
     // Terminate the process.
     DestroyProcess(running_thread->process);

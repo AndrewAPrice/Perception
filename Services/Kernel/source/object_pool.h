@@ -14,7 +14,7 @@
 #pragma once
 
 #ifndef TEST
-#include "liballoc.h"
+#include "heap_allocator.h"
 #include "memory.h"
 #else
 #include <stdlib.h>
@@ -39,6 +39,9 @@ class ObjectPool {
  public:
   // Returns an object, preferably from the pool.
   static T* Allocate() {
+#ifndef TEST
+    BEGIN_NO_INTERRUPTS();
+#endif
     T* obj = (T*)next_item_;
     if (obj == nullptr) {
       obj = (T*)malloc(sizeof(T));
@@ -46,6 +49,9 @@ class ObjectPool {
     } else {
       next_item_ = next_item_->next;
     }
+#ifndef TEST
+    END_NO_INTERRUPTS();
+#endif
 
     return new (obj) T();
   }
@@ -53,9 +59,15 @@ class ObjectPool {
   // Releases an object back to the pool.
   static void Release(T* obj) {
     obj->~T();
+#ifndef TEST
+    BEGIN_NO_INTERRUPTS();
+#endif
     auto item = (ObjectPoolItem*)obj;
     item->next = next_item_;
     next_item_ = item;
+#ifndef TEST
+    END_NO_INTERRUPTS();
+#endif
   }
 
  private:

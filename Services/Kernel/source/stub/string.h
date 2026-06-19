@@ -1,5 +1,4 @@
-#ifndef TEST
-// Copyright 2020 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "text_terminal.h"
+#pragma once
+
 #include "types.h"
 
-#define STACK_CHK_GUARD 0x595e9fbd94fda766
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-uint64 __stack_chk_guard = STACK_CHK_GUARD;
+void* memcpy(void *dest, const void *src, size_t count);
+void* memset(void *dest, int val, size_t count);
 
-__attribute__((noreturn)) void __stack_chk_fail(void) {
-  asm volatile("cli");
-  print << "Stack smashing detected.";
-  for (;;) {
-    asm volatile("hlt");
-  }
+#ifdef __cplusplus
 }
-
-#endif // TEST
+#endif

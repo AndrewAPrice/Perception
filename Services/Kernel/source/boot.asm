@@ -138,6 +138,7 @@ GdtrUpper64:
 	DW 55 ; 56 bytes long
 	DQ Gdt64 + 0xFFFFFFFF80000000
 
+align 8
 [GLOBAL MultibootInfo]
 MultibootInfo:
 	dq 0 ; pointer and magic stuff from grub written here

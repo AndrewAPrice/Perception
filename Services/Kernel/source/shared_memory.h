@@ -212,3 +212,7 @@ void TriggerSharedMemoryEvent(size_t shared_memory_id, size_t offset);
 
 // Unregisters all shared memory events registered by the given process.
 void UnregisterAllSharedMemoryEventsForProcess(Process* process);
+
+// Returns the total number of bytes currently allocated to shared memory
+// blocks.
+size_t GetAllocatedSharedMemoryInBytes();

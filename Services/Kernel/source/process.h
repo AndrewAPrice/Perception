@@ -12,7 +12,7 @@
 #include "types.h"
 #include "virtual_address_space.h"
 
-#define PROCESS_NAME_WORDS 11
+#define PROCESS_NAME_WORDS 10
 #define PROCESS_NAME_LENGTH (PROCESS_NAME_WORDS * 8)
 #define MAX_CORES 1
 

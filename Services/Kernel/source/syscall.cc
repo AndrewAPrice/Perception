@@ -124,6 +124,7 @@ extern "C" void SyscallHandler(int syscall_number) {
     }
     case Syscall::TerminateThisThread:
       DestroyThread(running_thread, false);
+      ScheduleNextThread();
       JumpIntoThread();  // Doesn't return.
       break;
     case Syscall::TerminateThread: {
@@ -131,6 +132,7 @@ extern "C" void SyscallHandler(int syscall_number) {
                                         currently_executing_thread_regs->rax);
       if (thread == running_thread) {
         DestroyThread(running_thread, false);
+        ScheduleNextThread();
         JumpIntoThread();  // Doesn't return.
       } else if (thread != 0) {
         DestroyThread(thread, false);
@@ -205,8 +207,10 @@ extern "C" void SyscallHandler(int syscall_number) {
         currently_executing_thread_regs->rax = 0;
       }
       break;
-    case Syscall::GetFreeSystemMemory:
-      currently_executing_thread_regs->rax = free_pages * PAGE_SIZE;
+    case Syscall::GetSystemMemoryMetrics:
+      currently_executing_thread_regs->rax = total_system_memory;
+      currently_executing_thread_regs->rbx = GetAllocatedSharedMemoryInBytes();
+      currently_executing_thread_regs->rdx = free_pages * PAGE_SIZE;
       break;
     case Syscall::GetProcessHealthMetrics: {
       Process* process = nullptr;
@@ -239,9 +243,6 @@ extern "C" void SyscallHandler(int syscall_number) {
           process->virtual_address_space.GetSharedPages() * PAGE_SIZE;
       break;
     }
-    case Syscall::GetTotalSystemMemory:
-      currently_executing_thread_regs->rax = total_system_memory;
-      break;
     case Syscall::CreateSharedMemory: {
       SharedMemoryInProcess* shared_memory =
           CreateAndMapSharedMemoryBlockIntoProcess(
@@ -361,6 +362,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       break;
     case Syscall::TerminateThisProcess:
       DestroyProcess(running_thread->process);
+      ScheduleNextThread();
       JumpIntoThread();  // Doesn't return.
       break;
     case Syscall::TerminateProcess: {
@@ -372,6 +374,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       bool currently_running_process = process == running_thread->process;
       DestroyProcess(process);
       if (currently_running_process) {
+        ScheduleNextThread();
         JumpIntoThread();  // Doesn't return.
       }
       break;
@@ -389,28 +392,26 @@ extern "C" void SyscallHandler(int syscall_number) {
       process_name[7] = currently_executing_thread_regs->r12;
       process_name[8] = currently_executing_thread_regs->r13;
       process_name[9] = currently_executing_thread_regs->r14;
-      process_name[10] = currently_executing_thread_regs->r15;
 
       // Loop over all processes starting from the provided PID
       // until processes run out. Keep track of the pids of the
-      // first 12 found.
-      size_t pids[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      // first 11 found.
+      size_t pids[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
       size_t processes_found = 0;
       Process* process =
-          GetProcessOrNextFromPid(currently_executing_thread_regs->rbp);
+          GetProcessOrNextFromPid(currently_executing_thread_regs->r15);
       while (process != nullptr) {
         process = FindNextProcessWithName((char*)process_name, process);
         if (process != nullptr) {
-          if (processes_found < 12) pids[processes_found] = process->pid;
+          if (processes_found < 11) pids[processes_found] = process->pid;
 
           processes_found++;
           process = GetNextProcess(process);
         }
       }
 
-      // Write out the list of found PIDs.
       currently_executing_thread_regs->rdi = processes_found;
-      currently_executing_thread_regs->rbp = pids[0];
+      currently_executing_thread_regs->r15 = pids[0];
       currently_executing_thread_regs->rax = pids[1];
       currently_executing_thread_regs->rbx = pids[2];
       currently_executing_thread_regs->rdx = pids[3];
@@ -421,7 +422,6 @@ extern "C" void SyscallHandler(int syscall_number) {
       currently_executing_thread_regs->r12 = pids[8];
       currently_executing_thread_regs->r13 = pids[9];
       currently_executing_thread_regs->r14 = pids[10];
-      currently_executing_thread_regs->r15 = pids[11];
       break;
     }
     case Syscall::GetNameOfProcess: {
@@ -469,21 +469,20 @@ extern "C" void SyscallHandler(int syscall_number) {
     case Syscall::CreateProcess: {
       // Extract the name from the input registers.
       size_t process_name[PROCESS_NAME_WORDS];
-      process_name[0] = currently_executing_thread_regs->rax;
-      process_name[1] = currently_executing_thread_regs->rbx;
-      process_name[2] = currently_executing_thread_regs->rdx;
-      process_name[3] = currently_executing_thread_regs->rsi;
-      process_name[4] = currently_executing_thread_regs->r8;
-      process_name[5] = currently_executing_thread_regs->r9;
-      process_name[6] = currently_executing_thread_regs->r10;
-      process_name[7] = currently_executing_thread_regs->r12;
-      process_name[8] = currently_executing_thread_regs->r13;
-      process_name[9] = currently_executing_thread_regs->r14;
-      process_name[10] = currently_executing_thread_regs->r15;
+      process_name[0] = currently_executing_thread_regs->rbx;
+      process_name[1] = currently_executing_thread_regs->rdx;
+      process_name[2] = currently_executing_thread_regs->rsi;
+      process_name[3] = currently_executing_thread_regs->r8;
+      process_name[4] = currently_executing_thread_regs->r9;
+      process_name[5] = currently_executing_thread_regs->r10;
+      process_name[6] = currently_executing_thread_regs->r12;
+      process_name[7] = currently_executing_thread_regs->r13;
+      process_name[8] = currently_executing_thread_regs->r14;
+      process_name[9] = currently_executing_thread_regs->r15;
 
       Process* child_process =
           CreateChildProcess(running_thread->process, (char*)process_name,
-                             currently_executing_thread_regs->rdi);
+                             currently_executing_thread_regs->rax);
       currently_executing_thread_regs->rax =
           ((size_t)child_process == ERROR) ? 0 : child_process->pid;
       break;
@@ -516,7 +515,7 @@ extern "C" void SyscallHandler(int syscall_number) {
       LoadNextMultibootModuleIntoProcess(
           running_thread->process,
           /*address_and_flags=*/currently_executing_thread_regs->rdi,
-          /*size=*/currently_executing_thread_regs->rbp, (char*)module_name);
+          /*size=*/currently_executing_thread_regs->r15, (char*)module_name);
       currently_executing_thread_regs->rax = ((size_t*)module_name)[0];
       currently_executing_thread_regs->rbx = ((size_t*)module_name)[1];
       currently_executing_thread_regs->rdx = ((size_t*)module_name)[2];
@@ -527,7 +526,6 @@ extern "C" void SyscallHandler(int syscall_number) {
       currently_executing_thread_regs->r12 = ((size_t*)module_name)[7];
       currently_executing_thread_regs->r13 = ((size_t*)module_name)[8];
       currently_executing_thread_regs->r14 = ((size_t*)module_name)[9];
-      currently_executing_thread_regs->r15 = ((size_t*)module_name)[10];
       break;
     }
     case Syscall::RegisterService: {
@@ -542,10 +540,9 @@ extern "C" void SyscallHandler(int syscall_number) {
       service_name[6] = currently_executing_thread_regs->r10;
       service_name[7] = currently_executing_thread_regs->r12;
       service_name[8] = currently_executing_thread_regs->r13;
-      service_name[9] = currently_executing_thread_regs->r14;
 
       RegisterService((char*)service_name, running_thread->process,
-                      currently_executing_thread_regs->rbp);
+                      currently_executing_thread_regs->r15);
       break;
     }
     case Syscall::UnregisterService:
@@ -555,31 +552,30 @@ extern "C" void SyscallHandler(int syscall_number) {
     case Syscall::GetServices: {
       // Extract the name from the input registers.
       size_t service_name[SERVICE_NAME_WORDS];
-      service_name[0] = currently_executing_thread_regs->rbx;
-      service_name[1] = currently_executing_thread_regs->rdx;
-      service_name[2] = currently_executing_thread_regs->rsi;
-      service_name[3] = currently_executing_thread_regs->r8;
-      service_name[4] = currently_executing_thread_regs->r9;
-      service_name[5] = currently_executing_thread_regs->r10;
-      service_name[6] = currently_executing_thread_regs->r12;
-      service_name[7] = currently_executing_thread_regs->r13;
-      service_name[8] = currently_executing_thread_regs->r14;
-      service_name[9] = currently_executing_thread_regs->r15;
+      service_name[0] = currently_executing_thread_regs->rdx;
+      service_name[1] = currently_executing_thread_regs->rsi;
+      service_name[2] = currently_executing_thread_regs->r8;
+      service_name[3] = currently_executing_thread_regs->r9;
+      service_name[4] = currently_executing_thread_regs->r10;
+      service_name[5] = currently_executing_thread_regs->r12;
+      service_name[6] = currently_executing_thread_regs->r13;
+      service_name[7] = currently_executing_thread_regs->r14;
+      service_name[8] = currently_executing_thread_regs->r15;
 
-      size_t min_pid = currently_executing_thread_regs->rbp;
-      size_t min_sid = currently_executing_thread_regs->rax;
+      size_t min_pid = currently_executing_thread_regs->rax;
+      size_t min_sid = currently_executing_thread_regs->rbx;
 
       // Loop over all processes starting from the provided PID
       // and services starting from the provided SID until processes
-      // run out. The pids and sids of the first 6 found will be tracked.
-      size_t pids[6] = {0, 0, 0, 0, 0, 0};
-      size_t sids[6] = {0, 0, 0, 0, 0, 0};
+      // run out. The pids and sids of the first 5 found will be tracked.
+      size_t pids[5] = {0, 0, 0, 0, 0};
+      size_t sids[5] = {0, 0, 0, 0, 0};
       size_t services_found = 0;
       for (Service* service = FindNextServiceByPidAndMidWithName(
                (char*)service_name, min_pid, min_sid);
            service != nullptr;
            service = FindNextServiceWithName((char*)service_name, service)) {
-        if (services_found < 6) {
+        if (services_found < 5) {
           pids[services_found] = service->process->pid;
           sids[services_found] = service->message_id;
         }
@@ -587,18 +583,16 @@ extern "C" void SyscallHandler(int syscall_number) {
       }
       // Write out the list of found PIDs.
       currently_executing_thread_regs->rdi = services_found;
-      currently_executing_thread_regs->rbp = pids[0];
-      currently_executing_thread_regs->rax = sids[0];
-      currently_executing_thread_regs->rbx = pids[1];
-      currently_executing_thread_regs->rdx = sids[1];
-      currently_executing_thread_regs->rsi = pids[2];
-      currently_executing_thread_regs->r8 = sids[2];
-      currently_executing_thread_regs->r9 = pids[3];
-      currently_executing_thread_regs->r10 = sids[3];
-      currently_executing_thread_regs->r12 = pids[4];
-      currently_executing_thread_regs->r13 = sids[4];
-      currently_executing_thread_regs->r14 = pids[5];
-      currently_executing_thread_regs->r15 = sids[5];
+      currently_executing_thread_regs->rax = pids[0];
+      currently_executing_thread_regs->rbx = sids[0];
+      currently_executing_thread_regs->rdx = pids[1];
+      currently_executing_thread_regs->rsi = sids[1];
+      currently_executing_thread_regs->r8 = pids[2];
+      currently_executing_thread_regs->r9 = sids[2];
+      currently_executing_thread_regs->r10 = pids[3];
+      currently_executing_thread_regs->r12 = sids[3];
+      currently_executing_thread_regs->r13 = pids[4];
+      currently_executing_thread_regs->r14 = sids[4];
       break;
     }
     case Syscall::GetNameOfService: {
@@ -634,16 +628,15 @@ extern "C" void SyscallHandler(int syscall_number) {
       service_name[6] = currently_executing_thread_regs->r10;
       service_name[7] = currently_executing_thread_regs->r12;
       service_name[8] = currently_executing_thread_regs->r13;
-      service_name[9] = currently_executing_thread_regs->r14;
 
       NotifyProcessWhenServiceAppears((char*)service_name,
                                       running_thread->process,
-                                      currently_executing_thread_regs->rbp);
+                                      currently_executing_thread_regs->r15);
       break;
     }
     case Syscall::StopNotifyingWhenServiceAppears:
       StopNotifyingProcessWhenServiceAppearsByMessageId(
-          running_thread->process, currently_executing_thread_regs->rbp);
+          running_thread->process, currently_executing_thread_regs->rax);
       break;
     case Syscall::NotifyWhenServiceDisappears:
       NotifyProcessWhenServiceDisappears(

@@ -22,7 +22,7 @@ struct Process;
 struct Service;
 
 // Maximum length of a service.
-#define SERVICE_NAME_WORDS 10
+#define SERVICE_NAME_WORDS 9
 #define SERVICE_NAME_LENGTH (SERVICE_NAME_WORDS * 8)
 
 // Represents a process to notify when a service appears.

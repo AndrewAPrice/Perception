@@ -119,7 +119,6 @@ irq15:
 	jmp irq_common_stub
 
 apic_timer_interrupt:
-	; cli
 	push 16
 	jmp irq_common_stub
 
@@ -188,8 +187,21 @@ irq_common_stub:
 	mov rax, CommonHardwareInterruptHandler
 	call rax
 
+[EXTERN running_thread]
+
 [GLOBAL JumpIntoThread]
 JumpIntoThread:
+    mov rax, [running_thread]
+    test rax, rax
+    jnz .jump_to_thread
+
+    ; Idle loop!
+    sti
+.idle_loop:
+    hlt
+    jmp .idle_loop
+
+.jump_to_thread:
 
     ; Jump over profiling code if profiler isn't enabled.
     mov r8, [profiling_enabling_count]

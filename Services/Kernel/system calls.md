@@ -197,14 +197,16 @@ Returns the physical address of a virtual memory address. Only drivers can call 
 ### Output
 * `rax` - The physical address of the virtual address.
 
-## Get free system memory
-Returns the amount of free memory on the system that has not yet been allocated.
+## Get system memory metrics
+Returns system memory metrics: how much total memory there is in the system, how much shared memory has been allocated, and how much free memory there still is.
 
 ### Input
 * `rdi` - 14
 
 ### Output
-* `rax` - The amount of free memory the system has, in bytes.
+* `rax` - How much total memory there is in the system, in bytes.
+* `rbx` - How much shared memory has been allocated, in bytes.
+* `rdx` - How much free memory there still is, in bytes.
 
 ## Get health metrics about a process
 Returns health metrics (memory usage, CPU usage, etc.) about a process.
@@ -219,15 +221,6 @@ Returns health metrics (memory usage, CPU usage, etc.) about a process.
 * `rdx` - Compact CPU usage of the process, where each byte represents the rolling CPU percentage of a CPU core. (Returns `0` if the process is not found).
 * `rsi` - The number of services registered by the process. (Returns `0` if the process is not found).
 * `rdi` - Shared memory allocated to the process, in bytes. (Returns `0` if the process is not found).
-
-## Get total system memory
-Returns the total amount of memory that the computer has.
-
-### Input
-* `rdi` - 16
-
-### Output
-* `rax` - The total amount of memory the computer has, in bytes.
 
 ## Create shared memory
 Creates a shared memory block, and joins it into the process.
@@ -395,7 +388,7 @@ If the name is empty, then we loop over every running running process. If the na
 
 ### Input
 * `rdi` - 22
-* `rbp` - Minimum process ID.
+* `r15` - Minimum process ID.
 * `rax` - Char 0-7.
 * `rbx` - Char 8-15.
 * `rdx` - Char 16-23.
@@ -406,11 +399,10 @@ If the name is empty, then we loop over every running running process. If the na
 * `r12` - Char 56-63.
 * `r13` - Char 64-71.
 * `r14` - Char 72-79.
-* `r15` - Char 80-87.
 
 ### Output
-* `rdi` - Number of processes found. If this is above 12 then there are multiple pages.
-* `rbp` - Process ID 1.
+* `rdi` - Number of processes found. If this is above 11 then there are multiple pages.
+* `r15` - Process ID 1.
 * `rax` - Process ID 2.
 * `rbx` - Process ID 3.
 * `rdx` - Process ID 4.
@@ -421,7 +413,6 @@ If the name is empty, then we loop over every running running process. If the na
 * `r12` - Process ID 9.
 * `r13` - Process ID 10.
 * `r14` - Process ID 11.
-* `r15` - Process ID 12.
 
 ## Get name of process
 
@@ -464,20 +455,19 @@ Creates a process, putting it into a `creating` state. While a process is in the
 
 ### Input
 * `rdi` - 51
-* `rbp` - Permission bitfield:
+* `rax` - Permission bitfield:
   - Bit 0: Is this process a driver?
   - Bit 1: Can this process create other processes?
-* `rax` - Char 0-7.
-* `rbx` - Char 8-15.
-* `rdx` - Char 16-23.
-* `rsi` - Char 24-31.
-* `r8` - Char 32-39.
-* `r9` - Char 40-47.
-* `r10` - Char 48-55.
-* `r12` - Char 56-63.
-* `r13` - Char 64-71.
-* `r14` - Char 72-79.
-* `r15` - Char 80-87.
+* `rbx` - Char 0-7.
+* `rdx` - Char 8-15.
+* `rsi` - Char 16-23.
+* `r8` - Char 24-31.
+* `r9` - Char 32-39.
+* `r10` - Char 40-47.
+* `r12` - Char 48-55.
+* `r13` - Char 56-63.
+* `r14` - Char 64-71.
+* `r15` - Char 72-79.
 
 ### Output
 * `rax` - The pid of the created process, or 0 if it could not be created.
@@ -517,7 +507,7 @@ Returns information about a multiboot module that was not handled by the kernel 
 * `rdi` - The offset in the process's memory where the multiboot module starts. This address is aligned to the nearest 4 kilobytes, so the lower for 16 bits make up a bit field:
  - Bit 0: This process should have the permissions of a driver.
  - Bit 1: This process should be able to launch other processes.
-* `rbp` - The size of the multiboot module.
+* `r15` - The size of the multiboot module.
 * `rax` - Process name, char 0-7.
 * `rbx` - Process name, char 8-15.
 * `rdx` - Process name, char 16-23.
@@ -528,7 +518,6 @@ Returns information about a multiboot module that was not handled by the kernel 
 * `r12` - Process name, char 56-63.
 * `r13` - Process name, char 64-71.
 * `r14` - Process name, char 72-79.
-* `r15` - Process name, char 80-87.
 
 # Services
 
@@ -537,7 +526,7 @@ Returns information about a multiboot module that was not handled by the kernel 
 Registers the service
 ### Input
 * `rdi` - 32
-* `rbp` - The ID of the service.
+* `r15` - The ID of the service.
 * `rax` - Char 0-7.
 * `rbx` - Char 8-15.
 * `rdx` - Char 16-23.
@@ -569,33 +558,30 @@ If the service name is empty, returns all services. If the service name is not e
 
 ### Input
 * `rdi` - 34
-* `rbp` - Minimum process ID.
-* `rax` - Minimum service ID within the minimum process ID.
-* `rbx` - Char 0-7.
-* `rdx` - Char 8-15.
-* `rsi` - Char 16-23.
-* `r8` - Char 24-31.
-* `r9` - Char 32-39.
-* `r10` - Char 40-47.
-* `r12` - Char 48-55.
-* `r13` - Char 56-63.
-* `r14` - Char 64-71.
-* `r15` - Char 72-79.
+* `rax` - Minimum process ID.
+* `rbx` - Minimum service ID within the minimum process ID.
+* `rdx` - Char 0-7.
+* `rsi` - Char 8-15.
+* `r8` - Char 16-23.
+* `r9` - Char 24-31.
+* `r10` - Char 32-39.
+* `r12` - Char 40-47.
+* `r13` - Char 48-55.
+* `r14` - Char 56-63.
+* `r15` - Char 64-71.
 
 ### Output
-* `rdi` - Number of service found. If this is above 6 then there are multiple pages.
-* `rbp` - Process ID 1.
-* `rax` - Service ID 1.
-* `rbx` - Process ID 2.
-* `rdx` - Service ID 2.
-* `rsi` - Process ID 3.
-* `r8` - Service ID 3.
-* `r9` - Process ID 4.
-* `r10` - Service ID 4.
-* `r12` - Process ID 5.
-* `r13` - Service ID 5.
-* `r14` - Process ID 6.
-* `r15` - Service ID 6.
+* `rdi` - Number of service found. If this is above 5 then there are multiple pages.
+* `rax` - Process ID 1.
+* `rbx` - Service ID 1.
+* `rdx` - Process ID 2.
+* `rsi` - Service ID 2.
+* `r8` - Process ID 3.
+* `r9` - Service ID 3.
+* `r10` - Process ID 4.
+* `r12` - Service ID 4.
+* `r13` - Process ID 5.
+* `r14` - Service ID 5.
 
 ## Get name of service
 
@@ -622,7 +608,7 @@ Also sends an event for all existing notifications with this name.
 
 ### Input
 * `rdi` - 35
-* `rbp` - The event ID to send when the service appears.
+* `r15` - The event ID to send when the service appears.
 * `rax` - Char 0-7.
 * `rbx` - Char 8-15.
 * `rdx` - Char 16-23.

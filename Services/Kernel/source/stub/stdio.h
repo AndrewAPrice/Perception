@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,6 @@
 
 #pragma once
 
-#if defined(TEST) || defined(TEST)
-#include <stdlib.h>
-#else
-#include "../../../third_party/liballoc.h"
-
-// To support placement new.
-inline void *operator new(unsigned long, void *p) throw() { return p; }
-inline void *operator new[](unsigned long, void *p) throw() { return p; }
-inline void operator delete(void *, void *) throw() {};
-inline void operator delete[](void *, void *) throw() {};
+#ifndef printf
+#define printf(...) ((void)0)
 #endif

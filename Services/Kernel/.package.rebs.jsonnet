@@ -2,7 +2,10 @@
   statically_link: 0,
   include_directories: [
     'source',
+    'source/stub',
+    '../../third_party/Libraries/tlsf/public',
   ],
+  defines: ['KERNEL'],
   dependencies: [],
 } + (if is_testing then {
   files_to_ignore: [
@@ -33,7 +36,7 @@
     asm: 'nasm -felf64 -dPERCEPTION -o ${out} ${in}',
   },
   local linker_optimizations =
-    if optimization_level == 'optimized' then ' -s '
+    if optimization_level == 'optimized' then ' -g '
     else ' -g ',
   linker_command:
     linker + linker_optimizations + ' -z max-page-size=4096 -T Services/Kernel/source/linker.ld -o ${out} ${in}',

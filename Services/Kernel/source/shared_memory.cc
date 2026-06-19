@@ -15,7 +15,7 @@
 #include "shared_memory.h"
 
 #include "aa_tree.h"
-#include "liballoc.h"
+#include "heap_allocator.h"
 #include "linked_list.h"
 #include "messages.h"
 #include "object_pool.h"
@@ -30,6 +30,9 @@ namespace {
 
 // The last assigned shared memory ID.
 size_t last_assigned_shared_memory_id;
+
+// The number of physical pages allocated to shared memory blocks.
+size_t allocated_shared_pages;
 
 // AA tree of all shared memory blocks.
 AATree<SharedMemory, &SharedMemory::all_shared_memories_node, &SharedMemory::id>
@@ -74,13 +77,16 @@ SharedMemory* CreateSharedMemoryBlock(
       size_t physical_page = GetPhysicalPage();
       if (physical_page == OUT_OF_PHYSICAL_PAGES) {
         // Out of memory.
-        for (size_t p = 0; p < page; p++)
+        for (size_t p = 0; p < page; p++) {
           FreePhysicalPage(shared_memory->physical_pages[p]);
+          allocated_shared_pages--;
+        }
         free(shared_memory->physical_pages);
         ObjectPool<SharedMemory>::Release(shared_memory);
         return nullptr;
       }
       shared_memory->physical_pages[page] = physical_page;
+      allocated_shared_pages++;
     }
   }
 
@@ -143,11 +149,13 @@ void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
   if (shared_memory->physical_pages[page] != OUT_OF_PHYSICAL_PAGES)
     return;  // The memory is already allocated. Nothing to wait for.
 
+  Thread* thread = running_thread;
+
   auto waiting_thread =
       ObjectPool<ThreadWaitingForSharedMemoryPage>::Allocate();
   if (waiting_thread == nullptr) return;  // Out of memory.
 
-  waiting_thread->thread = running_thread;
+  waiting_thread->thread = thread;
   waiting_thread->shared_memory = shared_memory;
   waiting_thread->page = page;
 
@@ -155,7 +163,7 @@ void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
 
   // Sleep the thread. It will be rewoken when the shared memory page is
   // allocated.
-  UnscheduleThread(running_thread);
+  UnscheduleThread(thread);
 
   // Notify the creator that someone wants this page.
   SendKernelMessageToProcess(creator,
@@ -181,6 +189,8 @@ void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory, size_t page,
           shared_memory_in_process->virtual_address + offset_of_page_in_bytes;
       process->virtual_address_space.ReleasePages(virtual_address, 1);
     }
+  } else {
+    allocated_shared_pages++;
   }
 
   shared_memory->physical_pages[page] = physical_address;
@@ -189,16 +199,18 @@ void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory, size_t page,
   MapSharedMemoryPageInEachProcess(shared_memory, page);
 }
 
-// Handles a page fault because the process tried to access an unallocated page
-// in a shared memory block.
+// Handles a page fault because the process tried to access an unallocated
+// page in a shared memory block.
 bool HandleSharedMessagePageFault(Process* process, SharedMemory* shared_memory,
                                   size_t page) {
   Process* creator = GetProcessFromPid(shared_memory->creator_pid);
 
   // Can this process create the page?
-  if (creator == nullptr || process == creator) {
-    // Either the creator no longer exists, or this is the creator. The page
-    // will be created.
+  if (creator == nullptr || process == creator ||
+      shared_memory->pids_allowed_to_assign_memory_pages.Contains(
+          process->pid)) {
+    // Either the creator no longer exists, or this is the creator or the
+    // process has permission. The page will be created.
     size_t physical_address = GetPhysicalPage();
     if (physical_address == OUT_OF_PHYSICAL_PAGES)
       return false;  // Out of memory.
@@ -217,6 +229,7 @@ bool HandleSharedMessagePageFault(Process* process, SharedMemory* shared_memory,
 
 // Initializes the internal structures for shared memory.
 void InitializeSharedMemory() {
+  allocated_shared_pages = 0;
   last_assigned_shared_memory_id = 0;
   new (&all_shared_memories)
       AATree<SharedMemory, &SharedMemory::all_shared_memories_node,
@@ -231,7 +244,6 @@ SharedMemoryInProcess* CreateAndMapSharedMemoryBlockIntoProcess(
   SharedMemory* shared_memory = CreateSharedMemoryBlock(
       process, pages, flags, message_id_for_lazily_loaded_pages);
   if (shared_memory == nullptr) {
-    // Could not create shared memory.
     return nullptr;
   }
 
@@ -265,6 +277,7 @@ void ReleaseSharedMemoryBlock(SharedMemory* shared_memory) {
     if (shared_memory->physical_pages[page] != OUT_OF_PHYSICAL_PAGES) {
       // Release this physical page.
       FreePhysicalPage(shared_memory->physical_pages[page]);
+      allocated_shared_pages--;
     }
   }
   free(shared_memory->physical_pages);
@@ -570,13 +583,16 @@ SharedMemoryInProcess* GrowSharedMemory(Process* process,
       size_t physical_page = GetPhysicalPage();
       if (physical_page == OUT_OF_PHYSICAL_PAGES) {
         // Out of memory.
-        for (size_t p = current_size_in_pages; p < page; p++)
+        for (size_t p = current_size_in_pages; p < page; p++) {
           FreePhysicalPage(newer_physical_pages[p]);
+          allocated_shared_pages--;
+        }
         free(newer_physical_pages);
         return shared_memory_in_process;
       }
 
       newer_physical_pages[page] = physical_page;
+      allocated_shared_pages++;
     }
   } else {
     // Lazily allocate the newer pages.
@@ -654,4 +670,8 @@ void UnregisterAllSharedMemoryEventsForProcess(Process* process) {
     event->shared_memory->events.Remove(event);
     ObjectPool<SharedMemoryEvent>::Release(event);
   }
+}
+
+size_t GetAllocatedSharedMemoryInBytes() {
+  return allocated_shared_pages * PAGE_SIZE;
 }
