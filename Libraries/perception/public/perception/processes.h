@@ -22,7 +22,7 @@
 
 namespace perception {
 
-constexpr int kMaximumProcessNameLength = 88;
+constexpr int kMaximumProcessNameLength = 80;
 
 // Gets this ID of the currently running process.
 ProcessId GetProcessId();

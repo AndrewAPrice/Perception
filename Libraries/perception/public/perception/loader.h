@@ -19,6 +19,7 @@
 
 #include "perception/serialization/serializable.h"
 #include "perception/service_macros.h"
+#include "perception/shared_memory.h"
 #include "types.h"
 
 namespace perception {
@@ -44,8 +45,22 @@ class LoadApplicationResponse : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
-#define METHOD_LIST(X) \
-  X(1, LaunchApplication, LoadApplicationResponse, LoadApplicationRequest)
+class GetMultibootRegistryFileRequest : public serialization::Serializable {
+ public:
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class GetMultibootRegistryFileResponse : public serialization::Serializable {
+ public:
+  size_t registry_file_id;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+#define METHOD_LIST(X)                                                     \
+  X(1, LaunchApplication, LoadApplicationResponse, LoadApplicationRequest) \
+  X(2, GetMultibootRegistryFile, GetMultibootRegistryFileResponse,         \
+    GetMultibootRegistryFileRequest)
 DEFINE_PERCEPTION_SERVICE(Loader, "perception.devices.Loader", METHOD_LIST)
 #undef METHOD_LIST
 

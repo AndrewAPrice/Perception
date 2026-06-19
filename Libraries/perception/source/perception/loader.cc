@@ -58,4 +58,12 @@ void LoadApplicationResponse::Serialize(
   serializer.Integer("Process", process);
 }
 
+void GetMultibootRegistryFileRequest::Serialize(
+    serialization::Serializer& serializer) {}
+
+void GetMultibootRegistryFileResponse::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.Integer("RegistryFileId", registry_file_id);
+}
+
 }  // namespace perception

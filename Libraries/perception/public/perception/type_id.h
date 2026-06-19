@@ -14,6 +14,7 @@
 #pragma once
 
 #include <iostream>
+#include <string_view>
 
 #include "types.h"
 
@@ -24,6 +25,31 @@ class UniqueIdentifiableType {
  public:
   static size_t TypeId() {
     return reinterpret_cast<size_t>(&type_id_variable__);
+  }
+
+  static std::string_view ClassName() {
+#if defined(__clang__) || defined(__GNUC__)
+    std::string_view pretty(__PRETTY_FUNCTION__);
+    size_t begin = pretty.find("Derived = ");
+    if (begin != std::string_view::npos) {
+      begin += 10;
+      size_t end = pretty.find(']', begin);
+      if (end != std::string_view::npos) {
+        return pretty.substr(begin, end - begin);
+      }
+    }
+    begin = pretty.find("UniqueIdentifiableType<");
+    if (begin != std::string_view::npos) {
+      begin += 23;
+      size_t end = pretty.rfind('>');
+      if (end != std::string_view::npos && end > begin) {
+        return pretty.substr(begin, end - begin);
+      }
+    }
+    return pretty;
+#else
+    return "UnknownComponent";
+#endif
   }
 
  private:

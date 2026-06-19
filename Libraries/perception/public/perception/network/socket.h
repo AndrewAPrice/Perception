@@ -67,18 +67,22 @@ class SendRequest : public serialization::Serializable {
 class ReceiveRequest : public serialization::Serializable {
  public:
   uint64 max_bytes;
+  bool non_blocking;
 
   virtual void Serialize(serialization::Serializer& serializer) override {
     serializer.Integer("max_bytes", max_bytes);
+    serializer.Integer("non_blocking", non_blocking);
   }
 };
 
 class ReceiveResponse : public serialization::Serializable {
  public:
   std::string data;
+  bool closed;
 
   virtual void Serialize(serialization::Serializer& serializer) override {
     serializer.String("data", data);
+    serializer.Integer("closed", closed);
   }
 };
 

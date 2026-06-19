@@ -6,6 +6,9 @@
   source_directories: [
     'source',
   ],
+  dependencies+: [
+    'tlsf',
+  ],
 } + (if is_testing then {
   files_to_ignore: [
     'source/perception/debug.cc',
@@ -13,9 +16,7 @@
     'source/perception/fibers.cc',
     'source/perception/file.cc',
     'source/perception/font.cc',
-    'source/perception/liballoc_hooks.cc',
-    'source/perception/liballoc.c',
-    'source/perception/liballoc.cc',
+    'source/perception/heap_allocator.cc',
     'source/perception/loader.cc',
     'source/perception/memory.cc',
     'source/perception/memory_span.cc',
@@ -36,6 +37,7 @@
     'source/perception/devices/keyboard_listener.cc',
     'source/perception/devices/mouse_listener.cc',
     'source/perception/devices/graphics_device.cc',
+    'source/perception/devices/graphics_listener.cc',
     'source/perception/devices/device_manager.cc',
     'source/perception/devices/storage_device.cc',
     'source/perception/serialization/shared_memory_write_stream.cc',
@@ -43,5 +45,6 @@
     'source/storage_manager.cc',
     'source/perception/registry_service.cc',
     'source/perception/registry.cc',
+    'source/perception/clipboard.cc',
   ]
 } else {})
