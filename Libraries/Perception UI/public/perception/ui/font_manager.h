@@ -103,10 +103,10 @@ class FontFamily : public serialization::Serializable {
 };
 
 class FontFamilies : public serialization::Serializable {
-  std::vector<FontFamilies> families;
+ public:
+  std::vector<FontFamily> families;
 
   virtual void Serialize(serialization::Serializer& serializer) override;
-
 };
 
 class FontStyles : public serialization::Serializable {
