@@ -11,13 +11,35 @@
             "operation": "copy",
             "source": "${git}/src",
             "destination": "source",
-            "recursive": true
+            "recursive": true,
+            "replace": [
+                {
+                    "file": "source/core/document.c",
+                    "replacements": [
+                        [
+                            "dom_exception _dom_document_set_quirks_mode(dom_document *doc,\n\t\tdom_document_quirks_mode quirks)\n{\n\tdoc->quirks = quirks;\n\treturn DOM_NO_ERR;\n}",
+                            "dom_exception _dom_document_set_quirks_mode(dom_document *doc,\n\t\tdom_document_quirks_mode quirks)\n{\n\tdoc->quirks = quirks;\n\treturn DOM_NO_ERR;\n}\n\ndom_exception dom_document_reset_dispatching_mutation(struct dom_document *doc)\n{\n\tdoc->dispatching_mutation = 0;\n\treturn DOM_NO_ERR;\n}"
+                        ]
+                    ]
+                }
+            ]
         },
         {
             "operation": "copy",
             "source": "${git}/include/dom",
             "destination": "public/dom",
-            "recursive": true
+            "recursive": true,
+            "replace": [
+                {
+                    "file": "public/dom/core/document.h",
+                    "replacements": [
+                        [
+                            "#define dom_document_set_quirks_mode(d, q) \\\n\tdom_document_set_quirks_mode((dom_document *) (d), (q))",
+                            "#define dom_document_set_quirks_mode(d, q) \\\n\tdom_document_set_quirks_mode((dom_document *) (d), (q))\n\ndom_exception dom_document_reset_dispatching_mutation(struct dom_document *doc);"
+                        ]
+                    ]
+                }
+            ]
         },
         {
             "operation": "copy",
@@ -29,7 +51,34 @@
             "operation": "copy",
             "source": "${git}/bindings",
             "destination": "source/bindings",
-            "recursive": true
+            "recursive": true,
+            "replace": [
+                {
+                    "file": "source/bindings/hubbub/parser.c",
+                    "replacements": [
+                        [
+                            "void dom_hubbub_parser_destroy(dom_hubbub_parser *parser)\n{\n\thubbub_parser_destroy(parser->parser);\n\tparser->parser = NULL;",
+                            "void dom_hubbub_parser_destroy(dom_hubbub_parser *parser)\n{\n\tif (parser == NULL) return;\n\tif (parser->parser != NULL) {\n\t\thubbub_parser_destroy(parser->parser);\n\t\tparser->parser = NULL;\n\t}"
+                        ],
+                        [
+                            "dom_hubbub_error dom_hubbub_parser_parse_chunk(dom_hubbub_parser *parser,\n\t\tconst uint8_t *data, size_t len)\n{\n\thubbub_error err;\n\n\terr = hubbub_parser_parse_chunk(parser->parser, data, len);",
+                            "dom_hubbub_error dom_hubbub_parser_parse_chunk(dom_hubbub_parser *parser,\n\t\tconst uint8_t *data, size_t len)\n{\n\thubbub_error err;\n\n\tif (parser == NULL || parser->parser == NULL) return DOM_HUBBUB_OK;\n\n\terr = hubbub_parser_parse_chunk(parser->parser, data, len);"
+                        ],
+                        [
+                            "dom_hubbub_error dom_hubbub_parser_completed(dom_hubbub_parser *parser)\n{\n\thubbub_error err;\n\n\terr = hubbub_parser_completed(parser->parser);",
+                            "dom_hubbub_error dom_hubbub_parser_completed(dom_hubbub_parser *parser)\n{\n\thubbub_error err;\n\n\tif (parser == NULL || parser->parser == NULL) return DOM_HUBBUB_OK;\n\n\terr = hubbub_parser_completed(parser->parser);"
+                        ],
+                        [
+                            "const char *dom_hubbub_parser_get_encoding(dom_hubbub_parser *parser,\n\t\tdom_hubbub_encoding_source *source)\n{\n\t*source = parser->encoding_source;",
+                            "const char *dom_hubbub_parser_get_encoding(dom_hubbub_parser *parser,\n\t\tdom_hubbub_encoding_source *source)\n{\n\tif (parser == NULL) {\n\t\t*source = DOM_HUBBUB_ENCODING_SOURCE_DETECTED;\n\t\treturn \"Windows-1252\";\n\t}\n\n\t*source = parser->encoding_source;"
+                        ],
+                        [
+                            "dom_hubbub_error dom_hubbub_parser_pause(dom_hubbub_parser *parser, bool pause)\n{\n\thubbub_error err;\n\thubbub_parser_optparams params;\n\n\tparams.pause_parse = pause;",
+                            "dom_hubbub_error dom_hubbub_parser_pause(dom_hubbub_parser *parser, bool pause)\n{\n\thubbub_error err;\n\thubbub_parser_optparams params;\n\n\tif (parser == NULL || parser->parser == NULL) return DOM_HUBBUB_OK;\n\n\tparams.pause_parse = pause;"
+                        ]
+                    ]
+                }
+            ]
         }
     ]
 }

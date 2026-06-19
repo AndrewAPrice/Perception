@@ -24,7 +24,46 @@
             "operation": "copy",
             "source": "${git}/src",
             "destination": "source",
-            "recursive": true
+            "recursive": true,
+            "replace": [
+                {
+                    "file": "source/treebuilder/treebuilder.c",
+                    "replacements": [
+                        [
+                            "error = treebuilder->tree_handler->create_element(",
+                            "if (treebuilder->tree_handler == NULL) return HUBBUB_OK;\n\terror = treebuilder->tree_handler->create_element("
+                        ],
+                        [
+                            "error = treebuilder->tree_handler->append_child(\n\t\t\t\ttreebuilder->tree_handler->ctx,\n\t\t\t\ttreebuilder->context.element_stack[\n\t\t\t\t\ttreebuilder->context.current_node].node,\n\t\t\t\tnode, &appended);",
+                            "void *parent = treebuilder->context.element_stack[\n\t\t\t\ttreebuilder->context.current_node].node;\n\t\tif (parent == NULL)\n\t\t\tparent = treebuilder->context.document;\n\n\t\tif (parent != NULL) {\n\t\t\terror = treebuilder->tree_handler->append_child(\n\t\t\t\t\ttreebuilder->tree_handler->ctx,\n\t\t\t\t\tparent, node, &appended);\n\t\t} else {\n\t\t\terror = HUBBUB_OK;\n\t\t\tappended = node;\n\t\t}"
+                        ],
+                        [
+                            "uint32_t slot = treebuilder->context.current_node + 1;",
+                            "if ((signed)treebuilder->context.current_node < 0) treebuilder->context.current_node = 0;\n\tuint32_t slot = treebuilder->context.current_node + 1;"
+                        ],
+                        [
+                            "uint32_t slot = treebuilder->context.current_node;",
+                            "uint32_t slot = treebuilder->context.current_node;\n\tif ((signed)slot <= 0) {\n\t\t*ns = HUBBUB_NS_HTML;\n\t\t*type = UNKNOWN;\n\t\t*node = NULL;\n\t\treturn HUBBUB_OK;\n\t}"
+                        ],
+                        [
+                            "assert(index <= treebuilder->context.current_node);",
+                            "if ((signed)treebuilder->context.current_node <= 0) {\n\t\t*ns = HUBBUB_NS_HTML;\n\t\t*type = UNKNOWN;\n\t\t*removed = NULL;\n\t\treturn HUBBUB_OK;\n\t}\n\n\tassert(index <= treebuilder->context.current_node);"
+                        ],
+                        [
+                            "hubbub_error element_stack_pop_until(hubbub_treebuilder *treebuilder,\n\t\telement_type type)\n{",
+                            "hubbub_error element_stack_pop_until(hubbub_treebuilder *treebuilder,\n\t\telement_type type)\n{\n\tif (treebuilder->tree_handler == NULL) return HUBBUB_OK;"
+                        ],
+                        [
+                            "error = treebuilder->tree_handler->complete_script(\n\t\ttreebuilder->tree_handler->ctx,\n\t\ttreebuilder->context.element_stack[\n\t\t\ttreebuilder->context.current_node].node);",
+                            "void *node = treebuilder->context.element_stack[\n\t\t\ttreebuilder->context.current_node].node;\n\tif (node != NULL && treebuilder->tree_handler != NULL && treebuilder->tree_handler->complete_script != NULL) {\n\t\terror = treebuilder->tree_handler->complete_script(\n\t\t\ttreebuilder->tree_handler->ctx, node);\n\t}"
+                        ],
+                        [
+                            "error = treebuilder->tree_handler->append_child(\n\t\t\t\ttreebuilder->tree_handler->ctx,\n\t\t\t\ttreebuilder->context.element_stack[\n\t\t\t\t\ttreebuilder->context.current_node].node,\n\t\t\t\t\t\ttext, &appended);",
+                            "void *parent = treebuilder->context.element_stack[\n\t\t\t\ttreebuilder->context.current_node].node;\n\t\tif (parent == NULL)\n\t\t\tparent = treebuilder->context.document;\n\n\t\tif (parent != NULL) {\n\t\t\terror = treebuilder->tree_handler->append_child(\n\t\t\t\t\ttreebuilder->tree_handler->ctx,\n\t\t\t\t\tparent, text, &appended);\n\t\t} else {\n\t\t\terror = HUBBUB_OK;\n\t\t\tappended = text;\n\t\t}"
+                        ]
+                    ]
+                }
+            ]
         },
         {
             "operation": "copy",

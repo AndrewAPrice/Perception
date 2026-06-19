@@ -213,11 +213,6 @@
             "operation": "copy",
             "source": "${git}/src/winfonts",
             "destination": "source/winfonts"
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/builds/unix/ftsystem.c",
-            "destination": "source/base/ftsystem.c"
         }
     ]
 }
