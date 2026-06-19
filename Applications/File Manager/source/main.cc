@@ -15,10 +15,12 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "include/core/SkColor.h"
@@ -34,6 +36,7 @@
 #include "perception/ui/components/label.h"
 #include "perception/ui/components/scroll_container.h"
 #include "perception/ui/components/ui_window.h"
+#include "perception/ui/file_icon.h"
 #include "perception/ui/font.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
@@ -46,6 +49,7 @@ using ::perception::HandOverControl;
 using ::perception::LoadApplicationRequest;
 using ::perception::Loader;
 using ::perception::TerminateProcess;
+using ::perception::ui::CreateFileIcon;
 using ::perception::ui::GetBold12UiFont;
 using ::perception::ui::GetBook12UiFont;
 using ::perception::ui::kTextBoxTextColor;
@@ -76,71 +80,15 @@ std::shared_ptr<Node> back_button;
 // Forward declaration of NavigateTo.
 void NavigateTo(const std::string& path);
 
-// Creates an file icon.
-std::shared_ptr<Node> CreateFileIcon(bool is_directory, std::string_view name) {
-  uint32 bg_color;
-  std::string letter = "";
-
-  if (is_directory) {
-    if (name.size() > 4 && name.substr(name.size() - 4) == ".app") {
-      // Application: vibrant Indigo.
-      bg_color = SkColorSetARGB(0xFF, 0x63, 0x66, 0xF1);
-      letter = "A";
-    } else {
-      // Regular directory: Amber/Yellow folder color.
-      bg_color = SkColorSetARGB(0xFF, 0xD9, 0x77, 0x06);
-      letter = "F";
-    }
-  } else {
-    // File
-    // Detect file extension
-    std::string name_str = std::string(name);
-    std::string ext = "";
-    auto dot_idx = name_str.find_last_of('.');
-    if (dot_idx != std::string::npos) {
-      ext = name_str.substr(dot_idx + 1);
-      std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-    }
-
-    if (ext == "jpg" || ext == "png" || ext == "svg" || ext == "rgba" ||
-        ext == "jpeg") {
-      // Image file: Emerald/Green
-      bg_color = SkColorSetARGB(0xFF, 0x10, 0xB9, 0x81);
-      letter = "I";
-    } else if (ext == "txt" || ext == "json" || ext == "md" || ext == "xml") {
-      // Text file: Cyan
-      bg_color = SkColorSetARGB(0xFF, 0x06, 0xB6, 0xD4);
-      letter = "T";
-    } else {
-      // Other file: Steel Grey
-      bg_color = SkColorSetARGB(0xFF, 0x6B, 0x72, 0x80);
-      letter = "D";
-    }
+std::string GetExtension(std::string_view name) {
+  std::string ext = std::filesystem::path(name).extension().string();
+  if (!ext.empty() && ext[0] == '.') {
+    ext.erase(0, 1);
   }
-
-  auto container = Node::Empty(
-      [](Layout& layout) {
-        layout.SetWidth(24.0f);
-        layout.SetHeight(24.0f);
-        layout.SetAlignItems(YGAlignCenter);
-        layout.SetJustifyContent(YGJustifyCenter);
-      },
-      [bg_color](Block& block) {
-        block.SetFillColor(bg_color);
-        block.SetBorderRadius(6.0f);
-      });
-
-  auto letter_label = Label::BasicLabel(
-      letter, [](Layout& layout) { layout.SetFlexGrow(1.0f); },
-      [](Label& label) {
-        label.SetTextAlignment(TextAlignment::MiddleCenter);
-        label.SetColor(0xFFFFFFFF);  // White text
-        label.SetFont(GetBold12UiFont());
-      });
-
-  container->AddChild(letter_label);
-  return container;
+  std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+  return ext;
 }
+
 
 void NavigateTo(const std::string& path) {
   std::string target_path = path;
@@ -148,6 +96,14 @@ void NavigateTo(const std::string& path) {
 
   if (target_path.size() > 1 && target_path.back() == '/')
     target_path.pop_back();
+
+  std::error_code ec;
+  if (std::filesystem::is_symlink(target_path, ec)) {
+    auto resolved = std::filesystem::read_symlink(target_path, ec);
+    if (!ec && !resolved.empty()) {
+      target_path = resolved.string();
+    }
+  }
 
   std::vector<std::filesystem::directory_entry> folders;
   std::vector<std::filesystem::directory_entry> apps;
@@ -159,7 +115,7 @@ void NavigateTo(const std::string& path) {
       if (!name.empty() && name[0] == '.') continue;
 
       if (entry.is_directory()) {
-        if (name.size() > 4 && name.substr(name.size() - 4) == ".app") {
+        if (GetExtension(name) == "app") {
           apps.push_back(entry);
         } else {
           folders.push_back(entry);
@@ -228,7 +184,8 @@ void NavigateTo(const std::string& path) {
       std::string entry_path = entry.path().string();
       bool is_dir = entry.is_directory();
 
-      auto icon = CreateFileIcon(is_dir, name);
+      bool is_symlink = entry.is_symlink(ec);
+      auto icon = CreateFileIcon(is_dir, is_symlink, name);
       icon->GetLayout().SetMargin(YGEdgeRight, 12.0f);
 
       auto row = Container::HorizontalContainer(
@@ -313,11 +270,7 @@ int main(int argc, char* argv[]) {
           [](Layout& layout) {
             layout.SetFlexGrow(1.0f);
             layout.SetFlexShrink(1.0f);
-            layout.SetMinHeight(0.0f);
-            layout.SetPadding(YGEdgeAll, 12.0f);
-            layout.SetGap(12.0f);
           },
-          [](Block& block) { block.SetFillColor(0xFFF3F4F6); },
           // Header (Back button + Path input box)
           Container::HorizontalContainer(
               [](Layout& layout) {
