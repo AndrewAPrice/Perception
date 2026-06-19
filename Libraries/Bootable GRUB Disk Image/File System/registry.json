@@ -23,15 +23,24 @@
           "Viewer"
         ],
         [
+          "ttf",
+          "Viewer"
+        ],
+        [
           "dir",
           "File Manager"
+        ],
+        [
+          "txt",
+          "Text Editor"
         ]
       ],
       "launchOnBoot": [
         "Font Manager",
         "Network Manager",
         "Window Manager",
-        "Launcher"
+        "Launcher",
+        "Clipboard"
       ]
     },
     "Permissions Manager": {
@@ -49,6 +58,11 @@
         [
           "Loader",
           "CanLaunchPrograms",
+          true
+        ],
+        [
+          "Permissions Manager",
+          "CanContinueRunningAfterWindowsClose",
           true
         ],
         [
@@ -72,6 +86,11 @@
           true
         ],
         [
+          "Launcher",
+          "CanContinueRunningAfterWindowsClose",
+          true
+        ],
+        [
           "netsurf",
           "CanReadAllFiles",
           true
@@ -79,6 +98,11 @@
         [
           "Registry",
           "CanReadAllFiles",
+          true
+        ],
+        [
+          "Network Manager",
+          "CanUseNetworkDevice",
           true
         ],
         [
