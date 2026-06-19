@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stddef.h>
 #include <exception>
 
 // Some compilers mangle `main` (such as clang), others don't (such as GCC). To
