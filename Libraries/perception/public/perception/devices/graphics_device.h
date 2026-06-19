@@ -17,6 +17,7 @@
 #include <memory>
 #include <vector>
 
+#include "perception/devices/graphics_listener.h"
 #include "perception/serialization/serializable.h"
 #include "perception/service_macros.h"
 #include "perception/shared_memory.h"
@@ -161,7 +162,8 @@ class ProcessAllowedToDrawToScreenParameters
     graphics::TextureReference)                             \
   X(5, SetProcessAllowedToDrawToScreen, void,               \
     graphics::ProcessAllowedToDrawToScreenParameters)       \
-  X(6, GetScreenSize, graphics::Size, void)
+  X(6, GetScreenSize, graphics::Size, void)                 \
+  X(7, SetGraphicsListener, void, GraphicsListener::Client)
 
 DEFINE_PERCEPTION_SERVICE(GraphicsDevice, "perception.devices.GraphicsDevice",
                           METHOD_LIST)

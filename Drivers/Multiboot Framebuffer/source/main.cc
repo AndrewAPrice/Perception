@@ -210,6 +210,12 @@ class FramebufferGraphicsDevice : GraphicsDevice::Server {
     return response;
   }
 
+  virtual Status SetGraphicsListener(
+      const ::perception::devices::GraphicsListener::Client& listener)
+      override {
+    return Status::OK;
+  }
+
  private:
   // The width of the screen, in pixels.
   uint32 screen_width_;
