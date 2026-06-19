@@ -20,6 +20,7 @@
 #include "perception/devices/device_manager.h"
 #include "perception/pci.h"
 #include "perception/services.h"
+#include "virtio_graphics_driver.h"
 #include "virtio_network_device.h"
 
 using ::perception::GetService;
@@ -53,6 +54,12 @@ int main() {
                   << device_id << std::dec << std::endl;
         driver_instances.push_back(
             std::make_shared<VirtioNetworkDevice>(device));
+        break;
+      case 0x1050:  // Virtio GPU / Graphics.
+        std::cout << "Found Virtio Graphics device_id=0x" << std::hex
+                  << device_id << std::dec << std::endl;
+        driver_instances.push_back(
+            std::make_shared<VirtioGraphicsDriver>(device));
         break;
       default:
         std::cout << "Unhandled Virtio device_id=0x" << std::hex << device_id
