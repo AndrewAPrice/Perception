@@ -17,6 +17,7 @@
 #include <iostream>
 
 #include "perception/launcher.h"
+#include "perception/loader.h"
 #include "perception/services.h"
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
@@ -25,6 +26,7 @@
 #include "window.h"
 
 using ::perception::FindFirstInstanceOfService;
+using ::perception::GetService;
 using ::perception::Launcher;
 using ::perception::ProcessId;
 using ::perception::Status;
@@ -82,6 +84,8 @@ Status WindowManager::SetWindowTitle(const SetWindowTitleParameters& parameters,
 }
 
 Status WindowManager::SystemButtonPushed() {
+  if (Window::ExitFullScreen()) return Status::OK;
+
   auto launcher = FindFirstInstanceOfService<Launcher>();
   if (launcher) launcher->ShowLauncher(nullptr);
   return Status::OK;
@@ -149,3 +153,6 @@ Status WindowManager::SetWindowCursor(
   window->SetCursor(parameters.cursor);
   return Status::OK;
 }
+
+
+

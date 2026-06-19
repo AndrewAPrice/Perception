@@ -16,12 +16,15 @@
 
 #include <iostream>
 
+#include "compositor.h"
 #include "perception/devices/graphics_device.h"
 #include "perception/fibers.h"
 #include "perception/processes.h"
 #include "perception/services.h"
 #include "perception/shared_memory.h"
+#include "perception/ui/rectangle.h"
 #include "perception/ui/size.h"
+#include "window.h"
 
 namespace graphics = ::perception::devices::graphics;
 using ::perception::Fiber;
@@ -46,6 +49,42 @@ std::shared_ptr<SharedMemory> window_manager_texture_buffer;
 bool screen_is_drawing;
 Fiber* fiber_waiting_on_screen_to_finish_drawing;
 
+class GraphicsListenerServer
+    : public ::perception::devices::GraphicsListener::Server {
+ public:
+  virtual Status ScreenSizeChanged(const graphics::Size& size) override {
+    if (size.width == screen_size.width && size.height == screen_size.height) {
+      return Status::OK;
+    }
+
+    if (window_manager_texture_id != 0) {
+      graphics::TextureReference destroy_texture_request;
+      destroy_texture_request.id = window_manager_texture_id;
+      (void)graphics_device.DestroyTexture(destroy_texture_request);
+      window_manager_texture_id = 0;
+    }
+
+    graphics::CreateTextureRequest create_texture_request;
+    create_texture_request.size = size;
+    auto create_texture_response =
+        graphics_device.CreateTexture(create_texture_request);
+    if (create_texture_response.Ok()) {
+      window_manager_texture_id = create_texture_response->texture.id;
+      window_manager_texture_buffer = create_texture_response->pixel_buffer;
+      window_manager_texture_buffer->Join();
+    }
+
+    screen_size = Size{.width = static_cast<float>(size.width),
+                       .height = static_cast<float>(size.height)};
+
+    Window::EnsureWindowsAreOnScreen();
+    InvalidateScreen(
+        ::perception::ui::Rectangle{.origin = {0, 0}, .size = GetScreenSize()});
+    return Status::OK;
+  }
+};
+std::unique_ptr<GraphicsListenerServer> graphics_listener;
+
 }  // namespace
 
 void InitializeScreen() {
@@ -53,6 +92,9 @@ void InitializeScreen() {
   graphics_device = GetService<GraphicsDevice>();
   // Query the screen size.
   auto graphics_screen_size = *graphics_device.GetScreenSize();
+
+  graphics_listener = std::make_unique<GraphicsListenerServer>();
+  graphics_device.SetGraphicsListener(*graphics_listener);
 
   // Allow the window manager to draw to the screen.
   graphics::ProcessAllowedToDrawToScreenParameters allow_draw_to_screen_message;

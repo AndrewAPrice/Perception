@@ -1,0 +1,21 @@
+{
+  "name": "Window Manager",
+  "groups": [
+    {
+      "title": "Background",
+      "settings": [
+        {
+          "key": "backgroundColor",
+          "type": "Color",
+          "name": "Background Wallpaper Color",
+          "description": "Background Wallpaper Color",
+          "default": {
+            "r": 78,
+            "g": 152,
+            "b": 255
+          }
+        }
+      ]
+    }
+  ]
+}

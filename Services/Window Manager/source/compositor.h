@@ -18,8 +18,8 @@
 #include "perception/ui/rectangle.h"
 #include "types.h"
 
-constexpr uint32 kBackgroundColor =
-    (0xFF << 24) + (78 << 16) + (152 << 8) + 0xFF;
+extern uint32 background_color;
+void UpdateBackgroundColor();
 
 #define FOCUSED_WINDOW_COLOUR 0xFFC3C3C3
 #define UNFOCUSED_WINDOW_COLOUR 0xFF8F8F8F
@@ -29,6 +29,7 @@ constexpr uint32 kBackgroundColor =
 #define WINDOW_CLOSE_BUTTON_COLOUR 0xFFFF0000
 
 #define HIGHLIGHTER_TINT 0x55000000
+#define DEBUGGING_TINT 0x80808080
 #define WINDOW_MINIMUM_HEIGHT (WINDOW_TITLE_HEIGHT * 3)
 
 #define MAX_WINDOW_TITLE_LENGTH 80

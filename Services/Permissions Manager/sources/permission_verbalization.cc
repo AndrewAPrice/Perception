@@ -31,6 +31,8 @@ std::optional<std::string_view> GetPermissionVerbalization(
       return "view and modify the entire registry";
     case Permission::CanUseNetworkDevice:
       return "use the network device directly";
+    case Permission::CanContinueRunningAfterWindowsClose:
+      return "continue running after all windows are closed";
     default:
       return std::nullopt;
   }
@@ -58,6 +60,8 @@ std::optional<std::string_view> GetPermissionKey(Permission permission) {
       return "CanViewAndModifyEntireRegistry";
     case Permission::CanUseNetworkDevice:
       return "CanUseNetworkDevice";
+    case Permission::CanContinueRunningAfterWindowsClose:
+      return "CanContinueRunningAfterWindowsClose";
     default:
       return std::nullopt;
   }
@@ -69,5 +73,7 @@ std::optional<Permission> ParsePermissionKey(std::string_view key) {
   if (key == "CanViewAndModifyEntireRegistry")
     return Permission::CanViewAndModifyEntireRegistry;
   if (key == "CanUseNetworkDevice") return Permission::CanUseNetworkDevice;
+  if (key == "CanContinueRunningAfterWindowsClose")
+    return Permission::CanContinueRunningAfterWindowsClose;
   return std::nullopt;
 }

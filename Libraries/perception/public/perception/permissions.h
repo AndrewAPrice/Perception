@@ -33,7 +33,14 @@ enum class Permission {
   // /Applications/<process> or /<Mount point>/Apps/<process>)
   CanReadAllFiles,
   // Permission to launch other programs.
-  CanLaunchPrograms
+  CanLaunchPrograms,
+  // Permission to view and modify any namespace in the registry.
+  CanViewAndModifyEntireRegistry,
+  // Permission to interact directly with the network device.
+  CanUseNetworkDevice,
+  // Permission for a process to continue running after all of its open windows
+  // are closed.
+  CanContinueRunningAfterWindowsClose,
 };
 
 class DoesProcessHavePermissionRequest : public serialization::Serializable {

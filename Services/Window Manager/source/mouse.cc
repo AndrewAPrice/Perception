@@ -14,6 +14,8 @@
 
 #include "mouse.h"
 
+#include <memory>
+
 #include "compositor.h"
 #include "perception/devices/mouse_device.h"
 #include "perception/devices/mouse_listener.h"
@@ -46,6 +48,7 @@ namespace {
 
 Point mouse_position;
 Rectangle last_mouse_bounds;
+std::weak_ptr<Window> pressed_window;
 
 const char* kPointerSprite =
     "BB.........\n"
@@ -260,15 +263,30 @@ class MyMouseListener : public MouseListener::Server {
       const ::perception::devices::MouseButtonEvent& message) override {
     std::optional<MouseButtonEvent> mouse_button_event = MouseButtonEvent{
         .button = message.button, .is_pressed_down = message.is_pressed_down};
-    // Test if any of the dialogs (from front to back) can handle this
-    // click.
-    if (Window::ForEachFrontToBackWindow([mouse_button_event](Window& window) {
-          return window.MouseEvent(mouse_position, mouse_button_event);
-        }))
+    if (message.is_pressed_down) {
+      if (Window::ForEachFrontToBackWindow(
+              [mouse_button_event](Window& window) {
+                if (window.MouseEvent(mouse_position, mouse_button_event)) {
+                  pressed_window = window.weak_from_this();
+                  return true;
+                }
+                return false;
+              })) {
+        return Status::OK;
+      }
+      pressed_window.reset();
+      Window::UnfocusAllWindows();
       return Status::OK;
-
-    Window::UnfocusAllWindows();
-    return Status::OK;
+    } else {
+      if (auto strong_window = pressed_window.lock()) {
+        strong_window->MouseEvent(mouse_position, mouse_button_event);
+      }
+      pressed_window.reset();
+      (void)Window::ForEachFrontToBackWindow([](Window& window) {
+        return window.MouseEvent(mouse_position, std::nullopt);
+      });
+      return Status::OK;
+    }
   }
 };
 

@@ -27,8 +27,8 @@ struct Size;
 enum class WindowButton {
   // Button to close the window.
   Close,
-  // Button to minimize the window.
-  Minimize,
+  // Button to debug the window.
+  Debug,
   // Button to toggle full screen.
   ToggleFullScreen
 };

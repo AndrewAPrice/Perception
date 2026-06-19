@@ -82,7 +82,7 @@ int WindowButtonTextureVariant(
     switch (*selected_button) {
       case WindowButton::Close:
         return is_resizable ? 3 : 6;
-      case WindowButton::Minimize:
+      case WindowButton::Debug:
         return is_resizable ? 2 : 5;
       case WindowButton::ToggleFullScreen:
         return 1;
@@ -175,6 +175,6 @@ WindowButton GetWindowButtonAtPoint(int x, bool is_resizable) {
   if (!is_resizable) x += kButtonSize;
 
   if (x >= kSecondButtonThreshold) return WindowButton::Close;
-  if (x >= kFirstButtonThreshold) return WindowButton::Minimize;
+  if (x >= kFirstButtonThreshold) return WindowButton::Debug;
   return WindowButton::ToggleFullScreen;
 }

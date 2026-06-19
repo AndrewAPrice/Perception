@@ -50,6 +50,8 @@ class Window : public std::enable_shared_from_this<Window> {
   bool IsFocused() const;
   void Close();
   static void UnfocusAllWindows();
+  static void EnsureWindowsAreOnScreen();
+  static bool ExitFullScreen();
   std::string_view GetTitle() const;
 
   static bool ForEachFrontToBackWindow(
@@ -73,12 +75,18 @@ class Window : public std::enable_shared_from_this<Window> {
   ::perception::ui::Rectangle GetScreenAreaWithFrame() const;
   const ::perception::ui::Rectangle& GetScreenArea() const;
   bool IsVisible() const { return is_visible_; }
+  bool IsFullScreen() const { return is_fullscreen_; }
 
   void SetTextureId(int texture_id);
   void SetSize(const ::perception::window::Size& size);
 
   void SetCursor(::perception::window::Cursor cursor);
   ::perception::window::Cursor GetCursor() const;
+
+  bool IsDebugging() const;
+  void SetIsDebugging(bool is_debugging);
+  static std::shared_ptr<Window> GetDebuggingWindowForSender(
+      ::perception::ProcessId sender);
 
   // Next/previous windows in the Z-order of things. Public for visibility from
   // LinkedList.
@@ -97,6 +105,7 @@ class Window : public std::enable_shared_from_this<Window> {
   ::perception::ui::Rectangle WindowButtonScreenArea() const;
   bool AreWindowButtonsVisible() const;
   void HandleWindowButtonClick();
+  void ToggleFullScreen();
 
   // The window's title.
   std::string title_;
@@ -108,6 +117,12 @@ class Window : public std::enable_shared_from_this<Window> {
   bool is_visible_;
 
   bool is_resizable_;
+
+  // Whether the window is in full screen mode.
+  bool is_fullscreen_;
+
+  // The window's position before entering full screen mode.
+  ::perception::ui::Rectangle previous_screen_area_;
 
   // The window button the mouse is over.
   std::optional<WindowButton> hovered_window_button_;
@@ -128,6 +143,9 @@ class Window : public std::enable_shared_from_this<Window> {
 
   // Preferred cursor style for this window.
   ::perception::window::Cursor cursor_;
+
+  bool is_debugging_;
+  bool is_closed_;
 };
 
 std::shared_ptr<Window> GetWindowWithListener(

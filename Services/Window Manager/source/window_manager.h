@@ -65,4 +65,5 @@ class WindowManager : public ::perception::window::WindowManager::Server {
   ::perception::Status SetWindowCursor(
       const ::perception::window::SetWindowCursorParameters& parameters,
       ::perception::ProcessId sender) override;
+
 };

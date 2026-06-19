@@ -14,6 +14,9 @@
 
 #include "compositor.h"
 
+#include "perception/registry.h"
+#include "perception/scheduler.h"
+
 #include "compositor_quad_tree.h"
 #include "highlighter.h"
 #include "mouse.h"
@@ -32,6 +35,8 @@ using ::perception::FillRectangle;
 using ::perception::devices::GraphicsDevice;
 using ::perception::ui::Point;
 using ::perception::ui::Rectangle;
+
+uint32 background_color = 0xFF4E98FF;
 
 namespace {
 
@@ -113,7 +118,23 @@ void PopulateCommandsForRectangle(QuadRectangle& rectangle,
 }  // namespace
 
 void DrawBackground(const Rectangle& screen_area) {
-  DrawOpaqueColor(screen_area, kBackgroundColor);
+  DrawOpaqueColor(screen_area, background_color);
+}
+
+void UpdateBackgroundColor() {
+  auto val_or = ::perception::GetRegistryValue(
+      ::perception::RegistryCorpus::APPLICATIONS, "Window Manager", "backgroundColor");
+  if (val_or.Ok()) {
+    auto val = *val_or;
+    if (val.GetType() == ::perception::serialization::Value::Type::COLOR_RGB) {
+      uint32 new_color = val.ColorRGBValue().value_or(0xFF4E98FF);
+      if (new_color != background_color) {
+        background_color = new_color;
+        InvalidateScreen(Rectangle{.size = GetScreenSize()});
+        DrawScreen();
+      }
+    }
+  }
 }
 
 void InitializeCompositor() {

@@ -24,6 +24,7 @@
 #include "window.h"
 #include "window_buttons.h"
 #include "window_manager.h"
+#include "perception/registry.h"
 
 using ::perception::WaitForMessagesThenReturn;
 using ::perception::ui::Rectangle;
@@ -37,6 +38,16 @@ int main(int argc, char *argv[]) {
   InitializeHighlighter();
   InitializeWindowButtons();
   WindowManager window_manager;
+
+  UpdateBackgroundColor();
+  ::perception::RegisterRegistryListener(
+      ::perception::RegistryCorpus::APPLICATIONS,
+      "Window Manager", "backgroundColor",
+      []() {
+        ::perception::Defer([]() {
+          UpdateBackgroundColor();
+        });
+      });
 
   // Draw the entire screen.
   InvalidateScreen(Rectangle{.size = GetScreenSize()});
