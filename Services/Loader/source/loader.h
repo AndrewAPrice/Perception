@@ -25,3 +25,10 @@
 StatusOr< ::perception::ProcessId> LoadProgram(
     ::perception::ProcessId creator, std::string_view name,
     const std::vector<std::string>& arguments = {});
+
+namespace perception {
+class Fiber;
+}
+
+extern bool is_cache_populated;
+extern std::vector<::perception::Fiber*> fibers_waiting_for_cache;

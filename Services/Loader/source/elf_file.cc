@@ -20,6 +20,7 @@
 #include "elf.h"
 #include "elf_header.h"
 #include "init_fini_functions.h"
+#include "loader.h"
 #include "memory.h"
 #include "perception/memory.h"
 #include "perception/memory_span.h"
@@ -83,7 +84,8 @@ bool ElfFile::IsExecutable() {
     std::cout << "Header is null.";
     return false;
   }
-  return header->e_type == ET_EXEC;
+  return header->e_type == ET_EXEC ||
+         (header->e_type == ET_DYN && !File().Name().ends_with(".so"));
 }
 
 size_t ElfFile::EntryAddress(size_t offset) {
@@ -120,8 +122,8 @@ void ElfFile::ForEachDependentLibrary(
 StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
     ::perception::ProcessId child_pid, size_t offset,
     std::map<size_t, void*>& child_memory_pages,
-    std::map<std::string_view, size_t>& symbols_to_addresses,
-    InitFiniFunctions& init_fini_functions) {
+    SymbolMap& symbols_to_addresses, InitFiniFunctions& init_fini_functions) {
+  // Force rebuild comment
   // Load shared memory segments.
   for (const auto& address_and_shared_memory : read_only_segments_) {
     size_t address = address_and_shared_memory.first + offset;
@@ -148,14 +150,14 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
         std::cout << "Segment is trying to load memory that is out of bounds "
                      "of the file."
                   << std::endl;
-        return false;
+        return Status::INTERNAL_ERROR;
       }
 
       size_t address = segment_header.p_vaddr + offset;
       // Copy the data from the file into memory.
       if (!CopyIntoMemory(data, segment_header.p_filesz, address,
                           child_memory_pages)) {
-        return false;
+        return Status::INTERNAL_ERROR;
       }
     }
 
@@ -168,7 +170,7 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
           segment_header.p_vaddr + segment_header.p_filesz + offset;
       size_t size = segment_header.p_memsz - segment_header.p_filesz;
       if (!LoadMemory(address, size, child_memory_pages)) {
-        return false;
+        return Status::INTERNAL_ERROR;
       }
     }
   }
@@ -181,11 +183,17 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
         (*dynsym_section_header_)->sh_offset + sizeof(Elf64_Sym),
         (*dynsym_section_header_)->sh_size / sizeof(Elf64_Sym) - 1);
 
+    std::vector<SymbolMap::Entry> local_symbols;
+    local_symbols.reserve(symbols.size());
+
     // auto section_headers = SectionHeaders();
     for (const Elf64_Sym& symbol : symbols) {
       if (symbol.st_shndx == SHN_UNDEF) continue;  // Undefined symbol.
       if (ELF64_ST_BIND(symbol.st_info) == STB_LOCAL)
         continue;  // Skip local symbols.
+      if (ELF64_ST_VISIBILITY(symbol.st_other) == STV_HIDDEN ||
+          ELF64_ST_VISIBILITY(symbol.st_other) == STV_INTERNAL)
+        continue;  // Skip hidden / internal symbols.
 
       auto name_or = DynamicString(symbol.st_name);
       if (!name_or) continue;
@@ -196,9 +204,10 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
       bool is_weak = ELF64_ST_BIND(symbol.st_info) == STB_WEAK;
       if (!is_weak || !symbols_to_addresses.contains(name)) {
         size_t address = symbol.st_value + offset;
-        symbols_to_addresses[name] = address;
+        local_symbols.push_back(SymbolMap::Entry{name, address});
       }
     }
+    symbols_to_addresses.insert_bulk(local_symbols);
   }
 
   AddToInitFiniFunctions(offset, init_fini_functions);
@@ -209,8 +218,7 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
 
 Status ElfFile::FixUpRelocations(
     std::map<size_t, void*>& child_memory_pages, size_t offset,
-    const std::map<std::string_view, size_t>& symbols_to_addresses,
-    size_t module_id,
+    const SymbolMap& symbols_to_addresses, size_t module_id,
     const std::map<size_t, size_t>& load_address_to_tls_offset) {
   auto relocation_section_headers = GetRelocationSectionHeaders();
   if (relocation_section_headers.empty()) return Status::OK;

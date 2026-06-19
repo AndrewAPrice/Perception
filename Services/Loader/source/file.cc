@@ -19,7 +19,9 @@
 #include <map>
 #include <memory>
 
+#include "loader.h"
 #include "multiboot.h"
+#include "perception/fibers.h"
 #include "perception/memory.h"
 #include "perception/memory_mapped_file.h"
 #include "perception/services.h"
@@ -35,11 +37,13 @@ using ::perception::SharedMemory;
 using ::perception::Status;
 using ::perception::StorageManager;
 
+bool is_cache_populated = false;
+std::vector<::perception::Fiber*> fibers_waiting_for_cache;
+
 namespace {
 
 std::map<std::string, std::string, std::less<>> cached_application_paths;
 std::map<std::string, std::string, std::less<>> cached_library_paths;
-bool is_cache_populated = false;
 
 // Extracts the name of an application from a path.
 // e.g. "/Applications/Calculator/Calculator.app" -> "Calculator"
@@ -257,7 +261,6 @@ std::optional<std::string> GetPathToFile(std::string_view name_sv) {
 
 void PopulateFilePathsCache() {
   std::error_code ec;
-  // Scan /Applications
   for (const auto& entry :
        std::filesystem::directory_iterator("/Applications", ec)) {
     if (entry.is_directory()) {
@@ -275,14 +278,15 @@ void PopulateFilePathsCache() {
       // Scan files inside this library directory
       std::error_code lib_ec;
       for (const auto& lib_file :
-           std::filesystem::directory_iterator(entry.path(), lib_ec)) {
+           std::filesystem::directory_iterator(entry.path(), ec)) {
         std::string filename = lib_file.path().filename().string();
         std::string_view trimmed = GetTrimmedLibraryName(filename);
-        if (trimmed != filename) {
+        if (trimmed != filename)
           cached_library_paths[std::string(trimmed)] = lib_file.path().string();
-        }
       }
     }
   }
   is_cache_populated = true;
+  for (auto fiber : fibers_waiting_for_cache) fiber->WakeUp();
+  fibers_waiting_for_cache.clear();
 }

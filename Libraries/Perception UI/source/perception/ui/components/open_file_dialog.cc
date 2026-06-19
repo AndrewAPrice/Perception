@@ -17,9 +17,11 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "include/core/SkColor.h"
@@ -88,6 +90,15 @@ struct OpenFileDialogState {
 std::vector<std::shared_ptr<Node>> active_dialogs;
 std::string last_opened_directory = "";
 
+std::string GetExtension(std::string_view name) {
+  std::string ext = std::filesystem::path(name).extension().string();
+  if (!ext.empty() && ext[0] == '.') {
+    ext.erase(0, 1);
+  }
+  std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+  return ext;
+}
+
 // Creates a file icon.
 std::shared_ptr<Node> CreateFileIcon(bool is_directory, bool is_symlink,
                                      std::string_view name) {
@@ -100,14 +111,7 @@ std::shared_ptr<Node> CreateFileIcon(bool is_directory, bool is_symlink,
     letter = "F";
   } else {
     // File
-    // Detect file extension
-    std::string name_str = std::string(name);
-    std::string ext = "";
-    auto dot_idx = name_str.find_last_of('.');
-    if (dot_idx != std::string::npos) {
-      ext = name_str.substr(dot_idx + 1);
-      std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-    }
+    std::string ext = GetExtension(name);
 
     if (ext == "jpg" || ext == "png" || ext == "svg" || ext == "rgba" ||
         ext == "jpeg" || ext == "bmp") {
@@ -220,12 +224,7 @@ void NavigateTo(const std::shared_ptr<OpenFileDialogState>& state,
         folders.push_back(entry);
       } else {
         if (state->apply_filters && !state->normalized_filters.empty()) {
-          std::string ext = "";
-          auto dot_idx = name.find_last_of('.');
-          if (dot_idx != std::string::npos) {
-            ext = name.substr(dot_idx + 1);
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-          }
+          std::string ext = GetExtension(name);
           if (std::find(state->normalized_filters.begin(),
                         state->normalized_filters.end(),
                         ext) == state->normalized_filters.end()) {

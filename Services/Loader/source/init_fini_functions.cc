@@ -54,7 +54,7 @@ void InitFiniFunctions::AddTlsSegment(size_t image, size_t len, size_t size, siz
 
 size_t InitFiniFunctions::PopulateInMemory(
     size_t start_address, std::map<size_t, void*>& child_memory_pages,
-    std::map<std::string_view, size_t>& symbols_to_addresses) {
+    SymbolMap& symbols_to_addresses) {
   // Create the first page.
   size_t write_address = start_address;
   size_t write_page_index = 0xFFFFFFFFFFFFFFFF;

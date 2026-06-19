@@ -30,6 +30,7 @@
 #include "perception/processes.h"
 #include "process.h"
 #include "status.h"
+#include "symbol_map.h"
 
 using ::perception::AllocateMemoryPages;
 using ::perception::CreateChildProcess;
@@ -55,11 +56,8 @@ LoadDependencies(std::shared_ptr<ElfFile> executable_file) {
   std::queue<std::string> dependencies_to_load;
 
   executable_file->ForEachDependentLibrary([&](std::string_view library_sv) {
-    //     std::cout << "Dependent library: " << library_sv << std::endl;
     std::string library_name = std::string(library_sv);
-    if (loaded_dependencies.contains(library_name))
-      return;
-    //   std::cout << "queuing: " << library_sv << std::endl;
+    if (loaded_dependencies.contains(library_name)) return;
 
     loaded_dependencies.insert(library_name);
     dependencies_to_load.push(library_name);
@@ -75,7 +73,7 @@ LoadDependencies(std::shared_ptr<ElfFile> executable_file) {
 
     if (!elf_library) {
       std::cout << "Cannot load dependency of "
-                << executable_file->File().Name() << ": " << name;
+                << executable_file->File().Name() << ": " << name << std::endl;
 
       // Unload all loaded files.
       for (auto &loaded_file : loaded_elf_files)
@@ -134,7 +132,9 @@ StatusOr<::perception::ProcessId> LoadProgram(
 
   // Detecting if something is a driver if the device manager launches it
   // is a temporary solution.
-  bool is_driver = GetProcessName(creator) == "Device Manager";
+  bool is_driver = name == "Device Manager" || name == "IDE Controller" ||
+                   name == "Virtio Network" ||
+                   GetProcessName(creator) == "Device Manager";
   size_t bitfield = is_driver ? (1 << 0) : 0;
 
   // Create the child process.
@@ -143,14 +143,15 @@ StatusOr<::perception::ProcessId> LoadProgram(
 
   ProcessId child_pid;
   if (!CreateChildProcess(elf_file->File().Name(), bitfield, child_pid)) {
-    std::cout << "Cannot spawn new process to load: "
-              << elf_file->File().Path();
+    std::cout << "Cannot spawn new process to load: " << elf_file->File().Path()
+              << std::endl;
     cleanup();
     return Status::INTERNAL_ERROR;
   }
 
   std::map<size_t, void *> child_memory_pages;
-  std::map<std::string_view, size_t> symbols_to_addresses;
+  // Force rebuild comment
+  SymbolMap symbols_to_addresses;
 
   // From this point on, child_memory_pages must be cleaned up before returning
   // if the child process isn't succesfully spawned.
@@ -166,7 +167,7 @@ StatusOr<::perception::ProcessId> LoadProgram(
   InitFiniFunctions init_fini_functions;
 
   // Load in each ELF file.
-  size_t next_free_address = 0;
+  size_t next_free_address = 0x200000;
   bool something_went_wrong = false;
   std::vector<size_t> load_addresses_of_elf_files;
   load_addresses_of_elf_files.reserve(dependencies.size());
@@ -242,9 +243,6 @@ StatusOr<::perception::ProcessId> LoadProgram(
             child_memory_pages, load_addresses_of_elf_files[i],
             symbols_to_addresses, tls_module_ids[i],
             load_address_to_tls_offset) != Status::OK) {
-      std::cout << "Loader ERROR: Relocation fix-up failed for "
-                << dependencies[i]->File().Name() << " in process " << name
-                << std::endl;
       something_went_wrong = true;
       break;
     }
@@ -255,25 +253,35 @@ StatusOr<::perception::ProcessId> LoadProgram(
     return Status::INTERNAL_ERROR;
   }
 
+  size_t argc = arguments.size() + 1;
+  size_t pointers_offset = 8;
+  size_t needed_bytes = pointers_offset + 8 * (argc + 12);
+  needed_bytes += name.length() + 1;
+  for (const auto& arg : arguments) {
+    needed_bytes += arg.length() + 1;
+  }
+
+  size_t needed_pages = (needed_bytes + kPageSize - 1) / kPageSize;
+
   size_t args_page_address =
       (next_free_address + kPageSize - 1) & ~(kPageSize - 1);
-  next_free_address = args_page_address + kPageSize;
+  next_free_address = args_page_address + needed_pages * kPageSize;
 
-  char* args_page = (char*)AllocateMemoryPages(1);
-  child_memory_pages[args_page_address] = args_page;
-  memset(args_page, 0, kPageSize);
+  char* args_page = (char*)AllocateMemoryPages(needed_pages);
+  for (size_t p = 0; p < needed_pages; p++) {
+    child_memory_pages[args_page_address + p * kPageSize] = args_page + p * kPageSize;
+  }
+  memset(args_page, 0, needed_pages * kPageSize);
 
-  size_t argc = arguments.size() + 1;
   *(size_t*)args_page = argc;
 
-  size_t pointers_offset = 8;
   size_t strings_offset =
       pointers_offset + 8 * (argc + 12);  // Space for argv, envp, auxv
 
   // Write argv[0] pointing to the program name
   size_t child_string_address = args_page_address + strings_offset;
   *(size_t*)(args_page + pointers_offset) = child_string_address;
-  if (strings_offset + name.length() + 1 <= kPageSize) {
+  if (strings_offset + name.length() + 1 <= needed_pages * kPageSize) {
     memcpy(args_page + strings_offset, name.data(), name.length());
     args_page[strings_offset + name.length()] = '\0';
     strings_offset += name.length() + 1;
@@ -286,7 +294,7 @@ StatusOr<::perception::ProcessId> LoadProgram(
         child_string_address;
 
     std::string_view arg = arguments[i];
-    if (strings_offset + arg.length() + 1 > kPageSize) {
+    if (strings_offset + arg.length() + 1 > needed_pages * kPageSize) {
       break;
     }
     memcpy(args_page + strings_offset, arg.data(), arg.length());
@@ -338,10 +346,11 @@ StatusOr<::perception::ProcessId> LoadProgram(
 
   // Creates a thread in the a child process. The child process will begin
   // executing and will no longer terminate if the creator terminates.
-  StartExecutingChildProcess(child_pid, elf_file->EntryAddress(/*offset=*/0),
-                             /*params=*/args_address);
+  StartExecutingChildProcess(
+      child_pid, elf_file->EntryAddress(load_addresses_of_elf_files[0]),
+      /*params=*/args_address);
 
   for (auto &dependency : dependencies)
     DecrementElfFile(dependency);
-  return Status::OK;
+  return child_pid;
 }

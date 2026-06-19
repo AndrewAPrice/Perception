@@ -26,4 +26,8 @@ class LoaderServer : public ::perception::Loader::Server {
   StatusOr<::perception::LoadApplicationResponse> LaunchApplication(
       const ::perception::LoadApplicationRequest& request,
       ::perception::ProcessId sender) override;
+
+  StatusOr<::perception::GetMultibootRegistryFileResponse> GetMultibootRegistryFile(
+      const ::perception::GetMultibootRegistryFileRequest& request,
+      ::perception::ProcessId sender) override;
 };

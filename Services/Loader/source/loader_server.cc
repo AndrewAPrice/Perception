@@ -25,11 +25,26 @@
 #include "multiboot.h"
 #include "perception/permissions.h"
 #include "perception/processes.h"
+#include "perception/scheduler.h"
 
 using ::perception::ProcessId;
 
+namespace {
+
+std::shared_ptr<::perception::SharedMemory> multiboot_registry_file_keep_alive;
+
+}  // namespace
+
 StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
     const ::perception::LoadApplicationRequest& request, ProcessId sender) {
+  if (!is_cache_populated) {
+    fibers_waiting_for_cache.push_back(
+        ::perception::GetCurrentlyExecutingFiber());
+    while (!is_cache_populated) {
+      ::perception::Sleep();
+    }
+  }
+
   if (!::perception::DoesProcessHavePermission(
           sender, ::perception::Permission::CanLaunchPrograms)) {
     return ::perception::Status::NOT_ALLOWED;
@@ -104,7 +119,9 @@ LoaderServer::GetMultibootRegistryFile(
 
   std::memcpy(**shared_memory, *module->data, module->data.Length());
 
+  multiboot_registry_file_keep_alive = shared_memory;
+
   ::perception::GetMultibootRegistryFileResponse response;
-  response.registry_file = std::move(*shared_memory);
+  response.registry_file_id = shared_memory->GetId();
   return response;
 }

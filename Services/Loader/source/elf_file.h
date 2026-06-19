@@ -26,6 +26,7 @@
 #include "file.h"
 #include "perception/shared_memory.h"
 #include "status.h"
+#include "symbol_map.h"
 
 namespace perception {
 class MemorySpan;
@@ -67,7 +68,7 @@ class ElfFile {
   StatusOr<size_t> LoadIntoAddressSpaceAndReturnNextFreeAddress(
       ::perception::ProcessId child_pid, size_t offset,
       std::map<size_t, void*>& child_memory_pages,
-      std::map<std::string_view, size_t>& symbols_to_addresses,
+      SymbolMap& symbols_to_addresses,
       InitFiniFunctions& init_fini_functions);
 
   // Fix up relocations in a child process for this ELF file after the
@@ -79,7 +80,7 @@ class ElfFile {
   // representing this ELF file in this process.
   ::perception::Status FixUpRelocations(
       std::map<size_t, void*>& child_memory_pages, size_t offset,
-      const std::map<std::string_view, size_t>& symbols_to_addresses,
+      const SymbolMap& symbols_to_addresses,
       size_t module_id,
       const std::map<size_t, size_t>& load_address_to_tls_offset);
 

@@ -19,26 +19,6 @@
           "description": "Mapping of file extensions to handler applications",
           "default": [
             [
-              "jpg",
-              "Viewer"
-            ],
-            [
-              "png",
-              "Viewer"
-            ],
-            [
-              "jpeg",
-              "Viewer"
-            ],
-            [
-              "svg",
-              "Viewer"
-            ],
-            [
-              "rgba",
-              "Viewer"
-            ],
-            [
               "dir",
               "File Manager"
             ]

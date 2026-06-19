@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "elf.h"
+#include "symbol_map.h"
 #include "types.h"
 
 // Represents a set of init and fini ELF functions.
@@ -57,7 +58,7 @@ class InitFiniFunctions {
   // the symbols to these tables in `symbols_to_addresses`.
   size_t PopulateInMemory(
       size_t start_address, std::map<size_t, void*>& child_memory_pages,
-      std::map<std::string_view, size_t>& symbols_to_addresses);
+      SymbolMap& symbols_to_addresses);
 
  private:
   // Returns a pointer to an array of arrays for a given section. Returns
