@@ -97,7 +97,7 @@ void ScanAndLoadSettingsInSubPath(std::string_view sub_path,
     if (entry.is_directory()) {
       std::string settings_file = entry.path().string() + "/settings.json";
       if (std::filesystem::exists(settings_file, ec)) {
-        LoadSettingsJson(settings_file, RegistryCorpus::APPLICATIONS,
+        LoadSettingsJson(settings_file, corpus,
                          entry.path().filename().string());
       }
     }
