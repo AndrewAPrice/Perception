@@ -79,13 +79,7 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
   memcpy(process_name, &name[0], name.size());
 
   volatile register size_t syscall asm("rdi") = 22;
-#ifndef optimized_BUILD_
-  volatile register size_t min_pid asm("r11") = 0;
-  volatile register size_t pid_1 asm("r11");
-#else
-  volatile register size_t min_pid asm("rbp") = 0;
-  volatile register size_t pid_1 asm("rbp");
-#endif
+  volatile register size_t min_pid asm("r15") = 0;
   volatile register size_t name_1 asm("rax") = process_name[0];
   volatile register size_t name_2 asm("rbx") = process_name[1];
   volatile register size_t name_3 asm("rdx") = process_name[2];
@@ -96,10 +90,10 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
   volatile register size_t name_8 asm("r12") = process_name[7];
   volatile register size_t name_9 asm("r13") = process_name[8];
   volatile register size_t name_10 asm("r14") = process_name[9];
-  volatile register size_t name_11 asm("r15") = process_name[10];
 
   // We only care about the first PID.
   volatile register size_t number_of_processes asm("rdi");
+  volatile register size_t pid_1 asm("r15");
   volatile register size_t pid_2 asm("rax");
   volatile register size_t pid_3 asm("rbx");
   volatile register size_t pid_4 asm("rdx");
@@ -110,31 +104,16 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
   volatile register size_t pid_9 asm("r12");
   volatile register size_t pid_10 asm("r13");
   volatile register size_t pid_11 asm("r14");
-  volatile register size_t pid_12 asm("r15");
 
   __asm__ __volatile__(
-#ifndef optimized_BUILD_
-      R"(
-    push %%rbp
-    mov %%r11, %%rbp
-    syscall
-    mov %%rbp, %%r11
-    pop %%rbp
-	)"
-#else
       "syscall\n"
-#endif
       : "=r"(number_of_processes), "=r"(pid_1), "=r"(pid_2), "=r"(pid_3),
         "=r"(pid_4), "=r"(pid_5), "=r"(pid_6), "=r"(pid_7), "=r"(pid_8),
-        "=r"(pid_9), "=r"(pid_10), "=r"(pid_11), "=r"(pid_12)
+        "=r"(pid_9), "=r"(pid_10), "=r"(pid_11)
       : "r"(syscall), "r"(min_pid), "r"(name_1), "r"(name_2), "r"(name_3),
         "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8),
-        "r"(name_9), "r"(name_10), "r"(name_11)
-      : "rcx"
-#ifdef optimized_BUILD_
-        ,
-        "r11"
-#endif
+        "r"(name_9), "r"(name_10)
+      : "rcx", "r11"
   );
 
   // Suppress compiler warnings about unused variables.
@@ -148,7 +127,6 @@ bool GetFirstProcessWithName(std::string_view name, ProcessId& pid) {
   (void)pid_9;
   (void)pid_10;
   (void)pid_11;
-  (void)pid_12;
 
   if (number_of_processes == 0) return false;
 
@@ -175,11 +153,7 @@ void ForEachProcessWithName(
   while (true) {
     // Fetch this page of results.
     volatile register size_t syscall asm("rdi") = 22;
-#ifndef optimized_BUILD_
-    volatile register size_t starting_pid asm("r11") = 0;
-#else
-    volatile register size_t starting_pid asm("rbp") = 0;
-#endif
+    volatile register size_t starting_pid_r asm("r15") = starting_pid;
     volatile register size_t name_1 asm("rax") = process_name[0];
     volatile register size_t name_2 asm("rbx") = process_name[1];
     volatile register size_t name_3 asm("rdx") = process_name[2];
@@ -190,15 +164,10 @@ void ForEachProcessWithName(
     volatile register size_t name_8 asm("r12") = process_name[7];
     volatile register size_t name_9 asm("r13") = process_name[8];
     volatile register size_t name_10 asm("r14") = process_name[9];
-    volatile register size_t name_11 asm("r15") = process_name[10];
 
     volatile register size_t number_of_processes_r asm("rdi");
 
-#ifndef optimized_BUILD_
-    volatile register size_t pid_1_r asm("r11");
-#else
-    volatile register size_t pid_1_r asm("rbp");
-#endif
+    volatile register size_t pid_1_r asm("r15");
     volatile register size_t pid_2_r asm("rax");
     volatile register size_t pid_3_r asm("rbx");
     volatile register size_t pid_4_r asm("rdx");
@@ -209,32 +178,17 @@ void ForEachProcessWithName(
     volatile register size_t pid_9_r asm("r12");
     volatile register size_t pid_10_r asm("r13");
     volatile register size_t pid_11_r asm("r14");
-    volatile register size_t pid_12_r asm("r15");
 
     __asm__ __volatile__(
-#ifndef optimized_BUILD_
-        R"(
-    push %%rbp
-    mov %%r11, %%rbp
-    syscall
-    mov %%rbp, %%r11
-    pop %%rbp
-			)"
-#else
         "syscall\n"
-#endif
         : "=r"(number_of_processes_r), "=r"(pid_1_r), "=r"(pid_2_r),
           "=r"(pid_3_r), "=r"(pid_4_r), "=r"(pid_5_r), "=r"(pid_6_r),
           "=r"(pid_7_r), "=r"(pid_8_r), "=r"(pid_9_r), "=r"(pid_10_r),
-          "=r"(pid_11_r), "=r"(pid_12_r)
-        : "r"(syscall), "r"(starting_pid), "r"(name_1), "r"(name_2),
+          "=r"(pid_11_r)
+        : "r"(syscall), "r"(starting_pid_r), "r"(name_1), "r"(name_2),
           "r"(name_3), "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7),
-          "r"(name_8), "r"(name_9), "r"(name_10), "r"(name_11)
-        : "rcx"
-#ifdef optimized_BUILD_
-          ,
-          "r11"
-#endif
+          "r"(name_8), "r"(name_9), "r"(name_10)
+        : "rcx", "r11"
     );
 
     size_t number_of_processes = number_of_processes_r;
@@ -249,7 +203,6 @@ void ForEachProcessWithName(
     size_t pid_9 = pid_9_r;
     size_t pid_10 = pid_10_r;
     size_t pid_11 = pid_11_r;
-    size_t pid_12 = pid_12_r;
 
     // Call backs.
     if (number_of_processes >= 1) on_each_process(pid_1);
@@ -263,13 +216,12 @@ void ForEachProcessWithName(
     if (number_of_processes >= 9) on_each_process(pid_9);
     if (number_of_processes >= 10) on_each_process(pid_10);
     if (number_of_processes >= 11) on_each_process(pid_11);
-    if (number_of_processes >= 12) on_each_process(pid_12);
 
     // We don't have another page of results.
-    if (number_of_processes <= 12) return;
+    if (number_of_processes <= 11) return;
 
     // Start the next page just afer the last process ID of this page.
-    starting_pid = pid_12 + 1;
+    starting_pid = pid_11 + 1;
   }
 #endif
 }
@@ -290,47 +242,44 @@ std::string GetProcessName(ProcessId pid) {
   char process_name[kMaximumProcessNameLength + 1];
   process_name[kMaximumProcessNameLength] = '\0';
 
-  size_t was_process_found;
-  size_t* name_ptr = (size_t*)process_name;
+  volatile register size_t syscall_num asm("rdi") = 29;
+  volatile register size_t pid_val asm("rax") = pid;
+
+  volatile register size_t was_process_found asm("rdi");
+  volatile register size_t name_1 asm("rax");
+  volatile register size_t name_2 asm("rbx");
+  volatile register size_t name_3 asm("rdx");
+  volatile register size_t name_4 asm("rsi");
+  volatile register size_t name_5 asm("r8");
+  volatile register size_t name_6 asm("r9");
+  volatile register size_t name_7 asm("r10");
+  volatile register size_t name_8 asm("r12");
+  volatile register size_t name_9 asm("r13");
+  volatile register size_t name_10 asm("r14");
+  volatile register size_t name_11 asm("r15");
 
   __asm__ __volatile__(
-      "push %%rbx\n"
-      "push %%r12\n"
-      "push %%r13\n"
-      "push %%r14\n"
-      "push %%r15\n"
-
-      "push %2\n"
-
-      "mov %1, %%rax\n"
-      "mov $29, %%rdi\n"
       "syscall\n"
-
-      "pop %%r11\n"
-
-      "mov %%rdi, %0\n"
-      "mov %%rax, 0(%%r11)\n"
-      "mov %%rbx, 8(%%r11)\n"
-      "mov %%rdx, 16(%%r11)\n"
-      "mov %%rsi, 24(%%r11)\n"
-      "mov %%r8, 32(%%r11)\n"
-      "mov %%r9, 40(%%r11)\n"
-      "mov %%r10, 48(%%r11)\n"
-      "mov %%r12, 56(%%r11)\n"
-      "mov %%r13, 64(%%r11)\n"
-      "mov %%r14, 72(%%r11)\n"
-      "mov %%r15, 80(%%r11)\n"
-
-      "pop %%r15\n"
-      "pop %%r14\n"
-      "pop %%r13\n"
-      "pop %%r12\n"
-      "pop %%rbx\n"
-      : "=m"(was_process_found)
-      : "r"(pid), "r"(name_ptr)
-      : "rax", "rdi", "rdx", "rsi", "rcx", "r8", "r9", "r10", "r11", "memory");
+      : "=r"(was_process_found), "=r"(name_1), "=r"(name_2), "=r"(name_3),
+        "=r"(name_4), "=r"(name_5), "=r"(name_6), "=r"(name_7), "=r"(name_8),
+        "=r"(name_9), "=r"(name_10), "=r"(name_11)
+      : "r"(syscall_num), "r"(pid_val)
+      : "rcx", "r11", "memory"
+  );
 
   if (!was_process_found) return "";
+
+  size_t* name_ptr = (size_t*)process_name;
+  name_ptr[0] = name_1;
+  name_ptr[1] = name_2;
+  name_ptr[2] = name_3;
+  name_ptr[3] = name_4;
+  name_ptr[4] = name_5;
+  name_ptr[5] = name_6;
+  name_ptr[6] = name_7;
+  name_ptr[7] = name_8;
+  name_ptr[8] = name_9;
+  name_ptr[9] = name_10;
 
   return std::string(process_name);
 #else
@@ -420,44 +369,26 @@ bool CreateChildProcess(std::string_view name, size_t bitfield,
   memcpy(process_name, &name[0], name.size());
 
   volatile register size_t syscall asm("rdi") = 51;
-#ifndef optimized_BUILD_
-  volatile register size_t bitfield_r asm("r11") = bitfield;
-#else
-  volatile register size_t bitfield_r asm("rbp") = bitfield;
-#endif
-  volatile register size_t name_1 asm("rax") = process_name[0];
-  volatile register size_t name_2 asm("rbx") = process_name[1];
-  volatile register size_t name_3 asm("rdx") = process_name[2];
-  volatile register size_t name_4 asm("rsi") = process_name[3];
-  volatile register size_t name_5 asm("r8") = process_name[4];
-  volatile register size_t name_6 asm("r9") = process_name[5];
-  volatile register size_t name_7 asm("r10") = process_name[6];
-  volatile register size_t name_8 asm("r12") = process_name[7];
-  volatile register size_t name_9 asm("r13") = process_name[8];
-  volatile register size_t name_10 asm("r14") = process_name[9];
-  volatile register size_t name_11 asm("r15") = process_name[10];
+  volatile register size_t bitfield_r asm("rax") = bitfield;
+  volatile register size_t name_1 asm("rbx") = process_name[0];
+  volatile register size_t name_2 asm("rdx") = process_name[1];
+  volatile register size_t name_3 asm("rsi") = process_name[2];
+  volatile register size_t name_4 asm("r8") = process_name[3];
+  volatile register size_t name_5 asm("r9") = process_name[4];
+  volatile register size_t name_6 asm("r10") = process_name[5];
+  volatile register size_t name_7 asm("r12") = process_name[6];
+  volatile register size_t name_8 asm("r13") = process_name[7];
+  volatile register size_t name_9 asm("r14") = process_name[8];
+  volatile register size_t name_10 asm("r15") = process_name[9];
 
   volatile register size_t pid_r asm("rax");
   __asm__ __volatile__(
-#ifndef optimized_BUILD_
-      R"(
-    push %%rbp
-    mov %%r11, %%rbp
-    syscall
-    pop %%rbp
-	)"
-#else
       "syscall\n"
-#endif
       : "=r"(pid_r)
       : "r"(syscall), "r"(bitfield_r), "r"(name_1), "r"(name_2), "r"(name_3),
         "r"(name_4), "r"(name_5), "r"(name_6), "r"(name_7), "r"(name_8),
-        "r"(name_9), "r"(name_10), "r"(name_11)
-      : "rcx"
-#ifdef optimized_BUILD_
-        ,
-        "r11"
-#endif
+        "r"(name_9), "r"(name_10)
+      : "rcx", "r11"
   );
 
   if (pid_r == 0) return false;

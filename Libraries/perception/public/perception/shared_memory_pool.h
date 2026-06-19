@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <stack>
 
 #include "perception/memory.h"
@@ -32,27 +33,43 @@ class SharedMemoryPool {
   // Gets shared memory. Tries to recycle a previously released shared if
   // possible.
   std::shared_ptr<PooledSharedMemory> GetSharedMemory() {
-    if (shared_memory_pool_.empty()) {
-      // There's no shared memory we can recycle.
-      auto pooled_shared_memory = std::make_shared<PooledSharedMemory>();
+    std::shared_ptr<PooledSharedMemory> pooled_shared_memory;
+
+    while (lock_.test_and_set(std::memory_order_acquire)) {
+      // Spin
+    }
+
+    if (!shared_memory_pool_.empty()) {
+      pooled_shared_memory = std::move(shared_memory_pool_.top());
+      shared_memory_pool_.pop();
+    }
+
+    lock_.clear(std::memory_order_release);
+
+    if (!pooled_shared_memory) {
+      // There's no shared memory we can recycle. Allocate it outside the lock
+      // to avoid blocking other threads or deadlocking fibers.
+      pooled_shared_memory = std::make_shared<PooledSharedMemory>();
       pooled_shared_memory->shared_memory = SharedMemory::FromSize(
           shared_memory_size, SharedMemory::kJoinersCanWrite);
       (void)pooled_shared_memory->shared_memory->Join();
-      return pooled_shared_memory;
-    } else {
-      // We can recycle previously released shared memory from the pool.
-      auto pooled_shared_memory = std::move(shared_memory_pool_.top());
-      shared_memory_pool_.pop();
-      return pooled_shared_memory;
     }
+    return pooled_shared_memory;
   }
 
   // Returns the shared memory to the pool.
   void ReleaseSharedMemory(std::shared_ptr<PooledSharedMemory> shared_memory) {
+    while (lock_.test_and_set(std::memory_order_acquire)) {
+      // Spin
+    }
     shared_memory_pool_.push(std::move(shared_memory));
+    lock_.clear(std::memory_order_release);
   }
 
  private:
+  // Spinlock protecting the pool.
+  std::atomic_flag lock_ = ATOMIC_FLAG_INIT;
+
   // Shared memory that is allocated but not used.
   std::stack<std::shared_ptr<PooledSharedMemory>> shared_memory_pool_;
 };

@@ -66,6 +66,9 @@ bool IsPrimaryThread();
 // Returns the Thread ID of the primary/main thread.
 ThreadId GetPrimaryThreadId();
 
+// Returns the address of the is_primary_thread thread_local variable.
+void* GetIsPrimaryThreadAddress();
+
 // Terminates the currently running thread.
 void TerminateThread();
 

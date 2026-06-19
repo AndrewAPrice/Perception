@@ -14,15 +14,17 @@
 
 #include "perception/threads.h"
 
-#if !defined(PERCEPTION) || defined(TEST)
 #include <pthread.h>
+
+#include <vector>
+
+#if !defined(PERCEPTION) || defined(TEST)
 #include <sched.h>
 #include <stdlib.h>
 
 #include <iostream>
 #include <sstream>
 #include <thread>
-#include <vector>
 #endif
 
 namespace perception {
@@ -37,13 +39,29 @@ __attribute__((constructor)) void InitializePrimaryThread() {
   primary_thread_id = GetThreadId();
 }
 
+struct ThreadParameters {
+  void (*entry_point)(void*);
+  void* param;
+};
+
+void ThreadEntryWrapper(void* param) {
+  is_primary_thread = false;
+  auto params = (ThreadParameters*)param;
+  auto entry_point = params->entry_point;
+  auto real_param = params->param;
+  delete params;
+  entry_point(real_param);
+}
+
 }  // namespace
 
 ThreadId CreateThread(void (*entry_point)(void*), void* param) {
 #if defined(PERCEPTION) && !defined(TEST)
+  auto params = new ThreadParameters{entry_point, param};
+
   volatile register size_t syscall_num asm("rdi") = 1;
-  volatile register size_t param1 asm("rax") = (size_t)entry_point;
-  volatile register size_t param2 asm("rbx") = (size_t)param;
+  volatile register size_t param1 asm("rax") = (size_t)ThreadEntryWrapper;
+  volatile register size_t param2 asm("rbx") = (size_t)params;
   volatile register size_t param3 asm("rdx") = 0;
   volatile register size_t param4 asm("rsi") = 0;
   volatile register size_t return_val asm("rax");
@@ -160,6 +178,8 @@ bool SetThreadPriority(ThreadId tid, ThreadPriority priority) {
 bool IsPrimaryThread() { return is_primary_thread; }
 
 ThreadId GetPrimaryThreadId() { return primary_thread_id; }
+
+void* GetIsPrimaryThreadAddress() { return (void*)&is_primary_thread; }
 
 }  // namespace perception
 
