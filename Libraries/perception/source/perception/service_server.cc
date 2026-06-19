@@ -44,18 +44,32 @@ namespace perception {
 
 ServiceServer::ServiceServer(ServiceServerOptions options,
                              std::string_view service_name)
-    : options_(options) {
+    : options_(options), service_name_(service_name) {
   message_id_ = GenerateUniqueMessageId();
   RegisterRawMessageHandler(
       message_id_, [this](::perception::ProcessId sender,
                           const ::perception::MessageData& message_data) {
         this->HandleRequest(sender, message_data);
       });
-  RegisterService(message_id_, service_name);
+  if (!options_.defer_registration) {
+    RegisterService(message_id_, service_name_);
+  }
+}
+
+void ServiceServer::StartServing() {
+  if (options_.defer_registration) {
+    RegisterService(message_id_, service_name_);
+  }
 }
 
 ServiceServer::~ServiceServer() {
-  UnregisterService(message_id_);
+  if (!options_.defer_registration) {
+    UnregisterService(message_id_);
+  } else {
+    // If deferred, it might or might not have been registered.
+    // UnregisterService is safe.
+    UnregisterService(message_id_);
+  }
   UnregisterMessageHandler(message_id_);
 }
 

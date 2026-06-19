@@ -19,6 +19,7 @@
 #include <map>
 #include <mutex>
 #include <set>
+#include <vector>
 
 #include "perception/messages.h"
 #include "perception/processes.h"

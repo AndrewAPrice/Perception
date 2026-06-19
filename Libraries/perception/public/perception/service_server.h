@@ -14,18 +14,8 @@
 
 #pragma once
 
-// Define VERBOSE for printing failures.
-#define VERBOSE
-
 #include <functional>
 #include <string_view>
-
-#ifdef VERBOSE
-#include <iostream>
-
-#include "perception/processes.h"
-#include "perception/serialization/text_serializer.h"
-#endif
 
 #include "perception/messages.h"
 #include "perception/rpc_memory.h"
@@ -36,13 +26,18 @@
 
 namespace perception {
 
-struct ServiceServerOptions {};
+struct ServiceServerOptions {
+  bool defer_registration = false;
+};
 
 class ServiceServer {
  public:
   ProcessId ServerProcessId() const;
 
   MessageId ServiceId() const;
+
+  // Starts serving if defer_registration was set to true.
+  void StartServing();
 
   bool operator<(const ServiceServer& rhs) const;
 
@@ -78,19 +73,6 @@ class ServiceServer {
       return;
     }
     auto response = (service->*handler)(request, sender);
-#ifdef VERBOSE
-    Status status = ToStatus(response);
-    if (status != Status::OK) {
-      std::cout << "Call to " << Service::MethodName(message.param1) << " ("
-                << message.param1 << ") in " << Service::FullyQualifiedName()
-                << " (\"" << GetProcessName() << "\") from \""
-                << GetProcessName(sender)
-                << "\" returned bad status: " << (int)status
-                << " with request: " << std::endl
-                << SerializeToString(request) << std::endl;
-    }
-#endif
-
     SendBackResponse(response, sender, message);
   }
 
@@ -157,6 +139,7 @@ class ServiceServer {
 
   ServiceServerOptions options_;
   MessageId message_id_;
+  std::string service_name_;
 };
 
 }  // namespace perception

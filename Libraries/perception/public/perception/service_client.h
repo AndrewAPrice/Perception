@@ -161,7 +161,7 @@ class ServiceClient : public serialization::Serializable {
 
             ResponseType response =
                 LoadResponseFromMessageData<ResponseType>(sender, message);
-            on_response(response);
+            on_response(std::move(response));
           });
     } else {
       // Don't care about waiting for a response.
@@ -187,7 +187,7 @@ class ServiceClient : public serialization::Serializable {
           auto shared_memory = GetMemoryBufferForReceivingFromProcess(
               process_id, message.param2);
           shared_memory->Grow(message.param3);
-          DeserializeFromSharedMemory(*response, *shared_memory, 1,
+          serialization::DeserializeFromSharedMemory(*response, *shared_memory, 1,
                                       message.param4);
           SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
         }
