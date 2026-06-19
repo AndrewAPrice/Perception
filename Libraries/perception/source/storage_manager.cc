@@ -21,10 +21,12 @@ void DirectoryEntry::Serialize(serialization::Serializer& serializer) {
   serializer.String("Name", name);
   serializer.Integer("Type", type);
   serializer.Integer("Size in bytes", size_in_bytes);
+  serializer.Integer("Is link", is_link);
 }
 
 void RequestWithFilePath::Serialize(serialization::Serializer& serializer) {
   serializer.String("Path", path);
+  serializer.Integer("No follow", no_follow);
 }
 
 void OpenFileResponse::Serialize(serialization::Serializer& serializer) {
@@ -63,6 +65,11 @@ void FileStatistics::Serialize(serialization::Serializer& serializer) {
   serializer.Integer("Type", type);
   serializer.Integer("Size in bytes", size_in_bytes);
   serializer.Integer("Optimal operation size", optimal_operation_size);
+  serializer.Integer("Is link", is_link);
+}
+
+void FileSystemMountEvent::Serialize(serialization::Serializer& serializer) {
+  serializer.String("mount_point", mount_point);
 }
 
 }  // namespace perception

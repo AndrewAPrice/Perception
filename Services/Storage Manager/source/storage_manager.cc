@@ -140,11 +140,13 @@ StatusOr<ReadDirectoryResponse> StorageManager::ReadDirectory(
 
   response.has_more_entries = !ForEachEntryInDirectory(
       request.path, request.first_index, request.maximum_number_of_entries,
-      [&](std::string_view name, DirectoryEntry::Type type, size_t size) {
+      [&](std::string_view name, DirectoryEntry::Type type, size_t size,
+          bool is_link) {
         auto& directory_entry = response.entries.emplace_back();
         directory_entry.name = name;
         directory_entry.type = static_cast<DirectoryEntry::Type>(type);
         directory_entry.size_in_bytes = size;
+        directory_entry.is_link = is_link;
       });
   return response;
 }
@@ -160,5 +162,67 @@ StatusOr<CheckPermissionsResponse> StorageManager::CheckPermissions(
 
 StatusOr<FileStatistics> StorageManager::GetFileStatistics(
     const RequestWithFilePath& request) {
-  return ::GetFileStatistics(request.path);
+  return ::GetFileStatistics(request.path, request.no_follow);
+}
+
+StatusOr<RequestWithFilePath> StorageManager::ReadLink(
+    const RequestWithFilePath& request) {
+  ASSIGN_OR_RETURN(std::string target, ::ReadLink(request.path));
+  return RequestWithFilePath(target);
+}
+
+std::vector<StorageManager::MountListenerInfo> StorageManager::listeners_;
+
+::perception::Status StorageManager::ListenForMounts(
+    const ::perception::FileSystemMountListener::Client& listener) {
+  for (const auto& info : listeners_) {
+    if (info.client.ServerProcessId() == listener.ServerProcessId() &&
+        info.client.ServiceId() == listener.ServiceId()) {
+      return ::perception::Status::OK;
+    }
+  }
+
+  auto listener_copy = listener;
+  ::perception::MessageId disappearance_id =
+      listener_copy.NotifyOnDisappearance(
+          [pid = listener.ServerProcessId(), sid = listener.ServiceId()]() {
+            for (auto it = listeners_.begin(); it != listeners_.end(); ++it) {
+              if (it->client.ServerProcessId() == pid &&
+                  it->client.ServiceId() == sid) {
+                listeners_.erase(it);
+                break;
+              }
+            }
+          });
+
+  listeners_.push_back({listener_copy, disappearance_id});
+
+  ForEachMountedFileSystem([&](std::string_view mount_point) {
+    ::perception::FileSystemMountEvent event;
+    event.mount_point = std::string(mount_point);
+    listener_copy.FileSystemMounted(event, nullptr);
+  });
+
+  return ::perception::Status::OK;
+}
+
+::perception::Status StorageManager::StopListeningForMounts(
+    const ::perception::FileSystemMountListener::Client& listener) {
+  for (auto it = listeners_.begin(); it != listeners_.end(); ++it) {
+    if (it->client.ServerProcessId() == listener.ServerProcessId() &&
+        it->client.ServiceId() == listener.ServiceId()) {
+      it->client.StopNotifyingOnDisappearance(it->disappearance_id);
+      listeners_.erase(it);
+      break;
+    }
+  }
+  return ::perception::Status::OK;
+}
+
+void StorageManager::BroadcastMount(std::string_view mount_point) {
+  ::perception::FileSystemMountEvent event;
+  event.mount_point = std::string(mount_point);
+  for (auto& info : listeners_) {
+    info.client.FileSystemMounted(event, nullptr);
+  }
 }

@@ -36,6 +36,8 @@ class DirectoryEntry : public serialization::Serializable {
 
   uint64 size_in_bytes = 0;
 
+  bool is_link = false;
+
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
@@ -43,7 +45,10 @@ class RequestWithFilePath : public serialization::Serializable {
  public:
   RequestWithFilePath() {}
   RequestWithFilePath(std::string_view path) : path(path) {}
+  RequestWithFilePath(std::string_view path, bool no_follow)
+      : path(path), no_follow(no_follow) {}
   std::string path;
+  bool no_follow = false;
 
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
@@ -98,17 +103,32 @@ class FileStatistics : public serialization::Serializable {
   DirectoryEntry::Type type = DirectoryEntry::Type::FILE;
   uint64 size_in_bytes = 0;
   uint64 optimal_operation_size = 0;
+  bool is_link = false;
 
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
-#define METHOD_LIST(X)                                                         \
-  X(1, OpenFile, OpenFileResponse, RequestWithFilePath)                        \
-  X(2, OpenMemoryMappedFile, OpenMemoryMappedFileResponse,                     \
-    RequestWithFilePath)                                                       \
-  X(3, ReadDirectory, ReadDirectoryResponse, ReadDirectoryRequest)             \
+class FileSystemMountEvent : public serialization::Serializable {
+ public:
+  std::string mount_point;
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+#define METHOD_LIST(X) X(1, FileSystemMounted, void, FileSystemMountEvent)
+DEFINE_PERCEPTION_SERVICE(FileSystemMountListener,
+                          "perception.FileSystemMountListener", METHOD_LIST)
+#undef METHOD_LIST
+
+#define METHOD_LIST(X)                                                  \
+  X(1, OpenFile, OpenFileResponse, RequestWithFilePath)                 \
+  X(2, OpenMemoryMappedFile, OpenMemoryMappedFileResponse,              \
+    RequestWithFilePath)                                                \
+  X(3, ReadDirectory, ReadDirectoryResponse, ReadDirectoryRequest)      \
   X(4, CheckPermissions, CheckPermissionsResponse, RequestWithFilePath) \
-  X(5, GetFileStatistics, FileStatistics, RequestWithFilePath)
+  X(5, GetFileStatistics, FileStatistics, RequestWithFilePath)          \
+  X(6, ListenForMounts, void, FileSystemMountListener::Client)          \
+  X(7, StopListeningForMounts, void, FileSystemMountListener::Client)   \
+  X(8, ReadLink, RequestWithFilePath, RequestWithFilePath)
 
 DEFINE_PERCEPTION_SERVICE(StorageManager, "perception.StorageManager",
                           METHOD_LIST)

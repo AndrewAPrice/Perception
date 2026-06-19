@@ -39,4 +39,23 @@ class StorageManager : public ::perception::StorageManager::Server {
 
   virtual StatusOr<::perception::FileStatistics> GetFileStatistics(
       const ::perception::RequestWithFilePath& request) override;
+
+  virtual StatusOr<::perception::RequestWithFilePath> ReadLink(
+      const ::perception::RequestWithFilePath& request) override;
+
+  virtual ::perception::Status ListenForMounts(
+      const ::perception::FileSystemMountListener::Client& listener) override;
+
+  virtual ::perception::Status StopListeningForMounts(
+      const ::perception::FileSystemMountListener::Client& listener) override;
+
+  static void BroadcastMount(std::string_view mount_point);
+
+  struct MountListenerInfo {
+    ::perception::FileSystemMountListener::Client client;
+    ::perception::MessageId disappearance_id;
+  };
+
+ private:
+  static std::vector<MountListenerInfo> listeners_;
 };

@@ -44,7 +44,13 @@ void CloseMemoryMappedFile(::perception::ProcessId sender,
 bool ForEachEntryInDirectory(
     std::string_view directory, int offset, int count,
     const std::function<void(std::string_view,
-                             ::perception::DirectoryEntry::Type, size_t)>&
+                             ::perception::DirectoryEntry::Type, size_t, bool)>&
         on_each_entry);
 
-StatusOr<::perception::FileStatistics> GetFileStatistics(std::string_view path);
+StatusOr<::perception::FileStatistics> GetFileStatistics(std::string_view path,
+                                                         bool no_follow);
+
+StatusOr<std::string> ReadLink(std::string_view path);
+
+void ForEachMountedFileSystem(
+    const std::function<void(std::string_view)>& on_each);

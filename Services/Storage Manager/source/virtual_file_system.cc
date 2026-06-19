@@ -23,6 +23,7 @@
 
 #include "memory_mapped_file.h"
 #include "perception/fibers.h"
+#include "storage_manager.h"
 
 using ::file_systems::FileSystem;
 using ::perception::DirectoryEntry;
@@ -32,7 +33,6 @@ using ::perception::GetCurrentlyExecutingFiber;
 using ::perception::ProcessId;
 using ::perception::Sleep;
 using ::perception::Status;
-using ::perception::StorageManager;
 using ::perception::devices::StorageDeviceType;
 
 namespace {
@@ -103,12 +103,13 @@ Status ExtractMountPointAndPath(std::string_view path,
   }
 
   if (mount_point == "Libraries" || mount_point == "Applications") {
+    std::unique_lock<std::mutex> lock(file_system_mutex);
     if (first_mounted_file_system.empty()) {
-      // Sleep until there is a mounted file system.
       fibers_waiting_for_first_file_system.push_back(
           GetCurrentlyExecutingFiber());
+      lock.unlock();
       Sleep();
-
+      lock.lock();
       if (first_mounted_file_system.empty()) {
         std::cout
             << "VFS service was rewoken with no first mounted file system."
@@ -149,22 +150,35 @@ StatusOr<std::unique_ptr<File>> OpenFileInternal(std::string_view path,
 }  // namespace
 
 void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
-  std::lock_guard<std::mutex> lock(file_system_mutex);
-  std::string mount_name = GetMountNameForFileSystem(*file_system);
-  std::cout << "Mounting " << file_system->GetFileSystemType() << " on "
-            << file_system->GetDeviceName() << " as /" << mount_name << "/"
-            << std::endl;
-  auto fs = std::shared_ptr<FileSystem>(std::move(file_system));
-  mounted_file_systems[mount_name] = fs;
-  if (first_mounted_file_system.empty()) {
-    first_mounted_file_system = mount_name;
+  std::string mount_name;
+  {
+    std::lock_guard<std::mutex> lock(file_system_mutex);
+    mount_name = GetMountNameForFileSystem(*file_system);
+    std::cout << "Mounting " << file_system->GetFileSystemType() << " on "
+              << file_system->GetDeviceName() << " as /" << mount_name << "/"
+              << std::endl;
+    auto fs = std::shared_ptr<FileSystem>(std::move(file_system));
+    mounted_file_systems[mount_name] = fs;
+    if (first_mounted_file_system.empty()) {
+      first_mounted_file_system = mount_name;
 
-    // Wake up the fibers waiting for the first file system.
-    for (const auto fiber : fibers_waiting_for_first_file_system)
-      fiber->WakeUp();
-    fibers_waiting_for_first_file_system.clear();
+      // Wake up the fibers waiting for the first file system.
+      for (const auto fiber : fibers_waiting_for_first_file_system)
+        fiber->WakeUp();
+      fibers_waiting_for_first_file_system.clear();
+    }
+    fs->NotifyOnDisappearance(
+        [mount_name]() { UnmountFileSystem(mount_name); });
   }
-  fs->NotifyOnDisappearance([mount_name]() { UnmountFileSystem(mount_name); });
+  ::StorageManager::BroadcastMount(mount_name);
+}
+
+void ForEachMountedFileSystem(
+    const std::function<void(std::string_view)>& on_each) {
+  std::lock_guard<std::mutex> lock(file_system_mutex);
+  for (const auto& mounted_file_system : mounted_file_systems) {
+    on_each(mounted_file_system.first);
+  }
 }
 
 StatusOr<File*> OpenFile(std::string_view path, size_t& size_in_bytes,
@@ -290,8 +304,8 @@ void CloseMemoryMappedFile(::perception::ProcessId sender,
 
 bool ForEachEntryInDirectory(
     std::string_view directory, int offset, int count,
-    const std::function<void(std::string_view, DirectoryEntry::Type, size_t)>&
-        on_each_entry) {
+    const std::function<void(std::string_view, DirectoryEntry::Type, size_t,
+                             bool)>& on_each_entry) {
   if (directory.empty() || directory[0] != '/') return true;
 
   if (directory == "/") {
@@ -303,17 +317,29 @@ bool ForEachEntryInDirectory(
       Sleep();
     }
     std::lock_guard<std::mutex> lock(file_system_mutex);
-    int index = 0;
-    // Iterating the root directory, return each mount point.
+    struct RootEntry {
+      std::string name;
+      bool is_link;
+    };
+    std::vector<RootEntry> root_entries;
     for (const auto& mounted_file_system : mounted_file_systems) {
+      root_entries.push_back({mounted_file_system.first, false});
+    }
+    if (!first_mounted_file_system.empty()) {
+      root_entries.push_back({"Applications", true});
+      root_entries.push_back({"Libraries", true});
+    }
+
+    int index = 0;
+    for (const auto& entry : root_entries) {
       if (count != 0 && index >= offset + count) {
         // Terminating early, but there is still more to
         // iterate.
         return false;
       }
       if (index >= offset && (index < offset + count || count == 0)) {
-        on_each_entry(mounted_file_system.first,
-                      DirectoryEntry::Type::DIRECTORY, 0);
+        on_each_entry(entry.name, DirectoryEntry::Type::DIRECTORY, 0,
+                      entry.is_link);
       }
       index++;
     }
@@ -339,7 +365,8 @@ bool ForEachEntryInDirectory(
   }
 }
 
-StatusOr<FileStatistics> GetFileStatistics(std::string_view path) {
+StatusOr<FileStatistics> GetFileStatistics(std::string_view path,
+                                           bool no_follow) {
   if (path.empty() || path[0] != '/') {
     FileStatistics response;
     response.exists = false;
@@ -351,6 +378,45 @@ StatusOr<FileStatistics> GetFileStatistics(std::string_view path) {
     response.exists = true;
     response.type = DirectoryEntry::Type::DIRECTORY;
     return response;
+  }
+
+  std::string_view clean_path = path;
+  if (clean_path.size() > 1 && clean_path.back() == '/') {
+    clean_path = clean_path.substr(0, clean_path.size() - 1);
+  }
+
+  if (clean_path == "/Applications" || clean_path == "/Libraries") {
+    std::unique_lock<std::mutex> lock(file_system_mutex);
+    if (first_mounted_file_system.empty()) {
+      fibers_waiting_for_first_file_system.push_back(
+          GetCurrentlyExecutingFiber());
+      lock.unlock();
+      Sleep();
+      lock.lock();
+      if (first_mounted_file_system.empty()) {
+        FileStatistics response;
+        response.exists = false;
+        return response;
+      }
+    }
+    if (no_follow) {
+      FileStatistics response;
+      response.exists = true;
+      response.type = DirectoryEntry::Type::DIRECTORY;
+      response.is_link = true;
+      std::string target =
+          "/" + first_mounted_file_system + std::string(clean_path);
+      response.size_in_bytes = target.size();
+      return response;
+    }
+    std::string_view mount_point = first_mounted_file_system;
+    auto mount_point_itr = mounted_file_systems.find(mount_point);
+    if (mount_point_itr == mounted_file_systems.end()) {
+      FileStatistics response;
+      response.exists = false;
+      return response;
+    }
+    return mount_point_itr->second->GetFileStatistics(clean_path);
   }
 
   std::string_view mount_point, path_on_mount_point;
@@ -371,4 +437,29 @@ StatusOr<FileStatistics> GetFileStatistics(std::string_view path) {
   }
 
   return fs->GetFileStatistics(path_on_mount_point);
+}
+
+StatusOr<std::string> ReadLink(std::string_view path) {
+  if (path.empty() || path[0] != '/') return Status::FILE_NOT_FOUND;
+
+  std::string_view clean_path = path;
+  if (clean_path.size() > 1 && clean_path.back() == '/') {
+    clean_path = clean_path.substr(0, clean_path.size() - 1);
+  }
+
+  if (clean_path == "/Applications" || clean_path == "/Libraries") {
+    std::unique_lock<std::mutex> lock(file_system_mutex);
+    if (first_mounted_file_system.empty()) {
+      fibers_waiting_for_first_file_system.push_back(
+          GetCurrentlyExecutingFiber());
+      lock.unlock();
+      Sleep();
+      lock.lock();
+      if (first_mounted_file_system.empty()) {
+        return Status::FILE_NOT_FOUND;
+      }
+    }
+    return "/" + first_mounted_file_system + std::string(clean_path);
+  }
+  return Status::INVALID_ARGUMENT;
 }

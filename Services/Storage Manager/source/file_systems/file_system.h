@@ -45,8 +45,8 @@ class FileSystem {
   virtual bool ForEachEntryInDirectory(
       std::string_view path, size_t start_index, size_t count,
       const std::function<void(std::string_view,
-                               ::perception::DirectoryEntry::Type, size_t)>&
-          on_each_entry) = 0;
+                               ::perception::DirectoryEntry::Type, size_t,
+                               bool)>& on_each_entry) = 0;
 
   virtual std::string_view GetFileSystemType() = 0;
 

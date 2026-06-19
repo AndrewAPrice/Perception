@@ -46,8 +46,8 @@ class Iso9660 : public FileSystem {
   virtual bool ForEachEntryInDirectory(
       std::string_view path, size_t start_index, size_t count,
       const std::function<void(std::string_view,
-                               ::perception::DirectoryEntry::Type, size_t)>&
-          on_each_entry) override;
+                               ::perception::DirectoryEntry::Type, size_t,
+                               bool)>& on_each_entry) override;
 
   virtual void CheckFilePermissions(std::string_view path, bool& file_exists,
                                     bool& can_read, bool& can_write,

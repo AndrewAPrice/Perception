@@ -157,8 +157,8 @@ size_t Iso9660::CountEntriesInDirectory(std::string_view path) {
 
 bool Iso9660::ForEachEntryInDirectory(
     std::string_view path, size_t start_index, size_t count,
-    const std::function<void(std::string_view, DirectoryEntry::Type, size_t)>
-        &on_each_entry) {
+    const std::function<void(std::string_view, DirectoryEntry::Type, size_t,
+                             bool)>& on_each_entry) {
   int index = 0;
   bool more_entries_than_we_can_count = false;
   ForRawEachEntryInDirectory(path, [&](std::string_view name,
@@ -169,7 +169,7 @@ bool Iso9660::ForEachEntryInDirectory(
       return true;
     }
     if (index >= start_index && (index < start_index + count || count == 0)) {
-      on_each_entry(name, type, size);
+      on_each_entry(name, type, size, false);
     }
     index++;
     return false;
@@ -221,11 +221,17 @@ void Iso9660::ForRawEachEntryInDirectory(
   read_request.bytes_to_copy = kIso9660SectorSize;
   read_request.buffer = pooled_shared_memory->shared_memory;
 
-  size_t directory_lba = (size_t)*(uint32 *)&root_directory_[2];
-  size_t directory_length = (size_t)*(uint32 *)&root_directory_[10];
+  uint32 root_lba_val;
+  std::memcpy(&root_lba_val, &root_directory_[2], 4);
+  size_t directory_lba = root_lba_val;
+
+  uint32 root_len_val;
+  std::memcpy(&root_len_val, &root_directory_[10], 4);
+  size_t directory_length = root_len_val;
+
   size_t offset = 0;
 
-  // Keep scanning until we enter this directory.
+  // Keep scanning until the directory is entered.
   while (true) {
     // Scan for directory.
     bool found_sub_directory = false;
@@ -246,12 +252,11 @@ void Iso9660::ForRawEachEntryInDirectory(
     while (directory_length > 0 && !found_sub_directory) {
       // Maybe read in the sector.
       if (offset == 0 || offset + 32 > logical_block_size_) {
-        // We need to read in the sector. Note that directory entries aren't
-        // allowed to cross sector boundaries.
+        // Read in the sector. Note that directory entries aren't allowed to
+        // cross sector boundaries.
         size_t directory_start = directory_lba * logical_block_size_;
         read_request.offset_on_device = directory_start;
-        auto status = storage_device_.Read(read_request);
-        if (status != Status::OK) {
+        if (storage_device_.Read(read_request) != Status::OK) {
           // Error reading sector.
           kSharedMemoryPool.ReleaseSharedMemory(
               std::move(pooled_shared_memory));
@@ -269,7 +274,7 @@ void Iso9660::ForRawEachEntryInDirectory(
       size_t record_length = (size_t)*(uint8 *)&buffer[offset] +
                              (size_t)*(uint8 *)&buffer[offset + 1];
       if (record_length <= 0) {
-        // End of the sector. We should read the next sector.
+        // End of the sector. Read the next sector.
         size_t remaining_in_sector = logical_block_size_ - offset;
         if (remaining_in_sector >= directory_length)
           directory_length = 0;
@@ -299,7 +304,8 @@ void Iso9660::ForRawEachEntryInDirectory(
         char signature_2 = buffer[offset + susp_start + 1];
         size_t extension_length =
             (size_t)*(uint8 *)&buffer[offset + susp_start + 2];
-        // We have enough space for Rock Ridge.
+        if (extension_length == 0) break;
+        // There is have enough space for Rock Ridge.
         if (signature_1 == 'N' && signature_2 == 'M') {
           // This is a Rock Ridge extension.
           if (susp_start + extension_length <= record_length) {
@@ -385,7 +391,7 @@ std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
   read_request.bytes_to_copy = kIso9660SectorSize;
   read_request.buffer = pooled_shared_memory->shared_memory;
 
-  // Start at sector 0x10 and keep looping until we run out of space,
+  // Start at sector 0x10 and keep looping until there is no more space,
   // stop finding volume descriptors, or find the primary volume descriptor.
   uint64 sector = 0x10;
   while (true) {
@@ -423,8 +429,8 @@ std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
   }  // Check version
 
   if (*(uint16 *)&buffer[120] != 1) {
-    std::cout << "We only support single set ISO 9660 disks on " << device_name
-              << std::endl;
+    std::cout << "Only support single set ISO 9660 disks on " << device_name
+              << " are supported." << std::endl;
     kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
     return std::unique_ptr<FileSystem>();
   }
