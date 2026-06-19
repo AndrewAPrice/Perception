@@ -41,6 +41,12 @@ Value::Value(int val)
       int_value_(val),
       float_value_(0.0) {}
 
+Value::Value(uint32 val)
+    : type_(Type::COLOR_RGB),
+      bool_value_(false),
+      int_value_(val | 0xFF000000),
+      float_value_(0.0) {}
+
 Value::Value(double val)
     : type_(Type::FLOAT),
       bool_value_(false),
@@ -103,9 +109,28 @@ std::optional<std::string_view> Value::StringValue() const {
   return std::nullopt;
 }
 
+std::optional<uint32> Value::ColorRGBValue() const {
+  if (type_ == Type::COLOR_RGB)
+    return static_cast<uint32>(int_value_ | 0xFF000000);
+  return std::nullopt;
+}
+
 const std::vector<Value>* Value::ArrayValue() const {
   if (type_ == Type::ARRAY) return &array_value_;
   return nullptr;
+}
+
+std::string Value::ToString() const {
+  if (auto str = StringValue()) {
+    return std::string(*str);
+  } else if (auto i = IntegerValue()) {
+    return std::to_string(*i);
+  } else if (auto f = FloatValue()) {
+    return std::to_string(*f);
+  } else if (auto b = BoolValue()) {
+    return *b ? "true" : "false";
+  }
+  return "";
 }
 
 void Value::SetBool(bool val) {
@@ -131,6 +156,11 @@ void Value::SetString(std::string_view val) {
 void Value::SetArray(std::vector<Value> val) {
   type_ = Type::ARRAY;
   array_value_ = std::move(val);
+}
+
+void Value::SetColorRGB(uint32 val) {
+  type_ = Type::COLOR_RGB;
+  int_value_ = val | 0xFF000000;
 }
 
 void Value::SetUndefined() {
@@ -180,6 +210,20 @@ void Value::Serialize(Serializer& serializer) {
     } else {
       serializer.ArrayOfSerializables();
     }
+
+    if (serializer.HasThisField("color_rgb_r")) {
+      int64 r = 0, g = 0, b = 0;
+      serializer.Integer("color_rgb_r", r);
+      serializer.Integer("color_rgb_g", g);
+      serializer.Integer("color_rgb_b", b);
+      int_value_ =
+          (0xFF << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
+      type_ = Type::COLOR_RGB;
+    } else {
+      serializer.Integer();
+      serializer.Integer();
+      serializer.Integer();
+    }
   } else {
     if (type_ == Type::BOOLEAN) {
       serializer.Integer("bool_value", bool_value_);
@@ -209,6 +253,19 @@ void Value::Serialize(Serializer& serializer) {
       serializer.ArrayOfSerializables("array_value", array_value_);
     } else {
       serializer.ArrayOfSerializables();
+    }
+
+    if (type_ == Type::COLOR_RGB) {
+      int64 r = (int_value_ >> 16) & 0xFF;
+      int64 g = (int_value_ >> 8) & 0xFF;
+      int64 b = int_value_ & 0xFF;
+      serializer.Integer("color_rgb_r", r);
+      serializer.Integer("color_rgb_g", g);
+      serializer.Integer("color_rgb_b", b);
+    } else {
+      serializer.Integer();
+      serializer.Integer();
+      serializer.Integer();
     }
   }
 }

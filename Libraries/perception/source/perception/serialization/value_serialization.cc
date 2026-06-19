@@ -35,6 +35,52 @@ struct Parser {
 
     char c = str[index];
     switch (c) {
+      case '{': {
+        index++;  // consume '{'
+        int r = -1, g = -1, b = -1;
+        bool done = false;
+        while (!done) {
+          SkipWhitespace();
+          if (index >= str.size()) return Status::INVALID_ARGUMENT;
+          if (str[index] == '}') {
+            index++;
+            break;
+          }
+          if (str[index] != '"') return Status::INVALID_ARGUMENT;
+          index++;  // consume '"'
+          size_t key_start = index;
+          while (index < str.size() && str[index] != '"') index++;
+          if (index >= str.size()) return Status::INVALID_ARGUMENT;
+          std::string_view key = str.substr(key_start, index - key_start);
+          index++;  // consume '"'
+          SkipWhitespace();
+          if (index >= str.size() || str[index] != ':') return Status::INVALID_ARGUMENT;
+          index++;  // consume ':'
+          SkipWhitespace();
+          ASSIGN_OR_RETURN(auto val, ParseValue());
+          if (key == "r") {
+            r = static_cast<int>(val.IntegerValue().value_or(-1));
+          } else if (key == "g") {
+            g = static_cast<int>(val.IntegerValue().value_or(-1));
+          } else if (key == "b") {
+            b = static_cast<int>(val.IntegerValue().value_or(-1));
+          }
+          SkipWhitespace();
+          if (index >= str.size()) return Status::INVALID_ARGUMENT;
+          if (str[index] == ',') {
+            index++;
+          } else if (str[index] == '}') {
+            index++;
+            done = true;
+          } else {
+            return Status::INVALID_ARGUMENT;
+          }
+        }
+        if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
+          return Status::INVALID_ARGUMENT;
+        }
+        return Value(static_cast<uint32>((0xFF << 24) | (r << 16) | (g << 8) | b));
+      }
       case 'n': {
         if (index + 4 <= str.size() && str.substr(index, 4) == "null") {
           index += 4;
@@ -235,6 +281,15 @@ std::string ValueToString(const Value& value) {
       }
       s += "\"";
       return s;
+    }
+    case Value::Type::COLOR_RGB: {
+      auto color = value.ColorRGBValue().value_or(0);
+      uint8 r = (color >> 16) & 0xFF;
+      uint8 g = (color >> 8) & 0xFF;
+      uint8 b = color & 0xFF;
+      return "{\"r\":" + std::to_string(r) +
+             ",\"g\":" + std::to_string(g) +
+             ",\"b\":" + std::to_string(b) + "}";
     }
     case Value::Type::ARRAY: {
       const auto* arr = value.ArrayValue();

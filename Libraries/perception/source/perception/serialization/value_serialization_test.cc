@@ -62,6 +62,10 @@ TEST(ValueSerializationToString) {
   std::vector<Value> items = {Value(1), Value("two"), Value(3.3)};
   Value v10(items);
   EXPECT(std::string("[1, \"two\", 3.3]"), ValueToString(v10));
+
+  // ColorRGB
+  Value v_color(static_cast<uint32>(0xFF4E98FF));
+  EXPECT(std::string("{\"r\":78,\"g\":152,\"b\":255}"), ValueToString(v_color));
 }
 
 TEST(ValueSerializationFromString) {
@@ -155,6 +159,12 @@ TEST(ValueSerializationFromString) {
   if (arr12) {
     EXPECT((size_t)3, arr12->size());
   }
+
+  // ColorRGB
+  auto r_color = StringToValue("{\"r\":78,\"g\":152,\"b\":255}");
+  EXPECT(true, r_color.Ok());
+  EXPECT(Value::Type::COLOR_RGB, r_color->GetType());
+  EXPECT(static_cast<uint32>(0xFF4E98FF), r_color->ColorRGBValue().value_or(0));
 
   // Parsing error cases
   EXPECT(false, StringToValue("nul").Ok());

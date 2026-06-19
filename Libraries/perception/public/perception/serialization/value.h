@@ -32,12 +32,13 @@ namespace serialization {
 // and StringToValue() defined in value_serialization.h.
 class Value : public Serializable {
  public:
-  enum class Type { UNDEFINED, BOOLEAN, INTEGER, FLOAT, STRING, ARRAY };
+  enum class Type { UNDEFINED, BOOLEAN, INTEGER, FLOAT, STRING, ARRAY, COLOR_RGB };
 
   Value();
   Value(bool val);
   Value(int64 val);
   Value(int val);
+  Value(uint32 val);
   Value(double val);
   Value(float val);
   Value(std::string_view val);
@@ -53,7 +54,9 @@ class Value : public Serializable {
   std::optional<int64> IntegerValue() const;
   std::optional<double> FloatValue() const;
   std::optional<std::string_view> StringValue() const;
+  std::optional<uint32> ColorRGBValue() const;
   const std::vector<Value>* ArrayValue() const;
+  std::string ToString() const;
 
   // Setters
   void SetBool(bool val);
@@ -61,6 +64,7 @@ class Value : public Serializable {
   void SetFloat(double val);
   void SetString(std::string_view val);
   void SetArray(std::vector<Value> val);
+  void SetColorRGB(uint32 val);
   void SetUndefined();
 
   virtual void Serialize(Serializer& serializer) override;
