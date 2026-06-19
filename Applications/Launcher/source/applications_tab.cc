@@ -28,18 +28,22 @@
 #include "perception/loader.h"
 #include "perception/scheduler.h"
 #include "perception/services.h"
+#include "perception/time.h"
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/button.h"
 #include "perception/ui/components/container.h"
+#include "perception/ui/components/focusable.h"
 #include "perception/ui/components/image_view.h"
 #include "perception/ui/components/label.h"
 #include "perception/ui/components/scroll_container.h"
 #include "perception/ui/components/ui_window.h"
 #include "perception/ui/font.h"
+#include "perception/ui/keyboard.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
 #include "perception/ui/text_alignment.h"
 #include "perception/ui/theme.h"
+#include "perception/window/keyboard_key_event.h"
 #include "tabs.h"
 
 using ::perception::GetService;
@@ -48,6 +52,7 @@ using ::perception::Loader;
 using ::perception::ui::GetBold12UiFont;
 using ::perception::ui::kBackgroundWindowColor;
 using ::perception::ui::kContainerPadding;
+using ::perception::ui::KeyCode;
 using ::perception::ui::kLabelOnDarkTextColor;
 using ::perception::ui::kLabelTextColor;
 using ::perception::ui::Layout;
@@ -58,19 +63,25 @@ using ::perception::ui::TextAlignment;
 using ::perception::ui::components::Block;
 using ::perception::ui::components::Button;
 using ::perception::ui::components::Container;
+using ::perception::ui::components::Focusable;
 using ::perception::ui::components::ImageView;
 using ::perception::ui::components::Label;
 using ::perception::ui::components::ScrollContainer;
 using ::perception::ui::components::UiWindow;
+using ::perception::window::KeyboardKeyEvent;
 using ::perception::window::MouseButton;
 
 namespace {
+
+std::vector<std::weak_ptr<Node>> application_tile_nodes;
 
 // The width of the selected application panel.
 double kSelectedApplicationPanelWidth = 280.0f;
 
 // The overlay node.
 std::shared_ptr<Node> launcher_overlay;
+
+std::shared_ptr<Node> applications_list_container;
 
 // Active error dialog window nodes to keep them alive.
 std::vector<std::shared_ptr<Node>> active_error_dialogs;
@@ -112,48 +123,6 @@ void ShowErrorDialogForApplicationLoading(std::string_view request_name,
   auto state = std::make_shared<ErrorDialogState>();
   std::string message = ErrorMessageForApplicationLoading(request_name, status);
 
-  auto main_container = Container::VerticalContainer(
-      [](Layout& layout) {
-        layout.SetFlexGrow(1.0f);
-        layout.SetPadding(YGEdgeAll, 16.0f);
-        layout.SetGap(16.0f);
-        layout.SetAlignItems(YGAlignStretch);
-      },
-      [](Block& block) {
-        block.SetFillColor(0xFFFFFFFF);  // White background
-      },
-      Label::BasicLabel(
-          message,
-          [](Layout& layout) {
-            layout.SetFlexGrow(1.0f);
-            layout.SetFlexShrink(1.0f);
-          },
-          [](Label& label) {
-            label.SetTextAlignment(TextAlignment::MiddleLeft);
-            label.SetColor(0xFF1F2937);  // Dark gray text
-          }),
-      Container::HorizontalContainer(
-          [](Layout& layout) {
-            layout.SetJustifyContent(YGJustifyFlexEnd);
-            layout.SetGap(12.0f);
-          },
-          Button::TextButton(
-              "OK",
-              [state]() {
-                auto strong_node = state->dialog_node.lock();
-                if (strong_node) {
-                  auto window = strong_node->Get<UiWindow>();
-                  if (window) window->Close();
-                }
-              },
-              [](Layout& layout) {
-                layout.SetWidth(80.0f);
-                layout.SetHeight(32.0f);
-              },
-              [](Button& button) {
-                button.SetButtonStyle(Button::ButtonStyle::PRIMARY);
-              })));
-
   auto window_node = UiWindow::DialogWithTitleBar(
       "Error",
       [state](UiWindow& window) {
@@ -174,7 +143,48 @@ void ShowErrorDialogForApplicationLoading(std::string_view request_name,
         layout.SetWidth(320.0f);
         layout.SetHeight(140.0f);
       },
-      main_container, &state->dialog_node);
+      Container::VerticalContainer(
+          [](Layout& layout) {
+            layout.SetFlexGrow(1.0f);
+            layout.SetPadding(YGEdgeAll, 16.0f);
+            layout.SetGap(16.0f);
+            layout.SetAlignItems(YGAlignStretch);
+          },
+          [](Block& block) {
+            block.SetFillColor(0xFFFFFFFF);  // White background
+          },
+          Label::BasicLabel(
+              message,
+              [](Layout& layout) {
+                layout.SetFlexGrow(1.0f);
+                layout.SetFlexShrink(1.0f);
+              },
+              [](Label& label) {
+                label.SetTextAlignment(TextAlignment::MiddleLeft);
+                label.SetColor(0xFF1F2937);  // Dark gray text
+              }),
+          Container::HorizontalContainer(
+              [](Layout& layout) {
+                layout.SetJustifyContent(YGJustifyFlexEnd);
+                layout.SetGap(12.0f);
+              },
+              Button::TextButton(
+                  "OK",
+                  [state]() {
+                    auto strong_node = state->dialog_node.lock();
+                    if (strong_node) {
+                      auto window = strong_node->Get<UiWindow>();
+                      if (window) window->Close();
+                    }
+                  },
+                  [](Layout& layout) {
+                    layout.SetWidth(80.0f);
+                    layout.SetHeight(32.0f);
+                  },
+                  [](Button& button) {
+                    button.SetButtonStyle(Button::ButtonStyle::PRIMARY);
+                  }))),
+      &state->dialog_node);
 
   active_error_dialogs.push_back(window_node);
 }
@@ -209,6 +219,12 @@ std::shared_ptr<Node> selected_application_path;
 
 // The selected application icon.
 std::shared_ptr<Node> selected_application_icon;
+
+// The button to launch an application.
+std::shared_ptr<Node> launch_button_node;
+
+// The button to open an application's folder.
+std::shared_ptr<Node> open_folder_button_node;
 
 // The index of the currently selected application.
 int selected_application_index = -1;
@@ -307,6 +323,7 @@ std::shared_ptr<Node> CreateApplicationIcon(const Application& application,
 // Selects an application based on its index in the list of applications.
 void SelectApplication(int index) {
   if (selected_application_index == index) return;
+  int old_index = selected_application_index;
   selected_application_index = index;
   const std::vector<Application>& applications = GetApplications();
 
@@ -316,12 +333,28 @@ void SelectApplication(int index) {
     selected_application_title->Get<Label>()->SetText("");
     selected_application_description->Get<Label>()->SetText("");
     selected_application_path->Get<Label>()->SetText("");
+    if (launch_button_node) {
+      launch_button_node->GetLayout().SetDisplay(YGDisplayNone);
+      launch_button_node->Invalidate();
+    }
+    if (open_folder_button_node) {
+      open_folder_button_node->GetLayout().SetDisplay(YGDisplayNone);
+      open_folder_button_node->Invalidate();
+    }
   } else {
     const Application& application = applications[index];
     selected_application_title->Get<Label>()->SetText(application.name);
     selected_application_description->Get<Label>()->SetText(
         application.description);
     selected_application_path->Get<Label>()->SetText(application.path);
+    if (launch_button_node) {
+      launch_button_node->GetLayout().SetDisplay(YGDisplayFlex);
+      launch_button_node->Invalidate();
+    }
+    if (open_folder_button_node) {
+      open_folder_button_node->GetLayout().SetDisplay(YGDisplayFlex);
+      open_folder_button_node->Invalidate();
+    }
     if (application.icon) {
       selected_application_icon->AddChild(ImageView::BasicImage(
           application.icon,
@@ -339,204 +372,183 @@ void SelectApplication(int index) {
     }
   }
   selected_application_icon->Invalidate();
+
+  if (old_index >= 0 && old_index < application_tile_nodes.size()) {
+    if (auto node = application_tile_nodes[old_index].lock()) {
+      if (auto block = node->Get<Block>()) {
+        block->SetFillColor(0);
+        block->SetBorderWidth(0.0f);
+        node->Invalidate();
+      }
+    }
+  }
+  if (index >= 0 && index < application_tile_nodes.size()) {
+    if (auto node = application_tile_nodes[index].lock()) {
+      if (auto block = node->Get<Block>()) {
+        block->SetFillColor(0xFFEFF6FF);    // Light blue background
+        block->SetBorderColor(0xFF2563EB);  // Primary blue border
+        block->SetBorderWidth(1.5f);
+        node->Invalidate();
+      }
+      if (auto parent = applications_list_container->GetParent().lock()) {
+        if (auto sc = parent->Get<ScrollContainer>()) {
+          sc->ScrollIntoView(node);
+        }
+      }
+    }
+  }
 }
 
-// Creates a widget representing this application to use as a line in the
-// scrollview.
-std::shared_ptr<Node> CreateApplicationRow(const Application& application,
-                                           int index) {
-  auto row = Container::HorizontalContainer(
-      [](Layout& layout) {
-        layout.SetWidthPercent(100.0f);
-        layout.SetAlignItems(YGAlignCenter);
-        layout.SetPadding(YGEdgeHorizontal, 12.0f);
-        layout.SetPadding(YGEdgeVertical, 8.0f);
-      },
-      [](Block& block) {
-        block.SetBorderRadius(8.0f);
-        block.SetFillColor(0);  // Transparent initially
-      });
-
+// Creates a tile widget representing this application in the grid.
+std::shared_ptr<Node> CreateApplicationGridTile(const Application& application,
+                                                int index) {
   std::shared_ptr<Node> icon_view;
   if (application.icon) {
     icon_view = ImageView::BasicImage(
         application.icon,
         [](Layout& layout) {
-          layout.SetWidth(32.0f);
-          layout.SetHeight(32.0f);
-          layout.SetMargin(YGEdgeRight, 12.0f);
+          layout.SetWidth(56.0f);
+          layout.SetHeight(56.0f);
+          layout.SetMargin(YGEdgeBottom, 8.0f);
         },
         [](ImageView& image_view) {
           image_view.SetAlignment(TextAlignment::MiddleCenter);
           image_view.SetResizeMethod(ResizeMethod::Contain);
         });
   } else {
-    icon_view = CreateApplicationIcon(application, 32.0f, 6.0f);
-    icon_view->GetLayout().SetMargin(YGEdgeRight, 12.0f);
+    icon_view = CreateApplicationIcon(application, 56.0f, 12.0f);
+    icon_view->GetLayout().SetMargin(YGEdgeBottom, 8.0f);
   }
 
-  auto label = Label::BasicLabel(
-      application.name, [](Layout& layout) { layout.SetFlexGrow(1.0f); },
-      [](Label& label) {
-        label.SetTextAlignment(TextAlignment::MiddleLeft);
-        label.SetColor(kLabelTextColor);
-      });
+  bool is_selected = (selected_application_index == index);
+  auto tile = Container::VerticalContainer(
+      [](Layout& layout) {
+        layout.SetWidth(96.0f);
+        layout.SetAlignItems(YGAlignCenter);
+      },
+      [is_selected](Block& block) {
+        block.SetBorderRadius(8.0f);
+        if (is_selected) {
+          block.SetFillColor(0xFFEFF6FF);
+          block.SetBorderColor(0xFF2563EB);
+          block.SetBorderWidth(1.5f);
+        } else {
+          block.SetFillColor(0);
+          block.SetBorderWidth(0.0f);
+        }
+      },
+      icon_view,
+      Label::BasicLabel(
+          application.name,
+          [](Layout& layout) { layout.SetWidthPercent(100.0f); },
+          [](Label& label) {
+            label.SetTextAlignment(TextAlignment::TopCenter);
+            label.SetColor(kLabelTextColor);
+          }));
 
-  row->AddChild(icon_view);
-  row->AddChild(label);
-
-  row->OnMouseHover([row, index](const Point& point) {
+  tile->OnMouseHover([tile, index](const Point& point) {
+    if (selected_application_index == index) return;
     uint32 hover_color = SkColorSetARGB(0xFF, 0xF0, 0xF0, 0xF0);
-    if (row->Get<Block>()->GetFillColor() != hover_color) {
-      row->Get<Block>()->SetFillColor(hover_color);
-      row->Invalidate();
+    if (tile->Get<Block>()->GetFillColor() != hover_color) {
+      tile->Get<Block>()->SetFillColor(hover_color);
+      tile->Invalidate();
     }
-    SelectApplication(index);
   });
 
-  row->OnMouseLeave([row]() {
-    row->Get<Block>()->SetFillColor(0);
-    row->Invalidate();
+  tile->OnMouseLeave([tile, index]() {
+    if (selected_application_index == index) return;
+    tile->Get<Block>()->SetFillColor(0);
+    tile->Invalidate();
   });
 
-  row->OnMouseButtonDown([index](const Point& point, MouseButton button) {
+  tile->OnMouseButtonUp([index](const Point& point, MouseButton button) {
     if (button == MouseButton::Left) {
-      LaunchApplication(index);
+      static size_t last_click_micros = 0;
+      static int last_click_index = -1;
+      auto now = perception::GetTimeSinceKernelStarted();
+      size_t current_micros = now.count();
+      size_t elapsed = (current_micros > last_click_micros)
+                           ? (current_micros - last_click_micros)
+                           : 0;
+
+      SelectApplication(index);
+
+      if (last_click_index == index && elapsed < 400000) {
+        LaunchApplication(index);
+        last_click_index = -1;
+        last_click_micros = 0;
+      } else {
+        last_click_micros = current_micros;
+        last_click_index = index;
+      }
     }
   });
 
-  return row;
+  return tile;
 }
 
-// Builds the container containing the list of applications.
+// // Builds the container containing the grid of applications.
 std::shared_ptr<Node> BuildApplicationsList() {
-  auto container = Container::VerticalContainer([](Layout& layout) {
-    layout.SetWidthPercent(100.0f);
-    layout.SetGap(6.0f);
-    layout.SetPadding(YGEdgeVertical, 12.0f);
-  });
-
+  application_tile_nodes.clear();
   std::vector<std::shared_ptr<Node>> application_widgets;
   const std::vector<Application>& applications = GetApplications();
   for (int i = 0; i < applications.size(); i++) {
-    application_widgets.push_back(CreateApplicationRow(applications[i], i));
+    auto tile = CreateApplicationGridTile(applications[i], i);
+    application_tile_nodes.push_back(tile);
+    application_widgets.push_back(tile);
   }
-  container->AddChildren(application_widgets);
+
+  auto container = Container::HorizontalContainer(
+      [](Layout& layout) {
+        layout.SetWidthPercent(100.0f);
+        layout.SetFlexWrap(YGWrapWrap);
+        layout.SetGap(8.0f);
+        layout.SetPadding(YGEdgeAll, 12.0f);
+        layout.SetAlignContent(YGAlignFlexStart);
+      },
+      application_widgets, &applications_list_container);
+
+  container->OnMouseButtonUp([](const Point&, MouseButton button) {
+    if (button == MouseButton::Left) SelectApplication(-1);
+  });
+
   return container;
+}
+
+void AddApplicationToUI(const Application& application) {
+  if (!applications_list_container) return;
+
+  int index = (int)GetApplications().size() - 1;
+  auto tile = CreateApplicationGridTile(application, index);
+  application_tile_nodes.push_back(tile);
+  applications_list_container->AddChild(tile);
+  applications_list_container->Invalidate();
+
+  if (GetApplications().size() == 1) {
+    SelectApplication(0);
+  }
 }
 
 }  // namespace
 
 // Gets or constructs the applications tab of the launcher.
 std::shared_ptr<Node> GetOrConstructApplicationsTab() {
+  static bool callback_registered = false;
+  if (!callback_registered) {
+    RegisterApplicationFoundCallback(
+        [](const Application& app) { AddApplicationToUI(app); });
+    callback_registered = true;
+  }
+
   if (applications_tab) {
     if (!GetApplications().empty()) {
       SelectApplication(0);
     } else {
       SelectApplication(-1);
     }
+    if (auto focusable = applications_tab->Get<Focusable>()) focusable->Focus();
     return applications_tab;
-  }
-
-  selected_application_icon = Node::Empty([](Layout& layout) {
-    layout.SetWidth(80.0f);
-    layout.SetHeight(80.0f);
-    layout.SetMargin(YGEdgeBottom, 20.0f);
-  });
-
-  selected_application_title = Label::BasicLabel(
-      "", [](Layout& layout) { layout.SetMargin(YGEdgeBottom, 8.0f); },
-      [](Label& label) {
-        label.SetTextAlignment(TextAlignment::MiddleCenter);
-        label.SetColor(kLabelTextColor);
-        label.SetFont(GetBold12UiFont());
-      });
-
-  selected_application_description = Label::BasicLabel(
-      "",
-      [](Layout& layout) {
-        layout.SetMargin(YGEdgeBottom, 16.0f);
-        layout.SetMaxWidth(240.0f);
-      },
-      [](Label& label) {
-        label.SetTextAlignment(TextAlignment::MiddleCenter);
-        label.SetColor(SkColorSetARGB(0xFF, 0x55, 0x55, 0x55));
-      });
-
-  selected_application_path = Label::BasicLabel(
-      "",
-      [](Layout& layout) {
-        layout.SetMargin(YGEdgeBottom, 24.0f);
-        layout.SetMaxWidth(240.0f);
-      },
-      [](Label& label) {
-        label.SetTextAlignment(TextAlignment::MiddleCenter);
-        label.SetColor(SkColorSetARGB(0xFF, 0x77, 0x77, 0x77));
-      });
-
-  auto launch_button = Button::TextButton(
-      "Launch", []() { LaunchApplication(selected_application_index); },
-      [](Layout& layout) {
-        layout.SetWidth(180.0f);
-        layout.SetHeight(32.0f);
-      },
-      [](Button& button) {
-        button.SetIdleColor(SkColorSetARGB(0xFF, 0x4F, 0x46, 0xE5));
-        button.SetHoverColor(SkColorSetARGB(0xFF, 0x63, 0x66, 0xF1));
-        button.SetPushedColor(SkColorSetARGB(0xFF, 0x43, 0x38, 0xCA));
-        button.SetLabelColor(SkColorSetARGB(0xFF, 0xFF, 0xFF, 0xFF));
-      });
-
-  auto open_folder_button = Button::TextButton(
-      "Open containing folder",
-      []() { OpenContainingFolder(selected_application_index); },
-      [](Layout& layout) {
-        layout.SetWidth(180.0f);
-        layout.SetHeight(32.0f);
-        layout.SetMargin(YGEdgeTop, 8.0f);
-      },
-      [](Button& button) {
-        button.SetIdleColor(SkColorSetARGB(0xFF, 0x4B, 0x55, 0x63));
-        button.SetHoverColor(SkColorSetARGB(0xFF, 0x6B, 0x72, 0x80));
-        button.SetPushedColor(SkColorSetARGB(0xFF, 0x37, 0x41, 0x51));
-        button.SetLabelColor(SkColorSetARGB(0xFF, 0xFF, 0xFF, 0xFF));
-      });
-
-  auto inner_tab = Container::HorizontalContainer(
-      [](Block& block) {
-        block.SetBorderRadius(0.0f);
-        block.SetBorderWidth(0.0f);
-        block.SetFillColor(kBackgroundWindowColor);
-      },
-      [](Layout& layout) {
-        layout.SetFlexGrow(1.0f);
-        layout.SetHeightPercent(100.0f);
-        layout.SetGap(12.0f);
-        layout.SetPadding(YGEdgeAll, 12.0f);
-      },
-      ScrollContainer::VerticalScrollContainer(
-          BuildApplicationsList(),
-          [](Block& block) {
-            block.SetFillColor(0xFFFFFFFF);    // White background
-            block.SetBorderColor(0xFFCCCCCC);  // Subtle border
-            block.SetBorderWidth(1.0f);        // Outline width
-            block.SetBorderRadius(4.0f);       // Rounded corners
-          },
-          [](Layout& layout) {
-            layout.SetFlexGrow(1.0f);
-            layout.SetHeightPercent(100.0f);
-          }),
-      Container::VerticalContainer(
-          [](Layout& layout) {
-            layout.SetWidth(kSelectedApplicationPanelWidth);
-            layout.SetHeightPercent(100.0f);
-            layout.SetAlignItems(YGAlignCenter);
-            layout.SetJustifyContent(YGJustifyCenter);
-            layout.SetPadding(YGEdgeAll, 20.0f);
-          },
-          selected_application_icon, selected_application_title,
-          selected_application_description, selected_application_path,
-          launch_button, open_folder_button));
+  };
 
   launcher_overlay = Node::Empty(
       [](Layout& layout) {
@@ -555,15 +567,173 @@ std::shared_ptr<Node> GetOrConstructApplicationsTab() {
   applications_tab = Container::VerticalContainer(
       [](Layout& layout) {
         layout.SetFlexGrow(1.0f);
+        layout.SetFlexShrink(1.0f);
+        layout.SetMinHeight(0.0f);
         layout.SetHeightPercent(100.0f);
       },
-      inner_tab, launcher_overlay);
+      Container::HorizontalContainer(
+          [](Block& block) {
+            block.SetBorderRadius(0.0f);
+            block.SetBorderWidth(0.0f);
+            block.SetFillColor(kBackgroundWindowColor);
+          },
+          [](Layout& layout) {
+            layout.SetFlexGrow(1.0f);
+            layout.SetFlexShrink(1.0f);
+            layout.SetMinHeight(0.0f);
+            layout.SetGap(12.0f);
+            layout.SetPadding(YGEdgeAll, 12.0f);
+          },
+          ScrollContainer::VerticalScrollContainer(
+              BuildApplicationsList(),
+              [](Block& block) {
+                block.SetFillColor(0xFFFFFFFF);    // White background
+                block.SetBorderColor(0xFFCCCCCC);  // Subtle border
+                block.SetBorderWidth(1.0f);        // Outline width
+                block.SetBorderRadius(4.0f);       // Rounded corners
+              },
+              [](Layout& layout) {
+                layout.SetFlexGrow(1.0f);
+                layout.SetFlexShrink(1.0f);
+                layout.SetMinHeight(0.0f);
+              },
+              [](Node& node) {
+                node.OnMouseButtonUp([](const Point&, MouseButton button) {
+                  if (button == MouseButton::Left) SelectApplication(-1);
+                });
+              }),
+          Container::VerticalContainer(
+              [](Layout& layout) {
+                layout.SetWidth(kSelectedApplicationPanelWidth);
+                layout.SetHeightPercent(100.0f);
+                layout.SetAlignItems(YGAlignCenter);
+                layout.SetJustifyContent(YGJustifyCenter);
+                layout.SetPadding(YGEdgeAll, 20.0f);
+              },
+              [](Node& node) {
+                node.OnMouseButtonUp([](const Point&, MouseButton) {});
+              },
+              Node::Empty(
+                  [](Layout& layout) {
+                    layout.SetWidth(80.0f);
+                    layout.SetHeight(80.0f);
+                    layout.SetMargin(YGEdgeBottom, 20.0f);
+                  },
+                  &selected_application_icon),
+              Label::BasicLabel(
+                  "",
+                  [](Layout& layout) { layout.SetMargin(YGEdgeBottom, 8.0f); },
+                  [](Label& label) {
+                    label.SetTextAlignment(TextAlignment::MiddleCenter);
+                    label.SetColor(kLabelTextColor);
+                    label.SetFont(GetBold12UiFont());
+                  },
+                  &selected_application_title),
+              Label::BasicLabel(
+                  "",
+                  [](Layout& layout) {
+                    layout.SetMargin(YGEdgeBottom, 16.0f);
+                    layout.SetMaxWidth(240.0f);
+                  },
+                  [](Label& label) {
+                    label.SetTextAlignment(TextAlignment::MiddleCenter);
+                    label.SetColor(SkColorSetARGB(0xFF, 0x55, 0x55, 0x55));
+                  },
+                  &selected_application_description),
+              Label::BasicLabel(
+                  "",
+                  [](Layout& layout) {
+                    layout.SetMargin(YGEdgeBottom, 24.0f);
+                    layout.SetMaxWidth(240.0f);
+                  },
+                  [](Label& label) {
+                    label.SetTextAlignment(TextAlignment::MiddleCenter);
+                    label.SetColor(SkColorSetARGB(0xFF, 0x77, 0x77, 0x77));
+                  },
+                  &selected_application_path),
+              Button::TextButton(
+                  "Launch",
+                  []() { LaunchApplication(selected_application_index); },
+                  [](Layout& layout) {
+                    layout.SetWidth(180.0f);
+                    layout.SetHeight(32.0f);
+                  },
+                  [](Button& button) {
+                    button.SetButtonStyle(Button::ButtonStyle::PRIMARY);
+                  },
+                  &launch_button_node),
+              Button::TextButton(
+                  "Open containing folder",
+                  []() { OpenContainingFolder(selected_application_index); },
+                  [](Layout& layout) {
+                    layout.SetWidth(180.0f);
+                    layout.SetHeight(32.0f);
+                    layout.SetMargin(YGEdgeTop, 8.0f);
+                  },
+                  [](Button& button) {
+                    button.SetButtonStyle(Button::ButtonStyle::SECONDARY);
+                  },
+                  &open_folder_button_node))),
+      launcher_overlay);
+
+  applications_tab->OnMouseButtonUp([](const Point&, MouseButton button) {
+    if (button == MouseButton::Left) SelectApplication(-1);
+  });
+
+  auto focusable = applications_tab->GetOrAdd<Focusable>();
+  focusable->OnKeyDown([](const ::perception::window::KeyboardKeyEvent& event) {
+    if (GetApplications().empty()) return;
+    int num_apps = (int)GetApplications().size();
+    KeyCode key = static_cast<KeyCode>(event.key);
+
+    if (selected_application_index < 0) {
+      if (key == KeyCode::DownArrow || key == KeyCode::RightArrow ||
+          key == KeyCode::UpArrow || key == KeyCode::LeftArrow) {
+        SelectApplication(0);
+      }
+      return;
+    }
+
+    int cols = 1;
+    if (applications_list_container) {
+      float w = applications_list_container->GetLayout().GetCalculatedWidth();
+      cols = std::max(1, (int)((w + 8.0f) / 104.0f));
+    }
+
+    if (key == KeyCode::RightArrow) {
+      SelectApplication((selected_application_index + 1) % num_apps);
+    } else if (key == KeyCode::LeftArrow) {
+      SelectApplication((selected_application_index - 1 + num_apps) % num_apps);
+    } else if (key == KeyCode::DownArrow) {
+      int next_idx = selected_application_index + cols;
+      if (next_idx < num_apps) {
+        SelectApplication(next_idx);
+      } else {
+        SelectApplication(num_apps - 1);
+      }
+    } else if (key == KeyCode::UpArrow) {
+      int prev_idx = selected_application_index - cols;
+      if (prev_idx >= 0) {
+        SelectApplication(prev_idx);
+      } else {
+        SelectApplication(0);
+      }
+    } else if (key == KeyCode::Enter) {
+      LaunchApplication(selected_application_index);
+    }
+  });
+
+  applications_tab->OnMouseButtonDown(
+      [focusable](const Point&, MouseButton button) {
+        if (button == MouseButton::Left) focusable->Focus();
+      });
 
   if (!GetApplications().empty()) {
     SelectApplication(0);
   } else {
     SelectApplication(-1);
   }
+  focusable->Focus();
 
   return applications_tab;
 }

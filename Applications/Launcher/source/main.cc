@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
+
 #include "launcher.h"
+#include "perception/loader.h"
 #include "perception/scheduler.h"
+#include "perception/services.h"
+#include "perception/time.h"
 #include "perception/ui/components/label.h"
 #include "perception/ui/components/ui_window.h"
 #include "perception/ui/layout.h"

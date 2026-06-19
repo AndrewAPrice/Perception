@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,12 +15,16 @@
 #pragma once
 
 #include <memory>
+#include <string_view>
 
-#include "perception/ui/node.h"
+namespace perception {
+namespace ui {
 
-// Gets or constructs the side panel of the launcher.
-std::shared_ptr<::perception::ui::Node> GetOrConstructSidePanel();
+class Node;
 
+// Creates a file icon.
+std::shared_ptr<Node> CreateFileIcon(bool is_directory, bool is_symlink,
+                                     std::string_view name);
 
-
-
+}  // namespace ui
+}  // namespace perception

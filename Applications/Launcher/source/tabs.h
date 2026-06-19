@@ -20,22 +20,11 @@
 
 #include "perception/ui/node.h"
 
-// Gets or constructs the side panel of the launcher.
-std::shared_ptr<::perception::ui::Node> GetOrConstructSidePanel();
-
 // The different tabs of the launcher.
-enum class Tab {
-    APPLICATIONS,
-    PROCESSES,
-    SETTINGS
-};
+enum class Tab { APPLICATIONS, PROCESSES };
 
 // Returns the label of a tab.
 std::string_view GetTabLabel(Tab tab);
 
-// Returns the tabs to show in the order that they should be shown.
-std::vector<Tab> GetSidePanelTabsToShow();
-
 // Gets or constructs the the contents for a tab.
 std::shared_ptr<::perception::ui::Node> GetOrConstructTabContents(Tab tab);
-

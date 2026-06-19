@@ -34,15 +34,10 @@ std::string_view GetTabLabel(Tab tab) {
     case Tab::APPLICATIONS:
       return "Applications";
     case Tab::PROCESSES:
-      return "Processes";
-    case Tab::SETTINGS:
-      return "Settings";
+      return "Running processes";
   }
 }
 
-std::vector<Tab> GetSidePanelTabsToShow() {
-  return {Tab::APPLICATIONS, Tab::PROCESSES, Tab::SETTINGS};
-}
 
 std::shared_ptr<Node> GetOrConstructTabContents(Tab tab) {
   switch (tab) {
@@ -50,14 +45,5 @@ std::shared_ptr<Node> GetOrConstructTabContents(Tab tab) {
       return GetOrConstructApplicationsTab();
     case Tab::PROCESSES:
       return GetOrConstructProcessesTab();
-    case Tab::SETTINGS:
-      return Label::BasicLabel("TODO: Settings",
-          [](Layout& layout) {
-            layout.SetHeightPercent(100.0f);
-            layout.SetFlexGrow(1.0f);
-          },
-          [](Label& label) {
-            label.SetTextAlignment(TextAlignment::MiddleCenter);
-          });
   }
 }

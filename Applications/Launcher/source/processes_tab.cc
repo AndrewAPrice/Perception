@@ -57,6 +57,26 @@ using ::perception::ui::components::UiWindow;
 
 namespace {
 
+std::string FormatMemorySize(size_t bytes) {
+  size_t kb = bytes / 1024;
+  if (kb <= 9999) {
+    return std::to_string(kb) + " KB";
+  }
+  size_t mb = kb / 1024;
+  if (mb <= 9999) {
+    return std::to_string(mb) + " MB";
+  }
+  size_t gb = mb / 1024;
+  if (gb <= 9999) {
+    return std::to_string(gb) + " GB";
+  }
+  size_t tb = gb / 1024;
+  if (tb <= 9999) {
+    return std::to_string(tb) + " TB";
+  }
+  return std::to_string(tb / 1024) + " PB";
+}
+
 class ProcessesDataSource : public Table::DataSource {
  public:
   ProcessesDataSource() : sorted_column_index_(-1), sort_ascending_(true) {}
@@ -76,9 +96,9 @@ class ProcessesDataSource : public Table::DataSource {
       case 2:
         return std::to_string(proc.registered_services);
       case 3:
-        return std::to_string(proc.unique_memory / 1024) + " KB";
+        return FormatMemorySize(proc.unique_memory);
       case 4:
-        return std::to_string(proc.shared_memory / 1024) + " KB";
+        return FormatMemorySize(proc.shared_memory);
       case 5:
         return std::to_string(((int)proc.cpu_percentage * 100) / 255) + "%";
       default:
@@ -218,6 +238,12 @@ std::shared_ptr<ProcessesDataSource> processes_data_source;
 // The table component pointer.
 std::shared_ptr<Table> processes_table;
 
+// Status bar components.
+std::shared_ptr<Label> status_label;
+std::shared_ptr<Node> unique_bar;
+std::shared_ptr<Node> shared_bar;
+std::shared_ptr<Node> free_bar;
+
 // Track tab visibility to optimize CPU tracking and query fiber.
 bool processes_tab_visible = false;
 
@@ -230,6 +256,38 @@ void RebuildRunningProcesses() {
     processes_data_source->UpdateProcesses();
     processes_table->Refresh();
   }
+
+  size_t total_bytes = 0, shared_bytes = 0, free_bytes = 0;
+  perception::GetSystemMemoryMetrics(total_bytes, shared_bytes, free_bytes);
+
+  size_t total_kb = total_bytes / 1024;
+  size_t shared_kb = shared_bytes / 1024;
+  size_t free_kb = free_bytes / 1024;
+  size_t used_bytes =
+      (total_bytes > free_bytes) ? (total_bytes - free_bytes) : 0;
+  size_t used_kb = used_bytes / 1024;
+  size_t unique_bytes =
+      (used_bytes > shared_bytes) ? (used_bytes - shared_bytes) : 0;
+  size_t unique_kb = unique_bytes / 1024;
+
+  if (status_label) {
+    status_label->SetText(FormatMemorySize(used_bytes) + " used (" +
+                          FormatMemorySize(unique_bytes) + " unique, " +
+                          FormatMemorySize(shared_bytes) + " shared), " +
+                          FormatMemorySize(free_bytes) + " free, " +
+                          FormatMemorySize(total_bytes) + " total");
+  }
+
+  float u = static_cast<float>(unique_kb);
+  float s = static_cast<float>(shared_kb);
+  float f = static_cast<float>(free_kb);
+  if (u + s + f == 0.0f) f = 1.0f;
+
+  if (unique_bar) unique_bar->GetLayout().SetFlexGrow(u);
+  if (shared_bar) shared_bar->GetLayout().SetFlexGrow(s);
+  if (free_bar) free_bar->GetLayout().SetFlexGrow(f);
+
+  if (processes_tab) processes_tab->Invalidate();
 }
 
 // Gets or constructs the processes tab of the launcher.
@@ -260,11 +318,12 @@ std::shared_ptr<Node> GetOrConstructProcessesTab() {
       {.title = "CPU usage",
        .layout_modifier = [](Layout& layout) { layout.SetWidth(80.0f); }}};
 
-  processes_tab = Table::BasicTable(
+  auto table_node = Table::BasicTable(
       processes_data_source, columns,
       [](Layout& layout) {
         layout.SetFlexGrow(1.0f);
-        layout.SetMargin(YGEdgeAll, 12.0f);
+        layout.SetFlexShrink(1.0f);
+        layout.SetMinHeight(0.0f);
       },
       &processes_table);
 
@@ -276,6 +335,65 @@ std::shared_ptr<Node> GetOrConstructProcessesTab() {
       }
     }
   });
+
+  processes_tab = Container::VerticalContainer(
+      [](Layout& layout) {
+        layout.SetFlexGrow(1.0f);
+        layout.SetFlexShrink(1.0f);
+        layout.SetMinHeight(0.0f);
+        layout.SetMargin(YGEdgeAll, 12.0f);
+        layout.SetGap(8.0f);
+      },
+      table_node,
+      // Divider
+      Container::HorizontalContainer(
+          [](Block& block) { block.SetFillColor(0xFFCCCCCC); },
+          [](Layout& layout) {
+            layout.SetWidthPercent(100.0f);
+            layout.SetHeight(1.0f);
+          }),
+      // Status bar container
+      Container::VerticalContainer(
+          [](Layout& layout) {
+            layout.SetWidthPercent(100.0f);
+            layout.SetGap(4.0f);
+          },
+          // Horizontal stacked bar chart
+          Container::HorizontalContainer(
+              [](Block& block) {
+                block.SetFillColor(0xFFEAEAEA);
+                block.SetBorderRadius(4.0f);
+              },
+              [](Layout& layout) {
+                layout.SetWidthPercent(100.0f);
+                layout.SetHeight(14.0f);
+                layout.SetGap(0.0f);
+              },
+              Node::Empty(
+                  [](Block& block) {
+                    block.SetFillColor(0xFF2563EB);  // Blue for unique
+                  },
+                  &unique_bar),
+              Node::Empty(
+                  [](Block& block) {
+                    block.SetFillColor(0xFF9333EA);  // Purple for shared
+                  },
+                  &shared_bar),
+              Node::Empty(
+                  [](Block& block) {
+                    block.SetFillColor(0xFF10B981);  // Green for free
+                  },
+                  &free_bar)),
+          // Status label
+          Label::BasicLabel(
+              "",
+              [](Label& label) {
+                label.SetTextAlignment(TextAlignment::TopLeft);
+                label.SetColor(0xFF333333);
+              },
+              &status_label)));
+
+  RebuildRunningProcesses();
 
   return processes_tab;
 }
@@ -294,5 +412,9 @@ void SetProcessesTabVisible(bool visible) {
     // Reset tab pointers to guarantee clean reconstruction on visibility
     processes_tab.reset();
     processes_table.reset();
+    status_label.reset();
+    unique_bar.reset();
+    shared_bar.reset();
+    free_bar.reset();
   }
 }

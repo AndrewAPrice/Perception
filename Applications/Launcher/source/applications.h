@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -40,3 +41,10 @@ void ScanForApplications();
 
 // Returns the list of applications.
 const std::vector<Application>& GetApplications();
+
+// Registers a callback to be notified when a new application is found.
+void RegisterApplicationFoundCallback(
+    std::function<void(const Application&)> callback);
+
+// Registers a callback to be notified when the scanning is finished.
+void RegisterScanFinishedCallback(std::function<void()> callback);

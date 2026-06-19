@@ -16,12 +16,15 @@
 
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "nlohmann/json.hpp"
+#include "perception/fibers.h"
+#include "perception/scheduler.h"
 
 using json = ::nlohmann::json;
 
@@ -29,13 +32,13 @@ namespace {
 
 std::vector<Application> applications;
 
-void MaybeLoadApplication(std::string_view path) {
+std::optional<Application> MaybeLoadApplication(std::string_view path) {
   try {
     std::ifstream launcher_metadata_file(std::string(path) + "/launcher.json");
     if (!launcher_metadata_file.is_open()) {
-      // The application is missing a launcher.json so we won't show it in the
+      // The application is missing a launcher.json so don't show it in the
       // launcher.
-      return;
+      return std::nullopt;
     }
     json data = json::parse(launcher_metadata_file);
     Application application;
@@ -53,45 +56,74 @@ void MaybeLoadApplication(std::string_view path) {
     if (description_itr != data.end() && description_itr->is_string())
       description_itr->get_to(application.description);
 
-    std::string svg_path = std::string(path) + "/icon.svg";
-    std::string rgba_path = std::string(path) + "/icon.rgba";
     std::error_code ec_exists;
-    std::string icon_path =
-        (std::filesystem::exists(svg_path, ec_exists) && !ec_exists)
-            ? svg_path
-            : rgba_path;
-    application.icon = ::perception::ui::Image::LoadImage(icon_path);
-
-    applications.push_back(application);
+    std::string png_path = std::string(path) + "/icon.png";
+    if (std::filesystem::exists(png_path, ec_exists) && !ec_exists)
+      application.icon = ::perception::ui::Image::LoadImage(png_path);
 
     launcher_metadata_file.close();
+    return application;
   } catch (...) {
     std::cout << "Unhandled exception" << std::endl;
+    return std::nullopt;
   }
 }
 
-bool applications_initialized = false;
+enum class InitializationState { UNINITIALIZED, INITIALIZING, INITIALIZED };
+InitializationState applications_state = InitializationState::UNINITIALIZED;
 
-}  // namespace
+std::vector<std::function<void(const Application&)>>
+    application_found_callbacks;
+std::vector<std::function<void()>> scan_finished_callbacks;
 
-void ScanForApplications() {
-  if (applications_initialized) return;
-  applications_initialized = true;
+void OnApplicationFound(const Application& application) {
+  applications.push_back(application);
+  for (const auto& callback : application_found_callbacks)
+    callback(application);
+}
 
+void OnScanFinished() {
+  applications_state = InitializationState::INITIALIZED;
+  for (const auto& callback : scan_finished_callbacks) callback();
+}
+
+void DoScanInBackground() {
   try {
     for (const auto& root_entry : std::filesystem::directory_iterator("/")) {
       std::string app_path = std::string(root_entry.path()) + "/Applications";
       if (std::filesystem::exists(app_path)) {
         for (const auto& app_entry :
              std::filesystem::directory_iterator(app_path)) {
-          MaybeLoadApplication(std::string(app_entry.path()));
+          auto opt_app = MaybeLoadApplication(std::string(app_entry.path()));
+          if (opt_app) {
+            ::perception::Defer(
+                [app = std::move(*opt_app)]() { OnApplicationFound(app); });
+          }
         }
       }
     }
   } catch (...) {
   }
+
+  ::perception::Defer([]() { OnScanFinished(); });
 }
 
-const std::vector<Application>& GetApplications() {
-  return applications;
+}  // namespace
+
+void ScanForApplications() {
+  if (applications_state != InitializationState::UNINITIALIZED) return;
+
+  applications_state = InitializationState::INITIALIZING;
+  ::perception::DeferInParallel([]() { DoScanInBackground(); });
+}
+
+const std::vector<Application>& GetApplications() { return applications; }
+
+void RegisterApplicationFoundCallback(
+    std::function<void(const Application&)> callback) {
+  application_found_callbacks.push_back(callback);
+}
+
+void RegisterScanFinishedCallback(std::function<void()> callback) {
+  scan_finished_callbacks.push_back(callback);
 }

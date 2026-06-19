@@ -36,6 +36,7 @@
 #include "perception/ui/components/label.h"
 #include "perception/ui/components/scroll_container.h"
 #include "perception/ui/components/ui_window.h"
+#include "perception/ui/file_icon.h"
 #include "perception/ui/font.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
@@ -99,93 +100,6 @@ std::string GetExtension(std::string_view name) {
   return ext;
 }
 
-// Creates a file icon.
-std::shared_ptr<Node> CreateFileIcon(bool is_directory, bool is_symlink,
-                                     std::string_view name) {
-  uint32 bg_color;
-  std::string letter = "";
-
-  if (is_directory) {
-    // Regular directory: Amber/Yellow folder color.
-    bg_color = SkColorSetARGB(0xFF, 0xD9, 0x77, 0x06);
-    letter = "F";
-  } else {
-    // File
-    std::string ext = GetExtension(name);
-
-    if (ext == "jpg" || ext == "png" || ext == "svg" || ext == "rgba" ||
-        ext == "jpeg" || ext == "bmp") {
-      // Image file: Emerald/Green
-      bg_color = SkColorSetARGB(0xFF, 0x10, 0xB9, 0x81);
-      letter = "I";
-    } else if (ext == "txt" || ext == "json" || ext == "md" || ext == "xml") {
-      // Text file: Cyan
-      bg_color = SkColorSetARGB(0xFF, 0x06, 0xB6, 0xD4);
-      letter = "T";
-    } else {
-      // Other file: Steel Grey
-      bg_color = SkColorSetARGB(0xFF, 0x6B, 0x72, 0x80);
-      letter = "D";
-    }
-  }
-
-  auto container = Node::Empty(
-      [](Layout& layout) {
-        layout.SetWidth(24.0f);
-        layout.SetHeight(24.0f);
-        layout.SetAlignItems(YGAlignCenter);
-        layout.SetJustifyContent(YGJustifyCenter);
-      },
-      [bg_color](Block& block) {
-        block.SetFillColor(bg_color);
-        block.SetBorderRadius(6.0f);
-      });
-
-  auto letter_label = Label::BasicLabel(
-      letter,
-      [](Layout& layout) {
-        layout.SetWidth(24.0f);
-        layout.SetHeight(24.0f);
-      },
-      [](Label& label) {
-        label.SetTextAlignment(TextAlignment::MiddleCenter);
-        label.SetColor(0xFFFFFFFF);  // White text
-        label.SetFont(GetBold12UiFont());
-      });
-
-  container->AddChild(letter_label);
-
-  if (is_symlink) {
-    auto shortcut_container = Node::Empty(
-        [](Layout& layout) {
-          layout.SetPositionType(YGPositionTypeAbsolute);
-          layout.SetPosition(YGEdgeBottom, -2.0f);
-          layout.SetPosition(YGEdgeRight, -2.0f);
-          layout.SetWidth(12.0f);
-          layout.SetHeight(12.0f);
-        },
-        [](Block& block) {
-          block.SetFillColor(0xFFFFFFFF);
-          block.SetBorderRadius(4.0f);
-          block.SetBorderColor(0xFF1F2937);
-          block.SetBorderWidth(1.0f);
-        });
-    shortcut_container->AddChild(Label::BasicLabel(
-        "↗",
-        [](Layout& layout) {
-          layout.SetWidth(10.0f);
-          layout.SetHeight(10.0f);
-        },
-        [](Label& label) {
-          label.SetTextAlignment(TextAlignment::MiddleCenter);
-          label.SetColor(0xFF1F2937);
-          label.SetFont(GetBold12UiFont());
-        }));
-    container->AddChild(shortcut_container);
-  }
-
-  return container;
-}
 
 // Forward declarations of NavigateTo and CloseDialog.
 void NavigateTo(const std::shared_ptr<OpenFileDialogState>& state,
