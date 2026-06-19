@@ -14,6 +14,8 @@
 
 #include "font_manager.h"
 
+#include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <map>
 
@@ -38,120 +40,12 @@ using ::perception::ui::MatchFontResponse;
 
 namespace {
 
-auto kFontWeightToFcInt = std::map<FontStyle::Weight, int>(
-    {{FontStyle::Weight::THIN, FC_WEIGHT_THIN},
-     {FontStyle::Weight::EXTRALIGHT, FC_WEIGHT_EXTRALIGHT},
-     {FontStyle::Weight::LIGHT, FC_WEIGHT_LIGHT},
-     {FontStyle::Weight::SEMILIGHT, FC_WEIGHT_DEMILIGHT},
-     {FontStyle::Weight::BOOK, FC_WEIGHT_BOOK},
-     {FontStyle::Weight::REGULAR, FC_WEIGHT_REGULAR},
-     {FontStyle::Weight::MEDIUM, FC_WEIGHT_MEDIUM},
-     {FontStyle::Weight::SEMIBOLD, FC_WEIGHT_DEMIBOLD},
-     {FontStyle::Weight::BOLD, FC_WEIGHT_BOLD},
-     {FontStyle::Weight::EXTRABOLD, FC_WEIGHT_EXTRABOLD},
-     {FontStyle::Weight::BLACK, FC_WEIGHT_BLACK},
-     {FontStyle::Weight::EXTRABLACK, FC_WEIGHT_EXTRABLACK}});
-
-auto kFontWidthToFcInt = std::map<FontStyle::Width, int>(
-    {{FontStyle::Width::ULTRACONDENSED, FC_WIDTH_ULTRACONDENSED},
-     {FontStyle::Width::EXTRACONDENSED, FC_WIDTH_EXTRACONDENSED},
-     {FontStyle::Width::CONDENSED, FC_WIDTH_CONDENSED},
-     {FontStyle::Width::SEMICONDENSED, FC_WIDTH_SEMICONDENSED},
-     {FontStyle::Width::NORMAL, FC_WIDTH_NORMAL},
-     {FontStyle::Width::SEMIEXPANDED, FC_WIDTH_SEMIEXPANDED},
-     {FontStyle::Width::EXPANDED, FC_WIDTH_EXPANDED},
-     {FontStyle::Width::EXTRAEXPANDED, FC_WIDTH_EXTRAEXPANDED},
-     {FontStyle::Width::ULTRAEXPANDED, FC_WIDTH_ULTRAEXPANDED}});
-
-auto kFontSlantToFcInt = std::map<FontStyle::Slant, int>(
-    {{FontStyle::Slant::UPRIGHT, FC_SLANT_ROMAN},
-     {FontStyle::Slant::ITALIC, FC_SLANT_ITALIC},
-     {FontStyle::Slant::OBLIQUE, FC_SLANT_OBLIQUE}});
-
-auto kFcIntToFontWeight = std::map<int, FontStyle::Weight>(
-    {{FC_WEIGHT_THIN, FontStyle::Weight::THIN},
-     {FC_WEIGHT_EXTRALIGHT, FontStyle::Weight::EXTRALIGHT},
-     {FC_WEIGHT_LIGHT, FontStyle::Weight::LIGHT},
-     {FC_WEIGHT_DEMILIGHT, FontStyle::Weight::SEMILIGHT},
-     {FC_WEIGHT_BOOK, FontStyle::Weight::BOOK},
-     {FC_WEIGHT_REGULAR, FontStyle::Weight::REGULAR},
-     {FC_WEIGHT_MEDIUM, FontStyle::Weight::MEDIUM},
-     {FC_WEIGHT_DEMIBOLD, FontStyle::Weight::SEMIBOLD},
-     {FC_WEIGHT_BOLD, FontStyle::Weight::BOLD},
-     {FC_WEIGHT_EXTRABOLD, FontStyle::Weight::EXTRABOLD},
-     {FC_WEIGHT_BLACK, FontStyle::Weight::BLACK},
-     {FC_WEIGHT_EXTRABLACK, FontStyle::Weight::EXTRABLACK}});
-
-auto kFcIntToFontWidth = std::map<int, FontStyle::Width>(
-    {{FC_WIDTH_ULTRACONDENSED, FontStyle::Width::ULTRACONDENSED},
-     {FC_WIDTH_EXTRACONDENSED, FontStyle::Width::EXTRACONDENSED},
-     {FC_WIDTH_CONDENSED, FontStyle::Width::CONDENSED},
-     {FC_WIDTH_SEMICONDENSED, FontStyle::Width::SEMICONDENSED},
-     {FC_WIDTH_NORMAL, FontStyle::Width::NORMAL},
-     {FC_WIDTH_SEMIEXPANDED, FontStyle::Width::SEMIEXPANDED},
-     {FC_WIDTH_EXPANDED, FontStyle::Width::EXPANDED},
-     {FC_WIDTH_EXTRAEXPANDED, FontStyle::Width::EXTRAEXPANDED},
-     {FC_WIDTH_ULTRAEXPANDED, FontStyle::Width::ULTRAEXPANDED}});
-
-auto kFcIntToFontSlant = std::map<int, FontStyle::Slant>(
-    {{FC_SLANT_ROMAN, FontStyle::Slant::UPRIGHT},
-     {FC_SLANT_ITALIC, FontStyle::Slant::ITALIC},
-     {FC_SLANT_OBLIQUE, FontStyle::Slant::OBLIQUE}});
-
 struct MemoryMappedFont {
   ::perception::MemoryMappedFile::Client file;
   std::shared_ptr<SharedMemory> buffer;
 };
 
 std::map<std::string, std::shared_ptr<MemoryMappedFont>> font_data_by_path;
-
-const char* GetString(FcPattern* pattern, const char field[], int index = 0) {
-  const char* name;
-  if (FcPatternGetString(pattern, field, index, (FcChar8**)&name) !=
-      FcResultMatch) {
-    name = nullptr;
-  }
-  return name;
-}
-
-int GetInt(FcPattern& pattern, const char object[], int missing) {
-  int value;
-  if (FcPatternGetInteger(&pattern, object, 0, &value) != FcResultMatch) {
-    return missing;
-  }
-  return value;
-}
-
-template <typename K, typename V>
-V GetOrDefault(const std::map<K, V>& m, const K key, const V default_value) {
-  typename std::map<K, V>::const_iterator it = m.find(key);
-  return it == m.end() ? default_value : it->second;
-}
-
-void PopulateFcPatternFromFontStyle(const FontStyle& style,
-                                    FcPattern& pattern) {
-  FcPatternAddInteger(
-      &pattern, FC_WEIGHT,
-      GetOrDefault(kFontWeightToFcInt, style.weight, FC_WEIGHT_REGULAR));
-  FcPatternAddInteger(
-      &pattern, FC_WIDTH,
-      GetOrDefault(kFontWidthToFcInt, style.width, FC_WIDTH_NORMAL));
-  FcPatternAddInteger(
-      &pattern, FC_SLANT,
-      GetOrDefault(kFontSlantToFcInt, style.slant, FC_SLANT_ROMAN));
-}
-
-void PopulateFontStyleFromFcPattern(FcPattern& pattern, FontStyle& style) {
-  style.weight = GetOrDefault(kFcIntToFontWeight,
-                              GetInt(pattern, FC_WEIGHT, FC_WEIGHT_REGULAR),
-                              FontStyle::Weight::REGULAR);
-  style.width = GetOrDefault(kFcIntToFontWidth,
-                             GetInt(pattern, FC_WIDTH, FC_WIDTH_NORMAL),
-                             FontStyle::Width::NORMAL);
-  style.slant =
-      GetOrDefault(kFcIntToFontSlant, GetInt(pattern, FC_SLANT, FC_SLANT_ROMAN),
-                   FontStyle::Slant::UPRIGHT);
-}
 
 Status MakeSureFontIsLoaded(const std::string& path) {
   if (!font_data_by_path.contains(path)) {
@@ -168,43 +62,250 @@ Status MakeSureFontIsLoaded(const std::string& path) {
   return ::perception::Status::OK;
 }
 
+FontStyle MakeStyle(FontStyle::Weight weight, FontStyle::Width width,
+                    FontStyle::Slant slant) {
+  FontStyle style;
+  style.weight = weight;
+  style.width = width;
+  style.slant = slant;
+  return style;
+}
+
 }  // namespace
 
-FontManager::FontManager() { config_ = FcConfigReference(nullptr); }
+FontManager::FontManager() {}
 
-FontManager::~FontManager() { FcConfigDestroy(config_); }
+FontManager::~FontManager() {}
 
 StatusOr<MatchFontResponse> FontManager::MatchFont(
     const MatchFontRequest& request) {
   std::scoped_lock lock(mutex_);
 
-  std::string font_path = "/Libraries/Fonts/assets/DejaVuSans.ttf";
-  if (request.style.weight == FontStyle::Weight::BOLD) {
-    font_path = "/Libraries/Fonts/assets/DejaVuSans-Bold.ttf";
+  std::string fname = request.family_name;
+  std::transform(fname.begin(), fname.end(), fname.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+
+  bool is_condensed =
+      (request.style.width <= FontStyle::Width::SEMICONDENSED) ||
+      (fname.find("condensed") != std::string::npos);
+  bool is_bold =
+      ((int)request.style.weight >= (int)FontStyle::Weight::SEMIBOLD);
+  bool is_italic = (request.style.slant == FontStyle::Slant::ITALIC ||
+                    request.style.slant == FontStyle::Slant::OBLIQUE);
+  bool is_extralight =
+      ((int)request.style.weight <= (int)FontStyle::Weight::EXTRALIGHT);
+
+  std::string font_path;
+  std::string resolved_family;
+
+  if (fname.find("math") != std::string::npos) {
+    font_path = "/Libraries/Fonts/DejaVuMathTeXGyre.ttf";
+    resolved_family = "DejaVuMathTeXGyre";
+  } else if (fname.find("mono") != std::string::npos ||
+             fname.find("courier") != std::string::npos ||
+             fname.find("consolas") != std::string::npos) {
+    resolved_family = "DejaVuSansMono";
+    if (is_bold && is_italic) {
+      font_path = "/Libraries/Fonts/DejaVuSansMono-BoldOblique.ttf";
+    } else if (is_bold) {
+      font_path = "/Libraries/Fonts/DejaVuSansMono-Bold.ttf";
+    } else if (is_italic) {
+      font_path = "/Libraries/Fonts/DejaVuSansMono-Oblique.ttf";
+    } else {
+      font_path = "/Libraries/Fonts/DejaVuSansMono.ttf";
+    }
+  } else if (fname.find("serif") != std::string::npos &&
+             fname.find("sans") == std::string::npos) {
+    if (is_condensed) {
+      resolved_family = "DejaVuSerifCondensed";
+      if (is_bold && is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSerifCondensed-BoldItalic.ttf";
+      } else if (is_bold) {
+        font_path = "/Libraries/Fonts/DejaVuSerifCondensed-Bold.ttf";
+      } else if (is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSerifCondensed-Italic.ttf";
+      } else {
+        font_path = "/Libraries/Fonts/DejaVuSerifCondensed.ttf";
+      }
+    } else {
+      resolved_family = "DejaVuSerif";
+      if (is_bold && is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSerif-BoldItalic.ttf";
+      } else if (is_bold) {
+        font_path = "/Libraries/Fonts/DejaVuSerif-Bold.ttf";
+      } else if (is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSerif-Italic.ttf";
+      } else {
+        font_path = "/Libraries/Fonts/DejaVuSerif.ttf";
+      }
+    }
+  } else if (fname.find("times") != std::string::npos ||
+             fname.find("georgia") != std::string::npos ||
+             fname.find("garamond") != std::string::npos) {
+    if (is_condensed) {
+      resolved_family = "DejaVuSerifCondensed";
+      if (is_bold && is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSerifCondensed-BoldItalic.ttf";
+      } else if (is_bold) {
+        font_path = "/Libraries/Fonts/DejaVuSerifCondensed-Bold.ttf";
+      } else if (is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSerifCondensed-Italic.ttf";
+      } else {
+        font_path = "/Libraries/Fonts/DejaVuSerifCondensed.ttf";
+      }
+    } else {
+      resolved_family = "DejaVuSerif";
+      if (is_bold && is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSerif-BoldItalic.ttf";
+      } else if (is_bold) {
+        font_path = "/Libraries/Fonts/DejaVuSerif-Bold.ttf";
+      } else if (is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSerif-Italic.ttf";
+      } else {
+        font_path = "/Libraries/Fonts/DejaVuSerif.ttf";
+      }
+    }
+  } else {
+    // Default is Sans
+    if (is_condensed) {
+      resolved_family = "DejaVuSansCondensed";
+      if (is_bold && is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSansCondensed-BoldOblique.ttf";
+      } else if (is_bold) {
+        font_path = "/Libraries/Fonts/DejaVuSansCondensed-Bold.ttf";
+      } else if (is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSansCondensed-Oblique.ttf";
+      } else {
+        font_path = "/Libraries/Fonts/DejaVuSansCondensed.ttf";
+      }
+    } else {
+      resolved_family = "DejaVuSans";
+      if (is_extralight && !is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSans-ExtraLight.ttf";
+      } else if (is_bold && is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSans-BoldOblique.ttf";
+      } else if (is_bold) {
+        font_path = "/Libraries/Fonts/DejaVuSans-Bold.ttf";
+      } else if (is_italic) {
+        font_path = "/Libraries/Fonts/DejaVuSans-Oblique.ttf";
+      } else {
+        font_path = "/Libraries/Fonts/DejaVuSans.ttf";
+      }
+    }
   }
 
-  RETURN_ON_ERROR(MakeSureFontIsLoaded(font_path));
+  if (MakeSureFontIsLoaded(font_path) != ::perception::Status::OK) {
+    font_path = "/Libraries/Fonts/DejaVuSans.ttf";
+    RETURN_ON_ERROR(MakeSureFontIsLoaded(font_path));
+  }
 
   MatchFontResponse response;
   response.face_index = 0;
-  response.family_name = request.family_name.empty() ? "DejaVuSans" : request.family_name;
+  response.family_name =
+      request.family_name.empty() ? resolved_family : request.family_name;
   response.data.type = FontData::Type::BUFFER;
   response.data.buffer = font_data_by_path[font_path]->buffer;
-  response.style = request.style;
+  response.style.weight = is_bold
+                              ? FontStyle::Weight::BOLD
+                              : (is_extralight ? FontStyle::Weight::EXTRALIGHT
+                                               : FontStyle::Weight::REGULAR);
+  response.style.width =
+      is_condensed ? FontStyle::Width::CONDENSED : FontStyle::Width::NORMAL;
+  response.style.slant =
+      is_italic ? FontStyle::Slant::ITALIC : FontStyle::Slant::UPRIGHT;
   return response;
 }
 
 StatusOr<FontFamilies> FontManager::GetFontFamilies() {
   std::scoped_lock lock(mutex_);
-  std::cout << "TODO: Implement FontManager::HandleGetFontFamilies"
-            << std::endl;
-  return Status::UNIMPLEMENTED;
+  FontFamilies response;
+  for (const auto& name : {
+           "DejaVuMathTeXGyre",
+           "DejaVuSansMono",
+           "DejaVuSerifCondensed",
+           "DejaVuSerif",
+           "DejaVuSansCondensed",
+           "DejaVuSans",
+       }) {
+    FontFamily family;
+    family.name = name;
+    response.families.push_back(family);
+  }
+  return response;
 }
 
 StatusOr<FontStyles> FontManager::GetFontFamilyStyles(
     const ::perception::ui::FontFamily& request) {
   std::scoped_lock lock(mutex_);
-  std::cout << "TODO: Implement FontManager::HandleGetFontFamilyStyles"
-            << std::endl;
-  return Status::UNIMPLEMENTED;
+
+  std::string fname = request.name;
+  std::transform(fname.begin(), fname.end(), fname.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+
+  bool is_condensed = fname.find("condensed") != std::string::npos;
+
+  FontStyles response;
+
+  if (fname.find("math") != std::string::npos) {
+    response.styles.push_back(MakeStyle(FontStyle::Weight::REGULAR,
+                                        FontStyle::Width::NORMAL,
+                                        FontStyle::Slant::UPRIGHT));
+  } else if (fname.find("mono") != std::string::npos ||
+             fname.find("courier") != std::string::npos ||
+             fname.find("consolas") != std::string::npos) {
+    response.styles.push_back(MakeStyle(FontStyle::Weight::REGULAR,
+                                        FontStyle::Width::NORMAL,
+                                        FontStyle::Slant::UPRIGHT));
+    response.styles.push_back(MakeStyle(FontStyle::Weight::BOLD,
+                                        FontStyle::Width::NORMAL,
+                                        FontStyle::Slant::UPRIGHT));
+    response.styles.push_back(MakeStyle(FontStyle::Weight::REGULAR,
+                                        FontStyle::Width::NORMAL,
+                                        FontStyle::Slant::ITALIC));
+    response.styles.push_back(MakeStyle(FontStyle::Weight::BOLD,
+                                        FontStyle::Width::NORMAL,
+                                        FontStyle::Slant::ITALIC));
+  } else if (fname.find("serif") != std::string::npos &&
+             fname.find("sans") == std::string::npos) {
+    FontStyle::Width width =
+        is_condensed ? FontStyle::Width::CONDENSED : FontStyle::Width::NORMAL;
+    response.styles.push_back(MakeStyle(FontStyle::Weight::REGULAR, width,
+                                        FontStyle::Slant::UPRIGHT));
+    response.styles.push_back(
+        MakeStyle(FontStyle::Weight::BOLD, width, FontStyle::Slant::UPRIGHT));
+    response.styles.push_back(
+        MakeStyle(FontStyle::Weight::REGULAR, width, FontStyle::Slant::ITALIC));
+    response.styles.push_back(
+        MakeStyle(FontStyle::Weight::BOLD, width, FontStyle::Slant::ITALIC));
+  } else if (fname.find("times") != std::string::npos ||
+             fname.find("georgia") != std::string::npos ||
+             fname.find("garamond") != std::string::npos) {
+    FontStyle::Width width =
+        is_condensed ? FontStyle::Width::CONDENSED : FontStyle::Width::NORMAL;
+    response.styles.push_back(MakeStyle(FontStyle::Weight::REGULAR, width,
+                                        FontStyle::Slant::UPRIGHT));
+    response.styles.push_back(
+        MakeStyle(FontStyle::Weight::BOLD, width, FontStyle::Slant::UPRIGHT));
+    response.styles.push_back(
+        MakeStyle(FontStyle::Weight::REGULAR, width, FontStyle::Slant::ITALIC));
+    response.styles.push_back(
+        MakeStyle(FontStyle::Weight::BOLD, width, FontStyle::Slant::ITALIC));
+  } else {
+    FontStyle::Width width =
+        is_condensed ? FontStyle::Width::CONDENSED : FontStyle::Width::NORMAL;
+    response.styles.push_back(MakeStyle(FontStyle::Weight::REGULAR, width,
+                                        FontStyle::Slant::UPRIGHT));
+    if (!is_condensed) {
+      response.styles.push_back(MakeStyle(FontStyle::Weight::EXTRALIGHT, width,
+                                          FontStyle::Slant::UPRIGHT));
+    }
+    response.styles.push_back(
+        MakeStyle(FontStyle::Weight::BOLD, width, FontStyle::Slant::UPRIGHT));
+    response.styles.push_back(
+        MakeStyle(FontStyle::Weight::REGULAR, width, FontStyle::Slant::ITALIC));
+    response.styles.push_back(
+        MakeStyle(FontStyle::Weight::BOLD, width, FontStyle::Slant::ITALIC));
+  }
+
+  return response;
 }

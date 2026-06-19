@@ -1,7 +1,6 @@
 {
   skip_for_tests: true,
   dependencies+: [
-    'fontconfig',
     'Fonts',
     'perception',
     'Perception UI',

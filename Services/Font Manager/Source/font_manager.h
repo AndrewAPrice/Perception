@@ -14,7 +14,6 @@
 
 #include <mutex>
 
-#include "fontconfig/fontconfig.h"
 #include "perception/ui/font_manager.h"
 
 class FontManager : public ::perception::ui::FontManager::Server {
@@ -31,6 +30,5 @@ class FontManager : public ::perception::ui::FontManager::Server {
       const ::perception::ui::FontFamily& request) override;
 
  private:
-  FcConfig* config_;
   std::mutex mutex_;
 };
