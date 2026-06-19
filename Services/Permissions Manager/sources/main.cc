@@ -151,38 +151,16 @@ class PermissionsManager : public ::perception::PermissionsManager::Server {
             }
           });
         },
-        [](Layout& layout) {
-          layout.SetWidth(360.0f);
-          layout.SetHeight(180.0f);
-        },
+        [](Layout& layout) { layout.SetWidth(360.0f); },
         Container::VerticalContainer(
-            [](Layout& layout) {
-              layout.SetFlexGrow(1.0f);
-              layout.SetPadding(YGEdgeAll, 16.0f);
-              layout.SetGap(16.0f);
-              layout.SetAlignItems(YGAlignStretch);
-            },
-            [](Block& block) {
-              block.SetFillColor(0xFFFFFFFF);  // White card background
-            },
-            Label::BasicLabel(
-                *verbalization,
-                [](Layout& layout) {
-                  layout.SetFlexGrow(1.0f);
-                  layout.SetFlexShrink(1.0f);
-                },
-                [](Label& label) {
-                  label.SetTextAlignment(TextAlignment::MiddleLeft);
-                  label.SetColor(0xFF1F2937);  // Sleek gray text
-                }),
+            [](Layout& layout) { layout.SetAlignItems(YGAlignStretch); },
+            Label::BasicLabel(*verbalization),
             Checkbox::BasicCheckbox(
                 "Remember for all instances of this process.", false,
-                [state](bool checked) { state->remember = checked; },
-                [](Layout& layout) { layout.SetMargin(YGEdgeBottom, 8.0f); }),
+                [state](bool checked) { state->remember = checked; }),
             Container::HorizontalContainer(
                 [](Layout& layout) {
                   layout.SetJustifyContent(YGJustifyFlexEnd);
-                  layout.SetGap(12.0f);
                 },
                 Button::TextButton(
                     "Deny",
@@ -197,10 +175,6 @@ class PermissionsManager : public ::perception::PermissionsManager::Server {
                         auto window = strong_node->Get<UiWindow>();
                         if (window) window->Close();
                       }
-                    },
-                    [](Layout& layout) {
-                      layout.SetWidth(80.0f);
-                      layout.SetHeight(32.0f);
                     },
                     [](Button& button) {
                       button.SetButtonStyle(Button::ButtonStyle::LIGHT);
@@ -218,10 +192,6 @@ class PermissionsManager : public ::perception::PermissionsManager::Server {
                         auto window = strong_node->Get<UiWindow>();
                         if (window) window->Close();
                       }
-                    },
-                    [](Layout& layout) {
-                      layout.SetWidth(80.0f);
-                      layout.SetHeight(32.0f);
                     },
                     [](Button& button) {
                       button.SetButtonStyle(Button::ButtonStyle::PRIMARY);
