@@ -40,14 +40,19 @@ int main(int argc, char *argv[]) {
   WindowManager window_manager;
 
   UpdateBackgroundColor();
-  ::perception::RegisterRegistryListener(
-      ::perception::RegistryCorpus::APPLICATIONS,
-      "Window Manager", "backgroundColor",
-      []() {
-        ::perception::Defer([]() {
-          UpdateBackgroundColor();
-        });
-      });
+  ::perception::RegisterRegistryListener("backgroundColor", []() {
+    ::perception::Defer([]() { UpdateBackgroundColor(); });
+  });
+
+  UpdateUiDebuggerProgram();
+  ::perception::RegisterRegistryListener("uiDebuggerProgram", []() {
+    ::perception::Defer([]() { UpdateUiDebuggerProgram(); });
+  });
+
+  UpdateWindowCloseTimeout();
+  ::perception::RegisterRegistryListener("windowCloseTimeoutSeconds", []() {
+    ::perception::Defer([]() { UpdateWindowCloseTimeout(); });
+  });
 
   // Draw the entire screen.
   InvalidateScreen(Rectangle{.size = GetScreenSize()});

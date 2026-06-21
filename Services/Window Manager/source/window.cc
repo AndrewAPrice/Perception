@@ -28,6 +28,7 @@
 #include "perception/loader.h"
 #include "perception/permissions.h"
 #include "perception/processes.h"
+#include "perception/registry.h"
 #include "perception/scheduler.h"
 #include "perception/serialization/text_serializer.h"
 #include "perception/services.h"
@@ -81,9 +82,8 @@ struct ProcessWindowTracker {
   int window_count = 0;
   size_t last_zero_transition_id = 0;
 };
-std::map<::perception::ProcessId, ProcessWindowTracker>
-    g_process_window_trackers;
-size_t g_next_zero_transition_id = 0;
+std::map<::perception::ProcessId, ProcessWindowTracker> process_window_trackers;
+size_t next_zero_transition_id = 0;
 
 // Z-ordered windows, from back to front. Since LinkedLists can't hold
 // shared_ptrs, the object must also be held by windows_by_listeners.
@@ -106,6 +106,9 @@ Point dragging_origin;
 // is being dragged.
 bool dragging_min_edge[2] = {false, false};
 bool dragging_max_edge[2] = {false, false};
+
+int window_close_timeout_seconds = 10;
+std::string ui_debugger_program = "UI Debugger";
 
 // Returns whether the window listener can be used for creating a new window.
 bool CanUseWindowListenerForNewWindow(BaseWindow::Client window_listener) {
@@ -194,7 +197,7 @@ StatusOr<std::shared_ptr<Window>> Window::CreateWindow(
   windows_by_listeners[request.window] = window;
   if (request.window) {
     ::perception::ProcessId pid = request.window.ServerProcessId();
-    if (pid != 0) g_process_window_trackers[pid].window_count++;
+    if (pid != 0) process_window_trackers[pid].window_count++;
   }
   return window;
 }
@@ -380,22 +383,23 @@ void Window::Close() {
   if (window_listener_) {
     ::perception::ProcessId pid = window_listener_.ServerProcessId();
     if (pid != 0) {
-      auto itr = g_process_window_trackers.find(pid);
-      if (itr != g_process_window_trackers.end()) {
+      auto itr = process_window_trackers.find(pid);
+      if (itr != process_window_trackers.end()) {
         itr->second.window_count--;
         if (itr->second.window_count <= 0) {
-          g_next_zero_transition_id++;
-          size_t transition_id = g_next_zero_transition_id;
+          next_zero_transition_id++;
+          size_t transition_id = next_zero_transition_id;
           itr->second.last_zero_transition_id = transition_id;
 
           ::perception::AfterDuration(
-              std::chrono::seconds(10), [pid, transition_id]() {
+              std::chrono::seconds(window_close_timeout_seconds),
+              [pid, transition_id]() {
                 if (!::perception::DoesProcessExist(pid)) {
-                  g_process_window_trackers.erase(pid);
+                  process_window_trackers.erase(pid);
                   return;
                 }
-                auto track_itr = g_process_window_trackers.find(pid);
-                if (track_itr == g_process_window_trackers.end() ||
+                auto track_itr = process_window_trackers.find(pid);
+                if (track_itr == process_window_trackers.end() ||
                     track_itr->second.window_count > 0 ||
                     track_itr->second.last_zero_transition_id !=
                         transition_id) {
@@ -406,12 +410,12 @@ void Window::Close() {
                     ::perception::Permission::
                         CanContinueRunningAfterWindowsClose,
                     [pid, transition_id](bool has_permission) {
-                      auto track_itr2 = g_process_window_trackers.find(pid);
-                      if (track_itr2 != g_process_window_trackers.end() &&
+                      auto track_itr2 = process_window_trackers.find(pid);
+                      if (track_itr2 != process_window_trackers.end() &&
                           track_itr2->second.window_count == 0 &&
                           track_itr2->second.last_zero_transition_id ==
                               transition_id) {
-                        g_process_window_trackers.erase(track_itr2);
+                        process_window_trackers.erase(track_itr2);
                       }
                       if (!has_permission &&
                           ::perception::DoesProcessExist(pid)) {
@@ -992,7 +996,7 @@ void Window::HandleWindowButtonClick() {
               window->SetIsDebugging(false);
               if (hierarchy) {
                 ::perception::LoadApplicationRequest request;
-                request.name = "UI Debugger";
+                request.name = ui_debugger_program;
                 request.arguments = {
                     hierarchy->json,
                     std::to_string(window->window_listener_.ServerProcessId()),
@@ -1028,4 +1032,27 @@ void Window::ToggleFullScreen() {
     InvalidateScreen(Rectangle{.origin = {0, 0}, .size = GetScreenSize()});
     Resized();
   }
+}
+
+void UpdateWindowCloseTimeout() {
+  auto val_or = ::perception::GetRegistryValue("windowCloseTimeoutSeconds");
+  if (val_or.Ok()) {
+    window_close_timeout_seconds =
+        static_cast<int>(val_or->IntegerValue().value_or(10));
+  } else {
+    window_close_timeout_seconds = 10;
+  }
+}
+
+void UpdateUiDebuggerProgram() {
+  auto val_or = ::perception::GetRegistryValue("uiDebuggerProgram");
+  if (val_or.Ok() &&
+      val_or->GetType() == ::perception::serialization::Value::Type::STRING) {
+    auto str = val_or->StringValue();
+    if (str && !str->empty()) {
+      ui_debugger_program = std::string(*str);
+      return;
+    }
+  }
+  ui_debugger_program = "UI Debugger";
 }

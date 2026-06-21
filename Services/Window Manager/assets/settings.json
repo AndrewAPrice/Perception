@@ -16,6 +16,25 @@
           }
         }
       ]
+    },
+    {
+      "title": "General",
+      "settings": [
+        {
+          "key": "uiDebuggerProgram",
+          "type": "string",
+          "name": "UI Debugger Program",
+          "description": "Program launched for UI debugging",
+          "default": "UI Debugger"
+        },
+        {
+          "key": "windowCloseTimeoutSeconds",
+          "type": "integer",
+          "name": "Window Close Timeout (Seconds)",
+          "description": "Timeout in seconds before terminating a process after all its windows are closed",
+          "default": 10
+        }
+      ]
     }
   ]
 }

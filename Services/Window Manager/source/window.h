@@ -151,4 +151,6 @@ class Window : public std::enable_shared_from_this<Window> {
 std::shared_ptr<Window> GetWindowWithListener(
     const ::perception::window::BaseWindow::Client& window_listener);
 
-// ::perception::Font* GetWindowTitleFont();
+void UpdateUiDebuggerProgram();
+void UpdateWindowCloseTimeout();
+
