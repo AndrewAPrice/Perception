@@ -234,7 +234,7 @@ void LaunchApplication(const LoadApplicationRequest& request) {
   ShowOverlay();
   GetService<Loader>().LaunchApplication(
       request,
-      [request](::StatusOr<::perception::LoadApplicationResponse> response) {
+      [request](StatusOr<::perception::LoadApplicationResponse> response) {
         HideOverlay();
         if (!response.Ok())
           ShowErrorDialogForApplicationLoading(request.name, response.Status());

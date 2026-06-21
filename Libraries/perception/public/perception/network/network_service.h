@@ -56,11 +56,9 @@ class ResolveHostRequest : public serialization::Serializable {
 
 class ResolveHostResponse : public serialization::Serializable {
  public:
-  bool success;
   std::vector<IpAddress> addresses;
 
   virtual void Serialize(serialization::Serializer& serializer) override {
-    serializer.Integer("success", success);
     serializer.ArrayOfSerializables("addresses", addresses);
   }
 };

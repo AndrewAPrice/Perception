@@ -37,7 +37,7 @@ class RegistryNamespace {
   std::string_view GetName() const { return name_; }
 
   // Retrieve a value.
-  ::StatusOr<::perception::serialization::Value> GetValue(std::string_view key);
+  StatusOr<::perception::serialization::Value> GetValue(std::string_view key);
 
   // Set a value.
   void SetValue(std::string_view key,

@@ -22,9 +22,9 @@ class RegistryServer : public ::perception::Registry::Server {
   RegistryServer() = default;
   virtual ~RegistryServer() = default;
 
-  virtual ::StatusOr<::perception::GetRegistryValueResponse>
-  GetRegistryValue(const ::perception::GetRegistryValueRequest& request,
-                   ::perception::ProcessId sender) override;
+  virtual StatusOr<::perception::GetRegistryValueResponse> GetRegistryValue(
+      const ::perception::GetRegistryValueRequest& request,
+      ::perception::ProcessId sender) override;
 
   virtual ::perception::Status SetRegistryValue(
       const ::perception::SetRegistryValueRequest& request,
@@ -42,10 +42,10 @@ class RegistryServer : public ::perception::Registry::Server {
       const ::perception::UnregisterRegistryListenerRequest& request,
       ::perception::ProcessId sender) override;
 
-  virtual ::StatusOr<::perception::GetRegistryKeysResponse>
-  GetRegistryKeys(const ::perception::GetRegistryKeysRequest& request,
-                  ::perception::ProcessId sender) override;
+  virtual StatusOr<::perception::GetRegistryKeysResponse> GetRegistryKeys(
+      const ::perception::GetRegistryKeysRequest& request,
+      ::perception::ProcessId sender) override;
 
-  virtual ::StatusOr<::perception::GetNamespacesResponse>
-  GetNamespaces(::perception::ProcessId sender) override;
+  virtual StatusOr<::perception::GetNamespacesResponse> GetNamespaces(
+      ::perception::ProcessId sender) override;
 };

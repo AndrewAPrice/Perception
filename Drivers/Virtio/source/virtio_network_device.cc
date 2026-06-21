@@ -30,7 +30,7 @@
 
 // #define VERBOSE 1
 
-using ::StatusOr;
+using StatusOr;
 using ::perception::AllocateMemoryPages;
 using ::perception::AllocateMemoryPagesBelowPhysicalAddressBase;
 using ::perception::DoesProcessHavePermission;
