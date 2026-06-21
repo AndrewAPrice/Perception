@@ -36,7 +36,6 @@
 #include "permission_verbalization.h"
 #include "permissions_cache.h"
 
-using StatusOr;
 using ::perception::Fiber;
 using ::perception::GetCurrentlyExecutingFiber;
 using ::perception::GetProcessName;

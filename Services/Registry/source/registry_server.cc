@@ -21,7 +21,6 @@
 #include "permissions.h"
 #include "registry_value.h"
 
-using StatusOr;
 using ::perception::DeleteRegistryValueRequest;
 using ::perception::GetNamespacesResponse;
 using ::perception::GetRegistryKeysRequest;

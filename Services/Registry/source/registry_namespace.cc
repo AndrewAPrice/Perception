@@ -14,7 +14,6 @@
 
 #include "registry_namespace.h"
 
-using StatusOr;
 using ::perception::MessageId;
 using ::perception::ProcessId;
 using ::perception::RegistryCorpus;
