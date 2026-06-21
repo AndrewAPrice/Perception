@@ -17,6 +17,28 @@
 
 namespace perception {
 
+std::string FormatSize(uint64 bytes) {
+  if (bytes < 1024) return std::to_string(bytes) + " B";
+
+  uint64 kb = bytes / 1024;
+  if (kb < 1024) return std::to_string(kb) + " KB";
+
+  uint64 mb = kb / 1024;
+  if (mb < 1024) return std::to_string(mb) + " MB";
+
+  uint64 gb = mb / 1024;
+  if (gb < 1024) return std::to_string(gb) + " GB";
+
+  uint64 tb = gb / 1024;
+  if (tb < 1024) return std::to_string(tb) + " TB";
+
+  uint64 pb = tb / 1024;
+  if (pb < 1024) return std::to_string(pb) + " PB";
+
+  uint64 eb = pb / 1024;
+  return std::to_string(eb) + " EB";
+}
+
 void ReadFileRequest::Serialize(serialization::Serializer& serializer) {
   serializer.Integer("Offset in file", offset_in_file);
   serializer.Integer("Offset in destination buffer",

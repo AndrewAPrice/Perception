@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "perception/fibers.h"
+#include "perception/file.h"
 #include "perception/memory.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
@@ -40,6 +41,7 @@
 #include "process_tracking.h"
 
 using ::perception::ForEachProcess;
+using ::perception::FormatSize;
 using ::perception::GetProcessName;
 using ::perception::MessageId;
 using ::perception::ProcessId;
@@ -56,26 +58,6 @@ using ::perception::ui::components::Table;
 using ::perception::ui::components::UiWindow;
 
 namespace {
-
-std::string FormatMemorySize(size_t bytes) {
-  size_t kb = bytes / 1024;
-  if (kb <= 9999) {
-    return std::to_string(kb) + " KB";
-  }
-  size_t mb = kb / 1024;
-  if (mb <= 9999) {
-    return std::to_string(mb) + " MB";
-  }
-  size_t gb = mb / 1024;
-  if (gb <= 9999) {
-    return std::to_string(gb) + " GB";
-  }
-  size_t tb = gb / 1024;
-  if (tb <= 9999) {
-    return std::to_string(tb) + " TB";
-  }
-  return std::to_string(tb / 1024) + " PB";
-}
 
 class ProcessesDataSource : public Table::DataSource {
  public:
@@ -96,9 +78,9 @@ class ProcessesDataSource : public Table::DataSource {
       case 2:
         return std::to_string(proc.registered_services);
       case 3:
-        return FormatMemorySize(proc.unique_memory);
+        return FormatSize(proc.unique_memory);
       case 4:
-        return FormatMemorySize(proc.shared_memory);
+        return FormatSize(proc.shared_memory);
       case 5:
         return std::to_string(((int)proc.cpu_percentage * 100) / 255) + "%";
       default:
@@ -271,11 +253,11 @@ void RebuildRunningProcesses() {
   size_t unique_kb = unique_bytes / 1024;
 
   if (status_label) {
-    status_label->SetText(FormatMemorySize(used_bytes) + " used (" +
-                          FormatMemorySize(unique_bytes) + " unique, " +
-                          FormatMemorySize(shared_bytes) + " shared), " +
-                          FormatMemorySize(free_bytes) + " free, " +
-                          FormatMemorySize(total_bytes) + " total");
+    status_label->SetText(FormatSize(used_bytes) + " used (" +
+                          FormatSize(unique_bytes) + " unique, " +
+                          FormatSize(shared_bytes) + " shared), " +
+                          FormatSize(free_bytes) + " free, " +
+                          FormatSize(total_bytes) + " total");
   }
 
   float u = static_cast<float>(unique_kb);

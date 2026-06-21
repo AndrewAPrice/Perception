@@ -14,6 +14,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include "perception/serialization/serializable.h"
 #include "perception/service_macros.h"
@@ -22,7 +23,11 @@
 namespace perception {
 namespace serialization {
 class Serializer;
-}
+}  // namespace serialization
+
+// Formats a size in bytes as a string rounded to whole units (e.g. KB, MB,
+// etc.).
+std::string FormatSize(uint64 bytes);
 
 class ReadFileRequest : public serialization::Serializable {
  public:

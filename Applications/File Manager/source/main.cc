@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <sstream>
@@ -25,6 +26,7 @@
 
 #include "include/core/SkColor.h"
 #include "include/core/SkFont.h"
+#include "perception/file.h"
 #include "perception/loader.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
@@ -44,6 +46,7 @@
 #include "perception/ui/text_alignment.h"
 #include "perception/window/mouse_button.h"
 
+using ::perception::FormatSize;
 using ::perception::GetService;
 using ::perception::HandOverControl;
 using ::perception::LoadApplicationRequest;
@@ -88,7 +91,6 @@ std::string GetExtension(std::string_view name) {
   std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
   return ext;
 }
-
 
 void NavigateTo(const std::string& path) {
   std::string target_path = path;
@@ -188,6 +190,13 @@ void NavigateTo(const std::string& path) {
       auto icon = CreateFileIcon(is_dir, is_symlink, name);
       icon->GetLayout().SetMargin(YGEdgeRight, 12.0f);
 
+      std::string size_str = "";
+      if (!is_dir) {
+        std::error_code size_ec;
+        uintmax_t file_size = entry.file_size(size_ec);
+        if (!size_ec) size_str = FormatSize(file_size);
+      }
+
       auto row = Container::HorizontalContainer(
           [](Layout& layout) {
             layout.SetWidthPercent(100.0f);
@@ -229,10 +238,25 @@ void NavigateTo(const std::string& path) {
           },
           icon,
           Label::BasicLabel(
-              name, [](Layout& layout) { layout.SetFlexGrow(1.0f); },
+              name,
+              [](Layout& layout) {
+                layout.SetFlexGrow(1.0f);
+                layout.SetFlexShrink(1.0f);
+              },
               [](Label& label) {
                 label.SetTextAlignment(TextAlignment::MiddleLeft);
                 label.SetColor(0xFF1F2937);
+                label.SetFont(GetBook12UiFont());
+              }),
+          Label::BasicLabel(
+              size_str,
+              [](Layout& layout) {
+                layout.SetWidth(80.0f);
+                layout.SetFlexShrink(0.0f);
+              },
+              [](Label& label) {
+                label.SetTextAlignment(TextAlignment::MiddleRight);
+                label.SetColor(0xFF6B7280);
                 label.SetFont(GetBook12UiFont());
               }));
 
@@ -263,7 +287,7 @@ int main(int argc, char* argv[]) {
       "File Manager",
       [](UiWindow& window) { window.OnClose([]() { TerminateProcess(); }); },
       [](Layout& layout) {
-        layout.SetWidth(300.0f);
+        layout.SetWidth(340.0f);
         layout.SetHeight(400.0f);
       },
       Container::VerticalContainer(
@@ -312,6 +336,29 @@ int main(int argc, char* argv[]) {
                     layout.SetMinWidth(0.0f);
                   },
                   &path_label)),
+          // Column Headers
+          Container::HorizontalContainer(
+              [](Layout& layout) {
+                layout.SetWidthPercent(100.0f);
+                layout.SetPadding(YGEdgeLeft, 18.0f);
+                layout.SetPadding(YGEdgeRight, 30.0f);
+                layout.SetPadding(YGEdgeTop, 6.0f);
+                layout.SetPadding(YGEdgeBottom, 2.0f);
+              },
+              Label::BasicLabel(
+                  "Name", [](Layout& layout) { layout.SetFlexGrow(1.0f); },
+                  [](Label& label) {
+                    label.SetTextAlignment(TextAlignment::MiddleLeft);
+                    label.SetColor(0xFF6B7280);
+                    label.SetFont(GetBold12UiFont());
+                  }),
+              Label::BasicLabel(
+                  "Size", [](Layout& layout) { layout.SetWidth(80.0f); },
+                  [](Label& label) {
+                    label.SetTextAlignment(TextAlignment::MiddleRight);
+                    label.SetColor(0xFF6B7280);
+                    label.SetFont(GetBold12UiFont());
+                  })),
           // Files list scroll view
           ScrollContainer::VerticalScrollContainer(
               Container::VerticalContainer(

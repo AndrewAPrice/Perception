@@ -56,7 +56,7 @@ class Value : public Serializable {
   std::optional<std::string_view> StringValue() const;
   std::optional<uint32> ColorRGBValue() const;
   const std::vector<Value>* ArrayValue() const;
-  std::string ToString() const;
+  std::string ToString() const override;
 
   // Setters
   void SetBool(bool val);
