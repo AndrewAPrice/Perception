@@ -14,20 +14,13 @@
 
 #pragma once
 
-extern "C" {
-#include "utils/errors.h"
-#include "netsurf/plotters.h"
-}
-
-#include "include/core/SkCanvas.h"
-
-namespace netsurf {
-namespace perception {
-
-extern const struct plotter_table skia_plotters;
-
-void SetActiveCanvas(SkCanvas *canvas);
-SkCanvas *GetActiveCanvas();
-
-}  // namespace perception
-}  // namespace netsurf
+#define WT_MODIFICATIONS {{"", ""}}
+#define WT_NO_GIT 1
+#define GECOS "Perception OS"
+#define USERNAME "user"
+#define WT_BRANCHPATH "master"
+#define WT_REVID "Perception"
+#define WT_COMPILEDATE "2026-06-22"
+#define WT_HOSTNAME "localhost"
+#define WT_ROOT "/Applications/netsurf"
+#define WT_MODIFIED 0

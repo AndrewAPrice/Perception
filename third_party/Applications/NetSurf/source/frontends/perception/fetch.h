@@ -14,20 +14,23 @@
 
 #pragma once
 
-extern "C" {
-#include "utils/errors.h"
-#include "netsurf/plotters.h"
-}
+struct nsurl;
 
-#include "include/core/SkCanvas.h"
+extern "C" {
+#include <stddef.h>
+#include <stdint.h>
+#include "utils/errors.h"
+#include "netsurf/fetch.h"
+}
 
 namespace netsurf {
 namespace perception {
 
-extern const struct plotter_table skia_plotters;
+const char** GetResourcePaths();
 
-void SetActiveCanvas(SkCanvas *canvas);
-SkCanvas *GetActiveCanvas();
+char** FbInitResourcePath(const char* resource_path);
+
+extern struct gui_fetch_table perception_fetch_table;
 
 }  // namespace perception
 }  // namespace netsurf

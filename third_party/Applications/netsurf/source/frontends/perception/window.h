@@ -15,75 +15,141 @@
 #pragma once
 
 #include <memory>
-#include <string>
-#include <vector>
 #include <mutex>
+#include <string>
+#include <string_view>
+#include <vector>
 
-#include "perception/ui/components/tab_bar.h"
+#include "perception/ui/components/scroll_bar.h"
+#include "perception/ui/node.h"
 #include "perception/ui/point.h"
 
 extern "C" {
+#include <stddef.h>
+#include <stdint.h>
+#include "utils/errors.h"
 #include "netsurf/mouse.h"
+#include "netsurf/window.h"
 }
 
-namespace perception {
-namespace ui {
-namespace components {
-class InputBox;
-class Label;
-class ScrollBar;
-}
-}
-}
-
-struct gui_window {
-	gui_window() : is_alive(std::make_shared<bool>(true)), has_pending_hover(false), pending_hover_state(BROWSER_MOUSE_HOVER), hover_deferred(false), scroll({.x = 0.0f, .y = 0.0f}), pending_hover({.x = 0.0f, .y = 0.0f}), pending_scroll({.x = 0.0f, .y = 0.0f}), has_pending_scroll(false), scroll_deferred(false) {}
-	~gui_window() {
-		*is_alive = false;
-	}
-
-	struct browser_window *bw;
-	std::shared_ptr<::perception::ui::Node> tab_root_node;
-	std::shared_ptr<::perception::ui::Node> content_node;
-	std::shared_ptr<::perception::ui::components::ScrollBar> horizontal_scroll_bar;
-	std::shared_ptr<::perception::ui::components::ScrollBar> vertical_scroll_bar;
-	std::string title;
-	::perception::ui::Point scroll;
-
-	std::shared_ptr<bool> is_alive;
-	bool has_pending_hover;
-	::perception::ui::Point pending_hover;
-	browser_mouse_state pending_hover_state;
-	bool hover_deferred;
-
-	::perception::ui::Point pending_scroll;
-	bool has_pending_scroll;
-	bool scroll_deferred;
-	bool extent_deferred = false;
-	bool title_deferred = false;
-};
+struct browser_window;
 
 namespace netsurf {
 namespace perception {
 
-extern std::recursive_mutex netsurf_mutex;
+std::recursive_mutex& GetNetSurfMutex();
 
-extern std::shared_ptr<::perception::ui::Node> global_ui_window;
-extern std::shared_ptr<::perception::ui::components::TabBar> global_tab_bar;
-extern std::shared_ptr<::perception::ui::Node> viewport_container;
-extern ::perception::ui::components::InputBox *global_url_input;
-extern ::perception::ui::components::Label *global_status_label;
+class Window {
+ public:
+  Window();
+  ~Window();
 
-extern std::vector<struct gui_window*> open_tabs;
-extern size_t active_tab_index;
+  struct browser_window*& GetBrowserWindow() { return bw_; }
+  struct browser_window* GetBrowserWindow() const { return bw_; }
 
-void UpdateTabBar();
-void SwitchTab(size_t index);
-void CloseTab(size_t index);
-void UpdateScrollBars(struct gui_window* gw);
+  std::shared_ptr<::perception::ui::Node>& GetTabRootNode() {
+    return tab_root_node_;
+  }
+  const std::shared_ptr<::perception::ui::Node>& GetTabRootNode() const {
+    return tab_root_node_;
+  }
 
+  std::shared_ptr<::perception::ui::Node>& GetContentNode() {
+    return content_node_;
+  }
+  const std::shared_ptr<::perception::ui::Node>& GetContentNode() const {
+    return content_node_;
+  }
+
+  std::shared_ptr<::perception::ui::components::ScrollBar>&
+  GetHorizontalScrollBar() {
+    return horizontal_scroll_bar_;
+  }
+  const std::shared_ptr<::perception::ui::components::ScrollBar>&
+  GetHorizontalScrollBar() const {
+    return horizontal_scroll_bar_;
+  }
+
+  std::shared_ptr<::perception::ui::components::ScrollBar>&
+  GetVerticalScrollBar() {
+    return vertical_scroll_bar_;
+  }
+  const std::shared_ptr<::perception::ui::components::ScrollBar>&
+  GetVerticalScrollBar() const {
+    return vertical_scroll_bar_;
+  }
+
+  std::string& GetTitle() { return title_; }
+  const std::string& GetTitle() const { return title_; }
+
+  ::perception::ui::Point& GetScroll() { return scroll_; }
+  const ::perception::ui::Point& GetScroll() const { return scroll_; }
+
+  std::shared_ptr<bool>& GetIsAlive() { return is_alive_; }
+  const std::shared_ptr<bool>& GetIsAlive() const { return is_alive_; }
+
+  bool& GetHasPendingHover() { return has_pending_hover_; }
+  bool GetHasPendingHover() const { return has_pending_hover_; }
+
+  ::perception::ui::Point& GetPendingHover() { return pending_hover_; }
+  const ::perception::ui::Point& GetPendingHover() const { return pending_hover_; }
+
+  browser_mouse_state& GetPendingHoverState() { return pending_hover_state_; }
+  browser_mouse_state GetPendingHoverState() const {
+    return pending_hover_state_;
+  }
+
+  bool& GetHoverDeferred() { return hover_deferred_; }
+  bool GetHoverDeferred() const { return hover_deferred_; }
+
+  ::perception::ui::Point& GetPendingScroll() { return pending_scroll_; }
+  const ::perception::ui::Point& GetPendingScroll() const {
+    return pending_scroll_;
+  }
+
+  bool& GetHasPendingScroll() { return has_pending_scroll_; }
+  bool GetHasPendingScroll() const { return has_pending_scroll_; }
+
+  bool& GetScrollDeferred() { return scroll_deferred_; }
+  bool GetScrollDeferred() const { return scroll_deferred_; }
+
+  bool& GetExtentDeferred() { return extent_deferred_; }
+  bool GetExtentDeferred() const { return extent_deferred_; }
+
+  bool& GetTitleDeferred() { return title_deferred_; }
+  bool GetTitleDeferred() const { return title_deferred_; }
+
+ private:
+  struct browser_window* bw_ = nullptr;
+  std::shared_ptr<::perception::ui::Node> tab_root_node_;
+  std::shared_ptr<::perception::ui::Node> content_node_;
+  std::shared_ptr<::perception::ui::components::ScrollBar>
+      horizontal_scroll_bar_;
+  std::shared_ptr<::perception::ui::components::ScrollBar> vertical_scroll_bar_;
+  std::string title_;
+  ::perception::ui::Point scroll_{.x = 0.0f, .y = 0.0f};
+
+  std::shared_ptr<bool> is_alive_;
+  bool has_pending_hover_ = false;
+  ::perception::ui::Point pending_hover_{.x = 0.0f, .y = 0.0f};
+  browser_mouse_state pending_hover_state_ = BROWSER_MOUSE_HOVER;
+  bool hover_deferred_ = false;
+
+  ::perception::ui::Point pending_scroll_{.x = 0.0f, .y = 0.0f};
+  bool has_pending_scroll_ = false;
+  bool scroll_deferred_ = false;
+  bool extent_deferred_ = false;
+  bool title_deferred_ = false;
+};
+
+extern struct gui_window_table perception_window_table;
 
 }  // namespace perception
 }  // namespace netsurf
 
-#define NETSURF_LOCK std::scoped_lock lock(::netsurf::perception::netsurf_mutex)
+struct gui_window : public ::netsurf::perception::Window {
+  using Window::Window;
+};
+
+#define NETSURF_LOCK \
+  std::scoped_lock lock(::netsurf::perception::GetNetSurfMutex())

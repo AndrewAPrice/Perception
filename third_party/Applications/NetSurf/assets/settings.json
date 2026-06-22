@@ -1,0 +1,50 @@
+{
+  "name": "NetSurf",
+  "groups": [
+    {
+      "title": "General Browser Settings",
+      "settings": [
+        {
+          "key": "homepage",
+          "name": "Homepage URL",
+          "type": "string",
+          "description": "The URL loaded when the browser starts",
+          "default": "about:welcome",
+          "page": "Applications>NetSurf"
+        },
+        {
+          "key": "enable_javascript",
+          "name": "Enable JavaScript",
+          "type": "bool",
+          "description": "Enable JavaScript execution on webpages",
+          "default": true,
+          "page": "Applications>NetSurf"
+        },
+        {
+          "key": "load_images",
+          "name": "Load Images",
+          "type": "bool",
+          "description": "Load and display images on web pages",
+          "default": true,
+          "page": "Applications>NetSurf"
+        },
+        {
+          "key": "block_advertisements",
+          "name": "Block Advertisements",
+          "type": "bool",
+          "description": "Block advertisement elements on web pages",
+          "default": false,
+          "page": "Applications>NetSurf"
+        },
+        {
+          "key": "do_not_track",
+          "name": "Do Not Track",
+          "type": "bool",
+          "description": "Send Do Not Track header with web requests",
+          "default": true,
+          "page": "Applications>NetSurf"
+        }
+      ]
+    }
+  ]
+}

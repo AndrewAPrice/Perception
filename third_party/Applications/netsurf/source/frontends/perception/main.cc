@@ -38,6 +38,7 @@ extern "C" {
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "settings.h"
+#include "tabs.h"
 
 using ::perception::HandOverControl;
 
@@ -49,7 +50,7 @@ bool NslogStreamConfigure(FILE* fptr) {
 }
 
 bool ProcessCmdline(int argc, char* argv[]) {
-  if (argc > 1) feurl = argv[1];
+  if (argc > 1) ::netsurf::perception::SetInitialUrl(argv[1]);
   return true;
 }
 
@@ -125,7 +126,7 @@ int main(int argc, char* argv[]) {
     Die("NetSurf operation table failed registration");
   }
 
-  respaths = netsurf::perception::FbInitResourcePath(nullptr);
+  netsurf::perception::FbInitResourcePath(nullptr);
 
   nslog_init(NslogStreamConfigure, &argc, argv);
 
@@ -134,13 +135,13 @@ int main(int argc, char* argv[]) {
   if (ret != NSERROR_OK) {
     Die("Options failed to initialise");
   }
-  options = filepath_find(respaths, "Choices");
+  options = filepath_find((char**)netsurf::perception::GetResourcePaths(), "Choices");
   nsoption_read(options, nsoptions);
   free(options);
   nsoption_commandline(&argc, argv, nsoptions);
 
   /* message init */
-  messages = filepath_find(respaths, "FatMessages");
+  messages = filepath_find((char**)netsurf::perception::GetResourcePaths(), "FatMessages");
   if (messages) {
     ::perception::DebugPrinterSingleton
         << "NetSurf Native: Found FatMessages at " << messages << "\n";
@@ -177,7 +178,7 @@ int main(int argc, char* argv[]) {
 
   urldb_load_cookies(nsoption_charp(cookie_file));
 
-  ret = nsurl_create(feurl, &url);
+  ret = nsurl_create(netsurf::perception::GetInitialUrl(), &url);
   if (ret == NSERROR_OK) {
     ret = browser_window_create(BW_CREATE_HISTORY, url, NULL, NULL, &bw);
     nsurl_unref(url);

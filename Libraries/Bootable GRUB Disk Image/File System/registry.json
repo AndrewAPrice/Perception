@@ -91,7 +91,7 @@
           true
         ],
         [
-          "netsurf",
+          "NetSurf",
           "CanReadAllFiles",
           true
         ],
@@ -117,7 +117,7 @@
         ]
       ]
     },
-    "netsurf": {
+    "NetSurf": {
       "homepage": "about:welcome",
       "enable_javascript": true,
       "load_images": true,

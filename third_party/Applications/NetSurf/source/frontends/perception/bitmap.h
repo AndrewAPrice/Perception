@@ -14,20 +14,26 @@
 
 #pragma once
 
-extern "C" {
-#include "utils/errors.h"
-#include "netsurf/plotters.h"
-}
+#include "include/core/SkBitmap.h"
+#include "include/core/SkImage.h"
 
-#include "include/core/SkCanvas.h"
+// Global-namespace structure for Skia bitmap mappings
+struct bitmap {
+  SkBitmap sk_bitmap;
+  sk_sp<SkImage> cached_image;
+};
+
+extern "C" {
+#include <stddef.h>
+#include <stdint.h>
+#include "utils/errors.h"
+#include "netsurf/bitmap.h"
+}
 
 namespace netsurf {
 namespace perception {
 
-extern const struct plotter_table skia_plotters;
-
-void SetActiveCanvas(SkCanvas *canvas);
-SkCanvas *GetActiveCanvas();
+extern struct gui_bitmap_table skia_bitmap_table;
 
 }  // namespace perception
 }  // namespace netsurf

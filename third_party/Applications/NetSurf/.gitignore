@@ -1,0 +1,6 @@
+# Third party files
+public
+
+# Generated files
+.clangd
+.third_party_files.json

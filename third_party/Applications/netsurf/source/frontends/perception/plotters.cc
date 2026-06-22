@@ -46,6 +46,8 @@ namespace netsurf {
 namespace perception {
 namespace {
 
+SkCanvas* active_canvas = nullptr;
+
 /* Color Conversion */
 SkColor ConvertColor(colour c) {
   uint8_t r = (c) & 0xff;
@@ -298,7 +300,8 @@ nserror PlotBitmap(const struct redraw_context* ctx, struct bitmap* bitmap,
 
 }  // namespace
 
-SkCanvas* active_canvas = nullptr;
+void SetActiveCanvas(SkCanvas* canvas) { active_canvas = canvas; }
+SkCanvas* GetActiveCanvas() { return active_canvas; }
 
 const struct plotter_table skia_plotters = {
     .clip = PlotClip,

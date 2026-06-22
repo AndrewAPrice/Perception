@@ -14,20 +14,23 @@
 
 #pragma once
 
-extern "C" {
-#include "utils/errors.h"
-#include "netsurf/plotters.h"
-}
+#include "include/core/SkFont.h"
 
-#include "include/core/SkCanvas.h"
+struct plot_font_style;
+
+extern "C" {
+#include <stddef.h>
+#include <stdint.h>
+#include "utils/errors.h"
+#include "netsurf/layout.h"
+}
 
 namespace netsurf {
 namespace perception {
 
-extern const struct plotter_table skia_plotters;
+SkFont* GetSkiaFont(const struct plot_font_style* fstyle);
 
-void SetActiveCanvas(SkCanvas *canvas);
-SkCanvas *GetActiveCanvas();
+extern struct gui_layout_table skia_layout_table;
 
 }  // namespace perception
 }  // namespace netsurf

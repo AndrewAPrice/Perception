@@ -12,22 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "clipboard.h"
+
+#include <cstddef>
 
 extern "C" {
 #include "utils/errors.h"
-#include "netsurf/plotters.h"
+#include "netsurf/clipboard.h"
 }
-
-#include "include/core/SkCanvas.h"
 
 namespace netsurf {
 namespace perception {
 
-extern const struct plotter_table skia_plotters;
-
-void SetActiveCanvas(SkCanvas *canvas);
-SkCanvas *GetActiveCanvas();
+struct gui_clipboard_table perception_clipboard_table = {
+    .get =
+        [](char** buffer, size_t* length) {
+          *buffer = NULL;
+          *length = 0;
+        },
+    .set = [](const char* buffer, size_t length, nsclipboard_styles styles[],
+              int n_styles) {}};
 
 }  // namespace perception
 }  // namespace netsurf

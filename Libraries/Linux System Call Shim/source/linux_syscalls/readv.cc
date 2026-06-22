@@ -17,8 +17,6 @@
 #include <errno.h>
 #include <sys/uio.h>
 
-#include "perception/debug.h"
-
 #include "files.h"
 #include "perception/storage_manager.h"
 #include "status.h"
@@ -61,20 +59,12 @@ long ReadSocket(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
   request.non_blocking = descriptor->socket.non_blocking;
   auto status_or_res = descriptor->socket.socket.Receive(request);
 
-  if (!status_or_res) {
-    ::perception::DebugPrinterSingleton << "ReadSocket: Receive RPC failed!\n";
-    return -ECONNRESET;
-  }
+  if (!status_or_res) return -ECONNRESET;
 
   if (status_or_res->data.empty()) {
     if (status_or_res->closed) {
-      ::perception::DebugPrinterSingleton
-          << "ReadSocket: socket closed (EOF)\n";
       return 0;
     } else {
-      ::perception::DebugPrinterSingleton
-          << "ReadSocket: no data, non_blocking=" << (int64)request.non_blocking
-          << " -> returning -EAGAIN (" << (int64)-EAGAIN << ")\n";
       return -EAGAIN;
     }
   }

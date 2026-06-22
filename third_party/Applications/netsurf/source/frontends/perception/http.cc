@@ -728,25 +728,21 @@ static void run_ssl_engine(http_fetch_context* ctx) {
       size_t len;
       unsigned char* buf = br_ssl_engine_recvrec_buf(&ctx->sc.eng, &len);
       if (len > 0) {
-        std::cout << "NetSurf SSL: recvrec_buf wants " << len << " bytes"
-                  << std::endl;
         ssize_t recved = read(ctx->sock, buf, len);
         if (recved < 0) {
           if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            std::cout << "NetSurf SSL: Socket read failed! recved = " << recved
+            std::cout << "SSL socket read failed! recved = " << recved
                       << ", errno = " << errno << std::endl;
             ctx->failed = true;
             ctx->failure_reason = "SocketReadFailed";
             return;
           }
         } else if (recved == 0) {
-          std::cout << "NetSurf SSL: Socket EOF during read" << std::endl;
+          std::cout << "SSL socket EOF during read" << std::endl;
           ctx->socket_closed = true;
           br_ssl_engine_close(&ctx->sc.eng);
           did_work = true;
         } else {
-          std::cout << "NetSurf SSL: Read " << recved
-                    << " encrypted bytes from socket" << std::endl;
           br_ssl_engine_recvrec_ack(&ctx->sc.eng, recved);
           did_work = true;
         }

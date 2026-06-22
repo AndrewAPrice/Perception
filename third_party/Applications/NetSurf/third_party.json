@@ -1,0 +1,168 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/netsurf-browser/netsurf.git",
+            "type": "git",
+            "placeholder": "git"
+        },
+        {
+            "url": "https://github.com/netsurf-browser/nsgenbind.git",
+            "type": "git",
+            "placeholder": "nsgenbind"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/content",
+            "destination": "source/content",
+            "recursive": true,
+            "extensions": [
+                ".c",
+                ".h"
+            ],
+            "replace": [
+                {
+                    "file": "source/content/fetch.c",
+                    "replacements": [
+                        [
+                            "#include \"content/fetchers/curl.h\"",
+                            "#ifdef WITH_CURL\n#include \"content/fetchers/curl.h\"\n#endif"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/content/handlers/html/private.h",
+                    "replacements": [
+                        [
+                            "bool html_begin_conversion(html_content *htmlc);",
+                            "bool html_begin_conversion(html_content *htmlc);\nvoid html_begin_conversion_callback(void *pw);"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/content/handlers/html/html.c",
+                    "replacements": [
+                        [
+                            "bool\nhtml_begin_conversion(html_content *htmlc)",
+                            "void html_begin_conversion_callback(void *pw)\n{\n\thtml_content *htmlc = pw;\n\t(void) html_begin_conversion(htmlc);\n}\n\nbool\nhtml_begin_conversion(html_content *htmlc)"
+                        ],
+                        [
+                            "{\n\tdom_node *html;\n\tnserror ns_error;\n\tstruct form *f;\n\tdom_exception exc; /* returned by libdom functions */\n\tdom_string *node_name = NULL;\n\tdom_hubbub_error error;",
+                            "{\n\tdom_node *html;\n\tnserror ns_error;\n\tstruct form *f;\n\tdom_exception exc; /* returned by libdom functions */\n\tdom_string *node_name = NULL;\n\tdom_hubbub_error error;\n\n\t/* Reset mutation semaphore in case of leaks due to JS longjmp */\n\tif (htmlc->document != NULL) {\n\t\tdom_document_reset_dispatching_mutation(htmlc->document);\n\t}"
+                        ],
+                        [
+                            "NSLOG(netsurf, INFO, \"Parsing failed\");",
+                            "NSLOG(netsurf, INFO, \"Parsing failed with error: %d\", error);"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/content/handlers/html/css.c",
+                    "replacements": [
+                        [
+                            "html_begin_conversion(parent);",
+                            "guit->misc->schedule(0, html_begin_conversion_callback, parent);"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/content/handlers/html/script.c",
+                    "replacements": [
+                        [
+                            "#include \"html/private.h\"",
+                            "#include \"html/private.h\"\n#include \"netsurf/misc.h\"\n#include \"desktop/gui_internal.h\""
+                        ],
+                        [
+                            "html_begin_conversion(parent);",
+                            "guit->misc->schedule(0, html_begin_conversion_callback, parent);"
+                        ],
+                        [
+                            "assert(i != parent->scripts_count);",
+                            "if (i == parent->scripts_count) return NSERROR_OK;"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/desktop",
+            "destination": "source/desktop",
+            "recursive": true,
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/utils",
+            "destination": "source/utils",
+            "recursive": true,
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/frontends/framebuffer",
+            "destination": "source/frontends/framebuffer",
+            "recursive": true,
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include",
+            "destination": "public",
+            "recursive": true,
+            "replace": [
+                {
+                    "file": "public/netsurf/browser_window.h",
+                    "replacements": [
+                        [
+                            "enum content_debug;",
+                            "#ifdef __cplusplus\nenum content_debug : int;\n#else\nenum content_debug;\n#endif"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/resources",
+            "destination": "assets/res",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/content/handlers/javascript/WebIDL",
+            "destination": "source/content/handlers/javascript/WebIDL",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/content/handlers/javascript/duktape",
+            "destination": "source/content/handlers/javascript/duktape",
+            "recursive": true,
+            "extensions": [
+                ".bnd",
+                ".js"
+            ]
+        },
+        {
+            "operation": "execute",
+            "command": "python3 ${@}/generate_bindings.py ${@} ${nsgenbind}",
+            "inputs": [
+                "source/content/handlers/javascript/duktape/netsurf.bnd"
+            ],
+            "outputs": [
+                "source/content/handlers/javascript/duktape/generated/binding.h"
+            ]
+        }
+    ]
+}

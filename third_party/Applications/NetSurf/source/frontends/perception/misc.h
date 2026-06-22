@@ -15,19 +15,21 @@
 #pragma once
 
 extern "C" {
+#include <stddef.h>
+#include <stdint.h>
 #include "utils/errors.h"
-#include "netsurf/plotters.h"
+#include "netsurf/misc.h"
 }
-
-#include "include/core/SkCanvas.h"
 
 namespace netsurf {
 namespace perception {
 
-extern const struct plotter_table skia_plotters;
+const char* GetInitialUrl();
+void SetInitialUrl(const char* url);
 
-void SetActiveCanvas(SkCanvas *canvas);
-SkCanvas *GetActiveCanvas();
+void gui_quit();
+
+extern struct gui_misc_table perception_misc_table;
 
 }  // namespace perception
 }  // namespace netsurf
