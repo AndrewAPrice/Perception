@@ -82,6 +82,21 @@ void Node::RemoveChildren() {
   Invalidate();
 }
 
+void Node::ReplaceChildren(
+    const std::vector<std::shared_ptr<Node>>& new_children) {
+  for (auto child : children_) child->SetParent({});
+  children_.clear();
+  YGNodeRemoveAllChildren(yoga_node_);
+
+  for (auto child : new_children) {
+    if (!child || YGNodeHasMeasureFunc(yoga_node_)) continue;
+    child->SetParent(shared_from_this());
+    YGNodeInsertChild(yoga_node_, child->yoga_node_, children_.size());
+    children_.push_back(child);
+  }
+  Invalidate();
+}
+
 const std::list<std::shared_ptr<Node>>& Node::GetChildren() {
   return children_;
 }

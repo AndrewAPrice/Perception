@@ -6,6 +6,7 @@
       "settings": [
         {
           "key": "associations",
+          "name": "File Associations",
           "type": [
             {
               "name": "Extension",
@@ -22,13 +23,16 @@
               "dir",
               "File Manager"
             ]
-          ]
+          ],
+          "page": "System Behavior>File Associations"
         },
         {
           "key": "launchOnBoot",
+          "name": "Startup Applications",
           "type": "array",
           "description": "List of applications to launch on boot",
-          "default": []
+          "default": [],
+          "page": "System Behavior>Startup"
         }
       ]
     }

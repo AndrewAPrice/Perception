@@ -72,4 +72,9 @@ void FileSystemMountEvent::Serialize(serialization::Serializer& serializer) {
   serializer.String("mount_point", mount_point);
 }
 
+void GetMountedFileSystemsResponse::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.ArrayOfStrings("mount_points", mount_points);
+}
+
 }  // namespace perception

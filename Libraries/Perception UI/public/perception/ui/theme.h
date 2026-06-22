@@ -202,6 +202,9 @@ extern float kTreeViewToggleHeight;
 extern float kTreeViewItemHorizontalPadding;
 extern float kTreeViewItemGap;
 extern float kTreeViewItemBorderRadius;
+extern float kTreeViewPadding;
+extern uint32 kTreeViewItemTextColor;
+extern uint32 kTreeViewBackgroundColor;
 
 }  // namespace ui
 }  // namespace perception

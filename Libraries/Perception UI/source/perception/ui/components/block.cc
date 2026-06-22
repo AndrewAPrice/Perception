@@ -125,9 +125,8 @@ void Block::Draw(const DrawContext& draw_context) {
 
   if (clip_contents_) {
     draw_context.skia_canvas->save();
-    SkPath path;
-    path.RRect({x, y, x + width, y + height}, border_radius_,
-                      border_radius_);
+    SkPath path = SkPath::RRect({x, y, x + width, y + height}, border_radius_,
+                                border_radius_);
     draw_context.skia_canvas->clipPath(path, SkClipOp::kIntersect, true);
   }
 

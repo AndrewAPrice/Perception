@@ -100,7 +100,7 @@ class ServiceServer {
   template <class ResponseType>
   void SendBackResponse(ResponseType& response, ProcessId sender,
                         const MessageData& message) {
-    MessageData response_data;
+    MessageData response_data = {};
     response_data.message_id = message.param2;
     response_data.metadata = 0;
     response_data.param1 =

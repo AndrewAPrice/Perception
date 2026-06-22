@@ -77,6 +77,10 @@ void ResizableContainer::Initialize(YGFlexDirection direction) {
   strong_node->GetLayout().SetGap(0.0f);
 
   for (size_t i = 0; i < items_.size(); ++i) {
+    if (IsItemFixed(items_[i])) {
+      items_[i]->GetLayout().SetFlexGrow(0.0f);
+      items_[i]->GetLayout().SetFlexShrink(0.0f);
+    }
     if (i > 0) {
       auto splitter = BuildSplitter(i - 1);
       strong_node->AddChild(splitter);

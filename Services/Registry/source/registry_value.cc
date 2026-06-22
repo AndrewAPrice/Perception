@@ -156,7 +156,7 @@ void RegistryValue::NotifyListeners() {
 
   if (listeners_to_notify.empty()) return;
 
-  ::perception::MessageData msg;
+  ::perception::MessageData msg = {};
   msg.param1 = static_cast<size_t>(Status::OK);
 
   std::vector<ListenerInfo> terminated_listeners;

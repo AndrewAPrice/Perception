@@ -49,6 +49,9 @@ class StorageManager : public ::perception::StorageManager::Server {
   virtual ::perception::Status StopListeningForMounts(
       const ::perception::FileSystemMountListener::Client& listener) override;
 
+  virtual StatusOr<::perception::GetMountedFileSystemsResponse>
+  GetMountedFileSystems() override;
+
   static void BroadcastMount(std::string_view mount_point);
 
   struct MountListenerInfo {

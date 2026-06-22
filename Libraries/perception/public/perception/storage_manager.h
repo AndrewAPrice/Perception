@@ -114,6 +114,12 @@ class FileSystemMountEvent : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
+class GetMountedFileSystemsResponse : public serialization::Serializable {
+ public:
+  std::vector<std::string> mount_points;
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
 #define METHOD_LIST(X) X(1, FileSystemMounted, void, FileSystemMountEvent)
 DEFINE_PERCEPTION_SERVICE(FileSystemMountListener,
                           "perception.FileSystemMountListener", METHOD_LIST)
@@ -128,7 +134,8 @@ DEFINE_PERCEPTION_SERVICE(FileSystemMountListener,
   X(5, GetFileStatistics, FileStatistics, RequestWithFilePath)          \
   X(6, ListenForMounts, void, FileSystemMountListener::Client)          \
   X(7, StopListeningForMounts, void, FileSystemMountListener::Client)   \
-  X(8, ReadLink, RequestWithFilePath, RequestWithFilePath)
+  X(8, ReadLink, RequestWithFilePath, RequestWithFilePath)              \
+  X(9, GetMountedFileSystems, GetMountedFileSystemsResponse, void)
 
 DEFINE_PERCEPTION_SERVICE(StorageManager, "perception.StorageManager",
                           METHOD_LIST)

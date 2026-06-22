@@ -114,6 +114,7 @@ class Node : public std::enable_shared_from_this<Node> {
   void AddChild(std::shared_ptr<Node> child);
   void RemoveChild(std::shared_ptr<Node> child);
   void RemoveChildren();
+  void ReplaceChildren(const std::vector<std::shared_ptr<Node>>& new_children);
   const std::list<std::shared_ptr<Node>>& GetChildren();
 
   void Draw(DrawContext& draw_context);
@@ -348,6 +349,13 @@ class Node : public std::enable_shared_from_this<Node> {
   template <typename C>
   void ApplySingleModifier(std::weak_ptr<C>* component_ptr) {
     *component_ptr = GetOrAdd<C>();
+  }
+
+  void ApplySingleModifier(Node** node_ptr) { *node_ptr = this; }
+
+  template <typename C>
+  void ApplySingleModifier(C** component_ptr) {
+    *component_ptr = GetOrAdd<C>().get();
   }
 
   // Applies a single modifier that should match a function that takes a

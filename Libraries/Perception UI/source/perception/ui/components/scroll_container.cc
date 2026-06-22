@@ -67,12 +67,6 @@ void ScrollContainer::SetContentAndContainerNodes(
   if (!strong_scroll_container || !strong_scroll_content) return;
 
   std::weak_ptr<ScrollContainer> weak_this = shared_from_this();
-  auto invalidation_handler = [weak_this] {
-    if (auto strong_this = weak_this.lock()) strong_this->UpdateScrollBars();
-  };
-
-  strong_scroll_container->OnInvalidate(invalidation_handler);
-  strong_scroll_content->OnInvalidate(invalidation_handler);
 
   strong_scroll_container->OnDraw([weak_this](const DrawContext& context) {
     if (auto strong_this = weak_this.lock()) strong_this->UpdateScrollBars();
@@ -158,19 +152,6 @@ void ScrollContainer::UpdateScrollBars() {
 
   // Return if there are no scroll bars.
   if (!scroll_bars[0] && !scroll_bars[1]) return;
-
-  // Force dirty the scroll content's Yoga layout so that Yoga does NOT reuse
-  // stale cached layout bounds after content shifts or resizing events!
-  auto scroll_content = scroll_content_.lock();
-  if (scroll_content) {
-    auto layout = scroll_content->GetLayout();
-    if (scroll_bars[1]) {
-      layout.SetHeightAuto();
-    }
-    if (scroll_bars[0]) {
-      layout.SetWidthAuto();
-    }
-  }
 
   Point content_position = ContentPosition();
   Size content_size = ContentSize();

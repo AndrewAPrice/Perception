@@ -101,12 +101,12 @@ void DealWithUnhandledMessage(ProcessId sender,
   if (((message_data.metadata >> 1) & 0b11) != 0) {
     // This is an RPC that expects a response. Respond to indicate that the
     // service or channel doesn't exist.
-    MessageData message_data;
-    message_data.message_id = message_data.param1;
-    message_data.metadata = 0;
-    message_data.param1 = (size_t)Status::SERVICE_DOESNT_EXIST;
+    MessageData response_data = {};
+    response_data.message_id = message_data.param2;
+    response_data.metadata = 0;
+    response_data.param1 = (size_t)Status::SERVICE_DOESNT_EXIST;
 
-    SendMessage(sender, message_data);
+    SendMessage(sender, response_data);
   }
 }
 

@@ -346,22 +346,13 @@ UIDebuggerWindow::UIDebuggerWindow(
       [](Layout& layout) {
         layout.SetWidth(240.0f);
         layout.SetHeightPercent(100.0f);
-        layout.SetFlexGrow(1.0f);
-        layout.SetFlexShrink(1.0f);
         layout.SetMinHeight(0.0f);
       },
       [](Block& block) {
-        block.SetFillColor(0xFFFFFFFF);
         block.SetBorderColor(0xFFE5E7EB);
         block.SetBorderWidth(1.0f);
       },
-      search_container,
-      ScrollContainer::BidirectionalScrollContainer(
-          tree_container_, [](Layout& layout) {
-            layout.SetFlexGrow(1.0f);
-            layout.SetFlexShrink(1.0f);
-            layout.SetMinHeight(0.0f);
-          }));
+      search_container, tree_container_);
 
   canvas_ = Container::VerticalContainer(
       [](ResizableContainerItem& item) {
@@ -549,10 +540,14 @@ void UIDebuggerWindow::LeaveLiveMode() {
 
 void UIDebuggerWindow::RebuildTree() {
   if (!tree_container_) return;
-  tree_container_->RemoveChildren();
-  if (root_node_) {
-    if (auto item = BuildTree(root_node_)) {
-      tree_container_->AddChild(item);
+  auto tv = tree_container_->Get<TreeView>();
+  if (tv && tv->GetContentContainer()) {
+    auto content = tv->GetContentContainer();
+    content->RemoveChildren();
+    if (root_node_) {
+      if (auto item = BuildTree(root_node_)) {
+        content->AddChild(item);
+      }
     }
   }
 }
@@ -578,18 +573,7 @@ std::shared_ptr<Node> UIDebuggerWindow::BuildTree(
     }
   }
 
-  uint32 text_color =
-      (!search_query_.empty() && this_matches) ? 0xFF2563EB : 0xFF111827;
-
-  auto label =
-      Label::BasicLabel(label_text, [text_color, this_matches, this](Label& l) {
-        l.SetColor(text_color);
-        if (!search_query_.empty() && this_matches) {
-          l.SetFont(GetBold12UiFont());
-        }
-      });
-
-  auto item = TreeViewItem::Item(label, children);
+  auto item = TreeViewItem::Item(label_text, children);
 
   if (auto tv_item = item->Get<TreeViewItem>()) {
     tv_item->OnSelect([this, node]() {

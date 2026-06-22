@@ -14,13 +14,14 @@
 #pragma once
 #include <memory>
 
+#include "perception/type_id.h"
 #include "perception/ui/components/container.h"
 #include "perception/ui/components/scroll_bar.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
 #include "perception/ui/point.h"
 #include "perception/ui/size.h"
-#include "perception/type_id.h"
+#include "perception/ui/theme.h"
 
 namespace perception {
 namespace ui {
@@ -68,6 +69,8 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
         ScrollBar::VerticalScrollBar(&vertical_scroll_bar));
 
     scroll_content->GetLayout().SetFlexShrink(0.0f);
+    scroll_content->GetLayout().SetMargin(YGEdgeRight, kWidgetSpacing);
+    scroll_content->GetLayout().SetMargin(YGEdgeBottom, kWidgetSpacing);
     node->GetLayout().SetMinHeight(0.0f);
     node->GetLayout().SetMinWidth(0.0f);
     node->GetLayout().SetFlexShrink(1.0f);
@@ -88,7 +91,10 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
                                                 scroll_container_node);
           container.SetVerticalScrollBar(vertical_scroll_bar);
         },
-        [](Layout& layout) { layout.SetGap(0.0f); },
+        [](Layout& layout) {
+          layout.SetGap(0.0f);
+          layout.SetPadding(YGEdgeBottom, kWidgetSpacing);
+        },
         Node::Empty(
             [](Layout& layout) {
               layout.SetOverflow(YGOverflowScroll);
@@ -100,6 +106,7 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
         ScrollBar::VerticalScrollBar(&vertical_scroll_bar));
 
     scroll_content->GetLayout().SetFlexShrink(0.0f);
+    scroll_content->GetLayout().SetMargin(YGEdgeRight, kWidgetSpacing);
     node->GetLayout().SetMinHeight(0.0f);
     node->GetLayout().SetFlexShrink(1.0f);
 
@@ -119,7 +126,10 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
                                                 scroll_container_node);
           container.SetHorizontalScrollBar(horizontal_scroll_bar);
         },
-        [](Layout& layout) { layout.SetGap(0.0f); },
+        [](Layout& layout) {
+          layout.SetGap(0.0f);
+          layout.SetPadding(YGEdgeRight, kWidgetSpacing);
+        },
         Node::Empty(
             [](Layout& layout) {
               layout.SetOverflow(YGOverflowScroll);
@@ -131,6 +141,7 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
         ScrollBar::HorizontalScrollBar(&horizontal_scroll_bar));
 
     scroll_content->GetLayout().SetFlexShrink(0.0f);
+    scroll_content->GetLayout().SetMargin(YGEdgeBottom, kWidgetSpacing);
     node->GetLayout().SetMinWidth(0.0f);
     node->GetLayout().SetFlexShrink(1.0f);
 

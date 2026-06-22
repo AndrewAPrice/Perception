@@ -37,7 +37,7 @@ class ServiceClient : public serialization::Serializable {
 
   template <class ResponseType, class RequestType>
   ResponseType SyncDispatch(const RequestType& request, size_t method_id) {
-    MessageData message;
+    MessageData message = {};
     if (!PrepareRequestMessageWithParameter<RequestType>(request, method_id,
                                                          message)) {
       return ResponseType(Status::OUT_OF_MEMORY);
@@ -47,7 +47,7 @@ class ServiceClient : public serialization::Serializable {
 
   template <class ResponseType, class RequestType>
   ResponseType SyncDispatch(size_t method_id) {
-    MessageData message;
+    MessageData message = {};
     PrepareRequestMessageWithoutParameters(method_id, message);
     return SyncDispatch<ResponseType>(message);
   }
@@ -55,7 +55,7 @@ class ServiceClient : public serialization::Serializable {
   template <class ResponseType, class RequestType>
   void AsyncDispatch(const RequestType& request, size_t method_id,
                      std::function<void(ResponseType)> on_response) {
-    MessageData message;
+    MessageData message = {};
     if (!PrepareRequestMessageWithParameter<RequestType>(request, method_id,
                                                          message)) {
       if (on_response) {
@@ -71,7 +71,7 @@ class ServiceClient : public serialization::Serializable {
   template <class ResponseType, class RequestType>
   void AsyncDispatch(size_t method_id,
                      std::function<void(ResponseType)> on_response) {
-    MessageData message;
+    MessageData message = {};
     PrepareRequestMessageWithoutParameters(method_id, message);
 
     AsyncDispatch<ResponseType>(message, on_response);

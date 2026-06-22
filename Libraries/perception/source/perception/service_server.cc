@@ -79,7 +79,7 @@ void ServiceServer::HandleUnknownRequest(ProcessId sender,
   if (message.param2 == SIZE_MAX) return;  // Dont care about a response.
 
   // Send back an unimplemented status.
-  MessageData response_data;
+  MessageData response_data = {};
   response_data.message_id = message.param2;
   response_data.metadata = 0;
   response_data.param1 = static_cast<size_t>(Status::UNIMPLEMENTED);

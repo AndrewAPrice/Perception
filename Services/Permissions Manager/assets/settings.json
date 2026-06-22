@@ -6,6 +6,7 @@
       "settings": [
         {
           "key": "granted_permissions",
+          "name": "Granted System Permissions",
           "type": [
             {
               "name": "Application",
@@ -21,7 +22,8 @@
             }
           ],
           "description": "System permissions granted to specific processes",
-          "default": []
+          "default": [],
+          "page": "Privacy & Security>System Permissions"
         }
       ]
     }

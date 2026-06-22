@@ -226,3 +226,12 @@ void StorageManager::BroadcastMount(std::string_view mount_point) {
     info.client.FileSystemMounted(event, nullptr);
   }
 }
+
+StatusOr<::perception::GetMountedFileSystemsResponse>
+StorageManager::GetMountedFileSystems() {
+  ::perception::GetMountedFileSystemsResponse response;
+  ForEachMountedFileSystem([&](std::string_view mount_point) {
+    response.mount_points.push_back(std::string(mount_point));
+  });
+  return response;
+}

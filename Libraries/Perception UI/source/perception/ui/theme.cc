@@ -210,6 +210,9 @@ float kTreeViewToggleHeight = 20.0f;
 float kTreeViewItemHorizontalPadding = 4.0f;
 float kTreeViewItemGap = 4.0f;
 float kTreeViewItemBorderRadius = 4.0f;
+float kTreeViewPadding = 8.0f;
+uint32 kTreeViewItemTextColor = 0xFF111827;
+uint32 kTreeViewBackgroundColor = 0xFFFFFFFF;
 
 }  // namespace ui
 }  // namespace perception

@@ -99,6 +99,7 @@ class Table : public UniqueIdentifiableType<Table> {
                 [](Layout& layout) {
                   layout.SetFlexDirection(YGFlexDirectionRow);
                   layout.SetFlexGrow(1.0f);
+                  layout.SetMargin(YGEdgeRight, kWidgetSpacing);
                 },
                 &header_container),
             Node::Empty(

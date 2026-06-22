@@ -13,7 +13,8 @@
             "r": 78,
             "g": 152,
             "b": 255
-          }
+          },
+          "page": "Appearance & Desktop>Background"
         }
       ]
     },
@@ -25,14 +26,16 @@
           "type": "string",
           "name": "UI Debugger Program",
           "description": "Program launched for UI debugging",
-          "default": "UI Debugger"
+          "default": "UI Debugger",
+          "page": "Appearance & Desktop>Window Manager"
         },
         {
           "key": "windowCloseTimeoutSeconds",
           "type": "integer",
           "name": "Window Close Timeout (Seconds)",
           "description": "Timeout in seconds before terminating a process after all its windows are closed",
-          "default": 10
+          "default": 10,
+          "page": "Appearance & Desktop>Window Manager"
         }
       ]
     }

@@ -23,6 +23,8 @@
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/container.h"
 #include "perception/ui/components/focusable.h"
+#include "perception/ui/components/label.h"
+#include "perception/ui/components/scroll_container.h"
 #include "perception/ui/node.h"
 #include "perception/ui/point.h"
 #include "perception/ui/theme.h"
@@ -44,12 +46,30 @@ class TreeView : public UniqueIdentifiableType<TreeView>,
 
   template <typename... Modifiers>
   static std::shared_ptr<Node> Create(Modifiers... modifiers) {
-    return Container::VerticalContainer(
+    auto content = Container::VerticalContainer([](Layout& layout) {
+      layout.SetWidthPercent(100.0f);
+      layout.SetGap(kTreeViewVerticalGap);
+      layout.SetPadding(YGEdgeAll, kTreeViewPadding);
+    });
+
+    auto scroll = ScrollContainer::BidirectionalScrollContainer(
+        content,
         [](Layout& layout) {
           layout.SetWidthPercent(100.0f);
-          layout.SetGap(kTreeViewVerticalGap);
+          layout.SetHeightPercent(100.0f);
+          layout.SetFlexGrow(1.0f);
+          layout.SetFlexShrink(1.0f);
+          layout.SetMinHeight(0.0f);
         },
-        [](TreeView&) {}, modifiers...);
+        [](Block& block) { block.SetFillColor(kTreeViewBackgroundColor); },
+        [content](TreeView& tv) { tv.content_container_ = content; },
+        modifiers...);
+
+    return scroll;
+  }
+
+  std::shared_ptr<Node> GetContentContainer() const {
+    return content_container_.lock();
   }
 
   void SetSelectedItem(std::shared_ptr<TreeViewItem> item,
@@ -82,6 +102,7 @@ class TreeView : public UniqueIdentifiableType<TreeView>,
 
  private:
   std::weak_ptr<Node> node_;
+  std::weak_ptr<Node> content_container_;
   std::weak_ptr<TreeViewItem> selected_item_;
   std::vector<std::function<void()>> on_select_;
   std::shared_ptr<Focusable> focusable_;
@@ -112,6 +133,16 @@ class TreeViewItem : public UniqueIdentifiableType<TreeViewItem>,
 
   void SetNode(std::weak_ptr<Node> node);
   std::weak_ptr<Node> GetNode() const;
+
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> Item(
+      std::string_view text,
+      const std::vector<std::shared_ptr<Node>>& children = {},
+      Modifiers... modifiers) {
+    auto label = Label::BasicLabel(
+        text, [](Label& label) { label.SetColor(kTreeViewItemTextColor); });
+    return Item(label, children, modifiers...);
+  }
 
   template <typename... Modifiers>
   static std::shared_ptr<Node> Item(
