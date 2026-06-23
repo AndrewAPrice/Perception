@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+#include <sys/time.h>
+
 namespace perception {
 namespace linux_syscalls {
 
-long select();
-
+long select(int nfds, void* readfds, void* writefds, void* exceptfds,
+            struct ::timeval* timeout);
 }
 }  // namespace perception

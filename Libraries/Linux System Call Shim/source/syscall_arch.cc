@@ -762,7 +762,9 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_name_to_handle_at:
       return ::perception::linux_syscalls::name_to_handle_at();
     case SYS_nanosleep:
-      return ::perception::linux_syscalls::nanosleep();
+      return ::perception::linux_syscalls::nanosleep(
+          reinterpret_cast<const struct timespec*>(a1),
+          reinterpret_cast<struct timespec*>(a2));
     case SYS_newfstatat:
       return ::perception::linux_syscalls::newfstatat(
           static_cast<int>(a1), reinterpret_cast<const char*>(a2),
@@ -915,7 +917,10 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_security:
       return ::perception::linux_syscalls::security();
     case SYS_select:
-      return ::perception::linux_syscalls::select();
+      return ::perception::linux_syscalls::select(
+          static_cast<int>(a1), reinterpret_cast<void*>(a2),
+          reinterpret_cast<void*>(a3), reinterpret_cast<void*>(a4),
+          reinterpret_cast<struct timeval*>(a5));
     case SYS_semctl:
       return ::perception::linux_syscalls::semctl();
     case SYS_semget:

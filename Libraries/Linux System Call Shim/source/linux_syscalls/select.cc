@@ -14,15 +14,24 @@
 
 #include "linux_syscalls/select.h"
 
-#include "perception/debug.h"
-#include <errno.h>
+#include <sys/time.h>
+
+#include "perception/time.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long select() {
-  perception::DebugPrinterSingleton << "System call select is unimplemented.\n";
-  return -ENOSYS;
+long select(int nfds, void* readfds, void* writefds, void* exceptfds,
+            struct ::timeval* timeout) {
+  if (timeout) {
+    long long microseconds =
+        static_cast<long long>(timeout->tv_sec) * 1000000LL +
+        static_cast<long long>(timeout->tv_usec);
+    if (microseconds > 0) {
+      SleepForDuration(std::chrono::microseconds(microseconds));
+    }
+  }
+  return 0;
 }
 
 }  // namespace linux_syscalls

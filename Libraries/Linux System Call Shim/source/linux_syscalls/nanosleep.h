@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
+#include <time.h>
+
 namespace perception {
 namespace linux_syscalls {
 
-long nanosleep();
-
+long nanosleep(const struct ::timespec* req, struct ::timespec* rem);
 }
 }  // namespace perception

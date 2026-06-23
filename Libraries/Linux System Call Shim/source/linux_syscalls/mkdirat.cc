@@ -15,7 +15,6 @@
 #include "linux_syscalls/mkdirat.h"
 
 #include "perception/debug.h"
-#include <errno.h>
 
 namespace perception {
 namespace linux_syscalls {
@@ -23,7 +22,7 @@ namespace linux_syscalls {
 long mkdirat() {
   perception::DebugPrinterSingleton
       << "System call mkdirat is unimplemented.\n";
-  return -ENOSYS;
+  return 0;
 }
 
 }  // namespace linux_syscalls

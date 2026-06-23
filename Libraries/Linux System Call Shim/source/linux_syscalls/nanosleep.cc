@@ -14,16 +14,22 @@
 
 #include "linux_syscalls/nanosleep.h"
 
-#include "perception/debug.h"
-#include <errno.h>
+#include <time.h>
+
+#include "perception/time.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long nanosleep() {
-  perception::DebugPrinterSingleton
-      << "System call nanosleep is unimplemented.\n";
-  return -ENOSYS;
+long nanosleep(const struct ::timespec* req, struct ::timespec* rem) {
+  if (req) {
+    long long microseconds = static_cast<long long>(req->tv_sec) * 1000000LL +
+                             static_cast<long long>(req->tv_nsec) / 1000LL;
+    if (microseconds > 0) {
+      SleepForDuration(std::chrono::microseconds(microseconds));
+    }
+  }
+  return 0;
 }
 
 }  // namespace linux_syscalls
