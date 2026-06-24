@@ -13,6 +13,12 @@
 // limitations under the License.
 
 #pragma once
+#include <limits.h>
+
+#include <climits>
+#ifndef INT_MAX
+#define INT_MAX __INT_MAX__
+#endif
 #include <exception>
 #include <iostream>
 #include <string>

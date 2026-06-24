@@ -56,21 +56,21 @@ class SocketImpl : public ::perception::network::Socket::Server,
         blocked_fiber_(nullptr) {}
 
   // Initiates an outbound TCP handshake connection or associates a UDP socket.
-  virtual ::perception::Status Connect(
+  virtual Status Connect(
       const ::perception::network::ConnectRequest& request) override;
 
   // Binds the socket to a local port.
-  virtual ::perception::Status Bind(
+  virtual Status Bind(
       const ::perception::network::BindRequest& request) override;
 
   // Places a TCP socket into passive listening mode.
-  virtual ::perception::Status Listen() override;
+  virtual Status Listen() override;
 
   // Blocks the executing fiber until a new inbound TCP connection is accepted.
   virtual StatusOr<::perception::network::AcceptResponse> Accept() override;
 
   // Transmits data payload over TCP or UDP.
-  virtual ::perception::Status Send(
+  virtual Status Send(
       const ::perception::network::SendRequest& request) override;
 
   // Retrieves buffered received payload bytes, blocking the fiber if empty.
@@ -78,7 +78,7 @@ class SocketImpl : public ::perception::network::Socket::Server,
       const ::perception::network::ReceiveRequest& request) override;
 
   // Initiates connection teardown (e.g., sending TCP FIN segment).
-  virtual ::perception::Status Close() override;
+  virtual Status Close() override;
 
   SocketType GetType() const;
   TcpState GetState() const;

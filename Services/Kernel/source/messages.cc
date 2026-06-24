@@ -18,13 +18,6 @@ namespace {
 // Magic number for when there are no messages queued.
 #define ID_FOR_NO_EVENTS 0xFFFFFFFFFFFFFFFF
 
-// Message status codes to send back to the sender:
-#define MS_SUCCESS 0
-#define MS_PROCESS_DOESNT_EXIST 1
-#define MS_OUT_OF_MEMORY 2
-#define MS_RECEIVERS_QUEUE_IS_FULL 3
-#define MS_UNIMPLEMENTED 4
-
 // Loads an message in to the thread.
 void LoadMessageIntoThread(Message* message, Thread* thread) {
   // Set the thread's registers to contain this message.
@@ -40,9 +33,6 @@ void LoadMessageIntoThread(Message* message, Thread* thread) {
 
   ObjectPool<Message>::Release(message);
 }
-
-// Is this a message that involves transferring memory pages?
-bool IsPagingMessage(size_t metadata) { return (metadata & 1) == 1; }
 
 // Sends an message to a process.
 void SendMessageToProcess(Message* message, Process* receiver) {
@@ -103,11 +93,78 @@ void SendKernelMessageToProcess(Process* receiver_process, size_t event_id,
   SendMessageToProcess(message, receiver_process);
 }
 
+// Sends an RPC response from the kernel to a process.
+void SendKernelRpcResponse(Process* receiver_process,
+                           size_t response_message_id, size_t callee_pid,
+                           size_t status) {
+  Message* message = ObjectPool<Message>::Allocate();
+  if (message == nullptr) return;
+
+  message->message_id = response_message_id;
+  message->sender_pid = callee_pid;
+  message->metadata = 2;  // Message type RESPONSE (10)
+  message->param1 = status;
+  message->param2 = 0xFFFFFFFF;
+  message->param3 = 0;
+  message->param4 = 0;
+  message->param5 = 0;
+
+  SendMessageToProcess(message, receiver_process);
+}
+
 // Sends an message from a thread. This is intended to be called from within a
 // syscall.
 void SendMessageFromThreadSyscall(Thread* sender_thread) {
   Process* sender_process = sender_thread->process;
   Registers& registers = sender_thread->registers;
+
+  size_t message_type = registers.rdx & 3;
+
+  if (message_type == 2) {
+    // Response to a call. Look up the message ID in
+    // rpcs_waiting_on_this_process.
+    size_t synthetic_response_message_id = registers.rax;
+    size_t caller_pid = registers.rbx;
+
+    RPC* candidate =
+        sender_process->rpcs_waiting_on_this_process.SearchForItemEqualToValue(
+            synthetic_response_message_id);
+    RPC* matching_rpc = nullptr;
+    if (candidate != nullptr && candidate->caller->pid == caller_pid) {
+      matching_rpc = candidate;
+    }
+
+    if (matching_rpc == nullptr) {
+      registers.rax = (size_t)Status::RESPONDING_TO_INVALID_RPC;
+      return;
+    }
+
+    Process* receiver_process = matching_rpc->caller;
+    size_t expected_message_id = matching_rpc->response_message_id;
+    receiver_process->rpcs_this_process_is_waiting_on.Remove(matching_rpc);
+    receiver_process->rpc_count--;
+    sender_process->rpcs_waiting_on_this_process.Remove(matching_rpc);
+    ObjectPool<RPC>::Release(matching_rpc);
+
+    Message* message = ObjectPool<Message>::Allocate();
+    if (message == nullptr) {
+      registers.rax = (size_t)Status::OUT_OF_MEMORY;
+      return;
+    }
+
+    message->message_id = expected_message_id;
+    message->sender_pid = sender_process->pid;
+    message->metadata = registers.rdx;
+    message->param1 = registers.rsi;
+    message->param2 = registers.r8;
+    message->param3 = registers.r9;
+    message->param4 = registers.r10;
+    message->param5 = registers.r12;
+
+    registers.rax = (size_t)Status::OK;
+    SendMessageToProcess(message, receiver_process);
+    return;
+  }
 
   // Find the receiver process, which maybe ourselves.
   Process* receiver_process = (registers.rbx == sender_process->pid)
@@ -116,98 +173,65 @@ void SendMessageFromThreadSyscall(Thread* sender_thread) {
 
   if (receiver_process == nullptr) {
     // Error, process doesn't exist.
-    registers.rax = MS_PROCESS_DOESNT_EXIST;
+    registers.rax = (size_t)Status::PROCESS_DOESNT_EXIST;
+    return;
+  }
+
+  if (message_type == 1 && sender_process->rpc_count >= 1024) {
+    // Call that will expect a response.
+    registers.rax = (size_t)Status::SENDERS_QUEUE_IS_FULL;
     return;
   }
 
   if (!CanProcessReceiveMessage(receiver_process)) {
     // Error, the receiver's queue is full.
-    registers.rax = MS_RECEIVERS_QUEUE_IS_FULL;
+    print << sender_process->name << " can't send to " << receiver_process->name
+          << " because the message queue is full.\n";
+    registers.rax = (size_t)Status::RECEIVERS_QUEUE_IS_FULL;
     return;
+  }
+
+  RPC* rpc = nullptr;
+  if (message_type == 1) {
+    rpc = ObjectPool<RPC>::Allocate();
+    if (rpc == nullptr) {
+      registers.rax = (size_t)Status::OUT_OF_MEMORY;
+      return;
+    }
   }
 
   Message* message = ObjectPool<Message>::Allocate();
   if (message == nullptr) {
+    if (rpc != nullptr) ObjectPool<RPC>::Release(rpc);
     // Error, out of memory.
-    registers.rax = MS_OUT_OF_MEMORY;
+    registers.rax = (size_t)Status::OUT_OF_MEMORY;
     return;
+  }
+
+  if (rpc != nullptr) {
+    rpc->caller = sender_process;
+    rpc->callee = receiver_process;
+    rpc->response_message_id = registers.rsi;
+    rpc->synthetic_response_message_id =
+        receiver_process->next_synthetic_rpc_response_message_id++;
+    sender_process->rpcs_this_process_is_waiting_on.AddBack(rpc);
+    sender_process->rpc_count++;
+    receiver_process->rpcs_waiting_on_this_process.Insert(rpc);
   }
 
   // Reads the message from the registers.
   message->message_id = registers.rax;
   message->sender_pid = sender_process->pid;
   message->metadata = registers.rdx;
-  message->param1 = registers.rsi;
+  message->param1 =
+      rpc != nullptr ? rpc->synthetic_response_message_id : registers.rsi;
   message->param2 = registers.r8;
   message->param3 = registers.r9;
-  if (IsPagingMessage(message->metadata) &&
-      receiver_process != sender_process) {
-    // Transfer memory pages.
-    // r10/param 4 = Address of the first memory page.
-    // r12/param 5 = Size of the message in pages.
-
-    // Figure out where to move the memory from and to.
-    size_t size_in_pages = registers.r12;
-    size_t source_virtual_address = registers.r10;
-    if (!IsPageAlignedAddress(source_virtual_address)) {
-      print << "SendMessageFromThreadSyscall called with non page aligned "
-               "address: "
-            << NumberFormat::Hexidecimal << source_virtual_address << '\n';
-      source_virtual_address =
-          RoundDownToPageAlignedAddress(source_virtual_address);
-    }
-    size_t destination_virtual_address =
-        receiver_process->virtual_address_space.FindAndReserveFreePageRange(
-            size_in_pages);
-
-    if (destination_virtual_address == OUT_OF_MEMORY) {
-      // Out of memory - release message and all source pages.
-      sender_process->virtual_address_space.ReleasePages(source_virtual_address,
-                                                         size_in_pages);
-      registers.rax = MS_OUT_OF_MEMORY;
-      ObjectPool<Message>::Release(message);
-      return;
-    }
-
-    // Move each page over.
-    for (size_t page = 0; page < size_in_pages; page++) {
-      // Get the physical address of this page.
-      size_t page_physical_address =
-          sender_process->virtual_address_space.GetPhysicalAddress(
-              source_virtual_address + page * PAGE_SIZE,
-              /*ignore_unownwed_pages=*/true);
-      if (page_physical_address == OUT_OF_MEMORY) {
-        // No memory was mapped to this area. Release message and all
-        // source and destination pages.
-        sender_process->virtual_address_space.ReleasePages(
-            source_virtual_address, size_in_pages);
-        sender_process->virtual_address_space.ReleasePages(
-            destination_virtual_address, size_in_pages);
-        registers.rax = MS_OUT_OF_MEMORY;
-        ObjectPool<Message>::Release(message);
-        return;
-      }
-
-      // Unmap the physical page from the old process.
-      sender_process->virtual_address_space.ReleasePages(
-          source_virtual_address + page * PAGE_SIZE, 1);
-
-      // Map the physical page to the new process.
-      receiver_process->virtual_address_space.MapPhysicalPageAt(
-          destination_virtual_address + page * PAGE_SIZE, page_physical_address,
-          /*own=*/true, true, false);
-    }
-
-    // Point our message to the new virtual address.
-    message->param4 = destination_virtual_address;
-    message->param5 = size_in_pages;
-  } else {
-    message->param4 = registers.r10;
-    message->param5 = registers.r12;
-  }
+  message->param4 = registers.r10;
+  message->param5 = registers.r12;
 
   // Send the message to the receiver.
-  registers.rax = MS_SUCCESS;
+  registers.rax = (size_t)Status::OK;
   SendMessageToProcess(message, receiver_process);
 }
 

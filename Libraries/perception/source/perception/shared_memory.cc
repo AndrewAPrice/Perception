@@ -323,9 +323,14 @@ bool SharedMemory::Join() {
   std::scoped_lock lock(mutex_);
   size_t size_in_pages = 0;
   JoinSharedMemory(shared_memory_id_, ptr_, size_in_pages, flags_);
+  if (size_in_pages == 0 || ptr_ == nullptr) {
+    shared_memory_id_ = 0;
+    ptr_ = nullptr;
+    size_in_bytes_ = 0;
+    return false;
+  }
   size_in_bytes_ = size_in_pages * kPageSize;
-
-  return size_in_bytes_ > 0;
+  return true;
 }
 
 bool SharedMemory::Grow(size_t size_in_bytes) {

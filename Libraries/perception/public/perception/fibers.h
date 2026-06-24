@@ -17,15 +17,13 @@
 #include <functional>
 #include <optional>
 
+#include "perception/messages.h"
 #include "perception/threads.h"
 #include "types.h"
 
 namespace perception {
 
 class Fiber;
-struct MessageData;
-struct MessageHandler;
-struct FiberLocalMessageHandler;
 class Scheduler;
 
 // Registers that need to be preserved between switching fibers.
@@ -63,9 +61,10 @@ class Fiber {
 
   // Creates a fiber around an entry point.
   static Fiber* Create(const std::function<void()>& function);
+  static Fiber* Create(std::function<void()>&& function);
 
   // Creates a fiber to invoke a message handler.
-  static Fiber* Create(std::shared_ptr<MessageHandler> message_handler,
+  static Fiber* Create(const std::shared_ptr<MessageHandler>& message_handler,
                        ProcessId senders_pid, const MessageData& message_data);
 
   // Switches to this fiber. This must only be called from the primary thread
@@ -88,6 +87,9 @@ class Fiber {
   // Returns a Fiber* object, either off the stack or a new one.
   static Fiber* Create();
 
+  // Prepares the fiber's stack lazily before execution.
+  void PrepareStack();
+
   // The state of the registers when we context switch.
   CalleePreservedRegisters registers_;
 
@@ -97,8 +99,14 @@ class Fiber {
   // The root function to run.
   std::function<void()> root_function_;
 
+  // Message handler data if this fiber was created to handle a message.
+  std::weak_ptr<MessageHandler> message_handler_;
+  ProcessId senders_pid_;
+  MessageData message_data_;
+
   // Is this fiber scheduled to run?
   bool is_scheduled_to_run_;
+  bool is_custom_fiber_;
 
   // We keep a stack of free fibers.
   union {
@@ -110,7 +118,7 @@ class Fiber {
   static void CallRootFunction(Fiber* fiber);
 
   // Calls the message handler for a fiber.
-  static void CallMessageHandler(FiberLocalMessageHandler* message_handler);
+  static void CallMessageHandler(Fiber* fiber);
 
   // Terminates the fiber after we're done calling the root
   // function.

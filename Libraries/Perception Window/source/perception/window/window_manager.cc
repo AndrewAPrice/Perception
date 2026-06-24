@@ -22,10 +22,12 @@ void CreateWindowRequest::Serialize(serialization::Serializer& serializer) {
   serializer.Serializable("Window", window);
   serializer.String("Title", title);
   serializer.Integer("Is resizable", is_resizable);
-  serializer.Integer("Hide window buttons", hide_window_buttons);
   serializer.Serializable("Desired size", desired_size);
   serializer.Serializable("Keyboard listener", keyboard_listener);
   serializer.Serializable("Mouse listener", mouse_listener);
+  serializer.Integer("Add title bar", add_title_bar);
+  serializer.Serializable("Minimum size", minimum_size);
+  serializer.Serializable("Maximum size", maximum_size);
 }
 
 void ColorSpace::Serialize(serialization::Serializer& serializer) {
@@ -80,5 +82,31 @@ void SetWindowCursorParameters::Serialize(
   serializer.Integer("Cursor", cursor);
 }
 
+void Rectangle::Serialize(serialization::Serializer& serializer) {
+  serializer.Integer("Min X", min_x);
+  serializer.Integer("Min Y", min_y);
+  serializer.Integer("Max X", max_x);
+  serializer.Integer("Max Y", max_y);
+}
+
+
+void GetDisplayBoundsResponse::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.ArrayOfSerializables("Bounds", bounds);
+}
+
+void SetWindowMinimumSizeRequest::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.Serializable("Window", window);
+  serializer.Serializable("Size", size);
+}
+
+void SetWindowMaximumSizeRequest::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.Serializable("Window", window);
+  serializer.Serializable("Size", size);
+}
+
 }  // namespace window
 }  // namespace perception
+// End of WindowManager serialization implementations.

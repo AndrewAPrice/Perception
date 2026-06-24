@@ -64,8 +64,8 @@ void SetTimerPhase(size_t hz) {
   WriteIOByte(0x40, divisor >> 8);
 }
 
-#ifndef TEST
 uint64 tsc_ticks_per_microsecond = 1;
+#ifndef TEST
 uint64 boot_tsc_value = 0;
 bool has_invariant_tsc = false;
 

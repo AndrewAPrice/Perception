@@ -29,7 +29,6 @@ using ::perception::FindFirstInstanceOfService;
 using ::perception::GetService;
 using ::perception::Launcher;
 using ::perception::ProcessId;
-using ::perception::Status;
 using ::perception::ui::Point;
 using ::perception::ui::Rectangle;
 using ::perception::window::BaseWindow;
@@ -79,8 +78,12 @@ Status WindowManager::SetWindowTexture(
 
 Status WindowManager::SetWindowTitle(const SetWindowTitleParameters& parameters,
                                      ::perception::ProcessId sender) {
-  std::cout << "Implement WindowManager::HandleWindowTitle" << std::endl;
-  return Status::UNIMPLEMENTED;
+  auto window = GetWindowWithListener(parameters.window);
+  if (!window || sender != parameters.window.ServerProcessId())
+    return Status::INVALID_ARGUMENT;
+
+  window->SetTitle(parameters.title);
+  return Status::OK;
 }
 
 Status WindowManager::SystemButtonPushed() {
@@ -154,5 +157,34 @@ Status WindowManager::SetWindowCursor(
   return Status::OK;
 }
 
+StatusOr<::perception::window::GetDisplayBoundsResponse>
+WindowManager::GetDisplayBounds() {
+  auto screen_size = GetScreenSize();
+  ::perception::window::GetDisplayBoundsResponse response;
+  ::perception::window::Rectangle bounds(0, 0, screen_size.width,
+                                         screen_size.height);
+  response.bounds.push_back(bounds);
+  return response;
+}
 
+Status WindowManager::SetWindowMinimumSize(
+    const ::perception::window::SetWindowMinimumSizeRequest& parameters,
+    ::perception::ProcessId sender) {
+  auto window = GetWindowWithListener(parameters.window);
+  if (!window || sender != parameters.window.ServerProcessId())
+    return Status::INVALID_ARGUMENT;
 
+  window->SetMinimumSize(parameters.size);
+  return Status::OK;
+}
+
+Status WindowManager::SetWindowMaximumSize(
+    const ::perception::window::SetWindowMaximumSizeRequest& parameters,
+    ::perception::ProcessId sender) {
+  auto window = GetWindowWithListener(parameters.window);
+  if (!window || sender != parameters.window.ServerProcessId())
+    return Status::INVALID_ARGUMENT;
+
+  window->SetMaximumSize(parameters.size);
+  return Status::OK;
+}

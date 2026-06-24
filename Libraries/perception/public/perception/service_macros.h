@@ -107,7 +107,7 @@
 #define ARGUMENT_WITH_COMMA_FORMAT_1
 
 #define RESPONSE_FORMAT_0(T) StatusOr<T>
-#define RESPONSE_FORMAT_1(T) ::perception::Status
+#define RESPONSE_FORMAT_1(T) Status
 
 /////////////
 /// X macros.
@@ -117,7 +117,7 @@
                                        argument_type)                          \
   virtual CAT(RESPONSE_FORMAT_, IS_VOID(return_type))(return_type)             \
       method_name(CAT(PARAM_FORMAT_, IS_VOID(argument_type))(argument_type)) { \
-    return ::perception::Status::UNIMPLEMENTED;                                \
+    return Status::UNIMPLEMENTED;                                              \
   }
 
 #define DECLARE_SERVICE_METHOD_ID(id, method_name, return_type, argument_type) \
@@ -170,7 +170,7 @@
   virtual CAT(RESPONSE_FORMAT_, IS_VOID(return_type))(return_type)             \
       method_name(CAT(NAMED_PARAM_FORMAT_,                                     \
                       IS_VOID(argument_type))(argument_type)) override {       \
-    return ::perception::Status::UNIMPLEMENTED;                                \
+    return Status::UNIMPLEMENTED;                                              \
   }
 
 //////////////////////////////////
@@ -220,7 +220,7 @@
            const ::perception::ProcessId sender,                          \
            const ::perception::MessageData& message_data) override {      \
       using ServiceType = std::decay_t<decltype(*this)>;                  \
-      switch (message_data.param1) {                                      \
+      switch (message_data.param2) {                                      \
         default: /* Handle unknown method error */                        \
           HandleUnknownRequest(sender, message_data);                     \
           break;                                                          \

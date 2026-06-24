@@ -60,6 +60,8 @@ Process* CreateProcess(bool is_driver, bool can_create_processes) {
   proc->next_child_process_in_parent = nullptr;
   proc->messages_queued = 0;
   proc->service_count = 0;
+  proc->rpc_count = 0;
+  proc->next_synthetic_rpc_response_message_id = 0;
 
   // Threads.
   proc->thread_count = 0;
@@ -173,6 +175,23 @@ void DestroyProcess(Process* process) {
   CancelAllTimerEventsForProcess(process);
   CancelTimeInfoChangeSubscriptionsForProcess(process);
 
+  // Clean up pending RPCs.
+  while (!process->rpcs_this_process_is_waiting_on.IsEmpty()) {
+    RPC* rpc = process->rpcs_this_process_is_waiting_on.PopFront();
+    process->rpc_count--;
+    rpc->callee->rpcs_waiting_on_this_process.Remove(rpc);
+    ObjectPool<RPC>::Release(rpc);
+  }
+
+  while (!process->rpcs_waiting_on_this_process.IsEmpty()) {
+    RPC* rpc = process->rpcs_waiting_on_this_process.FirstItem();
+    SendKernelRpcResponse(rpc->caller, rpc->response_message_id, process->pid,
+                          (size_t)Status::PROCESS_DOESNT_EXIST);
+    rpc->caller->rpcs_this_process_is_waiting_on.Remove(rpc);
+    rpc->caller->rpc_count--;
+    process->rpcs_waiting_on_this_process.Remove(rpc);
+    ObjectPool<RPC>::Release(rpc);
+  }
 
   // Release any shared memory mapped into this process.
   while (auto* shared_memory_in_process =

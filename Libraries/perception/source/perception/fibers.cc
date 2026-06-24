@@ -14,6 +14,7 @@
 
 #include "perception/fibers.h"
 
+#include <exception>
 #include <iostream>
 #include <memory>
 
@@ -32,6 +33,10 @@ Fiber* currently_executing_fiber = nullptr;
 
 // Linked list of unused fibers we can recycle.
 thread_local __attribute__((tls_model("initial-exec"))) Fiber* next_free_fiber =
+    nullptr;
+
+// Linked list of unused 1MB stack buffers we can recycle.
+thread_local __attribute__((tls_model("initial-exec"))) size_t* next_free_stack =
     nullptr;
 
 extern "C" void fiber_single_parameter_entrypoint();
@@ -83,16 +88,14 @@ void Sleep() {
 // Initializes the fiber object. You probably want to use Fiber::Create()
 // instead.
 Fiber::Fiber(bool custom_stack)
-    : is_scheduled_to_run_(false), thread_id_(std::nullopt) {
-  if (custom_stack) {
-    bottom_of_stack_ = (size_t*)AllocateMemoryPages(kNumberOfStackPages);
-  } else {
-    bottom_of_stack_ = nullptr;
-  }
-}
+    : is_scheduled_to_run_(false),
+      is_custom_fiber_(custom_stack),
+      thread_id_(std::nullopt),
+      bottom_of_stack_(nullptr) {}
 
 Fiber::Fiber(ThreadId thread_id)
     : is_scheduled_to_run_(false),
+      is_custom_fiber_(false),
       thread_id_(thread_id),
       bottom_of_stack_(nullptr) {}
 
@@ -106,69 +109,52 @@ Fiber::~Fiber() {
   }
 }
 
-// Creates a fiber around an entry point.
-Fiber* Fiber::Create(const std::function<void()>& function) {
-  Fiber* fiber = Create();
+void Fiber::PrepareStack() {
+  if (bottom_of_stack_ != nullptr) return;
 
-  // Keep a copy of the root function and its closures.
-  fiber->root_function_ = function;
+  if (next_free_stack != nullptr) {
+    bottom_of_stack_ = next_free_stack;
+    next_free_stack = (size_t*)*next_free_stack;
+  } else {
+    bottom_of_stack_ = (size_t*)AllocateMemoryPages(kNumberOfStackPages);
+  }
 
-  // Point to the top of the stack, just under the red-zone.
   size_t* top_of_stack =
-      &fiber->bottom_of_stack_[kPageSize * kNumberOfStackPages / 8 - 128 / 8];
+      &bottom_of_stack_[kPageSize * kNumberOfStackPages / 8 - 128 / 8];
 
-  // Write the pointer to the fiber to the stack.
   top_of_stack--;
-  *top_of_stack = (size_t)fiber;
+  *top_of_stack = (size_t)this;
 
-  // Write our C++ entrypoint function to the stack.
   top_of_stack--;
-  *top_of_stack = (size_t)CallRootFunction;
+  *top_of_stack =
+      (size_t)(root_function_ ? CallRootFunction : CallMessageHandler);
 
-  // Write out asm entrypoint function to the stack.
   top_of_stack--;
   *top_of_stack = (size_t)fiber_single_parameter_entrypoint;
 
-  // Point the thread's stack pointer to this location.
-  fiber->registers_.rsp = (size_t)top_of_stack;
+  registers_.rsp = (size_t)top_of_stack;
+}
 
+// Creates a fiber around an entry point.
+Fiber* Fiber::Create(const std::function<void()>& function) {
+  Fiber* fiber = Create();
+  fiber->root_function_ = function;
+  return fiber;
+}
+
+Fiber* Fiber::Create(std::function<void()>&& function) {
+  Fiber* fiber = Create();
+  fiber->root_function_ = std::move(function);
   return fiber;
 }
 
 // Creates a fiber to invoke a message handler.
-Fiber* Fiber::Create(std::shared_ptr<MessageHandler> message_handler,
+Fiber* Fiber::Create(const std::shared_ptr<MessageHandler>& message_handler,
                      ProcessId senders_pid, const MessageData& message_data) {
   Fiber* fiber = Create();
-
-  size_t* top_of_stack =
-      &fiber->bottom_of_stack_[kPageSize * kNumberOfStackPages / 8];
-
-  // Copy the MessageHandler so it can be recycled.
-  top_of_stack -= sizeof(FiberLocalMessageHandler) / 8;
-  FiberLocalMessageHandler* local_message_handler =
-      new ((FiberLocalMessageHandler*)top_of_stack) FiberLocalMessageHandler();
-  local_message_handler->message_handler = message_handler;
-  local_message_handler->message_data = message_data;
-  local_message_handler->senders_pid = senders_pid;
-
-  // Leave enough room for the safe zone.
-  top_of_stack -= 128 / 8;
-
-  // Write the pointer to the message handler to the stack.
-  top_of_stack--;
-  *top_of_stack = (size_t)local_message_handler;
-
-  // Write our C++ entrypoint function to the stack.
-  top_of_stack--;
-  *top_of_stack = (size_t)CallMessageHandler;
-
-  // Write out asm entrypoint function to the stack.
-  top_of_stack--;
-  *top_of_stack = (size_t)fiber_single_parameter_entrypoint;
-
-  // Point the thread's stack pointer to this location.
-  fiber->registers_.rsp = (size_t)top_of_stack;
-
+  fiber->message_handler_ = message_handler;
+  fiber->senders_pid_ = senders_pid;
+  fiber->message_data_ = message_data;
   return fiber;
 }
 
@@ -197,6 +183,9 @@ void Fiber::SwitchTo() {
   if (old_fiber == this) return;
 
   currently_executing_fiber = this;
+  if (is_custom_fiber_ && bottom_of_stack_ == nullptr) {
+    PrepareStack();
+  }
   switch_with_fiber(&this->registers_, &old_fiber->registers_);
 }
 
@@ -208,6 +197,9 @@ void Fiber::JumpTo() {
     return;
   }
   currently_executing_fiber = this;
+  if (is_custom_fiber_ && bottom_of_stack_ == nullptr) {
+    PrepareStack();
+  }
   jump_to_fiber(&this->registers_);
 }
 
@@ -234,15 +226,14 @@ void Fiber::CallRootFunction(Fiber* fiber) {
 }
 
 // Calls the message handler for a fiber.
-void Fiber::CallMessageHandler(
-    FiberLocalMessageHandler* local_message_handler) {
+void Fiber::CallMessageHandler(Fiber* fiber) {
   bool has_handler = false;
   {
-    auto message_handler = local_message_handler->message_handler.lock();
+    auto message_handler = fiber->message_handler_.lock();
     if (message_handler != nullptr) {
       has_handler = true;
-      message_handler->handler_function(local_message_handler->senders_pid,
-                                        local_message_handler->message_data);
+      message_handler->handler_function(fiber->senders_pid_,
+                                        fiber->message_data_);
     }
   }
 
@@ -250,8 +241,8 @@ void Fiber::CallMessageHandler(
     // No longer listening for this message.
   }
 
-  local_message_handler->~FiberLocalMessageHandler();
-  TerminateFiber(GetCurrentlyExecutingFiber());
+  fiber->message_handler_.reset();
+  TerminateFiber(fiber);
 }
 
 // Terminates the fiber after we're done calling the root
@@ -270,19 +261,23 @@ void Fiber::Release(Fiber* fiber) {
   if (fiber->is_scheduled_to_run_) {
     std::cout << "Something went wrong. Fiber::Release is being called on "
               << "a fiber that is scheduled to run." << std::endl;
-
-    volatile int i = 0;
-    std::cout << 4 / i << std::endl;
+    std::terminate();
   }
-  if (fiber->bottom_of_stack_ == nullptr) {
+  if (!fiber->is_custom_fiber_) {
     std::cout << "Something went wrong. Fiber::Release is being called on "
               << "the default fiber." << std::endl;
-
-    volatile int i = 0;
-    std::cout << 4 / i << std::endl;
+    std::terminate();
   }
   // Release any associated closures.
-  fiber->root_function_ = std::function<void()>();
+  fiber->root_function_ = nullptr;
+  fiber->message_handler_.reset();
+
+  // Recycle the stack buffer.
+  if (fiber->bottom_of_stack_ != nullptr) {
+    *(size_t*)fiber->bottom_of_stack_ = (size_t)next_free_stack;
+    next_free_stack = fiber->bottom_of_stack_;
+    fiber->bottom_of_stack_ = nullptr;
+  }
 
   // Put this fiber on our stack of fibers.
   fiber->next_free_fiber_ = next_free_fiber;

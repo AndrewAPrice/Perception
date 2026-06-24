@@ -78,10 +78,9 @@ class ElfFile {
   // at in thils child process. `symbols_to_addresses` contains all of the
   // exported symbols throughout the child process. `module_id` is a unique ID
   // representing this ELF file in this process.
-  ::perception::Status FixUpRelocations(
+  Status FixUpRelocations(
       std::map<size_t, void*>& child_memory_pages, size_t offset,
-      const SymbolMap& symbols_to_addresses,
-      size_t module_id,
+      const SymbolMap& symbols_to_addresses, size_t module_id,
       const std::map<size_t, size_t>& load_address_to_tls_offset);
 
   // Increments a reference count for this ELF file.

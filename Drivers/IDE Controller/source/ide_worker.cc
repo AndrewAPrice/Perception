@@ -42,13 +42,14 @@ using ::perception::ReleaseMemoryPages;
 using ::perception::SetThreadPriority;
 using ::perception::SleepForDuration;
 using ::perception::SleepThisThread;
-using ::perception::Status;
 using ::perception::ThreadPriority;
 using ::perception::Write16BitsToPort;
 using ::perception::Write32BitsToPort;
 using ::perception::Write8BitsToPort;
 
 namespace {
+
+constexpr int kMaxScratchSectors = 32;
 
 void SelectDriveOnBus(IdeChannel* channel, bool is_master) {
   uint16 bus = channel->is_primary ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
@@ -424,11 +425,8 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
           }
 
           if (needs_scratch) {
-            if (chunk_scratch_sectors_used >= 2) {
-              std::cout << "Falling back to PIO because chunk scratch sectors "
-                           "used >= 2"
-                        << std::endl;
-              can_do_dma = false;
+            if (chunk_scratch_sectors_used >= kMaxScratchSectors) {
+              chunk_sectors = i;
               break;
             }
             chunk_transfers[i].use_scratch = true;
@@ -497,9 +495,9 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
         Write8BitsToPort(ATA_ADDRESS3(bus), 0);
 
         // Send packet command
-        Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_PACKET);
         ResetInterrupt(channel->waiting_on_interrupt,
                        channel->interrupt_triggered);
+        Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_PACKET);
 
         // Poll while busy
         uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
@@ -613,6 +611,9 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
       }
 
       if (!can_do_dma) {
+        std::cout
+            << "IDE Controller: Falling back to PIO mode for read request."
+            << std::endl;
         // Fallback to PIO, break out of loop to run PIO code below
         break;
       }
@@ -638,6 +639,8 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
         continue;  // Retry the request from the beginning
       } else {
         // Already reset, still failed. Return failure.
+        std::cout << "IDE Controller: DMA read failed after reset."
+                  << std::endl;
         if (!request->can_write) {
           for (void* page : allocated_pages) {
             if (page) ReleaseMemoryPages(page, 1);
@@ -667,18 +670,25 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
     Write8BitsToPort(ATA_ADDRESS3(bus), ATAPI_SECTOR_SIZE >> 8);
 
     // Send packet command
-    Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_PACKET);
     ResetInterrupt(channel->waiting_on_interrupt, channel->interrupt_triggered);
+    Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_PACKET);
 
     // Poll while busy
     uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
+    int poll_timeout = 1000;
     while ((status & ATA_SR_BSY) ||
            !(status & (ATA_REG_SECCOUNT1 | ATA_REG_ERROR))) {
       SleepForDuration(std::chrono::milliseconds(10));
       status = Read8BitsFromPort(ATA_COMMAND(bus));
+      if (--poll_timeout == 0) {
+        std::cout
+            << "IDE Controller: Timeout waiting for PIO packet command ready!"
+            << std::endl;
+        return Status::INTERNAL_ERROR;
+      }
     }
 
-    if (status & ATA_REG_ERROR) return ::perception::Status::MISSING_MEDIA;
+    if (status & ATA_REG_ERROR) return Status::MISSING_MEDIA;
 
     // Send the ATAPI packet
     uint8 atapi_packet[12] = {ATAPI_CMD_READ,
@@ -713,13 +723,19 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
     int64 buffer_offset = request->offset_in_buffer;
 
     for (size_t i = 0; i < sectors_to_read; i++) {
+      int sector_timeout = 10000;
       while (1) {
         uint8_t status = Read8BitsFromPort(ATA_COMMAND(bus));
         if (status & ATA_SR_ERR) {
-          std::cout << "Device has an error.";
-          return ::perception::Status::INTERNAL_ERROR;
+          std::cout << "PIO transfer failed with drive error." << std::endl;
+          return Status::INTERNAL_ERROR;
         }
         if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ)) break;
+        if (--sector_timeout == 0) {
+          std::cout << "Timeout waiting for DRQ in PIO transfer." << std::endl;
+          return Status::INTERNAL_ERROR;
+        }
+        SleepForDuration(std::chrono::milliseconds(1));
       }
 
       int size = Read8BitsFromPort(ATA_ADDRESS3(bus)) << 8 |
@@ -777,9 +793,12 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
           buffer_offset++;
         }
       }
-      if (i + 1 < sectors_to_read)
+      if (i + 1 < sectors_to_read) {
         ResetInterrupt(channel->waiting_on_interrupt,
                        channel->interrupt_triggered);
+        WaitForInterrupt(channel->waiting_on_interrupt,
+                         channel->interrupt_triggered);
+      }
     }
 
     if (assign_page) {

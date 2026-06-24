@@ -26,7 +26,7 @@ class IdeStorageDevice : public ::perception::devices::StorageDevice::Server {
   StatusOr<::perception::devices::StorageDeviceDetails> GetDeviceDetails()
       override;
 
-  ::perception::Status Read(
+  Status Read(
       const ::perception::devices::StorageDeviceReadRequest& request) override;
 
   // Returns whether the device supports DMA.

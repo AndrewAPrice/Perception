@@ -34,7 +34,6 @@ using ::perception::MemoryMappedFile;
 using ::perception::MemorySpan;
 using ::perception::ReleaseMemoryPages;
 using ::perception::SharedMemory;
-using ::perception::Status;
 using ::perception::StorageManager;
 
 bool is_cache_populated = false;

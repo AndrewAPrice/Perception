@@ -17,10 +17,10 @@
 ClipboardServer::ClipboardServer() {}
 ClipboardServer::~ClipboardServer() {}
 
-::perception::Status ClipboardServer::SetClipboard(
+Status ClipboardServer::SetClipboard(
     const ::perception::serialization::Value& input) {
   clipboard_value_ = input;
-  return ::perception::Status::OK;
+  return Status::OK;
 }
 
 StatusOr<::perception::serialization::Value> ClipboardServer::GetClipboard() {

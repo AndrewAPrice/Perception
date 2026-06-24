@@ -21,15 +21,12 @@
 // directly.
 class File : public ::perception::File::Server {
  public:
-  virtual ::perception::Status Close(
-      ::perception::ProcessId sender) override = 0;
+  virtual Status Close(::perception::ProcessId sender) override = 0;
 
-  virtual ::perception::Status Read(
-      const ::perception::ReadFileRequest& request,
-      ::perception::ProcessId sender) override = 0;
+  virtual Status Read(const ::perception::ReadFileRequest& request,
+                      ::perception::ProcessId sender) override = 0;
 
-  virtual ::perception::Status
-  GrantStorageDevicePermissionToAllocateSharedMemoryPages(
+  virtual Status GrantStorageDevicePermissionToAllocateSharedMemoryPages(
       const ::perception::
           GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest&
               request,

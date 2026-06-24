@@ -57,8 +57,7 @@ StatusOr<ResolveHostResponse> NetworkService::ResolveHost(
     const ResolveHostRequest& request) {
   ResolveHostResponse response;
 
-  if (GetNetworkInterfaceCount() == 0)
-    return ::perception::Status::INTERNAL_ERROR;
+  if (GetNetworkInterfaceCount() == 0) return Status::INTERNAL_ERROR;
 
   int ip_parts[4];
   if (std::sscanf(request.host.c_str(), "%d.%d.%d.%d", &ip_parts[0],

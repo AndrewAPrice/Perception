@@ -21,6 +21,15 @@
 
 #include "compositor.h"
 #include "highlighter.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColorSpace.h"
+#include "include/core/SkFont.h"
+#include "include/core/SkFontMetrics.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkString.h"
+#include "include/core/SkSurface.h"
+#include "perception/devices/graphics_device.h"
 #include "perception/devices/keyboard_device.h"
 #include "perception/devices/mouse_listener.h"
 #include "perception/draw.h"
@@ -33,9 +42,11 @@
 #include "perception/serialization/text_serializer.h"
 #include "perception/services.h"
 #include "perception/time.h"
+#include "perception/ui/font.h"
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
 #include "perception/ui/size.h"
+#include "perception/ui/theme.h"
 #include "perception/window/window_manager.h"
 #include "screen.h"
 #include "window_buttons.h"
@@ -49,7 +60,6 @@ using ::perception::FillRectangle;
 using ::perception::GetProcessName;
 using ::perception::GetService;
 using ::perception::LinkedList;
-using ::perception::Status;
 using ::perception::devices::KeyboardDevice;
 using ::perception::devices::KeyboardListener;
 using ::perception::devices::MouseButton;
@@ -156,13 +166,29 @@ void StopDragging() {
   }
 }
 
-void ValidateWindowBounds(Rectangle& bounds) {
-  auto screen_size = GetScreenSize();
-  for (int i = 0; i < 2; i++) {
-    bounds.size[i] =
-        std::max(kMinimumWindowSize,
-                 std::min(screen_size[i], std::round(bounds.size[i])));
+}  // namespace
 
+void Window::ValidateWindowBounds(Rectangle& bounds) const {
+  auto screen_size = GetScreenSize();
+  float title_bar_h =
+      !is_fullscreen_ && add_title_bar_ ? kTitleBarHeight : 0.0f;
+  float min_w = minimum_size_ && minimum_size_->width > 0 ? minimum_size_->width
+                                                          : kMinimumWindowSize;
+  float min_h = minimum_size_ && minimum_size_->height > 0
+                    ? minimum_size_->height + title_bar_h
+                    : kMinimumWindowSize + title_bar_h;
+  float max_w = maximum_size_ && maximum_size_->width > 0 ? maximum_size_->width
+                                                          : screen_size.width;
+  float max_h = maximum_size_ && maximum_size_->height > 0
+                    ? maximum_size_->height + title_bar_h
+                    : screen_size.height;
+
+  bounds.size.width =
+      std::max(min_w, std::min(max_w, std::round(bounds.size.width)));
+  bounds.size.height =
+      std::max(min_h, std::min(max_h, std::round(bounds.size.height)));
+
+  for (int i = 0; i < 2; i++) {
     float min_position = -bounds.size[i] + kMinimumVisibleWindow;
     float max_position = screen_size[i] - kMinimumVisibleWindow;
 
@@ -171,7 +197,29 @@ void ValidateWindowBounds(Rectangle& bounds) {
   }
 }
 
-}  // namespace
+void Window::SetMinimumSize(std::optional<::perception::window::Size> size) {
+  if (minimum_size_ == size) return;
+  minimum_size_ = size;
+  auto old_area_with_frame = GetScreenAreaWithFrame();
+  ValidateWindowBounds(screen_area_);
+  auto new_area_with_frame = GetScreenAreaWithFrame();
+  if (old_area_with_frame != new_area_with_frame) {
+    Resized();
+    InvalidateScreen(old_area_with_frame.Union(new_area_with_frame));
+  }
+}
+
+void Window::SetMaximumSize(std::optional<::perception::window::Size> size) {
+  if (maximum_size_ == size) return;
+  maximum_size_ = size;
+  auto old_area_with_frame = GetScreenAreaWithFrame();
+  ValidateWindowBounds(screen_area_);
+  auto new_area_with_frame = GetScreenAreaWithFrame();
+  if (old_area_with_frame != new_area_with_frame) {
+    Resized();
+    InvalidateScreen(old_area_with_frame.Union(new_area_with_frame));
+  }
+}
 
 StatusOr<std::shared_ptr<Window>> Window::CreateWindow(
     const CreateWindowRequest& request) {
@@ -184,13 +232,18 @@ StatusOr<std::shared_ptr<Window>> Window::CreateWindow(
     window->title_ = window->title_.substr(0, kMaxTitleLength);
   }
   window->is_resizable_ = request.is_resizable;
-  window->hide_window_buttons_ = request.hide_window_buttons;
   window->window_listener_ = request.window;
   window->keyboard_listener_ = request.keyboard_listener;
   window->mouse_listener_ = request.mouse_listener;
+  window->add_title_bar_ = request.add_title_bar;
+  window->minimum_size_ = request.minimum_size;
+  window->maximum_size_ = request.maximum_size;
 
-  window->screen_area_.size = {request.desired_size.width,
-                               request.desired_size.height};
+  float desired_h = request.desired_size.height;
+  if (desired_h > 0.0f && window->add_title_bar_) {
+    desired_h += kTitleBarHeight;
+  }
+  window->screen_area_.size = {request.desired_size.width, desired_h};
 
   window->CommonInit();
 
@@ -204,6 +257,14 @@ StatusOr<std::shared_ptr<Window>> Window::CreateWindow(
 
 Window::~Window() {
   Hide();
+  if (title_bar_texture_id_ != 0) {
+    ::perception::GetService<::perception::devices::GraphicsDevice>()
+        .DestroyTexture(::perception::devices::graphics::TextureReference(
+                            title_bar_texture_id_),
+                        [](Status) {});
+    title_bar_texture_id_ = 0;
+    title_bar_shared_memory_.reset();
+  }
   if (!window_listener_already_disappeared_) window_listener_.Closed(nullptr);
 }
 
@@ -308,6 +369,13 @@ void Window::SetCursor(::perception::window::Cursor cursor) {
       }
     }
 
+    if (window.add_title_bar_ && !window.is_fullscreen_ &&
+        point.y >= screen_area.origin.y &&
+        point.y < screen_area.origin.y + kTitleBarHeight) {
+      cursor = ::perception::window::Cursor::Drag;
+      return true;
+    }
+
     // 3. Otherwise, it's over the window's contents.
     cursor = window.GetCursor();
     return true;  // Stop searching
@@ -348,6 +416,7 @@ void Window::Focus() {
   if (focused_window) focused_window->Unfocus();
 
   focused_window = this;
+  title_bar_texture_dirty_ = true;
 
   z_ordered_windows_.Remove(this);
   z_ordered_windows_.AddBack(this);
@@ -448,12 +517,12 @@ void Window::EnsureWindowsAreOnScreen() {
         window.screen_area_ = {0, 0, screen_size.width, screen_size.height};
         window.Resized();
       }
-      ValidateWindowBounds(window.previous_screen_area_);
+      window.ValidateWindowBounds(window.previous_screen_area_);
       return false;
     }
 
     auto old_area = window.GetScreenAreaWithFrame();
-    ValidateWindowBounds(window.screen_area_);
+    window.ValidateWindowBounds(window.screen_area_);
     if (old_area != window.GetScreenAreaWithFrame()) {
       window.Resized();
     }
@@ -469,6 +538,76 @@ bool Window::ExitFullScreen() {
     }
     return false;
   });
+}
+
+void Window::SetTitle(std::string_view title) {
+  if (title_ == title) return;
+  title_ = title;
+  if (title_.size() > kMaxTitleLength) {
+    title_ = title_.substr(0, kMaxTitleLength);
+  }
+  title_bar_texture_dirty_ = true;
+  Invalidate();
+}
+
+void Window::EnsureTitleBarTexture() {
+  if (!add_title_bar_ || is_fullscreen_ || !title_bar_texture_dirty_) return;
+  title_bar_texture_dirty_ = false;
+  int needed_w = static_cast<int>(std::round(screen_area_.size.width));
+  if (needed_w <= 0) return;
+
+  if (title_bar_texture_id_ == 0 || title_bar_texture_width_ != needed_w) {
+    if (title_bar_texture_id_ != 0) {
+      ::perception::GetService<::perception::devices::GraphicsDevice>()
+          .DestroyTexture(::perception::devices::graphics::TextureReference(
+                              title_bar_texture_id_),
+                          [](Status) {});
+      title_bar_texture_id_ = 0;
+      title_bar_shared_memory_.reset();
+    }
+    ::perception::devices::graphics::CreateTextureRequest request;
+    request.size = ::perception::devices::graphics::Size(
+        needed_w, static_cast<int>(kTitleBarHeight));
+    auto status_or_res =
+        ::perception::GetService<::perception::devices::GraphicsDevice>()
+            .CreateTexture(request);
+    if (status_or_res) {
+      title_bar_texture_id_ = status_or_res->texture.id;
+      title_bar_shared_memory_ = status_or_res->pixel_buffer;
+      title_bar_texture_width_ = needed_w;
+    } else {
+      return;
+    }
+  }
+
+  if (!title_bar_shared_memory_ || !title_bar_shared_memory_->Join()) return;
+
+  auto image_info = SkImageInfo::Make(
+      needed_w, static_cast<int>(kTitleBarHeight),
+      SkColorType::kBGRA_8888_SkColorType, SkAlphaType::kOpaque_SkAlphaType,
+      SkColorSpace::MakeSRGB());
+  auto surface = SkSurfaces::WrapPixels(image_info, **title_bar_shared_memory_,
+                                        needed_w * 4);
+  if (!surface) return;
+
+  auto canvas = surface->getCanvas();
+  bool is_focused = IsFocused();
+  canvas->clear(is_focused
+                    ? ::perception::ui::kTitleBarFocusedBackgroundColor
+                    : ::perception::ui::kTitleBarUnfocusedBackgroundColor);
+
+  SkFont* font = ::perception::ui::GetBook12UiFont();
+  if (font && !title_.empty()) {
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setColor(is_focused ? ::perception::ui::kLabelOnDarkTextColor
+                              : ::perception::ui::kLabelTextColor);
+    SkFontMetrics font_metrics;
+    font->getMetrics(&font_metrics);
+    float line_y = 8.0f - font_metrics.fAscent;
+    canvas->drawString(SkString(title_.data(), title_.length()), 8.0f, line_y,
+                       *font, paint);
+  }
 }
 
 std::string_view Window::GetTitle() const { return title_; }
@@ -660,6 +799,25 @@ bool Window::MouseEvent(const Point& point,
     }
 
     Point local_point = point - screen_area.origin;
+    if (add_title_bar_ && !is_fullscreen_) {
+      if (point.y < screen_area.origin.y + kTitleBarHeight) {
+        if (hovered_window_button && button_event && !IsDragging() &&
+            button_event->button == MouseButton::Left &&
+            button_event->is_pressed_down) {
+          HandleWindowButtonClick();
+        } else if (!hovered_window_button && button_event && !IsDragging() &&
+                   button_event->button == MouseButton::Left &&
+                   button_event->is_pressed_down) {
+          StartDragging();
+          if (IsDragging()) {
+            dragging_origin = point;
+          }
+        }
+        return true;
+      }
+      local_point.y -= kTitleBarHeight;
+    }
+
     if (button_event && !IsDragging()) {
       if (!is_fullscreen_ && hovered_window_button &&
           button_event->button == MouseButton::Left &&
@@ -742,13 +900,37 @@ void Window::Draw(const Rectangle& screen_area) {
     right_frame.origin += {.x = 1, .y = 1};
     DrawAlphaWindowFramePart(screen_area, right_frame, WINDOW_SHADOW_2);
   }
+
+  float title_bar_h =
+      (!is_fullscreen_ && add_title_bar_) ? kTitleBarHeight : 0.0f;
+  if (title_bar_h > 0.0f) {
+    EnsureTitleBarTexture();
+    if (title_bar_texture_id_ != 0) {
+      Rectangle title_bar_bounds = {
+          .origin = bounds.origin,
+          .size = {.width = bounds.size.width, .height = title_bar_h}};
+      auto title_bar_intersection = title_bar_bounds.Intersection(screen_area);
+      if (title_bar_intersection) {
+        CopyOpaqueTexture(
+            *title_bar_intersection, title_bar_texture_id_,
+            title_bar_intersection->origin - title_bar_bounds.origin);
+      }
+    }
+  }
+
   // Draw the contents of the window.
-  auto intersection = bounds.Intersection(screen_area);
-  if (intersection) {
-    CopyOpaqueTexture(*intersection, texture_id_,
-                      intersection->origin - bounds.origin);
-    if (is_debugging_) {
-      DrawAlphaBlendedColor(*intersection, DEBUGGING_TINT);
+  if (texture_id_ != 0) {
+    Rectangle content_bounds = {
+        .origin = bounds.origin + Point{0, title_bar_h},
+        .size = {.width = bounds.size.width,
+                 .height = bounds.size.height - title_bar_h}};
+    auto intersection = content_bounds.Intersection(screen_area);
+    if (intersection) {
+      CopyOpaqueTexture(*intersection, texture_id_,
+                        intersection->origin - content_bounds.origin);
+      if (is_debugging_) {
+        DrawAlphaBlendedColor(*intersection, DEBUGGING_TINT);
+      }
     }
   }
 
@@ -781,6 +963,8 @@ void Window::Invalidate(const Rectangle& screen_area) {
 void Window::InvalidateLocalArea(const Rectangle& window_area) {
   auto screen_area = window_area;
   screen_area.origin += screen_area_.origin;
+  if (!is_fullscreen_ && add_title_bar_)
+    screen_area.origin.y += kTitleBarHeight;
 
   return Invalidate(screen_area);
 }
@@ -843,11 +1027,10 @@ void Window::SetTextureId(int texture_id) {
 }
 
 void Window::SetSize(const ::perception::window::Size& size) {
-  auto screen_size = GetScreenSize();
-  float new_w = std::max(kMinimumWindowSize,
-                         std::min(screen_size.width, std::round(size.width)));
-  float new_h = std::max(kMinimumWindowSize,
-                         std::min(screen_size.height, std::round(size.height)));
+  float title_bar_h =
+      !is_fullscreen_ && add_title_bar_ ? kTitleBarHeight : 0.0f;
+  float new_w = size.width;
+  float new_h = size.height + title_bar_h;
 
   if (is_fullscreen_) {
     previous_screen_area_.size.width = new_w;
@@ -863,13 +1046,15 @@ void Window::SetSize(const ::perception::window::Size& size) {
 
   screen_area_.size.width = new_w;
   screen_area_.size.height = new_h;
+  title_bar_texture_dirty_ = true;
 
   ValidateWindowBounds(screen_area_);
 
   auto new_area_with_frame = GetScreenAreaWithFrame();
-
-  Resized();
-  InvalidateScreen(old_area_with_frame.Union(new_area_with_frame));
+  if (old_area_with_frame != new_area_with_frame) {
+    Resized();
+    InvalidateScreen(old_area_with_frame.Union(new_area_with_frame));
+  }
 }
 
 void Window::CommonInit() {
@@ -878,6 +1063,9 @@ void Window::CommonInit() {
   is_debugging_ = false;
   is_closed_ = false;
   cursor_ = ::perception::window::Cursor::Pointer;
+  title_bar_texture_id_ = 0;
+  title_bar_texture_width_ = 0;
+  title_bar_texture_dirty_ = true;
 
   auto screen_size = GetScreenSize();
   screen_area_.size = {.width = screen_area_.size.width >= 1.0f
@@ -944,9 +1132,12 @@ void Window::Hide() {
 }
 
 void Window::Resized() {
-  if (!window_listener_already_disappeared_)
-    window_listener_.SetSize({screen_area_.Width(), screen_area_.Height()},
-                             nullptr);
+  if (!window_listener_already_disappeared_) {
+    float content_h =
+        screen_area_.size.height -
+        (!is_fullscreen_ && add_title_bar_ ? kTitleBarHeight : 0.0f);
+    window_listener_.SetSize({screen_area_.size.width, content_h}, nullptr);
+  }
 }
 
 void Window::Unfocus() {
@@ -956,6 +1147,8 @@ void Window::Unfocus() {
   ::perception::SetFocusedProcess(0);
   if (IsDragging()) StopDragging();
   if (IsHovering()) hovering_window = nullptr;
+  title_bar_texture_dirty_ = true;
+  Invalidate();
 
   if (!window_listener_already_disappeared_)
     window_listener_.LostFocus(nullptr);
@@ -976,7 +1169,7 @@ Rectangle Window::WindowButtonScreenArea() const {
 
 bool Window::AreWindowButtonsVisible() const {
   if (is_fullscreen_ || is_debugging_) return false;
-  return !hide_window_buttons_ || hovered_window_button_;
+  return true;
 }
 
 void Window::HandleWindowButtonClick() {

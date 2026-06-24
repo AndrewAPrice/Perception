@@ -32,7 +32,6 @@ using ::perception::FileStatistics;
 using ::perception::GetCurrentlyExecutingFiber;
 using ::perception::ProcessId;
 using ::perception::Sleep;
-using ::perception::Status;
 using ::perception::devices::StorageDeviceType;
 
 namespace {
@@ -225,9 +224,9 @@ StatusOr<MemoryMappedFile*> OpenMemoryMappedFile(
   return mmfile_ptr;
 }
 
-::perception::Status CheckFilePermissions(std::string_view path,
-                                          bool& file_exists, bool& can_read,
-                                          bool& can_write, bool& can_execute) {
+Status CheckFilePermissions(std::string_view path, bool& file_exists,
+                            bool& can_read, bool& can_write,
+                            bool& can_execute) {
   std::string_view mount_point, path_on_mount_point;
   RETURN_ON_ERROR(
       ExtractMountPointAndPath(path, mount_point, path_on_mount_point));

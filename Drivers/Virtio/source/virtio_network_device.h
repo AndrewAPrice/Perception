@@ -26,11 +26,11 @@ class VirtioNetworkDevice : public perception::devices::NetworkDevice::Server,
 
   virtual StatusOr<perception::devices::MacAddress> GetMacAddress() override;
 
-  virtual perception::Status SendPacket(
+  virtual Status SendPacket(
       const perception::devices::Packet& packet,
       perception::ProcessId sender) override;
 
-  virtual perception::Status SetPacketListener(
+  virtual Status SetPacketListener(
       const perception::devices::NetworkListener::Client& listener,
       perception::ProcessId sender) override;
 

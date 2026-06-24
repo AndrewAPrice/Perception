@@ -139,12 +139,12 @@ TEST(VirtualAddressSpaceTrackingTest) {
   ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)2);
 
   // Unmap 0x401000 (shared page)
-  proc->virtual_address_space.FreePages(0x401000, 1);
+  proc->virtual_address_space.ReleasePages(0x401000, 1);
   ASSERT(proc->virtual_address_space.GetUniquePages(), (size_t)0);
   ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)1);
 
   // Unmap 0x402000 (shared page)
-  proc->virtual_address_space.FreePages(0x402000, 1);
+  proc->virtual_address_space.ReleasePages(0x402000, 1);
   ASSERT(proc->virtual_address_space.GetUniquePages(), (size_t)0);
   ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)0);
 }

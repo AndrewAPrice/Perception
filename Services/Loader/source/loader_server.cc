@@ -47,14 +47,14 @@ StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
 
   if (!::perception::DoesProcessHavePermission(
           sender, ::perception::Permission::CanLaunchPrograms)) {
-    return ::perception::Status::NOT_ALLOWED;
+    return Status::NOT_ALLOWED;
   }
   std::string name_to_load = request.name;
   std::vector<std::string> arguments = request.arguments;
 
   int iterations = 0;
   while (true) {
-    if (iterations++ > 10) return ::perception::Status::INVALID_ARGUMENT;
+    if (iterations++ > 10) return Status::INVALID_ARGUMENT;
 
     if (!name_to_load.empty() && name_to_load[0] == '/') {
       // It's a file or directory. Let's first check if it's a directory to
@@ -72,7 +72,7 @@ StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
       if (!opt_command.has_value()) {
         std::cout << "Loader error: Cannot handle file type of \""
                   << name_to_load << "\"." << std::endl;
-        return ::perception::Status::INVALID_ARGUMENT;
+        return Status::INVALID_ARGUMENT;
       }
 
       const ExtensionCommand& command = *opt_command;
@@ -88,7 +88,7 @@ StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
       if (!opt_path.has_value()) {
         std::cout << "Loader error: Cannot find program \"" << name_to_load
                   << "\"." << std::endl;
-        return ::perception::Status::INVALID_ARGUMENT;
+        return Status::INVALID_ARGUMENT;
       }
       name_to_load = *opt_path;
     }
@@ -107,15 +107,15 @@ LoaderServer::GetMultibootRegistryFile(
     const ::perception::GetMultibootRegistryFileRequest& request,
     ::perception::ProcessId sender) {
   if (::perception::GetProcessName(sender) != "Registry") {
-    return ::perception::Status::NOT_ALLOWED;
+    return Status::NOT_ALLOWED;
   }
 
   auto module = GetMultibootModule("registry.json");
-  if (!module) return ::perception::Status::FILE_NOT_FOUND;
+  if (!module) return Status::FILE_NOT_FOUND;
 
   auto shared_memory =
       ::perception::SharedMemory::FromSize(module->data.Length(), 0);
-  if (!shared_memory) return ::perception::Status::OUT_OF_MEMORY;
+  if (!shared_memory) return Status::OUT_OF_MEMORY;
 
   std::memcpy(**shared_memory, *module->data, module->data.Length());
 

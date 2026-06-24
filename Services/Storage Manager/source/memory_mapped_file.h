@@ -25,7 +25,7 @@ class MemoryMappedFile : public ::perception::MemoryMappedFile::Server {
                    size_t optimal_operation_size,
                    ::perception::ProcessId allowed_process);
 
-  virtual ::perception::Status Close(::perception::ProcessId sender) override;
+  virtual Status Close(::perception::ProcessId sender) override;
 
   std::shared_ptr<::perception::SharedMemory> GetBuffer();
 

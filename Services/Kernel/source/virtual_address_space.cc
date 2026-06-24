@@ -526,6 +526,7 @@ void VirtualAddressSpace::MarkAddressRangeAsFree(size_t address, size_t pages) {
 
 size_t VirtualAddressSpace::GetPhysicalAddress(size_t virtualaddr,
                                                bool ignore_unowned_pages) {
+  if (!IsAddressInCorrectSpace(virtualaddr)) return OUT_OF_MEMORY;
   size_t last_entry = pml4_;
   // Walk the page table hierarchy.
   for (int level = 0; level < kNumPageTableLevels; level++) {
@@ -887,6 +888,10 @@ void VirtualAddressSpace::UnmapVirtualPage(size_t virtualaddr, bool free) {
   size_t& entry =
       tables[kDeepestPageTableLevel][CalculateIndexForAddressInPageTable(
           kDeepestPageTableLevel, virtualaddr)];
+
+  if (entry == 0) return;
+  if (free && (entry & PageTableEntryBits::kIsOwned) == 0)
+    return;  // Cannot free unowned memory pages (e.g. shared memory or MMIO).
 
   // Free the page if requested and if it's owned. This is optional because
   // shared memory and memory mapped IO can be unmapped without freeing the

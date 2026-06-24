@@ -30,13 +30,9 @@ bool ExpandKernelHeap(size_t minimum_size) {
   size_t pages = kPagesPerChunk;
   size_t needed_bytes =
       minimum_size * 2 + tlsf_pool_overhead() + tlsf_alloc_overhead() + 128;
-  if (g_kernel_tlsf == nullptr) {
-    needed_bytes += tlsf_size();
-  }
+  if (g_kernel_tlsf == nullptr) needed_bytes += tlsf_size();
   size_t needed_pages = (needed_bytes + kPageSize - 1) / kPageSize;
-  if (needed_pages > pages) {
-    pages = needed_pages;
-  }
+  if (needed_pages > pages) pages = needed_pages;
 
   size_t addr = KernelAddressSpace().AllocatePages(pages);
   if (addr == 0 || addr == OUT_OF_MEMORY) return false;
@@ -104,18 +100,6 @@ void* calloc(size_t nmemb, size_t size) {
     memset((char*)ptr, 0, total);
   }
   return ptr;
-}
-
-void kernel_debug_print(const char* message) { print << message; }
-
-void kernel_debug_print_hex(size_t val) {
-  print << NumberFormat::Hexidecimal << val << "\n";
-}
-
-void kernel_debug_delay() {
-  for (volatile int i = 0; i < 10000000; i++) {
-    asm volatile("nop");
-  }
 }
 
 }  // extern "C"

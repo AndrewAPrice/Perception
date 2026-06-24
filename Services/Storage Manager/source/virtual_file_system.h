@@ -32,9 +32,8 @@ StatusOr<File*> OpenFile(std::string_view path, size_t& size_in_bytes,
 StatusOr<MemoryMappedFile*> OpenMemoryMappedFile(
     std::string_view path, ::perception::ProcessId sender);
 
-::perception::Status CheckFilePermissions(std::string_view path,
-                                          bool& file_exists, bool& can_read,
-                                          bool& can_write, bool& can_execute);
+Status CheckFilePermissions(std::string_view path, bool& file_exists,
+                            bool& can_read, bool& can_write, bool& can_execute);
 
 void CloseFile(::perception::ProcessId sender, File* file);
 

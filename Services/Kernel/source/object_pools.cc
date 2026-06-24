@@ -6,6 +6,7 @@
 #include "messages.h"
 #include "object_pool.h"
 #include "process.h"
+#include "rpc.h"
 #include "service.h"
 #include "set.h"
 #include "shared_memory.h"
@@ -20,7 +21,7 @@
       ProcessToNotifyOnExit, ProcessToNotifyWhenServiceAppears,             \
       ProcessToNotifyWhenServiceDisappears, SetNode, Service, SharedMemory, \
       SharedMemoryInProcess, TimerEvent, Thread,                            \
-      ThreadWaitingForSharedMemoryPage, SharedMemoryEvent
+      ThreadWaitingForSharedMemoryPage, SharedMemoryEvent, RPC
 
 // Initializer that can touch the private members of ObjectPool.
 class ObjectPoolHelper {

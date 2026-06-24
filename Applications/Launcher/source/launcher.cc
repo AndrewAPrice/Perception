@@ -19,8 +19,8 @@
 #include "applications.h"
 #include "launcher_window.h"
 
-::perception::Status Launcher::ShowLauncher() {
+Status Launcher::ShowLauncher() {
   ScanForApplications();
   ShowLauncherWindow();
-  return ::perception::Status::OK;
+  return Status::OK;
 }

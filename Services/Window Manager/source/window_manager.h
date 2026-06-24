@@ -27,21 +27,20 @@ class WindowManager : public ::perception::window::WindowManager::Server {
       const ::perception::window::CreateWindowRequest& request,
       ::perception::ProcessId sender) override;
 
-  ::perception::Status CloseWindow(
-      const ::perception::window::BaseWindow::Client& window,
-      ::perception::ProcessId sender) override;
+  Status CloseWindow(const ::perception::window::BaseWindow::Client& window,
+                     ::perception::ProcessId sender) override;
 
-  ::perception::Status SetWindowTexture(
+  Status SetWindowTexture(
       const ::perception::window::SetWindowTextureParameters& parameters,
       ::perception::ProcessId sender) override;
 
-  ::perception::Status SetWindowTitle(
+  Status SetWindowTitle(
       const ::perception::window::SetWindowTitleParameters& parameters,
       ::perception::ProcessId sender) override;
 
-  ::perception::Status SystemButtonPushed() override;
+  Status SystemButtonPushed() override;
 
-  ::perception::Status InvalidateWindow(
+  Status InvalidateWindow(
       const ::perception::window::InvalidateWindowParameters& parameters,
       ::perception::ProcessId sender) override;
 
@@ -50,20 +49,30 @@ class WindowManager : public ::perception::window::WindowManager::Server {
   StatusOr<::perception::window::DisplayEnvironment> GetDisplayEnvironment()
       override;
 
-  ::perception::Status StartDraggingWindow(
+  Status StartDraggingWindow(
       const ::perception::window::BaseWindow::Client& window_listener,
       ::perception::ProcessId sender) override;
 
-  ::perception::Status FocusWindow(
+  Status FocusWindow(
       const ::perception::window::BaseWindow::Client& window_listener,
       ::perception::ProcessId sender) override;
 
-  ::perception::Status SetWindowSize(
+  Status SetWindowSize(
       const ::perception::window::SetWindowSizeParameters& parameters,
       ::perception::ProcessId sender) override;
 
-  ::perception::Status SetWindowCursor(
+  Status SetWindowCursor(
       const ::perception::window::SetWindowCursorParameters& parameters,
       ::perception::ProcessId sender) override;
 
+  StatusOr<::perception::window::GetDisplayBoundsResponse> GetDisplayBounds()
+      override;
+
+  Status SetWindowMinimumSize(
+      const ::perception::window::SetWindowMinimumSizeRequest& parameters,
+      ::perception::ProcessId sender) override;
+
+  Status SetWindowMaximumSize(
+      const ::perception::window::SetWindowMaximumSizeRequest& parameters,
+      ::perception::ProcessId sender) override;
 };

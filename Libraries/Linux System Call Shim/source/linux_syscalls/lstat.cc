@@ -33,8 +33,7 @@ long lstat(const char* pathname, struct kstat* statbuf) {
   auto status_or_response =
       GetService<StorageManager>().GetFileStatistics({pathname, true});
   if (!status_or_response) {
-    if (status_or_response.Status() == ::perception::Status::FILE_NOT_FOUND)
-      return -ENOENT;
+    if (status_or_response.Status() == Status::FILE_NOT_FOUND) return -ENOENT;
     return -EINVAL;
   }
 

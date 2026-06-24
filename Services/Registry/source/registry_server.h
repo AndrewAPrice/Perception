@@ -26,19 +26,19 @@ class RegistryServer : public ::perception::Registry::Server {
       const ::perception::GetRegistryValueRequest& request,
       ::perception::ProcessId sender) override;
 
-  virtual ::perception::Status SetRegistryValue(
+  virtual Status SetRegistryValue(
       const ::perception::SetRegistryValueRequest& request,
       ::perception::ProcessId sender) override;
 
-  virtual ::perception::Status DeleteRegistryValue(
+  virtual Status DeleteRegistryValue(
       const ::perception::DeleteRegistryValueRequest& request,
       ::perception::ProcessId sender) override;
 
-  virtual ::perception::Status RegisterRegistryListener(
+  virtual Status RegisterRegistryListener(
       const ::perception::RegisterRegistryListenerRequest& request,
       ::perception::ProcessId sender) override;
 
-  virtual ::perception::Status UnregisterRegistryListener(
+  virtual Status UnregisterRegistryListener(
       const ::perception::UnregisterRegistryListenerRequest& request,
       ::perception::ProcessId sender) override;
 

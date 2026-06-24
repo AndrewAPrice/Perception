@@ -14,18 +14,4 @@
 
 #pragma once
 
-#include "perception/clipboard.h"
-#include "perception/serialization/value.h"
-
-class ClipboardServer : public ::perception::Clipboard::Server {
- public:
-  ClipboardServer();
-  virtual ~ClipboardServer();
-
-  virtual Status SetClipboard(
-      const ::perception::serialization::Value& input) override;
-  virtual StatusOr<::perception::serialization::Value> GetClipboard() override;
-
- private:
-  ::perception::serialization::Value clipboard_value_;
-};
+#include "../../../Libraries/perception/public/status.h"

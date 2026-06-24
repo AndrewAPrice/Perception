@@ -141,19 +141,19 @@ SharedMemory* GetSharedMemoryFromId(size_t shared_memory_id) {
   return all_shared_memories.SearchForItemEqualToValue(shared_memory_id);
 }
 
-void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
+bool SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
     SharedMemory* shared_memory, size_t page, Process* creator) {
   if (page >= shared_memory->size_in_pages)
-    return;  // Beyond the end of the shared memory.
+    return false;  // Beyond the end of the shared memory.
 
   if (shared_memory->physical_pages[page] != OUT_OF_PHYSICAL_PAGES)
-    return;  // The memory is already allocated. Nothing to wait for.
+    return true;  // The memory is already allocated. Nothing to wait for.
 
   Thread* thread = running_thread;
 
   auto waiting_thread =
       ObjectPool<ThreadWaitingForSharedMemoryPage>::Allocate();
-  if (waiting_thread == nullptr) return;  // Out of memory.
+  if (waiting_thread == nullptr) return false;  // Out of memory.
 
   waiting_thread->thread = thread;
   waiting_thread->shared_memory = shared_memory;
@@ -169,6 +169,7 @@ void SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
   SendKernelMessageToProcess(creator,
                              shared_memory->message_id_for_lazily_loaded_pages,
                              page * PAGE_SIZE, 0, 0, 0, 0);
+  return true;
 }
 
 void MapPhysicalPageInSharedMemory(SharedMemory* shared_memory, size_t page,
@@ -219,8 +220,8 @@ bool HandleSharedMessagePageFault(Process* process, SharedMemory* shared_memory,
 
   } else {
     // Not the creator. Message the creator and sleep this thread.
-    SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(shared_memory,
-                                                              page, creator);
+    return SleepThreadUntilSharedMemoryPageIsCreatedAndNotifyCreator(
+        shared_memory, page, creator);
   }
   return true;
 }
@@ -418,12 +419,13 @@ void MovePageIntoSharedMemory(Process* process, size_t shared_memory_id,
     return;
   }
 
-  // if (!shared_memory->pids_allowed_to_assign_memory_pages.Contains(
-  //       process->pid)) {
-  //  Only the creator of the shared memory can move pages into shared memory.
-  // FreePhysicalPage(physical_address);
-  // return;
-  //}
+  if (!shared_memory->pids_allowed_to_assign_memory_pages.Contains(
+          process->pid)) {
+    // Only the creator or authorized processes can move pages into shared
+    // memory.
+    FreePhysicalPage(physical_address);
+    return;
+  }
 
   // Work out where the page is moving to in shared memory.
   size_t page = offset_in_buffer / PAGE_SIZE;
@@ -648,6 +650,11 @@ void UnregisterSharedMemoryEvent(Process* process, size_t shared_memory_id,
 }
 
 void TriggerSharedMemoryEvent(size_t shared_memory_id, size_t offset) {
+  if (running_thread != nullptr &&
+      FindSharedMemoryInProcess(running_thread->process, shared_memory_id) ==
+          nullptr) {
+    return;  // Caller is not joined to this shared memory block.
+  }
   SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
   if (shared_memory == nullptr) return;
 

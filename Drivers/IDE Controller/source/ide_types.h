@@ -92,7 +92,7 @@ struct IdeRequest {
   ::perception::Fiber* fiber_to_wake;
 
   // The final status of the request execution.
-  ::perception::Status status;
+  Status status;
 };
 
 // Represents a single IDE channel (Primary or Secondary).

@@ -31,7 +31,7 @@ class VirtioGraphicsDriver : public perception::devices::GraphicsDevice::Server,
   VirtioGraphicsDriver(const perception::devices::PciDevice& device);
   virtual ~VirtioGraphicsDriver() override;
 
-  virtual perception::Status RunCommands(
+  virtual Status RunCommands(
       const perception::devices::graphics::Commands& commands,
       perception::ProcessId sender) override;
 
@@ -40,7 +40,7 @@ class VirtioGraphicsDriver : public perception::devices::GraphicsDevice::Server,
       const perception::devices::graphics::CreateTextureRequest& request,
       perception::ProcessId sender) override;
 
-  virtual perception::Status DestroyTexture(
+  virtual Status DestroyTexture(
       const perception::devices::graphics::TextureReference& request,
       perception::ProcessId sender) override;
 
@@ -48,14 +48,14 @@ class VirtioGraphicsDriver : public perception::devices::GraphicsDevice::Server,
   GetTextureInformation(
       const perception::devices::graphics::TextureReference& request) override;
 
-  virtual perception::Status SetProcessAllowedToDrawToScreen(
+  virtual Status SetProcessAllowedToDrawToScreen(
       const perception::devices::graphics::
           ProcessAllowedToDrawToScreenParameters& request) override;
 
   virtual StatusOr<perception::devices::graphics::Size> GetScreenSize()
       override;
 
-  virtual perception::Status SetGraphicsListener(
+  virtual Status SetGraphicsListener(
       const perception::devices::GraphicsListener::Client& listener)
       override;
 

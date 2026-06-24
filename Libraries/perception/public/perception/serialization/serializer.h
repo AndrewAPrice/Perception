@@ -18,6 +18,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <type_traits>
 #include <vector>
@@ -126,6 +127,25 @@ class Serializer {
     if (IsDeserializing()) {
       if (HasThisField(name)) {
         if (!obj) obj = std::make_shared<S>();
+        this->Serializable(name, *obj);
+      } else {
+        obj.reset();
+        this->Serializable();
+      }
+    } else {
+      if (obj) {
+        this->Serializable(name, *obj);
+      } else {
+        this->Serializable();
+      }
+    }
+  }
+
+  template <class S>
+  void Serializable(std::string_view name, std::optional<S>& obj) {
+    if (IsDeserializing()) {
+      if (HasThisField(name)) {
+        if (!obj) obj = S();
         this->Serializable(name, *obj);
       } else {
         obj.reset();

@@ -35,7 +35,6 @@ using ::perception::MessageId;
 using ::perception::ProcessId;
 using ::perception::SharedMemory;
 using ::perception::Sleep;
-using ::perception::Status;
 using ::perception::devices::GraphicsDevice;
 using ::perception::ui::Size;
 

@@ -54,7 +54,7 @@ long access(const char* pathname, int mode) {
     }
     return 0;
   } else {
-    if (status_or_response.Status() == ::perception::Status::FILE_NOT_FOUND) {
+    if (status_or_response.Status() == Status::FILE_NOT_FOUND) {
       return -ENOENT;
     }
     return -EINVAL;

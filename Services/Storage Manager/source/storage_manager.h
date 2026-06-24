@@ -43,10 +43,10 @@ class StorageManager : public ::perception::StorageManager::Server {
   virtual StatusOr<::perception::RequestWithFilePath> ReadLink(
       const ::perception::RequestWithFilePath& request) override;
 
-  virtual ::perception::Status ListenForMounts(
+  virtual Status ListenForMounts(
       const ::perception::FileSystemMountListener::Client& listener) override;
 
-  virtual ::perception::Status StopListeningForMounts(
+  virtual Status StopListeningForMounts(
       const ::perception::FileSystemMountListener::Client& listener) override;
 
   virtual StatusOr<::perception::GetMountedFileSystemsResponse>

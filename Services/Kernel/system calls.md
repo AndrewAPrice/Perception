@@ -659,14 +659,14 @@ Sends a message to a process.
 * `rax` - The ID of the message.
 * `rbx` - The ID of the process to send the message to.
 * `rdx` - Parameters bitfield:
-	- Bit 0: Are we sending pages?
-* `rsi` - The first parameter.
+  - Bits 0-1: Message type
+    - 00: one way
+    - 01: call that will expect a response
+    - 10: response to a call
+    - 11: invalid
+* `rsi` - The first parameter. This is the response ID if message type is '01'.
 * `r8` - The second parameter.
 * `r9` - The third parameter.
-If rdx[0] is '1':
-* `r10` - Address of the first memory page.
-* `r12` - The number of pages to send.
-If rdx[0] is '0':
 * `r10` - The fourth parameter.
 * `r12` - The fifth parameter.
 
@@ -697,14 +697,14 @@ If there was a message queued:
 * `rax` - The ID of the message.
 * `rbx` - The ID of the process that sent the message.
 * `rdx` - Parameters bitfield:
-	- Bit 0: Are these pages?
+	- Bits 0-1: Message type
+    - 00: one way
+    - 01: call that will expect a response
+    - 10: response to a call
+    - 11: invalid
 * `rsi` - The first parameter.
 * `r8` - The second parameter.
 * `r9` - The third parameter.
-If rdx[0] is '1':
-* `r10` - Address of the first memory page.
-* `r12` - The number of pages sent.
-If rdx[0] is '0':
 * `r10` - The fourth parameter.
 * `r12` - The fifth parameter.
 

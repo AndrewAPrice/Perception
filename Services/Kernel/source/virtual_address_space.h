@@ -101,6 +101,9 @@ class VirtualAddressSpace {
   // Whether this is the kernel's address space.
   bool IsKernelAddressSpace();
 
+  // Whether a virtual address is in the correct space (kernel vs user).
+  bool IsAddressInCorrectSpace(size_t virtualaddr);
+
   // The number of unique allocated pages.
   size_t GetUniquePages() const { return unique_pages_; }
 
@@ -148,8 +151,6 @@ class VirtualAddressSpace {
   void AddFreeMemoryRange(FreeMemoryRange *fmr);
 
   void RemoveFreeMemoryRange(FreeMemoryRange *fmr);
-
-  bool IsAddressInCorrectSpace(size_t virtualaddr);
 
   // Physical address of the PML4 for this virtual address space.
   size_t pml4_;

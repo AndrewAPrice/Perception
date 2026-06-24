@@ -24,8 +24,6 @@
 #include "protocols.h"
 #include "socket.h"
 
-using ::perception::Status;
-
 namespace {
 
 std::vector<std::shared_ptr<NetworkListener>> listeners;

@@ -66,52 +66,26 @@ MessageId GenerateUniqueMessageId() {
   return next_unique_message_id++;
 }
 
-// Converts MessageStatus to Status.
-Status ToStatus(MessageStatus status) {
-  switch (status) {
-    case MessageStatus::SUCCESS:
-      return Status::OK;
-    case MessageStatus::PROCESS_DOESNT_EXIST:
-      return Status::PROCESS_DOESNT_EXIST;
-    case MessageStatus::UNSUPPORTED:
-      return Status::UNIMPLEMENTED;
-    case MessageStatus::OUT_OF_MEMORY:
-    case MessageStatus::RECEIVERS_QUEUE_IS_FULL:
-      return Status::OUT_OF_MEMORY;
-    case MessageStatus::INVALID_MEMORY_RANGE:
-    default:
-      return Status::INTERNAL_ERROR;
-  }
-}
-
-// Were memory pages sent in this message?
-bool WereMemoryPagesSentInMessage(size_t metadata) {
-  return (metadata & 1) == 1;
-}
-
 // Deals with unhandled message, to make sure memory is released and RPCs are
 // responded to.
 void DealWithUnhandledMessage(ProcessId sender,
                               const MessageData& message_data) {
-  if (WereMemoryPagesSentInMessage(message_data.metadata)) {
-    // Release the memory that was sent.
-    ReleaseMemoryPages((void*)message_data.param4, message_data.param5);
-  }
-
-  if (((message_data.metadata >> 1) & 0b11) != 0) {
+  if (IsCallExpectingResponse(message_data.metadata)) {
     // This is an RPC that expects a response. Respond to indicate that the
     // service or channel doesn't exist.
     MessageData response_data = {};
-    response_data.message_id = message_data.param2;
+    response_data.message_id = message_data.param1;
     response_data.metadata = 0;
+    SetMessageType(response_data.metadata, MessageType::RESPONSE);
     response_data.param1 = (size_t)Status::SERVICE_DOESNT_EXIST;
+    response_data.param2 = SIZE_MAX;
 
     SendMessage(sender, response_data);
   }
 }
 
 // Sends a message to a process.
-MessageStatus SendRawMessage(ProcessId pid, const MessageData& message_data) {
+Status SendRawMessage(ProcessId pid, const MessageData& message_data) {
 #if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 17;
   volatile register size_t pid_r asm("rbx") = pid;
@@ -130,13 +104,13 @@ MessageStatus SendRawMessage(ProcessId pid, const MessageData& message_data) {
                          "r"(metadata_r), "r"(param1_r), "r"(param2_r),
                          "r"(param3_r), "r"(param4_r), "r"(param5_r)
                        : "rcx", "r11");
-  return (MessageStatus)return_val;
+  return (Status)return_val;
 #else
-  return MessageStatus::UNSUPPORTED;
+  return Status::UNIMPLEMENTED;
 #endif
 }
 
-MessageStatus SendMessage(ProcessId pid, const MessageData& message_data) {
+Status SendMessage(ProcessId pid, const MessageData& message_data) {
   return SendRawMessage(pid, message_data);
 }
 
@@ -147,7 +121,7 @@ void RegisterMessageHandler(
   RegisterRawMessageHandler(
       message_id, [callback = std::move(callback)](
                       ProcessId sender, const MessageData& message_data) {
-        if (message_data.metadata != 0) {
+        if (IsCallExpectingResponse(message_data.metadata)) {
           // This is an RPC, and not something a basic message handler should
           // deal with.
           DealWithUnhandledMessage(sender, message_data);
@@ -193,7 +167,7 @@ void UnregisterMessageHandler(MessageId message_id) {
 void SleepUntilMessage(MessageId message_id, ProcessId& sender,
                        MessageData& message_data) {
   SleepUntilRawMessage(message_id, sender, message_data);
-  if (message_data.metadata != 0) {
+  if (IsCallExpectingResponse(message_data.metadata)) {
     // This is an RPC, and not something a basic message handler should
     // deal with.
     DealWithUnhandledMessage(sender, message_data);

@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include "perception/devices/graphics_device.h"
@@ -22,6 +23,7 @@
 #include "perception/service_macros.h"
 #include "perception/window/base_window.h"
 #include "perception/window/cursor.h"
+#include "perception/window/rectangle.h"
 #include "perception/window/size.h"
 
 namespace perception {
@@ -41,9 +43,6 @@ class CreateWindowRequest : public serialization::Serializable {
   // Whether this window should be resizable.
   bool is_resizable;
 
-  // Whether the window buttons should hide if they're not being hovered over.
-  bool hide_window_buttons;
-
   // The desired size of the window. If this is {0,0} then the window will
   // automatically be sized. If this is larger than the maximum window size,
   // then the maximum window size will be used.
@@ -54,6 +53,15 @@ class CreateWindowRequest : public serialization::Serializable {
 
   // The mouse listener, if this window cares about mouse events.
   devices::MouseListener::Client mouse_listener;
+
+  // Whether the window manager should add a title bar.
+  bool add_title_bar;
+
+  // The minimum size of the window.
+  std::optional<Size> minimum_size;
+
+  // The maximum size of the window.
+  std::optional<Size> maximum_size;
 
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
@@ -135,19 +143,45 @@ class SetWindowCursorParameters : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
-#define METHOD_LIST(X)                                          \
-  X(1, CreateWindow, CreateWindowResponse, CreateWindowRequest) \
-  X(2, CloseWindow, void, BaseWindow::Client)                   \
-  X(3, SetWindowTexture, void, SetWindowTextureParameters)      \
-  X(4, SetWindowTitle, void, SetWindowTitleParameters)          \
-  X(5, SystemButtonPushed, void, void)                          \
-  X(6, InvalidateWindow, void, InvalidateWindowParameters)      \
-  X(7, GetMaximumWindowSize, Size, void)                        \
-  X(8, GetDisplayEnvironment, DisplayEnvironment, void)         \
-  X(9, StartDraggingWindow, void, BaseWindow::Client)           \
-  X(10, FocusWindow, void, BaseWindow::Client)                  \
-  X(11, SetWindowSize, void, SetWindowSizeParameters)           \
-  X(12, SetWindowCursor, void, SetWindowCursorParameters)
+class GetDisplayBoundsResponse : public serialization::Serializable {
+ public:
+  std::vector<Rectangle> bounds;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class SetWindowMinimumSizeRequest : public serialization::Serializable {
+ public:
+  BaseWindow::Client window;
+  std::optional<Size> size;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class SetWindowMaximumSizeRequest : public serialization::Serializable {
+ public:
+  BaseWindow::Client window;
+  std::optional<Size> size;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+#define METHOD_LIST(X)                                           \
+  X(1, CreateWindow, CreateWindowResponse, CreateWindowRequest)  \
+  X(2, CloseWindow, void, BaseWindow::Client)                    \
+  X(3, SetWindowTexture, void, SetWindowTextureParameters)       \
+  X(4, SetWindowTitle, void, SetWindowTitleParameters)           \
+  X(5, SystemButtonPushed, void, void)                           \
+  X(6, InvalidateWindow, void, InvalidateWindowParameters)       \
+  X(7, GetMaximumWindowSize, Size, void)                         \
+  X(8, GetDisplayEnvironment, DisplayEnvironment, void)          \
+  X(9, StartDraggingWindow, void, BaseWindow::Client)            \
+  X(10, FocusWindow, void, BaseWindow::Client)                   \
+  X(11, SetWindowSize, void, SetWindowSizeParameters)            \
+  X(12, SetWindowCursor, void, SetWindowCursorParameters)        \
+  X(13, GetDisplayBounds, GetDisplayBoundsResponse, void)        \
+  X(14, SetWindowMinimumSize, void, SetWindowMinimumSizeRequest) \
+  X(15, SetWindowMaximumSize, void, SetWindowMaximumSizeRequest)
 DEFINE_PERCEPTION_SERVICE(WindowManager, "perception.window.WindowManager",
                           METHOD_LIST)
 #undef METHOD_LIST

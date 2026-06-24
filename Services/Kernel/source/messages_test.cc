@@ -64,7 +64,7 @@ TEST(MessagesSyscallMessagingTest) {
   SendMessageFromThreadSyscall(t1);
   
   // Verify success status in rax register
-  ASSERT(regs_t1.rax, (size_t)0); // MS_SUCCESS = 0
+  ASSERT(regs_t1.rax, (size_t)0); // Status::OK = 0
   ASSERT(p2->messages_queued, (size_t)1);
 
   // Load the message into thread t2
@@ -123,7 +123,7 @@ TEST(MessagesSyscallPagingTransferTest) {
   SendMessageFromThreadSyscall(t1);
 
   // Verify success
-  ASSERT(regs_t1.rax, (size_t)0); // MS_SUCCESS = 0
+  ASSERT(regs_t1.rax, (size_t)0); // Status::OK = 0
 
   // Verify the page was unmapped from p1
   size_t p1_lookup = p1->virtual_address_space.GetPhysicalAddress(src_virtual, false);

@@ -23,8 +23,6 @@
 #include "perception/time.h"
 #include "protocols.h"
 
-using ::perception::Status;
-
 namespace {
 
 std::vector<std::shared_ptr<SocketImpl>> active_sockets;

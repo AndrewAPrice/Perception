@@ -129,8 +129,9 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForSendingToProcess(
 
   if (selected_buffer == nullptr) {
     std::cout << "Error: Reached maximum concurrent RPC buffers ("
-              << kMaxConcurrentBuffersPerProcess << ") for process "
-              << process_id << std::endl;
+              << kMaxConcurrentBuffersPerProcess << ") for "
+              << GetProcessName(GetProcessId()) << " to "
+              << GetProcessName(process_id) << std::endl;
     return nullptr;
   }
 

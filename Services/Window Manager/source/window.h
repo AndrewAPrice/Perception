@@ -24,6 +24,7 @@
 #include "perception/devices/keyboard_listener.h"
 #include "perception/devices/mouse_listener.h"
 #include "perception/linked_list.h"
+#include "perception/shared_memory.h"
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
 #include "perception/ui/size.h"
@@ -52,6 +53,7 @@ class Window : public std::enable_shared_from_this<Window> {
   static void UnfocusAllWindows();
   static void EnsureWindowsAreOnScreen();
   static bool ExitFullScreen();
+  void SetTitle(std::string_view title);
   std::string_view GetTitle() const;
 
   static bool ForEachFrontToBackWindow(
@@ -79,6 +81,9 @@ class Window : public std::enable_shared_from_this<Window> {
 
   void SetTextureId(int texture_id);
   void SetSize(const ::perception::window::Size& size);
+  void SetMinimumSize(std::optional<::perception::window::Size> size);
+  void SetMaximumSize(std::optional<::perception::window::Size> size);
+  void ValidateWindowBounds(::perception::ui::Rectangle& bounds) const;
 
   void SetCursor(::perception::window::Cursor cursor);
   ::perception::window::Cursor GetCursor() const;
@@ -117,6 +122,8 @@ class Window : public std::enable_shared_from_this<Window> {
   bool is_visible_;
 
   bool is_resizable_;
+  std::optional<::perception::window::Size> minimum_size_;
+  std::optional<::perception::window::Size> maximum_size_;
 
   // Whether the window is in full screen mode.
   bool is_fullscreen_;
@@ -126,8 +133,6 @@ class Window : public std::enable_shared_from_this<Window> {
 
   // The window button the mouse is over.
   std::optional<WindowButton> hovered_window_button_;
-
-  bool hide_window_buttons_;
 
   // The texture representing the contents of this window.
   // 0 if unknown.
@@ -143,6 +148,13 @@ class Window : public std::enable_shared_from_this<Window> {
 
   // Preferred cursor style for this window.
   ::perception::window::Cursor cursor_;
+
+  bool add_title_bar_;
+  size_t title_bar_texture_id_;
+  std::shared_ptr<::perception::SharedMemory> title_bar_shared_memory_;
+  int title_bar_texture_width_;
+  bool title_bar_texture_dirty_;
+  void EnsureTitleBarTexture();
 
   bool is_debugging_;
   bool is_closed_;

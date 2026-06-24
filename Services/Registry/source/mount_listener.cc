@@ -18,9 +18,9 @@
 
 #include "settings_loader.h"
 
-::perception::Status MountListener::FileSystemMounted(
+Status MountListener::FileSystemMounted(
     const ::perception::FileSystemMountEvent& event,
     ::perception::ProcessId sender) {
   ScanAndLoadSettings("/" + event.mount_point);
-  return ::perception::Status::OK;
+  return Status::OK;
 }

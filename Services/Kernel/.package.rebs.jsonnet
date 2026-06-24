@@ -2,7 +2,7 @@
   statically_link: 0,
   include_directories: [
     'source',
-    'source/stub',
+  ] + (if is_testing then [] else ['source/stub']) + [
     '../../third_party/Libraries/tlsf/public',
   ],
   defines: ['KERNEL'],
@@ -14,6 +14,7 @@
     'source/interrupts.asm',
     'source/syscall.asm',
     'source/multiboot.asm',
+    'source/heap_allocator.cc',
   ]
 } else {
   local cpp_compiler = 'clang',

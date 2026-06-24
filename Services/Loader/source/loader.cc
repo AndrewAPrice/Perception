@@ -41,7 +41,6 @@ using ::perception::MemorySpan;
 using ::perception::ProcessId;
 using ::perception::ReleaseMemoryPages;
 using ::perception::StartExecutingChildProcess;
-using ::perception::Status;
 
 namespace {
 

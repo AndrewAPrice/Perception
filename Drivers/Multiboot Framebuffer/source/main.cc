@@ -35,7 +35,6 @@ using ::perception::MessageId;
 using ::perception::NotifyUponProcessTermination;
 using ::perception::ProcessId;
 using ::perception::SharedMemory;
-using ::perception::Status;
 using ::perception::StopNotifyingUponProcessTermination;
 using ::perception::devices::GraphicsDevice;
 

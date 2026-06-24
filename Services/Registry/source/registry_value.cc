@@ -22,7 +22,6 @@
 
 using ::perception::MessageId;
 using ::perception::ProcessId;
-using ::perception::Status;
 
 namespace {
 
@@ -166,7 +165,7 @@ void RegistryValue::NotifyListeners() {
   for (const auto& listener : listeners_to_notify) {
     msg.message_id = listener.message_id;
     auto status = ::perception::SendMessage(listener.process_id, msg);
-    if (status == ::perception::MessageStatus::PROCESS_DOESNT_EXIST) {
+    if (status == Status::PROCESS_DOESNT_EXIST) {
       terminated_listeners.push_back(listener);
     }
   }

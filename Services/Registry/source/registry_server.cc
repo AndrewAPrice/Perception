@@ -32,7 +32,6 @@ using ::perception::ProcessId;
 using ::perception::RegisterRegistryListenerRequest;
 using ::perception::RegistryCorpus;
 using ::perception::SetRegistryValueRequest;
-using ::perception::Status;
 using ::perception::UnregisterRegistryListenerRequest;
 
 namespace {

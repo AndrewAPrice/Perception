@@ -14,9 +14,11 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "perception/window/cursor.h"
+#include "perception/window/rectangle.h"
 #include "perception/window/size.h"
 
 namespace perception {
@@ -38,20 +40,26 @@ class Window {
     // The preferred height of the window. 0 means "don't care".
     int prefered_height = 0;
 
+    // The minimum size of the window. nullopt means no minimum constraint.
+    std::optional<Size> minimum_size;
+
+    // The maximum size of the window. nullopt means no maximum constraint.
+    std::optional<Size> maximum_size;
+
     // Attempt to create the window full-screen.
     bool prefer_fullscreen;
 
     // Whether the window is resizable.
     bool is_resizable;
 
-    // Whether the window buttons (close, debug, etc.) should be hidden.
-    bool hide_window_buttons;
-
     // Whether the window will be double buffered. If double buffering is
     // disabled, the window manager/graphics driver could copy the pixels out of
     // the buffer while they're being written to. This could lead to tearing or
     // flickering, but is slightly faster.
     bool is_double_buffered = true;
+
+    // Whether the window manager should add a native title bar.
+    bool add_title_bar = false;
   };
   // Creates a window. Can return a nullptr if something went wrong.
   static std::shared_ptr<Window> CreateWindow(
@@ -75,6 +83,12 @@ class Window {
   // Sets the desired size. The delegate will be notified if the window's size
   // changes.
   virtual void SetSize(int width, int height) = 0;
+
+  // Sets the minimum size constraint. nullopt removes the constraint.
+  virtual void SetMinimumSize(std::optional<Size> size) = 0;
+
+  // Sets the maximum size constraint. nullopt removes the constraint.
+  virtual void SetMaximumSize(std::optional<Size> size) = 0;
 
   // Returns the scale at which content on the window should be scaled to.
   virtual float GetScale() = 0;
@@ -119,10 +133,11 @@ class Window {
   // Sets the mouse cursor style for this window.
   virtual void SetCursor(Cursor cursor) = 0;
 
-  // Notifies that there's an update ready for thr window and the new contents
+  // Notifies that there's an update ready for the window and the new contents
   // need to be presented. The delegate will be called to draw the actual
   // contents.
   virtual void Present() = 0;
+  virtual void Present(std::optional<Rectangle> dirty_rect) { Present(); }
 };
 
 }  // namespace window

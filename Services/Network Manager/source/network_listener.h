@@ -25,7 +25,7 @@ class NetworkListener : public ::perception::devices::NetworkListener::Server {
  public:
   NetworkListener(size_t interface_index);
 
-  virtual ::perception::Status PacketReceived(
+  virtual Status PacketReceived(
       const ::perception::devices::Packet& packet) override;
 
  private:

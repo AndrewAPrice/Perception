@@ -95,12 +95,13 @@ class ServiceClient : public serialization::Serializable {
   template <class ResponseType>
   ResponseType SyncDispatch(MessageData& message) {
     MessageId message_id_of_response = GenerateUniqueMessageId();
-    message.param2 = message_id_of_response;
+    message.param1 = message_id_of_response;
+    SetMessageType(message.metadata, MessageType::CALL);
 
     RegisterWakeUpHandler(message_id_of_response);
 
     auto send_status = SendMessage(process_id_, message);
-    if (send_status != MessageStatus::SUCCESS) {
+    if (send_status != Status::OK) {
       UnregisterMessageHandler(message_id_of_response);
       if (message.param3 != SIZE_MAX) {
         auto shared_memory =
@@ -118,6 +119,7 @@ class ServiceClient : public serialization::Serializable {
     while (true) {
       SleepAndGetRawMessage(message_id_of_response, pid, message);
       if (pid == process_id_) break;
+      DealWithUnhandledMessage(pid, message);
       // Re-register if it wasn't the expected sender.
       RegisterWakeUpHandler(message_id_of_response);
     }
@@ -131,10 +133,11 @@ class ServiceClient : public serialization::Serializable {
     if (on_response) {
       // Care about waiting for a response.
       MessageId message_id_of_response = GenerateUniqueMessageId();
-      message.param2 = message_id_of_response;
+      message.param1 = message_id_of_response;
+      SetMessageType(message.metadata, MessageType::CALL);
 
       auto send_status = SendMessage(process_id_, message);
-      if (send_status != MessageStatus::SUCCESS) {
+      if (send_status != Status::OK) {
         if (message.param3 != SIZE_MAX) {
           auto shared_memory =
               GetMemoryBufferForSendingToProcessRegardlessOfIfInUse(
@@ -155,7 +158,10 @@ class ServiceClient : public serialization::Serializable {
           message_id_of_response,
           [expected_sender = process_id_, message_id_of_response, on_response](
               ProcessId sender, const MessageData& message) {
-            if (sender != expected_sender) return;  // Not the correct process.
+            if (sender != expected_sender) {
+              DealWithUnhandledMessage(sender, message);
+              return;  // Not the correct process.
+            }
 
             UnregisterMessageHandler(message_id_of_response);
 
@@ -165,7 +171,7 @@ class ServiceClient : public serialization::Serializable {
           });
     } else {
       // Don't care about waiting for a response.
-      message.param2 = SIZE_MAX;
+      SetMessageType(message.metadata, MessageType::ONE_WAY);
       (void)SendMessage(process_id_, message);
     }
   }

@@ -149,11 +149,17 @@ extern "C" void SyscallHandler(int syscall_number) {
                         (mask & 2) != 0);
       break;
     }
-    case Syscall::SetAddressToClearOnThreadTermination:
+    case Syscall::SetAddressToClearOnThreadTermination: {
+      size_t addr = currently_executing_thread_regs->rax;
+      if (addr != 0 && !running_thread->process->virtual_address_space
+                            .IsAddressInCorrectSpace(addr)) {
+        running_thread->address_to_clear_on_termination = 0;
+        break;
+      }
       // Align the address to 8 bytes to avoid crossing page boundaries.
-      running_thread->address_to_clear_on_termination =
-          currently_executing_thread_regs->rax & (~7L);
+      running_thread->address_to_clear_on_termination = addr & (~7L);
       break;
+    }
     case Syscall::AllocateMemoryPages: {
       size_t pages_requested = currently_executing_thread_regs->rax;
       size_t result =

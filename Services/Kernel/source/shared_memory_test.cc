@@ -166,3 +166,27 @@ TEST(SharedMemoryEventsTest) {
   // Clean up
   LeaveSharedMemory(p1, shm->id);
 }
+
+TEST(SharedMemoryManualUnallocationTest) {
+  InitializeObjectPools();
+  InitializeProcesses();
+  InitializeVirtualAllocator();
+  InitializeSharedMemory();
+
+  Process* proc = CreateProcess(false, false);
+  ASSERT(proc != nullptr, true);
+  proc->virtual_address_space.SwitchToAddressSpace();
+
+  SharedMemoryInProcess* sm_in_proc =
+      CreateAndMapSharedMemoryBlockIntoProcess(proc, 2, 0, 0);
+  ASSERT(sm_in_proc != nullptr, true);
+
+  size_t vaddr = sm_in_proc->virtual_address;
+  ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)2);
+
+  // Attempt to manually unallocate the first page of shared memory
+  proc->virtual_address_space.FreePages(vaddr, 1);
+
+  // Verify shared page count did NOT decrease (UnmapVirtualPage did nothing)
+  ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)2);
+}

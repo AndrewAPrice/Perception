@@ -41,7 +41,6 @@
 
 namespace graphics = ::perception::devices::graphics;
 using ::perception::GetService;
-using ::perception::Status;
 using ::perception::devices::GraphicsDevice;
 using ::perception::devices::KeyboardEvent;
 using ::perception::devices::KeyboardListener;
@@ -89,7 +88,10 @@ class PerceptionWindow : public Window,
   }
 
   void SetTitle(std::string_view title) override {
-    std::cout << "PerceptionWindow::SetTitle is not implemented." << std::endl;
+    SetWindowTitleParameters message;
+    message.window = *this;
+    message.title = title;
+    GetService<WindowManager>().SetWindowTitle(message);
   }
 
   int GetWidth() override { return width_; }
@@ -103,6 +105,20 @@ class PerceptionWindow : public Window,
     message.window = *this;
     message.size = Size((float)width, (float)height);
     GetService<WindowManager>().SetWindowSize(message);
+  }
+
+  void SetMinimumSize(std::optional<Size> size) override {
+    SetWindowMinimumSizeRequest message;
+    message.window = *this;
+    message.size = size;
+    GetService<WindowManager>().SetWindowMinimumSize(message);
+  }
+
+  void SetMaximumSize(std::optional<Size> size) override {
+    SetWindowMaximumSizeRequest message;
+    message.window = *this;
+    message.size = size;
+    GetService<WindowManager>().SetWindowMaximumSize(message);
   }
 
   float GetScale() override { return 1.0f; };
@@ -145,7 +161,9 @@ class PerceptionWindow : public Window,
     GetService<WindowManager>().SetWindowCursor(message, nullptr);
   }
 
-  void Present() override {
+  void Present() override { Present(std::nullopt); }
+
+  void Present(std::optional<Rectangle> dirty_rect) override {
     WindowDrawBuffer buffer;
     buffer.width = width_;
     buffer.height = height_;
@@ -162,17 +180,43 @@ class PerceptionWindow : public Window,
       return;
     }
 
+    Rectangle invalidated_area(0, 0, width_, height_);
+    if (dirty_rect && !rebuild_texture_) {
+      invalidated_area.min_x = std::max(0, std::min(dirty_rect->min_x, width_));
+      invalidated_area.min_y =
+          std::max(0, std::min(dirty_rect->min_y, height_));
+      invalidated_area.max_x =
+          std::max(invalidated_area.min_x, std::min(dirty_rect->max_x, width_));
+      invalidated_area.max_y = std::max(invalidated_area.min_y,
+                                        std::min(dirty_rect->max_y, height_));
+      if (invalidated_area.max_x <= invalidated_area.min_x ||
+          invalidated_area.max_y <= invalidated_area.min_y) {
+        return;
+      }
+    }
+
     buffer.pixel_data = **texture_shared_memory_;
-    Rectangle invalidated_area{
-        .min_x = 0, .min_y = 0, .max_x = width_, .max_y = height_};
     if (!delegate_.expired())
       delegate_.lock()->WindowDraw(buffer, invalidated_area);
 
     if (is_double_buffered_) {
-      // TODO: Copy only what's in invalidated_rect.
-      // Copy the backbuffer to the front buffer.
-      memcpy(**frontbuffer_shared_memory_, **texture_shared_memory_,
-             width_ * height_ * 4);
+      int copy_w = invalidated_area.max_x - invalidated_area.min_x;
+      int copy_h = invalidated_area.max_y - invalidated_area.min_y;
+      if (copy_w == width_ && invalidated_area.min_x == 0) {
+        memcpy(static_cast<uint8_t*>(**frontbuffer_shared_memory_) +
+                   invalidated_area.min_y * width_ * 4,
+               static_cast<uint8_t*>(**texture_shared_memory_) +
+                   invalidated_area.min_y * width_ * 4,
+               static_cast<size_t>(copy_h * width_ * 4));
+      } else {
+        for (int y = invalidated_area.min_y; y < invalidated_area.max_y; ++y) {
+          memcpy(static_cast<uint8_t*>(**frontbuffer_shared_memory_) +
+                     (y * width_ + invalidated_area.min_x) * 4,
+                 static_cast<uint8_t*>(**texture_shared_memory_) +
+                     (y * width_ + invalidated_area.min_x) * 4,
+                 static_cast<size_t>(copy_w * 4));
+        }
+      }
     }
 
     // Tell the window manager there is new data to draw.
@@ -182,7 +226,7 @@ class PerceptionWindow : public Window,
     message.top = invalidated_area.min_y;
     message.right = invalidated_area.max_x;
     message.bottom = invalidated_area.max_y;
-    GetService<WindowManager>().InvalidateWindow(message, nullptr);
+    (void)GetService<WindowManager>().InvalidateWindow(message);
   }
 
   /// MouseListener::Server
@@ -403,9 +447,10 @@ std::shared_ptr<Window> Window::CreateWindow(
   create_window_request.mouse_listener = *window;
   create_window_request.is_resizable = creation_options.is_resizable;
   create_window_request.desired_size.width = creation_options.prefered_width;
-  create_window_request.hide_window_buttons =
-      creation_options.hide_window_buttons;
   create_window_request.desired_size.height = creation_options.prefered_height;
+  create_window_request.add_title_bar = creation_options.add_title_bar;
+  create_window_request.minimum_size = creation_options.minimum_size;
+  create_window_request.maximum_size = creation_options.maximum_size;
 
   auto status_or_result =
       GetService<WindowManager>().CreateWindow(create_window_request);

@@ -4,6 +4,7 @@
 #include "interrupts.h"
 #include "linked_list.h"
 #include "messages.h"
+#include "rpc.h"
 #include "service.h"
 #include "shared_memory.h"
 #include "shared_memory_event.h"
@@ -154,6 +155,18 @@ struct Process {
 
   // Node for the CPU tracking subscriptions list.
   LinkedListNode node_cpu_tracking_subscription;
+
+  // Number of RPCs this process is waiting on.
+  size_t rpc_count;
+
+  // RPCs that this process is waiting on for replies to.
+  LinkedList<RPC, &RPC::node_in_caller> rpcs_this_process_is_waiting_on;
+
+  // RPCs that another process is waiting on this process to reply to.
+  AATree<RPC, &RPC::node_in_callee, &RPC::synthetic_response_message_id>
+      rpcs_waiting_on_this_process;
+
+  size_t next_synthetic_rpc_response_message_id;
 };
 
 // Initializes the internal structures for tracking processes.

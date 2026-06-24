@@ -22,5 +22,5 @@
 // Implementation of the launcher service.
 class Launcher : public ::perception::Launcher::Server {
  public:
-  virtual ::perception::Status ShowLauncher() override;
+  virtual Status ShowLauncher() override;
 };

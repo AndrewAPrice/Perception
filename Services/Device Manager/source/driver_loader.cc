@@ -48,6 +48,7 @@ void LoadAllRemainingDrivers() {
   for (const auto& driver_name : drivers_to_load) {
     if (DoesProcessExist(driver_name)) continue;
 
+    std::cout << "Requesting the load " << driver_name << std::endl;
     LoadApplicationRequest request;
     request.name = driver_name;
     loader.LaunchApplication(request, nullptr);

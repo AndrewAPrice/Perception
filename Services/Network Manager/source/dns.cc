@@ -144,7 +144,7 @@ StatusOr<ResolveHostResponse> PerformDnsResolution(const std::string& host) {
     }
   }
 
-  if (!success) return ::perception::Status::INTERNAL_ERROR;
+  if (!success) return Status::INTERNAL_ERROR;
   return response;
 }
 

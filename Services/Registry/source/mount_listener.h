@@ -21,7 +21,7 @@ class MountListener : public ::perception::FileSystemMountListener::Server {
   MountListener() = default;
   virtual ~MountListener() = default;
 
-  virtual ::perception::Status FileSystemMounted(
+  virtual Status FileSystemMounted(
       const ::perception::FileSystemMountEvent& event,
       ::perception::ProcessId sender) override;
 };

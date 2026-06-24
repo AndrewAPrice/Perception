@@ -25,13 +25,16 @@ struct MessageData;
 
 // Defers running a function on the primary thread.
 void Defer(const std::function<void()>& function);
+void Defer(std::function<void()>&& function);
 
 // Defers running a function on the primary thread until after all other
 // deferred functions and incoming events have been handled.
 void DeferAfterEvents(const std::function<void()>& function);
+void DeferAfterEvents(std::function<void()>&& function);
 
 // Runs a function in parallel in a new thread.
 void DeferInParallel(const std::function<void()>& function);
+void DeferInParallel(std::function<void()>&& function);
 
 // Sets the focused process, that receives a temporary boost in priority. Only
 // the Window Manager can call this.

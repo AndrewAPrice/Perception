@@ -28,7 +28,6 @@
 using ::perception::GetService;
 using ::perception::MemoryMappedFile;
 using ::perception::SharedMemory;
-using ::perception::Status;
 using ::perception::StorageManager;
 using ::perception::ui::FontData;
 using ::perception::ui::FontFamilies;
@@ -59,7 +58,7 @@ Status MakeSureFontIsLoaded(const std::string& path) {
 
     font_data_by_path[path] = memory_mapped_font;
   }
-  return ::perception::Status::OK;
+  return Status::OK;
 }
 
 FontStyle MakeStyle(FontStyle::Weight weight, FontStyle::Width width,
@@ -194,7 +193,7 @@ StatusOr<MatchFontResponse> FontManager::MatchFont(
     }
   }
 
-  if (MakeSureFontIsLoaded(font_path) != ::perception::Status::OK) {
+  if (MakeSureFontIsLoaded(font_path) != Status::OK) {
     font_path = "/Libraries/Fonts/DejaVuSans.ttf";
     RETURN_ON_ERROR(MakeSureFontIsLoaded(font_path));
   }

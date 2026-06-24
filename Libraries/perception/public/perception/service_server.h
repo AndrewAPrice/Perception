@@ -67,7 +67,7 @@ class ServiceServer {
       SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
     }
 
-    if (message.param2 == SIZE_MAX) {
+    if (!IsCallExpectingResponse(message.metadata)) {
       // Don't care about a response.
       (void)(service->*handler)(request, sender);
       return;
@@ -82,7 +82,7 @@ class ServiceServer {
                              ProcessId sender, const MessageData& message) {
     HandleUnexpectedMessageInRequest(sender, message);
 
-    if (message.param2 == SIZE_MAX) {
+    if (!IsCallExpectingResponse(message.metadata)) {
       // Don't care about a response.
       (void)(service->*handler)(sender);
       return;
@@ -101,8 +101,9 @@ class ServiceServer {
   void SendBackResponse(ResponseType& response, ProcessId sender,
                         const MessageData& message) {
     MessageData response_data = {};
-    response_data.message_id = message.param2;
+    response_data.message_id = message.param1;
     response_data.metadata = 0;
+    SetMessageType(response_data.metadata, MessageType::RESPONSE);
     response_data.param1 =
         static_cast<size_t>(::perception::ToStatus(response));
     if constexpr (std::is_same_v<ResponseType, Status>) {

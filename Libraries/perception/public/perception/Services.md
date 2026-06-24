@@ -115,9 +115,9 @@ class CalculatorImpl : public Calculator::Server {
 
   virtual StatusOr<SingleValue> GetSavedValue() override { return SingleValue(saved_value_); }
 
-  virtual perception::Status SetSavedValue(SingleValue& input) override {
+  virtual Status SetSavedValue(SingleValue& input) override {
     saved_value_ = input.value;
-    return perception::Status::OK;
+    return Status::OK;
   }
 
  private:

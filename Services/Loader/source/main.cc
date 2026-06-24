@@ -95,11 +95,11 @@ int main(int argc, char* argv[]) {
      public:
       LoaderMountListener(::perception::Fiber* fiber_to_wake)
           : fiber_to_wake_(fiber_to_wake) {}
-      virtual ::perception::Status FileSystemMounted(
+      virtual Status FileSystemMounted(
           const ::perception::FileSystemMountEvent& event,
           ::perception::ProcessId sender) override {
         fiber_to_wake_->WakeUp();
-        return ::perception::Status::OK;
+        return Status::OK;
       }
 
      private:

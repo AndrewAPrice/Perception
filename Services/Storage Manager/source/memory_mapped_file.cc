@@ -29,7 +29,6 @@ using ::perception::ProcessId;
 using ::perception::ReadFileRequest;
 using ::perception::RequestWithFilePath;
 using ::perception::SharedMemory;
-using ::perception::Status;
 
 namespace {
 

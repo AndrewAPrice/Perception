@@ -34,7 +34,7 @@ enum class WindowButton {
 };
 
 // Initializes the asset for the window buttons.
-::perception::Status InitializeWindowButtons();
+Status InitializeWindowButtons();
 
 // Returns the ID of the texture that contains the window button.
 int WindowButtonsTextureId();

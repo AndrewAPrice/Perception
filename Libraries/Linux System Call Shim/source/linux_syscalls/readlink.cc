@@ -35,7 +35,7 @@ long readlink(const char* pathname, char* buf, size_t bufsiz) {
     memcpy(buf, status_or_response->path.c_str(), chars_to_copy);
     return chars_to_copy;
   } else {
-    if (status_or_response.Status() == ::perception::Status::FILE_NOT_FOUND) {
+    if (status_or_response.Status() == Status::FILE_NOT_FOUND) {
       return -ENOENT;
     } else {
       return -EINVAL;

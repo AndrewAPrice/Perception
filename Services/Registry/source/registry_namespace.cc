@@ -17,7 +17,6 @@
 using ::perception::MessageId;
 using ::perception::ProcessId;
 using ::perception::RegistryCorpus;
-using ::perception::Status;
 using ::perception::serialization::Value;
 
 RegistryNamespace::RegistryNamespace(RegistryCorpus corpus, std::string_view name)

@@ -13,11 +13,21 @@
 // limitations under the License.
 #pragma once
 
+#include "perception/serialization/serializable.h"
+
 namespace perception {
+namespace serialization {
+class Serializer;
+}
+
 namespace window {
 
 // Represents a rectangle.
-struct Rectangle {
+struct Rectangle : public serialization::Serializable {
+  Rectangle() : min_x(0), min_y(0), max_x(0), max_y(0) {}
+  Rectangle(int min_x, int min_y, int max_x, int max_y)
+      : min_x(min_x), min_y(min_y), max_x(max_x), max_y(max_y) {}
+
   // Minimum X coordinate, inclusive.
   int min_x;
 
@@ -29,6 +39,14 @@ struct Rectangle {
 
   // Maximum Y coordinate, exclusive.
   int max_y;
+
+  bool operator==(const Rectangle& other) const {
+    return min_x == other.min_x && min_y == other.min_y &&
+           max_x == other.max_x && max_y == other.max_y;
+  }
+  bool operator!=(const Rectangle& other) const { return !(*this == other); }
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
 }  // namespace window

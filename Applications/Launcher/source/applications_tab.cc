@@ -92,21 +92,21 @@ struct ErrorDialogState {
 
 // Returns an error message when an application fails to load.
 std::string ErrorMessageForApplicationLoading(std::string_view request_name,
-                                              ::perception::Status status) {
+                                              Status status) {
   bool is_directory = !request_name.empty() && request_name.back() == '/';
   std::string error_message =
       is_directory ? "Failed to open " : "Failed to launch ";
   error_message += std::string(request_name);
 
   switch (status) {
-    case ::perception::Status::FILE_NOT_FOUND:
+    case Status::FILE_NOT_FOUND:
       error_message +=
           is_directory ? "\nDirectory not found." : "\nFile not found.";
       break;
-    case ::perception::Status::NOT_ALLOWED:
+    case Status::NOT_ALLOWED:
       error_message += "\nPermission denied.";
       break;
-    case ::perception::Status::OUT_OF_MEMORY:
+    case Status::OUT_OF_MEMORY:
       error_message += "\nOut of memory.";
       break;
     default:
@@ -119,7 +119,7 @@ std::string ErrorMessageForApplicationLoading(std::string_view request_name,
 
 // Shows an error dialog.
 void ShowErrorDialogForApplicationLoading(std::string_view request_name,
-                                          ::perception::Status status) {
+                                          Status status) {
   auto state = std::make_shared<ErrorDialogState>();
   std::string message = ErrorMessageForApplicationLoading(request_name, status);
 

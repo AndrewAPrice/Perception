@@ -1,6 +1,12 @@
 #pragma once
 
 #if defined(TEST) || defined(TEST)
+#include <limits.h>
+
+#include <climits>
+#ifndef INT_MAX
+#define INT_MAX __INT_MAX__
+#endif
 #include <sys/types.h>
 #include <stddef.h>
 #else
@@ -20,4 +26,8 @@ typedef signed char int8;
 #define ERROR 1
 
 // Magic value for when we are out of memory.
+#ifdef __cplusplus
+constexpr size_t OUT_OF_MEMORY = 1;
+#else
 #define OUT_OF_MEMORY 1
+#endif

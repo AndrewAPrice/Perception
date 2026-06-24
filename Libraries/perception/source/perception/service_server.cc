@@ -26,9 +26,9 @@ namespace perception {
 // Implementation details:
 // Request:
 //    metadata:
-//    param 1: method ID
-//    param 2: message ID to use for response, or MAX if caller doesn't want a
+//    param 1: message ID to use for response, or MAX if caller doesn't want a
 //    response
+//    param 2: method ID
 //    param 3: shared buffer ID, or MAX for no attached messag
 //    param 4: length of message, in bytes (page aligned)
 //    param 5:
@@ -37,7 +37,7 @@ namespace perception {
 //    metadata:
 //    param 1: status
 //    param 2: shared buffer ID of response, or MAX for no attached method
-//    param 3: length of message, in byes (page aligned)
+//    param 3: length of message, in bytes (page aligned)
 //    param 4:
 //    param 5:
 //
@@ -76,11 +76,12 @@ ServiceServer::~ServiceServer() {
 void ServiceServer::HandleUnknownRequest(ProcessId sender,
                                          const MessageData& message) {
   HandleUnexpectedMessageInRequest(sender, message);
-  if (message.param2 == SIZE_MAX) return;  // Dont care about a response.
+  if (!IsCallExpectingResponse(message.metadata))
+    return;  // Dont care about a response.
 
   // Send back an unimplemented status.
   MessageData response_data = {};
-  response_data.message_id = message.param2;
+  response_data.message_id = message.param1;
   response_data.metadata = 0;
   response_data.param1 = static_cast<size_t>(Status::UNIMPLEMENTED);
   response_data.param2 = SIZE_MAX;

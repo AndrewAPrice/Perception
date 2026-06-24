@@ -36,6 +36,17 @@ Fiber* last_scheduled_fiber = nullptr;
 Fiber* first_late_scheduled_fiber = nullptr;
 Fiber* last_late_scheduled_fiber = nullptr;
 
+// Thread-local queues of fibers scheduled on the primary thread.
+thread_local __attribute__((tls_model("initial-exec")))
+Fiber* primary_first_scheduled_fiber = nullptr;
+thread_local __attribute__((tls_model("initial-exec")))
+Fiber* primary_last_scheduled_fiber = nullptr;
+
+thread_local __attribute__((tls_model("initial-exec")))
+Fiber* primary_first_late_scheduled_fiber = nullptr;
+thread_local __attribute__((tls_model("initial-exec")))
+Fiber* primary_last_late_scheduled_fiber = nullptr;
+
 struct Spinlock {
   std::atomic_flag flag = ATOMIC_FLAG_INIT;
   void Lock() {
@@ -159,12 +170,24 @@ void Defer(const std::function<void()>& function) {
   Scheduler::ScheduleFiber(Fiber::Create(function));
 }
 
+void Defer(std::function<void()>&& function) {
+  Scheduler::ScheduleFiber(Fiber::Create(std::move(function)));
+}
+
 void DeferAfterEvents(const std::function<void()>& function) {
   Scheduler::ScheduleFiberAfterEvents(Fiber::Create(function));
 }
 
+void DeferAfterEvents(std::function<void()>&& function) {
+  Scheduler::ScheduleFiberAfterEvents(Fiber::Create(std::move(function)));
+}
+
 void DeferInParallel(const std::function<void()>& function) {
   std::thread(function).detach();
+}
+
+void DeferInParallel(std::function<void()>&& function) {
+  std::thread(std::move(function)).detach();
 }
 
 void SetFocusedProcess(ProcessId pid) {
@@ -260,6 +283,19 @@ Fiber* Scheduler::GetNextFiberToRun() {
   }
 
   while (true) {
+    if (primary_first_scheduled_fiber != nullptr) {
+      Fiber* fiber = primary_first_scheduled_fiber;
+      primary_first_scheduled_fiber =
+          primary_first_scheduled_fiber->next_scheduled_fiber_;
+
+      if (primary_first_scheduled_fiber == nullptr) {
+        primary_last_scheduled_fiber = nullptr;
+      }
+
+      fiber->is_scheduled_to_run_ = false;
+      return fiber;
+    }
+
     {
       SpinlockLock lock(GetSchedulerLock());
       if (first_scheduled_fiber != nullptr) {
@@ -282,8 +318,9 @@ Fiber* Scheduler::GetNextFiberToRun() {
     ProcessId senders_pid;
     MessageData message_data;
 
-    bool has_late_scheduled_fibers = false;
-    {
+    bool has_late_scheduled_fibers =
+        (primary_first_late_scheduled_fiber != nullptr);
+    if (!has_late_scheduled_fibers) {
       SpinlockLock lock(GetSchedulerLock());
       has_late_scheduled_fibers = (first_late_scheduled_fiber != nullptr);
     }
@@ -312,11 +349,10 @@ Fiber* Scheduler::GetNextFiberToRun() {
 
         // Re-check scheduled fibers in case we were woken up by a secondary
         // thread.
+        if (primary_first_scheduled_fiber != nullptr) break;
         {
           SpinlockLock lock(GetSchedulerLock());
-          if (first_scheduled_fiber != nullptr) {
-            break;
-          }
+          if (first_scheduled_fiber != nullptr) break;
         }
       }
     } else {
@@ -331,6 +367,18 @@ Fiber* Scheduler::GetNextFiberToRun() {
 
       // There are no messages and there are no other fibers. Run any late
       // fibers now.
+      if (primary_first_late_scheduled_fiber != nullptr) {
+        Fiber* fiber = primary_first_late_scheduled_fiber;
+        primary_first_late_scheduled_fiber =
+            primary_first_late_scheduled_fiber->next_scheduled_fiber_;
+
+        if (primary_first_late_scheduled_fiber == nullptr)
+          primary_last_late_scheduled_fiber = nullptr;
+
+        fiber->is_scheduled_to_run_ = false;
+        return fiber;
+      }
+
       {
         SpinlockLock lock(GetSchedulerLock());
         if (first_late_scheduled_fiber != nullptr) {
@@ -358,6 +406,21 @@ Fiber* Scheduler::GetNextFiberToRun() {
 
 // Schedules a fiber to run.
 void Scheduler::ScheduleFiber(Fiber* fiber) {
+  if (IsPrimaryThread()) {
+    if (fiber->is_scheduled_to_run_) return;
+    fiber->is_scheduled_to_run_ = true;
+    fiber->next_scheduled_fiber_ = nullptr;
+
+    if (primary_last_scheduled_fiber == nullptr) {
+      primary_first_scheduled_fiber = fiber;
+      primary_last_scheduled_fiber = fiber;
+    } else {
+      primary_last_scheduled_fiber->next_scheduled_fiber_ = fiber;
+      primary_last_scheduled_fiber = fiber;
+    }
+    return;
+  }
+
   bool wake_up_primary = false;
   {
     SpinlockLock lock(GetSchedulerLock());
@@ -382,6 +445,21 @@ void Scheduler::ScheduleFiber(Fiber* fiber) {
 }
 
 void Scheduler::ScheduleFiberAfterEvents(Fiber* fiber) {
+  if (IsPrimaryThread()) {
+    if (fiber->is_scheduled_to_run_) return;
+    fiber->is_scheduled_to_run_ = true;
+    fiber->next_scheduled_fiber_ = nullptr;
+
+    if (primary_last_late_scheduled_fiber == nullptr) {
+      primary_first_late_scheduled_fiber = fiber;
+      primary_last_late_scheduled_fiber = fiber;
+    } else {
+      primary_last_late_scheduled_fiber->next_scheduled_fiber_ = fiber;
+      primary_last_late_scheduled_fiber = fiber;
+    }
+    return;
+  }
+
   bool wake_up_primary = false;
   {
     SpinlockLock lock(GetSchedulerLock());

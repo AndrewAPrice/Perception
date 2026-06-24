@@ -27,7 +27,6 @@ using ::perception::GetCurrentlyExecutingFiber;
 using ::perception::kPageSize;
 using ::perception::ReleaseMemoryPages;
 using ::perception::Sleep;
-using ::perception::Status;
 using ::perception::WakeThread;
 using ::perception::devices::StorageDeviceDetails;
 using ::perception::devices::StorageDeviceReadRequest;
@@ -39,8 +38,8 @@ IdeStorageDevice::IdeStorageDevice(IdeDevice* device, bool supports_dma)
       supports_dma_(supports_dma) {
   if (supports_dma_) {
     scratch_page_ = (unsigned char*)AllocateMemoryPagesBelowPhysicalAddressBase(
-        2, 0xFFFFFFFF - 2 * kPageSize, scratch_page_physical_address_);
-    if (scratch_page_) std::memset(scratch_page_, 0, 2 * kPageSize);
+        17, 0xFFFFFFFF - 17 * kPageSize, scratch_page_physical_address_);
+    if (scratch_page_) std::memset(scratch_page_, 0, 17 * kPageSize);
   } else {
     scratch_page_ = nullptr;
     scratch_page_physical_address_ = 0;
@@ -50,7 +49,7 @@ IdeStorageDevice::IdeStorageDevice(IdeDevice* device, bool supports_dma)
 
 IdeStorageDevice::~IdeStorageDevice() {
   if (supports_dma_ && scratch_page_) {
-    ReleaseMemoryPages(scratch_page_, 2);
+    ReleaseMemoryPages(scratch_page_, 17);
   }
 }
 
@@ -69,12 +68,12 @@ Status IdeStorageDevice::Read(const StorageDeviceReadRequest& request) {
   // Right now, join the memory buffer, but in the future it'll be nice to be
   // able to write without joining the memory buffer, which means if being able
   // to lock it without joining.
-  if (!request.buffer->Join()) return ::perception::Status::INVALID_ARGUMENT;
+  if (!request.buffer->Join()) return Status::INVALID_ARGUMENT;
 
   auto details = request.buffer->GetDetails();
   if (!details.CanWrite && !details.CanAssignPages) {
     // Can't move the written data into this memory page.
-    return ::perception::Status::INVALID_ARGUMENT;
+    return Status::INVALID_ARGUMENT;
   }
 
   uint64 bytes_to_copy = request.bytes_to_copy;
@@ -108,7 +107,7 @@ Status IdeStorageDevice::Read(const StorageDeviceReadRequest& request) {
 
   // Push request to the channel queue.
   auto* channel = device_->channel;
-  if (!channel->queue.Push(&req)) return ::perception::Status::OUT_OF_MEMORY;
+  if (!channel->queue.Push(&req)) return Status::OUT_OF_MEMORY;
 
   // Wake worker thread if it is asleep.
   if (channel->worker_thread_sleeping.load(std::memory_order_seq_cst))

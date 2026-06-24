@@ -14,18 +14,11 @@
 
 #pragma once
 
-#include "perception/clipboard.h"
-#include "perception/serialization/value.h"
+#include <string>
+#include <types.h>
 
-class ClipboardServer : public ::perception::Clipboard::Server {
- public:
-  ClipboardServer();
-  virtual ~ClipboardServer();
+namespace perception {
 
-  virtual Status SetClipboard(
-      const ::perception::serialization::Value& input) override;
-  virtual StatusOr<::perception::serialization::Value> GetClipboard() override;
+std::string Base64Encode(const uint8_t* data, size_t length);
 
- private:
-  ::perception::serialization::Value clipboard_value_;
-};
+}  // namespace perception

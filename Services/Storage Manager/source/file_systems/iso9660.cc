@@ -28,7 +28,6 @@ using ::perception::
     GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest;
 using ::perception::ProcessId;
 using ::perception::ReadFileRequest;
-using ::perception::Status;
 using ::perception::StorageManager;
 using ::perception::devices::StorageDevice;
 using ::perception::devices::StorageDeviceReadRequest;
@@ -49,18 +48,18 @@ class Iso9660File : public File {
         allowed_process_(allowed_process) {};
 
   virtual Status Close(ProcessId sender) override {
-    if (sender != allowed_process_) return ::perception::Status::NOT_ALLOWED;
+    if (sender != allowed_process_) return Status::NOT_ALLOWED;
 
     Defer([sender, this]() { CloseFile(sender, this); });
-    return ::perception::Status::OK;
+    return Status::OK;
   }
 
   virtual Status Read(const ReadFileRequest &request,
                       ProcessId sender) override {
-    if (sender != allowed_process_) return ::perception::Status::NOT_ALLOWED;
+    if (sender != allowed_process_) return Status::NOT_ALLOWED;
 
     if (request.offset_in_file + request.bytes_to_copy > length_of_file_) {
-      return ::perception::Status::OVERFLOW;
+      return Status::OVERFLOW;
     }
 
     StorageDeviceReadRequest read_request;
@@ -76,7 +75,7 @@ class Iso9660File : public File {
       const GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest
           &request,
       ::perception::ProcessId sender) override {
-    if (sender != allowed_process_) return ::perception::Status::NOT_ALLOWED;
+    if (sender != allowed_process_) return Status::NOT_ALLOWED;
     request.buffer->GrantPermissionToLazilyAllocatePage(
         storage_device_.ServerProcessId());
 

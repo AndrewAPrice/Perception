@@ -32,7 +32,6 @@ using ::perception::GetService;
 using ::perception::MessageId;
 using ::perception::NotifyOnEachNewServiceInstance;
 using ::perception::ProcessId;
-using ::perception::Status;
 using ::perception::devices::GraphicsDevice;
 using ::perception::devices::MouseButton;
 using ::perception::devices::MouseClickEvent;
@@ -198,7 +197,8 @@ CursorDef cursor_defs[] = {
     {kResizeVerticalSprite, {11, 19}, {5, 9}, 0},
     {kResizeDiagonalTopLeftBottomRightSprite, {13, 13}, {6, 6}, 0},
     {kResizeDiagonalTopRightBottomLeftSprite, {13, 13}, {6, 6}, 0},
-    {kCaretSprite, {7, 17}, {3, 8}, 0}};
+    {kCaretSprite, {7, 17}, {3, 8}, 0},
+    {"", {0, 0}, {0, 0}, 0}};
 
 void LoadSprite(std::string_view sprite, int width, int height,
                 uint32* destination) {
@@ -226,7 +226,7 @@ void LoadSprite(std::string_view sprite, int width, int height,
 Rectangle MouseBounds() {
   auto cursor_type = Window::GetCursorAtPoint(mouse_position);
   int idx = static_cast<int>(cursor_type);
-  if (idx < 0 || idx >= 8) idx = 0;
+  if (idx < 0 || idx >= 9) idx = 0;
   const auto& def = cursor_defs[idx];
   return Rectangle{.origin = mouse_position - def.hotspot, .size = def.size};
 }
@@ -308,8 +308,12 @@ void InitializeMouse() {
       });
 
   // Create a texture for each cursor.
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < 9; i++) {
     auto& def = cursor_defs[i];
+    if (def.size.width <= 0 || def.size.height <= 0) {
+      def.texture_id = 0;
+      continue;
+    }
     graphics::CreateTextureRequest create_texture_request;
     create_texture_request.size.width = def.size.width;
     create_texture_request.size.height = def.size.height;
@@ -338,8 +342,12 @@ void DrawMouse(const Rectangle& draw_area) {
 
   auto cursor_type = Window::GetCursorAtPoint(mouse_position);
   int idx = static_cast<int>(cursor_type);
-  if (idx < 0 || idx >= 8) idx = 0;
+  if (idx < 0 || idx >= 9) idx = 0;
   const auto& def = cursor_defs[idx];
+  if (def.texture_id == 0 || def.size.width <= 0 || def.size.height <= 0) {
+    last_mouse_bounds = mouse_bounds;
+    return;
+  }
 
   Point offset = intersection->origin - mouse_bounds.origin;
   CopyAlphaBlendedTexture(*intersection, def.texture_id, offset);

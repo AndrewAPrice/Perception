@@ -1,6 +1,7 @@
 #pragma once
 
 #include "linked_list.h"
+#include "status.h"
 #include "types.h"
 
 struct Message {
@@ -29,6 +30,11 @@ struct Thread;
 void SendKernelMessageToProcess(Process* receiver_process, size_t event_id,
                                 size_t param1, size_t param2, size_t param3,
                                 size_t param4, size_t param5);
+
+// Sends an RPC response from the kernel to a process.
+void SendKernelRpcResponse(Process* receiver_process,
+                           size_t response_message_id, size_t callee_pid,
+                           size_t status);
 
 // Sends an message from a thread. This is intended to be called from within a
 // syscall.

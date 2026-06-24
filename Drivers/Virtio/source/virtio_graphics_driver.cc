@@ -48,7 +48,6 @@ using ::perception::RegisterInterruptHandler;
 using ::perception::RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort;
 using ::perception::ReleaseMemoryPages;
 using ::perception::SharedMemory;
-using ::perception::Status;
 using ::perception::StopNotifyingUponProcessTermination;
 using ::perception::Write16BitsToPort;
 using ::perception::Write32BitsToPort;

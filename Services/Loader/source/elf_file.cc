@@ -27,7 +27,6 @@
 
 using ::perception::kPageSize;
 using ::perception::MemorySpan;
-using ::perception::Status;
 
 // Where the high memory for the kernel starts. This is to make sure ELF files
 // only try to load into valid user space memory.

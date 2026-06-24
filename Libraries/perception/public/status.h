@@ -14,13 +14,13 @@
 
 #pragma once
 
+#ifndef KERNEL
 #include <utility>
+#endif
 
 #ifdef OVERFLOW
 #undef OVERFLOW
 #endif
-
-namespace perception {
 
 enum class Status {
   OK = 0,
@@ -33,25 +33,26 @@ enum class Status {
   OVERFLOW = 7,
   MISSING_MEDIA = 8,
   NOT_ALLOWED = 9,
-  FILE_NOT_FOUND = 10
+  FILE_NOT_FOUND = 10,
+  RECEIVERS_QUEUE_IS_FULL = 11,
+  SENDERS_QUEUE_IS_FULL = 12,
+  RESPONDING_TO_INVALID_RPC = 13
 };
 
-}
-
+#ifndef KERNEL
 template <class T>
 class StatusOr {
  public:
-  StatusOr() : status_(::perception::Status::UNIMPLEMENTED) {}
-  StatusOr(T&& value)
-      : status_(::perception::Status::OK), value_(std::move(value)) {}
-  StatusOr(T& value) : status_(::perception::Status::OK), value_(value) {}
-  StatusOr(::perception::Status status) : status_(status) {}
+  StatusOr() : status_(Status::UNIMPLEMENTED) {}
+  StatusOr(T&& value) : status_(Status::OK), value_(std::move(value)) {}
+  StatusOr(T& value) : status_(Status::OK), value_(value) {}
+  StatusOr(Status status) : status_(status) {}
 
-  bool Ok() const { return status_ == ::perception::Status::OK; }
+  bool Ok() const { return status_ == Status::OK; }
 
   operator bool() const { return Ok(); }
 
-  ::perception::Status Status() const { return status_; }
+  ::Status Status() const { return status_; }
 
   T& operator*() { return value_; }
 
@@ -62,7 +63,7 @@ class StatusOr {
   const T* operator->() const { return &value_; }
 
  private:
-  ::perception::Status status_;
+  ::Status status_;
   T value_;
 };
 
@@ -83,10 +84,10 @@ Status ToStatus(const StatusOr<T>& status_or) {
 #define VAR_NAME_WITH_LINE2(id, name) id##name
 #define VAR_NAME_WITH_LINE(id, name) VAR_NAME_WITH_LINE2(id, name)
 
-#define RETURN_ON_ERROR(expr)                                               \
-  auto VAR_NAME_WITH_LINE(__status__, __LINE__) =                           \
-      ::perception::ToStatus(expr);                                         \
-  if (VAR_NAME_WITH_LINE(__status__, __LINE__) != ::perception::Status::OK) \
+#define RETURN_ON_ERROR(expr)                                 \
+  auto VAR_NAME_WITH_LINE(__status__, __LINE__) =             \
+      ::perception::ToStatus(expr);                           \
+  if (VAR_NAME_WITH_LINE(__status__, __LINE__) != Status::OK) \
     return VAR_NAME_WITH_LINE(__status__, __LINE__);
 
 #define ASSIGN_OR_RETURN(var, expr)                                 \
@@ -95,3 +96,4 @@ Status ToStatus(const StatusOr<T>& status_or) {
   var = std::move(*std::move(VAR_NAME_WITH_LINE(__status_or_var__, __LINE__)));
 
 // #undef VAR_NAME_WITH_LINE
+#endif

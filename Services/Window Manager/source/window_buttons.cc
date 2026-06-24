@@ -26,7 +26,6 @@
 #include "status.h"
 
 using ::perception::GetService;
-using ::perception::Status;
 using ::perception::devices::GraphicsDevice;
 using ::perception::ui::Point;
 using ::perception::ui::Size;

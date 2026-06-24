@@ -26,22 +26,6 @@ namespace perception {
 
 class Fiber;
 
-enum class MessageStatus {
-  // The message was successfully sent.
-  SUCCESS = 0,
-  // The process the message was being send to doesn't exist.
-  PROCESS_DOESNT_EXIST = 1,
-  // The system ran out of memory.
-  OUT_OF_MEMORY = 2,
-  // The receiving process's queue is full.
-  RECEIVERS_QUEUE_IS_FULL = 3,
-  // Messaging isn't supported on this platform.
-  UNSUPPORTED = 4,
-  // You attempted to send memory pages, but the address range
-  // was invalid.
-  INVALID_MEMORY_RANGE = 5
-};
-
 struct MessageData {
   MessageId message_id;
   size_t metadata;
@@ -75,6 +59,25 @@ struct FiberLocalMessageHandler {
   MessageData message_data;
 };
 
+enum class MessageType : uint8 {
+  ONE_WAY = 0b00,
+  CALL = 0b01,
+  RESPONSE = 0b10,
+  INVALID = 0b11
+};
+
+inline MessageType GetMessageType(size_t metadata) {
+  return static_cast<MessageType>(metadata & 0b11);
+}
+
+inline void SetMessageType(size_t& metadata, MessageType type) {
+  metadata = (metadata & ~size_t(0b11)) | static_cast<size_t>(type);
+}
+
+inline bool IsCallExpectingResponse(size_t metadata) {
+  return GetMessageType(metadata) == MessageType::CALL;
+}
+
 // Were memory pages sent in this message?
 bool WereMemoryPagesSentInMessage(size_t metadata);
 
@@ -87,15 +90,12 @@ void DealWithUnhandledMessage(ProcessId senders_pid,
 // process.
 MessageId GenerateUniqueMessageId();
 
-// Converts MessageStatus to Status.
-Status ToStatus(MessageStatus status);
-
 // Sends a raw message to a process. Do not use unless you are familiar with
 // the Permebuf message protocol, as misuse could lead to memory corruption.
-MessageStatus SendRawMessage(ProcessId pid, const MessageData& message_data);
+Status SendRawMessage(ProcessId pid, const MessageData& message_data);
 
 // Sends a message to a process.
-MessageStatus SendMessage(ProcessId pid, const MessageData& message_data);
+Status SendMessage(ProcessId pid, const MessageData& message_data);
 
 // Registers the message handler to call when a specific message is received.
 // Assigning another handler to the same Message ID will override that handler.

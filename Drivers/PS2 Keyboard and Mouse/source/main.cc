@@ -21,6 +21,7 @@
 #include "perception/messages.h"
 #include "perception/port_io.h"
 #include "perception/processes.h"
+#include "perception/profiling.h"
 #include "perception/scheduler.h"
 #include "perception/services.h"
 #include "perception/window/window_manager.h"
@@ -32,7 +33,6 @@ using ::perception::kMaxInterruptReadBytes;
 using ::perception::ProcessId;
 using ::perception::Read8BitsFromPort;
 using ::perception::RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort;
-using ::perception::Status;
 using ::perception::Write8BitsToPort;
 using ::perception::devices::KeyboardDevice;
 using ::perception::devices::KeyboardEvent;
@@ -50,9 +50,10 @@ namespace {
 
 constexpr size_t kTimeout = 100000;
 
+#define SYSTEM_KEY_TOGGLES_PROFILING
+
 // The system key (set to Escape) to send to the window manager.
 constexpr uint8 kSystemKeyDown = 1;
-constexpr uint8 kSystemKeyUp = 129;
 
 enum class MousePacketState { kAwaitingByte1, kAwaitingByte2, kAwaitingByte3 };
 
@@ -184,13 +185,19 @@ class PS2KeyboardDevice : public KeyboardDevice::Server {
 
   void HandleKeyboardInterrupt(uint8 val) {
     if (val == kSystemKeyDown) {
+#ifdef SYSTEM_KEY_TOGGLES_PROFILING
+      static bool profiling_enabled = false;
+      profiling_enabled = !profiling_enabled;
+      if (profiling_enabled) {
+        ::perception::EnableProfiling();
+      } else {
+        ::perception::DisableAndOutputProfiling();
+      }
+#endif
+
       // The system key was pressed. Notify the window manager.
       auto window_manager = FindFirstInstanceOfService<WindowManager>();
       if (window_manager) window_manager->SystemButtonPushed(nullptr);
-      return;
-    } else if (val == kSystemKeyUp) {
-      // Ignore releasing the system key.
-      return;
     }
 
     if (!keyboard_captor_)

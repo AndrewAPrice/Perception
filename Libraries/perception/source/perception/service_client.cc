@@ -65,7 +65,7 @@ void ServiceClient::PrepareRequestMessage(size_t method_id,
                                           MessageData& message) {
   message.message_id = message_id_;
   message.metadata = 0;
-  message.param1 = method_id;
+  message.param2 = method_id;
 }
 
 void ServiceClient::PrepareRequestMessageWithoutParameters(

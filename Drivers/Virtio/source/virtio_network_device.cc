@@ -49,7 +49,6 @@ using ::perception::Read8BitsFromPciConfig;
 using ::perception::Read8BitsFromPort;
 using ::perception::RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort;
 using ::perception::ReleaseMemoryPages;
-using ::perception::Status;
 using ::perception::Write16BitsToPort;
 using ::perception::Write32BitsToPort;
 using ::perception::Write8BitsToPciConfig;

@@ -29,6 +29,11 @@ class Size : public serialization::Serializable {
 
   float width, height;
 
+  bool operator==(const Size& other) const {
+    return width == other.width && height == other.height;
+  }
+  bool operator!=(const Size& other) const { return !(*this == other); }
+
   virtual void Serialize(serialization::Serializer &serializer) override;
 };
 

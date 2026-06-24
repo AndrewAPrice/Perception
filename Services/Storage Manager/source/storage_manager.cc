@@ -106,7 +106,7 @@ StorageManager::~StorageManager() {}
 StatusOr<OpenFileResponse> StorageManager::OpenFile(
     const RequestWithFilePath& request, ProcessId sender) {
   if (!DoesProcessHavePermissionToReadPath(request.path, sender))
-    return ::perception::Status::NOT_ALLOWED;
+    return Status::NOT_ALLOWED;
 
   size_t size_in_bytes = 0;
   size_t optimal_operation_size = 0;
@@ -123,7 +123,7 @@ StatusOr<OpenFileResponse> StorageManager::OpenFile(
 StatusOr<OpenMemoryMappedFileResponse> StorageManager::OpenMemoryMappedFile(
     const RequestWithFilePath& request, ::perception::ProcessId sender) {
   if (!DoesProcessHavePermissionToReadPath(request.path, sender))
-    return ::perception::Status::NOT_ALLOWED;
+    return Status::NOT_ALLOWED;
   ASSIGN_OR_RETURN(MemoryMappedFile * mmfile,
                    ::OpenMemoryMappedFile(request.path, sender));
   OpenMemoryMappedFileResponse response;
@@ -135,7 +135,7 @@ StatusOr<OpenMemoryMappedFileResponse> StorageManager::OpenMemoryMappedFile(
 StatusOr<ReadDirectoryResponse> StorageManager::ReadDirectory(
     const ReadDirectoryRequest& request, ProcessId sender) {
   if (!DoesProcessHavePermissionToReadPath(request.path, sender))
-    return ::perception::Status::NOT_ALLOWED;
+    return Status::NOT_ALLOWED;
   ReadDirectoryResponse response;
 
   response.has_more_entries = !ForEachEntryInDirectory(
@@ -173,12 +173,12 @@ StatusOr<RequestWithFilePath> StorageManager::ReadLink(
 
 std::vector<StorageManager::MountListenerInfo> StorageManager::listeners_;
 
-::perception::Status StorageManager::ListenForMounts(
+Status StorageManager::ListenForMounts(
     const ::perception::FileSystemMountListener::Client& listener) {
   for (const auto& info : listeners_) {
     if (info.client.ServerProcessId() == listener.ServerProcessId() &&
         info.client.ServiceId() == listener.ServiceId()) {
-      return ::perception::Status::OK;
+      return Status::OK;
     }
   }
 
@@ -203,10 +203,10 @@ std::vector<StorageManager::MountListenerInfo> StorageManager::listeners_;
     listener_copy.FileSystemMounted(event, nullptr);
   });
 
-  return ::perception::Status::OK;
+  return Status::OK;
 }
 
-::perception::Status StorageManager::StopListeningForMounts(
+Status StorageManager::StopListeningForMounts(
     const ::perception::FileSystemMountListener::Client& listener) {
   for (auto it = listeners_.begin(); it != listeners_.end(); ++it) {
     if (it->client.ServerProcessId() == listener.ServerProcessId() &&
@@ -216,7 +216,7 @@ std::vector<StorageManager::MountListenerInfo> StorageManager::listeners_;
       break;
     }
   }
-  return ::perception::Status::OK;
+  return Status::OK;
 }
 
 void StorageManager::BroadcastMount(std::string_view mount_point) {
