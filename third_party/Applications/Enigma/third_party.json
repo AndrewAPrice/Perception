@@ -1,0 +1,519 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/enigma-game/enigma.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source/src",
+            "recursive": true,
+            "extensions": [
+                ".cc",
+                ".cpp",
+                ".hh",
+                ".hpp",
+                ".pkg"
+            ],
+            "replace": [
+                {
+                    "file": "source/src/lev/SearchCombination.hh",
+                    "prepend": "#include <cctype>\n"
+                },
+                {
+                    "file": "source/src/lua-display.cc",
+                    "replacements": [
+                        [
+                            "using namespace display;",
+                            "using namespace enigma::display;"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/main.hh",
+                    "prepend": "#include \"config.h\"\n"
+                },
+                {
+                    "file": "source/src/main.cc",
+                    "replacements": [
+                        [
+                            "int main(int argc, char **argv)\n{",
+                            "int main(int argc, char **argv)\n{\n    setenv(\"HOME\", \"/Applications/Enigma\", 0);\n"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/file.hh",
+                    "prepend": "#include \"config.h\"\n"
+                },
+                {
+                    "file": "source/src/floors/ForwardFloor.cc",
+                    "prepend": "#include \"config.h\"\n"
+                },
+                {
+                    "file": "source/src/Value.hh",
+                    "replacements": [
+                        [
+                            "double toDouble() const;",
+                            "double toDouble() const;\n        operator int() const { return toInt(); }\n        operator double() const { return toDouble(); }\n        operator float() const { return static_cast<float>(toDouble()); }\n        operator std::string() const { return toString(); }"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/StateManager.cc",
+                    "replacements": [
+                        [
+                            "return 0;\n    }\n\n    void StateManager::setGroupSelectedIndex",
+                            "return \"\";\n    }\n\n    void StateManager::setGroupSelectedIndex"
+                        ],
+                        [
+                            "dynamic_cast<DOMElement *>",
+                            "static_cast<DOMElement *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMElement*>",
+                            "static_cast<DOMElement*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr *>",
+                            "static_cast<DOMAttr *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr*>",
+                            "static_cast<DOMAttr*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText *>",
+                            "static_cast<DOMText *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText*>",
+                            "static_cast<DOMText*>"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/PreferenceManager.cc",
+                    "replacements": [
+                        [
+                            "dynamic_cast<DOMElement *>",
+                            "static_cast<DOMElement *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMElement*>",
+                            "static_cast<DOMElement*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr *>",
+                            "static_cast<DOMAttr *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr*>",
+                            "static_cast<DOMAttr*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText *>",
+                            "static_cast<DOMText *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText*>",
+                            "static_cast<DOMText*>"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/ObjectValidator.cc",
+                    "replacements": [
+                        [
+                            "dynamic_cast<DOMElement *>",
+                            "static_cast<DOMElement *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMElement*>",
+                            "static_cast<DOMElement*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr *>",
+                            "static_cast<DOMAttr *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr*>",
+                            "static_cast<DOMAttr*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText *>",
+                            "static_cast<DOMText *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText*>",
+                            "static_cast<DOMText*>"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/utilXML.cc",
+                    "replacements": [
+                        [
+                            "dynamic_cast<DOMElement *>",
+                            "static_cast<DOMElement *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMElement*>",
+                            "static_cast<DOMElement*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr *>",
+                            "static_cast<DOMAttr *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr*>",
+                            "static_cast<DOMAttr*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText *>",
+                            "static_cast<DOMText *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText*>",
+                            "static_cast<DOMText*>"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/lev/ScoreManager.cc",
+                    "replacements": [
+                        [
+                            "dynamic_cast<DOMElement *>",
+                            "static_cast<DOMElement *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMElement*>",
+                            "static_cast<DOMElement*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr *>",
+                            "static_cast<DOMAttr *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr*>",
+                            "static_cast<DOMAttr*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText *>",
+                            "static_cast<DOMText *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText*>",
+                            "static_cast<DOMText*>"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/lev/PersistentIndex.cc",
+                    "replacements": [
+                        [
+                            "dynamic_cast<DOMElement *>",
+                            "static_cast<DOMElement *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMElement*>",
+                            "static_cast<DOMElement*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr *>",
+                            "static_cast<DOMAttr *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr*>",
+                            "static_cast<DOMAttr*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText *>",
+                            "static_cast<DOMText *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText*>",
+                            "static_cast<DOMText*>"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/lev/RatingManager.cc",
+                    "replacements": [
+                        [
+                            "dynamic_cast<DOMElement *>",
+                            "static_cast<DOMElement *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMElement*>",
+                            "static_cast<DOMElement*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr *>",
+                            "static_cast<DOMAttr *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr*>",
+                            "static_cast<DOMAttr*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText *>",
+                            "static_cast<DOMText *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText*>",
+                            "static_cast<DOMText*>"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/PropertyManager.cc",
+                    "replacements": [
+                        [
+                            "dynamic_cast<DOMElement *>",
+                            "static_cast<DOMElement *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMElement*>",
+                            "static_cast<DOMElement*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr *>",
+                            "static_cast<DOMAttr *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr*>",
+                            "static_cast<DOMAttr*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText *>",
+                            "static_cast<DOMText *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText*>",
+                            "static_cast<DOMText*>"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/lev/Proxy.cc",
+                    "replacements": [
+                        [
+                            "dynamic_cast<DOMElement *>",
+                            "static_cast<DOMElement *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMElement*>",
+                            "static_cast<DOMElement*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr *>",
+                            "static_cast<DOMAttr *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMAttr*>",
+                            "static_cast<DOMAttr*>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText *>",
+                            "static_cast<DOMText *>"
+                        ],
+                        [
+                            "dynamic_cast<DOMText*>",
+                            "static_cast<DOMText*>"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/DOMSchemaResolver.cc",
+                    "replacements": [
+                        [
+                            "std::string schemaName = XMLtoLocal(systemId).c_str();",
+                            "std::string full_id = XMLtoLocal(systemId).c_str();\n        size_t slash_pos = full_id.find_last_of(\"/\\\\\");\n        std::string schemaName = (slash_pos == std::string::npos) ? full_id : full_id.substr(slash_pos + 1);"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/Utf8ToXML.cc",
+                    "replacements": [
+                        [
+                            "XMLSize_t srcLength = std::strlen(toTranscode) + 1;\n        // make safe assumptions on utf-16 size\n        XMLSize_t maxDestLength = srcLength;\n        XMLSize_t charsEaten;\n        unsigned char *charSizes = new unsigned char[maxDestLength]; // just junk\n        // make a buffer - size does not matter - the object is temporary \n        xmlString = new XMLCh[maxDestLength];\n        // transcode to utf-8 -- there are no unrepresentable chars\n        app.xmlUtf8Transcoder->transcodeFrom((XMLByte *)toTranscode,\n                srcLength,\n                xmlString, maxDestLength,\n                charsEaten, charSizes);\n        delete[] charSizes;\n        if (charsEaten < srcLength) {\n            // an assert - should never occur\n            Log << \"Utf8toXML: incomplete transcoding - only \" << charsEaten << \" of \" << srcLength\n                << \"bytes were processed!\" << std::endl;\n        }",
+                            "xmlString = xercesc::XMLString::transcode(toTranscode);"
+                        ],
+                        [
+                            "delete [] xmlString;",
+                            "if (xmlString) xercesc::XMLString::release(&xmlString);"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/XMLtoUtf8.cc",
+                    "replacements": [
+                        [
+                            "XMLSize_t srcLength = XMLString::stringLen(toTranscode) + 1;\n        // make safe assumptions on utf-8 size\n        XMLSize_t maxDestLength = 3 * srcLength;\n        XMLSize_t charsEaten;\n        // make a buffer - size does not matter - the object is temporary\n        utf8String = new char[maxDestLength];\n        // transcode to utf-8 -- there are no unrepresentable chars\n        app.xmlUtf8Transcoder->transcodeTo(toTranscode, srcLength,\n                (XMLByte *)utf8String, maxDestLength,\n                charsEaten, XMLTranscoder::UnRep_RepChar);\n        if (charsEaten < srcLength)\n            // an assert - should never occur\n            Log << \"XMLtoUtf8: incomplete transcoding - only \"<< charsEaten <<\n                    \" of \" << srcLength << \"characters were processed!\" << std::endl;",
+                            "utf8String = xercesc::XMLString::transcode(toTranscode);"
+                        ],
+                        [
+                            "delete [] utf8String;",
+                            "if (utf8String) xercesc::XMLString::release(&utf8String);"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/gui/ErrorMenu.cc",
+                    "prepend": "#include <iterator>\n"
+                },
+                {
+                    "file": "source/src/video.cc",
+                    "replacements": [
+                        [
+                            "if (Surface *icon",
+                            "if (ecl::Surface *icon"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/lib-src",
+            "destination": "source/lib-src",
+            "recursive": true,
+            "extensions": [
+                ".c",
+                ".cc",
+                ".cpp",
+                ".h",
+                ".hh",
+                ".hpp"
+            ],
+            "exclude": [
+                "source/lib-src/enigma-core/ecl_testargp.cc",
+                "source/lib-src/lua/lua.c",
+                "source/lib-src/lua/luac.c",
+                "source/lib-src/lua/print.c",
+                "source/lib-src/oxydlib/EnigmaNames.cpp",
+                "source/lib-src/oxydlib/extractbitmaps.cpp",
+                "source/lib-src/oxydlib/extractchunks.cpp",
+                "source/lib-src/oxydlib/printlevels.cpp",
+                "source/lib-src/oxydlib/printstats.cpp",
+                "source/lib-src/tinygettext/test/helloworld.cpp",
+                "source/lib-src/tinygettext/test/po_parser_test.cpp",
+                "source/lib-src/tinygettext/test/tinygettext_test.cpp"
+            ],
+            "rename": {
+                "source/lib-src/lua/lexerproxy.c": "source/lib-src/lua/lexerproxy.inc"
+            },
+            "replace": [
+                {
+                    "file": "source/lib-src/lua/llex.c",
+                    "replacements": [
+                        [
+                            "#include \"lexerproxy.c\"",
+                            "#include \"lexerproxy.inc\""
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib-src/enigma-core/ecl_system.hh",
+                    "prepend": "#include <ctime>\n"
+                },
+                {
+                    "file": "source/lib-src/enigma-core/ecl_font.hh",
+                    "prepend": "#include <memory>\n"
+                },
+                {
+                    "file": "source/lib-src/enigma-core/ecl_argp.hh",
+                    "prepend": "#include <iterator>\n"
+                },
+                {
+                    "file": "source/lib-src/tinygettext/src/language.cpp",
+                    "prepend": "#include <cctype>\n"
+                },
+                {
+                    "file": "source/lib-src/tinygettext/src/plural_forms.cpp",
+                    "prepend": "#include <cctype>\nusing namespace std;\n"
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/tools",
+            "destination": "source/tools",
+            "recursive": true,
+            "extensions": [
+                ".c",
+                ".h"
+            ],
+            "exclude": [
+                "source/tools/getopt.c",
+                "source/tools/getopt1.c"
+            ],
+            "rename": {
+                "source/tools/tolua.c": "source/tools/tolua.inc",
+                "source/tools/toluabind.c": "source/tools/toluabind.inc"
+            }
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/data",
+            "destination": "assets/data",
+            "recursive": true
+        },
+        {
+            "operation": "execute",
+            "command": "cc -o ${@}/source/tools/tolua -x c ${@}/source/tools/tolua.inc -x c ${@}/source/tools/toluabind.inc -I${@}/source/lib-src/lua $(ls ${@}/source/lib-src/lua/*.c | grep -v -E 'lexerproxy|lua\\.c|luac\\.c|print\\.c') -lm",
+            "inputs": [
+                "source/tools/tolua.inc",
+                "source/tools/toluabind.inc"
+            ],
+            "outputs": [
+                "source/tools/tolua"
+            ]
+        },
+        {
+            "operation": "execute",
+            "command": "${@}/source/tools/tolua -o ${@}/source/src/lua-global.cc -H ${@}/source/src/lua-global.hh -n global ${@}/source/src/global-lua.pkg",
+            "inputs": [
+                "source/src/global-lua.pkg"
+            ],
+            "outputs": [
+                "source/src/lua-global.cc"
+            ]
+        },
+        {
+            "operation": "execute",
+            "command": "${@}/source/tools/tolua -o ${@}/source/src/lua-ecl.cc -H ${@}/source/src/lua-ecl.hh -n px ${@}/source/src/ecl-lua.pkg",
+            "inputs": [
+                "source/src/ecl-lua.pkg"
+            ],
+            "outputs": [
+                "source/src/lua-ecl.cc"
+            ]
+        },
+        {
+            "operation": "execute",
+            "command": "${@}/source/tools/tolua -o ${@}/source/src/lua-display.cc -H ${@}/source/src/lua-display.hh -n disp ${@}/source/src/display-lua.pkg",
+            "inputs": [
+                "source/src/display-lua.pkg"
+            ],
+            "outputs": [
+                "source/src/lua-display.cc"
+            ]
+        },
+        {
+            "operation": "execute",
+            "command": "${@}/source/tools/tolua -o ${@}/source/src/lua-enigma.cc -H ${@}/source/src/lua-enigma.hh -n enigma ${@}/source/src/enigma-lua.pkg",
+            "inputs": [
+                "source/src/enigma-lua.pkg"
+            ],
+            "outputs": [
+                "source/src/lua-enigma.cc"
+            ]
+        }
+    ]
+}
