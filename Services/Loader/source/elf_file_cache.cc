@@ -17,9 +17,12 @@
 
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <string_view>
 
 namespace {
+
+std::mutex cache_mutex;
 
 // Loaded ELF files by name.
 std::multimap<std::string_view, std::shared_ptr<ElfFile>, std::less<>>
@@ -31,6 +34,7 @@ std::multimap<std::string_view, std::shared_ptr<ElfFile>, std::less<>>
 
 // Returns an ELF file if it is cached. First checks by name, then by path.
 // Returns an empty shared_ptr if no ELF file can be found.
+// Assumes cache_mutex is held.
 std::shared_ptr<ElfFile> GetCachedElfFile(std::string_view name) {
   auto itr_by_name = elf_files_by_name.find(name);
   if (itr_by_name != elf_files_by_name.end()) return itr_by_name->second;
@@ -43,6 +47,7 @@ std::shared_ptr<ElfFile> GetCachedElfFile(std::string_view name) {
 
 // Loads an ELF file (by name or path), then caches and returns it. Returns an
 // empty shared_ptr if the ELF file cannot be loaded.
+// Assumes cache_mutex is held.
 std::shared_ptr<ElfFile> LoadAndCacheElfFile(std::string_view name) {
   auto file = LoadFile(name);
   if (!file) {
@@ -64,6 +69,8 @@ std::shared_ptr<ElfFile> LoadAndCacheElfFile(std::string_view name) {
 }  // namespace
 
 std::shared_ptr<ElfFile> LoadOrIncrementElfFile(std::string_view name) {
+  std::lock_guard<std::mutex> lock(cache_mutex);
+
   // Look for a cached ELF file.
   auto elf_file = GetCachedElfFile(name);
   // Load an ELF file if there was no cached file.
@@ -77,6 +84,8 @@ std::shared_ptr<ElfFile> LoadOrIncrementElfFile(std::string_view name) {
 }
 
 void DecrementElfFile(std::shared_ptr<ElfFile> elf_file) {
+  std::lock_guard<std::mutex> lock(cache_mutex);
+
   // Decrease a reference count to the ELF file.
   elf_file->DecrementInstances();
   // Only continue if there are no more references.

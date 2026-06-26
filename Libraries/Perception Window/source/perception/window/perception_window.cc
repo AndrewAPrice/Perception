@@ -131,8 +131,11 @@ class PerceptionWindow : public Window,
 
   void SetCaptureMouse(bool capture) override {
     if (is_mouse_captive_ == capture) return;
-    std::cout << "PerceptionWindow::SetCaptureMouse is not implemented."
-              << std::endl;
+    is_mouse_captive_ = capture;
+    SetWindowCaptureMouseRequest message;
+    message.window = *this;
+    message.capture = capture;
+    GetService<WindowManager>().SetWindowCaptureMouse(message);
   }
 
   bool IsKeyboardCaptive() override { return is_keyboard_captive_; }

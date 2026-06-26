@@ -14,14 +14,25 @@
 
 #include "linux_syscalls/mkdir.h"
 
+#include <errno.h>
+
 #include "perception/debug.h"
+#include "perception/services.h"
+#include "perception/storage_manager.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long mkdir() {
-  perception::DebugPrinterSingleton << "System call mkdir is unimplemented.\n";
-  return 0;
+long mkdir(const char* pathname, mode_t mode) {
+  auto status = GetService<StorageManager>().CreateDirectory({pathname});
+  switch (status) {
+    case Status::OK:
+      return 0;
+    case Status::NOT_ALLOWED:
+      return -EACCES;
+    default:
+      return -EINVAL;
+  }
 }
 
 }  // namespace linux_syscalls

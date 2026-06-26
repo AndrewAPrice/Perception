@@ -98,6 +98,7 @@ size_t next_zero_transition_id = 0;
 // Z-ordered windows, from back to front. Since LinkedLists can't hold
 // shared_ptrs, the object must also be held by windows_by_listeners.
 LinkedList<Window, &Window::z_ordering_linked_list_node_> z_ordered_windows_;
+Window* captive_mouse_window = nullptr;
 
 // The window that currently has focused.
 Window* focused_window;
@@ -443,6 +444,7 @@ void Window::Close() {
   if (is_closed_) return;
   is_closed_ = true;
 
+  if (captive_mouse_window == this) SetCaptureMouse(false);
   Hide();
   std::weak_ptr<Window> weak_this = shared_from_this();
 
@@ -537,6 +539,41 @@ bool Window::ExitFullScreen() {
       return true;
     }
     return false;
+  });
+}
+
+Window* Window::GetCaptiveMouseWindow() { return captive_mouse_window; }
+
+::perception::devices::MouseListener::Client& Window::GetMouseListener() {
+  return mouse_listener_;
+}
+
+void Window::SetCaptureMouse(bool capture) {
+  if (is_mouse_captive_ == capture) return;
+  is_mouse_captive_ = capture;
+  if (capture) {
+    captive_mouse_window = this;
+    if (mouse_listener_) mouse_listener_.MouseTakenCaptive(nullptr);
+  } else {
+    if (captive_mouse_window == this) captive_mouse_window = nullptr;
+    if (mouse_listener_) mouse_listener_.MouseReleased(nullptr);
+  }
+  InvalidateMouse();
+}
+
+bool Window::ExitFullScreenOrMouseCapture() {
+  return ForEachFrontToBackWindow([](Window& window) {
+    bool left_fullscreen = false;
+    bool left_mouse_capture = false;
+    if (window.is_fullscreen_) {
+      window.ToggleFullScreen();
+      left_fullscreen = true;
+    }
+    if (window.is_mouse_captive_) {
+      window.SetCaptureMouse(false);
+      left_mouse_capture = true;
+    }
+    return left_fullscreen || left_mouse_capture;
   });
 }
 
@@ -1005,6 +1042,12 @@ void Window::StartDragging() {
   }
 }
 
+::perception::window::Size Window::GetContentSize() const {
+  float title_bar_h =
+      (!is_fullscreen_ && add_title_bar_) ? kTitleBarHeight : 0.0f;
+  return {screen_area_.size.width, screen_area_.size.height - title_bar_h};
+}
+
 Rectangle Window::GetScreenAreaWithFrame() const {
   if (is_fullscreen_) return screen_area_;
   auto screen_area = GetScreenArea();
@@ -1133,16 +1176,14 @@ void Window::Hide() {
 
 void Window::Resized() {
   if (!window_listener_already_disappeared_) {
-    float content_h =
-        screen_area_.size.height -
-        (!is_fullscreen_ && add_title_bar_ ? kTitleBarHeight : 0.0f);
-    window_listener_.SetSize({screen_area_.size.width, content_h}, nullptr);
+    window_listener_.SetSize(GetContentSize(), nullptr);
   }
 }
 
 void Window::Unfocus() {
   if (!IsFocused()) return;
 
+  if (captive_mouse_window == this) SetCaptureMouse(false);
   focused_window = nullptr;
   ::perception::SetFocusedProcess(0);
   if (IsDragging()) StopDragging();

@@ -155,7 +155,7 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
       size_t address = segment_header.p_vaddr + offset;
       // Copy the data from the file into memory.
       if (!CopyIntoMemory(data, segment_header.p_filesz, address,
-                          child_memory_pages)) {
+                          child_memory_pages, File().Name())) {
         return Status::INTERNAL_ERROR;
       }
     }
@@ -526,7 +526,7 @@ bool ElfFile::CreateSharedMemorySegments() {
       size_t address = segment_header.p_vaddr;
       // Copy the data from the file into memory.
       if (!CopyIntoMemory(data, segment_header.p_filesz, address,
-                          child_memory_pages)) {
+                          child_memory_pages, File().Name())) {
         FreeChildMemoryPages(child_memory_pages);
         return false;
       }

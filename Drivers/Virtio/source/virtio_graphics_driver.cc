@@ -961,14 +961,17 @@ bool VirtioGraphicsDriver::SendCommand(const void* req_data, size_t req_len,
   memset(resp_buf, 0, resp_len);
 
   ctrl_queue_.avail->ring[ctrl_queue_.avail->idx % ctrl_queue_.size] = head_idx;
-  __asm__ __volatile__("" ::: "memory");
-  ctrl_queue_.avail->idx++;
-  __asm__ __volatile__("" ::: "memory");
 
   FlushRange(ctrl_queue_.desc, 4096);
   FlushRange(ctrl_queue_.avail, 4096);
   FlushRange(ctrl_queue_.used, 4096);
   FlushRange(resp_buf, resp_len);
+
+  __asm__ __volatile__("" ::: "memory");
+  ctrl_queue_.avail->idx++;
+  __asm__ __volatile__("" ::: "memory");
+
+  FlushRange(ctrl_queue_.avail, 4096);
 
   if (common_cfg_ != nullptr && notify_cfg_ != nullptr) {
     uint32 noff = ctrl_queue_.notify_off * notify_off_multiplier_;

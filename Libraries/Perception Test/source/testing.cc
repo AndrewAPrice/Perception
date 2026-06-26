@@ -17,6 +17,7 @@
 #include <iostream>
 #include <string_view>
 #include <vector>
+#include <functional>
 
 #include "command_parsing.h"
 
@@ -109,3 +110,5 @@ int main(int argc, char** argv) {
   }
   return 0;
 }
+
+

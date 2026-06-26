@@ -27,7 +27,9 @@ void MountFileSystem(std::unique_ptr<file_systems::FileSystem> file_system);
 
 StatusOr<File*> OpenFile(std::string_view path, size_t& size_in_bytes,
                          size_t& optimal_operation_size,
-                         ::perception::ProcessId sender);
+                         ::perception::ProcessId sender, bool read_access,
+                         bool write_access, bool create_if_not_exists,
+                         bool truncate);
 
 StatusOr<MemoryMappedFile*> OpenMemoryMappedFile(
     std::string_view path, ::perception::ProcessId sender);
@@ -48,6 +50,11 @@ bool ForEachEntryInDirectory(
 
 StatusOr<::perception::FileStatistics> GetFileStatistics(std::string_view path,
                                                          bool no_follow);
+
+Status CreateDirectory(std::string_view path, ::perception::ProcessId sender);
+
+Status DeleteFileOrDirectory(std::string_view path,
+                             ::perception::ProcessId sender);
 
 StatusOr<std::string> ReadLink(std::string_view path);
 

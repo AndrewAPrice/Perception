@@ -26,6 +26,9 @@ class File : public ::perception::File::Server {
   virtual Status Read(const ::perception::ReadFileRequest& request,
                       ::perception::ProcessId sender) override = 0;
 
+  virtual Status Write(const ::perception::WriteFileRequest& request,
+                       ::perception::ProcessId sender) override = 0;
+
   virtual Status GrantStorageDevicePermissionToAllocateSharedMemoryPages(
       const ::perception::
           GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest&

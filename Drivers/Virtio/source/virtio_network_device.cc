@@ -161,14 +161,18 @@ Status VirtioNetworkDevice::SendPacket(const Packet& packet, ProcessId sender) {
 
   // Make descriptor available.
   tx_queue_.avail->ring[tx_queue_.avail->idx % tx_queue_.size] = desc_idx;
+
+  // Flush descriptors and available ring entries first.
+  FlushRange(tx_queue_.mem, 12288);
+  // Flush packet data payload as well.
+  FlushRange(tx_buf, 10 + data_len);
+
   __asm__ __volatile__("" ::: "memory");
   tx_queue_.avail->idx++;
   __asm__ __volatile__("" ::: "memory");
 
-  // Flush entire 3 pages of Queue 1 (Descriptors, Available Ring, Used Ring).
-  FlushRange(tx_queue_.mem, 12288);
-  // Flush packet data payload as well.
-  FlushRange(tx_buf, 10 + data_len);
+  // Flush the updated index.
+  FlushRange(tx_queue_.avail, 4096);
 
   // Notify queue 1 (TX).
   Write16BitsToPort(io_base_ + 16, 1);
@@ -198,6 +202,7 @@ void VirtioNetworkDevice::HandleInterrupt() {
   FlushRange(tx_queue_.mem, 12288);
 
   // Process received packets
+  uint16 new_idx = rx_queue_.avail->idx;
   while (rx_queue_.last_seen_used != rx_queue_.used->idx) {
     uint16 ring_idx = rx_queue_.last_seen_used % rx_queue_.size;
     uint32 desc_idx = rx_queue_.used->ring[ring_idx].id;
@@ -217,14 +222,21 @@ void VirtioNetworkDevice::HandleInterrupt() {
     }
 
     // Recycle descriptor slot back to available ring.
-    rx_queue_.avail->ring[rx_queue_.avail->idx % rx_queue_.size] = desc_idx;
-    rx_queue_.avail->idx++;
+    rx_queue_.avail->ring[new_idx % rx_queue_.size] = desc_idx;
+    new_idx++;
 
     rx_queue_.last_seen_used++;
   }
 
-  // Flush RX Available ring changes.
+  // Flush RX Available ring changes (the ring entries, before we update idx).
   FlushRange(rx_queue_.avail, 6 + rx_queue_.size * 2);
+
+  __asm__ __volatile__("" ::: "memory");
+  rx_queue_.avail->idx = new_idx;
+  __asm__ __volatile__("" ::: "memory");
+
+  // Flush RX Available ring index.
+  FlushRange(rx_queue_.avail, 4096);
 
   // Notify queue 0 (RX) of newly available recycled descriptors.
   Write16BitsToPort(io_base_ + 16, 0);

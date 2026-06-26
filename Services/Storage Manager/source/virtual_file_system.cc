@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "file_systems/overlay.h"
 #include "memory_mapped_file.h"
 #include "perception/fibers.h"
 #include "storage_manager.h"
@@ -62,6 +63,8 @@ std::string GetMountNameForFileSystem(FileSystem& file_system) {
       next_optical_drive_index++;
       return name;
     }
+    case StorageDeviceType::RAM:
+      return "Ramdisk";
     default: {
       std::string name = std::to_string(next_unknown_device_index);
       next_unknown_device_index++;
@@ -123,10 +126,10 @@ Status ExtractMountPointAndPath(std::string_view path,
   return Status::OK;
 }
 
-StatusOr<std::unique_ptr<File>> OpenFileInternal(std::string_view path,
-                                                 size_t& size_in_bytes,
-                                                 size_t& optimal_operation_size,
-                                                 ProcessId sender) {
+StatusOr<std::unique_ptr<File>> OpenFileInternal(
+    std::string_view path, size_t& size_in_bytes,
+    size_t& optimal_operation_size, ProcessId sender, bool read_access,
+    bool write_access, bool create_if_not_exists, bool truncate) {
   std::string_view mount_point, path_on_mount_point;
   RETURN_ON_ERROR(
       ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
@@ -143,7 +146,8 @@ StatusOr<std::unique_ptr<File>> OpenFileInternal(std::string_view path,
   }
 
   optimal_operation_size = fs->GetOptionalOperationSize();
-  return fs->OpenFile(path_on_mount_point, size_in_bytes, sender);
+  return fs->OpenFile(path_on_mount_point, size_in_bytes, sender, read_access,
+                      write_access, create_if_not_exists, truncate);
 }
 
 }  // namespace
@@ -156,7 +160,13 @@ void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
     std::cout << "Mounting " << file_system->GetFileSystemType() << " on "
               << file_system->GetDeviceName() << " as /" << mount_name << "/"
               << std::endl;
-    auto fs = std::shared_ptr<FileSystem>(std::move(file_system));
+    std::shared_ptr<FileSystem> fs;
+    if (first_mounted_file_system.empty()) {
+      fs = std::make_shared<file_systems::OverlayFileSystem>(
+          std::move(file_system));
+    } else {
+      fs = std::shared_ptr<FileSystem>(std::move(file_system));
+    }
     mounted_file_systems[mount_name] = fs;
     if (first_mounted_file_system.empty()) {
       first_mounted_file_system = mount_name;
@@ -181,10 +191,14 @@ void ForEachMountedFileSystem(
 }
 
 StatusOr<File*> OpenFile(std::string_view path, size_t& size_in_bytes,
-                         size_t& optimal_operation_size, ProcessId sender) {
+                         size_t& optimal_operation_size, ProcessId sender,
+                         bool read_access, bool write_access,
+                         bool create_if_not_exists, bool truncate) {
   // Scan the directory within the file system.
-  ASSIGN_OR_RETURN(auto file, OpenFileInternal(path, size_in_bytes,
-                                               optimal_operation_size, sender));
+  ASSIGN_OR_RETURN(auto file,
+                   OpenFileInternal(path, size_in_bytes, optimal_operation_size,
+                                    sender, read_access, write_access,
+                                    create_if_not_exists, truncate));
   File* file_ptr = file.get();
 
   auto itr = open_files_by_process_id.find(sender);
@@ -204,8 +218,9 @@ StatusOr<MemoryMappedFile*> OpenMemoryMappedFile(
     std::string_view path, ::perception::ProcessId sender) {
   size_t size_in_bytes;
   size_t optimal_operation_size;
-  ASSIGN_OR_RETURN(auto file, OpenFileInternal(path, size_in_bytes,
-                                               optimal_operation_size, sender));
+  ASSIGN_OR_RETURN(auto file,
+                   OpenFileInternal(path, size_in_bytes, optimal_operation_size,
+                                    sender, true, false, false, false));
 
   auto mmfile = std::make_unique<MemoryMappedFile>(
       std::move(file), size_in_bytes, optimal_operation_size, sender);
@@ -454,11 +469,45 @@ StatusOr<std::string> ReadLink(std::string_view path) {
       lock.unlock();
       Sleep();
       lock.lock();
-      if (first_mounted_file_system.empty()) {
-        return Status::FILE_NOT_FOUND;
-      }
+      if (first_mounted_file_system.empty()) return Status::FILE_NOT_FOUND;
     }
     return "/" + first_mounted_file_system + std::string(clean_path);
   }
   return Status::INVALID_ARGUMENT;
+}
+
+Status CreateDirectory(std::string_view path, ::perception::ProcessId sender) {
+  std::string_view mount_point, path_on_mount_point;
+  RETURN_ON_ERROR(
+      ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
+
+  std::shared_ptr<FileSystem> fs;
+  {
+    std::lock_guard<std::mutex> lock(file_system_mutex);
+    auto mount_point_itr = mounted_file_systems.find(mount_point);
+    if (mount_point_itr == mounted_file_systems.end())
+      return Status::FILE_NOT_FOUND;
+    fs = mount_point_itr->second;
+  }
+
+  return fs->CreateDirectory(path_on_mount_point, sender);
+}
+
+Status DeleteFileOrDirectory(std::string_view path,
+                             ::perception::ProcessId sender) {
+  std::string_view mount_point, path_on_mount_point;
+  RETURN_ON_ERROR(
+      ExtractMountPointAndPath(path, mount_point, path_on_mount_point));
+
+  std::shared_ptr<FileSystem> fs;
+  {
+    std::lock_guard<std::mutex> lock(file_system_mutex);
+    auto mount_point_itr = mounted_file_systems.find(mount_point);
+    if (mount_point_itr == mounted_file_systems.end()) {
+      return Status::FILE_NOT_FOUND;
+    }
+    fs = mount_point_itr->second;
+  }
+
+  return fs->DeleteFileOrDirectory(path_on_mount_point, sender);
 }

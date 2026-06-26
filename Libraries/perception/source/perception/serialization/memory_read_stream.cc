@@ -18,7 +18,7 @@
 #include <functional>
 
 #include "perception/serialization/binary_deserializer.h"
-#if defined(PERCEPTION) && !defined(TEST)
+#if defined(PERCEPTION)
 #include "perception/shared_memory.h"
 #endif
 
@@ -91,7 +91,7 @@ void DeserializeFromByteVector(Serializable& object,
   DeserializeFromMemory(object, &data[0], data.size());
 }
 
-#if defined(PERCEPTION) && !defined(TEST)
+#if defined(PERCEPTION)
 void DeserializeFromSharedMemory(Serializable& object,
                                  SharedMemory& shared_memory, size_t offset,
                                  size_t size) {

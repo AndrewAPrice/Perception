@@ -50,7 +50,8 @@ struct FileDescriptor {
 };
 
 long OpenDirectory(const char* path);
-long OpenFile(const char* path);
+long OpenFile(const char* path, bool read_access, bool write_access,
+              bool create_if_not_exists, bool truncate);
 long CreateSocketDescriptor(perception::network::Socket::Client socket);
 
 std::shared_ptr<FileDescriptor> GetFileDescriptor(long id);

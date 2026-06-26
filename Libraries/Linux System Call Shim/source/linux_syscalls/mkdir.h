@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/types.h>
+
 namespace perception {
 namespace linux_syscalls {
 
-long mkdir();
-
+long mkdir(const char* pathname, mode_t mode);
 }
 }  // namespace perception

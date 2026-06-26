@@ -81,7 +81,8 @@ void* GetChildPage(size_t page_address,
 
 // Copies data from the file into the process's memory.
 bool CopyIntoMemory(const void* data, size_t size, size_t address,
-                    std::map<size_t, void*>& child_memory_pages) {
+                    std::map<size_t, void*>& child_memory_pages,
+                    std::string_view name) {
   size_t address_end = address + size;
 
   size_t first_page = address & ~(kPageSize - 1);  // Round down.

@@ -67,13 +67,25 @@ long OpenDirectory(const char* path) {
   return id;
 }
 
-long OpenFile(const char* path) {
-  auto status_or_response = GetService<StorageManager>().OpenFile({path});
+long OpenFile(const char* path, bool read_access, bool write_access,
+              bool create_if_not_exists, bool truncate) {
+  OpenFileRequest request;
+  request.path = path;
+  request.read_access = read_access;
+  request.write_access = write_access;
+  request.create_if_not_exists = create_if_not_exists;
+  request.truncate = truncate;
+
+  auto status_or_response = GetService<StorageManager>().OpenFile(request);
   if (!status_or_response) {
-    if (status_or_response.Status() == Status::FILE_NOT_FOUND) {
-      return -ENOENT;
+    switch (status_or_response.Status()) {
+      case Status::FILE_NOT_FOUND:
+        return -ENOENT;
+      case Status::NOT_ALLOWED:
+        return -EACCES;
+      default:
+        return -EINVAL;
     }
-    return -EINVAL;
   }
 
   auto descriptor = std::make_shared<FileDescriptor>();

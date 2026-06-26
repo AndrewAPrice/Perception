@@ -27,7 +27,7 @@ class Serializer;
 
 namespace devices {
 
-enum class StorageDeviceType : uint8 { OPTICAL };
+enum class StorageDeviceType : uint8 { RAM, OPTICAL };
 
 class StorageDeviceDetails : public serialization::Serializable {
  public:

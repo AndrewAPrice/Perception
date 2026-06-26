@@ -704,7 +704,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_mincore:
       return ::perception::linux_syscalls::mincore();
     case SYS_mkdir:
-      return ::perception::linux_syscalls::mkdir();
+      return ::perception::linux_syscalls::mkdir(
+          reinterpret_cast<const char*>(a1), (mode_t)a2);
     case SYS_mkdirat:
       return ::perception::linux_syscalls::mkdirat();
     case SYS_mknod:
@@ -869,7 +870,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_restart_syscall:
       return ::perception::linux_syscalls::restart_syscall();
     case SYS_rmdir:
-      return ::perception::linux_syscalls::rmdir();
+      return ::perception::linux_syscalls::rmdir(
+          reinterpret_cast<const char*>(a1));
     case SYS_rseq:
       return ::perception::linux_syscalls::rseq();
     case SYS_rt_sigaction:
@@ -1072,7 +1074,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_uname:
       return ::perception::linux_syscalls::uname();
     case SYS_unlink:
-      return ::perception::linux_syscalls::unlink();
+      return ::perception::linux_syscalls::unlink(
+          reinterpret_cast<const char*>(a1));
     case SYS_unlinkat:
       return ::perception::linux_syscalls::unlinkat();
     case SYS_unshare:

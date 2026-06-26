@@ -15,7 +15,6 @@
 namespace perception {
 namespace linux_syscalls {
 
-long unlink();
-
+long unlink(const char* pathname);
 }
 }  // namespace perception

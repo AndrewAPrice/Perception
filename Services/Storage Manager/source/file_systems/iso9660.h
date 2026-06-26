@@ -15,8 +15,11 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 
 #include "file_systems/file_system.h"
+
+class SectorCache;
 
 namespace file_systems {
 
@@ -27,14 +30,16 @@ class Iso9660 : public FileSystem {
           ::perception::devices::StorageDevice::Client 
         );
 
-  virtual ~Iso9660() {}
+  virtual ~Iso9660();
 
   virtual std::string_view GetFileSystemType() override;
 
   // Opens a file.
   virtual StatusOr<std::unique_ptr<File>> OpenFile(
       std::string_view path, size_t& size_in_bytes,
-      ::perception::ProcessId sender) override;
+      ::perception::ProcessId sender,
+      bool read_access, bool write_access,
+      bool create_if_not_exists, bool truncate) override;
 
   // Counts the number of entries in a directory.
   virtual size_t CountEntriesInDirectory(std::string_view path) override;
@@ -56,6 +61,19 @@ class Iso9660 : public FileSystem {
   virtual StatusOr<::perception::FileStatistics> GetFileStatistics(
       std::string_view path) override;
 
+  virtual Status CreateDirectory(std::string_view path, ::perception::ProcessId sender) override;
+
+  virtual Status DeleteFileOrDirectory(std::string_view path, ::perception::ProcessId sender) override;
+
+  // Reads from the device using a sector cache and pre-fetching.
+  Status ReadCached(uint64 offset_on_device, uint64 offset_in_buffer,
+                    uint64 bytes_to_copy,
+                    std::shared_ptr<::perception::SharedMemory> buffer);
+
+  ::perception::devices::StorageDevice::Client GetStorageDevice() const {
+    return storage_device_;
+  }
+
  private:
   // Size of the volume, in logical blocks.
   uint32 size_in_blocks_;
@@ -65,6 +83,15 @@ class Iso9660 : public FileSystem {
 
   // Root directory entry.
   std::unique_ptr<char[]> root_directory_;
+
+  // Sector cache for directory and small file reads.
+  std::unique_ptr<SectorCache> cache_;
+
+  // Reusable buffer for pre-fetching sectors.
+  std::shared_ptr<::perception::SharedMemory> prefetch_buffer_;
+
+  // Mutex to protect the prefetch buffer.
+  std::mutex prefetch_mutex_;
 
   void ForRawEachEntryInDirectory(
       std::string_view path,

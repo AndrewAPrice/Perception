@@ -75,4 +75,8 @@ class WindowManager : public ::perception::window::WindowManager::Server {
   Status SetWindowMaximumSize(
       const ::perception::window::SetWindowMaximumSizeRequest& parameters,
       ::perception::ProcessId sender) override;
+
+  Status SetWindowCaptureMouse(
+      const ::perception::window::SetWindowCaptureMouseRequest& parameters,
+      ::perception::ProcessId sender) override;
 };

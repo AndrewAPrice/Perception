@@ -234,6 +234,13 @@ Rectangle MouseBounds() {
 class MyMouseListener : public MouseListener::Server {
  public:
   Status MouseMove(const RelativeMousePositionEvent& message) override {
+    if (auto captive_win = Window::GetCaptiveMouseWindow()) {
+      if (captive_win->IsVisible() && captive_win->IsFocused()) {
+        captive_win->GetMouseListener().MouseMove(message, nullptr);
+        return Status::OK;
+      }
+    }
+
     auto old_mouse_position = mouse_position;
 
     mouse_position.x += static_cast<int>(message.delta_x);
@@ -261,6 +268,13 @@ class MyMouseListener : public MouseListener::Server {
 
   Status MouseButton(
       const ::perception::devices::MouseButtonEvent& message) override {
+    if (auto captive_win = Window::GetCaptiveMouseWindow()) {
+      if (captive_win->IsVisible() && captive_win->IsFocused()) {
+        captive_win->GetMouseListener().MouseButton(message, nullptr);
+        return Status::OK;
+      }
+    }
+
     std::optional<MouseButtonEvent> mouse_button_event = MouseButtonEvent{
         .button = message.button, .is_pressed_down = message.is_pressed_down};
     if (message.is_pressed_down) {
@@ -333,6 +347,8 @@ void InitializeMouse() {
 const Point& GetMousePosition() { return mouse_position; }
 
 void DrawMouse(const Rectangle& draw_area) {
+  if (Window::GetCaptiveMouseWindow() != nullptr) return;
+
   auto mouse_bounds = MouseBounds();
   auto intersection = draw_area.Intersection(mouse_bounds);
   if (!intersection) {

@@ -26,6 +26,7 @@
 #include "ide_types.h"
 #include "interrupts.h"
 #include "io.h"
+#include "perception/debug.h"
 #include "perception/fibers.h"
 #include "perception/memory.h"
 #include "perception/port_io.h"
@@ -306,6 +307,10 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
   IdeStorageDevice* storage_device = device->storage_device.get();
   bool use_dma = storage_device && storage_device->SupportsDma();
 
+  std::cout << "IDE: Read offset=" << (size_t)request->offset_on_device
+            << " bytes=" << (size_t)request->bytes_to_copy
+            << " dma=" << (int)use_dma << std::endl;
+
   size_t start_lba = request->offset_on_device / ATAPI_SECTOR_SIZE;
   size_t end_lba = (request->offset_on_device + request->bytes_to_copy - 1) /
                    ATAPI_SECTOR_SIZE;
@@ -386,6 +391,44 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
 
       SelectDriveOnBusIfNotSelected(channel, request->master_drive);
 
+      size_t buffer_start_addr =
+          (size_t)&request->destination_buffer[request->offset_in_buffer];
+
+      size_t last_page_number = 0xFFFFFFFFFFFFFFFF;
+      size_t cached_phys_page = 0;
+
+      auto get_phys_addr = [&](uint8* addr) -> size_t {
+        if (!request->can_write) {
+          size_t offset_in_buffer = (size_t)addr - buffer_start_addr;
+          size_t page_index = offset_in_buffer / kPageSize;
+          size_t page_offset = offset_in_buffer % kPageSize;
+          if (page_index < allocated_pages.size()) {
+            size_t phys = GetPhysicalAddressOfVirtualAddress((size_t)allocated_pages[page_index]);
+            if (phys != 0) {
+              return phys + page_offset;
+            }
+          }
+          return 0;
+        }
+
+        size_t page_number = (size_t)addr / kPageSize;
+        size_t offset = (size_t)addr % kPageSize;
+        if (page_number == last_page_number) {
+          return cached_phys_page + offset;
+        }
+        size_t phys = GetPhysicalAddressOfVirtualAddress(page_number * kPageSize);
+        /*
+        std::cout << "IDE: get_phys_addr vaddr=" << (void*)(page_number * kPageSize)
+                  << " phys=" << (void*)phys << " size=" << request->bytes_to_copy << std::endl;
+        */
+        if (phys != 0) {
+          last_page_number = page_number;
+          cached_phys_page = phys;
+          return phys + offset;
+        }
+        return 0;
+      };
+
       size_t total_sectors_to_read = sectors_to_read;
       size_t sectors_already_read = 0;
       size_t current_bytes_to_copy = request->bytes_to_copy;
@@ -411,10 +454,8 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
           if (current_skip_bytes > 0 || copy_size < ATAPI_SECTOR_SIZE) {
             needs_scratch = true;
           } else {
-            size_t phys_start =
-                GetPhysicalAddressOfVirtualAddress((size_t)dest_addr);
-            size_t phys_end = GetPhysicalAddressOfVirtualAddress(
-                (size_t)(dest_addr + ATAPI_SECTOR_SIZE - 1));
+            size_t phys_start = get_phys_addr(dest_addr);
+            size_t phys_end = get_phys_addr(dest_addr + ATAPI_SECTOR_SIZE - 1);
             if (phys_start != 0 && phys_start <= 0xFFFFFFFF &&
                 phys_end == phys_start + ATAPI_SECTOR_SIZE - 1 &&
                 (phys_start / 65536) == (phys_end / 65536)) {
@@ -436,9 +477,17 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
                 GetPhysicalAddressOfVirtualAddress(
                     (size_t)(storage_device->GetScratchPage() +
                              chunk_transfers[i].scratch_offset));
-            chunk_transfers[i].dest_virtual_address = dest_addr;
-            chunk_transfers[i].copy_size = copy_size;
             chunk_transfers[i].skip_bytes = current_skip_bytes;
+            chunk_transfers[i].copy_size = copy_size;
+            if (!request->can_write) {
+              size_t offset_in_buffer = (size_t)dest_addr - buffer_start_addr;
+              size_t page_index = offset_in_buffer / kPageSize;
+              size_t page_offset = offset_in_buffer % kPageSize;
+              chunk_transfers[i].dest_virtual_address =
+                  (uint8*)((size_t)allocated_pages[page_index] + page_offset);
+            } else {
+              chunk_transfers[i].dest_virtual_address = dest_addr;
+            }
             chunk_scratch_sectors_used++;
           } else {
             chunk_transfers[i].use_scratch = false;
@@ -501,10 +550,10 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
 
         // Poll while busy
         uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
-        int poll_timeout = 100;
+        int poll_timeout = 1000;
         while ((status & ATA_SR_BSY) ||
                !(status & (ATA_REG_SECCOUNT1 | ATA_REG_ERROR))) {
-          SleepForDuration(std::chrono::milliseconds(10));
+          SleepForDuration(std::chrono::milliseconds(1));
           status = Read8BitsFromPort(ATA_COMMAND(bus));
           if (--poll_timeout == 0) {
             std::cout << "IDE Error: Timeout waiting for packet command ready! "
@@ -600,6 +649,16 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
               (request->offset_in_buffer + request->bytes_to_copy - 1) /
               kPageSize;
           size_t num_pages = end_page - start_page + 1;
+          /*
+          for (size_t p = 0; p < num_pages; p++) {
+            std::cout << "IDE: !can_write page " << p << " virtual address: " << allocated_pages[p] << " first 16 bytes: ";
+            unsigned char* src = (unsigned char*)allocated_pages[p];
+            for (int j = 0; j < 16; j++) {
+              std::cout << std::hex << (int)src[j] << " ";
+            }
+            std::cout << std::dec << std::endl;
+          }
+          */
           for (size_t p = 0; p < num_pages; p++) {
             size_t page_index = start_page + p;
             request->shared_memory->AssignPage(allocated_pages[p],
@@ -611,9 +670,7 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
       }
 
       if (!can_do_dma) {
-        std::cout
-            << "IDE Controller: Falling back to PIO mode for read request."
-            << std::endl;
+        std::cout << "IDE Controller: Falling back to PIO mode for read request." << std::endl;
         // Fallback to PIO, break out of loop to run PIO code below
         break;
       }
@@ -655,6 +712,7 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
 
   // Fallback to PIO code path
   {
+    // --- PIO FALLBACK ---
     // If pages were allocated for DMA and a fallback to PIO occurs, free them
     // first
     if (!request->can_write) {
@@ -832,6 +890,7 @@ void ChannelWorkerThread(IdeChannel* channel) {
       request->completed.store(true, std::memory_order_release);
       request->fiber_to_wake->WakeUp();
     } else if (request->type == IdeRequestType::READ) {
+      std::cout << "IDE: Worker thread processing READ request" << std::endl;
       request->status = ExecuteReadOnChannel(channel, request);
       request->completed.store(true, std::memory_order_release);
       request->fiber_to_wake->WakeUp();

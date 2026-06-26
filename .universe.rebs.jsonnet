@@ -42,7 +42,7 @@
     else ' -g',
   linker_command:
     if package_type == 'application' then
-      linker + application_linker_optimizations + (if is_testing then '' else ' --gc-sections --icf=all -pie -nostdlib -z max-page-size=4096') + ' -o ${out} ${in} -L ${shared_library_path} ${shared_libraries}'
+      linker + application_linker_optimizations + (if is_testing then '' else ' --gc-sections --icf=all -pie -nostdlib -z max-page-size=4096') + ' -o ${out} --start-group ${in} --end-group -L ${shared_library_path} ${shared_libraries}'
     else if package_type == 'library' then
       if is_testing then
         linker + ' -shared -lc++ -o ${out} ${in}'
@@ -54,7 +54,7 @@
     if is_testing then
       archiver + ' rcs ${out} ${in}'
     else if package_type == 'application' then
-      linker + application_linker_optimizations + ' --gc-sections --icf=all -nostdlib -z max-page-size=4096 -o ${out} ${in}'
+      linker + application_linker_optimizations + ' --gc-sections --icf=all -nostdlib -z max-page-size=4096 -o ${out} --start-group ${in} --end-group'
     else if package_type == 'library' then
       archiver + ' rcs ${out} ${in}'
     else

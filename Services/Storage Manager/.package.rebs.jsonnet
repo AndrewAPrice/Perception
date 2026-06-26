@@ -1,5 +1,4 @@
 {
-  skip_for_tests: true,
   dependencies+: [
     'perception',
   ],
@@ -9,4 +8,10 @@
   source_directories: [
     'source',
   ],
-}
+} + (if is_testing then {
+  files_to_ignore: [
+    'source/main.cc',
+  ],
+} else {
+  skip_for_tests: true,
+})

@@ -68,6 +68,14 @@ void FileStatistics::Serialize(serialization::Serializer& serializer) {
   serializer.Integer("Is link", is_link);
 }
 
+void OpenFileRequest::Serialize(serialization::Serializer& serializer) {
+  serializer.String("Path", path);
+  serializer.Integer("Read access", read_access);
+  serializer.Integer("Write access", write_access);
+  serializer.Integer("Create if not exists", create_if_not_exists);
+  serializer.Integer("Truncate", truncate);
+}
+
 void FileSystemMountEvent::Serialize(serialization::Serializer& serializer) {
   serializer.String("mount_point", mount_point);
 }
@@ -78,3 +86,4 @@ void GetMountedFileSystemsResponse::Serialize(
 }
 
 }  // namespace perception
+// force rebuild

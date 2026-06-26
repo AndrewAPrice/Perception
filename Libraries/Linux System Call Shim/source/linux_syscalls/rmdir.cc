@@ -14,15 +14,27 @@
 
 #include "linux_syscalls/rmdir.h"
 
-#include "perception/debug.h"
 #include <errno.h>
+
+#include "perception/debug.h"
+#include "perception/services.h"
+#include "perception/storage_manager.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long rmdir() {
-  perception::DebugPrinterSingleton << "System call rmdir is unimplemented.\n";
-  return -ENOSYS;
+long rmdir(const char* pathname) {
+  auto status = GetService<StorageManager>().DeleteFileOrDirectory({pathname});
+  switch (status) {
+    case Status::OK:
+      return 0;
+    case Status::FILE_NOT_FOUND:
+      return -ENOENT;
+    case Status::NOT_ALLOWED:
+      return -EACCES;
+    default:
+      return -EINVAL;
+  }
 }
 
 }  // namespace linux_syscalls

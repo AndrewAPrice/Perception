@@ -15,9 +15,10 @@
 #include "linux_syscalls/open.h"
 
 #include <errno.h>
-#include "perception/debug.h"
+#include <fcntl.h>
 
 #include "files.h"
+#include "perception/debug.h"
 
 namespace perception {
 namespace linux_syscalls {
@@ -27,36 +28,68 @@ long open(const char* pathname, int flags, mode_t mode) {
     return OpenDirectory(pathname);
   }
 
-  // Flags that are safe to ignore:
-  flags &= ~(O_CLOEXEC | O_TMPFILE | O_LARGEFILE);
+  // Parse open flags:
+  bool read_access = false;
+  bool write_access = false;
+  bool create_if_not_exists = (flags & O_CREAT) != 0;
+  bool truncate = (flags & O_TRUNC) != 0;
 
-  if (flags == 0) {
-    long id = OpenFile(pathname);
-    if (id < 0) {
-      return id;
-    }
-    return id;
-  } else {
-    perception::DebugPrinterSingleton << "Invoking MUSL syscall open() on " << pathname
-              << " with flags:";
-    if (flags & O_APPEND) perception::DebugPrinterSingleton << " O_APPEND";
-    if (flags & O_ASYNC) perception::DebugPrinterSingleton << " O_ASYNC";
-    if (flags & O_CREAT) perception::DebugPrinterSingleton << " O_CREAT";
-    if (flags & O_DIRECT) perception::DebugPrinterSingleton << " O_DIRECT";
-    if (flags & O_DIRECTORY) perception::DebugPrinterSingleton << " O_DIRECTORY";
-    if (flags & O_DSYNC) perception::DebugPrinterSingleton << " O_DSYNC";
-    if (flags & O_EXCL) perception::DebugPrinterSingleton << " O_EXCL";
-    if (flags & O_NOATIME) perception::DebugPrinterSingleton << " O_NOATIME";
-    if (flags & O_NOCTTY) perception::DebugPrinterSingleton << " O_NOCTTY";
-    if (flags & O_NOFOLLOW) perception::DebugPrinterSingleton << " O_NOFOLLOW";
-    if (flags & O_NONBLOCK) perception::DebugPrinterSingleton << " O_NONBLOCK";
-    if (flags & O_NDELAY) perception::DebugPrinterSingleton << " O_NDELAY";
-    if (flags & O_PATH) perception::DebugPrinterSingleton << " O_PATH";
-    if (flags & O_SYNC) perception::DebugPrinterSingleton << " O_SYNC";
-    if (flags & O_TRUNC) perception::DebugPrinterSingleton << " O_TRUNC";
+  int access_mode = flags & O_ACCMODE;
+  switch (access_mode) {
+    case O_RDONLY:
+      read_access = true;
+      break;
+    case O_WRONLY:
+      write_access = true;
+      break;
+    case O_RDWR:
+      read_access = true;
+      write_access = true;
+      break;
+    default:
+      perception::DebugPrinterSingleton
+          << "Invoking MUSL syscall open() on " << pathname
+          << " with unsupported access mode: "
+          << static_cast<int64>(access_mode) << '\n';
+      return -EINVAL;
+  }
+
+  // Flags that are safe to ignore:
+  int ignored_flags =
+      O_CLOEXEC | O_TMPFILE | O_LARGEFILE | O_CREAT | O_TRUNC | O_ACCMODE;
+  // If write or read-write access is used, we also ignore append or nonblock
+  // for now
+  ignored_flags |= O_APPEND | O_NONBLOCK | O_NDELAY;
+
+  int unsupported_flags = flags & ~ignored_flags;
+
+  if (unsupported_flags != 0) {
+    perception::DebugPrinterSingleton << "Invoking MUSL syscall open() on "
+                                      << pathname << " with unsupported flags:";
+    if (unsupported_flags & O_ASYNC)
+      perception::DebugPrinterSingleton << " O_ASYNC";
+    if (unsupported_flags & O_DIRECT)
+      perception::DebugPrinterSingleton << " O_DIRECT";
+    if (unsupported_flags & O_DSYNC)
+      perception::DebugPrinterSingleton << " O_DSYNC";
+    if (unsupported_flags & O_EXCL)
+      perception::DebugPrinterSingleton << " O_EXCL";
+    if (unsupported_flags & O_NOATIME)
+      perception::DebugPrinterSingleton << " O_NOATIME";
+    if (unsupported_flags & O_NOCTTY)
+      perception::DebugPrinterSingleton << " O_NOCTTY";
+    if (unsupported_flags & O_NOFOLLOW)
+      perception::DebugPrinterSingleton << " O_NOFOLLOW";
+    if (unsupported_flags & O_PATH)
+      perception::DebugPrinterSingleton << " O_PATH";
+    if (unsupported_flags & O_SYNC)
+      perception::DebugPrinterSingleton << " O_SYNC";
     perception::DebugPrinterSingleton << '\n';
     return -EINVAL;
   }
+
+  return OpenFile(pathname, read_access, write_access, create_if_not_exists,
+                  truncate);
 }
 
 }  // namespace linux_syscalls

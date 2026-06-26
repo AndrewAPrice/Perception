@@ -84,9 +84,22 @@ bool IsPathWithinApplicationDirectory(std::string_view path,
   return target_comp == process_name;
 }
 
+
 // Returns whether a process has permission to read a path.
 bool DoesProcessHavePermissionToReadPath(std::string_view path,
                                          ProcessId sender) {
+  std::string process_name = GetProcessName(sender);
+  if (!process_name.empty() &&
+      IsPathWithinApplicationDirectory(path, process_name)) {
+    return true;
+  }
+
+  return ::perception::DoesProcessHavePermission(
+      sender, ::perception::Permission::CanReadAllFiles);
+}
+
+bool DoesProcessHavePermissionToWritePath(std::string_view path,
+                                          ProcessId sender) {
   std::string process_name = GetProcessName(sender);
   if (!process_name.empty() &&
       IsPathWithinApplicationDirectory(path, process_name)) {
@@ -104,14 +117,21 @@ StorageManager::StorageManager() {}
 StorageManager::~StorageManager() {}
 
 StatusOr<OpenFileResponse> StorageManager::OpenFile(
-    const RequestWithFilePath& request, ProcessId sender) {
-  if (!DoesProcessHavePermissionToReadPath(request.path, sender))
+    const ::perception::OpenFileRequest& request, ProcessId sender) {
+  if (request.read_access &&
+      !DoesProcessHavePermissionToReadPath(request.path, sender))
+    return Status::NOT_ALLOWED;
+  if (request.write_access &&
+      !DoesProcessHavePermissionToWritePath(request.path, sender))
     return Status::NOT_ALLOWED;
 
   size_t size_in_bytes = 0;
   size_t optimal_operation_size = 0;
-  ASSIGN_OR_RETURN(auto* file, ::OpenFile(request.path, size_in_bytes,
-                                          optimal_operation_size, sender));
+  ASSIGN_OR_RETURN(
+      auto* file,
+      ::OpenFile(request.path, size_in_bytes, optimal_operation_size, sender,
+                 request.read_access, request.write_access,
+                 request.create_if_not_exists, request.truncate));
 
   OpenFileResponse response;
   response.file = *(::perception::File::Server*)file;
@@ -234,4 +254,20 @@ StorageManager::GetMountedFileSystems() {
     response.mount_points.push_back(std::string(mount_point));
   });
   return response;
+}
+
+Status StorageManager::CreateDirectory(const RequestWithFilePath& request,
+                                       ::perception::ProcessId sender) {
+  if (!DoesProcessHavePermissionToWritePath(request.path, sender))
+    return Status::NOT_ALLOWED;
+
+  return ::CreateDirectory(request.path, sender);
+}
+
+Status StorageManager::DeleteFileOrDirectory(const RequestWithFilePath& request,
+                                             ::perception::ProcessId sender) {
+  if (!DoesProcessHavePermissionToWritePath(request.path, sender))
+    return Status::NOT_ALLOWED;
+
+  return ::DeleteFileOrDirectory(request.path, sender);
 }

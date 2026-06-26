@@ -14,10 +14,12 @@
 
 #include "file_systems/iso9660.h"
 
+#include <algorithm>
 #include <iostream>
 
 #include "perception/scheduler.h"
 #include "perception/storage_manager.h"
+#include "sector_cache.h"
 #include "shared_memory_pool.h"
 #include "virtual_file_system.h"
 
@@ -38,11 +40,15 @@ namespace {
 constexpr int kIso9660SectorSize = 2048;
 std::string kIso9660Name = "ISO 9660";
 
+}  // namespace
+
+namespace {
+
 class Iso9660File : public File {
  public:
-  Iso9660File(StorageDevice::Client storage_device, size_t offset_on_device,
-              size_t length_of_file, ProcessId allowed_process)
-      : storage_device_(storage_device),
+  Iso9660File(Iso9660* parent, size_t offset_on_device, size_t length_of_file,
+              ProcessId allowed_process)
+      : parent_(parent),
         offset_on_device_(offset_on_device),
         length_of_file_(length_of_file),
         allowed_process_(allowed_process) {};
@@ -54,7 +60,7 @@ class Iso9660File : public File {
     return Status::OK;
   }
 
-  virtual Status Read(const ReadFileRequest &request,
+  virtual Status Read(const ReadFileRequest& request,
                       ProcessId sender) override {
     if (sender != allowed_process_) return Status::NOT_ALLOWED;
 
@@ -62,28 +68,30 @@ class Iso9660File : public File {
       return Status::OVERFLOW;
     }
 
-    StorageDeviceReadRequest read_request;
-    read_request.offset_on_device = offset_on_device_ + request.offset_in_file;
-    read_request.offset_in_buffer = request.offset_in_destination_buffer;
-    read_request.bytes_to_copy = request.bytes_to_copy;
-    read_request.buffer = request.buffer_to_copy_into;
-
-    return storage_device_.Read(read_request);
+    return parent_->ReadCached(offset_on_device_ + request.offset_in_file,
+                               request.offset_in_destination_buffer,
+                               request.bytes_to_copy,
+                               request.buffer_to_copy_into);
   }
 
   virtual Status GrantStorageDevicePermissionToAllocateSharedMemoryPages(
-      const GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest
-          &request,
+      const GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest&
+          request,
       ::perception::ProcessId sender) override {
     if (sender != allowed_process_) return Status::NOT_ALLOWED;
     request.buffer->GrantPermissionToLazilyAllocatePage(
-        storage_device_.ServerProcessId());
+        parent_->GetStorageDevice().ServerProcessId());
 
     return Status::OK;
   }
 
+  virtual Status Write(const ::perception::WriteFileRequest& request,
+                       ::perception::ProcessId sender) override {
+    return Status::NOT_ALLOWED;
+  }
+
  private:
-  StorageDevice::Client storage_device_;
+  Iso9660* parent_;
   size_t offset_on_device_;
   size_t length_of_file_;
   ProcessId allowed_process_;
@@ -114,12 +122,24 @@ Iso9660::Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
     : size_in_blocks_(size_in_blocks),
       logical_block_size_(logical_block_size),
       root_directory_(std::move(root_directory)),
-      FileSystem(storage_device) {}
+      FileSystem(storage_device),
+      cache_(std::make_unique<SectorCache>(logical_block_size)) {
+  prefetch_buffer_ = ::perception::SharedMemory::FromSize(
+      32768,
+      ::perception::SharedMemory::kJoinersCanWrite);  // 32KB (16 sectors)
+  prefetch_buffer_->Join();
+}
+
+Iso9660::~Iso9660() {}
 
 // Opens a file.
-StatusOr<std::unique_ptr<File>> Iso9660::OpenFile(std::string_view path,
-                                                  size_t &size_in_bytes,
-                                                  ProcessId sender) {
+StatusOr<std::unique_ptr<File>> Iso9660::OpenFile(
+    std::string_view path, size_t& size_in_bytes, ProcessId sender,
+    bool read_access, bool write_access, bool create_if_not_exists,
+    bool truncate) {
+  if (write_access || create_if_not_exists || truncate) {
+    return Status::NOT_ALLOWED;
+  }
   std::string_view directory, file_name;
   SplitPath(path, directory, file_name);
 
@@ -129,7 +149,7 @@ StatusOr<std::unique_ptr<File>> Iso9660::OpenFile(std::string_view path,
                      size_t start_lba, size_t size) {
         if (name == file_name) {
           file = std::make_unique<Iso9660File>(
-              storage_device_, start_lba * logical_block_size_, size, sender);
+              this, start_lba * logical_block_size_, size, sender);
           size_in_bytes = size;
           return true;
         }
@@ -141,6 +161,16 @@ StatusOr<std::unique_ptr<File>> Iso9660::OpenFile(std::string_view path,
   } else {
     return Status::FILE_NOT_FOUND;
   }
+}
+
+Status Iso9660::CreateDirectory(std::string_view path,
+                                ::perception::ProcessId sender) {
+  return Status::NOT_ALLOWED;
+}
+
+Status Iso9660::DeleteFileOrDirectory(std::string_view path,
+                                      ::perception::ProcessId sender) {
+  return Status::NOT_ALLOWED;
 }
 
 // Counts the number of entries in a directory.
@@ -207,18 +237,82 @@ void Iso9660::CheckFilePermissions(std::string_view path, bool &file_exists,
   can_execute = file_exists;
 }
 
+Status Iso9660::ReadCached(uint64 offset_on_device, uint64 offset_in_buffer,
+                           uint64 bytes_to_copy,
+                           std::shared_ptr<::perception::SharedMemory> buffer) {
+  // If the read is larger than 8 sectors (16KB), bypass the cache.
+  if (bytes_to_copy > 16384) {
+    StorageDeviceReadRequest read_request;
+    read_request.offset_on_device = offset_on_device;
+    read_request.offset_in_buffer = offset_in_buffer;
+    read_request.bytes_to_copy = bytes_to_copy;
+    read_request.buffer = buffer;
+    return storage_device_.Read(read_request);
+  }
+
+  size_t start_sector = offset_on_device / kIso9660SectorSize;
+  size_t end_sector =
+      (offset_on_device + bytes_to_copy - 1) / kIso9660SectorSize;
+
+  char* dest_buffer = (char*)**buffer;
+
+  std::scoped_lock lock(prefetch_mutex_);
+  char* temp_buffer = (char*)**prefetch_buffer_;
+
+  for (size_t sector = start_sector; sector <= end_sector; sector++) {
+    size_t sector_offset = sector * kIso9660SectorSize;
+
+    // Calculate overlap between this sector and the request
+    size_t read_start = std::max(offset_on_device, (uint64)sector_offset);
+    size_t read_end = std::min(offset_on_device + bytes_to_copy,
+                               (uint64)(sector_offset + kIso9660SectorSize));
+    size_t copy_size = read_end - read_start;
+    size_t offset_in_sector = read_start - sector_offset;
+    size_t offset_in_dest = read_start - offset_on_device + offset_in_buffer;
+
+    // Check cache
+    if (cache_->Read(sector, dest_buffer + offset_in_dest, offset_in_sector,
+                     copy_size)) {
+      // Hit!
+    } else {
+      // Cache miss! Pre-fetch up to 16 sectors (32KB, size of prefetch_buffer_)
+      // or up to the end of the device.
+      size_t sectors_to_prefetch = 16;
+      if (sector + sectors_to_prefetch > size_in_blocks_) {
+        sectors_to_prefetch = size_in_blocks_ - sector;
+      }
+
+      StorageDeviceReadRequest read_request;
+      read_request.offset_on_device = sector_offset;
+      read_request.offset_in_buffer = 0;
+      read_request.bytes_to_copy = sectors_to_prefetch * kIso9660SectorSize;
+      read_request.buffer = prefetch_buffer_;
+
+      auto status = storage_device_.Read(read_request);
+      if (status != Status::OK) {
+        return status;
+      }
+
+      // Store pre-fetched sectors in cache
+      for (size_t i = 0; i < sectors_to_prefetch; i++) {
+        cache_->Write(sector + i, temp_buffer + (i * kIso9660SectorSize));
+      }
+
+      // Copy the requested part of the first sector
+      std::memcpy(dest_buffer + offset_in_dest, temp_buffer + offset_in_sector,
+                  copy_size);
+    }
+  }
+
+  return Status::OK;
+}
+
 void Iso9660::ForRawEachEntryInDirectory(
     std::string_view path,
     const std::function<bool(std::string_view, DirectoryEntry::Type, size_t,
                              size_t)> &on_each_entry) {
   auto pooled_shared_memory = kSharedMemoryPool.GetSharedMemory();
   char *buffer = (char *)**pooled_shared_memory->shared_memory;
-
-  StorageDeviceReadRequest read_request;
-  read_request.offset_on_device = 0;
-  read_request.offset_in_buffer = 0;
-  read_request.bytes_to_copy = kIso9660SectorSize;
-  read_request.buffer = pooled_shared_memory->shared_memory;
 
   uint32 root_lba_val;
   std::memcpy(&root_lba_val, &root_directory_[2], 4);
@@ -254,8 +348,8 @@ void Iso9660::ForRawEachEntryInDirectory(
         // Read in the sector. Note that directory entries aren't allowed to
         // cross sector boundaries.
         size_t directory_start = directory_lba * logical_block_size_;
-        read_request.offset_on_device = directory_start;
-        if (storage_device_.Read(read_request) != Status::OK) {
+        if (ReadCached(directory_start, 0, kIso9660SectorSize,
+                       pooled_shared_memory->shared_memory) != Status::OK) {
           // Error reading sector.
           kSharedMemoryPool.ReleaseSharedMemory(
               std::move(pooled_shared_memory));

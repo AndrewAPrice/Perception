@@ -329,7 +329,7 @@ StatusOr<::perception::ProcessId> LoadProgram(
     }
   }
 
-  write_aux(3, phdr_addr);  // AT_PHDR = 3
+  write_aux(3, load_addresses_of_elf_files[0] + phdr_addr);  // AT_PHDR = 3
   write_aux(4, phnum);      // AT_PHNUM = 4
   write_aux(5, phent);      // AT_PHENT = 5
   write_aux(6, kPageSize);  // AT_PAGESZ = 6

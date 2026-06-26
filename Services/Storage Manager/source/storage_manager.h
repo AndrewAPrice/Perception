@@ -23,7 +23,7 @@ class StorageManager : public ::perception::StorageManager::Server {
   virtual ~StorageManager();
 
   virtual StatusOr<::perception::OpenFileResponse> OpenFile(
-      const ::perception::RequestWithFilePath& request,
+      const ::perception::OpenFileRequest& request,
       ::perception::ProcessId sender) override;
 
   virtual StatusOr<::perception::OpenMemoryMappedFileResponse>
@@ -51,6 +51,14 @@ class StorageManager : public ::perception::StorageManager::Server {
 
   virtual StatusOr<::perception::GetMountedFileSystemsResponse>
   GetMountedFileSystems() override;
+
+  virtual Status CreateDirectory(
+      const ::perception::RequestWithFilePath& request,
+      ::perception::ProcessId sender) override;
+
+  virtual Status DeleteFileOrDirectory(
+      const ::perception::RequestWithFilePath& request,
+      ::perception::ProcessId sender) override;
 
   static void BroadcastMount(std::string_view mount_point);
 

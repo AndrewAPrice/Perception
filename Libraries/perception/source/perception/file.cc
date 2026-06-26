@@ -47,6 +47,12 @@ void ReadFileRequest::Serialize(serialization::Serializer& serializer) {
   serializer.Serializable("Buffer to copy into", buffer_to_copy_into);
 }
 
+void WriteFileRequest::Serialize(serialization::Serializer& serializer) {
+  serializer.Integer("Offset in file", offset_in_file);
+  serializer.Integer("Bytes to copy", bytes_to_copy);
+  serializer.Serializable("Buffer to copy from", buffer_to_copy_from);
+}
+
 void GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest::Serialize(
     serialization::Serializer& serializer) {
   serializer.Serializable("Buffer", buffer);

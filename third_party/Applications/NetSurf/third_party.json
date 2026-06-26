@@ -129,6 +129,15 @@
                             "#ifdef __cplusplus\nenum content_debug : int;\n#else\nenum content_debug;\n#endif"
                         ]
                     ]
+                },
+                {
+                    "file": "public/netsurf/content_type.h",
+                    "replacements": [
+                        [
+                            "enum content_debug {",
+                            "#ifdef __cplusplus\nenum content_debug : int {\n#else\nenum content_debug {\n#endif"
+                        ]
+                    ]
                 }
             ]
         },

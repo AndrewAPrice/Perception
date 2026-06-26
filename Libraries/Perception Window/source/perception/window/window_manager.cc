@@ -107,6 +107,12 @@ void SetWindowMaximumSizeRequest::Serialize(
   serializer.Serializable("Size", size);
 }
 
+void SetWindowCaptureMouseRequest::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.Serializable("Window", window);
+  serializer.Integer("Capture", capture);
+}
+
 }  // namespace window
 }  // namespace perception
 // End of WindowManager serialization implementations.

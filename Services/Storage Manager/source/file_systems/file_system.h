@@ -26,6 +26,8 @@ namespace file_systems {
 
 class FileSystem {
  public:
+  FileSystem();
+
   FileSystem(::perception::devices::StorageDevice::Client storage_device);
 
   virtual ~FileSystem() {}
@@ -33,7 +35,8 @@ class FileSystem {
   // Opens a file.
   virtual StatusOr<std::unique_ptr<File>> OpenFile(
       std::string_view path, size_t& size_in_bytes,
-      ::perception::ProcessId sender) = 0;
+      ::perception::ProcessId sender, bool read_access, bool write_access,
+      bool create_if_not_exists, bool truncate) = 0;
 
   // Counts the number of entries in a directory.
   virtual size_t CountEntriesInDirectory(std::string_view path) = 0;
@@ -64,6 +67,12 @@ class FileSystem {
 
   virtual StatusOr<::perception::FileStatistics> GetFileStatistics(
       std::string_view path) = 0;
+
+  virtual Status CreateDirectory(std::string_view path,
+                                 ::perception::ProcessId sender) = 0;
+
+  virtual Status DeleteFileOrDirectory(std::string_view path,
+                                       ::perception::ProcessId sender) = 0;
 
   size_t GetOptionalOperationSize() const { return optimal_operation_size_; }
 

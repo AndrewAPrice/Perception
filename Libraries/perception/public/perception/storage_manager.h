@@ -53,6 +53,17 @@ class RequestWithFilePath : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
+class OpenFileRequest : public serialization::Serializable {
+ public:
+  std::string path;
+  bool read_access = false;
+  bool write_access = false;
+  bool create_if_not_exists = false;
+  bool truncate = false;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
 class OpenFileResponse : public serialization::Serializable {
  public:
   File::Client file;
@@ -126,7 +137,7 @@ DEFINE_PERCEPTION_SERVICE(FileSystemMountListener,
 #undef METHOD_LIST
 
 #define METHOD_LIST(X)                                                  \
-  X(1, OpenFile, OpenFileResponse, RequestWithFilePath)                 \
+  X(1, OpenFile, OpenFileResponse, OpenFileRequest)                     \
   X(2, OpenMemoryMappedFile, OpenMemoryMappedFileResponse,              \
     RequestWithFilePath)                                                \
   X(3, ReadDirectory, ReadDirectoryResponse, ReadDirectoryRequest)      \
@@ -135,7 +146,9 @@ DEFINE_PERCEPTION_SERVICE(FileSystemMountListener,
   X(6, ListenForMounts, void, FileSystemMountListener::Client)          \
   X(7, StopListeningForMounts, void, FileSystemMountListener::Client)   \
   X(8, ReadLink, RequestWithFilePath, RequestWithFilePath)              \
-  X(9, GetMountedFileSystems, GetMountedFileSystemsResponse, void)
+  X(9, GetMountedFileSystems, GetMountedFileSystemsResponse, void)      \
+  X(10, CreateDirectory, void, RequestWithFilePath)                     \
+  X(11, DeleteFileOrDirectory, void, RequestWithFilePath)
 
 DEFINE_PERCEPTION_SERVICE(StorageManager, "perception.StorageManager",
                           METHOD_LIST)

@@ -50,10 +50,10 @@ StatusOr<CreateWindowResponse> WindowManager::CreateWindow(
     return Status::INTERNAL_ERROR;
   }
 
-  auto window_size = window->GetScreenArea().size;
+  auto content_size = window->GetContentSize();
 
   CreateWindowResponse response;
-  response.window_size = {window_size.width, window_size.height};
+  response.window_size = {content_size.width, content_size.height};
   return response;
 }
 
@@ -87,7 +87,7 @@ Status WindowManager::SetWindowTitle(const SetWindowTitleParameters& parameters,
 }
 
 Status WindowManager::SystemButtonPushed() {
-  if (Window::ExitFullScreen()) return Status::OK;
+  if (Window::ExitFullScreenOrMouseCapture()) return Status::OK;
 
   auto launcher = FindFirstInstanceOfService<Launcher>();
   if (launcher) launcher->ShowLauncher(nullptr);
@@ -186,5 +186,16 @@ Status WindowManager::SetWindowMaximumSize(
     return Status::INVALID_ARGUMENT;
 
   window->SetMaximumSize(parameters.size);
+  return Status::OK;
+}
+
+Status WindowManager::SetWindowCaptureMouse(
+    const ::perception::window::SetWindowCaptureMouseRequest& parameters,
+    ::perception::ProcessId sender) {
+  auto window = GetWindowWithListener(parameters.window);
+  if (!window || sender != parameters.window.ServerProcessId())
+    return Status::INVALID_ARGUMENT;
+
+  window->SetCaptureMouse(parameters.capture);
   return Status::OK;
 }

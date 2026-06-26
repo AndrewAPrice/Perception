@@ -39,6 +39,15 @@ class ReadFileRequest : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
+class WriteFileRequest : public serialization::Serializable {
+ public:
+  uint64 offset_in_file;
+  uint64 bytes_to_copy;
+  std::shared_ptr<SharedMemory> buffer_to_copy_from;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
 class GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest
     : public serialization::Serializable {
  public:
@@ -51,7 +60,8 @@ class GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest
   X(1, Close, void, void)                                             \
   X(2, Read, void, ReadFileRequest)                                   \
   X(3, GrantStorageDevicePermissionToAllocateSharedMemoryPages, void, \
-    GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest)
+    GrantStorageDevicePermissionToAllocateSharedMemoryPagesRequest)   \
+  X(4, Write, void, WriteFileRequest)
 
 DEFINE_PERCEPTION_SERVICE(File, "perception.File", METHOD_LIST)
 

@@ -53,6 +53,10 @@ class Window : public std::enable_shared_from_this<Window> {
   static void UnfocusAllWindows();
   static void EnsureWindowsAreOnScreen();
   static bool ExitFullScreen();
+  static bool ExitFullScreenOrMouseCapture();
+  void SetCaptureMouse(bool capture);
+  static Window* GetCaptiveMouseWindow();
+  ::perception::devices::MouseListener::Client& GetMouseListener();
   void SetTitle(std::string_view title);
   std::string_view GetTitle() const;
 
@@ -76,6 +80,7 @@ class Window : public std::enable_shared_from_this<Window> {
 
   ::perception::ui::Rectangle GetScreenAreaWithFrame() const;
   const ::perception::ui::Rectangle& GetScreenArea() const;
+  ::perception::window::Size GetContentSize() const;
   bool IsVisible() const { return is_visible_; }
   bool IsFullScreen() const { return is_fullscreen_; }
 
@@ -158,6 +163,7 @@ class Window : public std::enable_shared_from_this<Window> {
 
   bool is_debugging_;
   bool is_closed_;
+  bool is_mouse_captive_;
 };
 
 std::shared_ptr<Window> GetWindowWithListener(

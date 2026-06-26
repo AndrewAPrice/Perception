@@ -20,6 +20,13 @@ using ::perception::devices::StorageDevice;
 
 namespace file_systems {
 
+FileSystem::FileSystem() : storage_device_(StorageDevice::Client()) {
+  device_name_ = "Ramdisk";
+  storage_type_ = ::perception::devices::StorageDeviceType::RAM;
+  is_writable_ = true;
+  optimal_operation_size_ = 4096;
+}
+
 FileSystem::FileSystem(StorageDevice::Client storage_device)
     : storage_device_(storage_device) {
   auto status_or_device_details = storage_device.GetDeviceDetails();
@@ -37,7 +44,8 @@ std::unique_ptr<FileSystem> InitializeStorageDevice(
 
 void FileSystem::NotifyOnDisappearance(
     const std::function<void()>& on_disappearance) {
-  storage_device_.NotifyOnDisappearance(on_disappearance);
+  if (storage_device_.IsValid())
+    storage_device_.NotifyOnDisappearance(on_disappearance);
 }
 
 }  // namespace file_systems

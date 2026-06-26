@@ -166,6 +166,14 @@ class SetWindowMaximumSizeRequest : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
+class SetWindowCaptureMouseRequest : public serialization::Serializable {
+ public:
+  BaseWindow::Client window;
+  bool capture;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
 #define METHOD_LIST(X)                                           \
   X(1, CreateWindow, CreateWindowResponse, CreateWindowRequest)  \
   X(2, CloseWindow, void, BaseWindow::Client)                    \
@@ -181,7 +189,8 @@ class SetWindowMaximumSizeRequest : public serialization::Serializable {
   X(12, SetWindowCursor, void, SetWindowCursorParameters)        \
   X(13, GetDisplayBounds, GetDisplayBoundsResponse, void)        \
   X(14, SetWindowMinimumSize, void, SetWindowMinimumSizeRequest) \
-  X(15, SetWindowMaximumSize, void, SetWindowMaximumSizeRequest)
+  X(15, SetWindowMaximumSize, void, SetWindowMaximumSizeRequest) \
+  X(16, SetWindowCaptureMouse, void, SetWindowCaptureMouseRequest)
 DEFINE_PERCEPTION_SERVICE(WindowManager, "perception.window.WindowManager",
                           METHOD_LIST)
 #undef METHOD_LIST
