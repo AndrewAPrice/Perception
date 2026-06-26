@@ -1,0 +1,27 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/curl/curl.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/include",
+            "destination": "public",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/lib",
+            "destination": "source",
+            "recursive": true,
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        }
+    ]
+}

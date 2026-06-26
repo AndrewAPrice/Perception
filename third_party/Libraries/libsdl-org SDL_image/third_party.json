@@ -1,0 +1,26 @@
+{
+    "repositories": [
+        {
+            "url": "-b SDL2 https://github.com/libsdl-org/SDL_image.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/include/SDL_image.h",
+            "destination": "public/SDL_image.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source",
+            "recursive": true,
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        }
+    ]
+}

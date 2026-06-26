@@ -1,0 +1,21 @@
+{
+    "repositories": [
+        {
+            "url": "-b SDL2 https://github.com/libsdl-org/SDL_ttf.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/SDL_ttf.h",
+            "destination": "public/SDL_ttf.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/SDL_ttf.c",
+            "destination": "source/SDL_ttf.c"
+        }
+    ]
+}

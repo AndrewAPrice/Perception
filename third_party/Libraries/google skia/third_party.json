@@ -127,18 +127,6 @@
         },
         {
             "operation": "copy",
-            "source": "${git}/src/base",
-            "destination": "source/src/base",
-            "extensions": [".cpp", ".h"]
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/src/base",
-            "destination": "public/src/base",
-            "extensions": [".h"]
-        },
-        {
-            "operation": "copy",
             "source": "${git}/src/capture",
             "destination": "public/src/capture",
             "extensions": [".h"]

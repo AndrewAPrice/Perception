@@ -1,0 +1,26 @@
+{
+    "repositories": [
+        {
+            "url": "-b SDL2 https://github.com/libsdl-org/SDL_net.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/include/SDL_net.h",
+            "destination": "public/SDL_net.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source",
+            "recursive": true,
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        }
+    ]
+}

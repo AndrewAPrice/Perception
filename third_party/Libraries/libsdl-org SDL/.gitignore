@@ -1,0 +1,4 @@
+.clangd
+.third_party_files.json
+public/
+include/

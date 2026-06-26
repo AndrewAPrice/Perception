@@ -33,6 +33,9 @@
   source_directories: [
     'source',
   ],
+  files_to_ignore: [
+    'source/src/sksl/codegen/SkSLHLSLCodeGenerator.cpp',
+  ],
   dependencies+: [
     'fontconfig',
     'harfbuzz',

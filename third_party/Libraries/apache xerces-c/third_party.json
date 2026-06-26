@@ -1,0 +1,56 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/apache/xerces-c.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "public",
+            "recursive": true,
+            "extensions": [
+                ".hpp",
+                ".h",
+                ".c"
+            ],
+            "exclude": [
+                "public/xercesc/util/NetAccessors/WinSock",
+                "public/xercesc/util/NetAccessors/Socket",
+                "public/xercesc/util/NetAccessors/MacOSURLAccessCF",
+                "public/xercesc/util/MsgLoaders/Win32",
+                "public/xercesc/util/MsgLoaders/ICU",
+                "public/xercesc/util/Transcoders/Win32",
+                "public/xercesc/util/Transcoders/MacOSUnicodeConverter",
+                "public/xercesc/util/Transcoders/ICU"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source",
+            "recursive": true,
+            "extensions": [
+                ".cpp",
+                ".hpp",
+                ".h"
+            ],
+            "exclude": [
+                "source/xercesc/util/NetAccessors/WinSock",
+                "source/xercesc/util/NetAccessors/Socket",
+                "source/xercesc/util/NetAccessors/MacOSURLAccessCF",
+                "source/xercesc/util/MutexManagers/WindowsMutexMgr.cpp",
+                "source/xercesc/util/FileManagers/WindowsFileMgr.cpp",
+                "source/xercesc/util/MsgLoaders/Win32",
+                "source/xercesc/util/Transcoders/Win32",
+                "source/xercesc/util/Transcoders/MacOSUnicodeConverter",
+                "source/xercesc/util/Transcoders/ICU",
+                "source/xercesc/util/MsgLoaders/ICU",
+                "source/xercesc/util/JanitorExports.cpp"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,353 @@
+{
+    "repositories": [
+        {
+            "url": "-b SDL2 https://github.com/libsdl-org/SDL.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/include",
+            "destination": "public",
+            "recursive": true,
+            "exclude": [
+                "public/SDL_config.h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include",
+            "destination": "include",
+            "recursive": true,
+            "exclude": [
+                "include/SDL_config.h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/atomic",
+            "destination": "source/atomic",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/core/linux",
+            "destination": "source/core/linux",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/core/unix",
+            "destination": "source/core/unix",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/cpuinfo",
+            "destination": "source/cpuinfo",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/events",
+            "destination": "source/events",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/dynapi",
+            "destination": "source/dynapi",
+            "extensions": [
+                ".c",
+                ".h"
+            ],
+            "replace": [
+                {
+                    "file": "source/dynapi/SDL_dynapi.h",
+                    "replacements": [
+                        [
+                            "#ifdef SDL_DYNAMIC_API /* Tried to force it on the command line? */",
+                            "#if 0"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/file",
+            "destination": "source/file",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/haptic/dummy",
+            "destination": "source/haptic/dummy",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/haptic",
+            "destination": "source/haptic",
+            "recursive": false,
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/joystick/dummy",
+            "destination": "source/joystick/dummy",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/joystick",
+            "destination": "source/joystick",
+            "recursive": false,
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sensor/dummy",
+            "destination": "source/sensor/dummy",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/sensor",
+            "destination": "source/sensor",
+            "recursive": false,
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/libm",
+            "destination": "source/libm",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/render",
+            "destination": "source/render",
+            "recursive": true,
+            "extensions": [
+                ".c",
+                ".h"
+            ],
+            "exclude": [
+                "source/render/metal",
+                "source/render/direct3d",
+                "source/render/direct3d11",
+                "source/render/direct3d12",
+                "source/render/opengl",
+                "source/render/opengles",
+                "source/render/opengles2",
+                "source/render/ps2",
+                "source/render/psp",
+                "source/render/vitagxm"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/stdlib",
+            "destination": "source/stdlib",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/thread/pthread",
+            "destination": "source/thread/pthread",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/thread/generic",
+            "destination": "source/thread/generic",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/thread",
+            "destination": "source/thread",
+            "recursive": false,
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/timer/unix",
+            "destination": "source/timer/unix",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/timer",
+            "destination": "source/timer",
+            "recursive": false,
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/video/dummy",
+            "destination": "source/video/dummy",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/video/offscreen",
+            "destination": "source/video/offscreen",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/video/yuv2rgb",
+            "destination": "source/video/yuv2rgb",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/video",
+            "destination": "source/video",
+            "recursive": false,
+            "extensions": [
+                ".c",
+                ".h"
+            ],
+            "replace": [
+                {
+                    "file": "source/video/SDL_sysvideo.h",
+                    "replacements": [
+                        [
+                            "extern VideoBootStrap COCOA_bootstrap;",
+                            "extern VideoBootStrap PERCEPTION_bootstrap;\nextern VideoBootStrap COCOA_bootstrap;"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/video/SDL_video.c",
+                    "replacements": [
+                        [
+                            "static VideoBootStrap *bootstrap[] = {",
+                            "static VideoBootStrap *bootstrap[] = {\n#ifdef SDL_VIDEO_DRIVER_PERCEPTION\n    &PERCEPTION_bootstrap,\n#endif"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/audio/dummy",
+            "destination": "source/audio/dummy",
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/audio",
+            "destination": "source/audio",
+            "recursive": false,
+            "extensions": [
+                ".c",
+                ".h"
+            ],
+            "replace": [
+                {
+                    "file": "source/audio/SDL_sysaudio.h",
+                    "replacements": [
+                        [
+                            "extern AudioBootStrap DUMMYAUDIO_bootstrap;",
+                            "extern AudioBootStrap PERCEPTIONAUDIO_bootstrap;\nextern AudioBootStrap DUMMYAUDIO_bootstrap;"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/audio/SDL_audio.c",
+                    "replacements": [
+                        [
+                            "static const AudioBootStrap *const bootstrap[] = {",
+                            "static const AudioBootStrap *const bootstrap[] = {\n#ifdef SDL_AUDIO_DRIVER_PERCEPTION\n    &PERCEPTIONAUDIO_bootstrap,\n#endif"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src",
+            "destination": "source",
+            "recursive": false,
+            "extensions": [
+                ".c",
+                ".h"
+            ]
+        }
+    ]
+}

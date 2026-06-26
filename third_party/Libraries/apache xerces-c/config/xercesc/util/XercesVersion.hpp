@@ -1,0 +1,17 @@
+#pragma once
+
+#define XERCES_VERSION_MAJOR 3
+#define XERCES_VERSION_MINOR 2
+#define XERCES_VERSION_REVISION 5
+#define XERCES_GRAMMAR_SERIALIZATION_LEVEL 7
+
+#define XERCES_FULLVERSIONDOT "3.2.5"
+#define XERCES_FULLVERSIONNUM 0x03020500
+
+#define XERCES_CPP_NAMESPACE xercesc_3_2
+#define XERCES_CPP_NAMESPACE_BEGIN namespace xercesc_3_2 {
+#define XERCES_CPP_NAMESPACE_END }
+#define XERCES_CPP_NAMESPACE_USE using namespace xercesc_3_2;
+#define XERCES_CPP_NAMESPACE_QUALIFIER xercesc_3_2::
+
+namespace xercesc_3_2 {}
