@@ -16,26 +16,12 @@
 
 #include <errno.h>
 
-#include <atomic>
-#include <map>
-#include <vector>
-
 #include "../../../../third_party/Libraries/musl/source/internal/futex.h"
 #include "perception/debug.h"
-#include "perception/fibers.h"
+#include "perception/futex.h"
 
 namespace perception {
 namespace linux_syscalls {
-namespace {
-
-std::atomic_flag futex_lock = ATOMIC_FLAG_INIT;
-
-std::map<volatile int*, std::vector<Fiber*>>& FibersSleepingOnAddrs() {
-  static std::map<volatile int*, std::vector<Fiber*>> fibers_sleeping_on_addrs;
-  return fibers_sleeping_on_addrs;
-}
-
-}  // namespace
 
 long futex(volatile int* addr, int op, int val, void* ts) {
   // Ignoring the timeout struct (ts) for now.
@@ -44,43 +30,11 @@ long futex(volatile int* addr, int op, int val, void* ts) {
   op &= 15;
 
   switch (op) {
-    case FUTEX_WAIT: {
-      // Sleep if *addr != val.
-      if (*addr != val) return -EAGAIN;
-
-      while (futex_lock.test_and_set(std::memory_order_acquire)) {
-        // Spin
-      }
-      Fiber* current_fiber = ::perception::GetCurrentlyExecutingFiber();
-      FibersSleepingOnAddrs()[addr].push_back(current_fiber);
-      futex_lock.clear(std::memory_order_release);
-
-      ::perception::Sleep();
+    case FUTEX_WAIT:
+      return WaitOnFutex((void*)addr, val) ? 0 : -EAGAIN;
+    case FUTEX_WAKE:
+      WakeFutex((void*)addr, val);
       return 0;
-    }
-    case FUTEX_WAKE: {
-      // Wake up to 'val' listeners.
-      std::vector<Fiber*> fibers_to_wake;
-
-      while (futex_lock.test_and_set(std::memory_order_acquire)) {
-        // Spin
-      }
-      auto itr = FibersSleepingOnAddrs().find(addr);
-      if (itr != FibersSleepingOnAddrs().end()) {
-        if (itr->second.size() <= val) {
-          fibers_to_wake = std::move(itr->second);
-          FibersSleepingOnAddrs().erase(itr);
-        } else {
-          fibers_to_wake.assign(itr->second.begin(), itr->second.begin() + val);
-          itr->second.erase(itr->second.begin(), itr->second.begin() + val);
-        }
-      }
-      futex_lock.clear(std::memory_order_release);
-
-      for (Fiber* fiber : fibers_to_wake) fiber->WakeUp();
-
-      return 0;
-    }
     case FUTEX_FD:
       perception::DebugPrinterSingleton << "FUTEX_FD not implemented" << '\n';
       break;

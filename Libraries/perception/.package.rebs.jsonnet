@@ -15,6 +15,7 @@
     'source/perception/draw.cc',
     'source/perception/fibers.cc',
     'source/perception/font.cc',
+    'source/perception/futex.cc',
     'source/perception/heap_allocator.cc',
     'source/perception/loader.cc',
     'source/perception/memory.cc',

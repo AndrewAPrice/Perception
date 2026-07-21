@@ -24,8 +24,15 @@
 #include "perception/permissions.h"
 #include "perception/processes.h"
 #include "perception/memory.h"
+#include "perception/futex.h"
 
 namespace perception {
+
+bool WaitOnFutex(void* address, int value) {
+  return false;
+}
+
+void WakeFutex(void* address, int value) {}
 
 // Message stubs
 MessageId GenerateUniqueMessageId() {

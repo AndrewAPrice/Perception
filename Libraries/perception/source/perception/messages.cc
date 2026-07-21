@@ -18,7 +18,7 @@
 #include <map>
 
 #include "perception/fibers.h"
-#include "perception/memory.h"
+#include "perception/futex.h"
 #include "perception/scheduler.h"
 
 namespace perception {
@@ -55,6 +55,28 @@ std::map<MessageId, std::shared_ptr<MessageHandler>>& GetHandlersByMessageId() {
     handlers_by_message_id_ptr = new std::map<MessageId, std::shared_ptr<MessageHandler>>();
   }
   return *handlers_by_message_id_ptr;
+}
+
+MessageId futex_wake_message_id = 0;
+
+__attribute__((constructor)) void InitializeKernelSystemMessageHandlers() {
+#if defined(PERCEPTION) && !defined(TEST)
+  futex_wake_message_id = GenerateUniqueMessageId();
+
+  volatile register size_t syscall asm("rdi") = 8;
+  volatile register size_t futex_msg_id_r asm("rax") = futex_wake_message_id;
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "r"(syscall), "r"(futex_msg_id_r)
+                       : "rcx", "r11");
+
+  RegisterRawMessageHandler(
+      futex_wake_message_id,
+      [](ProcessId sender, const MessageData& message_data) {
+        if (message_data.param1 > 0)
+          perception::WakeFutex((void*)message_data.param1, 1);
+      });
+#endif
 }
 
 }  // namespace
