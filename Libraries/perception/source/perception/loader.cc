@@ -66,4 +66,14 @@ void GetMultibootRegistryFileResponse::Serialize(
   serializer.Integer("RegistryFileId", registry_file_id);
 }
 
+void ResolveSymbolRequest::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.String("SymbolName", symbol_name);
+}
+
+void ResolveSymbolResponse::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.Integer("Address", address);
+}
+
 }  // namespace perception
