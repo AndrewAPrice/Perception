@@ -28,16 +28,22 @@ using ::perception::ProcessId;
 namespace {
 
 // A map of process IDs to the ELF file dependencies.
-std::map<ProcessId, std::vector<std::shared_ptr<ElfFile>>> pid_to_dependencies;
+std::map<ProcessId, std::vector<ProcessDependency>> pid_to_dependencies;
 
 }  // namespace
 
 void RecordChildPidAndDependencies(
     ::perception::ProcessId child_pid,
-    const std::vector<std::shared_ptr<ElfFile>>& dependencies) {
-  for (auto dependency : dependencies) dependency->IncrementInstances();
+    const std::vector<std::shared_ptr<ElfFile>>& dependencies,
+    const std::vector<size_t>& load_addresses) {
+  std::vector<ProcessDependency> deps;
+  deps.reserve(dependencies.size());
+  for (size_t i = 0; i < dependencies.size(); ++i) {
+    dependencies[i]->IncrementInstances();
+    deps.push_back(ProcessDependency{dependencies[i], load_addresses[i]});
+  }
 
-  pid_to_dependencies[child_pid] = dependencies;
+  pid_to_dependencies[child_pid] = deps;
 
   NotifyUponProcessTermination(child_pid, [child_pid]() {
     auto itr = pid_to_dependencies.find(child_pid);
@@ -50,8 +56,15 @@ void RecordChildPidAndDependencies(
       return;
     }
 
-    for (auto dependency : itr->second) DecrementElfFile(dependency);
+    for (auto& dependency : itr->second) DecrementElfFile(dependency.elf_file);
 
     pid_to_dependencies.erase(itr);
   });
+}
+
+const std::vector<ProcessDependency>* GetProcessDependencies(
+    ::perception::ProcessId pid) {
+  auto itr = pid_to_dependencies.find(pid);
+  if (itr != pid_to_dependencies.end()) return &itr->second;
+  return nullptr;
 }

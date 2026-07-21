@@ -26,6 +26,7 @@
 #include "perception/permissions.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
+#include "process.h"
 
 using ::perception::ProcessId;
 
@@ -123,5 +124,40 @@ LoaderServer::GetMultibootRegistryFile(
 
   ::perception::GetMultibootRegistryFileResponse response;
   response.registry_file_id = shared_memory->GetId();
+  return response;
+}
+
+StatusOr<::perception::ResolveSymbolResponse> LoaderServer::ResolveSymbol(
+    const ::perception::ResolveSymbolRequest& request,
+    ::perception::ProcessId sender) {
+  auto dependencies = GetProcessDependencies(sender);
+  if (!dependencies) {
+    return Status::INVALID_ARGUMENT;
+  }
+
+  // While looping through the dependencies to find a strong symbol, a weak
+  // symbol might be encountered.
+  std::optional<size_t> weak_address = std::nullopt;
+
+  // Search for a strong symbol.
+  for (const auto& dependency : *dependencies) {
+    auto result = dependency.elf_file->GetSymbolAddress(request.symbol_name);
+    if (result.has_value()) {
+      size_t address = result->address + dependency.load_address;
+      if (result->is_weak) {
+        // Save it for later, in case a strong symbol can't be found.
+        weak_address = address;
+      } else {
+        // Found a strong symbol, return the address.
+        ::perception::ResolveSymbolResponse response;
+        response.address = address;
+        return response;
+      }
+    }
+  }
+
+  // Strong symbol not found, return the weak address (if found) or 0.
+  ::perception::ResolveSymbolResponse response;
+  response.address = weak_address.value_or(0);
   return response;
 }

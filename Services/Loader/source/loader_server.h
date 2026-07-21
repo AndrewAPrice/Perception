@@ -30,4 +30,8 @@ class LoaderServer : public ::perception::Loader::Server {
   StatusOr<::perception::GetMultibootRegistryFileResponse> GetMultibootRegistryFile(
       const ::perception::GetMultibootRegistryFileRequest& request,
       ::perception::ProcessId sender) override;
+
+  StatusOr<::perception::ResolveSymbolResponse> ResolveSymbol(
+      const ::perception::ResolveSymbolRequest& request,
+      ::perception::ProcessId sender) override;
 };

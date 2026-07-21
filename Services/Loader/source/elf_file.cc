@@ -201,8 +201,12 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
       if (name.length() > 255) continue;  // Skip unreasonably long names.
 
       bool is_weak = ELF64_ST_BIND(symbol.st_info) == STB_WEAK;
-      if (!is_weak || !symbols_to_addresses.contains(name)) {
-        size_t address = symbol.st_value + offset;
+      size_t address = symbol.st_value + offset;
+      if (symbols_to_addresses.contains(name)) {
+        if (!is_weak) {
+          symbols_to_addresses[name] = address;
+        }
+      } else {
         local_symbols.push_back(SymbolMap::Entry{name, address});
       }
     }
@@ -296,6 +300,7 @@ Status ElfFile::FixUpRelocations(
         case 16:  // R_AMD64_DTPMOD64
           value = module_id;
           break;
+        case 17:  // R_AMD64_DTPOFF64
         case 18: {  // R_AMD64_TPOFF64
           size_t symbol_index = ELF64_R_SYM(relocation_entry.r_info);
           if (symbol_index >= symbols.size()) {
@@ -345,8 +350,13 @@ Status ElfFile::FixUpRelocations(
           }
 
           size_t var_offset = resolved_val - best_load_offset;
-          // value is the TP-relative offset (which is negative)
-          value = var_offset - best_tls_offset + relocation_entry.r_addend;
+          if (type == 18) {
+            // value is the TP-relative offset (which is negative)
+            value = var_offset - best_tls_offset + relocation_entry.r_addend;
+          } else {
+            // value is the offset within the module's TLS block
+            value = var_offset + relocation_entry.r_addend;
+          }
           break;
         }
         default:
@@ -590,4 +600,30 @@ std::vector<const Elf64_Shdr*> ElfFile::GetRelocationSectionHeaders() {
     relocation_sections.push_back(*rela_plt_section_header_);
 
   return relocation_sections;
+}
+
+std::optional<ElfFile::SymbolResult> ElfFile::GetSymbolAddress(std::string_view name) {
+  if (!dynsym_section_header_) return std::nullopt;
+
+  auto symbols = memory_span_.ToTypedArrayAtOffset<Elf64_Sym>(
+      (*dynsym_section_header_)->sh_offset + sizeof(Elf64_Sym),
+      (*dynsym_section_header_)->sh_size / sizeof(Elf64_Sym) - 1);
+
+  for (const Elf64_Sym& symbol : symbols) {
+    if (symbol.st_shndx == SHN_UNDEF) continue;  // Undefined symbol.
+    if (ELF64_ST_BIND(symbol.st_info) == STB_LOCAL)
+      continue;  // Skip local symbols.
+    if (ELF64_ST_VISIBILITY(symbol.st_other) == STV_HIDDEN ||
+        ELF64_ST_VISIBILITY(symbol.st_other) == STV_INTERNAL)
+      continue;  // Skip hidden / internal symbols.
+
+    auto name_or = DynamicString(symbol.st_name);
+    if (!name_or) continue;
+
+    if (*name_or == name) {
+      bool is_weak = ELF64_ST_BIND(symbol.st_info) == STB_WEAK;
+      return SymbolResult{symbol.st_value, is_weak};
+    }
+  }
+  return std::nullopt;
 }

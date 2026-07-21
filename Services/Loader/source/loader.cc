@@ -341,7 +341,8 @@ StatusOr<::perception::ProcessId> LoadProgram(
   SendMemoryPagesToChild(child_pid, child_memory_pages);
 
   // Remember these dependencies so they stay in memory while the program runs.
-  RecordChildPidAndDependencies(child_pid, dependencies);
+  RecordChildPidAndDependencies(child_pid, dependencies,
+                                load_addresses_of_elf_files);
 
   // Creates a thread in the a child process. The child process will begin
   // executing and will no longer terminate if the creator terminates.

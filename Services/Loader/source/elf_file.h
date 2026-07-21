@@ -58,6 +58,20 @@ class ElfFile {
   void ForEachDependentLibrary(
       const std::function<void(std::string_view)>& on_each);
 
+  struct SymbolResult {
+    // The address of the symbol. This still needs to be offset by the load
+    // address of the ELF file to get the actual address in the child process.
+    size_t address;
+
+    // Whether the symbol is weak, and can be overridden by another strong
+    // symbol.
+    bool is_weak;
+  };
+
+  // Returns the address of a symbol in this ELF file, relative to its base.
+  // Returns std::nullopt if the symbol is not found.
+  std::optional<SymbolResult> GetSymbolAddress(std::string_view name);
+
   // Loads this ELF file into a child process at the provided memory `offset`,
   // and if successful, returns the next free address. Any read-only shared
   // memory segments will be mapped into the child process.

@@ -19,10 +19,20 @@
 #include "elf_file.h"
 #include "types.h"
 
+struct ProcessDependency {
+  std::shared_ptr<ElfFile> elf_file;
+  size_t load_address;
+};
+
 // Record all of the ELF file dependencies for a child process. This keeps them
 // in the cache while a program is running, so multiple instances of the same
 // executable and shared libraries don't need to be reloaded from disk and can
 // share the same instance of read-only memory.
 void RecordChildPidAndDependencies(
     ::perception::ProcessId child_pid,
-    const std::vector<std::shared_ptr<ElfFile>>& dependencies);
+    const std::vector<std::shared_ptr<ElfFile>>& dependencies,
+    const std::vector<size_t>& load_addresses);
+
+// Retrieve the dependencies and their load addresses for a process.
+const std::vector<ProcessDependency>* GetProcessDependencies(
+    ::perception::ProcessId pid);

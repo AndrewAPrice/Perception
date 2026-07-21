@@ -57,10 +57,25 @@ class GetMultibootRegistryFileResponse : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
+class ResolveSymbolRequest : public serialization::Serializable {
+ public:
+  std::string symbol_name;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class ResolveSymbolResponse : public serialization::Serializable {
+ public:
+  size_t address;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
 #define METHOD_LIST(X)                                                     \
   X(1, LaunchApplication, LoadApplicationResponse, LoadApplicationRequest) \
   X(2, GetMultibootRegistryFile, GetMultibootRegistryFileResponse,         \
-    GetMultibootRegistryFileRequest)
+    GetMultibootRegistryFileRequest)                                       \
+  X(3, ResolveSymbol, ResolveSymbolResponse, ResolveSymbolRequest)
 DEFINE_PERCEPTION_SERVICE(Loader, "perception.devices.Loader", METHOD_LIST)
 #undef METHOD_LIST
 
