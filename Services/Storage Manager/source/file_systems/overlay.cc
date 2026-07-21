@@ -38,7 +38,9 @@ std::string kOverlayName = "OVERLAY";
 OverlayFileSystem::OverlayFileSystem(std::unique_ptr<FileSystem> base)
     : FileSystem(),
       base_(std::move(base)),
-      overlay_(std::make_unique<RamdiskFileSystem>()) {}
+      overlay_(std::make_unique<RamdiskFileSystem>()) {
+  optimal_operation_size_ = base_->GetOptionalOperationSize();
+}
 
 OverlayFileSystem::~OverlayFileSystem() {}
 
