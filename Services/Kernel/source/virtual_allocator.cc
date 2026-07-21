@@ -54,9 +54,11 @@ void InitializeVirtualAllocator() {
   // real paging system.
 
   // Add the statically allocated free memory ranges.
-  for (int i = 0; i < kStaticallyAllocatedFreeMemoryRangesCount; i++)
+  for (int i = 0; i < kStaticallyAllocatedFreeMemoryRangesCount; i++) {
+    statically_allocated_free_memory_ranges[i].is_static = true;
     ObjectPool<VirtualAddressSpace::FreeMemoryRange>::Release(
         &statically_allocated_free_memory_ranges[i]);
+  }
 
   // Allocate a physical page to use as the kernel's PML4 and clear it.
   new (&kernel_address_space) VirtualAddressSpace();

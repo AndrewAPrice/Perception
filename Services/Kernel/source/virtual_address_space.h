@@ -16,6 +16,7 @@
 #include "aa_tree.h"
 #include "enum.h"
 #include "linked_list.h"
+#include "object_pool.h"
 #include "types.h"
 
 // Bits passed to SetMemoryAccessRights.
@@ -126,6 +127,9 @@ class VirtualAddressSpace {
 
     // Node in the tree of free address spaces by size.
     AATreeNode node_by_size;
+
+    // Whether this memory range is statically allocated.
+    bool is_static = false;
   };
 
  private:
@@ -174,3 +178,12 @@ class VirtualAddressSpace {
          &FreeMemoryRange::pages>
       free_chunks_by_size_;
 };
+
+template <>
+bool ObjectPool<VirtualAddressSpace::FreeMemoryRange>::IsObjectStatic(
+    VirtualAddressSpace::FreeMemoryRange* obj);
+
+template <>
+VirtualAddressSpace::FreeMemoryRange*
+ObjectPool<VirtualAddressSpace::FreeMemoryRange>::ConstructObject(
+    VirtualAddressSpace::FreeMemoryRange* obj, bool is_static);

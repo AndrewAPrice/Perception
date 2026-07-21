@@ -148,3 +148,25 @@ TEST(VirtualAddressSpaceTrackingTest) {
   ASSERT(proc->virtual_address_space.GetUniquePages(), (size_t)0);
   ASSERT(proc->virtual_address_space.GetSharedPages(), (size_t)0);
 }
+
+TEST(StaticObjectPoolCleanupTest) {
+  InitializeObjectPools();
+
+  // Create a static FreeMemoryRange and release it to the pool
+  static VirtualAddressSpace::FreeMemoryRange static_fmr;
+  static_fmr.is_static = true;
+  ObjectPool<VirtualAddressSpace::FreeMemoryRange>::Release(&static_fmr);
+
+  // Allocate from object pool
+  auto* fmr = ObjectPool<VirtualAddressSpace::FreeMemoryRange>::Allocate();
+  ASSERT(fmr == &static_fmr, true);
+  // Verify placement new did not wipe out is_static
+  ASSERT(fmr->is_static, true);
+
+  // Release back to object pool
+  ObjectPool<VirtualAddressSpace::FreeMemoryRange>::Release(fmr);
+
+  // Clean up object pools - should safely skip calling free() on static_fmr
+  CleanUpObjectPools();
+}
+

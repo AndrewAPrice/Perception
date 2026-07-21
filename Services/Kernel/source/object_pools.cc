@@ -61,25 +61,3 @@ void InitializeObjectPools() {
 void CleanUpObjectPools() {
   ObjectPoolHelper::CleanUpAllPools<POOLED_CLASSES>();
 }
-
-template <>
-void ObjectPool<VirtualAddressSpace::FreeMemoryRange>::FreeObjectsInPool() {
-  ObjectPoolItem* prev = nullptr;
-  ObjectPoolItem* curr = next_item_;
-  while (curr != nullptr) {
-    auto* fmr = reinterpret_cast<VirtualAddressSpace::FreeMemoryRange*>(curr);
-    if (fmr->is_static) {
-      prev = curr;
-      curr = curr->next;
-    } else {
-      ObjectPoolItem* next = curr->next;
-      if (prev == nullptr) {
-        next_item_ = next;
-      } else {
-        prev->next = next;
-      }
-      free(curr);
-      curr = next;
-    }
-  }
-}

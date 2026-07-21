@@ -28,6 +28,9 @@ class ObjectPoolHelper;
 struct ObjectPoolItem {
   // The next item on the object pool.
   ObjectPoolItem* next;
+
+  // Whether this object was statically allocated, and therefore shouldn't be freed.
+  bool is_static;
 };
 
 // An object pool.
@@ -37,32 +40,44 @@ class ObjectPool {
   friend ObjectPoolHelper;
 
  public:
+  // Helper to check if an object is static before destruction.
+  static bool IsObjectStatic(T* obj) { return false; }
+
+  // Helper to construct an object with static status.
+  static T* ConstructObject(T* obj, bool is_static) {
+    return new (obj) T();
+  }
+
   // Returns an object, preferably from the pool.
   static T* Allocate() {
 #ifndef TEST
     BEGIN_NO_INTERRUPTS();
 #endif
+    bool is_static = false;
     T* obj = (T*)next_item_;
     if (obj == nullptr) {
       obj = (T*)malloc(sizeof(T));
       memset((char*)obj, 0, sizeof(T));
     } else {
+      is_static = next_item_->is_static;
       next_item_ = next_item_->next;
     }
 #ifndef TEST
     END_NO_INTERRUPTS();
 #endif
 
-    return new (obj) T();
+    return ConstructObject(obj, is_static);
   }
 
   // Releases an object back to the pool.
   static void Release(T* obj) {
+    bool is_static = IsObjectStatic(obj);
     obj->~T();
 #ifndef TEST
     BEGIN_NO_INTERRUPTS();
 #endif
     auto item = (ObjectPoolItem*)obj;
+    item->is_static = is_static;
     item->next = next_item_;
     next_item_ = item;
 #ifndef TEST
@@ -74,12 +89,24 @@ class ObjectPool {
   // The next item on the object pool.
   static ObjectPoolItem* next_item_;
 
-  // Frees all the objects in the pool.
+  // Frees all non-static objects in the pool.
   static void FreeObjectsInPool() {
-    while (next_item_ != nullptr) {
-      auto next = next_item_->next;
-      free(next_item_);
-      next_item_ = next;
+    ObjectPoolItem* prev = nullptr;
+    ObjectPoolItem* curr = next_item_;
+    while (curr != nullptr) {
+      if (curr->is_static) {
+        prev = curr;
+        curr = curr->next;
+      } else {
+        ObjectPoolItem* next = curr->next;
+        if (prev == nullptr) {
+          next_item_ = next;
+        } else {
+          prev->next = next;
+        }
+        free(curr);
+        curr = next;
+      }
     }
   }
 };

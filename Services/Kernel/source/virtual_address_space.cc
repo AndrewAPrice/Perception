@@ -245,6 +245,7 @@ void VirtualAddressSpace::InitializeKernelSpace(
   shared_pages_ = 0;
 
   // Hand create our first statically allocated FreeMemoryRange.
+  initial_kernel_memory_range.is_static = true;
   initial_kernel_memory_range.start_address = start_of_free_kernel_memory;
   // Subtracting by 0 because the kernel lives at the top of the address space.
   initial_kernel_memory_range.pages =
@@ -957,4 +958,19 @@ bool VirtualAddressSpace::IsAddressInCorrectSpace(size_t virtualaddr) {
   bool is_kernel_address = IsKernelAddress(virtualaddr);
   bool is_kernel_address_space = this == &KernelAddressSpace();
   return is_kernel_address == is_kernel_address_space;
+}
+
+template <>
+bool ObjectPool<VirtualAddressSpace::FreeMemoryRange>::IsObjectStatic(
+    VirtualAddressSpace::FreeMemoryRange* obj) {
+  return obj->is_static;
+}
+
+template <>
+VirtualAddressSpace::FreeMemoryRange*
+ObjectPool<VirtualAddressSpace::FreeMemoryRange>::ConstructObject(
+    VirtualAddressSpace::FreeMemoryRange* obj, bool is_static) {
+  auto* fmr = new (obj) VirtualAddressSpace::FreeMemoryRange();
+  fmr->is_static = is_static;
+  return fmr;
 }
