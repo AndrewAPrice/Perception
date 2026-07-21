@@ -114,6 +114,15 @@ void SplitPath(std::string_view path, std::string_view &directory,
   }
 }
 
+bool EqualsIgnoreCase(std::string_view a, std::string_view b) {
+  if (a.length() != b.length()) return false;
+  for (size_t i = 0; i < a.length(); i++) {
+    if (std::tolower((unsigned char)a[i]) != std::tolower((unsigned char)b[i]))
+      return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 Iso9660::Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
@@ -147,7 +156,7 @@ StatusOr<std::unique_ptr<File>> Iso9660::OpenFile(
   ForRawEachEntryInDirectory(
       directory, [&](std::string_view name, DirectoryEntry::Type type,
                      size_t start_lba, size_t size) {
-        if (name == file_name) {
+        if (EqualsIgnoreCase(name, file_name)) {
           file = std::make_unique<Iso9660File>(
               this, start_lba * logical_block_size_, size, sender);
           size_in_bytes = size;
@@ -227,7 +236,7 @@ void Iso9660::CheckFilePermissions(std::string_view path, bool &file_exists,
   ForRawEachEntryInDirectory(
       directory, [&](std::string_view name, DirectoryEntry::Type type,
                      size_t start_lba, size_t size) {
-        if (name == file_name) {
+        if (EqualsIgnoreCase(name, file_name)) {
           file_exists = true;
           return true;
         }
@@ -241,7 +250,7 @@ Status Iso9660::ReadCached(uint64 offset_on_device, uint64 offset_in_buffer,
                            uint64 bytes_to_copy,
                            std::shared_ptr<::perception::SharedMemory> buffer) {
   // If the read is larger than 8 sectors (16KB), bypass the cache.
-  if (bytes_to_copy > 16384) {
+  if (bytes_to_copy > 16384 || buffer->IsLazilyAllocated()) {
     StorageDeviceReadRequest read_request;
     read_request.offset_on_device = offset_on_device;
     read_request.offset_in_buffer = offset_in_buffer;
@@ -442,7 +451,7 @@ void Iso9660::ForRawEachEntryInDirectory(
                 std::move(pooled_shared_memory));
             return;
           }
-        } else if (folder_to_find == entry_name) {
+        } else if (EqualsIgnoreCase(folder_to_find, entry_name)) {
           found_sub_directory = true;
           directory_lba = entry_start_lba;
           directory_length = entry_size;
