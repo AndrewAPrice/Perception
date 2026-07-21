@@ -16,6 +16,7 @@
 
 #include <concepts>
 #include <functional>
+#include <iostream>
 
 #include "perception/scheduler.h"
 #include "perception/serialization/serializable.h"

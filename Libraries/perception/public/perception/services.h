@@ -138,9 +138,11 @@ static typename ServiceType::Client GetService() {
         });
   }
 
-  lock.unlock();
-  ::perception::Sleep();
-  lock.lock();
+  while (!singleton.IsValid()) {
+    lock.unlock();
+    ::perception::Sleep();
+    lock.lock();
+  }
 
   if (listening_message_id != 0 && waiting_fibers.empty()) {
     StopNotifyingOnEachNewServiceInstance(listening_message_id);
