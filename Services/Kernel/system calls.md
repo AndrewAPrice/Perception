@@ -1,940 +1,1100 @@
-System calls are invoked with the `syscall` instruction.
+# Perception Kernel System Calls
 
-Registers `rcx` and `r11` are always clobbered during a system call. `rsp` is always preserved. If a register is not used in the input or output of a system call, then it is also preserved.
+System calls are invoked using the x86_64 `syscall` instruction. The system call number is passed in register `rdi`.
 
-Listed below are the system calls.
+## Registers & Calling Convention
+- **System Call Number**: Passed in `rdi`.
+- **Clobbered Registers**: `rcx` and `r11` are always clobbered by the `syscall` instruction execution.
+- **Preserved Registers**: Unless specified as an input or output parameter for a particular system call, all other general-purpose registers are preserved by the kernel.
 
-# Debugging
+---
+
+# System Calls Master Index
+
+| Number (`rdi`) | System Call | Category | Description |
+| :---: | :--- | :--- | :--- |
+| `0` | [Print Debug Character](#print-debug-character) | Debugging & Diagnostics | Outputs an ASCII character to COM1. |
+| `1` | [Create Thread](#create-thread) | Thread Management | Creates and schedules a new thread. |
+| `2` | [Get This Thread's ID](#get-this-threads-id) | Thread Management | Returns the current thread's ID. |
+| `3` | [Sleep This Thread](#sleep-this-thread) | Thread Management | Puts the current thread to sleep. |
+| `4` | [Terminate This Thread](#terminate-this-thread) | Thread Management | Terminates the current thread. |
+| `5` | [Terminate Thread](#terminate-thread) | Thread Management | Terminates a target thread by ID. |
+| `6` | [Terminate This Process](#terminate-this-process) | Process Management | Terminates the calling process. |
+| `7` | [Terminate Process](#terminate-process) | Process Management | Terminates a process by PID. |
+| `8` | [Set System Message Handlers](#set-system-message-handlers) | Inter-Process Communication (IPC) | Registers system event message handlers. |
+| `9` | [Sleep Thread](#sleep-thread) | Thread Management | Puts a specified thread to sleep. |
+| `10` | [Wake Thread](#wake-thread) | Thread Management | Wakes up a sleeping thread. |
+| `11` | [Wait and Switch to Thread](#wait-and-switch-to-thread) | Thread Management | Wakes up and immediately yields to a thread. |
+| `12` | [Allocate Memory Pages](#allocate-memory-pages) | Memory Management | Allocates virtual memory pages. |
+| `13` | [Release Memory Pages](#release-memory-pages) | Memory Management | Releases virtual memory pages back to OS. |
+| `14` | [Get System Memory Metrics](#get-system-memory-metrics) | Memory Management | Queries total, shared, and free memory. |
+| `15` | [Get Process Health Metrics](#get-process-health-metrics) | Memory Management | Queries memory, CPU usage, and thread metrics for a process. |
+| `16` | *Unassigned* | — | Reserved / Unused. |
+| `17` | [Send Message](#send-message) | Inter-Process Communication (IPC) | Delivers an IPC message to a target process. |
+| `18` | [Poll for Message](#poll-for-message) | Inter-Process Communication (IPC) | Non-blocking retrieval of queued IPC messages. |
+| `19` | [Sleep Until Message](#sleep-until-message) | Inter-Process Communication (IPC) | Blocks thread execution until an IPC message arrives. |
+| `20` | [Register Message to Send on Interrupt](#register-message-to-send-on-interrupt) 🔒 | Hardware & Drivers | Binds an IRQ to a process IPC message. |
+| `21` | [Unregister Message to Send on Interrupt](#unregister-message-to-send-on-interrupt) 🔒 | Hardware & Drivers | Removes an IRQ IPC message binding. |
+| `22` | [Get Processes](#get-processes) | Process Management | Iterates over running system processes. |
+| `23` | [Send Message After X Microseconds](#send-message-after-x-microseconds) | Time & Timers | Schedules a delayed IPC message timer. |
+| `24` | [Send Message at Timestamp](#send-message-at-timestamp) | Time & Timers | Schedules an IPC message at an absolute timestamp. |
+| `25` | [Get Current Timestamp](#get-current-timestamp) | Time & Timers | Returns microseconds elapsed since kernel boot. |
+| `26` | [Print Registers and Stack](#print-registers-and-stack) | Debugging & Diagnostics | Dumps registers and stack to COM1 for debugging. |
+| `27` | [Set Thread Segment](#set-thread-segment) | Thread Management | Configures the `%fs_base` register for TLS. |
+| `28` | [Set Address to Clear on Thread Termination](#set-address-to-clear-on-thread-termination) | Thread Management | Sets a futex memory address to zero out on thread exit. |
+| `29` | [Get Name of Process](#get-name-of-process) | Process Management | Retrieves the string name of a process by PID. |
+| `30` | [Notify When Process Disappears](#notify-when-process-disappears) | Process Management | Requests an IPC notification on process exit. |
+| `31` | [Stop Notifying When Process Disappears](#stop-notifying-when-process-disappears) | Process Management | Cancels process termination notifications. |
+| `32` | [Register Service](#register-service) | Service Discovery & Registry | Registers a system service by name. |
+| `33` | [Unregister Service](#unregister-service) | Service Discovery & Registry | Unregisters a system service. |
+| `34` | [Get Services](#get-services) | Service Discovery & Registry | Searches registered services by name. |
+| `35` | [Notify When Service Appears](#notify-when-service-appears) | Service Discovery & Registry | Requests notification when a service registers. |
+| `36` | [Stop Notifying When Service Appears](#stop-notifying-when-service-appears) | Service Discovery & Registry | Cancels service appearance notifications. |
+| `37` | [Notify When Service Disappears](#notify-when-service-disappears) | Service Discovery & Registry | Requests notification when a service unregisters. |
+| `38` | [Stop Notifying When Service Disappears](#stop-notifying-when-service-disappears) | Service Discovery & Registry | Cancels service disappearance notifications. |
+| `39` | [Get This Process's ID](#get-this-processs-id) | Process Management | Returns the current process ID. |
+| `40` | [Grab Multiboot Framebuffer Information](#grab-multiboot-framebuffer-information) | Hardware & Drivers | Queries multiboot graphics display settings. |
+| `41` | [Map Physical Memory Page](#map-physical-memory-page) 🔒 | Memory Management | Maps raw physical MMIO memory into address space. |
+| `42` | [Create Shared Memory](#create-shared-memory) | Memory Management | Creates a shared memory block. |
+| `43` | [Join Shared Memory](#join-shared-memory) | Memory Management | Maps a shared memory block into calling process. |
+| `44` | [Leave Shared Memory](#leave-shared-memory) | Memory Management | Unmaps a shared memory block from calling process. |
+| `45` | [Move Page into Shared Memory](#move-page-into-shared-memory) 🔑 | Memory Management | Transposes a virtual page into shared memory. |
+| `46` | [Is Shared Memory Page Allocated](#is-shared-memory-page-allocated) | Memory Management | Checks if a shared memory offset has physical backing. |
+| `47` | [Get Name of Service](#get-name-of-service) | Service Discovery & Registry | Queries the string name of a service ID. |
+| `48` | [Set Memory Access Rights](#set-memory-access-rights) | Memory Management | Updates page read/write/executable permissions. |
+| `49` | [Allocate Memory Pages Below Physical Address](#allocate-memory-pages-below-physical-address) 🔒 | Memory Management | Allocates physical pages below a bounded physical address. |
+| `50` | [Get Physical Address of Virtual Address](#get-physical-address-of-virtual-address) 🔒 | Memory Management | Translates a virtual address to physical address. |
+| `51` | [Create Process](#create-process) ⚙️ | Process Management | Instantiates a process in `creating` state. |
+| `52` | [Set Child Process Memory Page](#set-child-process-memory-page) 👶 | Process Management | Transfers virtual memory page into a child process. |
+| `53` | [Start Execution Process](#start-execution-process) 👶 | Process Management | Launches thread in `creating` child process. |
+| `54` | [Destroy Child Process](#destroy-child-process) 👶 | Process Management | Cancels and frees an unlaunched child process. |
+| `55` | [Enable Profiling](#enable-profiling) | Profiling & CPU Tracking | Starts recording CPU cycle metrics. |
+| `56` | [Disable and Output Profiling](#disable-and-output-profiling) | Profiling & CPU Tracking | Stops profiling and outputs cycle report to COM1. |
+| `57` | [Grant Permission to Allocate into Shared Memory](#grant-permission-to-allocate-into-shared-memory) 🔑 | Memory Management | Authorizes another PID to mutate shared memory. |
+| `58` | [Get Shared Memory Details](#get-shared-memory-details) | Memory Management | Returns capacity and permission bitfield of shared memory. |
+| `59` | [Get Shared Memory Page Physical Address](#get-shared-memory-page-physical-address) 🔒 | Memory Management | Queries physical address backing shared memory. |
+| `60` | [Get Multiboot Module](#get-multiboot-module) 📦 | Process Management | Retrieves initial multiboot modules into memory. |
+| `61` | [Join Child Process in Shared Memory](#join-child-process-in-shared-memory) 👶 | Memory Management | Maps shared memory into a child process. |
+| `62` | [Grow Shared Memory](#grow-shared-memory) 🔑 | Memory Management | Expands capacity of a shared memory block. |
+| `63` | [Set Thread Segment Extended](#set-thread-segment-extended) | Thread Management | Sets `%fs_base` and `%gs_base` segment registers. |
+| `64` | [Set That Process Cares About CPU Tracking](#set-that-process-cares-about-cpu-tracking) | Profiling & CPU Tracking | Subscribes/unsubscribes process to rolling CPU usage metrics. |
+| `65` | [Set Thread Priority](#set-thread-priority) | Scheduling & Priority | Configures scheduler priority level of a thread. |
+| `66` | [Set Focused Process](#set-focused-process) 🛡️ | Process Management | Marks foreground process for scheduling priority boost. |
+| `67` | [Get Time Info](#get-time-info) | Time & Timers | Retrieves UTC clock offset and TSC frequency multiplier. |
+| `68` | [Set Time Info](#set-time-info) 🔒 | Time & Timers | Updates kernel base UTC clock offset. |
+| `69` | [Register Message for When Time Info Changes](#register-message-for-when-time-info-changes) | Time & Timers | Requests IPC notification when UTC clock changes. |
+| `70` | [Register Shared Memory Event](#register-shared-memory-event) | Synchronization Events | Binds shared memory offset mutation to IPC notification. |
+| `71` | [Unregister Shared Memory Event](#unregister-shared-memory-event) | Synchronization Events | Removes shared memory offset event subscription. |
+| `72` | [Trigger Shared Memory Event](#trigger-shared-memory-event) | Synchronization Events | Fires notification events on a shared memory offset. |
+
+Restrictions:  
+🔒 Only drivers may call this.  
+🛡️ Only the window manager may call this.  
+⚙️ Only processes with process creation permissions may call this.  
+📦 Only the initial loader process may call this.  
+👶 Only the parent/creator process may call this while the child is in the creating state.  
+🔑 Only the creator or authorized writer of the shared memory block may call this.
+
+---
+
+# 1. Debugging & Diagnostics
 
 ## Print Debug Character
-
-Prints a debug character. Currently, this character gets outputted via COM1.
+Prints a single debug character via COM1 serial output.
 
 ### Input
-* `rdi` - 0
-* `rax` - ASCII character to print.
+* `rdi` - `0`
+* `rax` - ASCII character code to print.
 
 ### Output
 Nothing.
 
-## Print registers and stack
+---
 
-Prints the current thread's registers and stacks on COM1.
+## Print Registers and Stack
+Prints the current executing thread's registers, stack trace, and execution state to COM1 serial output.
 
 ### Input
-* `rdi` - 26
+* `rdi` - `26`
 
 ### Output
 Nothing.
 
-# Threading
+---
 
-# Create Thread
+# 2. Thread Management
 
-Creates a new thread and schedules it for execution.
-
-- TODO - 2nd param?
-- TODO set stack size.
+## Create Thread
+Creates a new execution thread within the calling process and schedules it for execution.
 
 ### Input
-* `rdi` - 1
-* `rax` - Entry point to begin executing.
-* `rbx` - Parameter to pass to the new thread.
-* `rdx` - Optional stack pointer (0 to allocate a 32KB stack in the kernel, or a non-zero address to use a custom user stack).
-* `rsi` - Optional thread-local storage (TLS) base address (0 if none).
+* `rdi` - `1`
+* `rax` - Instruction pointer address where execution begins.
+* `rbx` - Parameter argument passed to the new thread.
+* `rdx` - Optional custom stack pointer (pass `0` to allocate a standard 32KB stack in the kernel).
+* `rsi` - Optional thread-local storage (TLS) base address (pass `0` if none).
 
 ### Output
-* `rax` - The ID of the created thread, or 0 if the thread could not be created.
+* `rax` - ID of the created thread, or `0` if thread creation failed.
 
-## Get this thread's ID
+---
 
-Gets the ID of the currently running thread.
+## Get This Thread's ID
+Returns the unique thread identifier of the currently executing thread.
 
 ### Input
-* `rdi` - 2
+* `rdi` - `2`
 
 ### Output
-* `rax` - The ID of the currently running thread.
+* `rax` - Thread ID of the calling thread.
 
-## Sleep this thread
+---
 
-Puts the currently running thread to sleep. Only returns once the thread is woken.
-
-### Input
-* `rdi` - 3
-
-### Output
-Nothing.
-
-## Sleep thread
-
-Sleeps a thread. If the provided thread ID matches the currently running thread, then this only returns once the thread is woken.
+## Sleep This Thread
+Puts the calling thread to sleep. Execution halts until another thread explicitly wakes it.
 
 ### Input
-* `rdi` - 9
-* `rax` - The ID of the thread to put to sleep.
+* `rdi` - `3`
 
 ### Output
 Nothing.
 
-## Wake thread
+---
 
-Wakes thread up. TODO: if thread is waiting for event, set bad event id
+## Sleep Thread
+Puts a specified target thread to sleep. If the target thread ID matches the calling thread, execution pauses until woken.
 
 ### Input
-* `rdi` - 10
+* `rdi` - `9`
+* `rax` - Target thread ID to suspend.
 
 ### Output
 Nothing.
 
-## Wake and switch to thread
+---
 
-Wakes thread up and begin executing it immediately. TODO: if thread is waiting for event, set bad event id
+## Wake Thread
+Wakes up a sleeping target thread, adding it back to the active execution runqueue.
 
 ### Input
-* `rdi` - 10
+* `rdi` - `10`
+* `rax` - Target thread ID to wake up.
 
 ### Output
 Nothing.
 
-## Terminate this thread
+---
 
-Terminates this thread and releases its stack. This system call will not return.
-
-### Input
-* `rdi` - 4
-
-## Terminate thread
-
-Terminates a thread and releases its stack. If the provided thread ID matches the currently running thread, then this system call will not return.
+## Wait and Switch to Thread
+Wakes up a target thread and immediately yields execution to it.
 
 ### Input
-* `rdi` - 5
-* `rax` - The thread to terminate running.
+* `rdi` - `11`
+* `rax` - Target thread ID to wake and switch to.
 
 ### Output
 Nothing.
 
-## Set thread segment
+---
 
-Sets the value of the FS segment base. Each thread can have its own FS segment base.
-
-### Input
-* `rdi` - 27
-* `rax` - The address of the fs segment base.
-
-## Set thread segment extended
-
-Sets the value of the FS and/or GS segment base. Each thread can have its own segment bases. Supports setting both or either in a single call.
+## Terminate This Thread
+Terminates the currently executing thread and releases its stack resources. This system call does not return.
 
 ### Input
-* `rdi` - 63
-* `rax` - Address for `%fs_base` (used if `rdx` bit 0 is set)
-* `rbx` - Address for `%gs_base` (used if `rdx` bit 1 is set)
+* `rdi` - `4`
+
+### Output
+Does not return.
+
+---
+
+## Terminate Thread
+Terminates a specified target thread and frees its stack resources. If the target thread ID is the current thread, this call does not return.
+
+### Input
+* `rdi` - `5`
+* `rax` - Target thread ID to terminate.
+
+### Output
+Nothing (does not return if terminating current thread).
+
+---
+
+## Set Thread Segment
+Sets the `%fs_base` segment base register for the calling thread, configuring thread-local storage (TLS).
+
+### Input
+* `rdi` - `27`
+* `rax` - Base virtual address for the `%fs_base` segment register.
+
+### Output
+Nothing.
+
+---
+
+## Set Thread Segment Extended
+Configures `%fs_base` and/or `%gs_base` segment registers for the calling thread in a single operation.
+
+### Input
+* `rdi` - `63`
+* `rax` - Base address for `%fs_base` (applied if bit 0 of `rdx` is set).
+* `rbx` - Base address for `%gs_base` (applied if bit 1 of `rdx` is set).
 * `rdx` - **Bitfield Mask:**
-  - Bit 0: Set `%fs_base`
-  - Bit 1: Set `%gs_base`
-
-## Set memory address to clear on thread termination
-
-Sets a memory address of a non-zero 64-bit (8-byte aligned) integer that should cleared when the currently running thread is terminated. The kernel will also request that the process wake any futexes blocked on that address.
-
-### Input
-* `rdi` - 28
-* `rax` - An 8-byte aligned addres to a 64-bit integer that should be cleared. A value of 0 disables this behavior.
-
-# Memory management
-
-## Allocate memory pages
-Allocates a contiguous set of memory pages into the process. Memory pages are 4KB each.
-
-### Input
-* `rdi` - 12
-* `rax` - Number of memory pages to allocate.
-
-
-## Allocate memory pages at or below physical address.
-Allocates a contiguous set of memory pages into the process. All pages will be at or below the provided physical address. Only drivers can call this.
-
-### Input
-* `rdi` - 49
-* `rax` - Number of memory pages to allocate.
-* `rbx` - Physical address that the pages must be under.
-
-### Output
-* `rax` - The address of the start of the set of memory pages, or 1 if no memory could be allocated.
-* `rbx` - The physical address of the first memory page.
-
-## Release memory pages
-Releases memory pages from the process back the operating system. Memory pages are 4KB each.
-
-### Input
-* `rdi` - 13
-* `rax` - The address of the start of the set of memory pages.
-* `rbx` - The number of memory pages to release.
+  - Bit 0: Update `%fs_base`
+  - Bit 1: Update `%gs_base`
 
 ### Output
 Nothing.
 
-## Map physical memory page
-Maps a physical memory page into the process. Only drivers can call this.
+---
+
+## Set Address to Clear on Thread Termination
+Registers an 8-byte aligned 64-bit integer address in user memory that the kernel automatically clears (sets to `0`) when the thread terminates. The kernel will also wake any threads blocked on a futex at this address.
 
 ### Input
-* `rdi` - 41
-* `rax` - The first physical address.
-* `rbx` - The number of physical pages to map.
-
-### Output
-* `rax` - The starting address of the set of memory pages, or 1 if it could not be allocated.
-
-## Get physical address of memory
-Returns the physical address of a virtual memory address. Only drivers can call this.
-
-### Input
-* `rdi` - 50
-* `rax` - The virtual address to get the physical memory of.
-
-### Output
-* `rax` - The physical address of the virtual address.
-
-## Get system memory metrics
-Returns system memory metrics: how much total memory there is in the system, how much shared memory has been allocated, and how much free memory there still is.
-
-### Input
-* `rdi` - 14
-
-### Output
-* `rax` - How much total memory there is in the system, in bytes.
-* `rbx` - How much shared memory has been allocated, in bytes.
-* `rdx` - How much free memory there still is, in bytes.
-
-## Get health metrics about a process
-Returns health metrics (memory usage, CPU usage, etc.) about a process.
-
-### Input
-* `rdi` - 15
-* `rax` - The Process ID to query, or `0` for the currently running process.
-
-### Output
-* `rax` - Unique memory allocated to the process, in bytes. (Returns `0` if the process is not found).
-* `rbx` - The microsecond timestamp since boot when the process was created. (Returns `0` if the process is not found).
-* `rdx` - Compact CPU usage of the process, where each byte represents the rolling CPU percentage of a CPU core. (Returns `0` if the process is not found).
-* `rsi` - The number of services registered by the process. (Returns `0` if the process is not found).
-* `rdi` - Shared memory allocated to the process, in bytes. (Returns `0` if the process is not found).
-
-## Create shared memory
-Creates a shared memory block, and joins it into the process.
-
-Lazily allocated shared memory doesn't have any memory assigned to it until accessed. If the creator tries to access unassigned memory (or another process and the creator no longer exists), the page will be created. If another process tries to access unassigned memory, the thread will pause execution until the memory is created.
-
-### Input
-* `rdi` - 42
-* `rax` - The size of the shared memory, in pages.
-* `rbx` - Parameters bitfield:
-  - Bit 0: Is this lazily allocated memory?
-  - Bit 1: Can anyone other than the creating process write to the shared memory?
-* `rdx` - The ID of the message to send to the creator when another process is trying to access a page that hasn't been allocated, if this is lazily allocated.
-
-
-### Output
-* `rax` - The ID of the shared memory block, or 0 if it could not be created.
-* `rbx` - The address of the shared memory.
-
-## Join shared memory.
-Joins a shared memory block.
-
-### Input
-* `rdi` - 43
-* `rax` - The ID of the shared memory block.
-
-### Output
-* `rax` - The size of the shared memory, in pages, or 0 if it could not be mapped.
-* `rbx` - The address of the shared memory block.
-* `rdx` - The flags the shared memory was created with.
-
-## Join child process in shared memory
-Makes a child process join a shared memory block at the given address. The receiving process must be created by the calling process and in the `creating` state. If any of the pages are already occupied in the child process, nothing is set.
-
-### Input
-* `rdi` - 61
-* `rax` - PID of the child process.
-* `rbx` - The ID of the shared memory block.
-* `rdx` - The address to map the shared memory block at.
-
-### Output
-* `rax` - Whether the child process joined the shared memory block.
-
-## Leave shared memory.
-Leaves a shared memory block. If there are no more references to the shared memory block then the memory is released from the system.
-
-### Input
-* `rdi` - 44
-* `rax` - The ID of the shared memory block.
-
-## Get shared memory details.
-Gets information about a shared memory buffer as it pertains to this process.
-
-### Input
-* `rdi` -  58
-* `rax` - The ID of the shared memory block.
-
-### Output
-* `rax` - Flags pertaining to this shared memory block. This is a bitfield:
- - Bit 0: The shared memory block exists.
- - Bit 1: This process can write to the shared memory block.
- - Bit 2: The shared memory block is lazily allocated.
- - Bit 3: This process can assign pages to the shared memory block.
-* `rbx` - The size of the shared memory, in bytes.
-
-## Move page into shared memory.
-Moves a page into a shared memory block. Only the creator of the shared memory can call this. The page is unmapped from its old address and moved to its new virtual address inside of the shared memory, and mapped into every process. Any thread that is waiting for on a lazily loaded memory page will be rewoken. If the page is already allocated in the shared memory block, then it is overriden. Even if this fails (we're not the creator, of the offset is beyond the end of the buffer), the page is unallocated from the old address.
-
-The intention of this is to allow the creator to fully populate lazily loaded pages before waking up other threads trying to read from it.
-
-### Input
-* `rdi` - 45
-* `rax` - The ID of the shared memory block.
-* `rbx` - The offset of the page, in bytes, in the shared memory block to allocate.
-* `rdx` - The virtual address of the page to move into the shared memory.
-
-## Grant permission for a process to allocate into shared memory.
-Grants another process permission to write into shared memory.
-
-### Input
-* `rdi` - 57
-* `rax` - The ID of the shared memory block.
-* `rbx` - The process ID allowed to write into the shared memory.
-
-## Is shared memory page allocated?
-Returns if a shared memory page is allocated. We can use this to tell if a page needs to be lazily loaded.
-
-### Input
-* `rdi` - 46
-* `rax` - The ID of the shared memory block.
-* `rbx` - The offset of the page, in bytes, in the shared memory block.
-
-### Output
-* `rax` - 1 if the shared memory block page is exists, 0 otherwise.
-
-## Gets shared memory page physical address
-Returns the physical address of shared memory page. Only drives may call this function.
-
-### Input
-* `rdi` - 59
-
-### Output
-* `rax` - The physical adress of a shared memory page. If it's not allocated, this is 1.
-
-## Grow shared memory
-Grows a block of shared memory to be at least the provided number of pages large. Only processes that are allowed to write into the shared memory are allowed to call this. Also, shared memory can only grow - nothing will happen if the requested number of pages is not greater than the current size of the shared memory block. All other processes will have to join the shared memory again if they want to access the additional size.
-
-### Input
-* `rdi` - 62
-* `rax` - The ID of the shared memory block.
-* `rbx` - The minimum size of the shared memory block, in pages.
-
-### Output
-* `rax` - The new size of the shared memory, in pages.
-* `rbx` - The new address of the shared memory block.
-
-### Output
-
-## Set memory access rights
-Sets the access rights for a page of memory. This only applies to memory that the process owns.
-
-### Input
-* `rdi` - 48
-* `rax` - The address of the memory page.
-* `rbx` - The number of pages to set.
-* `rdx` - A bitwise fields of the access rights the process has to this memory. This is a bitfield:
-  - Bit 0: The memory can be written to.
-  - Bit 1: The memory can be executed.
-
-# Process Management
-
-## Get this process's ID
-
-Gets the ID of the currently running process.
-
-### Input
-* `rdi` - 39
-
-### Output
-* `rax` - The ID of the currently running process.
-
-## Terminate this process
-
-Terminates this process. This system call will not return.
-
-### Input
-* `rdi` - 6
-
-## Terminate process
-
-Terminates a process. If the provided process ID matches the currently running process, then this system call will not return.
-
-TODO: Build a permission system.
-
-### Input
-* `rdi` - 7
-* `rax` - Process ID to terminate.
+* `rdi` - `28`
+* `rax` - 8-byte aligned virtual memory address of integer to clear (pass `0` to disable).
 
 ### Output
 Nothing.
 
-## Get processes
+---
 
-If the name is empty, then we loop over every running running process. If the name is not empty, then we only loop over processes with this name.
+# 3. Process Management
+
+## Get This Process's ID
+Returns the process ID (PID) of the currently running process.
 
 ### Input
-* `rdi` - 22
-* `r15` - Minimum process ID.
-* `rax` - Char 0-7.
-* `rbx` - Char 8-15.
-* `rdx` - Char 16-23.
-* `rsi` - Char 24-31.
-* `r8` - Char 32-39.
-* `r9` - Char 40-47.
-* `r10` - Char 48-55.
-* `r12` - Char 56-63.
-* `r13` - Char 64-71.
-* `r14` - Char 72-79.
+* `rdi` - `39`
 
 ### Output
-* `rdi` - Number of processes found. If this is above 11 then there are multiple pages.
-* `r15` - Process ID 1.
-* `rax` - Process ID 2.
-* `rbx` - Process ID 3.
-* `rdx` - Process ID 4.
-* `rsi` - Process ID 5.
-* `r8` - Process ID 6.
-* `r9` - Process ID 7.
-* `r10` - Process ID 8.
-* `r12` - Process ID 9.
-* `r13` - Process ID 10.
-* `r14` - Process ID 11.
+* `rax` - Process ID of the caller.
 
-## Get name of process
+---
+
+## Terminate This Process
+Terminates the calling process and all its threads, releasing all allocated process resources. This call does not return.
 
 ### Input
-* `rdi` - 29
-* `rax` - The ID of the process.
+* `rdi` - `6`
 
 ### Output
-* `rdi` - Was the process found?
-* `rax` - Char 0-7.
-* `rbx` - Char 8-15.
-* `rdx` - Char 16-23.
-* `rsi` - Char 24-31.
-* `r8` - Char 32-39.
-* `r9` - Char 40-47.
-* `r10` - Char 48-55.
-* `r12` - Char 56-63.
-* `r13` - Char 64-71.
-* `r14` - Char 72-79.
-* `r15` - Char 80-87.
+Does not return.
 
-## Notify when process disappears
+---
+
+## Terminate Process
+Terminates a process by its PID.
 
 ### Input
-* `rdi` - 30
-* `rax` - The ID of the process.
-* `rbx` - The message ID to send when a process disappears.
-
-## Stop notifying when a process disappears
-
-### Input
-* `rdi` - 31
-* `rax` - The message ID to no longer send.
+* `rdi` - `7`
+* `rax` - Process ID of the process to terminate.
 
 ### Output
 Nothing.
 
-## Create process
-Creates a process, putting it into a `creating` state. While a process is in the `creating` state, it will not execute, and if the creator terminates, the child process will also terminate.
+---
+
+## Get Processes
+Iterates over active processes in the system. Filter by process name by passing name characters in registers.
 
 ### Input
-* `rdi` - 51
-* `rax` - Permission bitfield:
-  - Bit 0: Is this process a driver?
-  - Bit 1: Can this process create other processes?
-* `rbx` - Char 0-7.
-* `rdx` - Char 8-15.
-* `rsi` - Char 16-23.
-* `r8` - Char 24-31.
-* `r9` - Char 32-39.
-* `r10` - Char 40-47.
-* `r12` - Char 48-55.
-* `r13` - Char 56-63.
-* `r14` - Char 64-71.
-* `r15` - Char 72-79.
+* `rdi` - `22`
+* `r15` - Minimum Process ID lower bound to query.
+* `rax`..`r14` - 10 registers (`rax`, `rbx`, `rdx`, `rsi`, `r8`, `r9`, `r10`, `r12`, `r13`, `r14`) holding up to 80 ASCII characters representing the target process name filter (leave empty for all processes).
 
 ### Output
-* `rax` - The pid of the created process, or 0 if it could not be created.
+* `rdi` - Total count of processes matching query.
+* `r15`..`r14` - Up to 11 process IDs returned per query page.
 
-## Set child process memory page
-Unmaps a memory page from the current process and sends it to the receiving process. The receiving process must be created by the calling process and in the `creating` state. The memory is unmapped from the calling process regardless of if this call succeeds. If the page already exists in the child process, nothing is set.
+---
 
-### Input
-* `rdi` - 52
-* `rax` - PID of the child process.
-* `rbx` - Address of the page in the current process.
-* `rdx` - Address of the page in the destination process.
-
-## Start executing child process
-Creates a thread in the a process that is currently in the `creating` state. The child process will no longer be in the `creating` state. The calling process must be the child process's creator. The child process will begin executing and will no longer terminate if the creator terminates.
+## Get Name of Process
+Retrieves the ASCII name string of a specified process ID.
 
 ### Input
-* `rdi` - 53
-* `rax` - PID of the child process.
-* `rbx` - Address to start executing at.
-* `rdx` - Parameter to pass to the process.
-
-## Destroy child process
-Destroys a process in the `creating` state.
-
-### Input
-* `rdi` - 54
-* `rax` - PID of the child process.
-
-## Get a multiboot module.
-Returns information about a multiboot module that was not handled by the kernel and moves the data of the module into the caller's virtual memory. Subsequent calls will return a different module until there are no more modules remaining.
-
-### Input
-* `rdi` - 60
+* `rdi` - `29`
+* `rax` - Target Process ID.
 
 ### Output
-* `rdi` - The offset in the process's memory where the multiboot module starts. This address is aligned to the nearest 4 kilobytes, so the lower for 16 bits make up a bit field:
- - Bit 0: This process should have the permissions of a driver.
- - Bit 1: This process should be able to launch other processes.
-* `r15` - The size of the multiboot module.
-* `rax` - Process name, char 0-7.
-* `rbx` - Process name, char 8-15.
-* `rdx` - Process name, char 16-23.
-* `rsi` - Process name, char 24-31.
-* `r8` - Process name, char 32-39.
-* `r9` - Process name, char 40-47.
-* `r10` - Process name, char 48-55.
-* `r12` - Process name, char 56-63.
-* `r13` - Process name, char 64-71.
-* `r14` - Process name, char 72-79.
+* `rdi` - Process found flag (`1` if found, `0` if not found).
+* `rax`..`r15` - 11 registers returning up to 88 ASCII characters of the process name.
 
-# Services
+---
 
-## Register service
+## Notify When Process Disappears
+Registers an IPC notification message to be delivered to the caller when a target process terminates.
 
-Registers the service
 ### Input
-* `rdi` - 32
-* `r15` - The ID of the service.
-* `rax` - Char 0-7.
-* `rbx` - Char 8-15.
-* `rdx` - Char 16-23.
-* `rsi` - Char 24-31.
-* `r8` - Char 32-39.
-* `r9` - Char 40-47.
-* `r10` - Char 48-55.
-* `r12` - Char 56-63.
-* `r13` - Char 64-71.
-* `r14` - Char 72-79.
+* `rdi` - `30`
+* `rax` - Target Process ID to monitor.
+* `rbx` - Message ID to deliver upon target process termination.
 
 ### Output
 Nothing.
 
-## Unregister service
+---
 
-Unregisters a service
+## Stop Notifying When Process Disappears
+Cancels a previously registered process termination IPC notification.
 
 ### Input
-* `rdi` - 33
-* `rax` - The ID of the service to destroy.
+* `rdi` - `31`
+* `rax` - Message ID to unregister.
 
 ### Output
 Nothing.
 
-## Get services
+---
 
-If the service name is empty, returns all services. If the service name is not empty, returns all registered services that match that name.
+## Create Process ⚙️
+Instantiates a new process structure in the `creating` state. The child process will not begin execution until explicitly launched. Only processes with process creation permissions may call this.
 
 ### Input
-* `rdi` - 34
-* `rax` - Minimum process ID.
-* `rbx` - Minimum service ID within the minimum process ID.
-* `rdx` - Char 0-7.
-* `rsi` - Char 8-15.
-* `r8` - Char 16-23.
-* `r9` - Char 24-31.
-* `r10` - Char 32-39.
-* `r12` - Char 40-47.
-* `r13` - Char 48-55.
-* `r14` - Char 56-63.
-* `r15` - Char 64-71.
+* `rdi` - `51`
+* `rax` - **Permission Bitfield:**
+  - Bit 0: Process has driver privilege rights.
+  - Bit 1: Process has permission to spawn child processes.
+* `rbx`..`r15` - 10 registers holding up to 80 ASCII characters defining the new process name.
 
 ### Output
-* `rdi` - Number of service found. If this is above 5 then there are multiple pages.
-* `rax` - Process ID 1.
-* `rbx` - Service ID 1.
-* `rdx` - Process ID 2.
-* `rsi` - Service ID 2.
-* `r8` - Process ID 3.
-* `r9` - Service ID 3.
-* `r10` - Process ID 4.
-* `r12` - Service ID 4.
-* `r13` - Process ID 5.
-* `r14` - Service ID 5.
+* `rax` - Process ID of the created process, or `0` on failure.
 
-## Get name of service
+---
+
+## Set Child Process Memory Page 👶
+Unmaps a virtual memory page from the calling process and transfers it into a child process in the `creating` state. Only the parent/creator process may call this while the child is in the creating state.
 
 ### Input
-* `rdi` - 47
+* `rdi` - `52`
+* `rax` - Child Process ID.
+* `rbx` - Source virtual page address in calling process.
+* `rdx` - Destination virtual page address in child process.
+
+### Output
+Nothing.
+
+---
+
+## Start Execution Process 👶
+Launches execution of a process currently in the `creating` state by creating its initial thread. Only the parent/creator process may call this while the child is in the creating state.
+
+### Input
+* `rdi` - `53`
+* `rax` - Child Process ID.
+* `rbx` - Entry point virtual instruction pointer address.
+* `rdx` - Parameter argument passed to process entry point.
+
+### Output
+Nothing.
+
+---
+
+## Destroy Child Process 👶
+Destroys and releases resources for an unlaunched process currently in the `creating` state. Only the parent/creator process may call this while the child is in the creating state.
+
+### Input
+* `rdi` - `54`
+* `rax` - Child Process ID to destroy.
+
+### Output
+Nothing.
+
+---
+
+## Get Multiboot Module 📦
+Retrieves initial boot multiboot modules loaded by the bootloader and transfers module memory into the caller's virtual space. Only the initial loader process may call this.
+
+### Input
+* `rdi` - `60`
+
+### Output
+* `rdi` - Virtual address where multiboot module was mapped (4KB aligned; lower 16 bits encode permission flags):
+  - Bit 0: Process has driver permissions.
+  - Bit 1: Process has process creation permissions.
+* `r15` - Size of multiboot module in bytes.
+* `rax`..`r14` - 10 registers containing the module/process string name.
+
+---
+
+## Set Focused Process 🛡️
+Designates the process currently receiving user input focus (foreground). Threads in the focused process with `Normal` priority are temporarily elevated to `InteractiveApp` priority. Only the window manager may call this.
+
+### Input
+* `rdi` - `66`
+* `rax` - Target Process ID to focus (`0` to clear focus).
+
+### Output
+* `rax` - Status code:
+  - `0` - Success.
+  - `1` - Process does not exist.
+  - `2` - Access denied (caller is not Window Manager).
+
+---
+
+# 4. Scheduling & Priority
+
+## Set Thread Priority
+Sets the execution scheduling priority level of a specified thread.
+
+### Input
+* `rdi` - `65`
+* `rax` - Target thread ID (`0` for current thread).
+* `rbx` - **Priority Level (0–5):**
+  - `0` - `InterruptDriver` (preempts all, requires driver permission 🔒)
+  - `1` - `RealtimeService` (preempts standard applications)
+  - `2` - `InteractiveApp` (high-responsiveness foreground tier)
+  - `3` - `Normal` (standard application priority tier)
+  - `4` - `Background` (low-priority background tasks)
+  - `5` - `Idle` (executes only when no higher priority threads are awake)
+
+### Output
+* `rax` - Status code:
+  - `0` - Success.
+  - `1` - Invalid thread ID.
+  - `2` - Invalid priority level.
+  - `3` - Access denied.
+
+---
+
+# 5. Memory Management
+
+## Virtual & Physical Allocation
+
+### Allocate Memory Pages
+Allocates contiguous 4KB virtual memory pages into the process virtual address space.
+
+#### Input
+* `rdi` - `12`
+* `rax` - Number of 4KB memory pages to allocate.
+
+#### Output
+* `rax` - Starting virtual memory address of allocated pages.
+
+---
+
+### Release Memory Pages
+Releases allocated 4KB virtual memory pages back to the operating system.
+
+#### Input
+* `rdi` - `13`
+* `rax` - Starting virtual memory address.
+* `rbx` - Number of 4KB memory pages to release.
+
+#### Output
+Nothing.
+
+---
+
+### Set Memory Access Rights
+Modifies read, write, and execute permissions for virtual memory pages owned by the calling process.
+
+#### Input
+* `rdi` - `48`
+* `rax` - Starting virtual page address.
+* `rbx` - Number of pages.
+* `rdx` - **Access Rights Bitfield:**
+  - Bit 0: Writable (`1` = Read/Write, `0` = Read-Only)
+  - Bit 1: Executable (`1` = Executable)
+
+#### Output
+Nothing.
+
+---
+
+### Allocate Memory Pages Below Physical Address 🔒
+Allocates contiguous physical memory pages guaranteed to be located below a specified physical memory boundary. Only drivers may call this.
+
+#### Input
+* `rdi` - `49`
+* `rax` - Number of 4KB pages to allocate.
+* `rbx` - Maximum upper physical memory address bound.
+
+#### Output
+* `rax` - Starting virtual address (or `1` on allocation failure).
+* `rbx` - Physical memory address of first page.
+
+---
+
+### Map Physical Memory Page 🔒
+Maps raw physical hardware memory addresses directly into virtual address space. Only drivers may call this.
+
+#### Input
+* `rdi` - `41`
+* `rax` - Physical memory starting address.
+* `rbx` - Number of 4KB pages to map.
+
+#### Output
+* `rax` - Starting virtual address (or `1` on mapping failure).
+
+---
+
+### Get Physical Address of Virtual Address 🔒
+Translates a process virtual memory address to its underlying physical memory address. Only drivers may call this.
+
+#### Input
+* `rdi` - `50`
+* `rax` - Virtual memory address.
+
+#### Output
+* `rax` - Physical memory address.
+
+---
+
+## Shared Memory
+
+### Create Shared Memory
+Allocates a shared memory object and maps it into the calling process.
+
+#### Input
+* `rdi` - `42`
+* `rax` - Size of shared memory block in 4KB pages.
+* `rbx` - **Parameters Bitfield:**
+  - Bit 0: Lazily allocated shared memory (pages created on demand).
+  - Bit 1: Allow non-creator processes to write to shared memory.
+* `rdx` - Message ID sent to creator when a lazily allocated page is accessed.
+
+#### Output
+* `rax` - Shared Memory Handle ID (or `0` on creation failure).
+* `rbx` - Virtual memory address in calling process.
+
+---
+
+### Join Shared Memory
+Maps an existing shared memory block into the calling process.
+
+#### Input
+* `rdi` - `43`
+* `rax` - Shared Memory Handle ID.
+
+#### Output
+* `rax` - Size of shared memory block in pages (or `0` if mapping failed).
+* `rbx` - Virtual memory address in calling process.
+* `rdx` - Creation flags bitfield.
+
+---
+
+### Join Child Process in Shared Memory 👶
+Maps a shared memory block into a child process in the `creating` state at a specified virtual address. Only the parent/creator process may call this while the child is in the creating state.
+
+#### Input
+* `rdi` - `61`
+* `rax` - Child Process ID.
+* `rbx` - Shared Memory Handle ID.
+* `rdx` - Destination virtual address in child process.
+
+#### Output
+* `rax` - `1` if child joined successfully, `0` otherwise.
+
+---
+
+### Leave Shared Memory
+Unmaps a shared memory block from the calling process. Memory is freed when all references leave.
+
+#### Input
+* `rdi` - `44`
+* `rax` - Shared Memory Handle ID.
+
+#### Output
+Nothing.
+
+---
+
+### Get Shared Memory Details
+Queries capacity and permission capabilities of a shared memory block.
+
+#### Input
+* `rdi` - `58`
+* `rax` - Shared Memory Handle ID.
+
+#### Output
+* `rax` - **Capabilities Bitfield:**
+  - Bit 0: Shared memory block exists.
+  - Bit 1: Calling process has write permission.
+  - Bit 2: Shared memory block is lazily allocated.
+  - Bit 3: Calling process can assign pages to block.
+* `rbx` - Total size of shared memory in bytes.
+
+---
+
+### Move Page into Shared Memory 🔑
+Moves a virtual memory page into a shared memory block. Only the creator of the shared memory block may call this.
+
+#### Input
+* `rdi` - `45`
+* `rax` - Shared Memory Handle ID.
+* `rbx` - Offset within shared memory block in bytes.
+* `rdx` - Source virtual page address to move.
+
+#### Output
+Nothing.
+
+---
+
+### Grant Permission to Allocate into Shared Memory 🔑
+Grants a target process permission to allocate pages into a shared memory block. Only the creator of the shared memory block may call this.
+
+#### Input
+* `rdi` - `57`
+* `rax` - Shared Memory Handle ID.
+* `rbx` - Target Process ID.
+
+#### Output
+Nothing.
+
+---
+
+### Is Shared Memory Page Allocated
+Checks whether a specific page offset within a shared memory block is physically backed.
+
+#### Input
+* `rdi` - `46`
+* `rax` - Shared Memory Handle ID.
+* `rbx` - Byte offset within shared memory block.
+
+#### Output
+* `rax` - `1` if page exists/allocated, `0` otherwise.
+
+---
+
+### Get Shared Memory Page Physical Address 🔒
+Returns the underlying physical memory address backing a shared memory page. Only drivers may call this.
+
+#### Input
+* `rdi` - `59`
+* `rax` - Shared Memory Handle ID.
+* `rbx` - Byte offset within shared memory block.
+
+#### Output
+* `rax` - Physical memory address (or `1` if page is not allocated).
+
+---
+
+### Grow Shared Memory 🔑
+Expands a shared memory block to at least the specified size in pages. Only the creator or an authorized writer process may call this.
+
+#### Input
+* `rdi` - `62`
+* `rax` - Shared Memory Handle ID.
+* `rbx` - Minimum target capacity in 4KB pages.
+
+#### Output
+* `rax` - New size of shared memory block in pages.
+* `rbx` - Updated virtual memory address.
+
+---
+
+## Memory & Process Health Metrics
+
+### Get System Memory Metrics
+Queries global RAM utilization metrics across the operating system.
+
+#### Input
+* `rdi` - `14`
+
+#### Output
+* `rax` - Total system RAM capacity in bytes.
+* `rbx` - Total allocated shared memory in bytes.
+* `rdx` - Total free memory available in bytes.
+
+---
+
+### Get Process Health Metrics
+Queries runtime resource health metrics (RAM, CPU, thread metrics) for a target process.
+
+#### Input
+* `rdi` - `15`
+* `rax` - Target Process ID (`0` for current process).
+
+#### Output
+* `rax` - Unique private memory allocated to process in bytes (`0` if PID invalid).
+* `rbx` - Microsecond timestamp when process was created (`0` if PID invalid).
+* `rdx` - Compact CPU usage bitfield per core (`0` if PID invalid).
+* `rsi` - Count of services registered by process (`0` if PID invalid).
+* `rdi` - Shared memory allocated to process in bytes (`0` if PID invalid).
+
+---
+
+# 6. Inter-Process Communication (IPC)
+
+## Set System Message Handlers
+Registers system event message handlers for kernel events.
+
+### Input
+* `rdi` - `8`
+* `rax` - Message ID delivered when a thread's TID clear-on-exit address is cleared (`0` = disable handler).
+
+### Output
+Nothing.
+
+---
+
+## Send Message
+Delivers an IPC message to a specified destination process.
+
+### Input
+* `rdi` - `17`
+* `rax` - Message ID identifier.
+* `rbx` - Destination Process ID.
+* `rdx` - **Message Type & Parameters Bitfield:**
+  - Bits 0-1: Message Type
+    - `00`: One-way message
+    - `01`: Synchronous/call message expecting response
+    - `10`: Response message
+    - `11`: Invalid
+* `rsi` - Parameter 1 (or Response Message ID if type is `01`).
+* `r8` - Parameter 2.
+* `r9` - Parameter 3.
+* `r10` - Parameter 4.
+* `r12` - Parameter 5.
+
+### Output
+* `rax` - Delivery Status Code:
+  - `0` - Message delivered successfully.
+  - `1` - Destination process does not exist.
+  - `2` - Kernel out of memory.
+  - `3` - Destination process message queue is full.
+  - `4` - Messaging unsupported on platform.
+  - `5` - Invalid memory address range.
+
+---
+
+## Poll for Message
+Non-blocking check for queued incoming IPC messages.
+
+### Input
+* `rdi` - `18`
+
+### Output
+**If message is present in queue:**
+* `rax` - Message ID.
+* `rbx` - Sender Process ID.
+* `rdx` - Message type bitfield.
+* `rsi` - Parameter 1 (or response message ID).
+* `r8`..`r12` - Parameters 2 through 5.
+
+**If no message is queued:**
+* `rax` - `0xFFFFFFFFFFFFFFFF`
+
+---
+
+## Sleep Until Message
+Blocks thread execution until an incoming IPC message arrives in the queue.
+
+### Input
+* `rdi` - `19`
+
+### Output
+Same returns as `Poll for Message`. If thread is woken for non-message reasons with empty queue:
+* `rax` - `0xFFFFFFFFFFFFFFFF`
+
+---
+
+# 7. Service Discovery & Registry
+
+## Register Service
+Registers a named system service for public discovery.
+
+### Input
+* `rdi` - `32`
+* `r15` - Service ID within process.
+* `rax`..`r14` - 10 registers holding up to 80 ASCII characters of the service name.
+
+### Output
+Nothing.
+
+---
+
+## Unregister Service
+Unregisters a previously registered service.
+
+### Input
+* `rdi` - `33`
+* `rax` - Service ID to unregister.
+
+### Output
+Nothing.
+
+---
+
+## Get Services
+Queries active services registered in the system matching a name filter.
+
+### Input
+* `rdi` - `34`
+* `rax` - Minimum Process ID search bound.
+* `rbx` - Minimum Service ID search bound.
+* `rdx`..`r15` - 10 registers defining service name string filter (empty = match all).
+
+### Output
+* `rdi` - Count of matching services found.
+* `rax`/`rbx`..`r13`/`r14` - Pairs of [Process ID, Service ID] (up to 5 service pairs per page).
+
+---
+
+## Get Name of Service
+Retrieves the registered string name of a service.
+
+### Input
+* `rdi` - `47`
 * `rax` - Process ID.
 * `rbx` - Service ID.
 
 ### Output
-* `rdi` - Was the service found?
-* `rax` - Char 0-7.
-* `rbc` - Char 8-15.
-* `rdx` - Char 16-23.
-* `rsi` - Char 24-31.
-* `r8` - Char 32-39.
-* `r9` - Char 40-47.
-* `r10` - Char 48-55.
-* `r12` - Char 56-63.
-* `r13` - Char 64-71.
-* `r14` - Char 72-79.
+* `rdi` - Service found flag (`1` if found, `0` if not).
+* `rax`..`r14` - 10 registers returning ASCII service name string.
 
-## Notify when service appears
-Also sends an event for all existing notifications with this name.
+---
+
+## Notify When Service Appears
+Requests IPC notification whenever a matching service name registers. Also delivers immediate events for existing services.
 
 ### Input
-* `rdi` - 35
-* `r15` - The event ID to send when the service appears.
-* `rax` - Char 0-7.
-* `rbx` - Char 8-15.
-* `rdx` - Char 16-23.
-* `rsi` - Char 24-31.
-* `r8` - Char 32-39.
-* `r9` - Char 40-47.
-* `r10` - Char 48-55.
-* `r12` - Char 56-63.
-* `r13` - Char 64-71.
-* `r14` - Char 72-79.
+* `rdi` - `35`
+* `r15` - Event Message ID to deliver upon appearance.
+* `rax`..`r14` - 10 registers defining service name filter string.
 
 ### Output
 Nothing.
 
-## Stop notifying when service appears.
+---
+
+## Stop Notifying When Service Appears
+Cancels service appearance IPC notification.
 
 ### Input
-* `rdi` - 36
-* `rax` - The message ID we no longer want to send.
-
-## Notify when service disappears
-
-Sends the calling process a message when a service or the owning process disappears.
-
-### Input
-* `rdi` - 37
-* `rax` - The ID of the process.
-* `rbx` - The ID of the service.
-* `rdx` - The message ID to send when a process disappears.
+* `rdi` - `36`
+* `rax` - Message ID to unregister.
 
 ### Output
 Nothing.
 
-## Stop notifying when a service dissapears
+---
+
+## Notify When Service Disappears
+Requests IPC notification when a target service or its owner process unregisters or terminates.
 
 ### Input
-* `rdi` - 38
-* `rax` - The message ID we no longer want to send.
-
-# Messaging
-
-## Set system message handlers
-
-Registers system message handlers that the kernel fires when system events occur.
-
-### Input
-* `rdi` - 8
-* `rax` - Message ID to receive when a thread's TID address is cleared upon termination (0 = unhandled).
-
-## Send message
-
-Sends a message to a process.
-
-### Input
-* `rdi` - 17
-* `rax` - The ID of the message.
-* `rbx` - The ID of the process to send the message to.
-* `rdx` - Parameters bitfield:
-  - Bits 0-1: Message type
-    - 00: one way
-    - 01: call that will expect a response
-    - 10: response to a call
-    - 11: invalid
-* `rsi` - The first parameter. This is the response ID if message type is '01'.
-* `r8` - The second parameter.
-* `r9` - The third parameter.
-* `r10` - The fourth parameter.
-* `r12` - The fifth parameter.
-
-If rdx[1] is '1':
-* `rsi` - The message ID we want the callee to respond with.
-
-### Output
-* `rax` - The status, which may be:
-  * 0 - The message was sent successfully.
-  * 1 - The process doesn't exist.
-  * 2 - The kernel is out of memory.
-  * 3 - The receiving process's queue is full.
-  * 4 - Messaging is unsupported on this platform.
-  * 5 - We are attempting to send a page, but the address range wasn't valid.
-
-The memory is left untouched for all statuses other than '0'.
-
-## Poll for message
-
-Polls for a message, and returns immediately regardless of if there is a message.
-
-### Input
-* `rdi` - 18
-
-### Output
-If there was a message queued:
-
-* `rax` - The ID of the message.
-* `rbx` - The ID of the process that sent the message.
-* `rdx` - Parameters bitfield:
-	- Bits 0-1: Message type
-    - 00: one way
-    - 01: call that will expect a response
-    - 10: response to a call
-    - 11: invalid
-* `rsi` - The first parameter.
-* `r8` - The second parameter.
-* `r9` - The third parameter.
-* `r10` - The fourth parameter.
-* `r12` - The fifth parameter.
-
-If rdx[1] is '1':
-* `rsi` - The message ID to respond with.
-
-If there were no messages queued:
-
-* `rax` - 0xFFFFFFFFFFFFFFFF
-
-## Sleep until message
-
-Sleeps until a message.
-
-### Input
-* `rdi` - 19
-
-### Output
-Same as `Poll for message`. Except if there were no messages queued and the thread was woken for other reasons:
-
-* `rax` - 0xFFFFFFFFFFFFFFFF
-
-# Interrupts
-
-## Register message to send on interrupt
-Registers a message to be send to this process when an interrupt occurs. Only a driver may call this system call.
-
-### Input
-* `rdi` - 20
-* `rax` - The interrupt's number.
-* `rbx` - The ID of the message to send.
-* `rdx` - How to process the interrupt. This value affects what the othe registers mean. Possible values are:
-  * 0 - Send a message on each interrupt.
-  * 1 - While a status byte matches a mask, keep reading bytes from another port.
-    * `rsx` - Port and mask:
-      * Bits 0-15 - Status port
-      * Bits 16-31 - Read port.
-      * Bits 32-39 - Mask to match against port. Must be non 0.
-    * The message sent will fill param1 through to param5 with an array of {status byte, read byte}, allowing up to 20 pairs to be sent in a message.
-
+* `rdi` - `37`
+* `rax` - Target Process ID.
+* `rbx` - Target Service ID.
+* `rdx` - Message ID to deliver upon disappearance.
 
 ### Output
 Nothing.
 
-## Unregister message to send on interrupt
-Unregisters a message to be sent to this process when an interrupt occurs. Only a driver may call this system call.
+---
+
+## Stop Notifying When Service Disappears
+Cancels service disappearance IPC notification.
 
 ### Input
-* `rdi` - 20
-* `rax` - The interrupt's number.
-* `rbx` - The ID of the message to send.
+* `rdi` - `38`
+* `rax` - Message ID to unregister.
 
 ### Output
 Nothing.
 
-# Drivers
+---
 
-## Grab the multiboot framebuffer information.
-
-### Input
-* `rdi` - 40
-
-### Output
-* `rax` - The physical memory address of the framebuffer.
-* `rbx` - The width of the framebuffer, in pixels.
-* `rdx` - The height of the framebuffer, in pixels.
-* `rsi` - The number of bytes in memory between rows of pixels.
-* `r8` - The number of bits per pixel.
-
-# Time
-
-## Send message after x microseconds
-Sends a message to the calling process after a specified number of microseconds have passed.
-
-### Input
-* `rdi` - 23
-* `rax` - The number of microseconds until we send this message.
-* `rbx` - The message ID to send after the elapsed time has passed.
-
-## Send message at timestamp
-Sends a message to the calling process at or after a specific timestamp.
-
-### Input
-* `rdi` - 24
-* `rax` - The number of microseconds since the kernel started that we should send this message.
-* `rbx` - The message ID to send after the elapsed time has passed.
-
-## Get current timestamp
-Returns the time (in microseconds) since the kernel started.
-
-### Input
-* `rdi` - 25
-
-### Output
-* `rax` - The number of microseconds since the kernel started.
-
-# Profiling
-
-## Enable profiling
-Start recording the amount of cycles spent in processes, the kernel, and system calls.
-
-### Intput
-* `rdi` - 55
-
-### Output
-Nothing.
-
-## Disable profiling and output the results
-Stop recording profiling and output the results via COM1.
-
-### Input
-* `rdi` - 56
-
-### Output
-Nothing.
-
-# Scheduling
-
-## Set thread priority
-
-Sets the scheduling priority of the specified thread. Drivers can set their priority to `InterruptDriver` (0). Other processes can set their priority to `RealtimeService` (1), `InteractiveApp` (2), `Normal` (3), `Background` (4), or `Idle` (5).
-
-Note that `InterruptDriver` (0) and `RealtimeService` (1) are strict priority levels that preempt everything else immediately. Conversely, `Idle` (5) threads only run if there are no higher priority (0 to 4) threads awake in the system.
-
-### Input
-* `rdi` - 65
-* `rax` - The thread ID to modify (0 for the current thread).
-* `rbx` - The priority level (0 to 5).
-
-### Output
-* `rax` - Status code:
-  * 0 - Success.
-  * 1 - Invalid thread ID.
-  * 2 - Invalid priority level.
-  * 3 - Access denied (e.g., requesting `InterruptDriver` without driver permissions).
-
-## Set focused process
-
-Sets the process that is currently in the foreground/focused. Threads in the focused process with a priority of `Normal` (3) are dynamically elevated to `InteractiveApp` (2). When the process loses focus, its elevated threads are reverted back to `Normal`. Only the privileged `"Window Manager"` process can invoke this.
-
-### Input
-* `rdi` - 66
-* `rax` - The process ID of the process to focus (or 0 to clear focus).
-
-### Output
-* `rax` - Status code:
-  * 0 - Success.
-  * 1 - Process does not exist.
-  * 2 - Access denied (not the Window Manager).
-
-# Synchronization Events
+# 8. Synchronization Events
 
 ## Register Shared Memory Event
-
-Registers a shared memory event. When another process triggers the event on this shared memory block and offset, the kernel will send a message containing the registered `message_id` to the calling process.
+Registers a notification event on a shared memory block offset. When another process triggers an event at this offset, the kernel delivers the registered message ID.
 
 ### Input
-* `rdi` - 70
-* `rax` - Shared memory ID
-* `rbx` - Offset in shared memory
-* `rdx` - Unique message ID to send
+* `rdi` - `70`
+* `rax` - Shared Memory Handle ID.
+* `rbx` - Offset within shared memory block.
+* `rdx` - Unique Message ID to deliver.
 
 ### Output
 Nothing.
+
+---
 
 ## Unregister Shared Memory Event
-
-Unregisters a previously registered shared memory event.
+Unregisters a shared memory event subscription.
 
 ### Input
-* `rdi` - 71
-* `rax` - Shared memory ID
-* `rbx` - Offset in shared memory
+* `rdi` - `71`
+* `rax` - Shared Memory Handle ID.
+* `rbx` - Offset within shared memory block.
 
 ### Output
 Nothing.
+
+---
 
 ## Trigger Shared Memory Event
-
-Triggers a shared memory event, waking all registered processes by delivering their registered wakeup messages. The event registrations are one-shot and automatically cleaned up.
+Triggers a shared memory event at a specified offset, waking all registered processes by delivering their one-shot notification messages.
 
 ### Input
-* `rdi` - 72
-* `rax` - Shared memory ID
-* `rbx` - Offset in shared memory
+* `rdi` - `72`
+* `rax` - Shared Memory Handle ID.
+* `rbx` - Offset within shared memory block.
 
 ### Output
 Nothing.
 
-# Time
+---
+
+# 9. Time & Timers
+
+## Send Message After X Microseconds
+Schedules an IPC message to be delivered to the calling process after a specified relative delay.
+
+### Input
+* `rdi` - `23`
+* `rax` - Delay duration in microseconds.
+* `rbx` - Message ID to deliver upon timer expiration.
+
+### Output
+Nothing.
+
+---
+
+## Send Message at Timestamp
+Schedules an IPC message to be delivered to the calling process at an absolute kernel uptime timestamp.
+
+### Input
+* `rdi` - `24`
+* `rax` - Absolute timestamp (microseconds since kernel boot).
+* `rbx` - Message ID to deliver.
+
+### Output
+Nothing.
+
+---
+
+## Get Current Timestamp
+Returns current system uptime in microseconds since kernel boot.
+
+### Input
+* `rdi` - `25`
+
+### Output
+* `rax` - Uptime in microseconds.
+
+---
 
 ## Get Time Info
-
-Returns the current UTC offset and the TSC cycle-to-microsecond multiplier. 
-
-### Input
-* `rdi` - 67
-
-### Output
-* `rax` - UTC offset in microseconds
-* `rbx` - TSC multiplier bits (a C++ `double` cast to 64-bit bits)
-
-## Set Time Info
-
-Tells the kernel the current time in UTC so that the base UTC offset can be calculated relative to TSC cycle count. Only drivers can call this system call.
+Queries current UTC time offset and TSC cycle-to-microsecond conversion multiplier.
 
 ### Input
-* `rdi` - 68
-* `rax` - UTC time in microseconds
+* `rdi` - `67`
 
 ### Output
-* Nothing.
+* `rax` - UTC time offset in microseconds.
+* `rbx` - TSC cycle multiplier bits (C++ `double` bit representation).
+
+---
+
+## Set Time Info 🔒
+Updates the base UTC wall clock time relative to TSC cycles. Only drivers may call this.
+
+### Input
+* `rdi` - `68`
+* `rax` - Current UTC time in microseconds.
+
+### Output
+Nothing.
+
+---
 
 ## Register Message for When Time Info Changes
-
-Registers a message to be sent to this process when the UTC time info gets changed.
+Registers an IPC message delivered whenever the system UTC time info changes.
 
 ### Input
-* `rdi` - 69
-* `rax` - The ID of the message to send when the time info changes. The message parameters will contain:
-  - `param1` - UTC offset in microseconds
-  - `param2` - TSC multiplier bits (a C++ `double` cast to 64-bit bits)
+* `rdi` - `69`
+* `rax` - Message ID to deliver (Message parameters receive: `param1` = UTC offset, `param2` = TSC multiplier).
 
 ### Output
-* Nothing.
+Nothing.
+
+---
+
+# 10. Hardware & Drivers
+
+## Register Message to Send on Interrupt 🔒
+Binds a hardware interrupt (IRQ) to an IPC message delivered to the calling driver process. Only drivers may call this.
+
+### Input
+* `rdi` - `20`
+* `rax` - Hardware Interrupt (IRQ) number.
+* `rbx` - Message ID to deliver on interrupt.
+* `rdx` - **Processing Mode:**
+  - `0` - Send message on each interrupt.
+  - `1` - Poll and batch read bytes from hardware port while status matches mask.
+    - `rsx` - Port and mask settings:
+      - Bits 0-15: Status port
+      - Bits 16-31: Read port
+      - Bits 32-39: Status bitmask to match
+
+### Output
+Nothing.
+
+---
+
+## Unregister Message to Send on Interrupt 🔒
+Removes a hardware interrupt IPC message binding. Only drivers may call this.
+
+### Input
+* `rdi` - `21`
+* `rax` - Hardware Interrupt (IRQ) number.
+* `rbx` - Message ID to unbind.
+
+### Output
+Nothing.
+
+---
+
+## Grab Multiboot Framebuffer Information
+Retrieves physical memory address and display layout specifications for the boot multiboot framebuffer.
+
+### Input
+* `rdi` - `40`
+
+### Output
+* `rax` - Starting physical address of display framebuffer.
+* `rbx` - Display width in pixels.
+* `rdx` - Display height in pixels.
+* `rsi` - Pitch (stride in bytes between pixel rows).
+* `r8` - Color depth (bits per pixel).
+
+---
+
+# 11. Profiling & CPU Tracking
+
+## Enable Profiling
+Starts recording CPU execution cycles spent across user processes, system calls, and kernel routines.
+
+### Input
+* `rdi` - `55`
+
+### Output
+Nothing.
+
+---
+
+## Disable and Output Profiling
+Stops profiling and outputs recorded CPU cycle profiling statistics to COM1 serial console.
+
+### Input
+* `rdi` - `56`
+
+### Output
+Nothing.
+
+---
+
+## Set That Process Cares About CPU Tracking
+Subscribes or unsubscribes the calling process to/from system rolling CPU usage metric tracking.
+
+### Input
+* `rdi` - `64`
+* `rax` - `1` to enable CPU tracking subscription, `0` to disable subscription.
+
+### Output
+Nothing.
