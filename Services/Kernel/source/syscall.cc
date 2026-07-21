@@ -149,6 +149,10 @@ extern "C" void SyscallHandler(int syscall_number) {
                         (mask & 2) != 0);
       break;
     }
+    case Syscall::SetSystemMessageHandlers:
+      running_thread->process->futex_wake_message_id =
+          currently_executing_thread_regs->rax;
+      break;
     case Syscall::SetAddressToClearOnThreadTermination: {
       size_t addr = currently_executing_thread_regs->rax;
       if (addr != 0 && !running_thread->process->virtual_address_space

@@ -62,6 +62,7 @@ Process* CreateProcess(bool is_driver, bool can_create_processes) {
   proc->service_count = 0;
   proc->rpc_count = 0;
   proc->next_synthetic_rpc_response_message_id = 0;
+  proc->futex_wake_message_id = 0;
 
   // Threads.
   proc->thread_count = 0;
@@ -403,4 +404,15 @@ void DestroyChildProcess(Process* parent, Process* child) {
 Process* GetNextProcess(Process* process) {
   if (process == nullptr) return all_processes.FirstItem();
   return all_processes.NextItem(process);
+}
+
+void AwakeFutexInProcess(Process* process, size_t address) {
+  if (!process->futex_wake_message_id) return;
+
+  if (process->futex_wake_message_id != 0) {
+    SendKernelMessageToProcess(process, process->futex_wake_message_id,
+                               /*param1=*/address, /*param2=*/0,
+                               /*param3=*/0,
+                               /*param4=*/0, /*param5=*/0);
+  }
 }

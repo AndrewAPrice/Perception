@@ -31,7 +31,6 @@ enum class Syscall {
   WaitAndSwitchToThread = 11,
   TerminateThisThread = 4,
   TerminateThread = 5,
-  // 8 is Free / Unassigned
   SetThreadSegment = 27,
   SetThreadSegmentExtended = 63,
   SetAddressToClearOnThreadTermination = 28,
@@ -86,6 +85,7 @@ enum class Syscall {
   SendMessage = 17,
   PollForMessage = 18,
   SleepForMessage = 19,
+  SetSystemMessageHandlers = 8,
   // Interrupts,
   RegisterMessageToSendOnInterrupt = 20,
   UnregisterMessageToSendOnInterrupt = 21,

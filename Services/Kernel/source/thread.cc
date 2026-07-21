@@ -162,10 +162,10 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
 
   // The thread has a virtual address that should be cleared.
   if (thread->address_to_clear_on_termination) {
+    size_t address_cleared = thread->address_to_clear_on_termination;
     // Find the virtual page and offset of the address.
-    size_t offset_in_page =
-        thread->address_to_clear_on_termination & (PAGE_SIZE - 1);
-    size_t page = thread->address_to_clear_on_termination - offset_in_page;
+    size_t offset_in_page = address_cleared & (PAGE_SIZE - 1);
+    size_t page = address_cleared - offset_in_page;
 
     // Get the physical page.
     size_t physical_page =
@@ -177,6 +177,8 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
       // set the memory location to 0.
       *(uint64*)((size_t)TemporarilyMapPhysicalPages(physical_page, 1) +
                  offset_in_page) = 0;
+
+      AwakeFutexInProcess(process, address_cleared);
     }
   }
 

@@ -167,6 +167,9 @@ struct Process {
       rpcs_waiting_on_this_process;
 
   size_t next_synthetic_rpc_response_message_id;
+
+  // Message ID to send to the process to ask it to call 'futex wait'.
+  size_t futex_wake_message_id;
 };
 
 // Initializes the internal structures for tracking processes.
@@ -229,3 +232,6 @@ Process* GetNextProcess(Process* process);
 // Returns if a process is a child of a parent. Also returns false if the child
 // is nullptr.
 bool IsProcessAChildOfParent(Process* parent, Process* child);
+
+// Sends a message to a process to ask it to wake its futex.
+void AwakeFutexInProcess(Process* process, size_t address);

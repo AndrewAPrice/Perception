@@ -43,6 +43,8 @@ const char *GetSystemCallName(Syscall syscall) {
       return "TerminateThisThread";
     case Syscall::TerminateThread:
       return "TerminateThread";
+    case Syscall::SetSystemMessageHandlers:
+      return "SetSystemMessageHandlers";
     case Syscall::SetThreadSegment:
       return "SetThreadSegment";
     case Syscall::SetThreadSegmentExtended:

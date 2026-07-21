@@ -137,7 +137,7 @@ Sets the value of the FS and/or GS segment base. Each thread can have its own se
 
 ## Set memory address to clear on thread termination
 
-Sets a memory address of a 64-bit (8-byte aligned) integer that should cleared when the currently running thread is terminated.
+Sets a memory address of a non-zero 64-bit (8-byte aligned) integer that should cleared when the currently running thread is terminated. The kernel will also request that the process wake any futexes blocked on that address.
 
 ### Input
 * `rdi` - 28
@@ -441,7 +441,7 @@ If the name is empty, then we loop over every running running process. If the na
 * `rax` - The ID of the process.
 * `rbx` - The message ID to send when a process disappears.
 
-## Stop notyfing when a process disappears
+## Stop notifying when a process disappears
 
 ### Input
 * `rdi` - 31
@@ -649,6 +649,14 @@ Nothing.
 * `rax` - The message ID we no longer want to send.
 
 # Messaging
+
+## Set system message handlers
+
+Registers system message handlers that the kernel fires when system events occur.
+
+### Input
+* `rdi` - 8
+* `rax` - Message ID to receive when a thread's TID address is cleared upon termination (0 = unhandled).
 
 ## Send message
 
