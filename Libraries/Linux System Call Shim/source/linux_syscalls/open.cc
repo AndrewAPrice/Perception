@@ -24,8 +24,17 @@ namespace perception {
 namespace linux_syscalls {
 
 long open(const char* pathname, int flags, mode_t mode) {
+  std::string resolved_path = ResolvePath(pathname);
+  const char* path = resolved_path.c_str();
+
   if (flags & O_DIRECTORY) {
-    return OpenDirectory(pathname);
+    return OpenDirectory(path);
+  }
+
+  // If the path ends with a slash, it's a directory.
+  size_t path_len = resolved_path.length();
+  if (path_len > 0 && resolved_path[path_len - 1] == '/') {
+    return OpenDirectory(path);
   }
 
   // Parse open flags:
@@ -48,7 +57,7 @@ long open(const char* pathname, int flags, mode_t mode) {
       break;
     default:
       perception::DebugPrinterSingleton
-          << "Invoking MUSL syscall open() on " << pathname
+          << "Invoking MUSL syscall open() on " << path
           << " with unsupported access mode: "
           << static_cast<int64>(access_mode) << '\n';
       return -EINVAL;
@@ -65,7 +74,7 @@ long open(const char* pathname, int flags, mode_t mode) {
 
   if (unsupported_flags != 0) {
     perception::DebugPrinterSingleton << "Invoking MUSL syscall open() on "
-                                      << pathname << " with unsupported flags:";
+                                      << path << " with unsupported flags:";
     if (unsupported_flags & O_ASYNC)
       perception::DebugPrinterSingleton << " O_ASYNC";
     if (unsupported_flags & O_DIRECT)
@@ -88,7 +97,7 @@ long open(const char* pathname, int flags, mode_t mode) {
     return -EINVAL;
   }
 
-  return OpenFile(pathname, read_access, write_access, create_if_not_exists,
+  return OpenFile(path, read_access, write_access, create_if_not_exists,
                   truncate);
 }
 

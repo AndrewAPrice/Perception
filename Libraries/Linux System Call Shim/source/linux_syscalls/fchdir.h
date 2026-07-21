@@ -15,7 +15,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long fchdir();
+long fchdir(int fd);
 
 }
 }  // namespace perception

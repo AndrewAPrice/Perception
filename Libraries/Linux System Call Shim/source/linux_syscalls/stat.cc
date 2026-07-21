@@ -18,6 +18,9 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include <string>
+
+#include "files.h"
 #include "perception/services.h"
 #include "perception/storage_manager.h"
 
@@ -25,18 +28,18 @@ namespace perception {
 namespace linux_syscalls {
 
 long stat(const char* pathname, struct kstat* statbuf) {
+  std::string clean_path = ResolvePath(pathname);
+  while (clean_path.length() > 1 && clean_path.back() == '/')
+    clean_path.pop_back();
+
   auto status_or_response =
-      GetService<StorageManager>().GetFileStatistics({pathname, false});
+      GetService<StorageManager>().GetFileStatistics({clean_path, false});
   if (!status_or_response) {
-    if (status_or_response.Status() == Status::FILE_NOT_FOUND) {
-      return -ENOENT;
-    }
+    if (status_or_response.Status() == Status::FILE_NOT_FOUND) return -ENOENT;
     return -EINVAL;
   }
 
-  if (!status_or_response->exists) {
-    return -ENOENT;
-  }
+  if (!status_or_response->exists) return -ENOENT;
 
   memset(statbuf, 0, sizeof(struct kstat));
   switch (status_or_response->type) {

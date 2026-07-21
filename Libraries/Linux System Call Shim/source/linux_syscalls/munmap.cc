@@ -14,17 +14,60 @@
 
 #include "linux_syscalls/munmap.h"
 
+#include <mutex>
+#include <vector>
+
 #include "perception/debug.h"
 #include "perception/memory.h"
 #include "files.h"
+
+namespace {
+
+std::mutex thread_stacks_mutex;
+std::vector<size_t> thread_stacks;
+
+}  // namespace
+
+extern "C" void (*__perception_register_thread_stack_ptr)(void*);
+
+extern "C" void __perception_register_thread_stack(void* stack) {
+  std::scoped_lock lock(thread_stacks_mutex);
+  ::perception::DebugPrinterSingleton
+      << "SHIM: Registering thread stack at " << (size_t)stack << "\n";
+  thread_stacks.push_back((size_t)stack);
+}
+
+struct StackRegisterInitializer {
+  StackRegisterInitializer() {
+    __perception_register_thread_stack_ptr = &__perception_register_thread_stack;
+  }
+} stack_register_initializer;
 
 namespace perception {
 namespace linux_syscalls {
 
 long munmap(long addr, long length) {
-  if (!MaybeCloseMemoryMappedFile((size_t)addr))
-    // Not a memory mapped file, just normal memory to release.
+  ::perception::DebugPrinterSingleton << "SHIM: munmap(" << (size_t)addr
+                                      << ", " << (size_t)length << ")\n";
+  if (!MaybeCloseMemoryMappedFile((size_t)addr)) {
+    // Check if this is a thread stack
+    {
+      std::scoped_lock lock(thread_stacks_mutex);
+      for (auto it = thread_stacks.begin(); it != thread_stacks.end(); ++it) {
+        size_t stack_addr = *it;
+        if (stack_addr >= (size_t)addr && stack_addr < (size_t)addr + (size_t)length) {
+          ::perception::DebugPrinterSingleton
+              << "SHIM: Skipping munmap of thread stack at " << (size_t)addr
+              << " size " << (size_t)length << "\n";
+          thread_stacks.erase(it);
+          return 0; // Skip unmapping
+        }
+      }
+    }
+
+    // Not a thread stack, just normal memory to release.
     ReleaseMemoryPages((void*)addr, (size_t)length / kPageSize);
+  }
   return 0;
 }
 

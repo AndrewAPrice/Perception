@@ -20,7 +20,6 @@ namespace perception {
 namespace linux_syscalls {
 
 long exit() {
-  // todo: Thread might have things wanting to run at exit.
   perception::TerminateThread();
   return 0;
 }

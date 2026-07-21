@@ -18,20 +18,24 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include <string>
+
+#include "files.h"
 #include "linux_syscalls/stat.h"
 #include "perception/services.h"
 #include "perception/storage_manager.h"
-
-using ::perception::DirectoryEntry;
-using ::perception::GetService;
-using ::perception::StorageManager;
 
 namespace perception {
 namespace linux_syscalls {
 
 long lstat(const char* pathname, struct kstat* statbuf) {
+  std::string clean_path = ResolvePath(pathname);
+  while (clean_path.length() > 1 && clean_path.back() == '/') {
+    clean_path.pop_back();
+  }
+
   auto status_or_response =
-      GetService<StorageManager>().GetFileStatistics({pathname, true});
+      GetService<StorageManager>().GetFileStatistics({clean_path, true});
   if (!status_or_response) {
     if (status_or_response.Status() == Status::FILE_NOT_FOUND) return -ENOENT;
     return -EINVAL;
@@ -49,7 +53,6 @@ long lstat(const char* pathname, struct kstat* statbuf) {
     statbuf->st_mode = S_IFREG;
     statbuf->st_size = status_or_response->size_in_bytes;
   }
-
   return 0;
 }
 

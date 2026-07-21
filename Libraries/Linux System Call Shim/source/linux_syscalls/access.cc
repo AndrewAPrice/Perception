@@ -32,31 +32,19 @@ long access(const char* pathname, int mode) {
   auto status_or_response = GetService<StorageManager>().CheckPermissions({pathname});
   if (status_or_response) {
     const auto& response = *status_or_response;
-    if (mode & F_OK) {
-      if (!response.exists) {
-        return -ENOENT;
-      }
-    }
+    if (!response.exists) return -ENOENT;
     if (mode & R_OK) {
-      if (!response.can_read) {
-        return -EACCES;
-      }
+      if (!response.can_read) return -EACCES;
     }
     if (mode & W_OK) {
-      if (!response.can_write) {
-        return -EACCES;
-      }
+      if (!response.can_write) return -EACCES;
     }
     if (mode & X_OK) {
-      if (!response.can_execute) {
-        return -EACCES;
-      }
+      if (!response.can_execute) return -EACCES;
     }
     return 0;
   } else {
-    if (status_or_response.Status() == Status::FILE_NOT_FOUND) {
-      return -ENOENT;
-    }
+    if (status_or_response.Status() == Status::FILE_NOT_FOUND) return -ENOENT;
     return -EINVAL;
   }
 }

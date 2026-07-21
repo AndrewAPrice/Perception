@@ -15,7 +15,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long chdir();
+long chdir(const char* path);
 
 }
 }  // namespace perception

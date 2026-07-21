@@ -14,16 +14,24 @@
 
 #include "linux_syscalls/sched_getaffinity.h"
 
-#include "perception/debug.h"
 #include <errno.h>
+#include <string.h>
+
+#include "perception/debug.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long sched_getaffinity() {
-  perception::DebugPrinterSingleton
-      << "System call sched_getaffinity is unimplemented.\n";
-  return -ENOSYS;
+long sched_getaffinity(long pid, unsigned long cpusetsize, void* mask) {
+  perception::DebugPrinterSingleton << "SHIM: sched_getaffinity(" << (size_t)pid
+                                    << ", " << (size_t)cpusetsize << ", "
+                                    << (size_t)mask << ")\n";
+  if (mask == nullptr || cpusetsize < 8) {
+    return -EINVAL;
+  }
+  memset(mask, 0, cpusetsize);
+  ((unsigned long*)mask)[0] = 1;
+  return 0;
 }
 
 }  // namespace linux_syscalls

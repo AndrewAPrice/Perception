@@ -429,7 +429,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_capset:
       return ::perception::linux_syscalls::capset();
     case SYS_chdir:
-      return ::perception::linux_syscalls::chdir();
+      return ::perception::linux_syscalls::chdir(
+          reinterpret_cast<const char*>(a1));
     case SYS_chmod:
       return ::perception::linux_syscalls::chmod();
     case SYS_chown:
@@ -506,7 +507,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_fanotify_mark:
       return ::perception::linux_syscalls::fanotify_mark();
     case SYS_fchdir:
-      return ::perception::linux_syscalls::fchdir();
+      return ::perception::linux_syscalls::fchdir(static_cast<int>(a1));
     case SYS_fchmod:
       return ::perception::linux_syscalls::fchmod();
     case SYS_fchmodat:
@@ -564,7 +565,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_getcpu:
       return ::perception::linux_syscalls::getcpu();
     case SYS_getcwd:
-      return ::perception::linux_syscalls::getcwd();
+      return ::perception::linux_syscalls::getcwd(
+          reinterpret_cast<char*>(a1), static_cast<size_t>(a2));
     case SYS_getdents:
       return ::perception::linux_syscalls::getdents();
     case SYS_getdents64:
@@ -895,7 +897,7 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_sched_get_priority_min:
       return ::perception::linux_syscalls::sched_get_priority_min();
     case SYS_sched_getaffinity:
-      return ::perception::linux_syscalls::sched_getaffinity();
+      return ::perception::linux_syscalls::sched_getaffinity(a1, a2, (void*)a3);
     case SYS_sched_getattr:
       return ::perception::linux_syscalls::sched_getattr();
     case SYS_sched_getparam:

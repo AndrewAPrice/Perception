@@ -29,11 +29,7 @@ namespace linux_syscalls {
 
 long mmap(long addr, long length, long prot, long flags, long fd, long offset) {
   if (addr != 0) {
-    perception::DebugPrinterSingleton
-        << "mmap wants to place at a specific addr (" << (size_t)addr
-        << ") but this isn't yet implemented.\n";
-    errno = EINVAL;
-    return -1;
+    // Treat as a hint. Ignore and allocate anywhere.
   }
 
   if (length == 0) {

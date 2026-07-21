@@ -15,7 +15,7 @@
 namespace perception {
 namespace linux_syscalls {
 
-long sched_getaffinity();
+long sched_getaffinity(long pid, unsigned long cpusetsize, void* mask);
 
 }
 }  // namespace perception

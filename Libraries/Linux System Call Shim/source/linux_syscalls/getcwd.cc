@@ -14,15 +14,24 @@
 
 #include "linux_syscalls/getcwd.h"
 
-#include "perception/debug.h"
 #include <errno.h>
+#include <string.h>
+
+#include "files.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long getcwd() {
-  perception::DebugPrinterSingleton << "System call getcwd is unimplemented.\n";
-  return -ENOSYS;
+long getcwd(char* buf, size_t size) {
+  if (buf == nullptr || size == 0) return -EINVAL;
+
+  std::string_view cwd = CurrentWorkingDirectory();
+
+  if (cwd.length() + 1 > size) return -ERANGE;
+
+  memcpy(buf, cwd.data(), cwd.length());
+  buf[cwd.length()] = '\0';
+  return reinterpret_cast<long>(buf);
 }
 
 }  // namespace linux_syscalls

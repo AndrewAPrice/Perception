@@ -14,15 +14,15 @@
 
 #include "linux_syscalls/chdir.h"
 
-#include "perception/debug.h"
 #include <errno.h>
+
+#include "files.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long chdir() {
-  perception::DebugPrinterSingleton << "System call chdir is unimplemented.\n";
-  return -ENOSYS;
+long chdir(const char* path) {
+  return SetCurrentWorkingDirectory(path) ? 0 : -ENOENT;
 }
 
 }  // namespace linux_syscalls

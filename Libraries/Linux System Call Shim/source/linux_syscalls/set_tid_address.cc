@@ -14,7 +14,6 @@
 
 #include "linux_syscalls/set_tid_address.h"
 
-#include "perception/debug.h"
 #include "perception/threads.h"
 
 namespace perception {

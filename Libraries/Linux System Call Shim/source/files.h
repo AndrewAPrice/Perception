@@ -15,6 +15,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 #include "perception/file.h"
 #include "perception/memory_mapped_file.h"
@@ -63,5 +64,11 @@ void* AddMemoryMappedFile(::perception::MemoryMappedFile::Client file,
                           std::shared_ptr<::perception::SharedMemory> buffer);
 
 bool MaybeCloseMemoryMappedFile(size_t start_address);
+
+std::string_view CurrentWorkingDirectory();
+
+bool SetCurrentWorkingDirectory(std::string_view cwd);
+
+std::string ResolvePath(std::string_view path);
 
 }  // namespace perception

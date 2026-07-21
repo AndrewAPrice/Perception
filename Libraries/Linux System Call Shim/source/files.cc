@@ -14,10 +14,12 @@
 
 #include "files.h"
 
-#include <map>
-#include <mutex>
 #include <errno.h>
 
+#include <map>
+#include <mutex>
+
+#include "perception/debug.h"
 #include "perception/services.h"
 #include "perception/storage_manager.h"
 
@@ -30,6 +32,8 @@ namespace perception {
 namespace {
 
 std::mutex files_mutex;
+std::string current_working_directory = "/";
+std::mutex cwd_mutex;
 
 std::map<long, std::shared_ptr<FileDescriptor>> open_files;
 
@@ -76,8 +80,20 @@ long OpenFile(const char* path, bool read_access, bool write_access,
   request.create_if_not_exists = create_if_not_exists;
   request.truncate = truncate;
 
-  auto status_or_response = GetService<StorageManager>().OpenFile(request);
+  auto service = GetService<StorageManager>();
+  {
+    if (service.IsValid()) {
+      perception::DebugPrinterSingleton << "SHIM: StorageManager is valid\n";
+    } else {
+      perception::DebugPrinterSingleton << "SHIM: StorageManager is INVALID!\n";
+    }
+  }
+
+  auto status_or_response = service.OpenFile(request);
   if (!status_or_response) {
+    perception::DebugPrinterSingleton
+        << "SHIM: OpenFile failed for " << path
+        << " status: " << (size_t)status_or_response.Status() << "\n";
     switch (status_or_response.Status()) {
       case Status::FILE_NOT_FOUND:
         return -ENOENT;
@@ -167,6 +183,45 @@ bool MaybeCloseMemoryMappedFile(size_t start_address) {
 
   entry->file.Close();
   return true;
+}
+
+std::string_view CurrentWorkingDirectory() {
+  std::lock_guard<std::mutex> lock(cwd_mutex);
+  return current_working_directory;
+}
+
+bool SetCurrentWorkingDirectory(std::string_view cwd) {
+  // Clean trailing slashes except if it is "/"
+  std::string clean_cwd(cwd);
+  while (clean_cwd.length() > 1 && clean_cwd.back() == '/') {
+    clean_cwd.pop_back();
+  }
+
+  // Check if it exists and is a directory
+  auto status_or_response =
+      GetService<StorageManager>().GetFileStatistics({clean_cwd, false});
+  if (!status_or_response || !status_or_response->exists ||
+      status_or_response->type !=
+          ::perception::DirectoryEntry::Type::DIRECTORY) {
+    return false;
+  }
+
+  std::lock_guard<std::mutex> lock(cwd_mutex);
+  current_working_directory = clean_cwd;
+  return true;
+}
+
+std::string ResolvePath(std::string_view path) {
+  if (path.empty()) return std::string(CurrentWorkingDirectory());
+
+  if (path[0] == '/') return std::string(path);
+
+  std::string_view cwd = CurrentWorkingDirectory();
+  if (cwd.back() == '/') {
+    return std::string(cwd) + std::string(path);
+  } else {
+    return std::string(cwd) + "/" + std::string(path);
+  }
 }
 
 }  // namespace perception

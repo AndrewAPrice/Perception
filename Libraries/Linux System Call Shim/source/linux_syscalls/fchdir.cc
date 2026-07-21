@@ -14,15 +14,20 @@
 
 #include "linux_syscalls/fchdir.h"
 
-#include "perception/debug.h"
 #include <errno.h>
+
+#include "files.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long fchdir() {
-  perception::DebugPrinterSingleton << "System call fchdir is unimplemented.\n";
-  return -ENOSYS;
+long fchdir(int fd) {
+  auto file_descriptor = GetFileDescriptor(fd);
+  if (!file_descriptor || file_descriptor->type != FileDescriptor::DIRECTORY)
+    return -EBADF;
+
+  return SetCurrentWorkingDirectory(file_descriptor->directory.name) ? 0
+                                                                     : -ENOENT;
 }
 
 }  // namespace linux_syscalls
