@@ -98,7 +98,7 @@ Status IdeStorageDevice::Read(const StorageDeviceReadRequest& request) {
   req.offset_in_buffer = buffer_offset;
   req.bytes_to_copy = bytes_to_copy;
   req.destination_buffer = (uint8*)**request.buffer;
-  req.can_write = details.CanWrite;
+  req.can_write = details.CanWrite && !details.IsLazilyAllocated;
   req.can_assign_pages = details.CanAssignPages;
   req.buffer_size = request.buffer->GetSize();
   req.shared_memory = request.buffer;
