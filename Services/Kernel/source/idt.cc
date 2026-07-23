@@ -52,10 +52,6 @@ void InitializeIdt() {
   idt_p.limit = (sizeof(idt_entry) * 256) - 1;
   idt_p.base = (size_t)idt;
 
-  print << "InitializeIdt: sizeof(idt_p) = " << (size_t)sizeof(idt_p)
-        << ", limit = " << (size_t)idt_p.limit
-        << ", base = " << idt_p.base << "\n";
-
   // Clear the IDT.
   memset((char *)idt, 0, sizeof(idt_entry) * 256);
 
