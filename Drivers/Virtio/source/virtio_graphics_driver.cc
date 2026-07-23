@@ -15,7 +15,6 @@
 #include "virtio_graphics_driver.h"
 
 #include <cstring>
-#include <iostream>
 
 #include "perception/cache.h"
 #include "perception/debug.h"
@@ -25,10 +24,11 @@
 #include "perception/pci.h"
 #include "perception/port_io.h"
 #include "perception/processes.h"
+#include "queue.h"
+#include "virtio.h"
 
 namespace graphics = ::perception::devices::graphics;
 using ::perception::AllocateMemoryPages;
-using ::perception::AllocateMemoryPagesBelowPhysicalAddressBase;
 using ::perception::FlushRange;
 using ::perception::GetMultibootFramebufferDetails;
 using ::perception::GetPhysicalAddressOfVirtualAddress;
@@ -38,10 +38,7 @@ using ::perception::MapPhysicalMemory;
 using ::perception::MessageId;
 using ::perception::NotifyUponProcessTermination;
 using ::perception::ProcessId;
-using ::perception::Read16BitsFromPciConfig;
-using ::perception::Read16BitsFromPort;
 using ::perception::Read32BitsFromPciConfig;
-using ::perception::Read32BitsFromPort;
 using ::perception::Read8BitsFromPciConfig;
 using ::perception::Read8BitsFromPort;
 using ::perception::RegisterInterruptHandler;
@@ -50,12 +47,75 @@ using ::perception::ReleaseMemoryPages;
 using ::perception::SharedMemory;
 using ::perception::StopNotifyingUponProcessTermination;
 using ::perception::Write16BitsToPort;
-using ::perception::Write32BitsToPort;
-using ::perception::Write8BitsToPciConfig;
-using ::perception::Write8BitsToPort;
 using ::perception::devices::PciDevice;
 
 namespace {
+
+// Virtio GPU Command and Response Types
+constexpr uint32 kVirtioGpuCmdGetDisplayInfo = 0x0100;
+constexpr uint32 kVirtioGpuCmdResourceCreate2d = 0x0101;
+constexpr uint32 kVirtioGpuCmdResourceUnref = 0x0102;
+constexpr uint32 kVirtioGpuCmdSetScanout = 0x0103;
+constexpr uint32 kVirtioGpuCmdResourceFlush = 0x0104;
+constexpr uint32 kVirtioGpuCmdTransferToHost2d = 0x0105;
+constexpr uint32 kVirtioGpuCmdResourceAttachBacking = 0x0106;
+constexpr uint32 kVirtioGpuRespOkDisplayInfo = 0x1101;
+constexpr uint32 kVirtioGpuFormatR8G8B8A8Unorm = 67;
+
+// PCI and Virtio Config Constants
+constexpr int kMaxPciBars = 6;
+constexpr uint8 kPciConfigBar0Offset = 0x10;
+constexpr uint32 kPciBarIoSpaceBit = 1;
+constexpr uint32 kPciBarIoAddressMask = 0xFFFC;
+constexpr uint64 kPciBarMemoryAddressMask = 0xFFFFFFF0;
+constexpr uint32 kPciBar64BitBit = 4;
+constexpr uint8 kPciConfigCapabilitiesPtrOffset = 0x34;
+constexpr int kMaxPciCapabilities = 48;
+constexpr uint8 kInvalidCapPtr = 0xFF;
+constexpr uint8 kPciCapVendorSpecific = 0x09;
+
+constexpr uint8 kVirtioPciCapTypeOffset = 3;
+constexpr uint8 kVirtioPciCapBarOffset = 4;
+constexpr uint8 kVirtioPciCapOffsetOffset = 8;
+constexpr uint8 kVirtioPciCapLengthOffset = 12;
+constexpr uint8 kVirtioPciCapNotifyOffMultiplierOffset = 16;
+
+constexpr uint8 kVirtioPciCapCommonConfig = 1;
+constexpr uint8 kVirtioPciCapNotifyConfig = 2;
+constexpr uint8 kVirtioPciCapIsrConfig = 3;
+
+constexpr size_t kCommonCfgDeviceStatusOffset = 20;
+constexpr size_t kCommonCfgDeviceFeatureSelectOffset = 8;
+constexpr size_t kCommonCfgDeviceFeatureOffset = 12;
+
+constexpr uint8 kVirtioStatusReset = 0;
+
+constexpr uint16 kControlQueueIndex = 0;
+constexpr size_t kPageMask = 4095;
+constexpr uint8 kIsrMask = 3;
+constexpr uint8 kVirtioIsrConfigChangeBit = 2;
+constexpr uint16 kVirtioLegacyQueueNotifyOffset = 16;
+constexpr uint8 kVirtioLegacyIsrOffset = 19;
+
+// Driver and Rendering Constants
+constexpr uint32 kDefaultScreenWidth = 800;
+constexpr uint32 kDefaultScreenHeight = 600;
+constexpr uint32 kScanoutResourceId = 1;
+constexpr uint32 kInvalidResourceId = 0;
+constexpr uint32 kDefaultScanoutId = 0;
+constexpr size_t kMaxDisplayModes = 16;
+
+constexpr size_t kBytesPerPixel = 4;
+constexpr uint8 kAlphaChannelIndex = 3;
+constexpr uint8 kOpaqueAlpha = 0xFF;
+constexpr int kMaxAlpha = 255;
+constexpr int kAlphaShift = 8;
+constexpr uint32 kDefaultPixelColorOpaqueBlack = 0xFF000000;
+
+constexpr uint16 kVringDescFNext = 1;
+constexpr uint16 kVringDescFWrite = 2;
+constexpr size_t kNotifyOffsetFlushSize = 4;
+constexpr int kCommandTimeoutIterations = 50000000;
 
 struct VirtioGpuCtrlHdr {
   uint32 type;
@@ -84,7 +144,7 @@ struct VirtioGpuDisplayOne {
 
 struct VirtioGpuRespDisplayInfo {
   VirtioGpuCtrlHdr hdr;
-  VirtioGpuDisplayOne pmodes[16];
+  VirtioGpuDisplayOne pmodes[kMaxDisplayModes];
 } __attribute__((packed));
 
 struct VirtioGpuResourceCreate2d {
@@ -135,36 +195,6 @@ struct VirtioGpuResourceUnref {
   uint32 padding;
 } __attribute__((packed));
 
-// This is kind of hacky and needs a better implementation.
-void* AllocateContiguousMemoryPages(size_t pages, size_t& physical_address) {
-  if (pages == 0) return nullptr;
-  int attempts = 1;
-  while (attempts-- > 0) {
-    void* virt_addr = AllocateMemoryPagesBelowPhysicalAddressBase(
-        pages, 0xFFFFFFFF, physical_address);
-    if (!virt_addr) return nullptr;
-    if (pages == 1) return virt_addr;
-
-    size_t phys0 = GetPhysicalAddressOfVirtualAddress((size_t)virt_addr);
-    bool contiguous = true;
-    for (size_t i = 1; i < pages; i++) {
-      if (GetPhysicalAddressOfVirtualAddress(
-              (size_t)virt_addr + i * kPageSize) != phys0 + i * kPageSize) {
-        contiguous = false;
-        break;
-      }
-    }
-
-    if (contiguous) {
-      physical_address = phys0;
-      return virt_addr;
-    }
-
-    ReleaseMemoryPages(virt_addr, pages);
-  }
-  return nullptr;
-}
-
 }  // namespace
 
 VirtioGraphicsDriver::VirtioGraphicsDriver(const PciDevice& device)
@@ -178,31 +208,22 @@ VirtioGraphicsDriver::VirtioGraphicsDriver(const PciDevice& device)
       next_texture_id_(1),
       // Modern MMIO and Legacy I/O support
       process_allowed_to_write_to_the_screen_(0) {
-  uint8 cmd_low =
-      Read8BitsFromPciConfig(device.bus, device.slot, device.function, 0x04);
-  uint8 cmd_high =
-      Read8BitsFromPciConfig(device.bus, device.slot, device.function, 0x05);
-  uint16 command = cmd_low | (cmd_high << 8);
-  command |= 1 | 2 | 4;  // I/O space, Memory space, Bus Master
-  command &= ~(1 << 10);
-  Write8BitsToPciConfig(device.bus, device.slot, device.function, 0x04,
-                        command & 0xFF);
-  Write8BitsToPciConfig(device.bus, device.slot, device.function, 0x05,
-                        (command >> 8) & 0xFF);
+  EnableVirtioPciDevice(device);
 
-  uint64 bar_phys[6] = {0};
+  uint64 bar_phys[kMaxPciBars] = {0};
   uint16 io_port_base = 0;
-  for (int i = 0; i < 6; i++) {
-    uint32 bar = Read32BitsFromPciConfig(device.bus, device.slot,
-                                         device.function, 0x10 + i * 4);
+  for (int i = 0; i < kMaxPciBars; i++) {
+    uint32 bar = Read32BitsFromPciConfig(
+        device.bus, device.slot, device.function, kPciConfigBar0Offset + i * 4);
     if (bar != 0) {
-      if ((bar & 1) != 0) {
-        io_port_base = bar & 0xFFFC;
+      if ((bar & kPciBarIoSpaceBit) != 0) {
+        io_port_base = bar & kPciBarIoAddressMask;
       } else {
-        uint64 phys = bar & 0xFFFFFFF0;
-        if ((bar & 4) != 0 && i + 1 < 6) {
-          uint32 upper = Read32BitsFromPciConfig(
-              device.bus, device.slot, device.function, 0x10 + (i + 1) * 4);
+        uint64 phys = bar & kPciBarMemoryAddressMask;
+        if ((bar & kPciBar64BitBit) != 0 && i + 1 < kMaxPciBars) {
+          uint32 upper =
+              Read32BitsFromPciConfig(device.bus, device.slot, device.function,
+                                      kPciConfigBar0Offset + (i + 1) * 4);
           phys |= ((uint64)upper << 32);
           bar_phys[i] = phys;
           bar_phys[i + 1] = phys;
@@ -215,36 +236,43 @@ VirtioGraphicsDriver::VirtioGraphicsDriver(const PciDevice& device)
   }
 
   uint8 cap_ptr =
-      Read8BitsFromPciConfig(device.bus, device.slot, device.function, 0x34);
-  while (cap_ptr != 0) {
+      Read8BitsFromPciConfig(device.bus, device.slot, device.function,
+                             kPciConfigCapabilitiesPtrOffset);
+  int max_caps = kMaxPciCapabilities;
+  while (cap_ptr != 0 && cap_ptr != kInvalidCapPtr && max_caps-- > 0) {
     uint8 cap_id = Read8BitsFromPciConfig(device.bus, device.slot,
                                           device.function, cap_ptr);
-    if (cap_id == 0x09) {
-      uint8 cfg_type = Read8BitsFromPciConfig(device.bus, device.slot,
-                                              device.function, cap_ptr + 3);
-      uint8 bar_idx = Read8BitsFromPciConfig(device.bus, device.slot,
-                                             device.function, cap_ptr + 4);
-      uint32 offset = Read32BitsFromPciConfig(device.bus, device.slot,
-                                              device.function, cap_ptr + 8);
-      uint32 length = Read32BitsFromPciConfig(device.bus, device.slot,
-                                              device.function, cap_ptr + 12);
+    if (cap_id == kPciCapVendorSpecific) {
+      uint8 cfg_type =
+          Read8BitsFromPciConfig(device.bus, device.slot, device.function,
+                                 cap_ptr + kVirtioPciCapTypeOffset);
+      uint8 bar_idx =
+          Read8BitsFromPciConfig(device.bus, device.slot, device.function,
+                                 cap_ptr + kVirtioPciCapBarOffset);
+      uint32 offset =
+          Read32BitsFromPciConfig(device.bus, device.slot, device.function,
+                                  cap_ptr + kVirtioPciCapOffsetOffset);
+      uint32 length =
+          Read32BitsFromPciConfig(device.bus, device.slot, device.function,
+                                  cap_ptr + kVirtioPciCapLengthOffset);
 
-      if (bar_idx < 6 && bar_phys[bar_idx] != 0 && length > 0) {
+      if (bar_idx < kMaxPciBars && bar_phys[bar_idx] != 0 && length > 0) {
         uint64 cap_phys = bar_phys[bar_idx] + offset;
-        size_t page_offset = cap_phys & 4095;
-        size_t pages = (length + page_offset + 4095) / 4096;
+        size_t page_offset = cap_phys & kPageMask;
+        size_t pages = (length + page_offset + kPageMask) / kPageSize;
         if (pages == 0) pages = 1;
-        void* mapped = MapPhysicalMemory(cap_phys & ~4095, pages);
+        void* mapped = MapPhysicalMemory(cap_phys & ~kPageMask, pages);
 
         if (mapped != nullptr && (size_t)mapped != (size_t)-1) {
           volatile uint8* ptr = (volatile uint8*)mapped + page_offset;
-          if (cfg_type == 1) {  // Common
+          if (cfg_type == kVirtioPciCapCommonConfig) {  // Common
             common_cfg_ = ptr;
-          } else if (cfg_type == 2) {  // Notify
+          } else if (cfg_type == kVirtioPciCapNotifyConfig) {  // Notify
             notify_cfg_ = ptr;
             notify_off_multiplier_ = Read32BitsFromPciConfig(
-                device.bus, device.slot, device.function, cap_ptr + 16);
-          } else if (cfg_type == 3) {  // ISR
+                device.bus, device.slot, device.function,
+                cap_ptr + kVirtioPciCapNotifyOffMultiplierOffset);
+          } else if (cfg_type == kVirtioPciCapIsrConfig) {  // ISR
             isr_cfg_ = ptr;
           }
         }
@@ -257,34 +285,34 @@ VirtioGraphicsDriver::VirtioGraphicsDriver(const PciDevice& device)
   io_base_ = io_port_base;
 
   if (common_cfg_ != nullptr) {
-    common_cfg_[20] = 0;      // Reset
-    common_cfg_[20] = 1;      // ACKNOWLEDGE
-    common_cfg_[20] = 1 | 2;  // DRIVER
+    common_cfg_[kCommonCfgDeviceStatusOffset] = kVirtioStatusReset;  // Reset
+    common_cfg_[kCommonCfgDeviceStatusOffset] =
+        kVirtioStatusAcknowledge;  // ACKNOWLEDGE
+    common_cfg_[kCommonCfgDeviceStatusOffset] =
+        kVirtioStatusAcknowledge | kVirtioStatusDriver;  // DRIVER
 
     // Select feature word 1 (bits 32-63)
-    *(volatile uint32*)(&common_cfg_[8]) = 1;
+    *(volatile uint32*)(&common_cfg_[kCommonCfgDeviceFeatureSelectOffset]) = 1;
     // Accept VIRTIO_F_VERSION_1 (bit 32)
-    *(volatile uint32*)(&common_cfg_[12]) = 1;
+    *(volatile uint32*)(&common_cfg_[kCommonCfgDeviceFeatureOffset]) = 1;
 
-    common_cfg_[20] = 1 | 2 | 8;  // FEATURES_OK
+    common_cfg_[kCommonCfgDeviceStatusOffset] =
+        kVirtioStatusAcknowledge | kVirtioStatusDriver |
+        kVirtioStatusFeaturesOk;  // FEATURES_OK
 
-    ctrl_queue_.SetupModern(0, common_cfg_);
+    ctrl_queue_.SetupModern(kControlQueueIndex, common_cfg_);
+    if (ctrl_queue_.avail) ctrl_queue_.avail->flags = 1;
 
-    common_cfg_[20] = 1 | 2 | 8 | 4;  // DRIVER_OK
+    common_cfg_[kCommonCfgDeviceStatusOffset] =
+        kVirtioStatusAcknowledge | kVirtioStatusDriver |
+        kVirtioStatusFeaturesOk | kVirtioStatusDriverOk;  // DRIVER_OK
   } else if (io_base_ != 0) {
-    Write8BitsToPort(io_base_ + 18, 0);  // Reset
-    Write8BitsToPort(io_base_ + 18,
-                     Read8BitsFromPort(io_base_ + 18) | 1);  // ACKNOWLEDGE
-    Write8BitsToPort(io_base_ + 18,
-                     Read8BitsFromPort(io_base_ + 18) | 2);  // DRIVER
+    ResetLegacyVirtioDevice(io_base_);
 
-    (void)Read32BitsFromPort(io_base_ + 0);
-    Write32BitsToPort(io_base_ + 4, 0);
+    ctrl_queue_.Setup(kControlQueueIndex, io_base_);
+    if (ctrl_queue_.avail) ctrl_queue_.avail->flags = 1;
 
-    ctrl_queue_.Setup(0, io_base_);
-
-    Write8BitsToPort(io_base_ + 18,
-                     Read8BitsFromPort(io_base_ + 18) | 4);  // DRIVER_OK
+    SetVirtioDriverOk(io_base_);
   } else {
     return;
   }
@@ -298,7 +326,7 @@ VirtioGraphicsDriver::VirtioGraphicsDriver(const PciDevice& device)
 
   VirtioGpuGetDisplayInfo get_display;
   memset(&get_display, 0, sizeof(get_display));
-  get_display.hdr.type = 0x0100;
+  get_display.hdr.type = kVirtioGpuCmdGetDisplayInfo;
 
   VirtioGpuRespDisplayInfo disp_info;
   memset(&disp_info, 0, sizeof(disp_info));
@@ -313,8 +341,8 @@ VirtioGraphicsDriver::VirtioGraphicsDriver(const PciDevice& device)
     screen_width_ = mb_width;
     screen_height_ = mb_height;
   } else {
-    screen_width_ = 800;
-    screen_height_ = 600;
+    screen_width_ = kDefaultScreenWidth;
+    screen_height_ = kDefaultScreenHeight;
   }
 
   (void)SendCommand(&get_display, sizeof(get_display), &disp_info,
@@ -322,17 +350,17 @@ VirtioGraphicsDriver::VirtioGraphicsDriver(const PciDevice& device)
 
   CreateScanoutResource();
 
-  uint8 irq =
-      Read8BitsFromPciConfig(device.bus, device.slot, device.function, 0x3C);
+  uint8 irq = GetPciInterruptLine(device);
   if (isr_cfg_ != nullptr) {
     RegisterInterruptHandler(irq, [this]() { HandleInterrupt(); });
   } else if (io_base_ != 0) {
     RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
-        irq, io_base_ + 19, 3, io_base_ + 19, [this](const uint8* bytes) {
+        irq, io_base_ + kVirtioPciIsr, kIsrMask, io_base_ + kVirtioPciIsr,
+        [this](const uint8* bytes) {
           for (int i = 0; i < kMaxInterruptReadBytes; i += 2) {
             uint8 status = bytes[i];
             if (status == 0) break;
-            if ((status & 2) != 0) {
+            if ((status & kVirtioIsrConfigChangeBit) != 0) {
               ::perception::Defer([this]() { CheckForResolutionChange(); });
             }
           }
@@ -362,8 +390,9 @@ StatusOr<graphics::CreateTextureResponse> VirtioGraphicsDriver::CreateTexture(
   texture.owner = sender;
   texture.width = request.size.width;
   texture.height = request.size.height;
-  texture.shared_memory = SharedMemory::FromSize(
-      texture.width * texture.height * 4, SharedMemory::kJoinersCanWrite);
+  texture.shared_memory =
+      SharedMemory::FromSize(texture.width * texture.height * kBytesPerPixel,
+                             SharedMemory::kJoinersCanWrite);
 
   auto process_information_itr = process_information_.find(sender);
   if (process_information_itr == process_information_.end()) {
@@ -589,7 +618,7 @@ void VirtioGraphicsDriver::BitBlt(ProcessId sender,
   uint8* dest_ptr = nullptr;
   uint32 dest_width = render_state.destination_texture->width;
   uint32 dest_height = render_state.destination_texture->height;
-  uint32 dest_pitch = dest_width * 4;
+  uint32 dest_pitch = dest_width * kBytesPerPixel;
 
   if (render_state.destination_texture->owner == 0) {
     if (alpha_blend) return;
@@ -630,33 +659,34 @@ void VirtioGraphicsDriver::BitBltToBuffer(
   if (width_to_copy == 0 || height_to_copy == 0) return;
 
   uint8* source_copy_start =
-      &source[(top_source * source_width + left_source) * 4];
+      &source[(top_source * source_width + left_source) * kBytesPerPixel];
   uint8* destination_copy_start =
-      &destination[top_destination * destination_pitch + left_destination * 4];
+      &destination[top_destination * destination_pitch +
+                   left_destination * kBytesPerPixel];
 
   for (uint32 y = 0; y < height_to_copy; y++) {
     uint8* src = source_copy_start;
     uint8* dest = destination_copy_start;
 
     for (uint32 x = 0; x < width_to_copy; x++) {
-      if (!alpha_blend || src[3] == 0xFF) {
+      if (!alpha_blend || src[kAlphaChannelIndex] == kOpaqueAlpha) {
         *(uint32*)dest = *(uint32*)src;
-      } else if (src[3] > 0) {
-        int alpha = src[3];
-        int inv_alpha = 255 - src[3];
+      } else if (src[kAlphaChannelIndex] > 0) {
+        int alpha = src[kAlphaChannelIndex];
+        int inv_alpha = kMaxAlpha - src[kAlphaChannelIndex];
 
-        dest[0] =
-            (uint8)((alpha * (int)src[0] + inv_alpha * (int)dest[0]) >> 8);
-        dest[1] =
-            (uint8)((alpha * (int)src[1] + inv_alpha * (int)dest[1]) >> 8);
-        dest[2] =
-            (uint8)((alpha * (int)src[2] + inv_alpha * (int)dest[2]) >> 8);
+        dest[0] = (uint8)((alpha * (int)src[0] + inv_alpha * (int)dest[0]) >>
+                          kAlphaShift);
+        dest[1] = (uint8)((alpha * (int)src[1] + inv_alpha * (int)dest[1]) >>
+                          kAlphaShift);
+        dest[2] = (uint8)((alpha * (int)src[2] + inv_alpha * (int)dest[2]) >>
+                          kAlphaShift);
       }
-      dest += 4;
-      src += 4;
+      dest += kBytesPerPixel;
+      src += kBytesPerPixel;
     }
 
-    source_copy_start += source_width * 4;
+    source_copy_start += source_width * kBytesPerPixel;
     destination_copy_start += destination_pitch;
   }
 }
@@ -665,14 +695,14 @@ void VirtioGraphicsDriver::FillRectangle(uint32 left, uint32 top, uint32 right,
                                          uint32 bottom, uint32 color,
                                          RenderState& render_state) {
   uint8* color_channels = (uint8*)&color;
-  if (color_channels[3] == 0) return;
+  if (color_channels[kAlphaChannelIndex] == 0) return;
 
   if (render_state.destination_texture == nullptr) return;
 
   uint8* dest_ptr = nullptr;
   uint32 dest_width = render_state.destination_texture->width;
   uint32 dest_height = render_state.destination_texture->height;
-  uint32 dest_pitch = dest_width * 4;
+  uint32 dest_pitch = dest_width * kBytesPerPixel;
 
   bool to_framebuffer = (render_state.destination_texture->owner == 0);
   if (to_framebuffer) {
@@ -688,31 +718,33 @@ void VirtioGraphicsDriver::FillRectangle(uint32 left, uint32 top, uint32 right,
 
   if (right <= left || bottom <= top) return;
 
-  if (color_channels[3] == 0xFF || to_framebuffer) {
-    uint8* destination_copy_start = &dest_ptr[top * dest_pitch + left * 4];
+  if (color_channels[kAlphaChannelIndex] == kOpaqueAlpha || to_framebuffer) {
+    uint8* destination_copy_start =
+        &dest_ptr[top * dest_pitch + left * kBytesPerPixel];
     for (uint32 y = top; y < bottom; y++) {
       uint32* dest = (uint32*)destination_copy_start;
       for (uint32 x = left; x < right; x++) *dest++ = color;
       destination_copy_start += dest_pitch;
     }
   } else {
-    int alpha = color_channels[3];
-    int inv_alpha = 255 - color_channels[3];
+    int alpha = color_channels[kAlphaChannelIndex];
+    int inv_alpha = kMaxAlpha - color_channels[kAlphaChannelIndex];
 
-    uint8* destination_copy_start = &dest_ptr[top * dest_pitch + left * 4];
+    uint8* destination_copy_start =
+        &dest_ptr[top * dest_pitch + left * kBytesPerPixel];
     for (uint32 y = top; y < bottom; y++) {
       uint8* dest = destination_copy_start;
       for (uint32 x = left; x < right; x++) {
         dest[0] = (uint8)((alpha * (int)color_channels[0] +
                            inv_alpha * (int)dest[0]) >>
-                          8);
+                          kAlphaShift);
         dest[1] = (uint8)((alpha * (int)color_channels[1] +
                            inv_alpha * (int)dest[1]) >>
-                          8);
+                          kAlphaShift);
         dest[2] = (uint8)((alpha * (int)color_channels[2] +
                            inv_alpha * (int)dest[2]) >>
-                          8);
-        dest += 4;
+                          kAlphaShift);
+        dest += kBytesPerPixel;
       }
       destination_copy_start += dest_pitch;
     }
@@ -732,29 +764,31 @@ void VirtioGraphicsDriver::ReleaseAllResourcesBelongingToProcess(
 }
 
 void VirtioGraphicsDriver::FlushScreen() {
-  FlushRange(framebuffer_, screen_width_ * screen_height_ * 4);
+  if (!framebuffer_) return;
+  FlushRange(framebuffer_, screen_width_ * screen_height_ * kBytesPerPixel);
 
   VirtioGpuTransferToHost2d transfer;
   memset(&transfer, 0, sizeof(transfer));
-  transfer.hdr.type = 0x0105;  // VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D
+  transfer.hdr.type =
+      kVirtioGpuCmdTransferToHost2d;  // VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D
   transfer.r.x = 0;
   transfer.r.y = 0;
   transfer.r.width = screen_width_;
   transfer.r.height = screen_height_;
   transfer.offset = 0;
-  transfer.resource_id = 1;
+  transfer.resource_id = kScanoutResourceId;
 
   VirtioGpuCtrlHdr resp_hdr;
   SendCommand(&transfer, sizeof(transfer), &resp_hdr, sizeof(resp_hdr));
 
   VirtioGpuResourceFlush flush;
   memset(&flush, 0, sizeof(flush));
-  flush.hdr.type = 0x0104;  // VIRTIO_GPU_CMD_RESOURCE_FLUSH
+  flush.hdr.type = kVirtioGpuCmdResourceFlush;  // VIRTIO_GPU_CMD_RESOURCE_FLUSH
   flush.r.x = 0;
   flush.r.y = 0;
   flush.r.width = screen_width_;
   flush.r.height = screen_height_;
-  flush.resource_id = 1;
+  flush.resource_id = kScanoutResourceId;
 
   SendCommand(&flush, sizeof(flush), &resp_hdr, sizeof(resp_hdr));
 }
@@ -762,9 +796,10 @@ void VirtioGraphicsDriver::FlushScreen() {
 void VirtioGraphicsDriver::CreateScanoutResource() {
   VirtioGpuResourceCreate2d create_2d;
   memset(&create_2d, 0, sizeof(create_2d));
-  create_2d.hdr.type = 0x0101;
-  create_2d.resource_id = 1;
-  create_2d.format = 67;  // VIRTIO_GPU_FORMAT_R8G8B8A8_UNORM
+  create_2d.hdr.type = kVirtioGpuCmdResourceCreate2d;
+  create_2d.resource_id = kScanoutResourceId;
+  create_2d.format =
+      kVirtioGpuFormatR8G8B8A8Unorm;  // VIRTIO_GPU_FORMAT_R8G8B8A8_UNORM
   create_2d.width = screen_width_;
   create_2d.height = screen_height_;
 
@@ -772,11 +807,13 @@ void VirtioGraphicsDriver::CreateScanoutResource() {
   SendCommand(&create_2d, sizeof(create_2d), &resp_hdr, sizeof(resp_hdr));
 
   size_t pages =
-      (screen_width_ * screen_height_ * 4 + kPageSize - 1) / kPageSize;
+      (screen_width_ * screen_height_ * kBytesPerPixel + kPageSize - 1) /
+      kPageSize;
   framebuffer_ = (uint8*)AllocateMemoryPages(pages);
+  if (!framebuffer_) return;
   uint32* fb_pixels = (uint32*)framebuffer_;
   for (size_t i = 0; i < screen_width_ * screen_height_; i++) {
-    fb_pixels[i] = 0xFF000000;
+    fb_pixels[i] = kDefaultPixelColorOpaqueBlack;
   }
 
   size_t nr_entries = pages;
@@ -788,8 +825,8 @@ void VirtioGraphicsDriver::CreateScanoutResource() {
   if (attach_buf) {
     memset(attach_buf, 0, attach_pages * kPageSize);
     auto* attach_cmd = (VirtioGpuResourceAttachBacking*)attach_buf;
-    attach_cmd->hdr.type = 0x0106;
-    attach_cmd->resource_id = 1;
+    attach_cmd->hdr.type = kVirtioGpuCmdResourceAttachBacking;
+    attach_cmd->resource_id = kScanoutResourceId;
     attach_cmd->nr_entries = nr_entries;
 
     auto* entries = (VirtioGpuMemEntry*)(attach_cmd + 1);
@@ -806,13 +843,13 @@ void VirtioGraphicsDriver::CreateScanoutResource() {
 
   VirtioGpuSetScanout set_scanout;
   memset(&set_scanout, 0, sizeof(set_scanout));
-  set_scanout.hdr.type = 0x0103;
+  set_scanout.hdr.type = kVirtioGpuCmdSetScanout;
   set_scanout.r.x = 0;
   set_scanout.r.y = 0;
   set_scanout.r.width = screen_width_;
   set_scanout.r.height = screen_height_;
-  set_scanout.scanout_id = 0;
-  set_scanout.resource_id = 1;
+  set_scanout.scanout_id = kDefaultScanoutId;
+  set_scanout.resource_id = kScanoutResourceId;
 
   SendCommand(&set_scanout, sizeof(set_scanout), &resp_hdr, sizeof(resp_hdr));
 
@@ -830,7 +867,7 @@ void VirtioGraphicsDriver::HandleInterrupt() {
   if (isr_cfg_ != nullptr) {
     isr = isr_cfg_[0];
   } else if (io_base_ != 0) {
-    isr = Read8BitsFromPort(io_base_ + 19);
+    isr = Read8BitsFromPort(io_base_ + kVirtioLegacyIsrOffset);
   }
 
   if (isr != 0) {
@@ -841,15 +878,15 @@ void VirtioGraphicsDriver::HandleInterrupt() {
 void VirtioGraphicsDriver::CheckForResolutionChange() {
   VirtioGpuGetDisplayInfo get_display;
   memset(&get_display, 0, sizeof(get_display));
-  get_display.hdr.type = 0x0100;
+  get_display.hdr.type = kVirtioGpuCmdGetDisplayInfo;
 
   VirtioGpuRespDisplayInfo disp_info;
   memset(&disp_info, 0, sizeof(disp_info));
 
   if (SendCommand(&get_display, sizeof(get_display), &disp_info,
                   sizeof(disp_info))) {
-    if (disp_info.hdr.type == 0x1101) {
-      for (int i = 0; i < 16; i++) {
+    if (disp_info.hdr.type == kVirtioGpuRespOkDisplayInfo) {
+      for (int i = 0; i < kMaxDisplayModes; i++) {
         if (disp_info.pmodes[i].enabled && disp_info.pmodes[i].r.width > 0 &&
             disp_info.pmodes[i].r.height > 0) {
           uint32 new_width = disp_info.pmodes[i].r.width;
@@ -858,21 +895,22 @@ void VirtioGraphicsDriver::CheckForResolutionChange() {
             if (framebuffer_) {
               VirtioGpuSetScanout disable_scanout;
               memset(&disable_scanout, 0, sizeof(disable_scanout));
-              disable_scanout.hdr.type = 0x0103;
-              disable_scanout.scanout_id = 0;
-              disable_scanout.resource_id = 0;
+              disable_scanout.hdr.type = kVirtioGpuCmdSetScanout;
+              disable_scanout.scanout_id = kDefaultScanoutId;
+              disable_scanout.resource_id = kInvalidResourceId;
               VirtioGpuCtrlHdr resp_hdr;
               SendCommand(&disable_scanout, sizeof(disable_scanout), &resp_hdr,
                           sizeof(resp_hdr));
 
               VirtioGpuResourceUnref unref;
               memset(&unref, 0, sizeof(unref));
-              unref.hdr.type = 0x0102;
-              unref.resource_id = 1;
+              unref.hdr.type = kVirtioGpuCmdResourceUnref;
+              unref.resource_id = kScanoutResourceId;
               SendCommand(&unref, sizeof(unref), &resp_hdr, sizeof(resp_hdr));
 
               size_t old_pages =
-                  (screen_width_ * screen_height_ * 4 + kPageSize - 1) /
+                  (screen_width_ * screen_height_ * kBytesPerPixel + kPageSize -
+                   1) /
                   kPageSize;
               ReleaseMemoryPages(framebuffer_, old_pages);
               framebuffer_ = nullptr;
@@ -913,18 +951,18 @@ bool VirtioGraphicsDriver::SendCommand(const void* req_data, size_t req_len,
   std::lock_guard<std::mutex> lock(ctrl_mutex_);
   if (!ctrl_queue_.avail || ctrl_queue_.size == 0) return false;
 
-  if (resp_len > 4096) return false;
+  if (resp_len > kPageSize) return false;
 
   uint16 head_idx = ctrl_queue_.next_desc;
   uint16 cur_idx = head_idx;
 
-  if (req_len <= 4096) {
+  if (req_len <= kPageSize) {
     uint8* req_buf = (uint8*)ctrl_queue_.buffers_virt[cur_idx];
     memcpy(req_buf, req_data, req_len);
     FlushRange(req_buf, req_len);
     ctrl_queue_.desc[cur_idx].addr = ctrl_queue_.buffers_phys[cur_idx];
     ctrl_queue_.desc[cur_idx].len = req_len;
-    ctrl_queue_.desc[cur_idx].flags = 1;  // VRING_DESC_F_NEXT
+    ctrl_queue_.desc[cur_idx].flags = kVringDescFNext;  // VRING_DESC_F_NEXT
     uint16 next_idx = (cur_idx + 1) % ctrl_queue_.size;
     ctrl_queue_.desc[cur_idx].next = next_idx;
     cur_idx = next_idx;
@@ -942,7 +980,7 @@ bool VirtioGraphicsDriver::SendCommand(const void* req_data, size_t req_len,
       ctrl_queue_.desc[cur_idx].addr = phys;
       ctrl_queue_.desc[cur_idx].len =
           (p == pages - 1) ? (req_len - p * kPageSize) : kPageSize;
-      ctrl_queue_.desc[cur_idx].flags = 1;  // VRING_DESC_F_NEXT
+      ctrl_queue_.desc[cur_idx].flags = kVringDescFNext;  // VRING_DESC_F_NEXT
       uint16 next_idx = (cur_idx + 1) % ctrl_queue_.size;
       ctrl_queue_.desc[cur_idx].next = next_idx;
       cur_idx = next_idx;
@@ -952,7 +990,7 @@ bool VirtioGraphicsDriver::SendCommand(const void* req_data, size_t req_len,
   uint16 resp_idx = cur_idx;
   ctrl_queue_.desc[resp_idx].addr = ctrl_queue_.buffers_phys[resp_idx];
   ctrl_queue_.desc[resp_idx].len = resp_len;
-  ctrl_queue_.desc[resp_idx].flags = 2;  // VRING_DESC_F_WRITE
+  ctrl_queue_.desc[resp_idx].flags = kVringDescFWrite;  // VRING_DESC_F_WRITE
   ctrl_queue_.desc[resp_idx].next = 0;
 
   ctrl_queue_.next_desc = (resp_idx + 1) % ctrl_queue_.size;
@@ -962,31 +1000,31 @@ bool VirtioGraphicsDriver::SendCommand(const void* req_data, size_t req_len,
 
   ctrl_queue_.avail->ring[ctrl_queue_.avail->idx % ctrl_queue_.size] = head_idx;
 
-  FlushRange(ctrl_queue_.desc, 4096);
-  FlushRange(ctrl_queue_.avail, 4096);
-  FlushRange(ctrl_queue_.used, 4096);
+  FlushRange(ctrl_queue_.desc, kPageSize);
+  FlushRange(ctrl_queue_.avail, kPageSize);
+  FlushRange(ctrl_queue_.used, kPageSize);
   FlushRange(resp_buf, resp_len);
 
   __asm__ __volatile__("" ::: "memory");
   ctrl_queue_.avail->idx++;
   __asm__ __volatile__("" ::: "memory");
 
-  FlushRange(ctrl_queue_.avail, 4096);
+  FlushRange(ctrl_queue_.avail, kPageSize);
 
   if (common_cfg_ != nullptr && notify_cfg_ != nullptr) {
     uint32 noff = ctrl_queue_.notify_off * notify_off_multiplier_;
     *(volatile uint16*)(notify_cfg_ + noff) = 0;
-    FlushRange((void*)(notify_cfg_ + noff), 4);
+    FlushRange((void*)(notify_cfg_ + noff), kNotifyOffsetFlushSize);
   } else if (io_base_ != 0) {
-    Write16BitsToPort(io_base_ + 16, 0);
+    Write16BitsToPort(io_base_ + kVirtioLegacyQueueNotifyOffset, 0);
   }
 
-  int timeout = 50000000;
+  int timeout = kCommandTimeoutIterations;
   while (ctrl_queue_.last_seen_used == ctrl_queue_.used->idx) {
     if (isr_cfg_) {
       volatile uint8 isr = isr_cfg_[0];
     }
-    FlushRange(ctrl_queue_.used, 4096);
+    FlushRange(ctrl_queue_.used, kPageSize);
     timeout--;
     if (timeout <= 0) return false;
   }
@@ -998,101 +1036,4 @@ bool VirtioGraphicsDriver::SendCommand(const void* req_data, size_t req_len,
   if (resp_data && resp_len > 0) memcpy(resp_data, resp_buf, resp_len);
 
   return true;
-}
-
-void VirtioGraphicsDriver::QueueDetails::Setup(uint16 queue_idx,
-                                               uint16 io_base) {
-  Write16BitsToPort(io_base + 14, queue_idx);
-  uint16 qsize = Read16BitsFromPort(io_base + 12);
-  if (qsize == 0) return;
-
-  size_t desc_table_size = qsize * 16;
-  size_t avail_ring_size = 6 + qsize * 2;
-  size_t used_ring_offset = (desc_table_size + avail_ring_size + 4095) & ~4095;
-  size_t used_ring_size = 6 + qsize * 8;
-  size_t total_size = used_ring_offset + used_ring_size;
-  size_t pages = (total_size + 4095) / 4096;
-
-  size_t physical_address = 0;
-  void* virt_addr = AllocateContiguousMemoryPages(pages, physical_address);
-  if (!virt_addr) return;
-
-  memset(virt_addr, 0, pages * 4096);
-
-  size = qsize;
-  mem = virt_addr;
-  phys = physical_address;
-  last_seen_used = 0;
-  next_desc = 0;
-
-  desc = (VirtQueueDesc*)virt_addr;
-  avail = (VirtQueueAvail*)((size_t)virt_addr + desc_table_size);
-  used = (VirtQueueUsed*)((size_t)virt_addr + used_ring_offset);
-
-  for (int i = 0; i < qsize; i++) {
-    buffers_virt[i] = AllocateMemoryPages(1);
-    buffers_phys[i] =
-        GetPhysicalAddressOfVirtualAddress((size_t)buffers_virt[i]);
-  }
-
-  avail->flags = 1;
-  avail->idx = 0;
-
-  FlushRange(virt_addr, pages * 4096);
-  Write32BitsToPort(io_base + 8, physical_address / 4096);
-}
-
-void VirtioGraphicsDriver::QueueDetails::SetupModern(
-    uint16 queue_idx, volatile uint8* common_cfg) {
-  *(volatile uint16*)(&common_cfg[22]) = queue_idx;
-  uint16 qsize = *(volatile uint16*)(&common_cfg[24]);
-  if (qsize == 0) return;
-
-  *(volatile uint16*)(&common_cfg[24]) = qsize;
-
-  notify_off = *(volatile uint16*)(&common_cfg[30]);
-
-  void* desc_virt = AllocateMemoryPages(1);
-  void* avail_virt = AllocateMemoryPages(1);
-  void* used_virt = AllocateMemoryPages(1);
-  if (!desc_virt || !avail_virt || !used_virt) return;
-
-  memset(desc_virt, 0, 4096);
-  memset(avail_virt, 0, 4096);
-  memset(used_virt, 0, 4096);
-
-  size = qsize;
-  mem = desc_virt;
-  phys = GetPhysicalAddressOfVirtualAddress((size_t)desc_virt);
-  last_seen_used = 0;
-  next_desc = 0;
-
-  desc = (volatile VirtQueueDesc*)desc_virt;
-  avail = (volatile VirtQueueAvail*)avail_virt;
-  used = (volatile VirtQueueUsed*)used_virt;
-
-  for (int i = 0; i < qsize; i++) {
-    buffers_virt[i] = AllocateMemoryPages(1);
-    buffers_phys[i] =
-        GetPhysicalAddressOfVirtualAddress((size_t)buffers_virt[i]);
-  }
-
-  avail->flags = 1;
-  avail->idx = 0;
-
-  FlushRange(desc_virt, 4096);
-  FlushRange(avail_virt, 4096);
-  FlushRange(used_virt, 4096);
-
-  uint64 desc_p = GetPhysicalAddressOfVirtualAddress((size_t)desc_virt);
-  *(volatile uint64*)(&common_cfg[32]) = desc_p;
-
-  uint64 avail_p = GetPhysicalAddressOfVirtualAddress((size_t)avail_virt);
-  *(volatile uint64*)(&common_cfg[40]) = avail_p;
-
-  uint64 used_p = GetPhysicalAddressOfVirtualAddress((size_t)used_virt);
-  *(volatile uint64*)(&common_cfg[48]) = used_p;
-
-  *(volatile uint16*)(&common_cfg[28]) = 1;  // Enable queue
-  FlushRange((void*)common_cfg, 64);
 }

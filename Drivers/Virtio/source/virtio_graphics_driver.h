@@ -23,6 +23,7 @@
 #include "perception/devices/graphics_device.h"
 #include "perception/pci.h"
 #include "perception/shared_memory.h"
+#include "queue.h"
 #include "types.h"
 
 class VirtioGraphicsDriver : public perception::devices::GraphicsDevice::Server,
@@ -117,47 +118,6 @@ class VirtioGraphicsDriver : public perception::devices::GraphicsDevice::Server,
 
   perception::devices::PciDevice device_;
   uint16 io_base_;
-
-  struct QueueDetails {
-    struct VirtQueueDesc {
-      uint64 addr;
-      uint32 len;
-      uint16 flags;
-      uint16 next;
-    } __attribute__((packed));
-
-    struct VirtQueueAvail {
-      uint16 flags;
-      uint16 idx;
-      uint16 ring[256];
-    } __attribute__((packed));
-
-    struct VirtQueueUsedElem {
-      uint32 id;
-      uint32 len;
-    } __attribute__((packed));
-
-    struct VirtQueueUsed {
-      uint16 flags;
-      uint16 idx;
-      VirtQueueUsedElem ring[256];
-    } __attribute__((packed));
-
-    uint16 size;
-    void* mem;
-    size_t phys;
-    volatile VirtQueueDesc* desc;
-    volatile VirtQueueAvail* avail;
-    volatile VirtQueueUsed* used;
-    uint16 last_seen_used;
-    uint16 next_desc;
-    uint16 notify_off;
-    void* buffers_virt[256];
-    size_t buffers_phys[256];
-
-    void Setup(uint16 queue_idx, uint16 io_base);
-    void SetupModern(uint16 queue_idx, volatile uint8* common_cfg);
-  };
 
   std::mutex ctrl_mutex_;
   QueueDetails ctrl_queue_;
