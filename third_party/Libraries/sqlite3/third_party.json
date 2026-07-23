@@ -1,0 +1,26 @@
+{
+    "repositories" : [
+        {
+            "url": "https://www.sqlite.org/2024/sqlite-amalgamation-3450100.zip",
+            "type": "zip",
+            "placeholder": "zip"
+        }
+    ],
+    "operations" : [
+        {
+            "operation": "copy",
+            "source": "${zip}/sqlite-amalgamation-3450100/sqlite3.c",
+            "destination": "source/sqlite3.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${zip}/sqlite-amalgamation-3450100/sqlite3.h",
+            "destination": "public/sqlite3.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${zip}/sqlite-amalgamation-3450100/sqlite3ext.h",
+            "destination": "public/sqlite3ext.h"
+        }
+    ]
+}
