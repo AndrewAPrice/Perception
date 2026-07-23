@@ -277,7 +277,7 @@ void PopulateFilePathsCache() {
       // Scan files inside this library directory
       std::error_code lib_ec;
       for (const auto& lib_file :
-           std::filesystem::directory_iterator(entry.path(), ec)) {
+           std::filesystem::directory_iterator(entry.path(), lib_ec)) {
         std::string filename = lib_file.path().filename().string();
         std::string_view trimmed = GetTrimmedLibraryName(filename);
         if (trimmed != filename)
