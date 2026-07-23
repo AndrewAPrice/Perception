@@ -11,7 +11,7 @@
       else if optimization_level == 'debug' then
         ' -g -Og'
       else
-        ' -g -O2 ',
+        ' -g -O2 -fno-omit-frame-pointer ',
     local c_compiler = if is_testing then 'clang' else 'clang',
     local c_command_prefix = cpp_compiler + c_optimizations +
                              ' -c' +
@@ -111,6 +111,6 @@
   local fs_path = '${temp directory}/fs/',
   global_run_command:
     'grub-mkrescue -o "' + iso_path + '" "' + fs_path + '"&&' +
-    'qemu-system-x86_64 -display cocoa -boot d -cdrom "' + iso_path + '" -m 2048 -serial stdio -device isa-debug-exit,iobase=0xf4,iosize=0x04 -netdev user,id=net0 -device virtio-net-pci,netdev=net0 -vga virtio -monitor unix:./qemu-monitor.sock,server,nowait',
+    'qemu-system-x86_64 -display cocoa -boot d -drive id=sata_cd,file="' + iso_path + '",if=none,format=raw -device ich9-ahci,id=ahci -device ide-cd,drive=sata_cd,bus=ahci.0 -device intel-hda -device hda-duplex -m 2048 -serial stdio -device isa-debug-exit,iobase=0xf4,iosize=0x04 -netdev user,id=net0 -device virtio-net-pci,netdev=net0 -vga virtio -monitor unix:./qemu-monitor.sock,server,nowait',
 
 }

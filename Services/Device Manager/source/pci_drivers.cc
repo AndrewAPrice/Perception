@@ -33,6 +33,17 @@ bool LoadPciDriver(uint8 base_class, uint8 sub_class, uint8 prog_if,
         case 0x01:
           AddDriverToLoad("IDE Controller");
           return true;
+        case 0x06:
+          AddDriverToLoad("AHCI Controller");
+          return true;
+        default:
+          return false;
+      }
+    case 0x04:  // Multimedia controller
+      switch (sub_class) {
+        case 0x03:
+          AddDriverToLoad("Intel High Definition Audio");
+          return true;
         default:
           return false;
       }

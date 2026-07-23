@@ -132,7 +132,7 @@ StatusOr<::perception::ProcessId> LoadProgram(
   // Detecting if something is a driver if the device manager launches it
   // is a temporary solution.
   bool is_driver = name == "Device Manager" || name == "IDE Controller" ||
-                   name == "Virtio Network" ||
+                   name == "AHCI Controller" || name == "Virtio Network" ||
                    GetProcessName(creator) == "Device Manager";
   size_t bitfield = is_driver ? (1 << 0) : 0;
 
