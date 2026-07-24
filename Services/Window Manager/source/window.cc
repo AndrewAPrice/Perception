@@ -21,6 +21,7 @@
 
 #include "compositor.h"
 #include "highlighter.h"
+#ifndef TEST
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColorSpace.h"
 #include "include/core/SkFont.h"
@@ -29,6 +30,7 @@
 #include "include/core/SkPaint.h"
 #include "include/core/SkString.h"
 #include "include/core/SkSurface.h"
+#endif
 #include "perception/devices/graphics_device.h"
 #include "perception/devices/keyboard_device.h"
 #include "perception/devices/mouse_listener.h"
@@ -50,6 +52,7 @@
 #include "perception/window/window_manager.h"
 #include "screen.h"
 #include "window_buttons.h"
+#include "window_manager.h"
 
 using ::perception::Defer;
 using ::perception::DrawXLine;
@@ -169,10 +172,15 @@ void StopDragging() {
 
 }  // namespace
 
+float Window::GetTitleBarHeight() const {
+  float scale = WindowManager::GetScale();
+  return std::round(kTitleBarHeight * scale);
+}
+
 void Window::ValidateWindowBounds(Rectangle& bounds) const {
   auto screen_size = GetScreenSize();
   float title_bar_h =
-      !is_fullscreen_ && add_title_bar_ ? kTitleBarHeight : 0.0f;
+      !is_fullscreen_ && add_title_bar_ ? GetTitleBarHeight() : 0.0f;
   float min_w = minimum_size_ && minimum_size_->width > 0 ? minimum_size_->width
                                                           : kMinimumWindowSize;
   float min_h = minimum_size_ && minimum_size_->height > 0
@@ -242,7 +250,7 @@ StatusOr<std::shared_ptr<Window>> Window::CreateWindow(
 
   float desired_h = request.desired_size.height;
   if (desired_h > 0.0f && window->add_title_bar_) {
-    desired_h += kTitleBarHeight;
+    desired_h += window->GetTitleBarHeight();
   }
   window->screen_area_.size = {request.desired_size.width, desired_h};
 
@@ -372,7 +380,7 @@ void Window::SetCursor(::perception::window::Cursor cursor) {
 
     if (window.add_title_bar_ && !window.is_fullscreen_ &&
         point.y >= screen_area.origin.y &&
-        point.y < screen_area.origin.y + kTitleBarHeight) {
+        point.y < screen_area.origin.y + window.GetTitleBarHeight()) {
       cursor = ::perception::window::Cursor::Drag;
       return true;
     }
@@ -508,7 +516,13 @@ void Window::Close() {
 
 void Window::UnfocusAllWindows() {
   if (focused_window) focused_window->Unfocus();
+  focused_window = nullptr;
+  captive_mouse_window = nullptr;
+  hovering_window = nullptr;
+  dragging_window = nullptr;
+#ifndef TEST
   GetService<KeyboardDevice>().SetKeyboardListener({}, nullptr);
+#endif
 }
 
 void Window::EnsureWindowsAreOnScreen() {
@@ -528,6 +542,14 @@ void Window::EnsureWindowsAreOnScreen() {
     if (old_area != window.GetScreenAreaWithFrame()) {
       window.Resized();
     }
+    return false;
+  });
+}
+
+void Window::OnScaleChanged() {
+  (void)ForEachFrontToBackWindow([](Window& window) {
+    window.title_bar_texture_dirty_ = true;
+    window.InvalidateScreenArea();
     return false;
   });
 }
@@ -591,9 +613,12 @@ void Window::EnsureTitleBarTexture() {
   if (!add_title_bar_ || is_fullscreen_ || !title_bar_texture_dirty_) return;
   title_bar_texture_dirty_ = false;
   int needed_w = static_cast<int>(std::round(screen_area_.size.width));
-  if (needed_w <= 0) return;
+  int needed_h = static_cast<int>(GetTitleBarHeight());
+  if (needed_w <= 0 || needed_h <= 0) return;
+  float scale = WindowManager::GetScale();
 
-  if (title_bar_texture_id_ == 0 || title_bar_texture_width_ != needed_w) {
+  if (title_bar_texture_id_ == 0 || title_bar_texture_width_ != needed_w ||
+      title_bar_texture_height_ != needed_h) {
     if (title_bar_texture_id_ != 0) {
       ::perception::GetService<::perception::devices::GraphicsDevice>()
           .DestroyTexture(::perception::devices::graphics::TextureReference(
@@ -603,8 +628,7 @@ void Window::EnsureTitleBarTexture() {
       title_bar_shared_memory_.reset();
     }
     ::perception::devices::graphics::CreateTextureRequest request;
-    request.size = ::perception::devices::graphics::Size(
-        needed_w, static_cast<int>(kTitleBarHeight));
+    request.size = ::perception::devices::graphics::Size(needed_w, needed_h);
     auto status_or_res =
         ::perception::GetService<::perception::devices::GraphicsDevice>()
             .CreateTexture(request);
@@ -612,17 +636,18 @@ void Window::EnsureTitleBarTexture() {
       title_bar_texture_id_ = status_or_res->texture.id;
       title_bar_shared_memory_ = status_or_res->pixel_buffer;
       title_bar_texture_width_ = needed_w;
+      title_bar_texture_height_ = needed_h;
     } else {
       return;
     }
   }
 
+#ifndef TEST
   if (!title_bar_shared_memory_ || !title_bar_shared_memory_->Join()) return;
 
   auto image_info = SkImageInfo::Make(
-      needed_w, static_cast<int>(kTitleBarHeight),
-      SkColorType::kBGRA_8888_SkColorType, SkAlphaType::kOpaque_SkAlphaType,
-      SkColorSpace::MakeSRGB());
+      needed_w, needed_h, SkColorType::kBGRA_8888_SkColorType,
+      SkAlphaType::kOpaque_SkAlphaType, SkColorSpace::MakeSRGB());
   auto surface = SkSurfaces::WrapPixels(image_info, **title_bar_shared_memory_,
                                         needed_w * 4);
   if (!surface) return;
@@ -639,12 +664,16 @@ void Window::EnsureTitleBarTexture() {
     paint.setAntiAlias(true);
     paint.setColor(is_focused ? ::perception::ui::kLabelOnDarkTextColor
                               : ::perception::ui::kLabelTextColor);
+    canvas->save();
+    canvas->scale(scale, scale);
     SkFontMetrics font_metrics;
     font->getMetrics(&font_metrics);
     float line_y = 8.0f - font_metrics.fAscent;
     canvas->drawString(SkString(title_.data(), title_.length()), 8.0f, line_y,
                        *font, paint);
+    canvas->restore();
   }
+#endif
 }
 
 std::string_view Window::GetTitle() const { return title_; }
@@ -694,6 +723,8 @@ bool Window::MouseEvent(const Point& point,
     if (!resizing) {
       // Handle dragging the entire window.
       new_screen_area.origin += drag_offset;
+      new_screen_area.origin.x = std::round(new_screen_area.origin.x);
+      new_screen_area.origin.y = std::round(new_screen_area.origin.y);
     }
 
     ValidateWindowBounds(new_screen_area);
@@ -707,8 +738,6 @@ bool Window::MouseEvent(const Point& point,
         if (screen_area_ != new_screen_area) {
           bool resized = screen_area_.size != new_screen_area.size;
 
-          // The bounds have changed. Update the frame and invalidate the
-          // screen where both the old frame and the new frames are.
           auto old_area_with_frame = GetScreenAreaWithFrame();
           screen_area_ = new_screen_area;
           auto new_area_with_frame = GetScreenAreaWithFrame();
@@ -735,7 +764,8 @@ bool Window::MouseEvent(const Point& point,
           auto old_area_with_frame = GetScreenAreaWithFrame();
           screen_area_ = new_screen_area;
           auto new_area_with_frame = GetScreenAreaWithFrame();
-          InvalidateScreen(old_area_with_frame.Union(new_area_with_frame));
+          auto union_area = old_area_with_frame.Union(new_area_with_frame);
+          InvalidateScreen(union_area);
           dragging_origin = point;
         }
       }
@@ -837,7 +867,7 @@ bool Window::MouseEvent(const Point& point,
 
     Point local_point = point - screen_area.origin;
     if (add_title_bar_ && !is_fullscreen_) {
-      if (point.y < screen_area.origin.y + kTitleBarHeight) {
+      if (point.y < screen_area.origin.y + GetTitleBarHeight()) {
         if (hovered_window_button && button_event && !IsDragging() &&
             button_event->button == MouseButton::Left &&
             button_event->is_pressed_down) {
@@ -852,7 +882,7 @@ bool Window::MouseEvent(const Point& point,
         }
         return true;
       }
-      local_point.y -= kTitleBarHeight;
+      local_point.y -= GetTitleBarHeight();
     }
 
     if (button_event && !IsDragging()) {
@@ -894,52 +924,64 @@ bool Window::MouseEvent(const Point& point,
 void Window::Draw(const Rectangle& screen_area) {
   if (!IsVisible()) return;
   if (!screen_area.Intersects(GetScreenAreaWithFrame())) return;
-  auto bounds = GetScreenArea();
+  auto bounds = GetScreenArea().RoundedToLargestWholeInteger();
 
   if (!is_fullscreen_) {
-    // Draw the frame.
+    float scale = WindowManager::GetScale();
+    float shadow_t = std::round(kDropFrameThickness * scale);
+    int shadow_layers = std::max(1, static_cast<int>(shadow_t));
+
     float max_x = bounds.MaxX();
     float max_y = bounds.MaxY();
-    float horizontal_frame_width = bounds.size.width + 2;
+    float horizontal_frame_width = bounds.size.width + 2.0f;
     float vertical_frame_height = bounds.size.height;
-    // Top frame.
+
+    // Top frame (1px border).
     DrawWindowFramePart(
         screen_area,
-        {.origin = {.x = bounds.origin.x - 1, .y = bounds.origin.y - 1},
-         .size = {.width = horizontal_frame_width, .height = 1}},
+        {.origin = {.x = bounds.origin.x - 1.0f, .y = bounds.origin.y - 1.0f},
+         .size = {.width = horizontal_frame_width, .height = 1.0f}},
         WINDOW_BORDER_COLOUR);
 
-    // Left frame.
+    // Left frame (1px border).
     DrawWindowFramePart(
         screen_area,
-        {.origin = {.x = bounds.origin.x - 1, .y = bounds.origin.y},
-         .size = {.width = 1, .height = vertical_frame_height}},
+        {.origin = {.x = bounds.origin.x - 1.0f, .y = bounds.origin.y},
+         .size = {.width = 1.0f, .height = vertical_frame_height}},
         WINDOW_BORDER_COLOUR);
 
-    // Bottom frame, with shadows.
+    // Bottom frame (1px border + shadow_layers).
     Rectangle bottom_frame = {
-        .origin = {.x = bounds.origin.x - 1, .y = max_y},
-        .size = {.width = horizontal_frame_width, .height = 1}};
+        .origin = {.x = bounds.origin.x - 1.0f, .y = max_y},
+        .size = {.width = horizontal_frame_width, .height = 1.0f}};
     DrawWindowFramePart(screen_area, bottom_frame, WINDOW_BORDER_COLOUR);
-    bottom_frame.origin += {.x = 1, .y = 1};
-    DrawAlphaWindowFramePart(screen_area, bottom_frame, WINDOW_SHADOW_1);
-    bottom_frame.origin += {.x = 1, .y = 1};
-    DrawAlphaWindowFramePart(screen_area, bottom_frame, WINDOW_SHADOW_2);
 
-    // Right frame, with shadows.
+    for (int i = 1; i <= shadow_layers; i++) {
+      uint32 shadow_color =
+          (i <= shadow_layers / 2) ? WINDOW_SHADOW_1 : WINDOW_SHADOW_2;
+      bottom_frame.origin += {.x = 1.0f, .y = 1.0f};
+      DrawAlphaWindowFramePart(screen_area, bottom_frame, shadow_color);
+    }
+
+    // Right frame (1px border + shadow_layers).
     Rectangle right_frame = {
         .origin = {.x = max_x, .y = bounds.origin.y},
-        .size = {.width = 1, .height = vertical_frame_height}};
+        .size = {.width = 1.0f, .height = vertical_frame_height}};
     DrawWindowFramePart(screen_area, right_frame, WINDOW_BORDER_COLOUR);
-    right_frame.origin.x += 1;
-    right_frame.size.height += 1;
-    DrawAlphaWindowFramePart(screen_area, right_frame, WINDOW_SHADOW_1);
-    right_frame.origin += {.x = 1, .y = 1};
-    DrawAlphaWindowFramePart(screen_area, right_frame, WINDOW_SHADOW_2);
+
+    right_frame.origin.x += 1.0f;
+    for (int i = 1; i <= shadow_layers; i++) {
+      uint32 shadow_color =
+          (i <= shadow_layers / 2) ? WINDOW_SHADOW_1 : WINDOW_SHADOW_2;
+      right_frame.size.height =
+          vertical_frame_height + static_cast<float>(shadow_layers + 2 - i);
+      DrawAlphaWindowFramePart(screen_area, right_frame, shadow_color);
+      right_frame.origin += {.x = 1.0f, .y = 1.0f};
+    }
   }
 
   float title_bar_h =
-      (!is_fullscreen_ && add_title_bar_) ? kTitleBarHeight : 0.0f;
+      (!is_fullscreen_ && add_title_bar_) ? GetTitleBarHeight() : 0.0f;
   if (title_bar_h > 0.0f) {
     EnsureTitleBarTexture();
     if (title_bar_texture_id_ != 0) {
@@ -957,16 +999,24 @@ void Window::Draw(const Rectangle& screen_area) {
 
   // Draw the contents of the window.
   if (texture_id_ != 0) {
-    Rectangle content_bounds = {
-        .origin = bounds.origin + Point{0, title_bar_h},
-        .size = {.width = bounds.size.width,
-                 .height = bounds.size.height - title_bar_h}};
-    auto intersection = content_bounds.Intersection(screen_area);
-    if (intersection) {
-      CopyOpaqueTexture(*intersection, texture_id_,
-                        intersection->origin - content_bounds.origin);
-      if (is_debugging_) {
-        DrawAlphaBlendedColor(*intersection, DEBUGGING_TINT);
+    float draw_w = (buffer_width_ > 0.0f)
+                       ? std::min(bounds.size.width, buffer_width_)
+                       : bounds.size.width;
+    float draw_h =
+        (buffer_height_ > 0.0f)
+            ? std::min(bounds.size.height - title_bar_h, buffer_height_)
+            : (bounds.size.height - title_bar_h);
+    if (draw_w > 0.0f && draw_h > 0.0f) {
+      Rectangle content_bounds = {
+          .origin = bounds.origin + Point{0, title_bar_h},
+          .size = {.width = draw_w, .height = draw_h}};
+      auto intersection = content_bounds.Intersection(screen_area);
+      if (intersection) {
+        CopyOpaqueTexture(*intersection, texture_id_,
+                          intersection->origin - content_bounds.origin);
+        if (is_debugging_) {
+          DrawAlphaBlendedColor(*intersection, DEBUGGING_TINT);
+        }
       }
     }
   }
@@ -983,6 +1033,7 @@ void Window::Draw(const Rectangle& screen_area) {
                                   window_button_texture_offset);
     }
   }
+  last_drawn_area_with_frame_ = GetScreenAreaWithFrame();
 }
 
 void Window::Invalidate() { return Invalidate(GetScreenAreaWithFrame()); }
@@ -997,11 +1048,27 @@ void Window::Invalidate(const Rectangle& screen_area) {
   InvalidateScreen(*screen_area_to_invalidate);
 }
 
+void Window::InvalidateScreenArea() {
+  auto current_area = GetScreenAreaWithFrame();
+  if (last_drawn_area_with_frame_.size.width > 0.0f &&
+      last_drawn_area_with_frame_.size.height > 0.0f) {
+    InvalidateScreen(last_drawn_area_with_frame_.Union(current_area));
+  } else {
+    InvalidateScreen(current_area);
+  }
+}
+
 void Window::InvalidateLocalArea(const Rectangle& window_area) {
-  auto screen_area = window_area;
+  Rectangle physical_window_area = {
+      .origin = {.x = std::round(window_area.origin.x),
+                 .y = std::round(window_area.origin.y)},
+      .size = {.width = std::round(window_area.size.width),
+               .height = std::round(window_area.size.height)}};
+
+  auto screen_area = physical_window_area;
   screen_area.origin += screen_area_.origin;
   if (!is_fullscreen_ && add_title_bar_)
-    screen_area.origin.y += kTitleBarHeight;
+    screen_area.origin.y += GetTitleBarHeight();
 
   return Invalidate(screen_area);
 }
@@ -1044,18 +1111,20 @@ void Window::StartDragging() {
 
 ::perception::window::Size Window::GetContentSize() const {
   float title_bar_h =
-      (!is_fullscreen_ && add_title_bar_) ? kTitleBarHeight : 0.0f;
+      (!is_fullscreen_ && add_title_bar_) ? GetTitleBarHeight() : 0.0f;
   return {screen_area_.size.width, screen_area_.size.height - title_bar_h};
 }
 
 Rectangle Window::GetScreenAreaWithFrame() const {
   if (is_fullscreen_) return screen_area_;
+  float scale = WindowManager::GetScale();
+  float drop_frame_thickness = std::round(kDropFrameThickness * scale);
   auto screen_area = GetScreenArea();
   screen_area.origin -= Point{.x = kFrameThickness, .y = kFrameThickness};
   screen_area.size +=
-      Size{.width = 2.0f * kFrameThickness + kDropFrameThickness,
-           .height = 2.0f * kFrameThickness + kDropFrameThickness};
-  return screen_area;
+      Size{.width = 2.0f * kFrameThickness + drop_frame_thickness,
+           .height = 2.0f * kFrameThickness + drop_frame_thickness};
+  return screen_area.RoundedToLargestWholeInteger();
 }
 
 const Rectangle& Window::GetScreenArea() const { return screen_area_; }
@@ -1071,7 +1140,7 @@ void Window::SetTextureId(int texture_id) {
 
 void Window::SetSize(const ::perception::window::Size& size) {
   float title_bar_h =
-      !is_fullscreen_ && add_title_bar_ ? kTitleBarHeight : 0.0f;
+      !is_fullscreen_ && add_title_bar_ ? GetTitleBarHeight() : 0.0f;
   float new_w = size.width;
   float new_h = size.height + title_bar_h;
 
@@ -1085,19 +1154,15 @@ void Window::SetSize(const ::perception::window::Size& size) {
   if (screen_area_.size.width == new_w && screen_area_.size.height == new_h)
     return;
 
-  auto old_area_with_frame = GetScreenAreaWithFrame();
-
   screen_area_.size.width = new_w;
   screen_area_.size.height = new_h;
+  buffer_width_ = size.width;
+  buffer_height_ = size.height;
   title_bar_texture_dirty_ = true;
 
   ValidateWindowBounds(screen_area_);
-
-  auto new_area_with_frame = GetScreenAreaWithFrame();
-  if (old_area_with_frame != new_area_with_frame) {
-    Resized();
-    InvalidateScreen(old_area_with_frame.Union(new_area_with_frame));
-  }
+  Resized();
+  InvalidateScreenArea();
 }
 
 void Window::CommonInit() {
@@ -1106,9 +1171,14 @@ void Window::CommonInit() {
   is_debugging_ = false;
   is_closed_ = false;
   cursor_ = ::perception::window::Cursor::Pointer;
+  texture_id_ = 0;
+  buffer_width_ = 0.0f;
+  buffer_height_ = 0.0f;
   title_bar_texture_id_ = 0;
   title_bar_texture_width_ = 0;
+  title_bar_texture_height_ = 0;
   title_bar_texture_dirty_ = true;
+  last_drawn_area_with_frame_ = ::perception::ui::Rectangle{};
 
   auto screen_size = GetScreenSize();
   screen_area_.size = {.width = screen_area_.size.width >= 1.0f
@@ -1170,7 +1240,8 @@ void Window::Hide() {
     }
   }
   z_ordered_windows_.Remove(this);
-  InvalidateScreen(GetScreenAreaWithFrame());
+  InvalidateScreenArea();
+  last_drawn_area_with_frame_ = ::perception::ui::Rectangle{};
   is_visible_ = false;
 }
 
@@ -1202,9 +1273,9 @@ bool Window::IsHovering() const { return hovering_window == this; }
 Rectangle Window::WindowButtonScreenArea() const {
   Rectangle rect;
   rect.size = WindowButtonSize(is_resizable_);
-  rect.origin.x = screen_area_.MaxX() - rect.size.width;
-  rect.origin.y =
-      screen_area_.origin.y + (kTitleBarHeight - rect.size.height) / 2.0f;
+  rect.origin.x = std::round(screen_area_.MaxX() - rect.size.width);
+  rect.origin.y = std::round(screen_area_.origin.y +
+                             (GetTitleBarHeight() - rect.size.height) / 2.0f);
   return rect;
 }
 

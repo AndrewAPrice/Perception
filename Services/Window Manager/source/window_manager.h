@@ -79,4 +79,12 @@ class WindowManager : public ::perception::window::WindowManager::Server {
   Status SetWindowCaptureMouse(
       const ::perception::window::SetWindowCaptureMouseRequest& parameters,
       ::perception::ProcessId sender) override;
+
+  StatusOr<::perception::window::GetEnvironmentResponse> GetEnvironment()
+      override;
+
+  static void InitializeEnvironment();
+  static void UpdateEnvironmentFromRegistry();
+  static std::string GetSerializedColorSpace();
+  static float GetScale();
 };

@@ -52,6 +52,7 @@ class Window : public std::enable_shared_from_this<Window> {
   void Close();
   static void UnfocusAllWindows();
   static void EnsureWindowsAreOnScreen();
+  static void OnScaleChanged();
   static bool ExitFullScreen();
   static bool ExitFullScreenOrMouseCapture();
   void SetCaptureMouse(bool capture);
@@ -112,6 +113,7 @@ class Window : public std::enable_shared_from_this<Window> {
   bool IsDragging() const;
   bool IsHovering() const;
 
+  float GetTitleBarHeight() const;
   ::perception::ui::Rectangle WindowButtonScreenArea() const;
   bool AreWindowButtonsVisible() const;
   void HandleWindowButtonClick();
@@ -142,6 +144,8 @@ class Window : public std::enable_shared_from_this<Window> {
   // The texture representing the contents of this window.
   // 0 if unknown.
   size_t texture_id_;
+  float buffer_width_;
+  float buffer_height_;
 
   ::perception::window::BaseWindow::Client window_listener_;
   ::perception::MessageId message_id_to_notify_on_window_disappearence_;
@@ -158,12 +162,16 @@ class Window : public std::enable_shared_from_this<Window> {
   size_t title_bar_texture_id_;
   std::shared_ptr<::perception::SharedMemory> title_bar_shared_memory_;
   int title_bar_texture_width_;
+  int title_bar_texture_height_;
   bool title_bar_texture_dirty_;
   void EnsureTitleBarTexture();
 
   bool is_debugging_;
   bool is_closed_;
   bool is_mouse_captive_;
+
+  ::perception::ui::Rectangle last_drawn_area_with_frame_;
+  void InvalidateScreenArea();
 };
 
 std::shared_ptr<Window> GetWindowWithListener(

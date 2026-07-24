@@ -115,6 +115,13 @@ class UiWindow : public window::WindowDelegate,
 
   void SetNode(std::weak_ptr<Node> node);
   void SetBackgroundColor(uint32 background_color);
+  void SetColorSpace(sk_sp<SkColorSpace> color_space);
+  sk_sp<SkColorSpace> GetColorSpace() const;
+  float GetScale() const;
+  static float GetUiScale();
+  static void OnGlobalColorSpaceChanged(sk_sp<SkColorSpace> new_color_space);
+  static void OnGlobalEnvironmentChanged(sk_sp<SkColorSpace> new_color_space,
+                                         float new_scale);
   void OnClose(std::function<void()> on_close_handler);
   void SetTitle(std::string_view title);
   void SetIsResizable(bool is_resizable);
@@ -201,6 +208,7 @@ class UiWindow : public window::WindowDelegate,
   int buffer_height_;
 
   sk_sp<SkSurface> skia_surface_;
+  sk_sp<SkColorSpace> custom_color_space_;
 
   std::recursive_mutex window_mutex_;
 

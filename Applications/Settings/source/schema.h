@@ -31,7 +31,8 @@ enum class SettingType {
   OPTIONS,
   TABLE,
   PERMISSION,
-  APPLICATION
+  APPLICATION,
+  SLIDER
 };
 
 struct TableColumn {
@@ -47,9 +48,14 @@ struct ActiveSetting {
   SettingType type;
   std::string description;
   std::vector<std::string> options;
+  std::vector<::perception::serialization::Value> option_values;
   ::perception::serialization::Value default_val;
   std::vector<TableColumn> table_columns;
   std::string page;
+  double min_val = 0.0;
+  double max_val = 1.0;
+  double step_val = 0.0;
+  std::string unit;
 };
 
 struct PackageMetadata {

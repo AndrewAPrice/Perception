@@ -26,6 +26,7 @@ using ::perception::ui::Rectangle;
 // Adds a rectangle, splitting any rectangle that is partially covered,
 // and removing any rectangle that is fully covered.
 void CompositorQuadTree::AddOccludingRectangle(QuadRectangle* rect) {
+  rect->bounds = rect->bounds.RoundedToLargestWholeInteger();
   if (rect->bounds.Width() <= 0.0f || rect->bounds.Height() <= 0.0f) {
     rectangle_pool_.Release(rect);
     return;
@@ -42,6 +43,7 @@ void CompositorQuadTree::AddOccludingRectangle(QuadRectangle* rect) {
 }
 
 void CompositorQuadTree::AddRectangle(QuadRectangle* rect) {
+  rect->bounds = rect->bounds.RoundedToLargestWholeInteger();
   if (rect->bounds.Width() <= 0.0f || rect->bounds.Height() <= 0.0f) {
     rectangle_pool_.Release(rect);
     return;
@@ -54,10 +56,11 @@ void CompositorQuadTree::AddRectangle(QuadRectangle* rect) {
 // texture.
 void CompositorQuadTree::DrawAreaToWindowManagerTexture(
     const Rectangle& screen_area) {
-  if (screen_area.size.width <= 0 || screen_area.size.height <= 0) return;
+  Rectangle rounded_area = screen_area.RoundedToLargestWholeInteger();
+  if (rounded_area.size.width <= 0 || rounded_area.size.height <= 0) return;
 
   QuadRectangle* rect = rectangle_pool_.Allocate();
-  rect->bounds = screen_area;
+  rect->bounds = rounded_area;
 
   ForEachOverlappingItem(rect, [&](QuadRectangle* overlapping_rect) {
     if (overlapping_rect->stage != QuadRectangleStage::OPAQUE_TO_SCREEN) {
@@ -96,63 +99,65 @@ QuadRectangle* CompositorQuadTree::AllocateRectangle() {
 // calling this.
 void CompositorQuadTree::CreateSubRectanglesForEachBackgroundPartThatPokesOut(
     const QuadRectangle& background, const QuadRectangle& foreground) {
+  QuadRectangle bg = background;
+  bg.bounds = bg.bounds.RoundedToLargestWholeInteger();
+  QuadRectangle fg = foreground;
+  fg.bounds = fg.bounds.RoundedToLargestWholeInteger();
+
   // Divides the rectangle up into 4 parts that could peak out:
   // #####
   // %%i**
   // @@@@@
 
   // Top
-  if (background.bounds.MinY() < foreground.bounds.MinY()) {
+  if (bg.bounds.MinY() < fg.bounds.MinY()) {
     CreateSubRectangle(
-        background,
-        Rectangle::FromMinMaxPoints(
-            Point{background.bounds.MinX(), background.bounds.MinY()},
-            Point{background.bounds.MaxX(), foreground.bounds.MinY()}),
-        background.stage);
+        bg,
+        Rectangle::FromMinMaxPoints(Point{bg.bounds.MinX(), bg.bounds.MinY()},
+                                    Point{bg.bounds.MaxX(), fg.bounds.MinY()}),
+        bg.stage);
   }
 
   // Bottom
-  if (background.bounds.MaxY() > foreground.bounds.MaxY()) {
+  if (bg.bounds.MaxY() > fg.bounds.MaxY()) {
     CreateSubRectangle(
-        background,
-        Rectangle::FromMinMaxPoints(
-            Point{background.bounds.MinX(), foreground.bounds.MaxY()},
-            Point{background.bounds.MaxX(), background.bounds.MaxY()}),
-        background.stage);
+        bg,
+        Rectangle::FromMinMaxPoints(Point{bg.bounds.MinX(), fg.bounds.MaxY()},
+                                    Point{bg.bounds.MaxX(), bg.bounds.MaxY()}),
+        bg.stage);
   }
 
   // Left
-  if (background.bounds.MinX() < foreground.bounds.MinX()) {
-    CreateSubRectangle(
-        background,
-        Rectangle::FromMinMaxPoints(
-            Point{background.bounds.MinX(),
-                  std::max(background.bounds.MinY(), foreground.bounds.MinY())},
-            Point{
-                foreground.bounds.MinX(),
-                std::min(background.bounds.MaxY(), foreground.bounds.MaxY())}),
-        background.stage);
+  if (bg.bounds.MinX() < fg.bounds.MinX()) {
+    CreateSubRectangle(bg,
+                       Rectangle::FromMinMaxPoints(
+                           Point{bg.bounds.MinX(),
+                                 std::max(bg.bounds.MinY(), fg.bounds.MinY())},
+                           Point{fg.bounds.MinX(),
+                                 std::min(bg.bounds.MaxY(), fg.bounds.MaxY())}),
+                       bg.stage);
   }
 
   // Right
-  if (background.bounds.MaxX() > foreground.bounds.MaxX()) {
-    CreateSubRectangle(
-        background,
-        Rectangle::FromMinMaxPoints(
-            Point{foreground.bounds.MaxX(),
-                  std::max(background.bounds.MinY(), foreground.bounds.MinY())},
-            Point{
-                background.bounds.MaxX(),
-                std::min(background.bounds.MaxY(), foreground.bounds.MaxY())}),
-        background.stage);
+  if (bg.bounds.MaxX() > fg.bounds.MaxX()) {
+    CreateSubRectangle(bg,
+                       Rectangle::FromMinMaxPoints(
+                           Point{fg.bounds.MaxX(),
+                                 std::max(bg.bounds.MinY(), fg.bounds.MinY())},
+                           Point{bg.bounds.MaxX(),
+                                 std::min(bg.bounds.MaxY(), fg.bounds.MaxY())}),
+                       bg.stage);
   }
 }
 
 void CompositorQuadTree::CreateSubRectangle(const QuadRectangle& background,
                                             const Rectangle& bounds,
                                             QuadRectangleStage stage) {
+  Rectangle rounded_bounds = bounds.RoundedToLargestWholeInteger();
+  if (rounded_bounds.Width() <= 0.0f || rounded_bounds.Height() <= 0.0f) return;
+
   QuadRectangle* new_part = rectangle_pool_.Allocate();
-  new_part->bounds = bounds;
+  new_part->bounds = rounded_bounds;
   new_part->SubRectangleOf(background);
   new_part->stage = stage;
   Add(new_part);

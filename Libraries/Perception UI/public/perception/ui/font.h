@@ -15,7 +15,13 @@
 #pragma once
 
 #include <string_view>
+#ifdef TEST
+namespace SkFontStyle {
+enum Slant { kUpright_Slant, kItalic_Slant };
+}
+#else
 #include "include/core/SkFontStyle.h"
+#endif
 
 class SkFont;
 

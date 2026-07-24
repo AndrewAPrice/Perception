@@ -26,3 +26,7 @@ uint32* GetWindowManagerTextureData();
 void SleepUntilWeAreReadyToStartDrawing();
 void RunDrawCommands(
     const ::perception::devices::graphics::Commands& commands);
+
+#ifdef TEST
+const ::perception::devices::graphics::Commands& GetLastRunDrawCommands();
+#endif

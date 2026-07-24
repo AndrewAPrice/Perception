@@ -54,6 +54,16 @@ int main(int argc, char *argv[]) {
     ::perception::Defer([]() { UpdateWindowCloseTimeout(); });
   });
 
+  WindowManager::InitializeEnvironment();
+  ::perception::RegisterRegistryListener("colorSpaceTransferFn", []() {
+    WindowManager::UpdateEnvironmentFromRegistry();
+  });
+  ::perception::RegisterRegistryListener("colorSpaceGamut", []() {
+    WindowManager::UpdateEnvironmentFromRegistry();
+  });
+  ::perception::RegisterRegistryListener(
+      "scale", []() { WindowManager::UpdateEnvironmentFromRegistry(); });
+
   // Draw the entire screen.
   InvalidateScreen(Rectangle{.size = GetScreenSize()});
   DrawScreen();

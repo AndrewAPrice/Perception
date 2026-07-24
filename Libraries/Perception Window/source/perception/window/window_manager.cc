@@ -113,6 +113,16 @@ void SetWindowCaptureMouseRequest::Serialize(
   serializer.Integer("Capture", capture);
 }
 
+void WindowManagerEnvironmentChangedNotification::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.String("Color space", color_space);
+  serializer.Float("Scale", scale);
+}
+
+void GetEnvironmentResponse::Serialize(serialization::Serializer& serializer) {
+  serializer.String("Color space", color_space);
+  serializer.Float("Scale", scale);
+}
+
 }  // namespace window
 }  // namespace perception
-// End of WindowManager serialization implementations.

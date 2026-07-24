@@ -267,7 +267,7 @@ class QuadTree {
     object_pool_->Release(item);
   }
 
-  void ForEachItem(const std::function<void(T*)>& on_each_item) {
+  void ForEachItem(const std::function<void(T*)>& on_each_item) const {
     ForEachItemInNode(root_, on_each_item);
   }
 
@@ -290,7 +290,7 @@ class QuadTree {
   }
 
   void ForEachItemInNode(Node* node,
-                         const std::function<void(T*)>& on_each_item) {
+                         const std::function<void(T*)>& on_each_item) const {
     if (node == nullptr) return;
     for (Object* item : node->items) on_each_item(static_cast<T*>(item));
     for (int i = 0; i < 4; i++)

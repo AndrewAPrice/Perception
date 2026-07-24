@@ -14,8 +14,8 @@
 
 #include "compositor.h"
 
-#include "perception/registry.h"
-#include "perception/scheduler.h"
+#include <cmath>
+#include <iostream>
 
 #include "compositor_quad_tree.h"
 #include "highlighter.h"
@@ -23,11 +23,14 @@
 #include "perception/devices/graphics_device.h"
 #include "perception/draw.h"
 #include "perception/object_pool.h"
+#include "perception/registry.h"
+#include "perception/scheduler.h"
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
 #include "screen.h"
 #include "types.h"
 #include "window.h"
+#include "window_manager.h"
 
 namespace graphics = ::perception::devices::graphics;
 using ::perception::DrawSprite1bitAlpha;
@@ -46,6 +49,10 @@ Rectangle invalidated_area;
 CompositorQuadTree quad_tree;
 
 int z_index;
+
+}  // namespace
+
+namespace {
 
 void AddOpaqueRectangle(
     const std::function<void(QuadRectangle&)>& populate_rectangle) {
@@ -102,9 +109,12 @@ void PopulateCommandsForRectangle(QuadRectangle& rectangle,
                          : graphics::Command::Type::COPY_PART_OF_A_TEXTURE;
       command.copy_part_of_texture_parameters =
           std::make_shared<graphics::CopyPartOfTextureParameters>();
+      int32 src_x =
+          std::max(0, static_cast<int>(std::round(rectangle.texture_offset.x)));
+      int32 src_y =
+          std::max(0, static_cast<int>(std::round(rectangle.texture_offset.y)));
       command.copy_part_of_texture_parameters->source = {
-          static_cast<uint32>(rectangle.texture_offset.x),
-          static_cast<uint32>(rectangle.texture_offset.y)};
+          static_cast<uint32>(src_x), static_cast<uint32>(src_y)};
       command.copy_part_of_texture_parameters->destination = {
           static_cast<uint32>(rectangle.bounds.MinX()),
           static_cast<uint32>(rectangle.bounds.MinY())};
@@ -143,10 +153,11 @@ void InitializeCompositor() {
 }
 
 void InvalidateScreen(const Rectangle& screen_area) {
+  Rectangle rounded_area = screen_area.RoundedToLargestWholeInteger();
   if (has_invalidated_area) {
-    invalidated_area = invalidated_area.Union(screen_area);
+    invalidated_area = invalidated_area.Union(rounded_area);
   } else {
-    invalidated_area = screen_area;
+    invalidated_area = rounded_area;
     has_invalidated_area = true;
   }
 }
@@ -164,7 +175,6 @@ void DrawScreen() {
   Rectangle& draw_area = *opt_draw_area;
 
   if (draw_area.Width() <= 0 || draw_area.Height() <= 0) return;
-
   DrawBackground(draw_area);
 
   (void)Window::ForEachBackToFrontWindow([&](Window& window) {
@@ -290,16 +300,28 @@ void DrawScreen() {
 }
 
 void DrawOpaqueColor(const Rectangle& screen_area, uint32 fill_color) {
-  AddOpaqueRectangle([screen_area, fill_color](QuadRectangle& rectangle) {
-    rectangle.bounds = screen_area;
+  Rectangle rounded = screen_area.RoundedToLargestWholeInteger();
+  auto opt_clipped = rounded.Intersection(Rectangle{.size = GetScreenSize()});
+  if (!opt_clipped || opt_clipped->Width() <= 0 || opt_clipped->Height() <= 0)
+    return;
+  Rectangle clipped = *opt_clipped;
+
+  AddOpaqueRectangle([clipped, fill_color](QuadRectangle& rectangle) {
+    rectangle.bounds = clipped;
     rectangle.texture_id = 0;
     rectangle.color = fill_color;
   });
 }
 
 void DrawAlphaBlendedColor(const Rectangle& screen_area, uint32 fill_color) {
-  AddAlphaBlendedRectangle([screen_area, fill_color](QuadRectangle& rectangle) {
-    rectangle.bounds = screen_area;
+  Rectangle rounded = screen_area.RoundedToLargestWholeInteger();
+  auto opt_clipped = rounded.Intersection(Rectangle{.size = GetScreenSize()});
+  if (!opt_clipped || opt_clipped->Width() <= 0 || opt_clipped->Height() <= 0)
+    return;
+  Rectangle clipped = *opt_clipped;
+
+  AddAlphaBlendedRectangle([clipped, fill_color](QuadRectangle& rectangle) {
+    rectangle.bounds = clipped;
     rectangle.texture_id = 0;
     rectangle.color = fill_color;
   });
@@ -307,20 +329,34 @@ void DrawAlphaBlendedColor(const Rectangle& screen_area, uint32 fill_color) {
 
 void CopyOpaqueTexture(const Rectangle& screen_area, size_t texture_id,
                        const Point& offset) {
+  Rectangle rounded = screen_area.RoundedToLargestWholeInteger();
+  auto opt_clipped = rounded.Intersection(Rectangle{.size = GetScreenSize()});
+  if (!opt_clipped || opt_clipped->Width() <= 0 || opt_clipped->Height() <= 0)
+    return;
+  Rectangle clipped = *opt_clipped;
+  Point adjusted_offset = offset + (clipped.origin - rounded.origin);
+
   AddOpaqueRectangle(
-      [screen_area, texture_id, offset](QuadRectangle& rectangle) {
-        rectangle.bounds = screen_area;
+      [clipped, texture_id, adjusted_offset](QuadRectangle& rectangle) {
+        rectangle.bounds = clipped;
         rectangle.texture_id = texture_id;
-        rectangle.texture_offset = offset;
+        rectangle.texture_offset = adjusted_offset;
       });
 }
 
 void CopyAlphaBlendedTexture(const Rectangle& screen_area, size_t texture_id,
                              const Point& offset) {
+  Rectangle rounded = screen_area.RoundedToLargestWholeInteger();
+  auto opt_clipped = rounded.Intersection(Rectangle{.size = GetScreenSize()});
+  if (!opt_clipped || opt_clipped->Width() <= 0 || opt_clipped->Height() <= 0)
+    return;
+  Rectangle clipped = *opt_clipped;
+  Point adjusted_offset = offset + (clipped.origin - rounded.origin);
+
   AddAlphaBlendedRectangle(
-      [screen_area, texture_id, offset](QuadRectangle& rectangle) {
-        rectangle.bounds = screen_area;
+      [clipped, texture_id, adjusted_offset](QuadRectangle& rectangle) {
+        rectangle.bounds = clipped;
         rectangle.texture_id = texture_id;
-        rectangle.texture_offset = offset;
+        rectangle.texture_offset = adjusted_offset;
       });
 }

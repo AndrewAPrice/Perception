@@ -15,6 +15,8 @@
 #include "perception/ui/components/ui_window.h"
 
 #include <iostream>
+#include <mutex>
+#include <set>
 
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColorSpace.h"
@@ -24,6 +26,7 @@
 #include "perception/draw.h"
 #include "perception/scheduler.h"
 #include "perception/services.h"
+#include "perception/ui/color_space.h"
 #include "perception/ui/components/focusable.h"
 #include "perception/ui/draw_context.h"
 #include "perception/ui/layout.h"
@@ -42,7 +45,6 @@
 #include "perception/window/window_draw_buffer.h"
 #include "perception/window/window_manager.h"
 
-using ::perception::GetService;
 using ::perception::window::MouseButton;
 
 namespace perception {
@@ -58,6 +60,86 @@ Point ScreenPointToNodePoint(std::shared_ptr<Node> target, Point point) {
   return point - target->GetAbsolutePosition();
 }
 
+std::recursive_mutex& GetGlobalColorSpaceMutex() {
+  static std::recursive_mutex mutex;
+  return mutex;
+}
+
+sk_sp<SkColorSpace>& GetGlobalColorSpaceRef() {
+  static sk_sp<SkColorSpace> color_space;
+  return color_space;
+}
+
+float& GetGlobalScaleRef() {
+  static float scale = 1.0f;
+  return scale;
+}
+
+std::set<UiWindow*>& GetOpenUiWindows() {
+  static std::set<UiWindow*> windows;
+  return windows;
+}
+
+bool global_listener_initialized = false;
+
+class GlobalWindowManagerEnvironmentListener
+    : public ::perception::window::WindowManagerEnvironmentListener::Server {
+ public:
+  Status WindowManagerEnvironmentChanged(
+      const ::perception::window::WindowManagerEnvironmentChangedNotification&
+          notification) override {
+    auto new_color_space = DeserializeColorSpace(notification.color_space);
+    UiWindow::OnGlobalEnvironmentChanged(new_color_space, notification.scale);
+    return Status::OK;
+  }
+};
+
+std::unique_ptr<GlobalWindowManagerEnvironmentListener>&
+GetGlobalEnvironmentListenerServer() {
+  static std::unique_ptr<GlobalWindowManagerEnvironmentListener> server;
+  return server;
+}
+
+void EnsureGlobalColorSpaceInitialized() {
+  {
+    std::scoped_lock lock(GetGlobalColorSpaceMutex());
+    if (global_listener_initialized) return;
+    global_listener_initialized = true;
+  }
+
+  auto listener_server =
+      std::make_unique<GlobalWindowManagerEnvironmentListener>();
+
+  sk_sp<SkColorSpace> fetched_color_space;
+  float fetched_scale = 1.0f;
+  auto window_manager = ::perception::FindFirstInstanceOfService<
+      ::perception::window::WindowManager>();
+  if (window_manager) {
+    auto response_or = window_manager->GetEnvironment();
+    if (response_or.Ok()) {
+      fetched_color_space = DeserializeColorSpace(response_or->color_space);
+      fetched_scale = response_or->scale;
+    }
+  }
+  if (!fetched_color_space) {
+    fetched_color_space = SkColorSpace::MakeSRGB();
+  }
+  if (fetched_scale < 0.5f) fetched_scale = 0.5f;
+
+  std::scoped_lock lock(GetGlobalColorSpaceMutex());
+  GetGlobalEnvironmentListenerServer() = std::move(listener_server);
+  if (!GetGlobalColorSpaceRef()) {
+    GetGlobalColorSpaceRef() = fetched_color_space;
+  }
+  GetGlobalScaleRef() = fetched_scale;
+}
+
+sk_sp<SkColorSpace> GetGlobalColorSpace() {
+  EnsureGlobalColorSpaceInitialized();
+  std::scoped_lock lock(GetGlobalColorSpaceMutex());
+  return GetGlobalColorSpaceRef();
+}
+
 }  // namespace
 
 UiWindow::UiWindow()
@@ -67,11 +149,82 @@ UiWindow::UiWindow()
       is_drawing_(false),
       buffer_width_(0),
       buffer_height_(0),
+      pixel_data_(nullptr),
       next_focus_changed_handler_id_(1) {
-  SkGraphics::Init();  // See if this isn't needed.
+  static std::once_flag skia_init_flag;
+  std::call_once(skia_init_flag, []() { SkGraphics::Init(); });
+  EnsureGlobalColorSpaceInitialized();
+  std::scoped_lock lock(GetGlobalColorSpaceMutex());
+  GetOpenUiWindows().insert(this);
 }
 
-UiWindow::~UiWindow() {}
+UiWindow::~UiWindow() {
+  std::scoped_lock lock(GetGlobalColorSpaceMutex());
+  GetOpenUiWindows().erase(this);
+}
+
+void UiWindow::SetColorSpace(sk_sp<SkColorSpace> color_space) {
+  std::scoped_lock lock(window_mutex_);
+  custom_color_space_ = color_space;
+  skia_surface_ = nullptr;
+  InvalidateRender();
+}
+
+sk_sp<SkColorSpace> UiWindow::GetColorSpace() const {
+  if (custom_color_space_) return custom_color_space_;
+  return GetGlobalColorSpace();
+}
+
+float UiWindow::GetScale() const { return GetUiScale(); }
+
+float UiWindow::GetUiScale() {
+  EnsureGlobalColorSpaceInitialized();
+  std::scoped_lock lock(GetGlobalColorSpaceMutex());
+  return GetGlobalScaleRef();
+}
+
+void UiWindow::OnGlobalColorSpaceChanged(sk_sp<SkColorSpace> new_color_space) {
+  OnGlobalEnvironmentChanged(new_color_space, GetUiScale());
+}
+
+void UiWindow::OnGlobalEnvironmentChanged(sk_sp<SkColorSpace> new_color_space,
+                                          float new_scale) {
+  std::scoped_lock lock(GetGlobalColorSpaceMutex());
+  if (new_color_space) GetGlobalColorSpaceRef() = new_color_space;
+  if (new_scale >= 0.5f) GetGlobalScaleRef() = new_scale;
+  for (UiWindow* window : GetOpenUiWindows()) {
+    std::scoped_lock window_lock(window->window_mutex_);
+    if (!window->custom_color_space_) {
+      window->skia_surface_ = nullptr;
+    }
+    if (!window->node_.expired()) {
+      auto node = window->node_.lock();
+      float scale = window->GetScale();
+      if (!window->is_resizable_ && window->created_ && window->base_window_) {
+        Layout layout = node->GetLayout();
+        auto width = layout.GetWidth();
+        auto height = layout.GetHeight();
+        layout.Calculate(
+            width.unit == YGUnitAuto || width.value <= 0 ? YGUndefined
+                                                         : width.value,
+            height.unit == YGUnitAuto || height.value <= 0 ? YGUndefined
+                                                           : height.value);
+        int new_width = static_cast<int>(
+            std::round(layout.GetCalculatedWidthWithMargin() * scale));
+        int new_height = static_cast<int>(
+            std::round(layout.GetCalculatedHeightWithMargin() * scale));
+        window->base_window_->SetSize(new_width, new_height);
+      } else {
+        float logical_width = (float)window->buffer_width_ / scale;
+        float logical_height = (float)window->buffer_height_ / scale;
+        Layout layout = node->GetLayout();
+        layout.SetWidth(logical_width);
+        layout.SetHeight(logical_height);
+      }
+    }
+    window->InvalidateRender();
+  }
+}
 
 void UiWindow::SetNode(std::weak_ptr<Node> node) {
   std::scoped_lock lock(window_mutex_);
@@ -217,9 +370,13 @@ void UiWindow::WindowResized() {
     buffer_height_ = base_window_->GetHeight();
   }
 
+  float scale = GetScale();
+  float logical_width = (float)buffer_width_ / scale;
+  float logical_height = (float)buffer_height_ / scale;
+
   Layout layout = node->GetLayout();
-  layout.SetWidth((float)buffer_width_);
-  layout.SetHeight((float)buffer_height_);
+  layout.SetWidth(logical_width);
+  layout.SetHeight(logical_height);
   skia_surface_.reset();
 
   for (auto& handler : on_resize_functions_) handler();
@@ -244,7 +401,8 @@ void UiWindow::WindowFocusChanged() {
 void UiWindow::MouseClicked(const window::MouseClickEvent& event) {
   std::scoped_lock lock(window_mutex_);
 
-  Point point{.x = (float)event.x, .y = (float)event.y};
+  float scale = GetScale();
+  Point point{.x = (float)event.x / scale, .y = (float)event.y / scale};
   MouseButton button = event.button;
 
   if (event.was_pressed_down) {
@@ -293,7 +451,8 @@ void UiWindow::MouseLeft() {
 
 void UiWindow::MouseHovered(const window::MouseHoverEvent& event) {
   std::scoped_lock lock(window_mutex_);
-  Point point{.x = (float)event.x, .y = (float)event.y};
+  float scale = GetScale();
+  Point point{.x = (float)event.x / scale, .y = (float)event.y / scale};
 
   std::optional<window::Cursor> active_cursor;
 
@@ -423,7 +582,10 @@ void UiWindow::GetNodesAt(
         on_hit_node) {
   if (node_.expired()) return;
   auto node = node_.lock();
-  node->GetLayout().CalculateIfDirty(buffer_width_, buffer_height_);
+  float scale = GetScale();
+  float logical_width = (float)buffer_width_ / scale;
+  float logical_height = (float)buffer_height_ / scale;
+  node->GetLayout().CalculateIfDirty(logical_width, logical_height);
   (void)node->GetNodesAt(point, on_hit_node);
 }
 
@@ -441,7 +603,6 @@ void UiWindow::InvalidateRender() {
 void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
                           window::Rectangle& invalidated_area) {
   std::scoped_lock lock(window_mutex_);
-  invalidated_ = false;
   if (node_.expired()) return;
   auto node = node_.lock();
   if (!skia_surface_ || buffer_width_ != buffer.width ||
@@ -452,7 +613,7 @@ void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
 
     auto image_info = SkImageInfo::Make(
         buffer_width_, buffer_height_, SkColorType::kBGRA_8888_SkColorType,
-        SkAlphaType::kOpaque_SkAlphaType, SkColorSpace::MakeSRGB());
+        SkAlphaType::kOpaque_SkAlphaType, GetColorSpace());
 
     skia_surface_ =
         SkSurfaces::WrapPixels(image_info, pixel_data_, buffer_width_ * 4);
@@ -464,6 +625,10 @@ void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
     }
   }
 
+  float scale = GetScale();
+  float logical_width = (float)buffer_width_ / scale;
+  float logical_height = (float)buffer_height_ / scale;
+
   // Set up the DrawContext to draw into back buffer.
   DrawContext draw_context;
   draw_context.buffer = static_cast<uint32*>(pixel_data_);
@@ -471,10 +636,9 @@ void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
   draw_context.buffer_width = buffer_width_;
   draw_context.buffer_height = buffer_height_;
 
-  float width = (float)buffer_width_;
-  float height = (float)buffer_height_;
-  draw_context.area = {.origin = {.x = 0.0f, .y = 0.0f},
-                       .size = {.width = width, .height = height}};
+  draw_context.area = {
+      .origin = {.x = 0.0f, .y = 0.0f},
+      .size = {.width = logical_width, .height = logical_height}};
   draw_context.clipping_bounds = draw_context.area;
 
   if (background_color_) {
@@ -483,7 +647,10 @@ void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
                   draw_context.buffer_height);
   }
 
-  node->GetLayout().CalculateIfDirty(buffer_width_, buffer_height_);
+  Layout layout = node->GetLayout();
+  layout.SetWidth(logical_width);
+  layout.SetHeight(logical_height);
+  layout.CalculateIfDirty(logical_width, logical_height);
 
   float root_w = node->GetLayout().GetCalculatedWidth();
   float root_h = node->GetLayout().GetCalculatedHeight();
@@ -492,9 +659,13 @@ void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
               << root_w << "x" << root_h << std::endl;
   }
 
+  draw_context.skia_canvas->save();
+  draw_context.skia_canvas->scale(scale, scale);
+
   is_drawing_ = true;
   node->Draw(draw_context);
   is_drawing_ = false;
+  draw_context.skia_canvas->restore();
 
   if (skia_surface_) {
     SkPixmap pixmap;
@@ -525,8 +696,11 @@ void UiWindow::Create() {
       width.unit == YGUnitAuto || width.value <= 0 ? YGUndefined : width.value,
       height.unit == YGUnitAuto || height.value <= 0 ? YGUndefined
                                                      : height.value);
-  options.prefered_width = layout.GetCalculatedWidthWithMargin();
-  options.prefered_height = layout.GetCalculatedHeightWithMargin();
+  float scale = GetScale();
+  options.prefered_width = static_cast<int>(
+      std::round(layout.GetCalculatedWidthWithMargin() * scale));
+  options.prefered_height = static_cast<int>(
+      std::round(layout.GetCalculatedHeightWithMargin() * scale));
 
   base_window_ = window::Window::CreateWindow(options);
   if (base_window_) {
@@ -544,9 +718,11 @@ void UiWindow::Create() {
 
   for (auto& handler : on_resize_functions_) handler();
 
-  layout.SetWidth((float)buffer_width_);
-  layout.SetHeight((float)buffer_height_);
-  layout.Calculate((float)buffer_width_, (float)buffer_height_);
+  float logical_width = (float)buffer_width_ / scale;
+  float logical_height = (float)buffer_height_ / scale;
+  layout.SetWidth(logical_width);
+  layout.SetHeight(logical_height);
+  layout.Calculate(logical_width, logical_height);
   InvalidateRender();
   created_ = true;
 }

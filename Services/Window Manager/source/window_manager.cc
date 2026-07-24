@@ -18,12 +18,25 @@
 
 #include "perception/launcher.h"
 #include "perception/loader.h"
+#include "perception/registry.h"
+#include "perception/scheduler.h"
 #include "perception/services.h"
+#include "perception/ui/color_space.h"
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
 #include "screen.h"
 #include "status.h"
 #include "window.h"
+
+namespace {
+
+std::string current_serialized_color_space;
+sk_sp<SkColorSpace> current_color_space;
+float current_scale = 1.0f;
+std::vector<::perception::window::WindowManagerEnvironmentListener::Client>
+    environment_listeners;
+
+}  // namespace
 
 using ::perception::FindFirstInstanceOfService;
 using ::perception::GetService;
@@ -35,6 +48,7 @@ using ::perception::window::BaseWindow;
 using ::perception::window::CreateWindowRequest;
 using ::perception::window::CreateWindowResponse;
 using ::perception::window::DisplayEnvironment;
+using ::perception::window::GetEnvironmentResponse;
 using ::perception::window::InvalidateWindowParameters;
 using ::perception::window::SetWindowTextureParameters;
 using ::perception::window::SetWindowTitleParameters;
@@ -199,3 +213,124 @@ Status WindowManager::SetWindowCaptureMouse(
   window->SetCaptureMouse(parameters.capture);
   return Status::OK;
 }
+
+StatusOr<GetEnvironmentResponse> WindowManager::GetEnvironment() {
+  GetEnvironmentResponse response;
+  response.color_space = GetSerializedColorSpace();
+  response.scale = GetScale();
+  return response;
+}
+
+void WindowManager::InitializeEnvironment() {
+  ::perception::NotifyOnEachNewServiceInstance<
+      ::perception::window::WindowManagerEnvironmentListener>(
+      [](::perception::window::WindowManagerEnvironmentListener::Client
+             client) {
+        environment_listeners.push_back(client);
+        ::perception::NotifyWhenServiceDisappears(client, [client]() {
+          for (auto it = environment_listeners.begin();
+               it != environment_listeners.end(); ++it) {
+            if (it->ServerProcessId() == client.ServerProcessId() &&
+                it->ServiceId() == client.ServiceId()) {
+              environment_listeners.erase(it);
+              break;
+            }
+          }
+        });
+      });
+
+  UpdateEnvironmentFromRegistry();
+}
+
+void WindowManager::UpdateEnvironmentFromRegistry() {
+  ::perception::DeferAfterEvents([]() {
+    int transfer_fn_val = 0;
+    int gamut_val = 0;
+
+    auto tr_or = ::perception::GetRegistryValue(
+        ::perception::RegistryCorpus::APPLICATIONS, "Window Manager",
+        "colorSpaceTransferFn");
+    if (tr_or.Ok() &&
+        tr_or->GetType() == ::perception::serialization::Value::Type::INTEGER) {
+      transfer_fn_val = tr_or->IntegerValue().value_or(0);
+    }
+
+    auto gamut_or = ::perception::GetRegistryValue(
+        ::perception::RegistryCorpus::APPLICATIONS, "Window Manager",
+        "colorSpaceGamut");
+    if (gamut_or.Ok() &&
+        gamut_or->GetType() ==
+            ::perception::serialization::Value::Type::INTEGER) {
+      gamut_val = gamut_or->IntegerValue().value_or(0);
+    }
+
+    float new_scale = 1.0f;
+    auto scale_or = ::perception::GetRegistryValue(
+        ::perception::RegistryCorpus::APPLICATIONS, "Window Manager", "scale");
+    if (scale_or.Ok()) {
+      if (scale_or->GetType() ==
+          ::perception::serialization::Value::Type::FLOAT) {
+        float val = static_cast<float>(scale_or->FloatValue().value_or(1.0));
+        new_scale = (val > 10.0f) ? (val / 100.0f) : val;
+      } else if (scale_or->GetType() ==
+                 ::perception::serialization::Value::Type::INTEGER) {
+        int64 val = scale_or->IntegerValue().value_or(100);
+        new_scale = (val > 10) ? (static_cast<float>(val) / 100.0f)
+                               : static_cast<float>(val);
+      }
+    }
+    if (new_scale < 0.5f) new_scale = 0.5f;
+    if (new_scale > 2.5f) new_scale = 2.5f;
+
+    auto transfer_fn =
+        static_cast<::perception::ui::ColorSpaceTransferFn>(transfer_fn_val);
+    auto gamut = static_cast<::perception::ui::ColorSpaceGamut>(gamut_val);
+
+#ifdef TEST
+    std::string new_serialized = "";
+#else
+    auto new_color_space =
+        ::perception::ui::CreateSkColorSpace(transfer_fn, gamut);
+    std::string new_serialized =
+        ::perception::ui::SerializeColorSpace(new_color_space.get());
+#endif
+
+    if (new_serialized != current_serialized_color_space ||
+        new_scale != current_scale) {
+      current_serialized_color_space = new_serialized;
+
+      if (new_scale != current_scale) {
+        current_scale = new_scale;
+        Window::OnScaleChanged();
+        InitializeWindowButtons();
+      }
+
+      ::perception::window::WindowManagerEnvironmentChangedNotification
+          notification;
+      notification.color_space = current_serialized_color_space;
+      notification.scale = current_scale;
+
+      for (auto& listener : environment_listeners) {
+        listener.WindowManagerEnvironmentChanged(notification);
+      }
+    }
+  });
+}
+
+std::string WindowManager::GetSerializedColorSpace() {
+#ifdef TEST
+  return current_serialized_color_space;
+#else
+  if (current_serialized_color_space.empty()) {
+    auto default_cs = ::perception::ui::CreateSkColorSpace(
+        ::perception::ui::ColorSpaceTransferFn::SRGB,
+        ::perception::ui::ColorSpaceGamut::SRGB);
+    current_serialized_color_space =
+        ::perception::ui::SerializeColorSpace(default_cs.get());
+    current_color_space = default_cs;
+  }
+  return current_serialized_color_space;
+#endif
+}
+
+float WindowManager::GetScale() { return current_scale; }

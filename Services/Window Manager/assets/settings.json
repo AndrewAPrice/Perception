@@ -23,11 +23,11 @@
       "settings": [
         {
           "key": "uiDebuggerProgram",
-          "type": "string",
+          "type": "application",
           "name": "UI Debugger Program",
-          "description": "Program launched for UI debugging",
+          "description": "Program to launch for UI debugging",
           "default": "UI Debugger",
-          "page": "Appearance & Desktop>Window Manager"
+          "page": "Debugging"
         },
         {
           "key": "windowCloseTimeoutSeconds",
@@ -36,6 +36,135 @@
           "description": "Timeout in seconds before terminating a process after all its windows are closed",
           "default": 10,
           "page": "Appearance & Desktop>Window Manager"
+        },
+        {
+          "key": "scale",
+          "type": "slider",
+          "name": "UI Scale",
+          "description": "User interface scaling percentage",
+          "default": 100,
+          "min": 50,
+          "max": 250,
+          "step": 25,
+          "unit": "%",
+          "page": "Appearance & Desktop>Display"
+        }
+      ]
+    },
+    {
+      "title": "Color Management",
+      "settings": [
+        {
+          "key": "colorSpaceTransferFn",
+          "type": "enum",
+          "name": "Transfer Function",
+          "description": "Color space transfer function",
+          "default": "sRGB",
+          "options": [
+            {
+              "name": "sRGB",
+              "value": 0
+            },
+            {
+              "name": "2.2 Gamma",
+              "value": 1
+            },
+            {
+              "name": "Linear",
+              "value": 2
+            },
+            {
+              "name": "Rec. 2020",
+              "value": 3
+            },
+            {
+              "name": "Rec. 709",
+              "value": 4
+            },
+            {
+              "name": "Rec. 470 System M",
+              "value": 5
+            },
+            {
+              "name": "Rec. 470 System B/G",
+              "value": 6
+            },
+            {
+              "name": "Rec. 601",
+              "value": 7
+            },
+            {
+              "name": "SMPTE ST 240",
+              "value": 8
+            },
+            {
+              "name": "IEC 61966-2-4",
+              "value": 9
+            },
+            {
+              "name": "IEC 61966-2-1",
+              "value": 10
+            },
+            {
+              "name": "Rec. 2020 (10-bit)",
+              "value": 11
+            },
+            {
+              "name": "Rec. 2020 (12-bit)",
+              "value": 12
+            },
+            {
+              "name": "PQ",
+              "value": 13
+            },
+            {
+              "name": "SMPTE ST 428-1",
+              "value": 14
+            },
+            {
+              "name": "HLG",
+              "value": 15
+            },
+            {
+              "name": "ProPhoto RGB",
+              "value": 16
+            },
+            {
+              "name": "Adobe98 RGB",
+              "value": 17
+            }
+          ],
+          "page": "Appearance & Desktop>Display"
+        },
+        {
+          "key": "colorSpaceGamut",
+          "type": "enum",
+          "name": "Color Gamut",
+          "description": "Color space gamut",
+          "default": "sRGB",
+          "options": [
+            {
+              "name": "sRGB",
+              "value": 0
+            },
+            {
+              "name": "Adobe RGB",
+              "value": 1
+            },
+            {
+              "name": "Display P3",
+              "value": 2
+            },
+            {
+              "name": "Rec. 2020",
+              "value": 3
+            },
+            {
+              "name": "XYZ",
+              "value": 4
+            }
+          ],
+          "page": "Appearance & Desktop>Display"
         }
       ]
     }

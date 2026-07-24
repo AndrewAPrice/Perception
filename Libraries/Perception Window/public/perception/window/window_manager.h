@@ -174,23 +174,49 @@ class SetWindowCaptureMouseRequest : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
-#define METHOD_LIST(X)                                           \
-  X(1, CreateWindow, CreateWindowResponse, CreateWindowRequest)  \
-  X(2, CloseWindow, void, BaseWindow::Client)                    \
-  X(3, SetWindowTexture, void, SetWindowTextureParameters)       \
-  X(4, SetWindowTitle, void, SetWindowTitleParameters)           \
-  X(5, SystemButtonPushed, void, void)                           \
-  X(6, InvalidateWindow, void, InvalidateWindowParameters)       \
-  X(7, GetMaximumWindowSize, Size, void)                         \
-  X(8, GetDisplayEnvironment, DisplayEnvironment, void)          \
-  X(9, StartDraggingWindow, void, BaseWindow::Client)            \
-  X(10, FocusWindow, void, BaseWindow::Client)                   \
-  X(11, SetWindowSize, void, SetWindowSizeParameters)            \
-  X(12, SetWindowCursor, void, SetWindowCursorParameters)        \
-  X(13, GetDisplayBounds, GetDisplayBoundsResponse, void)        \
-  X(14, SetWindowMinimumSize, void, SetWindowMinimumSizeRequest) \
-  X(15, SetWindowMaximumSize, void, SetWindowMaximumSizeRequest) \
-  X(16, SetWindowCaptureMouse, void, SetWindowCaptureMouseRequest)
+class WindowManagerEnvironmentChangedNotification
+    : public serialization::Serializable {
+ public:
+  std::string color_space;
+  float scale;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+#define METHOD_LIST(X)                        \
+  X(1, WindowManagerEnvironmentChanged, void, \
+    WindowManagerEnvironmentChangedNotification)
+DEFINE_PERCEPTION_SERVICE(WindowManagerEnvironmentListener,
+                          "perception.window.WindowManagerEnvironmentListener",
+                          METHOD_LIST)
+#undef METHOD_LIST
+
+class GetEnvironmentResponse : public serialization::Serializable {
+ public:
+  std::string color_space;
+  float scale;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+#define METHOD_LIST(X)                                             \
+  X(1, CreateWindow, CreateWindowResponse, CreateWindowRequest)    \
+  X(2, CloseWindow, void, BaseWindow::Client)                      \
+  X(3, SetWindowTexture, void, SetWindowTextureParameters)         \
+  X(4, SetWindowTitle, void, SetWindowTitleParameters)             \
+  X(5, SystemButtonPushed, void, void)                             \
+  X(6, InvalidateWindow, void, InvalidateWindowParameters)         \
+  X(7, GetMaximumWindowSize, Size, void)                           \
+  X(8, GetDisplayEnvironment, DisplayEnvironment, void)            \
+  X(9, StartDraggingWindow, void, BaseWindow::Client)              \
+  X(10, FocusWindow, void, BaseWindow::Client)                     \
+  X(11, SetWindowSize, void, SetWindowSizeParameters)              \
+  X(12, SetWindowCursor, void, SetWindowCursorParameters)          \
+  X(13, GetDisplayBounds, GetDisplayBoundsResponse, void)          \
+  X(14, SetWindowMinimumSize, void, SetWindowMinimumSizeRequest)   \
+  X(15, SetWindowMaximumSize, void, SetWindowMaximumSizeRequest)   \
+  X(16, SetWindowCaptureMouse, void, SetWindowCaptureMouseRequest) \
+  X(17, GetEnvironment, GetEnvironmentResponse, void)
 DEFINE_PERCEPTION_SERVICE(WindowManager, "perception.window.WindowManager",
                           METHOD_LIST)
 #undef METHOD_LIST

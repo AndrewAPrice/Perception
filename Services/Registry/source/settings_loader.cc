@@ -78,6 +78,21 @@ void LoadSettingsJson(const std::string& path, RegistryCorpus corpus,
             Value val;
             if (st.contains("default")) val = JsonToValue(st["default"]);
 
+            if (st.contains("options") && st["options"].is_array() &&
+                val.GetType() == Value::Type::STRING) {
+              std::string default_str =
+                  std::string(val.StringValue().value_or(""));
+              for (const auto& opt : st["options"]) {
+                if (opt.is_object() && opt.contains("name") &&
+                    opt["name"].is_string() &&
+                    opt["name"].get<std::string>() == default_str &&
+                    opt.contains("value")) {
+                  val = JsonToValue(opt["value"]);
+                  break;
+                }
+              }
+            }
+
             auto ns = ResolveNamespace(corpus, ns_name, 0);
             if (ns->SetDefaultValue(key, val)) ns->NotifyListeners(key);
           }

@@ -314,6 +314,7 @@ void InitializeMouse() {
 
   mouse_listener = std::make_unique<MyMouseListener>();
 
+#ifndef TEST
   // Tell each mouse driver who we are.
   NotifyOnEachNewServiceInstance<MouseDevice>(
       [](MouseDevice::Client mouse_device) {
@@ -340,6 +341,7 @@ void InitializeMouse() {
       LoadSprite(def.sprite, def.size.width, def.size.height, destination);
     });
   }
+#endif
 
   last_mouse_bounds = MouseBounds();
 }

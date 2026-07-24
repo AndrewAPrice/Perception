@@ -30,6 +30,7 @@
 #include "perception/ui/components/container.h"
 #include "perception/ui/components/input_box.h"
 #include "perception/ui/components/label.h"
+#include "perception/ui/components/slider.h"
 #include "perception/ui/components/tooltip.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
@@ -48,6 +49,7 @@ using ::perception::ui::components::ComboBox;
 using ::perception::ui::components::Container;
 using ::perception::ui::components::InputBox;
 using ::perception::ui::components::Label;
+using ::perception::ui::components::Slider;
 using ::perception::ui::components::Tooltip;
 
 float GetTableColumnWidth(SettingType type) {
@@ -166,11 +168,35 @@ std::shared_ptr<Node> BuildSettingComponent(RegistryCorpus corpus,
   switch (setting.type) {
     case SettingType::OPTIONS: {
       int default_sel = 0;
-      std::string curr_str =
-          std::string(display_val.StringValue().value_or(""));
-      for (int i = 0; i < static_cast<int>(setting.options.size()); ++i) {
-        if (setting.options[i] == curr_str) {
-          default_sel = i;
+      for (size_t i = 0; i < setting.options.size(); ++i) {
+        bool matches = false;
+        if (i < setting.option_values.size()) {
+          const auto& opt_val = setting.option_values[i];
+          if (display_val.GetType() == opt_val.GetType()) {
+            if (display_val.GetType() == Value::Type::INTEGER &&
+                display_val.IntegerValue() == opt_val.IntegerValue()) {
+              matches = true;
+            } else if (display_val.GetType() == Value::Type::STRING &&
+                       display_val.StringValue() == opt_val.StringValue()) {
+              matches = true;
+            } else if (display_val.GetType() == Value::Type::FLOAT &&
+                       display_val.FloatValue() == opt_val.FloatValue()) {
+              matches = true;
+            } else if (display_val.GetType() == Value::Type::BOOLEAN &&
+                       display_val.BoolValue() == opt_val.BoolValue()) {
+              matches = true;
+            }
+          }
+        }
+        if (!matches && display_val.GetType() == Value::Type::STRING) {
+          std::string curr_str =
+              std::string(display_val.StringValue().value_or(""));
+          if (setting.options[i] == curr_str) {
+            matches = true;
+          }
+        }
+        if (matches) {
+          default_sel = static_cast<int>(i);
           break;
         }
       }
@@ -179,7 +205,11 @@ std::shared_ptr<Node> BuildSettingComponent(RegistryCorpus corpus,
           [corpus, ns_name, key, setting, change_key](int idx) {
             if (idx >= 0 && idx < static_cast<int>(setting.options.size())) {
               Value val;
-              val.SetString(setting.options[idx]);
+              if (idx < static_cast<int>(setting.option_values.size())) {
+                val = setting.option_values[idx];
+              } else {
+                val.SetString(setting.options[idx]);
+              }
               StageChange(corpus, ns_name, key, val,
                           original_values[change_key]);
             }
@@ -246,6 +276,69 @@ std::shared_ptr<Node> BuildSettingComponent(RegistryCorpus corpus,
                 layout.SetWidth(80.0f);
                 layout.SetHeight(28.0f);
               }));
+    }
+    case SettingType::SLIDER: {
+      double min_v =
+          (setting.min_val != setting.max_val) ? setting.min_val : 0.0;
+      double max_v =
+          (setting.min_val != setting.max_val) ? setting.max_val : 1000.0;
+      double step_v = (setting.step_val > 0.0) ? setting.step_val : 1.0;
+
+      double current_val = 1.0;
+      if (display_val.GetType() == Value::Type::INTEGER) {
+        current_val =
+            static_cast<double>(display_val.IntegerValue().value_or(1));
+      } else if (display_val.GetType() == Value::Type::FLOAT) {
+        current_val = display_val.FloatValue().value_or(1.0);
+      }
+
+      if (current_val < min_v) current_val = min_v;
+      if (current_val > max_v) current_val = max_v;
+
+      auto label_ptr = std::make_shared<std::shared_ptr<Node>>();
+      char label_buf[32];
+      if (!setting.unit.empty()) {
+        std::sprintf(label_buf, "%.0f%s", current_val, setting.unit.c_str());
+      } else {
+        std::sprintf(label_buf, "%.0f%%", current_val);
+      }
+      auto value_label = Label::BasicLabel(
+          label_buf, [](Layout& layout) { layout.SetMinWidth(50.0f); });
+      *label_ptr = value_label;
+      return Container::HorizontalContainer(
+          [](Layout& layout) {
+            layout.SetAlignItems(YGAlignCenter);
+            layout.SetFlexShrink(0.0f);
+          },
+          Slider::BasicSlider(
+              static_cast<float>(min_v), static_cast<float>(max_v),
+              static_cast<float>(current_val),
+              [corpus, ns_name, key, min_v, max_v, step_v, setting, change_key,
+               label_ptr](float raw_val) {
+                double snapped =
+                    min_v + std::round((raw_val - min_v) / step_v) * step_v;
+                if (snapped < min_v) snapped = min_v;
+                if (snapped > max_v) snapped = max_v;
+
+                if (label_ptr && *label_ptr) {
+                  char buf[32];
+                  if (!setting.unit.empty()) {
+                    std::sprintf(buf, "%.0f%s", snapped, setting.unit.c_str());
+                  } else {
+                    std::sprintf(buf, "%.0f%%", snapped);
+                  }
+                  if (auto lbl = (*label_ptr)->Get<Label>()) {
+                    lbl->SetText(buf);
+                  }
+                }
+
+                Value new_val;
+                new_val.SetInteger(static_cast<int64>(std::round(snapped)));
+                StageChange(corpus, ns_name, key, new_val,
+                            original_values[change_key]);
+              },
+              [](Layout& layout) { layout.SetWidth(160.0f); }),
+          value_label);
     }
     case SettingType::INTEGER:
     case SettingType::FLOAT:

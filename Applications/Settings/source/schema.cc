@@ -163,10 +163,48 @@ void LoadSchemaFile(const std::string& path, RegistryCorpus corpus,
       }
       if (st.contains("options") && st["options"].is_array()) {
         for (const auto& opt : st["options"]) {
-          if (opt.is_string()) ast.options.push_back(opt.get<std::string>());
+          if (opt.is_string()) {
+            std::string name = opt.get<std::string>();
+            ast.options.push_back(name);
+            ast.option_values.push_back(Value(name));
+          } else if (opt.is_object()) {
+            std::string name;
+            if (opt.contains("name") && opt["name"].is_string()) {
+              name = opt["name"].get<std::string>();
+            }
+            ast.options.push_back(name);
+            if (opt.contains("value")) {
+              ast.option_values.push_back(JsonToValue(opt["value"]));
+            } else {
+              ast.option_values.push_back(Value(name));
+            }
+          }
         }
       }
       ast.type = ParseSettingType(raw_type_str, !ast.options.empty());
+      if (st.contains("min") && st["min"].is_number()) {
+        ast.min_val = st["min"].get<double>();
+      }
+      if (st.contains("max") && st["max"].is_number()) {
+        ast.max_val = st["max"].get<double>();
+      }
+      if (st.contains("step") && st["step"].is_number()) {
+        ast.step_val = st["step"].get<double>();
+      }
+      if (st.contains("unit") && st["unit"].is_string()) {
+        ast.unit = st["unit"].get<std::string>();
+      }
+      if (ast.type == SettingType::OPTIONS &&
+          ast.default_val.GetType() == Value::Type::STRING) {
+        std::string default_str =
+            std::string(ast.default_val.StringValue().value_or(""));
+        for (size_t i = 0; i < ast.options.size(); ++i) {
+          if (ast.options[i] == default_str && i < ast.option_values.size()) {
+            ast.default_val = ast.option_values[i];
+            break;
+          }
+        }
+      }
       std::string page_str;
       if (st.contains("page") && st["page"].is_string()) {
         page_str = st["page"].get<std::string>();
@@ -281,6 +319,8 @@ SettingType ParseSettingType(std::string_view type_str, bool has_options) {
       {"color", SettingType::COLOR},
       {"permission", SettingType::PERMISSION},
       {"application", SettingType::APPLICATION},
+      {"enum", SettingType::OPTIONS},
+      {"slider", SettingType::SLIDER},
   };
   auto it = kTypeMap.find(type_str);
   if (it != kTypeMap.end()) return it->second;
