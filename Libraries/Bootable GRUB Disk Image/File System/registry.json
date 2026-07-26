@@ -40,7 +40,8 @@
         "Network Manager",
         "Window Manager",
         "Launcher",
-        "Clipboard"
+        "Clipboard",
+        "Audio Manager"
       ]
     },
     "Permissions Manager": {
@@ -114,6 +115,11 @@
           "Settings",
           "CanReadAllFiles",
           true
+        ],
+        [
+          "Audio Manager",
+          "CanDirectlyControlAudioDevice",
+          true
         ]
       ]
     },
@@ -123,6 +129,11 @@
       "load_images": true,
       "block_advertisements": false,
       "do_not_track": true
+    },
+    "Window Manager": {
+      "colorSpaceTransferFn": 0,
+      "colorSpaceGamut": 0,
+      "scale": 100
     }
   }
 }
