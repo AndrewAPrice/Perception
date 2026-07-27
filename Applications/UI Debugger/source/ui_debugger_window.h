@@ -15,6 +15,7 @@
 #pragma once
 
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -50,6 +51,7 @@ class UIDebuggerWindow {
   ::perception::ui::Point last_mouse_;
 
   std::string search_query_;
+  std::set<std::string> expanded_node_ids_;
 
   std::shared_ptr<::perception::ui::Node> canvas_;
   std::shared_ptr<InspectorPanel> inspector_panel_;
@@ -86,8 +88,12 @@ class UIDebuggerWindow {
   void CenterNodeInView(std::shared_ptr<InspectedNode> node);
   void CreateChildNode(std::shared_ptr<InspectedNode> parent_node);
   void DeleteInspectedNode(std::shared_ptr<InspectedNode> node);
-  void ReparentInspectedNode(std::shared_ptr<InspectedNode> node,
-                             std::shared_ptr<InspectedNode> new_parent);
+  void ReparentInspectedNode(
+      std::shared_ptr<InspectedNode> node,
+      std::shared_ptr<InspectedNode> new_parent,
+      std::shared_ptr<InspectedNode> target_sibling = nullptr,
+      ::perception::ui::components::TreeViewDropPosition position =
+          ::perception::ui::components::TreeViewDropPosition::ON_TOP);
   std::shared_ptr<InspectedNode> FindNodeById(
       std::shared_ptr<InspectedNode> node, std::string_view id);
   bool IsDescendantOf(std::shared_ptr<InspectedNode> node,

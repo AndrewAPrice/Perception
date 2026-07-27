@@ -34,6 +34,8 @@ namespace perception {
 namespace ui {
 namespace components {
 
+enum class TreeViewDropPosition { ON_TOP, BEFORE, AFTER };
+
 class TreeViewItem;
 
 class TreeView : public UniqueIdentifiableType<TreeView>,
@@ -85,10 +87,12 @@ class TreeView : public UniqueIdentifiableType<TreeView>,
 
   void OnCanDrop(
       std::function<bool(std::shared_ptr<TreeViewItem>,
-                         std::shared_ptr<TreeViewItem>)> can_drop);
+                         std::shared_ptr<TreeViewItem>, TreeViewDropPosition)>
+          can_drop);
   void OnDrop(
       std::function<void(std::shared_ptr<TreeViewItem>,
-                         std::shared_ptr<TreeViewItem>)> on_drop);
+                         std::shared_ptr<TreeViewItem>, TreeViewDropPosition)>
+          on_drop);
 
   std::vector<std::shared_ptr<TreeViewItem>> GetVisibleItems() const;
 
@@ -100,6 +104,11 @@ class TreeView : public UniqueIdentifiableType<TreeView>,
   void UpdateDrag(Point window_pt);
   void EndDrag();
 
+  bool ReparentItem(
+      std::shared_ptr<TreeViewItem> source,
+      std::shared_ptr<TreeViewItem> target,
+      TreeViewDropPosition position = TreeViewDropPosition::ON_TOP);
+
  private:
   std::weak_ptr<Node> node_;
   std::weak_ptr<Node> content_container_;
@@ -107,23 +116,40 @@ class TreeView : public UniqueIdentifiableType<TreeView>,
   std::vector<std::function<void()>> on_select_;
   std::shared_ptr<Focusable> focusable_;
 
-  std::vector<std::function<bool(std::shared_ptr<TreeViewItem>,
-                                 std::shared_ptr<TreeViewItem>)>> can_drop_;
-  std::vector<std::function<void(std::shared_ptr<TreeViewItem>,
-                                 std::shared_ptr<TreeViewItem>)>> on_drop_;
+  std::vector<
+      std::function<bool(std::shared_ptr<TreeViewItem>,
+                         std::shared_ptr<TreeViewItem>, TreeViewDropPosition)>>
+      can_drop_;
+  std::vector<
+      std::function<void(std::shared_ptr<TreeViewItem>,
+                         std::shared_ptr<TreeViewItem>, TreeViewDropPosition)>>
+      on_drop_;
 
   bool is_dragging_;
   Point drag_start_mouse_;
   std::weak_ptr<TreeViewItem> potential_drag_item_;
   std::weak_ptr<TreeViewItem> dragged_item_;
   std::weak_ptr<TreeViewItem> current_drop_target_;
+  TreeViewDropPosition current_drop_position_;
   std::shared_ptr<Node> drag_overlay_;
   std::shared_ptr<Node> drag_ghost_;
+  std::shared_ptr<Node> drag_insertion_line_;
+
+  struct DropCandidate {
+    std::shared_ptr<TreeViewItem> item;
+    TreeViewDropPosition position = TreeViewDropPosition::ON_TOP;
+    float line_x = 0.0f;
+    float line_y = 0.0f;
+    float line_width = 0.0f;
+  };
 
   void HandleKeyDown(const window::KeyboardKeyEvent& event);
   bool CanDrop(std::shared_ptr<TreeViewItem> source,
-               std::shared_ptr<TreeViewItem> target);
+               std::shared_ptr<TreeViewItem> target,
+               TreeViewDropPosition position);
   std::shared_ptr<TreeViewItem> HitTest(Point window_pt) const;
+  DropCandidate CalculateDropCandidate(Point window_pt) const;
+  int GetItemDepth(std::shared_ptr<TreeViewItem> item) const;
 };
 
 class TreeViewItem : public UniqueIdentifiableType<TreeViewItem>,
@@ -218,6 +244,7 @@ class TreeViewItem : public UniqueIdentifiableType<TreeViewItem>,
   void ScrollIntoView();
 
   void OnSelect(std::function<void()> on_select);
+  void OnToggle(std::function<void(bool)> on_toggle);
 
   void NotifySelect();
 
@@ -225,6 +252,14 @@ class TreeViewItem : public UniqueIdentifiableType<TreeViewItem>,
   void SetDragOverState(DragOverState state);
 
   bool IsAncestorOf(std::shared_ptr<TreeViewItem> other) const;
+  std::shared_ptr<TreeViewItem> GetParentItem() const;
+  void AddChildItem(std::shared_ptr<TreeViewItem> child_item);
+  void InsertChildItemBefore(std::shared_ptr<TreeViewItem> child_item,
+                             std::shared_ptr<TreeViewItem> before_child);
+  void InsertChildItemAfter(std::shared_ptr<TreeViewItem> child_item,
+                            std::shared_ptr<TreeViewItem> after_child);
+  void RemoveChildItem(std::shared_ptr<TreeViewItem> child_item);
+
   std::shared_ptr<Node> GetRowContainer() const;
   std::shared_ptr<Node> GetChildrenContainer() const;
   std::shared_ptr<Node> GetContentContainer() const;
@@ -242,6 +277,7 @@ class TreeViewItem : public UniqueIdentifiableType<TreeViewItem>,
   bool is_selected_;
 
   std::vector<std::function<void()>> on_select_;
+  std::vector<std::function<void(bool)>> on_toggle_;
   std::vector<std::function<void(Point)>> on_context_menu_;
 
   void DrawToggle(const DrawContext& draw_context);

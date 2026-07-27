@@ -112,6 +112,10 @@ class Node : public std::enable_shared_from_this<Node> {
 
   void AddChildren(const std::vector<std::shared_ptr<Node>>& children);
   void AddChild(std::shared_ptr<Node> child);
+  void InsertChildBefore(std::shared_ptr<Node> child,
+                         std::shared_ptr<Node> before_child);
+  void InsertChildAfter(std::shared_ptr<Node> child,
+                        std::shared_ptr<Node> after_child);
   void RemoveChild(std::shared_ptr<Node> child);
   void RemoveChildren();
   void ReplaceChildren(const std::vector<std::shared_ptr<Node>>& new_children);

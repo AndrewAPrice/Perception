@@ -14,6 +14,7 @@
 
 #include "perception/ui/node.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <map>
@@ -65,6 +66,45 @@ void Node::AddChild(std::shared_ptr<Node> child) {
   child->SetParent(shared_from_this());
   YGNodeInsertChild(yoga_node_, child->yoga_node_, children_.size());
   children_.push_back(child);
+  Invalidate();
+}
+
+void Node::InsertChildBefore(std::shared_ptr<Node> child,
+                             std::shared_ptr<Node> before_child) {
+  if (!child || YGNodeHasMeasureFunc(yoga_node_)) return;
+  if (!before_child) {
+    AddChild(child);
+    return;
+  }
+  auto it = std::find(children_.begin(), children_.end(), before_child);
+  if (it == children_.end()) {
+    AddChild(child);
+    return;
+  }
+  size_t index = std::distance(children_.begin(), it);
+  child->SetParent(shared_from_this());
+  YGNodeInsertChild(yoga_node_, child->yoga_node_, index);
+  children_.insert(it, child);
+  Invalidate();
+}
+
+void Node::InsertChildAfter(std::shared_ptr<Node> child,
+                            std::shared_ptr<Node> after_child) {
+  if (!child || YGNodeHasMeasureFunc(yoga_node_)) return;
+  if (!after_child) {
+    AddChild(child);
+    return;
+  }
+  auto it = std::find(children_.begin(), children_.end(), after_child);
+  if (it == children_.end()) {
+    AddChild(child);
+    return;
+  }
+  ++it;
+  size_t index = std::distance(children_.begin(), it);
+  child->SetParent(shared_from_this());
+  YGNodeInsertChild(yoga_node_, child->yoga_node_, index);
+  children_.insert(it, child);
   Invalidate();
 }
 

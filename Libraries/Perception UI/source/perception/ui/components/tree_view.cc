@@ -14,6 +14,8 @@
 
 #include "perception/ui/components/tree_view.h"
 
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 
 #include "include/core/SkCanvas.h"
@@ -35,7 +37,8 @@ namespace components {
 
 TreeView::TreeView()
     : is_dragging_(false),
-      drag_start_mouse_({0, 0}) {}
+      drag_start_mouse_({0, 0}),
+      current_drop_position_(TreeViewDropPosition::ON_TOP) {}
 
 void TreeView::SetNode(std::weak_ptr<Node> node) {
   node_ = node;
@@ -102,13 +105,15 @@ bool TreeView::HasFocus() const {
 
 void TreeView::OnCanDrop(
     std::function<bool(std::shared_ptr<TreeViewItem>,
-                       std::shared_ptr<TreeViewItem>)> can_drop) {
+                       std::shared_ptr<TreeViewItem>, TreeViewDropPosition)>
+        can_drop) {
   can_drop_.push_back(can_drop);
 }
 
 void TreeView::OnDrop(
     std::function<void(std::shared_ptr<TreeViewItem>,
-                       std::shared_ptr<TreeViewItem>)> on_drop) {
+                       std::shared_ptr<TreeViewItem>, TreeViewDropPosition)>
+        on_drop) {
   on_drop_.push_back(on_drop);
 }
 
@@ -129,7 +134,7 @@ void CollectVisibleItems(std::shared_ptr<Node> parent_container,
 
 std::vector<std::shared_ptr<TreeViewItem>> TreeView::GetVisibleItems() const {
   std::vector<std::shared_ptr<TreeViewItem>> items;
-  CollectVisibleItems(node_.lock(), items);
+  CollectVisibleItems(content_container_.lock(), items);
   return items;
 }
 
@@ -184,12 +189,31 @@ void TreeView::StartDrag(std::shared_ptr<TreeViewItem> item, Point window_pt) {
   ghost->GetLayout().SetPadding(YGEdgeHorizontal, 8.0f);
   ghost->GetLayout().SetPadding(YGEdgeVertical, 4.0f);
 
-  auto lbl = Label::BasicLabel("Dragging...", [](Label& l) {
-    l.SetColor(0xFFFFFFFF);
-  });
+  std::string drag_text = "Dragging...";
+  if (auto content = item->GetContentContainer()) {
+    for (const auto& child : content->GetChildren()) {
+      if (auto label = child->Get<Label>()) {
+        drag_text = std::string(label->GetText());
+        break;
+      }
+    }
+  }
+
+  auto lbl =
+      Label::BasicLabel(drag_text, [](Label& l) { l.SetColor(0xFFFFFFFF); });
   ghost->AddChild(lbl);
   drag_ghost_ = ghost;
   overlay->AddChild(ghost);
+
+  auto line = std::make_shared<Node>();
+  line->GetLayout().SetPositionType(YGPositionTypeAbsolute);
+  line->GetLayout().SetHeight(2.0f);
+  line->GetLayout().SetDisplay(YGDisplayNone);
+  line->SetBlocksHitTest(false);
+  auto line_block = line->GetOrAdd<Block>();
+  line_block->SetBorderRadius(1.0f);
+  drag_insertion_line_ = line;
+  overlay->AddChild(line);
 
   drag_overlay_ = overlay;
   root->AddChild(overlay);
@@ -205,16 +229,39 @@ void TreeView::UpdateDrag(Point window_pt) {
     drag_ghost_->GetLayout().SetPosition(YGEdgeTop, window_pt.y + 12.0f);
   }
 
-  auto hit = HitTest(window_pt);
+  auto target = CalculateDropCandidate(window_pt);
   auto old_target = current_drop_target_.lock();
-  if (hit != old_target) {
+  if (target.item != old_target || target.position != current_drop_position_) {
     if (old_target) old_target->SetDragOverState(TreeViewItem::DragOverState::NONE);
-    current_drop_target_ = hit;
-    if (hit) {
-      bool can = CanDrop(dragged_item_.lock(), hit);
-      hit->SetDragOverState(can ? TreeViewItem::DragOverState::VALID
-                                : TreeViewItem::DragOverState::INVALID);
+    current_drop_target_ = target.item;
+    current_drop_position_ = target.position;
+    if (target.position == TreeViewDropPosition::ON_TOP) {
+      if (drag_insertion_line_) {
+        drag_insertion_line_->GetLayout().SetDisplay(YGDisplayNone);
+      }
+      if (target.item) {
+        bool can = CanDrop(dragged_item_.lock(), target.item, target.position);
+        target.item->SetDragOverState(
+            can ? TreeViewItem::DragOverState::VALID
+                : TreeViewItem::DragOverState::INVALID);
+      }
+    } else {
+      if (drag_insertion_line_) {
+        bool can = CanDrop(dragged_item_.lock(), target.item, target.position);
+        drag_insertion_line_->GetLayout().SetDisplay(YGDisplayFlex);
+        drag_insertion_line_->GetLayout().SetPosition(YGEdgeLeft,
+                                                      target.line_x);
+        drag_insertion_line_->GetLayout().SetPosition(YGEdgeTop, target.line_y);
+        drag_insertion_line_->GetLayout().SetWidth(target.line_width);
+        auto block = drag_insertion_line_->GetOrAdd<Block>();
+        block->SetFillColor(can ? 0xFF10B981 : 0xFFEF4444);
+      }
     }
+  } else if (target.position != TreeViewDropPosition::ON_TOP &&
+             drag_insertion_line_) {
+    drag_insertion_line_->GetLayout().SetPosition(YGEdgeLeft, target.line_x);
+    drag_insertion_line_->GetLayout().SetPosition(YGEdgeTop, target.line_y);
+    drag_insertion_line_->GetLayout().SetWidth(target.line_width);
   }
   if (auto r = node_.lock()) {
     auto root = r;
@@ -230,9 +277,10 @@ void TreeView::EndDrag() {
   auto source = dragged_item_.lock();
   auto target = current_drop_target_.lock();
 
-  if (is_dragging_ && source && target && CanDrop(source, target)) {
+  if (is_dragging_ && source &&
+      CanDrop(source, target, current_drop_position_)) {
     for (auto& cb : on_drop_) {
-      cb(source, target);
+      cb(source, target, current_drop_position_);
     }
   }
 
@@ -243,12 +291,51 @@ void TreeView::EndDrag() {
     drag_overlay_.reset();
   }
   drag_ghost_.reset();
+  drag_insertion_line_.reset();
   dragged_item_.reset();
   current_drop_target_.reset();
+  current_drop_position_ = TreeViewDropPosition::ON_TOP;
   potential_drag_item_.reset();
   is_dragging_ = false;
 
   if (!node_.expired()) node_.lock()->Invalidate();
+}
+
+bool TreeView::ReparentItem(std::shared_ptr<TreeViewItem> source,
+                            std::shared_ptr<TreeViewItem> target,
+                            TreeViewDropPosition position) {
+  if (!CanDrop(source, target, position)) return false;
+
+  if (auto old_parent = source->GetParentItem()) {
+    old_parent->RemoveChildItem(source);
+  } else if (auto content = GetContentContainer()) {
+    if (auto source_node = source->GetNode().lock()) {
+      content->RemoveChild(source_node);
+    }
+  }
+
+  if (position == TreeViewDropPosition::ON_TOP) {
+    target->AddChildItem(source);
+    target->SetExpanded(true);
+  } else {
+    auto parent_item = target ? target->GetParentItem() : nullptr;
+    if (parent_item) {
+      if (position == TreeViewDropPosition::BEFORE) {
+        parent_item->InsertChildItemBefore(source, target);
+      } else {
+        parent_item->InsertChildItemAfter(source, target);
+      }
+    } else if (auto content = GetContentContainer()) {
+      auto target_node = target ? target->GetNode().lock() : nullptr;
+      if (position == TreeViewDropPosition::BEFORE) {
+        content->InsertChildBefore(source->GetNode().lock(), target_node);
+      } else {
+        content->InsertChildAfter(source->GetNode().lock(), target_node);
+      }
+    }
+  }
+  if (!node_.expired()) node_.lock()->Invalidate();
+  return true;
 }
 
 void TreeView::HandleKeyDown(const window::KeyboardKeyEvent& event) {
@@ -328,12 +415,13 @@ void TreeView::HandleKeyDown(const window::KeyboardKeyEvent& event) {
 }
 
 bool TreeView::CanDrop(std::shared_ptr<TreeViewItem> source,
-                       std::shared_ptr<TreeViewItem> target) {
-  if (!source || !target) return false;
+                       std::shared_ptr<TreeViewItem> target,
+                       TreeViewDropPosition position) {
+  if (!source) return false;
   if (source == target) return false;
-  if (source->IsAncestorOf(target)) return false;
+  if (target && source->IsAncestorOf(target)) return false;
   for (const auto& cb : can_drop_) {
-    if (!cb(source, target)) return false;
+    if (!cb(source, target, position)) return false;
   }
   return true;
 }
@@ -351,6 +439,160 @@ std::shared_ptr<TreeViewItem> TreeView::HitTest(Point window_pt) const {
     }
   }
   return nullptr;
+}
+
+int TreeView::GetItemDepth(std::shared_ptr<TreeViewItem> item) const {
+  if (!item) return 0;
+  int depth = 0;
+  auto curr = item->GetParentItem();
+  while (curr) {
+    depth++;
+    curr = curr->GetParentItem();
+  }
+  return depth;
+}
+
+TreeView::DropCandidate TreeView::CalculateDropCandidate(
+    Point window_pt) const {
+  DropCandidate result;
+  auto items = GetVisibleItems();
+
+  float content_left = 0.0f;
+  float content_width = 100.0f;
+  if (auto content = content_container_.lock()) {
+    content_left = content->GetAbsolutePosition().x;
+    content_width = content->GetSize().width;
+  }
+
+  auto get_line_geom = [&](int depth, float& out_x, float& out_w) {
+    out_x = content_left + kTreeViewPadding + depth * kTreeViewIndent;
+    out_w = std::max(10.0f, content_width - kTreeViewPadding * 2.0f -
+                                depth * kTreeViewIndent);
+  };
+
+  if (items.empty()) {
+    result.position = TreeViewDropPosition::BEFORE;
+    result.item = nullptr;
+    result.line_y = content_container_.lock()
+                        ? content_container_.lock()->GetAbsolutePosition().y
+                        : 0.0f;
+    get_line_geom(0, result.line_x, result.line_width);
+    return result;
+  }
+
+  auto get_boundary_candidates =
+      [&](size_t index) -> std::vector<DropCandidate> {
+    std::vector<DropCandidate> cands;
+    if (index == 0) {
+      DropCandidate c;
+      c.item = items[0];
+      c.position = TreeViewDropPosition::BEFORE;
+      c.line_y =
+          items[0]->GetRowContainer()
+              ? items[0]->GetRowContainer()->GetAbsolutePosition().y - 1.0f
+              : 0.0f;
+      get_line_geom(GetItemDepth(items[0]), c.line_x, c.line_width);
+      cands.push_back(c);
+      return cands;
+    }
+    auto prev_item = items[index - 1];
+    auto next_item = (index < items.size()) ? items[index] : nullptr;
+    if (next_item && next_item->GetParentItem() == prev_item) {
+      DropCandidate c;
+      c.item = next_item;
+      c.position = TreeViewDropPosition::BEFORE;
+      c.line_y =
+          next_item->GetRowContainer()
+              ? next_item->GetRowContainer()->GetAbsolutePosition().y - 1.0f
+              : 0.0f;
+      get_line_geom(GetItemDepth(next_item), c.line_x, c.line_width);
+      cands.push_back(c);
+      return cands;
+    }
+    float gap_y = prev_item->GetRowContainer()
+                      ? (prev_item->GetRowContainer()->GetAbsolutePosition().y +
+                         prev_item->GetRowContainer()->GetSize().height + 1.0f)
+                      : 0.0f;
+    auto curr = prev_item;
+    while (curr) {
+      DropCandidate c;
+      c.item = curr;
+      c.position = TreeViewDropPosition::AFTER;
+      c.line_y = gap_y;
+      get_line_geom(GetItemDepth(curr), c.line_x, c.line_width);
+      cands.push_back(c);
+
+      auto parent = curr->GetParentItem();
+      if (!parent) break;
+      bool is_last_child = false;
+      if (auto children_container = parent->GetChildrenContainer()) {
+        std::shared_ptr<TreeViewItem> last_child;
+        for (const auto& ch : children_container->GetChildren()) {
+          if (auto tvi = ch->Get<TreeViewItem>()) {
+            last_child = tvi;
+          }
+        }
+        if (last_child == curr) is_last_child = true;
+      }
+      if (!is_last_child) break;
+      curr = parent;
+    }
+    return cands;
+  };
+
+  for (size_t i = 0; i < items.size(); ++i) {
+    auto row = items[i]->GetRowContainer();
+    if (!row) continue;
+    Point pos = row->GetAbsolutePosition();
+    Size sz = row->GetSize();
+    float y_top = pos.y;
+    float y_bot = pos.y + sz.height;
+
+    if (window_pt.y < y_top + sz.height * 0.25f) {
+      auto cands = get_boundary_candidates(i);
+      DropCandidate best = cands.empty() ? result : cands[0];
+      float min_dist = best.item ? std::abs(window_pt.x - best.line_x) : 1e9f;
+      for (const auto& c : cands) {
+        float dist = std::abs(window_pt.x - c.line_x);
+        if (dist < min_dist) {
+          min_dist = dist;
+          best = c;
+        }
+      }
+      return best;
+    } else if (window_pt.y <= y_top + sz.height * 0.75f) {
+      result.item = items[i];
+      result.position = TreeViewDropPosition::ON_TOP;
+      return result;
+    } else if (i == items.size() - 1 || window_pt.y < y_bot) {
+      size_t bound_idx = (i == items.size() - 1 && window_pt.y >= y_bot)
+                             ? items.size()
+                             : (i + 1);
+      auto cands = get_boundary_candidates(bound_idx);
+      DropCandidate best = cands.empty() ? result : cands[0];
+      float min_dist = best.item ? std::abs(window_pt.x - best.line_x) : 1e9f;
+      for (const auto& c : cands) {
+        float dist = std::abs(window_pt.x - c.line_x);
+        if (dist < min_dist) {
+          min_dist = dist;
+          best = c;
+        }
+      }
+      return best;
+    }
+  }
+
+  auto cands = get_boundary_candidates(items.size());
+  DropCandidate best = cands.empty() ? result : cands[0];
+  float min_dist = best.item ? std::abs(window_pt.x - best.line_x) : 1e9f;
+  for (const auto& c : cands) {
+    float dist = std::abs(window_pt.x - c.line_x);
+    if (dist < min_dist) {
+      min_dist = dist;
+      best = c;
+    }
+  }
+  return best;
 }
 
 TreeViewItem::TreeViewItem() : is_expanded_(false), is_selected_(false) {}
@@ -474,6 +716,10 @@ void TreeViewItem::SetExpanded(bool expanded) {
                                                   : YGDisplayNone);
   }
 
+  for (const auto& cb : on_toggle_) {
+    cb(is_expanded_);
+  }
+
   if (!node_.expired()) {
     node_.lock()->Invalidate();
   }
@@ -557,6 +803,10 @@ void TreeViewItem::OnSelect(std::function<void()> on_select) {
   on_select_.push_back(on_select);
 }
 
+void TreeViewItem::OnToggle(std::function<void(bool)> on_toggle) {
+  on_toggle_.push_back(on_toggle);
+}
+
 void TreeViewItem::NotifySelect() {
   for (const auto& cb : on_select_) cb();
 }
@@ -593,6 +843,71 @@ bool TreeViewItem::IsAncestorOf(std::shared_ptr<TreeViewItem> other) const {
     curr = curr->GetParent().lock();
   }
   return false;
+}
+
+std::shared_ptr<TreeViewItem> TreeViewItem::GetParentItem() const {
+  if (node_.expired()) return nullptr;
+  auto curr = node_.lock()->GetParent().lock();
+  while (curr) {
+    if (auto item = curr->Get<TreeViewItem>()) {
+      return item;
+    }
+    if (curr->Get<TreeView>()) {
+      return nullptr;
+    }
+    curr = curr->GetParent().lock();
+  }
+  return nullptr;
+}
+
+void TreeViewItem::AddChildItem(std::shared_ptr<TreeViewItem> child_item) {
+  if (!child_item) return;
+  if (auto container = children_container_.lock()) {
+    if (auto child_node = child_item->GetNode().lock()) {
+      container->AddChild(child_node);
+      child_item->ExpandParents();
+      if (!node_.expired()) node_.lock()->Invalidate();
+    }
+  }
+}
+
+void TreeViewItem::InsertChildItemBefore(
+    std::shared_ptr<TreeViewItem> child_item,
+    std::shared_ptr<TreeViewItem> before_child) {
+  if (!child_item) return;
+  if (auto container = children_container_.lock()) {
+    if (auto child_node = child_item->GetNode().lock()) {
+      auto before_node =
+          before_child ? before_child->GetNode().lock() : nullptr;
+      container->InsertChildBefore(child_node, before_node);
+      child_item->ExpandParents();
+      if (!node_.expired()) node_.lock()->Invalidate();
+    }
+  }
+}
+
+void TreeViewItem::InsertChildItemAfter(
+    std::shared_ptr<TreeViewItem> child_item,
+    std::shared_ptr<TreeViewItem> after_child) {
+  if (!child_item) return;
+  if (auto container = children_container_.lock()) {
+    if (auto child_node = child_item->GetNode().lock()) {
+      auto after_node = after_child ? after_child->GetNode().lock() : nullptr;
+      container->InsertChildAfter(child_node, after_node);
+      child_item->ExpandParents();
+      if (!node_.expired()) node_.lock()->Invalidate();
+    }
+  }
+}
+
+void TreeViewItem::RemoveChildItem(std::shared_ptr<TreeViewItem> child_item) {
+  if (!child_item) return;
+  if (auto container = children_container_.lock()) {
+    if (auto child_node = child_item->GetNode().lock()) {
+      container->RemoveChild(child_node);
+      if (!node_.expired()) node_.lock()->Invalidate();
+    }
+  }
 }
 
 std::shared_ptr<Node> TreeViewItem::GetRowContainer() const {

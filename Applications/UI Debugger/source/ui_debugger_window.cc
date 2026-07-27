@@ -289,15 +289,37 @@ UIDebuggerWindow::UIDebuggerWindow(
 
   tree_container_ = TreeView::Create();
   if (auto tv = tree_container_->Get<TreeView>()) {
-    tv->OnDrop([this](std::shared_ptr<TreeViewItem> source_item,
-                      std::shared_ptr<TreeViewItem> target_item) {
-      auto source_node = FindNodeByTreeItem(root_node_, source_item);
-      auto target_node = FindNodeByTreeItem(root_node_, target_item);
-      if (source_node && target_node && source_node != target_node &&
-          !IsDescendantOf(target_node, source_node)) {
-        ReparentInspectedNode(source_node, target_node);
-      }
-    });
+    tv->OnCanDrop(
+        [](std::shared_ptr<TreeViewItem>,
+           std::shared_ptr<TreeViewItem> target_item,
+           ::perception::ui::components::TreeViewDropPosition position) {
+          if (position ==
+              ::perception::ui::components::TreeViewDropPosition::ON_TOP) {
+            return target_item != nullptr;
+          }
+          return true;
+        });
+    tv->OnDrop(
+        [this](std::shared_ptr<TreeViewItem> source_item,
+               std::shared_ptr<TreeViewItem> target_item,
+               ::perception::ui::components::TreeViewDropPosition position) {
+          auto source_node = FindNodeByTreeItem(root_node_, source_item);
+          auto target_node = FindNodeByTreeItem(root_node_, target_item);
+          if (source_node && target_node && source_node != target_node &&
+              !IsDescendantOf(target_node, source_node)) {
+            if (position ==
+                ::perception::ui::components::TreeViewDropPosition::ON_TOP) {
+              ReparentInspectedNode(source_node, target_node, nullptr,
+                                    position);
+            } else {
+              auto new_parent = target_node->parent.lock();
+              if (new_parent) {
+                ReparentInspectedNode(source_node, new_parent, target_node,
+                                      position);
+              }
+            }
+          }
+        });
   }
   RebuildTree();
 
@@ -543,6 +565,19 @@ void UIDebuggerWindow::RebuildTree() {
   auto tv = tree_container_->Get<TreeView>();
   if (tv && tv->GetContentContainer()) {
     auto content = tv->GetContentContainer();
+    auto save_expanded = [this](auto& self,
+                                std::shared_ptr<InspectedNode> n) -> void {
+      if (!n) return;
+      if (auto item = n->tree_item.lock()) {
+        if (item->IsExpanded()) {
+          expanded_node_ids_.insert(n->id);
+        } else {
+          expanded_node_ids_.erase(n->id);
+        }
+      }
+      for (auto& c : n->children) self(self, c);
+    };
+    if (root_node_) save_expanded(save_expanded, root_node_);
     content->RemoveChildren();
     if (root_node_) {
       if (auto item = BuildTree(root_node_)) {
@@ -584,9 +619,18 @@ std::shared_ptr<Node> UIDebuggerWindow::BuildTree(
     tv_item->OnContextMenu([this, node](Point screen_pt) {
       ShowTreeContextMenu(node, screen_pt);
     });
-    if (node->z_depth == 0 || (!search_query_.empty() && descendant_matches)) {
+    if (node->z_depth == 0 || (!search_query_.empty() && descendant_matches) ||
+        expanded_node_ids_.count(node->id)) {
       tv_item->SetExpanded(true);
+      expanded_node_ids_.insert(node->id);
     }
+    tv_item->OnToggle([this, id = node->id](bool expanded) {
+      if (expanded) {
+        expanded_node_ids_.insert(id);
+      } else {
+        expanded_node_ids_.erase(id);
+      }
+    });
     node->tree_item = tv_item;
   }
 
@@ -998,7 +1042,9 @@ bool UIDebuggerWindow::IsDescendantOf(std::shared_ptr<InspectedNode> node,
 
 void UIDebuggerWindow::ReparentInspectedNode(
     std::shared_ptr<InspectedNode> node,
-    std::shared_ptr<InspectedNode> new_parent) {
+    std::shared_ptr<InspectedNode> new_parent,
+    std::shared_ptr<InspectedNode> target_sibling,
+    ::perception::ui::components::TreeViewDropPosition position) {
   if (!node || !new_parent || node == new_parent) return;
   if (IsDescendantOf(new_parent, node)) return;
 
@@ -1027,7 +1073,18 @@ void UIDebuggerWindow::ReparentInspectedNode(
         old_p->children.end());
   }
   node->parent = new_parent;
-  new_parent->children.push_back(node);
+  if (target_sibling &&
+      position != ::perception::ui::components::TreeViewDropPosition::ON_TOP) {
+    auto it = std::find(new_parent->children.begin(),
+                        new_parent->children.end(), target_sibling);
+    if (position == ::perception::ui::components::TreeViewDropPosition::AFTER &&
+        it != new_parent->children.end()) {
+      ++it;
+    }
+    new_parent->children.insert(it, node);
+  } else {
+    new_parent->children.push_back(node);
+  }
 
   auto update_depths = [](auto& self, std::shared_ptr<InspectedNode> n,
                           int d) -> void {
@@ -1036,6 +1093,7 @@ void UIDebuggerWindow::ReparentInspectedNode(
     for (auto& c : n->children) self(self, c, d + 1);
   };
   update_depths(update_depths, node, new_parent->z_depth + 1);
+  expanded_node_ids_.insert(new_parent->id);
 
   RebuildTree();
   if (canvas_) canvas_->Invalidate();
