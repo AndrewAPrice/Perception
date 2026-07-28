@@ -45,7 +45,7 @@
       linker + application_linker_optimizations + (if is_testing then '' else ' --gc-sections --icf=all -pie -nostdlib -z max-page-size=4096') + ' -o ${out} --start-group ${in} --end-group -L ${shared_library_path} ${shared_libraries}'
     else if package_type == 'library' then
       if is_testing then
-        linker + ' -shared -lc++ -o ${out} ${in}'
+        linker + ' -shared -lc++ -Wl,-undefined,dynamic_lookup -o ${out} ${in}'
       else
         linker + ' -shared' + ' -o ${out} ${in}'
     else
@@ -111,6 +111,6 @@
   local fs_path = '${temp directory}/fs/',
   global_run_command:
     'grub-mkrescue -o "' + iso_path + '" "' + fs_path + '"&&' +
-    'qemu-system-x86_64 -display cocoa -boot d -drive id=sata_cd,file="' + iso_path + '",if=none,format=raw -device ich9-ahci,id=ahci -device ide-cd,drive=sata_cd,bus=ahci.0 -device intel-hda -device hda-duplex -m 2048 -serial stdio -device isa-debug-exit,iobase=0xf4,iosize=0x04 -netdev user,id=net0 -device virtio-net-pci,netdev=net0 -vga virtio -monitor unix:./qemu-monitor.sock,server,nowait',
+    'qemu-system-x86_64 -display cocoa -boot d -drive id=sata_cd,file="' + iso_path + '",if=none,format=raw -device ich9-ahci,id=ahci -device ide-cd,drive=sata_cd,bus=ahci.0 -device intel-hda -audiodev coreaudio,id=audio0 -device hda-output,audiodev=audio0 -m 2048 -serial stdio -device isa-debug-exit,iobase=0xf4,iosize=0x04 -netdev user,id=net0 -device virtio-net-pci,netdev=net0 -vga virtio -monitor unix:./qemu-monitor.sock,server,nowait',
 
 }
