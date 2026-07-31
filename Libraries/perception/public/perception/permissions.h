@@ -41,8 +41,6 @@ enum class Permission {
   // Permission for a process to continue running after all of its open windows
   // are closed.
   CanContinueRunningAfterWindowsClose,
-  // Permission to directly control the audio hardware device.
-  CanDirectlyControlAudioDevice,
   // Permission to play audio streams.
   CanPlayAudio,
   // Permission to adjust the audio volume.

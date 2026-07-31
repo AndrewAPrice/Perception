@@ -33,8 +33,6 @@ std::optional<std::string_view> GetPermissionVerbalization(
       return "use the network device directly";
     case Permission::CanContinueRunningAfterWindowsClose:
       return "continue running after all windows are closed";
-    case Permission::CanDirectlyControlAudioDevice:
-      return "directly control the audio device";
     case Permission::CanPlayAudio:
       return "play audio";
     case Permission::CanAdjustVolume:
@@ -68,8 +66,6 @@ std::optional<std::string_view> GetPermissionKey(Permission permission) {
       return "CanUseNetworkDevice";
     case Permission::CanContinueRunningAfterWindowsClose:
       return "CanContinueRunningAfterWindowsClose";
-    case Permission::CanDirectlyControlAudioDevice:
-      return "CanDirectlyControlAudioDevice";
     case Permission::CanPlayAudio:
       return "CanPlayAudio";
     case Permission::CanAdjustVolume:
@@ -87,8 +83,6 @@ std::optional<Permission> ParsePermissionKey(std::string_view key) {
   if (key == "CanUseNetworkDevice") return Permission::CanUseNetworkDevice;
   if (key == "CanContinueRunningAfterWindowsClose")
     return Permission::CanContinueRunningAfterWindowsClose;
-  if (key == "CanDirectlyControlAudioDevice")
-    return Permission::CanDirectlyControlAudioDevice;
   if (key == "CanPlayAudio") return Permission::CanPlayAudio;
   if (key == "CanAdjustVolume") return Permission::CanAdjustVolume;
   return std::nullopt;

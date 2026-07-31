@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "audio_manager.h"
-#include "perception/processes.h"
-#include "perception/scheduler.h"
+#pragma once
 
-using ::perception::HandOverControl;
-using ::perception::IsDuplicateInstanceOfProcess;
+#include <cstddef>
+#include <cstdint>
 
-int main(int argc, char* argv[]) {
-  if (IsDuplicateInstanceOfProcess()) return 0;
+using MixStereoFunc = void (*)(int16_t* dest, const int16_t* src,
+                               size_t num_frames, float gain);
+using MixMonoFunc = void (*)(int16_t* dest, const int16_t* src,
+                             size_t num_frames, float gain);
 
-  AudioManager audio_manager;
+extern MixStereoFunc mix_stereo_func;
+extern MixMonoFunc mix_mono_func;
 
-  HandOverControl();
-  return 0;
-}
+void InitializeMixerFunctions();

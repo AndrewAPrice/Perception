@@ -20,10 +20,13 @@
 #include "perception/devices/device_manager.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
+#include "perception/threads.h"
 
 using ::perception::GetService;
 using ::perception::HandOverControl;
 using ::perception::IsDuplicateInstanceOfProcess;
+using ::perception::SetThreadPriority;
+using ::perception::ThreadPriority;
 using ::perception::devices::DeviceManager;
 using ::perception::devices::PciDeviceFilter;
 using ::perception::devices::PciDeviceFilters;
@@ -60,6 +63,7 @@ void InitializeIntelHdaControllers() {
 int main(int argc, char* argv[]) {
   if (IsDuplicateInstanceOfProcess()) return 0;
 
+  SetThreadPriority(ThreadPriority::InterruptDriver);
   InitializeIntelHdaControllers();
 
   if (controllers.empty()) {

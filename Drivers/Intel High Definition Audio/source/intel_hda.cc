@@ -22,6 +22,7 @@
 #include "perception/fibers.h"
 #include "perception/memory.h"
 #include "perception/pci.h"
+#include "perception/processes.h"
 #include "perception/time.h"
 
 using ::Status;
@@ -33,11 +34,13 @@ using ::perception::kPciHdrCommand;
 using ::perception::kPciHdrCommandBitBusMaster;
 using ::perception::kPciHdrCommandBitMemorySpace;
 using ::perception::MapPhysicalMemory;
+using ::perception::NotifyUponProcessTermination;
 using ::perception::Permission;
 using ::perception::ProcessId;
 using ::perception::Read16BitsFromPciConfig;
 using ::perception::Read32BitsFromPciConfig;
 using ::perception::SleepForDuration;
+using ::perception::StopNotifyingUponProcessTermination;
 using ::perception::Write16BitsToPciConfig;
 
 namespace devices = ::perception::devices;
@@ -178,7 +181,24 @@ void IntelHdaController::SetupCodec(uint8 codec) {
   SendCodecVerb(codec, 0x03, 0xF07, 0x00);
 }
 
+void IntelHdaController::ZeroDmaBufferFrames(size_t start_frame,
+                                             size_t num_frames) {
+  if (!dma_buffer_ || num_frames == 0) return;
+  constexpr size_t total_frames = 16384;
+  int16_t* mix_buf = reinterpret_cast<int16_t*>(dma_buffer_);
+
+  size_t contig_frames = total_frames - start_frame;
+  if (num_frames <= contig_frames) {
+    std::memset(&mix_buf[start_frame * 2], 0, num_frames * 4);
+  } else {
+    std::memset(&mix_buf[start_frame * 2], 0, contig_frames * 4);
+    std::memset(&mix_buf[0], 0, (num_frames - contig_frames) * 4);
+  }
+}
+
 bool IntelHdaController::Initialize() {
+  InitializeMixerFunctions();
+
   // Enable Bus Master and Memory Space in 16-bit PCI command register
   uint16 command =
       Read16BitsFromPciConfig(bus_, slot_, function_, kPciHdrCommand);
@@ -394,21 +414,26 @@ void IntelHdaController::UpdateDmaBuffer() {
       continue;
     }
 
+    size_t num_channels = it->channels > 0 ? it->channels : 2;
     size_t total_src_frames =
-        (it->shared_buffer->GetSize() / sizeof(int16_t)) / 2;
+        (it->shared_buffer->GetSize() / sizeof(int16_t)) / num_channels;
     if (total_src_frames == 0) {
       it = active_streams_.erase(it);
       continue;
     }
 
-    it->play_offset += frames_advanced;
-    if (it->play_offset >= total_src_frames) {
-      if (it->loop) {
-        it->play_offset %= total_src_frames;
-      } else {
-        it->is_active = false;
-        it = active_streams_.erase(it);
-        continue;
+    if (it->first_mix) {
+      it->first_mix = false;
+    } else {
+      it->play_offset += frames_advanced;
+      if (it->play_offset >= total_src_frames) {
+        if (it->loop) {
+          it->play_offset %= total_src_frames;
+        } else {
+          it->is_active = false;
+          it = active_streams_.erase(it);
+          continue;
+        }
       }
     }
     ++it;
@@ -416,16 +441,16 @@ void IntelHdaController::UpdateDmaBuffer() {
 
   last_frame_ = current_frame;
 
-  // Render and mix audio into full 64KB DMA ring buffer ahead of current
-  // hardware read pointer
-  constexpr size_t lookahead_frames = 16384;  // Full 64KB ring buffer (~341ms)
+  // Render and mix audio into an 80ms lookahead window ahead of current
+  // hardware read pointer, leaving a 5ms guard band untouched.
+  constexpr size_t safety_frames =
+      240;  // 5ms guard band ahead of DMA read pointer
+  constexpr size_t lookahead_frames = 3840;  // 80ms lookahead window
   int16_t* mix_buf = reinterpret_cast<int16_t*>(dma_buffer_);
 
-  for (size_t f = 0; f < lookahead_frames; ++f) {
-    size_t target_frame = (current_frame + f) % total_frames;
-    mix_buf[target_frame * 2 + 0] = 0;
-    mix_buf[target_frame * 2 + 1] = 0;
-  }
+  size_t start_zero_frame = (current_frame + safety_frames) % total_frames;
+  size_t num_zero_frames = lookahead_frames - safety_frames;
+  ZeroDmaBufferFrames(start_zero_frame, num_zero_frames);
 
   for (auto& stream : active_streams_) {
     if (!stream.is_active || !stream.shared_buffer || !**stream.shared_buffer) {
@@ -434,35 +459,40 @@ void IntelHdaController::UpdateDmaBuffer() {
 
     const int16_t* src_pcm =
         reinterpret_cast<const int16_t*>(**stream.shared_buffer);
+    size_t num_channels = stream.channels > 0 ? stream.channels : 2;
     size_t total_src_frames =
-        (stream.shared_buffer->GetSize() / sizeof(int16_t)) / 2;
+        (stream.shared_buffer->GetSize() / sizeof(int16_t)) / num_channels;
     if (!src_pcm || total_src_frames == 0) continue;
 
-    for (size_t f = 0; f < lookahead_frames; ++f) {
-      size_t src_frame = (stream.play_offset + f);
-      if (src_frame >= total_src_frames) {
+    float gain = stream.volume * master_volume_;
+    size_t frames_remaining = lookahead_frames - safety_frames;
+    size_t cur_dest_frame = (current_frame + safety_frames) % total_frames;
+    size_t cur_src_frame = stream.play_offset;
+
+    while (frames_remaining > 0) {
+      size_t dest_contig = total_frames - cur_dest_frame;
+      size_t src_contig = total_src_frames - cur_src_frame;
+      size_t chunk_frames =
+          std::min({frames_remaining, dest_contig, src_contig});
+
+      if (num_channels == 1) {
+        mix_mono_func(&mix_buf[cur_dest_frame * 2], &src_pcm[cur_src_frame],
+                      chunk_frames, gain);
+      } else {
+        mix_stereo_func(&mix_buf[cur_dest_frame * 2],
+                        &src_pcm[cur_src_frame * 2], chunk_frames, gain);
+      }
+
+      cur_dest_frame = (cur_dest_frame + chunk_frames) % total_frames;
+      cur_src_frame += chunk_frames;
+      if (cur_src_frame >= total_src_frames) {
         if (stream.loop) {
-          src_frame %= total_src_frames;
+          cur_src_frame = 0;
         } else {
           break;
         }
       }
-
-      int32_t left_sample = static_cast<int32_t>(
-          src_pcm[src_frame * 2 + 0] * stream.volume * master_volume_);
-      int32_t right_sample = static_cast<int32_t>(
-          src_pcm[src_frame * 2 + 1] * stream.volume * master_volume_);
-
-      size_t target_frame = (current_frame + f) % total_frames;
-
-      int32_t cur_left = mix_buf[target_frame * 2 + 0];
-      int32_t cur_right = mix_buf[target_frame * 2 + 1];
-
-      int32_t mix_left = std::clamp(cur_left + left_sample, -32768, 32767);
-      int32_t mix_right = std::clamp(cur_right + right_sample, -32768, 32767);
-
-      mix_buf[target_frame * 2 + 0] = static_cast<int16_t>(mix_left);
-      mix_buf[target_frame * 2 + 1] = static_cast<int16_t>(mix_right);
+      frames_remaining -= chunk_frames;
     }
   }
 
@@ -471,10 +501,6 @@ void IntelHdaController::UpdateDmaBuffer() {
 
 StatusOr<devices::AudioDeviceDetails> IntelHdaController::GetDeviceDetails(
     ProcessId sender) {
-  if (!DoesProcessHavePermission(sender,
-                                 Permission::CanDirectlyControlAudioDevice)) {
-    return Status::NOT_ALLOWED;
-  }
   devices::AudioDeviceDetails details;
   details.name = "Intel High Definition Audio Controller";
   details.sample_rate = 48000;
@@ -486,23 +512,44 @@ StatusOr<devices::AudioDeviceDetails> IntelHdaController::GetDeviceDetails(
 
 StatusOr<devices::AudioDevicePlayResponse> IntelHdaController::PlayAudio(
     const devices::AudioDevicePlayRequest& request, ProcessId sender) {
-  if (!::DoesProcessHavePermission(sender,
-                                   Permission::CanDirectlyControlAudioDevice)) {
+  if (!::DoesProcessHavePermission(sender, Permission::CanPlayAudio))
     return Status::NOT_ALLOWED;
-  }
+  if (request.channels != 1 && request.channels != 2)
+    return Status::INVALID_ARGUMENT;
   std::scoped_lock lock(stream_mutex_);
   HdaStreamState state;
   state.stream_id = next_stream_id_++;
+  state.owner = sender;
   state.is_active = true;
   state.loop = request.loop;
+  state.first_mix = true;
   state.volume = request.volume;
-  state.shared_buffer = request.shared_buffer;
+  if (request.shared_buffer) {
+    size_t buffer_id = request.shared_buffer->GetId();
+    auto& sender_buffers = process_buffers_[sender];
+    auto it = sender_buffers.find(buffer_id);
+    if (it != sender_buffers.end()) {
+      state.shared_buffer = it->second;
+    } else {
+      request.shared_buffer->Join();
+      sender_buffers[buffer_id] = request.shared_buffer;
+      state.shared_buffer = request.shared_buffer;
+    }
+  } else {
+    state.shared_buffer = nullptr;
+  }
   state.sample_rate = request.sample_rate;
   state.channels = request.channels;
   state.bits_per_sample = request.bits_per_sample;
   state.play_offset = 0;
 
   active_streams_.push_back(state);
+
+  if (termination_handlers_.find(sender) == termination_handlers_.end()) {
+    perception::MessageId mid = perception::NotifyUponProcessTermination(
+        sender, [this, sender]() { OnProcessTerminated(sender); });
+    termination_handlers_[sender] = mid;
+  }
 
   devices::AudioDevicePlayResponse response;
   response.stream_id = state.stream_id;
@@ -511,13 +558,10 @@ StatusOr<devices::AudioDevicePlayResponse> IntelHdaController::PlayAudio(
 
 Status IntelHdaController::StopAudio(
     const devices::AudioDeviceStopRequest& request, ProcessId sender) {
-  if (!DoesProcessHavePermission(sender,
-                                 Permission::CanDirectlyControlAudioDevice)) {
-    return Status::NOT_ALLOWED;
-  }
   std::scoped_lock lock(stream_mutex_);
   for (auto& stream : active_streams_) {
     if (stream.stream_id == request.stream_id) {
+      if (stream.owner != sender) return Status::NOT_ALLOWED;
       stream.is_active = false;
       break;
     }
@@ -526,25 +570,41 @@ Status IntelHdaController::StopAudio(
 }
 
 Status IntelHdaController::StopAllAudio(ProcessId sender) {
-  if (!DoesProcessHavePermission(sender,
-                                 Permission::CanDirectlyControlAudioDevice)) {
-    return Status::NOT_ALLOWED;
-  }
   std::scoped_lock lock(stream_mutex_);
   for (auto& stream : active_streams_) {
-    stream.is_active = false;
+    if (stream.owner == sender) stream.is_active = false;
   }
-  active_streams_.clear();
   return Status::OK;
 }
 
 Status IntelHdaController::SetVolume(
     const devices::AudioDeviceSetVolumeRequest& request, ProcessId sender) {
-  if (!DoesProcessHavePermission(sender,
-                                 Permission::CanDirectlyControlAudioDevice)) {
+  if (!DoesProcessHavePermission(sender, Permission::CanAdjustVolume)) {
     return Status::NOT_ALLOWED;
   }
   std::scoped_lock lock(stream_mutex_);
   master_volume_ = request.volume;
   return Status::OK;
+}
+
+StatusOr<devices::AudioDeviceGetVolumeResponse> IntelHdaController::GetVolume(
+    ProcessId sender) {
+  devices::AudioDeviceGetVolumeResponse response;
+  response.volume = master_volume_;
+  return response;
+}
+
+void IntelHdaController::OnProcessTerminated(perception::ProcessId pid) {
+  std::scoped_lock lock(stream_mutex_);
+  for (auto& stream : active_streams_) {
+    if (stream.owner == pid) {
+      stream.is_active = false;
+    }
+  }
+  process_buffers_.erase(pid);
+  auto term_it = termination_handlers_.find(pid);
+  if (term_it != termination_handlers_.end()) {
+    perception::StopNotifyingUponProcessTermination(term_it->second);
+    termination_handlers_.erase(term_it);
+  }
 }

@@ -14,11 +14,13 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
 
+#include "mixer.h"
 #include "perception/devices/audio_device.h"
 #include "perception/permissions.h"
 #include "perception/shared_memory.h"
@@ -32,12 +34,14 @@ struct __attribute__((packed)) HdaBdlEntry {
 
 struct HdaStreamState {
   uint64 stream_id = 0;
+  perception::ProcessId owner = 0;
   bool is_active = false;
   bool loop = false;
+  bool first_mix = true;
   float volume = 1.0f;
   std::shared_ptr<perception::SharedMemory> shared_buffer;
   size_t play_offset = 0;
-  uint32 sample_rate = 44100;
+  uint32 sample_rate = 48000;
   uint8 channels = 2;
   uint8 bits_per_sample = 16;
 };
@@ -60,12 +64,17 @@ class IntelHdaController : public ::perception::devices::AudioDevice::Server {
   Status SetVolume(
       const ::perception::devices::AudioDeviceSetVolumeRequest& request,
       perception::ProcessId sender) override;
+  StatusOr<::perception::devices::AudioDeviceGetVolumeResponse> GetVolume(
+      perception::ProcessId sender) override;
 
  private:
+  void OnProcessTerminated(perception::ProcessId pid);
+
   uint32 SendCodecVerb(uint8 codec, uint8 nid, uint32 verb, uint16 payload);
   void DiscoverCodecNodes(uint8 codec);
   void SetupCodec(uint8 codec);
   void UpdateDmaBuffer();
+  void ZeroDmaBufferFrames(size_t start_frame, size_t num_frames);
 
   uint8 bus_;
   uint8 slot_;
@@ -85,6 +94,14 @@ class IntelHdaController : public ::perception::devices::AudioDevice::Server {
   std::mutex stream_mutex_;
   uint64 next_stream_id_ = 1;
   std::vector<HdaStreamState> active_streams_;
+  std::map<perception::ProcessId, perception::MessageId> termination_handlers_;
+  // Map from ProcessId to a map of shared memory ID -> SharedMemory instances.
+  // This caches shared buffers sent by applications so repeated PlayAudio
+  // requests do not repeatedly incur page table and TLB mapping/unmapping
+  // syscalls.
+  std::map<perception::ProcessId,
+           std::map<size_t, std::shared_ptr<perception::SharedMemory>>>
+      process_buffers_;
   float master_volume_ = 1.0f;
 
   bool running_ = false;
