@@ -274,7 +274,8 @@ void PrintFpRegSet(Process *process, Thread *thread) {
 
   elf_fpregset_t regset;
   Clear(regset);
-  memcpy((char *)&regset, (char *)&thread->fpu_registers, 512);
+  if (thread->fpu_registers)
+    memcpy((char *)&regset, reinterpret_cast<const char*>(thread->fpu_registers), 512);
   PrintDataStructure(regset);
 }
 
@@ -285,7 +286,8 @@ void PrintX86XSave(Process *process, Thread *thread) {
   // include the entire XSAVE.
   XSAVE xsave;
   Clear(xsave);
-  memcpy((char *)&xsave.i387, (char *)&thread->fpu_registers, 512);
+  if (thread->fpu_registers)
+    memcpy((char *)&xsave.i387, reinterpret_cast<const char*>(thread->fpu_registers), 512);
   PrintDataStructure(xsave);
 }
 

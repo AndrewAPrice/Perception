@@ -128,7 +128,7 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param,
   process->thread_count++;
 
   // Populate the FPU registers with something.
-  memset(thread->fpu_registers, 0, 512);
+  thread->fpu_registers = AllocateFpuSaveArea();
 
   thread->address_to_clear_on_termination = 0;
   thread->uses_fpu_registers = true;
@@ -180,6 +180,11 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
 
       AwakeFutexInProcess(process, address_cleared);
     }
+  }
+
+  if (thread->fpu_registers) {
+    ReleaseFpuSaveArea(thread->fpu_registers);
+    thread->fpu_registers = nullptr;
   }
 
   // Free the thread object.

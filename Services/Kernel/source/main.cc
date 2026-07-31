@@ -1,6 +1,7 @@
 #ifndef TEST
 #include "../../../third_party/multiboot2.h"
 #include "framebuffer.h"
+#include "fpu.h"
 #include "interrupts.h"
 #include "io.h"
 #include "multiboot_modules.h"
@@ -35,6 +36,7 @@ extern "C" void kmain() {
   InitializeTss();
   InitializeInterrupts();
   InitializeSystemCalls();
+  InitializeFpu();
 
   InitializeProcesses();
   InitializeThreads();

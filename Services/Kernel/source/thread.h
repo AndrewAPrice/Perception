@@ -1,6 +1,7 @@
 #pragma once
 
 #include "aa_tree.h"
+#include "fpu.h"
 #include "linked_list.h"
 #include "registers.h"
 #include "scheduler.h"
@@ -24,10 +25,9 @@ struct Thread {
   // next interrupt or syscall.
   Registers registers;
 
-  // Storage for the FPU registers. Must be 16 byte aligned (our malloc
-  // implementation will give us a 16 byte aligned Thread struct.) For
-  // performance reasons, we only save this if uses_fpu_registers is set.
-  char fpu_registers[512] __attribute__((aligned(16)));
+  // Storage for the FPU registers (allocated from FPU pool, 64-byte aligned).
+  // For performance reasons, this is only set if uses_fpu_registers is true.
+  FpuRegisters* fpu_registers;
 
   // Does this thread use FPU registers that we need to save them on context
   // switching?
