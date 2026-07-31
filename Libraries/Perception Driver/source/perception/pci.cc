@@ -16,8 +16,12 @@
 
 #include "perception/port_io.h"
 
+using ::perception::Read16BitsFromPort;
 using ::perception::Read32BitsFromPort;
+using ::perception::Read8BitsFromPort;
+using ::perception::Write16BitsToPort;
 using ::perception::Write32BitsToPort;
+using ::perception::Write8BitsToPort;
 
 namespace perception {
 namespace {
@@ -65,6 +69,18 @@ void Write8BitsToPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset,
                            uint8 value) {
   Write32BitsToPort(kPciAddressPort, PciAddress(bus, slot, func, offset) & ~3);
   Write8BitsToPort(kPciValuePort + (offset & 3), value);
+}
+
+void Write16BitsToPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset,
+                            uint16 value) {
+  Write32BitsToPort(kPciAddressPort, PciAddress(bus, slot, func, offset) & ~1);
+  Write16BitsToPort(kPciValuePort + (offset & 1), value);
+}
+
+void Write32BitsToPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset,
+                            uint32 value) {
+  Write32BitsToPort(kPciAddressPort, PciAddress(bus, slot, func, offset));
+  Write32BitsToPort(kPciValuePort, value);
 }
 
 }  // namespace perception

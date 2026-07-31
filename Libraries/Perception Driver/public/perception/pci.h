@@ -59,4 +59,10 @@ uint32 Read32BitsFromPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset);
 void Write8BitsToPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset,
                            uint8 data);
 
+void Write16BitsToPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset,
+                            uint16 data);
+
+void Write32BitsToPciConfig(uint8 bus, uint8 slot, uint8 func, uint8 offset,
+                            uint32 data);
+
 }  // namespace perception
