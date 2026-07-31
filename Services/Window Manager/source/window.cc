@@ -51,6 +51,7 @@
 #include "perception/ui/theme.h"
 #include "perception/window/window_manager.h"
 #include "screen.h"
+#include "tablet.h"
 #include "window_buttons.h"
 #include "window_manager.h"
 
@@ -580,6 +581,7 @@ void Window::SetCaptureMouse(bool capture) {
     if (captive_mouse_window == this) captive_mouse_window = nullptr;
     if (mouse_listener_) mouse_listener_.MouseReleased(nullptr);
   }
+  SetTabletsMouseCaptured(capture);
   InvalidateMouse();
 }
 

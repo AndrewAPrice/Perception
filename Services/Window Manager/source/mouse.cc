@@ -268,45 +268,66 @@ class MyMouseListener : public MouseListener::Server {
 
   Status MouseButton(
       const ::perception::devices::MouseButtonEvent& message) override {
-    if (auto captive_win = Window::GetCaptiveMouseWindow()) {
-      if (captive_win->IsVisible() && captive_win->IsFocused()) {
-        captive_win->GetMouseListener().MouseButton(message, nullptr);
-        return Status::OK;
-      }
-    }
-
-    std::optional<MouseButtonEvent> mouse_button_event = MouseButtonEvent{
-        .button = message.button, .is_pressed_down = message.is_pressed_down};
-    if (message.is_pressed_down) {
-      if (Window::ForEachFrontToBackWindow(
-              [mouse_button_event](Window& window) {
-                if (window.MouseEvent(mouse_position, mouse_button_event)) {
-                  pressed_window = window.weak_from_this();
-                  return true;
-                }
-                return false;
-              })) {
-        return Status::OK;
-      }
-      pressed_window.reset();
-      Window::UnfocusAllWindows();
-      return Status::OK;
-    } else {
-      if (auto strong_window = pressed_window.lock()) {
-        strong_window->MouseEvent(mouse_position, mouse_button_event);
-      }
-      pressed_window.reset();
-      (void)Window::ForEachFrontToBackWindow([](Window& window) {
-        return window.MouseEvent(mouse_position, std::nullopt);
-      });
-      return Status::OK;
-    }
+    ProcessMouseButtonEvent(message);
+    return Status::OK;
   }
 };
 
 std::unique_ptr<MyMouseListener> mouse_listener;
 
 }  // namespace
+
+void SetMousePosition(const Point& position) {
+  auto old_mouse_position = mouse_position;
+  auto screen_size = GetScreenSize();
+
+  for (int i = 0; i < 2; i++) {
+    mouse_position[i] =
+        std::max(0.0f, std::min(position[i], screen_size[i] - 1.0f));
+  }
+
+  if (old_mouse_position == mouse_position) return;
+
+  (void)Window::ForEachFrontToBackWindow([](Window& window) {
+    return window.MouseEvent(mouse_position, std::nullopt);
+  });
+  InvalidateMouse();
+}
+
+void ProcessMouseButtonEvent(
+    const ::perception::devices::MouseButtonEvent& message) {
+  if (auto captive_win = Window::GetCaptiveMouseWindow()) {
+    if (captive_win->IsVisible() && captive_win->IsFocused()) {
+      captive_win->GetMouseListener().MouseButton(message, nullptr);
+      return;
+    }
+  }
+
+  std::optional<MouseButtonEvent> mouse_button_event = MouseButtonEvent{
+      .button = message.button, .is_pressed_down = message.is_pressed_down};
+  if (message.is_pressed_down) {
+    if (Window::ForEachFrontToBackWindow([mouse_button_event](Window& window) {
+          if (window.MouseEvent(mouse_position, mouse_button_event)) {
+            pressed_window = window.weak_from_this();
+            return true;
+          }
+          return false;
+        })) {
+      return;
+    }
+    pressed_window.reset();
+    Window::UnfocusAllWindows();
+  } else {
+    if (auto strong_window = pressed_window.lock())
+      strong_window->MouseEvent(mouse_position, mouse_button_event);
+
+    pressed_window.reset();
+
+    (void)Window::ForEachFrontToBackWindow([](Window& window) {
+      return window.MouseEvent(mouse_position, std::nullopt);
+    });
+  }
+}
 
 void InitializeMouse() {
   mouse_position = GetScreenSize().ToPoint();

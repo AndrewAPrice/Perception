@@ -28,6 +28,13 @@ void InitializeMouse();
 
 const ::perception::ui::Point& GetMousePosition();
 
+// Sets the mouse's position.
+void SetMousePosition(const ::perception::ui::Point& position);
+
+// Process a mouse button event.
+void ProcessMouseButtonEvent(
+    const ::perception::devices::MouseButtonEvent& message);
+
 // Preps the overlays for drawing, which will mark which areas need to be drawn
 // to the window manager's texture and not directly to the screen.
 void DrawMouse(const ::perception::ui::Rectangle& draw_area);

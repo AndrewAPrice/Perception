@@ -17,14 +17,15 @@
 #include "compositor.h"
 #include "highlighter.h"
 #include "mouse.h"
+#include "perception/registry.h"
 #include "perception/scheduler.h"
 #include "perception/threads.h"
 #include "perception/ui/rectangle.h"
 #include "screen.h"
+#include "tablet.h"
 #include "window.h"
 #include "window_buttons.h"
 #include "window_manager.h"
-#include "perception/registry.h"
 
 using ::perception::WaitForMessagesThenReturn;
 using ::perception::ui::Rectangle;
@@ -34,6 +35,7 @@ int main(int argc, char *argv[]) {
       ::perception::ThreadPriority::RealtimeService);
   InitializeScreen();
   InitializeMouse();
+  InitializeTablets();
   InitializeCompositor();
   InitializeHighlighter();
   InitializeWindowButtons();

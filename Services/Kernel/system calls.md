@@ -1027,10 +1027,12 @@ Binds a hardware interrupt (IRQ) to an IPC message delivered to the calling driv
 * `rdx` - **Processing Mode:**
   - `0` - Send message on each interrupt.
   - `1` - Poll and batch read bytes from hardware port while status matches mask.
-    - `rsx` - Port and mask settings:
+    - `rsi` - Port and mask settings:
       - Bits 0-15: Status port
       - Bits 16-31: Read port
       - Bits 32-39: Status bitmask to match
+  - `2` - Check MMIO status byte before sending message.
+    - `rsi` - Physical MMIO status byte address (or `0` to skip MMIO check).
 
 ### Output
 Nothing.
