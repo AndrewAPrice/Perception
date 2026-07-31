@@ -50,7 +50,7 @@ std::shared_ptr<perception::SharedMemory> TurnPagesIntoSharedMemoryBlock(
       });
   weak_shared_memory = shared_memory;
 
-  for (size_t page = first_page; page <= last_page; page++) {
+  for (size_t page = first_page; page <= last_page; page += kPageSize) {
     auto itr = child_memory_pages.find(page);
     if (itr == child_memory_pages.end()) continue;  // Should never happen.
 
