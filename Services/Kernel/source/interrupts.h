@@ -49,6 +49,8 @@ struct MessageToFireOnInterrupt {
   union {
     // Parameters when method is `1`.
     InterruptPollStatusAgainstMaskReadPortParams interrupt_poll_status_against_mask_read_port_params;
+    // MMIO address when method is `2`.
+    size_t mmio_address;
   };
 
   // Node in the linked list.

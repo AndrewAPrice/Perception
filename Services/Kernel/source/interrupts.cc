@@ -140,6 +140,25 @@ void HandleInterruptMessage(MessageToFireOnInterrupt& message_to_fire) {
                                    longs_to_send[3], longs_to_send[4]);
       }
     } break;
+    case 2: {
+      if (message_to_fire.mmio_address != 0) {
+        // Map physical MMIO page to safely read status byte across any process
+        // CR3
+        size_t phys_page = message_to_fire.mmio_address & ~0xFFFULL;
+        size_t page_offset = message_to_fire.mmio_address & 0xFFF;
+        void* virt_page = TemporarilyMapPhysicalPages(phys_page, 0);
+        if (virt_page != nullptr) {
+          uint8 isr = *reinterpret_cast<volatile uint8*>(
+              reinterpret_cast<char*>(virt_page) + page_offset);
+          if (isr == 0) {
+            // Interrupt line was not for this device or already cleared
+            break;
+          }
+        }
+      }
+      SendKernelMessageToProcess(message_to_fire.process,
+                                 message_to_fire.message_id, 0, 0, 0, 0, 0);
+    } break;
   }
 }
 
@@ -201,6 +220,9 @@ void RegisterMessageToSendOnInterrupt(size_t interrupt_number, Process* process,
       }
       break;
     }
+    case 2:
+      message->mmio_address = param_1;
+      break;
   }
 
   // Add to the linked list of messages for this interrupt and process.

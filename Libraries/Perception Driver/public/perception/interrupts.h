@@ -38,6 +38,11 @@ MessageId RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
     uint8 interrupt, uint16 status_port, uint8 mask, uint16 read_port,
     std::function<void(const uint8 *bytes)> handler);
 
+// Registers a handler to call upon receiving an interrupt, reading an MMIO status
+// address in the kernel handler to lower level-triggered PCI IRQ lines.
+MessageId RegisterInterruptHandlerClearMmioByte(
+    uint8 interrupt, size_t mmio_address, std::function<void()> handler);
+
 // Unregisters a handler to call to upon receiving an interrupt.
 void UnregisterInterruptHandler(uint8 interrupt, MessageId message_id);
 

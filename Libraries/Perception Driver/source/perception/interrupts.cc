@@ -66,6 +66,29 @@ MessageId RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
   return message_id;
 }
 
+MessageId RegisterInterruptHandlerClearMmioByte(
+    uint8 interrupt, size_t mmio_address, std::function<void()> handler) {
+  MessageId message_id = GenerateUniqueMessageId();
+  RegisterMessageHandler(
+      message_id, [handler](ProcessId pid, const MessageData &) {
+        if (pid != 0) return;  // Only messages from the kernel are interrupts.
+        handler();
+      });
+#ifdef PERCEPTION
+  volatile register size_t syscall asm("rdi") = 20;
+  volatile register size_t interrupt_r asm("rax") = (size_t)interrupt;
+  volatile register size_t message_id_r asm("rbx") = message_id;
+  volatile register size_t method_r asm("rdx") = 2;
+  volatile register size_t params_r asm("rsi") = mmio_address;
+
+  __asm__ __volatile__("syscall\n" ::"r"(syscall), "r"(interrupt_r),
+                       "r"(message_id_r), "r"(method_r), "r"(params_r)
+                       : "rcx", "r11");
+#endif
+
+  return message_id;
+}
+
 // Unregisters a handler to call upon receiving an interrupt
 void UnegisterInterruptHandler(uint8 interrupt, MessageId message_id) {
 #ifdef PERCEPTION
