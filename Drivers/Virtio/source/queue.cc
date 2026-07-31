@@ -43,6 +43,7 @@ constexpr size_t kUsedRingElementSize = 8;
 constexpr size_t kPageMask = 4095;
 constexpr size_t kCommonCfgQueueSelectOffset = 22;
 constexpr size_t kCommonCfgQueueSizeOffset = 24;
+constexpr size_t kCommonCfgQueueMsixVectorOffset = 26;
 constexpr size_t kCommonCfgQueueEnableOffset = 28;
 constexpr size_t kCommonCfgQueueNotifyOffOffset = 30;
 constexpr size_t kCommonCfgQueueDescOffset = 32;
@@ -174,7 +175,9 @@ void QueueDetails::SetupModern(uint16 queue_idx, volatile uint8* common_cfg) {
   uint64 used_p = GetPhysicalAddressOfVirtualAddress((size_t)used_virt);
   *(volatile uint64*)(&common_cfg[kCommonCfgQueueUsedOffset]) = used_p;
 
+  // Set MSI-X vector to NO_VECTOR (0xFFFF) BEFORE enabling queue (VirtIO 1.1 Spec 4.1.4.3)
+  *(volatile uint16*)(&common_cfg[kCommonCfgQueueMsixVectorOffset]) = 0xFFFF;
+
   *(volatile uint16*)(&common_cfg[kCommonCfgQueueEnableOffset]) =
       1;  // Enable queue
-  FlushRange((void*)common_cfg, kCommonCfgSize);
 }

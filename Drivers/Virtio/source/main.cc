@@ -22,6 +22,7 @@
 #include "perception/services.h"
 #include "virtio_graphics_driver.h"
 #include "virtio_network_device.h"
+#include "virtio_tablet_device.h"
 
 using ::perception::GetService;
 using ::perception::Read16BitsFromPciConfig;
@@ -54,6 +55,13 @@ int main() {
                   << device_id << std::dec << std::endl;
         driver_instances.push_back(
             std::make_shared<VirtioNetworkDevice>(device));
+        break;
+      case 0x1012:  // Legacy virtio-input / tablet (0x1012).
+      case 0x1052:  // Modern virtio-input / tablet (0x1052).
+        std::cout << "Found Virtio Tablet device_id=0x" << std::hex
+                  << device_id << std::dec << std::endl;
+        driver_instances.push_back(
+            std::make_shared<VirtioTabletDevice>(device));
         break;
       case 0x1050:  // Virtio GPU / Graphics.
         std::cout << "Found Virtio Graphics device_id=0x" << std::hex
