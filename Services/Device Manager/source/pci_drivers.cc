@@ -24,6 +24,10 @@ bool LoadPciDriver(uint8 base_class, uint8 sub_class, uint8 prog_if,
   if (vendor_id == 0x1AF4) {
     AddDriverToLoad("Virtio");
     if (device_id == 0x1050) FoundGraphicsDevice();
+    if (device_id == 0x1011 || device_id == 0x1051 ||
+        device_id == 0x1012 || device_id == 0x1052) {
+      FoundPointingDevice();
+    }
     return true;
   }
 

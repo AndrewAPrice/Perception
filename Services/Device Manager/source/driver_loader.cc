@@ -15,8 +15,9 @@
 #include "driver_loader.h"
 
 #include <iostream>
-#include <set>
+#include <map>
 #include <string>
+#include <vector>
 
 #include "perception/loader.h"
 #include "perception/processes.h"
@@ -30,27 +31,48 @@ using ::perception::ProcessId;
 
 namespace {
 
-std::set<std::string> drivers_to_load;
+struct DriverInfo {
+  std::vector<std::string> arguments;
+};
+
+std::map<std::string, DriverInfo> drivers_to_load;
 
 bool found_graphics_device = false;
-}
+bool found_pointing_device = false;
 
-void AddDriverToLoad(std::string_view driver_name) {
-  drivers_to_load.insert((std::string)driver_name);
+}  // namespace
+
+void AddDriverToLoad(std::string_view driver_name,
+                     const std::vector<std::string>& arguments) {
+  std::string name(driver_name);
+  drivers_to_load[name] = DriverInfo{arguments};
 }
 
 void FoundGraphicsDevice() { found_graphics_device = true; }
 
 bool HasFoundGraphicsDevice() { return found_graphics_device; }
 
+void FoundPointingDevice() { found_pointing_device = true; }
+
+bool HasFoundPointingDevice() { return found_pointing_device; }
+
 void LoadAllRemainingDrivers() {
   auto loader = GetService<Loader>();
-  for (const auto& driver_name : drivers_to_load) {
+  for (const auto& [driver_name, info] : drivers_to_load) {
     if (DoesProcessExist(driver_name)) continue;
 
-    std::cout << "Requesting to load " << driver_name << std::endl;
+    std::cout << "Requesting to load " << driver_name;
+    if (!info.arguments.empty()) {
+      std::cout << " with args:";
+      for (const auto& arg : info.arguments) {
+        std::cout << " " << arg;
+      }
+    }
+    std::cout << std::endl;
+
     LoadApplicationRequest request;
     request.name = driver_name;
+    request.arguments = info.arguments;
     loader.LaunchApplication(request, nullptr);
   }
   drivers_to_load.clear();

@@ -321,14 +321,33 @@ void InitializePS2Controller() {
 int main(int argc, char* argv[]) {
   if (IsDuplicateInstanceOfProcess()) return 0;
 
-  mouse_device = std::make_unique<PS2MouseDevice>();
-  keyboard_device = std::make_unique<PS2KeyboardDevice>();
-  InitializePS2Controller();
+  bool enable_keyboard = false;
+  bool enable_mouse = false;
 
-  // Listen to the interrupts.
-  for (int irq : {1, 12}) {
+  for (int i = 1; i < argc; i++) {
+    std::string_view arg(argv[i]);
+    if (arg == "keyboard") enable_keyboard = true;
+    if (arg == "mouse") enable_mouse = true;
+  }
+
+  if (!enable_keyboard && !enable_mouse) {
+    return 0;
+  }
+
+  if (enable_keyboard) {
+    std::cout << "Initializing PS/2 Keyboard..." << std::endl;
+    keyboard_device = std::make_unique<PS2KeyboardDevice>();
     RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
-        irq, /*status_port=*/0x64, /*mask=*/1, /*read_port=*/0x60,
+        /*irq=*/1, /*status_port=*/0x64, /*mask=*/1, /*read_port=*/0x60,
+        InterruptHandler);
+  }
+
+  if (enable_mouse) {
+    std::cout << "Initializing PS/2 Mouse..." << std::endl;
+    mouse_device = std::make_unique<PS2MouseDevice>();
+    InitializePS2Controller();
+    RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
+        /*irq=*/12, /*status_port=*/0x64, /*mask=*/1, /*read_port=*/0x60,
         InterruptHandler);
   }
 

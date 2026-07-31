@@ -14,9 +14,12 @@
 
 #pragma once
 
+#include <string>
 #include <string_view>
+#include <vector>
 
-void AddDriverToLoad(std::string_view driver_name);
+void AddDriverToLoad(std::string_view driver_name,
+                     const std::vector<std::string>& arguments = {});
 
 // Records that a graphics device has been found, so no need to use a fallback
 // driver.
@@ -24,5 +27,11 @@ void FoundGraphicsDevice();
 
 // Whether a graphics device has been found.
 bool HasFoundGraphicsDevice();
+
+// Records that a pointing device (mouse or tablet) has been found.
+void FoundPointingDevice();
+
+// Returns whether a pointing device has been found.
+bool HasFoundPointingDevice();
 
 void LoadAllRemainingDrivers();
