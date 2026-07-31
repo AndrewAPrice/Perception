@@ -117,6 +117,25 @@ void LoadMultibootModuleIntoProcess(Process* process, multiboot_tag_module* tag,
 bool ParseMultibootModuleName(char** name, size_t* name_length, bool* is_driver,
                               bool* can_create_processes) {
   *name_length = strlen(*name);
+  if (*name_length == 0) return false;
+
+  // If the command line begins with a path (starts with '/'), skip past the
+  // initial file path and space to reach the attribute flags.
+  if (**name == '/') {
+    while (*name_length > 0 && **name != ' ') {
+      if (**name == '\\' && *name_length > 1 && *(*name + 1) == ' ') {
+        (*name) += 2;
+        (*name_length) -= 2;
+        continue;
+      }
+      (*name)++;
+      (*name_length)--;
+    }
+    if (*name_length > 0 && **name == ' ') {
+      (*name)++;
+      (*name_length)--;
+    }
+  }
 
   while (true) {
     if (*name_length == 0) return false;  // Out of letters.

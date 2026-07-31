@@ -212,7 +212,7 @@ size_t GetPhysicalPagePreVirtualMemory() {
     return OUT_OF_PHYSICAL_PAGES;
   }
   // Take the top page from the stack.
-  size_t addr = next_free_page_address;
+  size_t addr = next_free_page_address & 0x000FFFFFFFFFFFFFL & ~(PAGE_SIZE - 1);
   // Pop it from the stack by mapping the page to physical memory so the
   // pointer to the next free page can be grabbed.
   size_t *bp = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(addr, 0);
@@ -242,7 +242,7 @@ retry:
   }
 
   // Take the top page from the stack.
-  size_t addr = next_free_page_address;
+  size_t addr = next_free_page_address & 0x000FFFFFFFFFFFFFL & ~(PAGE_SIZE - 1);
 
   size_t *bp;
 
@@ -264,7 +264,7 @@ retry:
       // Walk to the next page.
       previous_addr = addr;
       previous_bp = (size_t *)TemporarilyMapPhysicalPages(addr, 5);
-      addr = *previous_bp;
+      addr = *previous_bp & 0x000FFFFFFFFFFFFFL & ~(PAGE_SIZE - 1);
 
       if (addr == OUT_OF_PHYSICAL_PAGES) {
         if (!cleaned_up) {
@@ -294,6 +294,10 @@ retry:
 
 // Frees a physical page.
 void FreePhysicalPage(size_t addr) {
+  // Mask off flags, status bits (e.g. Bit 63), and alignment bits.
+  addr &= 0x000FFFFFFFFFFFFFL & ~(PAGE_SIZE - 1);
+  if (addr == 0) return;
+
   // Push this page onto the linked stack.
 
   // Map this physical memory, so the previous stack page can be written to it.

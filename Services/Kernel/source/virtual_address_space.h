@@ -56,6 +56,8 @@ class VirtualAddressSpace {
   size_t AllocatePagesBelowMaxBaseAddress(size_t pages,
                                           size_t max_base_address);
 
+  size_t GetPML4() const { return pml4_; }
+
   // Releases virtual memory in the address space, but does not free the
   // underlying physical pages.
   void ReleasePages(size_t addr, size_t pages);
