@@ -121,7 +121,7 @@ void ScheduleNextThread() {
 
   if (running_thread) {
     if (running_thread->uses_fpu_registers)
-      asm volatile("fxsave %0" ::"m"(*running_thread->fpu_registers));
+      SaveFpuState(running_thread->fpu_registers);
 
     // Rotate the ready queue so the current thread goes to the back.
     if (running_thread->awake) {
@@ -152,7 +152,7 @@ void ScheduleNextThread() {
   running_thread->process->virtual_address_space.SwitchToAddressSpace();
 
   if (running_thread->uses_fpu_registers)
-    asm volatile("fxrstor %0" ::"m"(*running_thread->fpu_registers));
+    RestoreFpuState(running_thread->fpu_registers);
   LoadThreadSegment(running_thread);
 
   currently_executing_thread_regs = &running_thread->registers;
