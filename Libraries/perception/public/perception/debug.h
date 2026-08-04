@@ -30,6 +30,6 @@ class DebugPrinter {
 extern DebugPrinter DebugPrinterSingleton;
 
 // Dump the running thread's registers and stack trace on COM1.
-void DumpRegistersAndStackTrace();
+extern "C" void DumpRegistersAndStackTrace();
 
 }  // namespace perception

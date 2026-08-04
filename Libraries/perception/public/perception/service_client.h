@@ -192,10 +192,11 @@ class ServiceClient : public serialization::Serializable {
         } else {
           auto shared_memory = GetMemoryBufferForReceivingFromProcess(
               process_id, message.param2);
-          shared_memory->Grow(message.param3);
-          serialization::DeserializeFromSharedMemory(*response, *shared_memory, 1,
-                                      message.param4);
-          SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+          if (shared_memory->Grow(message.param3)) {
+            serialization::DeserializeFromSharedMemory(*response, *shared_memory, 1,
+                                        message.param4);
+            SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+          }
         }
       } else {
         MaybeHandleUnexpectedMemoryInResponse(process_id, message);

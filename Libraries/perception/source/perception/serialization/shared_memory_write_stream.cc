@@ -48,8 +48,9 @@ void SharedMemoryWriteStream::CopyDataIntoStream(const void* data, size_t size,
                                                  size_t offset) {
   if (offset + size > shared_memory_size_) {
     shared_memory_->Mutex().unlock();
-    if (!shared_memory_->Grow(offset + size)) return;
+    bool success = shared_memory_->Grow(offset + size);
     shared_memory_->Mutex().lock();
+    if (!success) return;
 
     data_ = **shared_memory_;
     shared_memory_size_ = shared_memory_->GetSize();

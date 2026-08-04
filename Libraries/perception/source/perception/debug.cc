@@ -88,7 +88,7 @@ extern "C" void DebugPrint(char* str) { DebugPrinterSingleton << str; }
 
 extern "C" void DebugNumber(long l) { DebugPrinterSingleton << (size_t)l; }
 
-void DumpRegistersAndStackTrace() {
+extern "C" void DumpRegistersAndStackTrace() {
 #if defined(PERCEPTION) && !defined(TEST)
   register unsigned long long int syscall_num asm("rdi") = 26;
 

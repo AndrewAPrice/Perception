@@ -61,20 +61,17 @@ void CreateSharedMemory(size_t size_in_pages, size_t flags,
                         size_t on_page_request_message_id, size_t& id,
                         void*& ptr) {
 #if defined(PERCEPTION) && !defined(TEST)
-  size_t rax_out, rbx_out;
-  __asm__ __volatile__(
-      "mov %2, %%rax\n"
-      "mov $42, %%rdi\n"
-      "mov %3, %%rbx\n"
-      "mov %4, %%rdx\n"
-      "syscall\n"
-      "mov %%rax, %0\n"
-      "mov %%rbx, %1\n"
-      : "=r"(rax_out), "=r"(rbx_out)
-      : "r"(size_in_pages), "r"(flags), "r"(on_page_request_message_id)
-      : "rax", "rdi", "rbx", "rdx", "rcx", "r11", "memory");
-  id = rax_out;
-  ptr = (void*)rbx_out;
+  volatile register size_t syscall_num asm("rdi") = 42;
+  volatile register size_t size_r asm("rax") = size_in_pages;
+  volatile register size_t flags_r asm("rbx") = flags;
+  volatile register size_t msg_r asm("rdx") = on_page_request_message_id;
+
+  __asm__ __volatile__("syscall\n"
+                       : "+r"(size_r), "+r"(flags_r)
+                       : "r"(syscall_num), "r"(msg_r)
+                       : "rcx", "r11", "memory");
+  id = size_r;
+  ptr = (void*)flags_r;
 #else
   id = last_unique_shared_buffer_id++;
 
@@ -91,22 +88,18 @@ void CreateSharedMemory(size_t size_in_pages, size_t flags,
 void JoinSharedMemory(size_t id, void*& ptr, size_t& size_in_pages,
                       size_t& flags) {
 #if defined(PERCEPTION) && !defined(TEST)
-  size_t rax_out, rbx_out, rdx_out;
-  __asm__ __volatile__(
-      "mov %3, %%rax\n"
-      "mov $43, %%rdi\n"
-      "mov $0, %%rbx\n"
-      "mov $0, %%rdx\n"
-      "syscall\n"
-      "mov %%rax, %0\n"
-      "mov %%rbx, %1\n"
-      "mov %%rdx, %2\n"
-      : "=r"(rax_out), "=r"(rbx_out), "=r"(rdx_out)
-      : "r"(id)
-      : "rax", "rdi", "rbx", "rdx", "rcx", "r11", "memory");
-  ptr = (void*)rbx_out;
-  size_in_pages = rax_out;
-  flags = rdx_out;
+  volatile register size_t syscall_num asm("rdi") = 43;
+  volatile register size_t id_r asm("rax") = id;
+  volatile register size_t rbx_r asm("rbx") = 0;
+  volatile register size_t rdx_r asm("rdx") = 0;
+
+  __asm__ __volatile__("syscall\n"
+                       : "+r"(id_r), "=r"(rbx_r), "=r"(rdx_r)
+                       : "r"(syscall_num)
+                       : "rcx", "r11", "memory");
+  ptr = (void*)rbx_r;
+  size_in_pages = id_r;
+  flags = rdx_r;
 #else
   // Find the shared memory block.
   auto shared_memory_block_itr = shared_memory_blocks.find(id);
@@ -128,19 +121,16 @@ void JoinSharedMemory(size_t id, void*& ptr, size_t& size_in_pages,
 void GrowSharedMemory(size_t id, size_t new_size_in_pages, void*& ptr,
                       size_t& size_in_pages) {
 #if defined(PERCEPTION) && !defined(TEST)
-  size_t rax_out, rbx_out;
-  __asm__ __volatile__(
-      "mov %2, %%rax\n"
-      "mov $62, %%rdi\n"
-      "mov %3, %%rbx\n"
-      "syscall\n"
-      "mov %%rax, %0\n"
-      "mov %%rbx, %1\n"
-      : "=r"(rax_out), "=r"(rbx_out)
-      : "r"(id), "r"(new_size_in_pages)
-      : "rax", "rdi", "rbx", "rcx", "r11", "memory");
-  ptr = (void*)rbx_out;
-  size_in_pages = rax_out;
+  volatile register size_t syscall_num asm("rdi") = 62;
+  volatile register size_t id_r asm("rax") = id;
+  volatile register size_t new_size_r asm("rbx") = new_size_in_pages;
+
+  __asm__ __volatile__("syscall\n"
+                       : "+r"(id_r), "+r"(new_size_r)
+                       : "r"(syscall_num)
+                       : "rcx", "r11", "memory");
+  ptr = (void*)new_size_r;
+  size_in_pages = id_r;
 #else
   // Find the shared memory block.
   auto shared_memory_block_itr = shared_memory_blocks.find(id);
@@ -156,7 +146,6 @@ void GrowSharedMemory(size_t id, size_t new_size_in_pages, void*& ptr,
   void* new_data =
       realloc(shared_memory_block.data, new_size_in_pages * kPageSize);
   if (new_data != nullptr) {
-    free(shared_memory_block.data);
     shared_memory_block.data = new_data;
     shared_memory_block.size_in_pages = new_size_in_pages;
   }
@@ -356,9 +345,10 @@ bool SharedMemory::Grow(size_t size_in_bytes) {
 
 bool SharedMemory::JoinChildProcess(ProcessId child_pid, size_t address) {
 #if defined(PERCEPTION) && !defined(TEST)
+  size_t shmem_id = shared_memory_id_;
   volatile register size_t syscall_num asm("rdi") = 61;
   volatile register size_t child_pid_r asm("rax") = child_pid;
-  volatile register size_t shared_memory_id_r asm("rbx") = shared_memory_id_;
+  volatile register size_t shared_memory_id_r asm("rbx") = shmem_id;
   volatile register size_t address_r asm("rdx") = address;
 
   volatile register size_t success_r asm("rax");
@@ -390,26 +380,24 @@ bool SharedMemory::IsLazilyAllocated() {
 
 SharedMemoryDetails SharedMemory::GetDetails() {
 #if defined(PERCEPTION) && !defined(TEST)
-  size_t rax_out, rbx_out;
-  __asm__ __volatile__(
-      "mov $58, %%rdi\n"
-      "mov %2, %%rax\n"
-      "mov $0, %%rbx\n"
-      "syscall\n"
-      "mov %%rax, %0\n"
-      "mov %%rbx, %1\n"
-      : "=r"(rax_out), "=r"(rbx_out)
-      : "r"(shared_memory_id_)
-      : "rax", "rdi", "rbx", "rcx", "r11", "memory");
+  size_t shmem_id = shared_memory_id_;
+  volatile register size_t syscall_num asm("rdi") = 58;
+  volatile register size_t id_r asm("rax") = shmem_id;
+  volatile register size_t rbx_r asm("rbx") = 0;
+
+  __asm__ __volatile__("syscall\n"
+                       : "+r"(id_r), "=r"(rbx_r)
+                       : "r"(syscall_num)
+                       : "rcx", "r11", "memory");
 
   SharedMemoryDetails details;
-  details.Exists = (rax_out & kDetails_Exists) == kDetails_Exists;
-  details.CanWrite = (rax_out & kDetails_CanWrite) == kDetails_CanWrite;
+  details.Exists = (id_r & kDetails_Exists) == kDetails_Exists;
+  details.CanWrite = (id_r & kDetails_CanWrite) == kDetails_CanWrite;
   details.IsLazilyAllocated =
-      (rax_out & kDetails_IsLazilyAllocated) == kDetails_IsLazilyAllocated;
+      (id_r & kDetails_IsLazilyAllocated) == kDetails_IsLazilyAllocated;
   details.CanAssignPages =
-      (rax_out & kDetails_CanAssignPages) == kDetails_CanAssignPages;
-  details.SizeInBytes = rbx_out;
+      (id_r & kDetails_CanAssignPages) == kDetails_CanAssignPages;
+  details.SizeInBytes = rbx_r;
   return details;
 #else
   SharedMemoryDetails details;
@@ -433,18 +421,17 @@ bool SharedMemory::IsPageAllocated(size_t offset_in_bytes) {
     return true;  // Not lazily allocated, so all memory is allocated.
 
 #if defined(PERCEPTION) && !defined(TEST)
-  size_t rax_out;
-  __asm__ __volatile__(
-      "mov %1, %%rax\n"
-      "mov $46, %%rdi\n"
-      "mov %2, %%rbx\n"
-      "syscall\n"
-      "mov %%rax, %0\n"
-      : "=r"(rax_out)
-      : "r"(shared_memory_id_), "r"(offset_in_bytes)
-      : "rax", "rdi", "rbx", "rcx", "r11", "memory");
+  size_t shmem_id = shared_memory_id_;
+  volatile register size_t syscall_num asm("rdi") = 46;
+  volatile register size_t id_r asm("rax") = shmem_id;
+  volatile register size_t offset_r asm("rbx") = offset_in_bytes;
 
-  return rax_out == 1;
+  __asm__ __volatile__("syscall\n"
+                       : "+r"(id_r)
+                       : "r"(syscall_num), "r"(offset_r)
+                       : "rcx", "r11", "memory");
+
+  return id_r == 1;
 #else
   return true;
 #endif
@@ -458,20 +445,19 @@ std::optional<size_t> SharedMemory::GetPhysicalAddress(size_t offset_in_bytes) {
   size_t offset_in_page = offset_in_bytes - page;
 
 #if defined(PERCEPTION) && !defined(TEST)
-  size_t rax_out;
-  __asm__ __volatile__(
-      "mov %1, %%rax\n"
-      "mov $59, %%rdi\n"
-      "mov %2, %%rbx\n"
-      "syscall\n"
-      "mov %%rax, %0\n"
-      : "=r"(rax_out)
-      : "r"(shared_memory_id_), "r"(page)
-      : "rax", "rdi", "rbx", "rcx", "r11", "memory");
+  size_t shmem_id = shared_memory_id_;
+  volatile register size_t syscall_num asm("rdi") = 59;
+  volatile register size_t id_r asm("rax") = shmem_id;
+  volatile register size_t page_r asm("rbx") = page;
 
-  if (rax_out == 1) return std::nullopt;  // No physical address.
+  __asm__ __volatile__("syscall\n"
+                       : "+r"(id_r)
+                       : "r"(syscall_num), "r"(page_r)
+                       : "rcx", "r11", "memory");
 
-  return rax_out + offset_in_page;
+  if (id_r == 1) return std::nullopt;  // No physical address.
+
+  return id_r + offset_in_page;
 #else
   return std::nullopt;
 #endif
@@ -479,26 +465,31 @@ std::optional<size_t> SharedMemory::GetPhysicalAddress(size_t offset_in_bytes) {
 
 void SharedMemory::AssignPage(void* page, size_t offset_in_bytes) {
 #if defined(PERCEPTION) && !defined(TEST)
-  __asm__ __volatile__(
-      "mov %0, %%rax\n"
-      "mov $45, %%rdi\n"
-      "mov %1, %%rbx\n"
-      "mov %2, %%rdx\n"
-      "syscall\n"
-      :: "r"(shared_memory_id_), "r"(offset_in_bytes), "r"((size_t)page)
-      : "rax", "rdi", "rbx", "rdx", "rcx", "r11", "memory");
+  size_t shmem_id = shared_memory_id_;
+  volatile register size_t syscall_num asm("rdi") = 45;
+  volatile register size_t param_id asm("rax") = shmem_id;
+  volatile register size_t param_offset asm("rbx") = offset_in_bytes;
+  volatile register size_t param_page asm("rdx") = (size_t)page;
+
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "r"(syscall_num), "r"(param_id), "r"(param_offset),
+                         "r"(param_page)
+                       : "rcx", "r11", "memory");
 #endif
 }
 
 void SharedMemory::GrantPermissionToLazilyAllocatePage(ProcessId process_id) {
 #if defined(PERCEPTION) && !defined(TEST)
-  __asm__ __volatile__(
-      "mov %0, %%rax\n"
-      "mov $57, %%rdi\n"
-      "mov %1, %%rbx\n"
-      "syscall\n"
-      :: "r"(shared_memory_id_), "r"(process_id)
-      : "rax", "rdi", "rbx", "rcx", "r11", "memory");
+  size_t shmem_id = shared_memory_id_;
+  volatile register size_t syscall_num asm("rdi") = 57;
+  volatile register size_t param_id asm("rax") = shmem_id;
+  volatile register size_t param_pid asm("rbx") = process_id;
+
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "r"(syscall_num), "r"(param_id), "r"(param_pid)
+                       : "rcx", "r11", "memory");
 #endif
 }
 
@@ -572,38 +563,44 @@ void SharedMemory::Serialize(serialization::Serializer& serializer) {
 
 void SharedMemory::RegisterEvent(size_t offset, MessageId message_id) {
 #if defined(PERCEPTION) && !defined(TEST)
-  __asm__ __volatile__(
-      "mov %0, %%rax\n"
-      "mov $70, %%rdi\n"
-      "mov %1, %%rbx\n"
-      "mov %2, %%rdx\n"
-      "syscall\n" ::"r"(shared_memory_id_),
-      "r"(offset), "r"(message_id)
-      : "rax", "rdi", "rbx", "rdx", "rcx", "r11", "memory");
+  size_t shmem_id = shared_memory_id_;
+  volatile register size_t syscall_num asm("rdi") = 70;
+  volatile register size_t id_r asm("rax") = shmem_id;
+  volatile register size_t offset_r asm("rbx") = offset;
+  volatile register size_t msg_r asm("rdx") = message_id;
+
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "r"(syscall_num), "r"(id_r), "r"(offset_r), "r"(msg_r)
+                       : "rcx", "r11", "memory");
 #endif
 }
 
 void SharedMemory::UnregisterEvent(size_t offset) {
 #if defined(PERCEPTION) && !defined(TEST)
-  __asm__ __volatile__(
-      "mov %0, %%rax\n"
-      "mov $71, %%rdi\n"
-      "mov %1, %%rbx\n"
-      "syscall\n" ::"r"(shared_memory_id_),
-      "r"(offset)
-      : "rax", "rdi", "rbx", "rcx", "r11", "memory");
+  size_t shmem_id = shared_memory_id_;
+  volatile register size_t syscall_num asm("rdi") = 71;
+  volatile register size_t id_r asm("rax") = shmem_id;
+  volatile register size_t offset_r asm("rbx") = offset;
+
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "r"(syscall_num), "r"(id_r), "r"(offset_r)
+                       : "rcx", "r11", "memory");
 #endif
 }
 
 void SharedMemory::TriggerEvent(size_t offset) {
 #if defined(PERCEPTION) && !defined(TEST)
-  __asm__ __volatile__(
-      "mov %0, %%rax\n"
-      "mov $72, %%rdi\n"
-      "mov %1, %%rbx\n"
-      "syscall\n" ::"r"(shared_memory_id_),
-      "r"(offset)
-      : "rax", "rdi", "rbx", "rcx", "r11", "memory");
+  size_t shmem_id = shared_memory_id_;
+  volatile register size_t syscall_num asm("rdi") = 72;
+  volatile register size_t id_r asm("rax") = shmem_id;
+  volatile register size_t offset_r asm("rbx") = offset;
+
+  __asm__ __volatile__("syscall\n"
+                       :
+                       : "r"(syscall_num), "r"(id_r), "r"(offset_r)
+                       : "rcx", "r11", "memory");
 #endif
 }
 

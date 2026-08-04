@@ -49,5 +49,10 @@ void AudioDeviceSetVolumeRequest::Serialize(
   serializer.Float("Volume", volume);
 }
 
+void AudioDeviceGetVolumeResponse::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.Float("Volume", volume);
+}
+
 }  // namespace devices
 }  // namespace perception
