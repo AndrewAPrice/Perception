@@ -136,6 +136,8 @@ Iso9660::Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
   prefetch_buffer_ = ::perception::SharedMemory::FromSize(
       32768,
       ::perception::SharedMemory::kJoinersCanWrite);  // 32KB (16 sectors)
+  prefetch_buffer_->GrantPermissionToLazilyAllocatePage(
+      storage_device.ServerProcessId());
   prefetch_buffer_->Join();
 }
 

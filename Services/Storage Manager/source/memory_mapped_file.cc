@@ -111,11 +111,11 @@ void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
   if (read_status != Status::OK) {
     size_t first_page = offset_of_page;
     size_t last_page = first_page + (bytes_to_copy - 1) / kPageSize * kPageSize;
-    for (size_t page = first_page; page <= last_page; page++) {
+    for (size_t page = first_page; page <= last_page; page += kPageSize) {
       // Create a new page to copy this temporary page into.
       void* new_page = AllocateMemoryPages(1);
       memset(new_page, 0, kPageSize);
-      buffer_->AssignPage(new_page, page * kPageSize);
+      buffer_->AssignPage(new_page, page);
     }
   }
 }
