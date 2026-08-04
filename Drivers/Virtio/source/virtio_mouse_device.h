@@ -18,39 +18,35 @@
 
 #include "driver.h"
 #include "perception/devices/device_manager.h"
+#include "perception/devices/mouse_device.h"
+#include "perception/devices/mouse_listener.h"
 #include "perception/devices/tablet_device.h"
-#include "perception/devices/tablet_listener.h"
 #include "status.h"
 #include "virtio_input_handler.h"
-#include "virtio_mouse_device.h"
 #include "virtio_pci_device.h"
 
-class VirtioTabletDevice : public Driver,
-                           public perception::devices::TabletDevice::Server {
+class VirtioMouseDevice : public Driver,
+                          public perception::devices::MouseDevice::Server {
  public:
-  VirtioTabletDevice(const perception::devices::PciDevice& device);
-  virtual ~VirtioTabletDevice() = default;
+  VirtioMouseDevice(const perception::devices::PciDevice& device);
+  virtual ~VirtioMouseDevice() = default;
 
-  Status SetTabletListener(
-      const perception::devices::TabletListener::Client& listener) override;
-  Status SetMouseCaptured(
-      const perception::devices::MouseCaptureState& state) override;
+  Status SetMouseListener(
+      const perception::devices::MouseListener::Client& listener) override;
 
   void HandleInterrupt();
-  void SetMouseDevice(std::shared_ptr<VirtioMouseDevice> mouse_device);
 
- private:
   void EnableDevice();
   void DisableDevice();
 
+ private:
   VirtioPciDevice virtio_pci_;
   VirtioInputHandler input_handler_;
 
-  std::unique_ptr<perception::devices::TabletListener::Client> tablet_listener_;
-  std::shared_ptr<VirtioMouseDevice> mouse_device_;
+  std::unique_ptr<perception::devices::MouseListener::Client> mouse_listener_;
 
-  float current_x_ = 0.0f;
-  float current_y_ = 0.0f;
-  bool position_changed_ = false;
+  float accum_delta_x_ = 0.0f;
+  float accum_delta_y_ = 0.0f;
+  bool delta_changed_ = false;
   bool is_captured_ = false;
 };

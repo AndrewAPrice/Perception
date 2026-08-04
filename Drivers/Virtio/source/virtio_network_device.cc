@@ -28,21 +28,14 @@
 #include "perception/port_io.h"
 #include "queue.h"
 #include "types.h"
-#include "virtio.h"
-
-// #define VERBOSE 1
 
 using ::perception::DoesProcessHavePermission;
 using ::perception::FlushRange;
 using ::perception::kPageSize;
-using ::perception::kPciHdrBar0;
 using ::perception::Permission;
 using ::perception::ProcessId;
 using ::perception::Read16BitsFromPort;
-using ::perception::Read32BitsFromPciConfig;
 using ::perception::Read8BitsFromPort;
-using ::perception::RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort;
-using ::perception::Write16BitsToPort;
 using ::perception::devices::MacAddress;
 using ::perception::devices::NetworkListener;
 using ::perception::devices::Packet;
@@ -50,7 +43,6 @@ using ::perception::devices::PciDevice;
 
 namespace {
 
-constexpr uint32 kIoBaseMask = 0xFFFC;
 constexpr size_t kMacAddressLength = 6;
 constexpr uint16 kVirtioNetConfigMacOffset = 20;
 constexpr uint16 kVirtioNetConfigStatusOffset = 26;
@@ -64,34 +56,27 @@ constexpr size_t kQueueMemoryFlushSize = 12288;
 constexpr size_t kAvailRingHeaderSize = 6;
 constexpr size_t kAvailRingElementSize = 2;
 constexpr uint8 kIsrReadMask = 1;
+constexpr uint16 kVirtioPciIsr = 19;
 
 }  // namespace
 
 VirtioNetworkDevice::VirtioNetworkDevice(const PciDevice& device)
-    : NetworkDevice::Server({.defer_registration = true}), device_(device) {
-  EnableVirtioPciDevice(device);
+    : NetworkDevice::Server({.defer_registration = true}), virtio_pci_(device) {
+  virtio_pci_.Initialize();
 
-  // Retrieve BAR0 Base Address
-  uint32 bar0 = Read32BitsFromPciConfig(device.bus, device.slot,
-                                        device.function, kPciHdrBar0);
-  io_base_ = bar0 & kIoBaseMask;
+  uint16 io_base = virtio_pci_.io_base();
 
   // Read Hardware MAC address from Virtio Configuration space (offset 20).
   for (int i = 0; i < kMacAddressLength; i++) {
-    mac_[i] = Read8BitsFromPort(io_base_ + kVirtioNetConfigMacOffset + i);
+    mac_[i] = Read8BitsFromPort(io_base + kVirtioNetConfigMacOffset + i);
   }
-#if VERBOSE
-  std::cout << "Hardware MAC Address: " << std::hex << (int)mac_[0] << ":"
-            << (int)mac_[1] << ":" << (int)mac_[2] << ":" << (int)mac_[3] << ":"
-            << (int)mac_[4] << ":" << (int)mac_[5] << std::dec << std::endl;
-#endif
 
   // Perform Legacy Virtio Reset & Acknowledge handshake
-  ResetLegacyVirtioDevice(io_base_);
+  virtio_pci_.Reset();
 
   // Initialize Virtqueues (0 for RX, 1 for TX)
-  rx_queue_.Setup(kRxQueueIndex, io_base_);
-  tx_queue_.Setup(kTxQueueIndex, io_base_);
+  rx_queue_.Setup(kRxQueueIndex, io_base);
+  tx_queue_.Setup(kTxQueueIndex, io_base);
   if (!rx_queue_.desc || !rx_queue_.avail || !tx_queue_.desc || !tx_queue_.avail) {
     std::cout << "VirtioNetworkDevice: Virtqueue setup failed!" << std::endl;
     return;
@@ -114,20 +99,17 @@ VirtioNetworkDevice::VirtioNetworkDevice(const PciDevice& device)
   FlushRange((void*)rx_queue_.avail, kPageSize);
 
   // Initial RX queue notification
-  Write16BitsToPort(io_base_ + kVirtioPciQueueNotify, kRxQueueIndex);
+  virtio_pci_.KickQueue(rx_queue_);
 
   // Set DRIVER_OK status bit
-  SetVirtioDriverOk(io_base_);
+  virtio_pci_.SetDriverOk();
 
   // Read the link status.
-  (void)Read16BitsFromPort(io_base_ + kVirtioNetConfigStatusOffset);
+  (void)Read16BitsFromPort(io_base + kVirtioNetConfigStatusOffset);
 
   // Register Hardware Interrupt Handler using loop over port read to clear
   // ISR and prevent interrupt storm.
-  uint8 irq = GetPciInterruptLine(device);
-  RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
-      irq, io_base_ + kVirtioPciIsr, kIsrReadMask, io_base_ + kVirtioPciIsr,
-      [this](const uint8* bytes) { HandleInterrupt(); });
+  virtio_pci_.RegisterInterrupt([this]() { HandleInterrupt(); }, kIsrReadMask);
 
   StartServing();
 }
@@ -158,11 +140,9 @@ Status VirtioNetworkDevice::SendPacket(const Packet& packet, ProcessId sender) {
   size_t data_len = packet.data.length();
   if (data_len > kMaxPacketDataSize) return Status::INVALID_ARGUMENT;
 
-  // Prepare descriptor buffer (Prepend 10-byte VirtioNetHeader + Packet
-  // Data).
+  // Prepare descriptor buffer (Prepend 10-byte VirtioNetHeader + Packet Data).
   uint8* tx_buf = (uint8*)tx_queue_.buffers_virt[desc_idx];
-  memset(tx_buf, 0,
-         kVirtioNetHeaderSize);  // Header flags and checksum zeroed out.
+  memset(tx_buf, 0, kVirtioNetHeaderSize);
   memcpy(tx_buf + kVirtioNetHeaderSize, packet.data.data(), data_len);
 
   tx_queue_.desc[desc_idx].addr = tx_queue_.buffers_phys[desc_idx];
@@ -186,7 +166,7 @@ Status VirtioNetworkDevice::SendPacket(const Packet& packet, ProcessId sender) {
   FlushRange(tx_queue_.avail, kPageSize);
 
   // Notify queue 1 (TX).
-  Write16BitsToPort(io_base_ + kVirtioPciQueueNotify, kTxQueueIndex);
+  virtio_pci_.KickQueue(tx_queue_);
 
   return Status::OK;
 }
@@ -205,10 +185,11 @@ void VirtioNetworkDevice::HandleInterrupt() {
   processing_interrupt_ = true;
 
   // Read ISR status (already read/cleared in kernel, but logs for info)
-  uint8 isr = Read8BitsFromPort(io_base_ + kVirtioPciIsr);
+  if (virtio_pci_.io_base() != 0)
+    (void)Read8BitsFromPort(virtio_pci_.io_base() + kVirtioPciIsr);
 
-  // Flush both virtual queues to ensure we read fresh Used ring idx values
-  // from physical RAM!
+  // Flush both virtual queues to ensure it is read fresh used ring idx values
+  // from physical RAM.
   FlushRange(rx_queue_.mem, kQueueMemoryFlushSize);
   FlushRange(tx_queue_.mem, kQueueMemoryFlushSize);
 
@@ -227,8 +208,6 @@ void VirtioNetworkDevice::HandleInterrupt() {
           len - kVirtioNetHeaderSize);
 
       if (listener_.IsValid()) {
-        // Notify the listener that a packet is received. This must be
-        // synchronous to avoid flooding it.
         (void)listener_.PacketReceived(packet);
       }
     }
@@ -252,7 +231,7 @@ void VirtioNetworkDevice::HandleInterrupt() {
   FlushRange(rx_queue_.avail, kPageSize);
 
   // Notify queue 0 (RX) of newly available recycled descriptors.
-  Write16BitsToPort(io_base_ + kVirtioPciQueueNotify, kRxQueueIndex);
+  virtio_pci_.KickQueue(rx_queue_);
 
   // Reclaim finished transmit descriptors.
   tx_queue_.last_seen_used = tx_queue_.used->idx;

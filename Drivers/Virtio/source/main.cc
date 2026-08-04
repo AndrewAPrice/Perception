@@ -17,10 +17,12 @@
 #include <vector>
 
 #include "driver.h"
+#include "input_type.h"
 #include "perception/devices/device_manager.h"
 #include "perception/pci.h"
 #include "perception/services.h"
 #include "virtio_graphics_driver.h"
+#include "virtio_mouse_device.h"
 #include "virtio_network_device.h"
 #include "virtio_tablet_device.h"
 
@@ -45,6 +47,9 @@ int main() {
 
   std::vector<std::shared_ptr<Driver>> driver_instances;
 
+  std::shared_ptr<VirtioMouseDevice> mouse_device = nullptr;
+  std::shared_ptr<VirtioTabletDevice> tablet_device = nullptr;
+
   for (const auto& device : status_or_devices->devices) {
     uint16 device_id =
         Read16BitsFromPciConfig(device.bus, device.slot, device.function, 2);
@@ -58,10 +63,17 @@ int main() {
         break;
       case 0x1012:  // Legacy virtio-input / tablet (0x1012).
       case 0x1052:  // Modern virtio-input / tablet (0x1052).
-        std::cout << "Found Virtio Tablet device_id=0x" << std::hex
-                  << device_id << std::dec << std::endl;
-        driver_instances.push_back(
-            std::make_shared<VirtioTabletDevice>(device));
+        if (DetectVirtioInputType(device) == VirtioInputType::Mouse) {
+          std::cout << "Found Virtio Mouse device_id=0x" << std::hex
+                    << device_id << std::dec << std::endl;
+          mouse_device = std::make_shared<VirtioMouseDevice>(device);
+          driver_instances.push_back(mouse_device);
+        } else {
+          std::cout << "Found Virtio Tablet device_id=0x" << std::hex
+                    << device_id << std::dec << std::endl;
+          tablet_device = std::make_shared<VirtioTabletDevice>(device);
+          driver_instances.push_back(tablet_device);
+        }
         break;
       case 0x1050:  // Virtio GPU / Graphics.
         std::cout << "Found Virtio Graphics device_id=0x" << std::hex
@@ -79,6 +91,18 @@ int main() {
   if (driver_instances.empty()) {
     std::cout << "No Virtio devices found." << std::endl;
     return 0;
+  }
+
+  if (mouse_device) {
+    if (tablet_device) {
+      // If there's both a tablet and a mouse, don't enable the mouse yet
+      // (because it captures the mouse pointer from the host inside of an
+      // emulator).
+      tablet_device->SetMouseDevice(mouse_device);
+    } else {
+      // There's only a mouse and no tablet, so enable it.
+      mouse_device->EnableDevice();
+    }
   }
 
   perception::HandOverControl();

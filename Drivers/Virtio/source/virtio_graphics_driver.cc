@@ -199,128 +199,45 @@ struct VirtioGpuResourceUnref {
 
 VirtioGraphicsDriver::VirtioGraphicsDriver(const PciDevice& device)
     : GraphicsDevice::Server(),
-      device_(device),
-      common_cfg_(nullptr),
-      notify_cfg_(nullptr),
-      isr_cfg_(nullptr),
-      notify_off_multiplier_(0),
+      virtio_pci_(device),
       framebuffer_(nullptr),
       next_texture_id_(1),
       // Modern MMIO and Legacy I/O support
       process_allowed_to_write_to_the_screen_(0) {
-  EnableVirtioPciDevice(device);
+  virtio_pci_.Initialize();
 
-  uint64 bar_phys[kMaxPciBars] = {0};
-  uint16 io_port_base = 0;
-  for (int i = 0; i < kMaxPciBars; i++) {
-    uint32 bar = Read32BitsFromPciConfig(
-        device.bus, device.slot, device.function, kPciConfigBar0Offset + i * 4);
-    if (bar != 0) {
-      if ((bar & kPciBarIoSpaceBit) != 0) {
-        io_port_base = bar & kPciBarIoAddressMask;
-      } else {
-        uint64 phys = bar & kPciBarMemoryAddressMask;
-        if ((bar & kPciBar64BitBit) != 0 && i + 1 < kMaxPciBars) {
-          uint32 upper =
-              Read32BitsFromPciConfig(device.bus, device.slot, device.function,
-                                      kPciConfigBar0Offset + (i + 1) * 4);
-          phys |= ((uint64)upper << 32);
-          bar_phys[i] = phys;
-          bar_phys[i + 1] = phys;
-          i++;
-        } else {
-          bar_phys[i] = phys;
-        }
-      }
-    }
-  }
-
-  uint8 cap_ptr =
-      Read8BitsFromPciConfig(device.bus, device.slot, device.function,
-                             kPciConfigCapabilitiesPtrOffset);
-  int max_caps = kMaxPciCapabilities;
-  while (cap_ptr != 0 && cap_ptr != kInvalidCapPtr && max_caps-- > 0) {
-    uint8 cap_id = Read8BitsFromPciConfig(device.bus, device.slot,
-                                          device.function, cap_ptr);
-    if (cap_id == kPciCapVendorSpecific) {
-      uint8 cfg_type =
-          Read8BitsFromPciConfig(device.bus, device.slot, device.function,
-                                 cap_ptr + kVirtioPciCapTypeOffset);
-      uint8 bar_idx =
-          Read8BitsFromPciConfig(device.bus, device.slot, device.function,
-                                 cap_ptr + kVirtioPciCapBarOffset);
-      uint32 offset =
-          Read32BitsFromPciConfig(device.bus, device.slot, device.function,
-                                  cap_ptr + kVirtioPciCapOffsetOffset);
-      uint32 length =
-          Read32BitsFromPciConfig(device.bus, device.slot, device.function,
-                                  cap_ptr + kVirtioPciCapLengthOffset);
-
-      if (bar_idx < kMaxPciBars && bar_phys[bar_idx] != 0 && length > 0) {
-        uint64 cap_phys = bar_phys[bar_idx] + offset;
-        size_t page_offset = cap_phys & kPageMask;
-        size_t pages = (length + page_offset + kPageMask) / kPageSize;
-        if (pages == 0) pages = 1;
-        void* mapped = MapPhysicalMemory(cap_phys & ~kPageMask, pages);
-
-        if (mapped != nullptr && (size_t)mapped != (size_t)-1) {
-          volatile uint8* ptr = (volatile uint8*)mapped + page_offset;
-          if (cfg_type == kVirtioPciCapCommonConfig) {  // Common
-            common_cfg_ = ptr;
-          } else if (cfg_type == kVirtioPciCapNotifyConfig) {  // Notify
-            notify_cfg_ = ptr;
-            notify_off_multiplier_ = Read32BitsFromPciConfig(
-                device.bus, device.slot, device.function,
-                cap_ptr + kVirtioPciCapNotifyOffMultiplierOffset);
-          } else if (cfg_type == kVirtioPciCapIsrConfig) {  // ISR
-            isr_cfg_ = ptr;
-          }
-        }
-      }
-    }
-    cap_ptr = Read8BitsFromPciConfig(device.bus, device.slot, device.function,
-                                     cap_ptr + 1);
-  }
-
-  io_base_ = io_port_base;
-
-  if (common_cfg_ != nullptr) {
-    common_cfg_[kCommonCfgDeviceStatusOffset] = kVirtioStatusReset;  // Reset
-    common_cfg_[kCommonCfgDeviceStatusOffset] =
-        kVirtioStatusAcknowledge;  // ACKNOWLEDGE
-    common_cfg_[kCommonCfgDeviceStatusOffset] =
-        kVirtioStatusAcknowledge | kVirtioStatusDriver;  // DRIVER
+  if (virtio_pci_.is_modern()) {
+    virtio_pci_.Reset();
 
     // Select feature word 1 (bits 32-63)
-    *(volatile uint32*)(&common_cfg_[kCommonCfgDeviceFeatureSelectOffset]) = 1;
+    *(volatile uint32*)(&virtio_pci_.common_cfg()
+                             [kCommonCfgDeviceFeatureSelectOffset]) = 1;
     // Accept VIRTIO_F_VERSION_1 (bit 32)
-    *(volatile uint32*)(&common_cfg_[kCommonCfgDeviceFeatureOffset]) = 1;
+    *(volatile uint32*)(&virtio_pci_
+                             .common_cfg()[kCommonCfgDeviceFeatureOffset]) = 1;
 
-    common_cfg_[kCommonCfgDeviceStatusOffset] =
+    virtio_pci_.common_cfg()[kCommonCfgDeviceStatusOffset] =
         kVirtioStatusAcknowledge | kVirtioStatusDriver |
         kVirtioStatusFeaturesOk;  // FEATURES_OK
 
-    ctrl_queue_.SetupModern(kControlQueueIndex, common_cfg_);
+    ctrl_queue_.SetupModern(kControlQueueIndex, virtio_pci_.common_cfg());
     if (ctrl_queue_.avail) ctrl_queue_.avail->flags = 1;
 
-    common_cfg_[kCommonCfgDeviceStatusOffset] =
-        kVirtioStatusAcknowledge | kVirtioStatusDriver |
-        kVirtioStatusFeaturesOk | kVirtioStatusDriverOk;  // DRIVER_OK
-  } else if (io_base_ != 0) {
-    ResetLegacyVirtioDevice(io_base_);
+    virtio_pci_.SetDriverOk();
+  } else if (virtio_pci_.io_base() != 0) {
+    virtio_pci_.Reset();
 
-    ctrl_queue_.Setup(kControlQueueIndex, io_base_);
+    ctrl_queue_.Setup(kControlQueueIndex, virtio_pci_.io_base());
     if (ctrl_queue_.avail) ctrl_queue_.avail->flags = 1;
 
-    SetVirtioDriverOk(io_base_);
+    virtio_pci_.SetDriverOk();
   } else {
     return;
   }
 
   if (!ctrl_queue_.avail || ctrl_queue_.size == 0) {
-    ::perception::DebugPrinterSingleton
-        << "ctrl_queue_ setup failed! avail=" << (size_t)ctrl_queue_.avail
-        << " size=" << (size_t)ctrl_queue_.size << "\n";
+    std::cout << "ctrl_queue_ setup failed! avail=" << (size_t)ctrl_queue_.avail
+              << " size=" << (size_t)ctrl_queue_.size << "\n";
     return;
   }
 
@@ -350,12 +267,13 @@ VirtioGraphicsDriver::VirtioGraphicsDriver(const PciDevice& device)
 
   CreateScanoutResource();
 
-  uint8 irq = GetPciInterruptLine(device);
-  if (isr_cfg_ != nullptr) {
+  uint8 irq = virtio_pci_.interrupt_line();
+  if (virtio_pci_.isr_cfg() != nullptr) {
     RegisterInterruptHandler(irq, [this]() { HandleInterrupt(); });
-  } else if (io_base_ != 0) {
+  } else if (virtio_pci_.io_base() != 0) {
     RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
-        irq, io_base_ + kVirtioPciIsr, kIsrMask, io_base_ + kVirtioPciIsr,
+        irq, virtio_pci_.io_base() + kVirtioLegacyIsrOffset, kIsrMask,
+        virtio_pci_.io_base() + kVirtioLegacyIsrOffset,
         [this](const uint8* bytes) {
           for (int i = 0; i < kMaxInterruptReadBytes; i += 2) {
             uint8 status = bytes[i];
@@ -374,12 +292,9 @@ Status VirtioGraphicsDriver::RunCommands(const graphics::Commands& commands,
                                          ProcessId sender) {
   RenderState render_state;
   bool screen_modified = false;
-  for (const auto& command : commands.commands) {
+  for (const auto& command : commands.commands)
     RunCommand(command, sender, render_state, screen_modified);
-  }
-  if (screen_modified) {
-    FlushScreen();
-  }
+  if (screen_modified) FlushScreen();
   return Status::OK;
 }
 
@@ -864,15 +779,13 @@ void VirtioGraphicsDriver::CreateScanoutResource() {
 
 void VirtioGraphicsDriver::HandleInterrupt() {
   uint8 isr = 0;
-  if (isr_cfg_ != nullptr) {
-    isr = isr_cfg_[0];
-  } else if (io_base_ != 0) {
-    isr = Read8BitsFromPort(io_base_ + kVirtioLegacyIsrOffset);
+  if (virtio_pci_.isr_cfg() != nullptr) {
+    isr = virtio_pci_.isr_cfg()[0];
+  } else if (virtio_pci_.io_base() != 0) {
+    isr = Read8BitsFromPort(virtio_pci_.io_base() + kVirtioLegacyIsrOffset);
   }
 
-  if (isr != 0) {
-    ::perception::Defer([this]() { CheckForResolutionChange(); });
-  }
+  if (isr != 0) ::perception::Defer([this]() { CheckForResolutionChange(); });
 }
 
 void VirtioGraphicsDriver::CheckForResolutionChange() {
@@ -936,13 +849,11 @@ void VirtioGraphicsDriver::CheckForResolutionChange() {
 
 Status VirtioGraphicsDriver::SetGraphicsListener(
     const perception::devices::GraphicsListener::Client& listener) {
-  if (listener.IsValid()) {
-    graphics_listener_ =
-        std::make_unique<perception::devices::GraphicsListener::Client>(
-            listener);
-  } else {
-    graphics_listener_.reset();
-  }
+  graphics_listener_ =
+      listener.IsValid()
+          ? std::make_unique<perception::devices::GraphicsListener::Client>(
+                listener)
+          : nullptr;
   return Status::OK;
 }
 
@@ -1011,18 +922,12 @@ bool VirtioGraphicsDriver::SendCommand(const void* req_data, size_t req_len,
 
   FlushRange(ctrl_queue_.avail, kPageSize);
 
-  if (common_cfg_ != nullptr && notify_cfg_ != nullptr) {
-    uint32 noff = ctrl_queue_.notify_off * notify_off_multiplier_;
-    *(volatile uint16*)(notify_cfg_ + noff) = 0;
-    FlushRange((void*)(notify_cfg_ + noff), kNotifyOffsetFlushSize);
-  } else if (io_base_ != 0) {
-    Write16BitsToPort(io_base_ + kVirtioLegacyQueueNotifyOffset, 0);
-  }
+  virtio_pci_.KickQueue(ctrl_queue_);
 
   int timeout = kCommandTimeoutIterations;
   while (ctrl_queue_.last_seen_used == ctrl_queue_.used->idx) {
-    if (isr_cfg_) {
-      volatile uint8 isr = isr_cfg_[0];
+    if (virtio_pci_.isr_cfg()) {
+      volatile uint8 isr = virtio_pci_.isr_cfg()[0];
     }
     FlushRange(ctrl_queue_.used, kPageSize);
     timeout--;

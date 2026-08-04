@@ -25,6 +25,7 @@
 #include "perception/shared_memory.h"
 #include "queue.h"
 #include "types.h"
+#include "virtio_pci_device.h"
 
 class VirtioGraphicsDriver : public perception::devices::GraphicsDevice::Server,
                              public Driver {
@@ -116,16 +117,10 @@ class VirtioGraphicsDriver : public perception::devices::GraphicsDevice::Server,
   bool SendCommand(const void* req_data, size_t req_len, void* resp_data,
                    size_t resp_len);
 
-  perception::devices::PciDevice device_;
-  uint16 io_base_;
+  VirtioPciDevice virtio_pci_;
 
   std::mutex ctrl_mutex_;
   QueueDetails ctrl_queue_;
-
-  volatile uint8* common_cfg_;
-  volatile uint8* notify_cfg_;
-  volatile uint8* isr_cfg_;
-  uint32 notify_off_multiplier_;
 
   uint32 screen_width_;
   uint32 screen_height_;

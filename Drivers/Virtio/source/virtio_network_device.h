@@ -13,12 +13,15 @@
 // limitations under the License.
 #pragma once
 
+#include <mutex>
+
 #include "driver.h"
 #include "perception/devices/device_manager.h"
 #include "perception/devices/network_device.h"
 #include "perception/pci.h"
 #include "queue.h"
 #include "types.h"
+#include "virtio_pci_device.h"
 
 class VirtioNetworkDevice : public perception::devices::NetworkDevice::Server,
                             public Driver {
@@ -38,8 +41,7 @@ class VirtioNetworkDevice : public perception::devices::NetworkDevice::Server,
  private:
   void HandleInterrupt();
 
-  perception::devices::PciDevice device_;
-  uint16 io_base_;
+  VirtioPciDevice virtio_pci_;
   uint8 mac_[6];
   perception::devices::NetworkListener::Client listener_;
   bool processing_interrupt_ = false;
