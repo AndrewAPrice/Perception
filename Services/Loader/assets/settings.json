@@ -1,40 +1,50 @@
-{
-  "name": "Loader",
-  "groups": [
-    {
-      "title": "File Associations",
-      "settings": [
-        {
-          "key": "associations",
-          "name": "File Associations",
-          "type": [
-            {
-              "name": "Extension",
-              "type": "string"
-            },
-            {
-              "name": "Application",
-              "type": "application"
-            }
-          ],
-          "description": "Mapping of file extensions to handler applications",
-          "default": [
-            [
-              "dir",
-              "File Manager"
+[
+  {
+    "page": "System Behavior>File Associations",
+    "groups": [
+      {
+        "title": "File Associations",
+        "settings": [
+          {
+            "key": "associations",
+            "name": "File Associations",
+            "type": [
+              {
+                "name": "Extension",
+                "type": "string"
+              },
+              {
+                "name": "Application",
+                "type": "application"
+              }
+            ],
+            "description": "Mapping of file extensions to handler applications",
+            "default": [
+              [
+                "dir",
+                "File Manager"
+              ]
             ]
-          ],
-          "page": "System Behavior>File Associations"
-        },
-        {
-          "key": "launchOnBoot",
-          "name": "Startup Applications",
-          "type": "array",
-          "description": "List of applications to launch on boot",
-          "default": [],
-          "page": "System Behavior>Startup"
-        }
-      ]
-    }
-  ]
-}
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "page": "System Behavior>Startup",
+    "groups": [
+      {
+        "title": "Startup Applications",
+        "settings": [
+          {
+            "key": "launchOnBoot",
+            "name": "Startup Applications",
+            "type": "array",
+            "description": "List of applications to launch on boot",
+            "default": []
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,31 +1,32 @@
-{
-  "name": "Permissions Manager",
-  "groups": [
-    {
-      "title": "System Permissions",
-      "settings": [
-        {
-          "key": "granted_permissions",
-          "name": "Granted System Permissions",
-          "type": [
-            {
-              "name": "Application",
-              "type": "application"
-            },
-            {
-              "name": "Permission",
-              "type": "permission"
-            },
-            {
-              "name": "Is allowed?",
-              "type": "boolean"
-            }
-          ],
-          "description": "System permissions granted to specific processes",
-          "default": [],
-          "page": "Privacy & Security>System Permissions"
-        }
-      ]
-    }
-  ]
-}
+[
+  {
+    "page": "Privacy & Security>System Permissions",
+    "groups": [
+      {
+        "title": "System Permissions",
+        "settings": [
+          {
+            "key": "granted_permissions",
+            "name": "Granted System Permissions",
+            "type": [
+              {
+                "name": "Application",
+                "type": "application"
+              },
+              {
+                "name": "Permission",
+                "type": "permission"
+              },
+              {
+                "name": "Is allowed?",
+                "type": "boolean"
+              }
+            ],
+            "description": "System permissions granted to specific processes",
+            "default": []
+          }
+        ]
+      }
+    ]
+  }
+]

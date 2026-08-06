@@ -107,10 +107,19 @@ void LoadSchemaFile(const std::string& path, RegistryCorpus corpus,
 
   try {
     json data = json::parse(file);
-    std::string ns_name;
-    if (data.contains("name") && data["name"].is_string())
-      ns_name = data["name"].get<std::string>();
-    if (ns_name.empty()) ns_name = std::string(dir_name);
+    std::string ns_name = std::string(dir_name);
+
+    std::vector<json> pages;
+    if (data.is_array()) {
+      for (const auto& item : data) {
+        if (item.is_object()) pages.push_back(item);
+      }
+    } else if (data.is_object()) {
+      if (data.contains("name") && data["name"].is_string()) {
+        ns_name = data["name"].get<std::string>();
+      }
+      pages.push_back(data);
+    }
 
     bool found_pkg = false;
     for (const auto& pkg : all_packages) {
@@ -222,19 +231,31 @@ void LoadSchemaFile(const std::string& path, RegistryCorpus corpus,
       all_settings[change_key] = ast;
     };
 
-    if (data.contains("settings") && data["settings"].is_array()) {
-      for (const auto& st : data["settings"])
-        parse_setting(st, "Applications>" + ns_name);
-    }
-    if (data.contains("groups") && data["groups"].is_array()) {
-      for (const auto& gp : data["groups"]) {
-        std::string gp_title;
-        if (gp.contains("title") && gp["title"].is_string())
-          gp_title = gp["title"].get<std::string>();
-        std::string fallback = "Applications>" + ns_name;
-        if (!gp_title.empty()) fallback += ">" + gp_title;
-        if (gp.contains("settings") && gp["settings"].is_array()) {
-          for (const auto& st : gp["settings"]) parse_setting(st, fallback);
+    for (const auto& page_obj : pages) {
+      std::string page_name;
+      if (page_obj.contains("page") && page_obj["page"].is_string()) {
+        page_name = page_obj["page"].get<std::string>();
+      }
+
+      if (page_obj.contains("settings") && page_obj["settings"].is_array()) {
+        std::string fallback =
+            page_name.empty() ? ("Applications>" + ns_name) : page_name;
+        for (const auto& st : page_obj["settings"])
+          parse_setting(st, fallback);
+      }
+      if (page_obj.contains("groups") && page_obj["groups"].is_array()) {
+        for (const auto& gp : page_obj["groups"]) {
+          std::string gp_title;
+          if (gp.contains("title") && gp["title"].is_string())
+            gp_title = gp["title"].get<std::string>();
+          std::string fallback = page_name;
+          if (fallback.empty()) {
+            fallback = "Applications>" + ns_name;
+            if (!gp_title.empty()) fallback += ">" + gp_title;
+          }
+          if (gp.contains("settings") && gp["settings"].is_array()) {
+            for (const auto& st : gp["settings"]) parse_setting(st, fallback);
+          }
         }
       }
     }
