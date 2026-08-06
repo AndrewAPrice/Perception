@@ -80,16 +80,7 @@ long OpenFile(const char* path, bool read_access, bool write_access,
   request.create_if_not_exists = create_if_not_exists;
   request.truncate = truncate;
 
-  auto service = GetService<StorageManager>();
-  {
-    if (service.IsValid()) {
-      perception::DebugPrinterSingleton << "SHIM: StorageManager is valid\n";
-    } else {
-      perception::DebugPrinterSingleton << "SHIM: StorageManager is INVALID!\n";
-    }
-  }
-
-  auto status_or_response = service.OpenFile(request);
+  auto status_or_response = GetService<StorageManager>().OpenFile(request);
   if (!status_or_response) {
     perception::DebugPrinterSingleton
         << "SHIM: OpenFile failed for " << path
