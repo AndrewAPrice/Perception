@@ -1,5 +1,5 @@
-# Personal Gemini configuration.
-.gemini
+# Personal agent configuration.
+.agents
 
 # REBS tempory directory.
 .build
