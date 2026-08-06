@@ -116,7 +116,7 @@ void InspectorPanel::Update(std::shared_ptr<InspectedNode> selected_node,
     return;
   }
 
-  // 1. Node Section
+  // Node Section
   auto node_gb = GroupBox::VerticalGroupBox("Node", [](Layout& l) {
     l.SetWidthPercent(100.0f);
   });

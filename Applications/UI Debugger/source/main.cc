@@ -33,7 +33,6 @@ using json = ::nlohmann::json;
 
 namespace {
 
-std::unique_ptr<UIDebuggerWindow> active_window;
 std::shared_ptr<Node> error_dialog;
 
 void CreateErrorDialog(std::string_view message) {
@@ -61,7 +60,10 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  if (!root) return -1;
+  if (!root) {
+    if (error_dialog) HandOverControl();
+    return -1;
+  }
 
   ::perception::window::BaseWindow::Client live_window;
   if (argc > 3) {
@@ -71,7 +73,8 @@ int main(int argc, char* argv[]) {
     } catch (...) {
     }
   }
-  active_window = std::make_unique<UIDebuggerWindow>(root, live_window);
+
+  UIDebuggerWindow active_window(root, live_window);
 
   HandOverControl();
   return 0;

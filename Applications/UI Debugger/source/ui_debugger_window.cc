@@ -37,6 +37,7 @@
 #include "perception/ui/components/checkbox.h"
 #include "perception/ui/components/color_picker_dialog.h"
 #include "perception/ui/components/container.h"
+#include "perception/ui/components/image_button.h"
 #include "perception/ui/components/image_view.h"
 #include "perception/ui/components/input_box.h"
 #include "perception/ui/components/label.h"
@@ -61,6 +62,7 @@ using ::perception::ui::components::Block;
 using ::perception::ui::components::Button;
 using ::perception::ui::components::Checkbox;
 using ::perception::ui::components::Container;
+using ::perception::ui::components::ImageButton;
 using ::perception::ui::components::ImageView;
 using ::perception::ui::components::InputBox;
 using ::perception::ui::components::Label;
@@ -132,14 +134,14 @@ SkRect GetNodeScreenRect(std::shared_ptr<InspectedNode> node, float canvas_x,
   return SkRect::MakeXYWH(rx, ry, rw, rh);
 }
 
-void DrawDimensionLineAndBadge(SkCanvas* canvas, Point p1, Point p2,
+void DrawDimensionLineAndBadge(SkCanvas& canvas, Point p1, Point p2,
                                float app_dist) {
   if (app_dist < 1.0f) return;
 
   SkPaint lp;
   lp.setColor(0xFFE11D48);  // Crimson
   lp.setStrokeWidth(1.5f);
-  canvas->drawLine(p1.x, p1.y, p2.x, p2.y, lp);
+  canvas.drawLine(p1.x, p1.y, p2.x, p2.y, lp);
 
   std::string text =
       std::to_string(static_cast<int>(std::round(app_dist))) + "px";
@@ -160,15 +162,16 @@ void DrawDimensionLineAndBadge(SkCanvas* canvas, Point p1, Point p2,
   SkPaint bg_paint;
   bg_paint.setColor(0xFFE11D48);
   bg_paint.setAntiAlias(true);
-  canvas->drawRoundRect(badge_rect, 4.0f, 4.0f, bg_paint);
+  canvas.drawRoundRect(badge_rect, 4.0f, 4.0f, bg_paint);
 
   SkPaint text_paint;
   text_paint.setColor(0xFFFFFFFF);
   text_paint.setAntiAlias(true);
-  canvas->drawString(
+  canvas.drawString(
       SkString(text.c_str(), text.size()), mid_x - text_bounds.width() / 2.0f,
       mid_y + text_bounds.height() / 2.0f - 1.0f, *font, text_paint);
 }
+
 
 }  // namespace
 
@@ -220,7 +223,7 @@ UIDebuggerWindow::UIDebuggerWindow(
                                 l.SetColor(0xFFFFFFFF);
                               })),
         // Borderless/backgroundless button showing a refresh symbol
-        Button::BasicButton(
+        ImageButton::BasicImageButton(
             [this]() {
               auto hierarchy = live_window_.GetUiHierarchy();
               if (hierarchy) {
@@ -238,6 +241,7 @@ UIDebuggerWindow::UIDebuggerWindow(
                 }
               }
             },
+            refresh_image_,
             [](Layout& l) {
               l.SetWidth(32.0f);
               l.SetHeight(32.0f);
@@ -255,22 +259,7 @@ UIDebuggerWindow::UIDebuggerWindow(
               btn.SetIdleColor(0x00000000);
               btn.SetHoverColor(0xFFE5E7EB);
               btn.SetPushedColor(0xFFD1D5DB);
-            },
-            refresh_image_
-                ? ImageView::BasicImage(
-                      refresh_image_,
-                      [](Layout& l) {
-                        l.SetWidth(18.0f);
-                        l.SetHeight(18.0f);
-                      },
-                      [](ImageView& iv) {
-                        iv.SetResizeMethod(
-                            ::perception::ui::ResizeMethod::Contain);
-                        iv.SetAlignment(
-                            ::perception::ui::TextAlignment::MiddleCenter);
-                      })
-                : Label::BasicLabel(
-                      "🔄", [](Label& l) { l.SetFont(GetBold12UiFont()); })));
+            }));
   } else {
     live_controls_ = Node::Empty();
   }
@@ -723,23 +712,23 @@ void UIDebuggerWindow::DrawMeasurementGuides(const DrawContext& dc) {
         (std::max(s.left(), h.left()) + std::min(s.right(), h.right())) / 2.0f;
 
     if (s.top() != h.top()) {
-      DrawDimensionLineAndBadge(dc.skia_canvas, Point{mid_x, h.top()},
+      DrawDimensionLineAndBadge(*dc.skia_canvas, Point{mid_x, h.top()},
                                 Point{mid_x, s.top()},
                                 std::abs(s.top() - h.top()) / scale_);
     }
     if (s.bottom() != h.bottom()) {
-      DrawDimensionLineAndBadge(dc.skia_canvas, Point{mid_x, s.bottom()},
+      DrawDimensionLineAndBadge(*dc.skia_canvas, Point{mid_x, s.bottom()},
                                 Point{mid_x, h.bottom()},
                                 std::abs(s.bottom() - h.bottom()) / scale_);
     }
   } else {
     float mid_y = (s.top() + s.bottom()) / 2.0f;
     if (s.right() <= h.left()) {
-      DrawDimensionLineAndBadge(dc.skia_canvas, Point{s.right(), mid_y},
+      DrawDimensionLineAndBadge(*dc.skia_canvas, Point{s.right(), mid_y},
                                 Point{h.left(), mid_y},
                                 (h.left() - s.right()) / scale_);
     } else if (h.right() <= s.left()) {
-      DrawDimensionLineAndBadge(dc.skia_canvas, Point{h.right(), mid_y},
+      DrawDimensionLineAndBadge(*dc.skia_canvas, Point{h.right(), mid_y},
                                 Point{s.left(), mid_y},
                                 (s.left() - h.right()) / scale_);
     }
@@ -750,27 +739,28 @@ void UIDebuggerWindow::DrawMeasurementGuides(const DrawContext& dc) {
         (std::max(s.top(), h.top()) + std::min(s.bottom(), h.bottom())) / 2.0f;
 
     if (s.left() != h.left()) {
-      DrawDimensionLineAndBadge(dc.skia_canvas, Point{h.left(), mid_y},
+      DrawDimensionLineAndBadge(*dc.skia_canvas, Point{h.left(), mid_y},
                                 Point{s.left(), mid_y},
                                 std::abs(s.left() - h.left()) / scale_);
     }
     if (s.right() != h.right()) {
-      DrawDimensionLineAndBadge(dc.skia_canvas, Point{s.right(), mid_y},
+      DrawDimensionLineAndBadge(*dc.skia_canvas, Point{s.right(), mid_y},
                                 Point{h.right(), mid_y},
                                 std::abs(s.right() - h.right()) / scale_);
     }
   } else {
     float mid_x = (s.left() + s.right()) / 2.0f;
     if (s.bottom() <= h.top()) {
-      DrawDimensionLineAndBadge(dc.skia_canvas, Point{mid_x, s.bottom()},
+      DrawDimensionLineAndBadge(*dc.skia_canvas, Point{mid_x, s.bottom()},
                                 Point{mid_x, h.top()},
                                 (h.top() - s.bottom()) / scale_);
     } else if (h.bottom() <= s.top()) {
-      DrawDimensionLineAndBadge(dc.skia_canvas, Point{mid_x, h.bottom()},
+      DrawDimensionLineAndBadge(*dc.skia_canvas, Point{mid_x, h.bottom()},
                                 Point{mid_x, s.top()},
                                 (s.top() - h.bottom()) / scale_);
     }
   }
+
 }
 
 std::shared_ptr<InspectedNode> UIDebuggerWindow::HitTestNode(
