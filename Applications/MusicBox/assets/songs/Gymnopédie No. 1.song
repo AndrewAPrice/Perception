@@ -1,0 +1,4573 @@
+{
+  "title": "Gymnop\u00e9die No. 1",
+  "description": "Erik Satie's complete 3/4 impressionist waltz for Concert Flute & Acoustic Piano (~3 min 15 sec)",
+  "bpm": 66.0,
+  "beats_per_bar": 3,
+  "note_per_beat": 4,
+  "tracks": [
+    {
+      "id": 1,
+      "name": "Concert Flute",
+      "instrument": "Concert Flute",
+      "volume": 0.85,
+      "muted": false,
+      "color": 4278621908,
+      "notes": [
+        {
+          "key_index": 57,
+          "start_tick": 800,
+          "duration_ticks": 192,
+          "start_time_ms": 11364,
+          "duration_ms": 2727,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 55,
+          "start_tick": 1184,
+          "duration_ticks": 96,
+          "start_time_ms": 16818,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 53,
+          "start_tick": 1376,
+          "duration_ticks": 96,
+          "start_time_ms": 19545,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 52,
+          "start_tick": 1568,
+          "duration_ticks": 96,
+          "start_time_ms": 22273,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 50,
+          "start_tick": 1760,
+          "duration_ticks": 96,
+          "start_time_ms": 25000,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 52,
+          "start_tick": 1952,
+          "duration_ticks": 96,
+          "start_time_ms": 27727,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 53,
+          "start_tick": 2144,
+          "duration_ticks": 192,
+          "start_time_ms": 30455,
+          "duration_ms": 2727,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 57,
+          "start_tick": 2336,
+          "duration_ticks": 192,
+          "start_time_ms": 33182,
+          "duration_ms": 2727,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 55,
+          "start_tick": 2720,
+          "duration_ticks": 96,
+          "start_time_ms": 38636,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 53,
+          "start_tick": 2912,
+          "duration_ticks": 96,
+          "start_time_ms": 41364,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 52,
+          "start_tick": 3104,
+          "duration_ticks": 96,
+          "start_time_ms": 44091,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 50,
+          "start_tick": 3296,
+          "duration_ticks": 96,
+          "start_time_ms": 46818,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 52,
+          "start_tick": 3488,
+          "duration_ticks": 96,
+          "start_time_ms": 49545,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 45,
+          "start_tick": 3680,
+          "duration_ticks": 192,
+          "start_time_ms": 52273,
+          "duration_ms": 2727,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 60,
+          "start_tick": 3872,
+          "duration_ticks": 192,
+          "start_time_ms": 55000,
+          "duration_ms": 2727,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 59,
+          "start_tick": 4256,
+          "duration_ticks": 96,
+          "start_time_ms": 60455,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 57,
+          "start_tick": 4448,
+          "duration_ticks": 96,
+          "start_time_ms": 63182,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 55,
+          "start_tick": 4640,
+          "duration_ticks": 96,
+          "start_time_ms": 65909,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 53,
+          "start_tick": 4832,
+          "duration_ticks": 96,
+          "start_time_ms": 68636,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 55,
+          "start_tick": 5024,
+          "duration_ticks": 96,
+          "start_time_ms": 71364,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 57,
+          "start_tick": 5216,
+          "duration_ticks": 192,
+          "start_time_ms": 74091,
+          "duration_ms": 2727,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 53,
+          "start_tick": 5408,
+          "duration_ticks": 192,
+          "start_time_ms": 76818,
+          "duration_ms": 2727,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 52,
+          "start_tick": 5792,
+          "duration_ticks": 96,
+          "start_time_ms": 82273,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 50,
+          "start_tick": 5984,
+          "duration_ticks": 96,
+          "start_time_ms": 85000,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 48,
+          "start_tick": 6176,
+          "duration_ticks": 96,
+          "start_time_ms": 87727,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 46,
+          "start_tick": 6368,
+          "duration_ticks": 96,
+          "start_time_ms": 90455,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 48,
+          "start_tick": 6560,
+          "duration_ticks": 96,
+          "start_time_ms": 93182,
+          "duration_ms": 1364,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 50,
+          "start_tick": 6752,
+          "duration_ticks": 192,
+          "start_time_ms": 95909,
+          "duration_ms": 2727,
+          "velocity": 0.85
+        },
+        {
+          "key_index": 57,
+          "start_tick": 6944,
+          "duration_ticks": 192,
+          "start_time_ms": 98636,
+          "duration_ms": 2727,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 55,
+          "start_tick": 7328,
+          "duration_ticks": 96,
+          "start_time_ms": 104091,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 53,
+          "start_tick": 7520,
+          "duration_ticks": 96,
+          "start_time_ms": 106818,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 52,
+          "start_tick": 7712,
+          "duration_ticks": 96,
+          "start_time_ms": 109545,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 50,
+          "start_tick": 7904,
+          "duration_ticks": 96,
+          "start_time_ms": 112273,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 52,
+          "start_tick": 8096,
+          "duration_ticks": 96,
+          "start_time_ms": 115000,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 53,
+          "start_tick": 8288,
+          "duration_ticks": 192,
+          "start_time_ms": 117727,
+          "duration_ms": 2727,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 57,
+          "start_tick": 8480,
+          "duration_ticks": 192,
+          "start_time_ms": 120455,
+          "duration_ms": 2727,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 55,
+          "start_tick": 8864,
+          "duration_ticks": 96,
+          "start_time_ms": 125909,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 53,
+          "start_tick": 9056,
+          "duration_ticks": 96,
+          "start_time_ms": 128636,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 52,
+          "start_tick": 9248,
+          "duration_ticks": 96,
+          "start_time_ms": 131364,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 50,
+          "start_tick": 9440,
+          "duration_ticks": 96,
+          "start_time_ms": 134091,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 52,
+          "start_tick": 9632,
+          "duration_ticks": 96,
+          "start_time_ms": 136818,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 45,
+          "start_tick": 9824,
+          "duration_ticks": 192,
+          "start_time_ms": 139545,
+          "duration_ms": 2727,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 60,
+          "start_tick": 10016,
+          "duration_ticks": 192,
+          "start_time_ms": 142273,
+          "duration_ms": 2727,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 59,
+          "start_tick": 10400,
+          "duration_ticks": 96,
+          "start_time_ms": 147727,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 57,
+          "start_tick": 10592,
+          "duration_ticks": 96,
+          "start_time_ms": 150455,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 55,
+          "start_tick": 10784,
+          "duration_ticks": 96,
+          "start_time_ms": 153182,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 53,
+          "start_tick": 10976,
+          "duration_ticks": 96,
+          "start_time_ms": 155909,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 55,
+          "start_tick": 11168,
+          "duration_ticks": 96,
+          "start_time_ms": 158636,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 57,
+          "start_tick": 11360,
+          "duration_ticks": 192,
+          "start_time_ms": 161364,
+          "duration_ms": 2727,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 53,
+          "start_tick": 11552,
+          "duration_ticks": 192,
+          "start_time_ms": 164091,
+          "duration_ms": 2727,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 52,
+          "start_tick": 11936,
+          "duration_ticks": 96,
+          "start_time_ms": 169545,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 50,
+          "start_tick": 12128,
+          "duration_ticks": 96,
+          "start_time_ms": 172273,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 48,
+          "start_tick": 12320,
+          "duration_ticks": 96,
+          "start_time_ms": 175000,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 46,
+          "start_tick": 12512,
+          "duration_ticks": 96,
+          "start_time_ms": 177727,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 48,
+          "start_tick": 12704,
+          "duration_ticks": 96,
+          "start_time_ms": 180455,
+          "duration_ms": 1364,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 50,
+          "start_tick": 12896,
+          "duration_ticks": 192,
+          "start_time_ms": 183182,
+          "duration_ms": 2727,
+          "velocity": 0.8
+        },
+        {
+          "key_index": 57,
+          "start_tick": 11552,
+          "duration_ticks": 192,
+          "start_time_ms": 164091,
+          "duration_ms": 2727,
+          "velocity": 0.75
+        },
+        {
+          "key_index": 55,
+          "start_tick": 11936,
+          "duration_ticks": 96,
+          "start_time_ms": 169545,
+          "duration_ms": 1364,
+          "velocity": 0.75
+        },
+        {
+          "key_index": 53,
+          "start_tick": 12128,
+          "duration_ticks": 96,
+          "start_time_ms": 172273,
+          "duration_ms": 1364,
+          "velocity": 0.75
+        },
+        {
+          "key_index": 52,
+          "start_tick": 12320,
+          "duration_ticks": 96,
+          "start_time_ms": 175000,
+          "duration_ms": 1364,
+          "velocity": 0.75
+        },
+        {
+          "key_index": 50,
+          "start_tick": 12512,
+          "duration_ticks": 96,
+          "start_time_ms": 177727,
+          "duration_ms": 1364,
+          "velocity": 0.75
+        },
+        {
+          "key_index": 52,
+          "start_tick": 12704,
+          "duration_ticks": 96,
+          "start_time_ms": 180455,
+          "duration_ms": 1364,
+          "velocity": 0.75
+        },
+        {
+          "key_index": 53,
+          "start_tick": 12896,
+          "duration_ticks": 192,
+          "start_time_ms": 183182,
+          "duration_ms": 2727,
+          "velocity": 0.75
+        },
+        {
+          "key_index": 57,
+          "start_tick": 13472,
+          "duration_ticks": 288,
+          "start_time_ms": 191364,
+          "duration_ms": 4091,
+          "velocity": 0.7
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Piano Accompaniment",
+      "instrument": "Acoustic Piano",
+      "volume": 0.75,
+      "muted": false,
+      "color": 4287324406,
+      "notes": [
+        {
+          "key_index": 22,
+          "start_tick": 0,
+          "duration_ticks": 128,
+          "start_time_ms": 0,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 64,
+          "duration_ticks": 56,
+          "start_time_ms": 909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 64,
+          "duration_ticks": 56,
+          "start_time_ms": 909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 64,
+          "duration_ticks": 56,
+          "start_time_ms": 909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 128,
+          "duration_ticks": 56,
+          "start_time_ms": 1818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 128,
+          "duration_ticks": 56,
+          "start_time_ms": 1818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 128,
+          "duration_ticks": 56,
+          "start_time_ms": 1818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 192,
+          "duration_ticks": 128,
+          "start_time_ms": 2727,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 256,
+          "duration_ticks": 56,
+          "start_time_ms": 3636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 256,
+          "duration_ticks": 56,
+          "start_time_ms": 3636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 256,
+          "duration_ticks": 56,
+          "start_time_ms": 3636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 320,
+          "duration_ticks": 56,
+          "start_time_ms": 4545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 320,
+          "duration_ticks": 56,
+          "start_time_ms": 4545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 320,
+          "duration_ticks": 56,
+          "start_time_ms": 4545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 384,
+          "duration_ticks": 128,
+          "start_time_ms": 5455,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 448,
+          "duration_ticks": 56,
+          "start_time_ms": 6364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 448,
+          "duration_ticks": 56,
+          "start_time_ms": 6364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 448,
+          "duration_ticks": 56,
+          "start_time_ms": 6364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 512,
+          "duration_ticks": 56,
+          "start_time_ms": 7273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 512,
+          "duration_ticks": 56,
+          "start_time_ms": 7273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 512,
+          "duration_ticks": 56,
+          "start_time_ms": 7273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 576,
+          "duration_ticks": 128,
+          "start_time_ms": 8182,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 640,
+          "duration_ticks": 56,
+          "start_time_ms": 9091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 640,
+          "duration_ticks": 56,
+          "start_time_ms": 9091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 640,
+          "duration_ticks": 56,
+          "start_time_ms": 9091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 704,
+          "duration_ticks": 56,
+          "start_time_ms": 10000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 704,
+          "duration_ticks": 56,
+          "start_time_ms": 10000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 704,
+          "duration_ticks": 56,
+          "start_time_ms": 10000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 768,
+          "duration_ticks": 128,
+          "start_time_ms": 10909,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 832,
+          "duration_ticks": 56,
+          "start_time_ms": 11818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 832,
+          "duration_ticks": 56,
+          "start_time_ms": 11818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 832,
+          "duration_ticks": 56,
+          "start_time_ms": 11818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 896,
+          "duration_ticks": 56,
+          "start_time_ms": 12727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 896,
+          "duration_ticks": 56,
+          "start_time_ms": 12727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 896,
+          "duration_ticks": 56,
+          "start_time_ms": 12727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 960,
+          "duration_ticks": 128,
+          "start_time_ms": 13636,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 1024,
+          "duration_ticks": 56,
+          "start_time_ms": 14545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 1024,
+          "duration_ticks": 56,
+          "start_time_ms": 14545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 1024,
+          "duration_ticks": 56,
+          "start_time_ms": 14545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 1088,
+          "duration_ticks": 56,
+          "start_time_ms": 15455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 1088,
+          "duration_ticks": 56,
+          "start_time_ms": 15455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 1088,
+          "duration_ticks": 56,
+          "start_time_ms": 15455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 1152,
+          "duration_ticks": 128,
+          "start_time_ms": 16364,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 1216,
+          "duration_ticks": 56,
+          "start_time_ms": 17273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 1216,
+          "duration_ticks": 56,
+          "start_time_ms": 17273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 1216,
+          "duration_ticks": 56,
+          "start_time_ms": 17273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 1280,
+          "duration_ticks": 56,
+          "start_time_ms": 18182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 1280,
+          "duration_ticks": 56,
+          "start_time_ms": 18182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 1280,
+          "duration_ticks": 56,
+          "start_time_ms": 18182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 1344,
+          "duration_ticks": 128,
+          "start_time_ms": 19091,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 1408,
+          "duration_ticks": 56,
+          "start_time_ms": 20000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 1408,
+          "duration_ticks": 56,
+          "start_time_ms": 20000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 1408,
+          "duration_ticks": 56,
+          "start_time_ms": 20000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 1472,
+          "duration_ticks": 56,
+          "start_time_ms": 20909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 1472,
+          "duration_ticks": 56,
+          "start_time_ms": 20909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 1472,
+          "duration_ticks": 56,
+          "start_time_ms": 20909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 1536,
+          "duration_ticks": 128,
+          "start_time_ms": 21818,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 1600,
+          "duration_ticks": 56,
+          "start_time_ms": 22727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 1600,
+          "duration_ticks": 56,
+          "start_time_ms": 22727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 1600,
+          "duration_ticks": 56,
+          "start_time_ms": 22727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 1664,
+          "duration_ticks": 56,
+          "start_time_ms": 23636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 1664,
+          "duration_ticks": 56,
+          "start_time_ms": 23636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 1664,
+          "duration_ticks": 56,
+          "start_time_ms": 23636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 1728,
+          "duration_ticks": 128,
+          "start_time_ms": 24545,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 1792,
+          "duration_ticks": 56,
+          "start_time_ms": 25455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 1792,
+          "duration_ticks": 56,
+          "start_time_ms": 25455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 1792,
+          "duration_ticks": 56,
+          "start_time_ms": 25455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 1856,
+          "duration_ticks": 56,
+          "start_time_ms": 26364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 1856,
+          "duration_ticks": 56,
+          "start_time_ms": 26364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 1856,
+          "duration_ticks": 56,
+          "start_time_ms": 26364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 1920,
+          "duration_ticks": 128,
+          "start_time_ms": 27273,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 1984,
+          "duration_ticks": 56,
+          "start_time_ms": 28182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 1984,
+          "duration_ticks": 56,
+          "start_time_ms": 28182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 1984,
+          "duration_ticks": 56,
+          "start_time_ms": 28182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 2048,
+          "duration_ticks": 56,
+          "start_time_ms": 29091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 2048,
+          "duration_ticks": 56,
+          "start_time_ms": 29091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 2048,
+          "duration_ticks": 56,
+          "start_time_ms": 29091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 2112,
+          "duration_ticks": 128,
+          "start_time_ms": 30000,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 2176,
+          "duration_ticks": 56,
+          "start_time_ms": 30909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 2176,
+          "duration_ticks": 56,
+          "start_time_ms": 30909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 2176,
+          "duration_ticks": 56,
+          "start_time_ms": 30909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 2240,
+          "duration_ticks": 56,
+          "start_time_ms": 31818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 2240,
+          "duration_ticks": 56,
+          "start_time_ms": 31818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 2240,
+          "duration_ticks": 56,
+          "start_time_ms": 31818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 2304,
+          "duration_ticks": 128,
+          "start_time_ms": 32727,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 2368,
+          "duration_ticks": 56,
+          "start_time_ms": 33636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 2368,
+          "duration_ticks": 56,
+          "start_time_ms": 33636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 2368,
+          "duration_ticks": 56,
+          "start_time_ms": 33636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 2432,
+          "duration_ticks": 56,
+          "start_time_ms": 34545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 2432,
+          "duration_ticks": 56,
+          "start_time_ms": 34545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 2432,
+          "duration_ticks": 56,
+          "start_time_ms": 34545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 2496,
+          "duration_ticks": 128,
+          "start_time_ms": 35455,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 2560,
+          "duration_ticks": 56,
+          "start_time_ms": 36364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 2560,
+          "duration_ticks": 56,
+          "start_time_ms": 36364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 2560,
+          "duration_ticks": 56,
+          "start_time_ms": 36364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 2624,
+          "duration_ticks": 56,
+          "start_time_ms": 37273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 2624,
+          "duration_ticks": 56,
+          "start_time_ms": 37273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 2624,
+          "duration_ticks": 56,
+          "start_time_ms": 37273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 2688,
+          "duration_ticks": 128,
+          "start_time_ms": 38182,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 2752,
+          "duration_ticks": 56,
+          "start_time_ms": 39091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 2752,
+          "duration_ticks": 56,
+          "start_time_ms": 39091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 2752,
+          "duration_ticks": 56,
+          "start_time_ms": 39091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 2816,
+          "duration_ticks": 56,
+          "start_time_ms": 40000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 2816,
+          "duration_ticks": 56,
+          "start_time_ms": 40000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 2816,
+          "duration_ticks": 56,
+          "start_time_ms": 40000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 2880,
+          "duration_ticks": 128,
+          "start_time_ms": 40909,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 2944,
+          "duration_ticks": 56,
+          "start_time_ms": 41818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 2944,
+          "duration_ticks": 56,
+          "start_time_ms": 41818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 2944,
+          "duration_ticks": 56,
+          "start_time_ms": 41818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 3008,
+          "duration_ticks": 56,
+          "start_time_ms": 42727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 3008,
+          "duration_ticks": 56,
+          "start_time_ms": 42727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 3008,
+          "duration_ticks": 56,
+          "start_time_ms": 42727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 3072,
+          "duration_ticks": 128,
+          "start_time_ms": 43636,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 3136,
+          "duration_ticks": 56,
+          "start_time_ms": 44545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 3136,
+          "duration_ticks": 56,
+          "start_time_ms": 44545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 3136,
+          "duration_ticks": 56,
+          "start_time_ms": 44545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 3200,
+          "duration_ticks": 56,
+          "start_time_ms": 45455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 3200,
+          "duration_ticks": 56,
+          "start_time_ms": 45455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 3200,
+          "duration_ticks": 56,
+          "start_time_ms": 45455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 3264,
+          "duration_ticks": 128,
+          "start_time_ms": 46364,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 3328,
+          "duration_ticks": 56,
+          "start_time_ms": 47273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 3328,
+          "duration_ticks": 56,
+          "start_time_ms": 47273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 3328,
+          "duration_ticks": 56,
+          "start_time_ms": 47273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 3392,
+          "duration_ticks": 56,
+          "start_time_ms": 48182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 3392,
+          "duration_ticks": 56,
+          "start_time_ms": 48182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 3392,
+          "duration_ticks": 56,
+          "start_time_ms": 48182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 3456,
+          "duration_ticks": 128,
+          "start_time_ms": 49091,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 3520,
+          "duration_ticks": 56,
+          "start_time_ms": 50000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 3520,
+          "duration_ticks": 56,
+          "start_time_ms": 50000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 3520,
+          "duration_ticks": 56,
+          "start_time_ms": 50000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 3584,
+          "duration_ticks": 56,
+          "start_time_ms": 50909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 3584,
+          "duration_ticks": 56,
+          "start_time_ms": 50909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 3584,
+          "duration_ticks": 56,
+          "start_time_ms": 50909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 3648,
+          "duration_ticks": 128,
+          "start_time_ms": 51818,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 3712,
+          "duration_ticks": 56,
+          "start_time_ms": 52727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 3712,
+          "duration_ticks": 56,
+          "start_time_ms": 52727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 3712,
+          "duration_ticks": 56,
+          "start_time_ms": 52727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 3776,
+          "duration_ticks": 56,
+          "start_time_ms": 53636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 3776,
+          "duration_ticks": 56,
+          "start_time_ms": 53636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 3776,
+          "duration_ticks": 56,
+          "start_time_ms": 53636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 3840,
+          "duration_ticks": 128,
+          "start_time_ms": 54545,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 3904,
+          "duration_ticks": 56,
+          "start_time_ms": 55455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 3904,
+          "duration_ticks": 56,
+          "start_time_ms": 55455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 3904,
+          "duration_ticks": 56,
+          "start_time_ms": 55455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 3968,
+          "duration_ticks": 56,
+          "start_time_ms": 56364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 3968,
+          "duration_ticks": 56,
+          "start_time_ms": 56364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 3968,
+          "duration_ticks": 56,
+          "start_time_ms": 56364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 4032,
+          "duration_ticks": 128,
+          "start_time_ms": 57273,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 4096,
+          "duration_ticks": 56,
+          "start_time_ms": 58182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 4096,
+          "duration_ticks": 56,
+          "start_time_ms": 58182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 4096,
+          "duration_ticks": 56,
+          "start_time_ms": 58182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 4160,
+          "duration_ticks": 56,
+          "start_time_ms": 59091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 4160,
+          "duration_ticks": 56,
+          "start_time_ms": 59091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 4160,
+          "duration_ticks": 56,
+          "start_time_ms": 59091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 4224,
+          "duration_ticks": 128,
+          "start_time_ms": 60000,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 4288,
+          "duration_ticks": 56,
+          "start_time_ms": 60909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 4288,
+          "duration_ticks": 56,
+          "start_time_ms": 60909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 4288,
+          "duration_ticks": 56,
+          "start_time_ms": 60909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 4352,
+          "duration_ticks": 56,
+          "start_time_ms": 61818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 4352,
+          "duration_ticks": 56,
+          "start_time_ms": 61818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 4352,
+          "duration_ticks": 56,
+          "start_time_ms": 61818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 4416,
+          "duration_ticks": 128,
+          "start_time_ms": 62727,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 4480,
+          "duration_ticks": 56,
+          "start_time_ms": 63636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 4480,
+          "duration_ticks": 56,
+          "start_time_ms": 63636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 4480,
+          "duration_ticks": 56,
+          "start_time_ms": 63636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 4544,
+          "duration_ticks": 56,
+          "start_time_ms": 64545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 4544,
+          "duration_ticks": 56,
+          "start_time_ms": 64545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 4544,
+          "duration_ticks": 56,
+          "start_time_ms": 64545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 4608,
+          "duration_ticks": 128,
+          "start_time_ms": 65455,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 4672,
+          "duration_ticks": 56,
+          "start_time_ms": 66364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 4672,
+          "duration_ticks": 56,
+          "start_time_ms": 66364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 4672,
+          "duration_ticks": 56,
+          "start_time_ms": 66364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 4736,
+          "duration_ticks": 56,
+          "start_time_ms": 67273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 4736,
+          "duration_ticks": 56,
+          "start_time_ms": 67273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 4736,
+          "duration_ticks": 56,
+          "start_time_ms": 67273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 4800,
+          "duration_ticks": 128,
+          "start_time_ms": 68182,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 4864,
+          "duration_ticks": 56,
+          "start_time_ms": 69091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 4864,
+          "duration_ticks": 56,
+          "start_time_ms": 69091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 4864,
+          "duration_ticks": 56,
+          "start_time_ms": 69091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 4928,
+          "duration_ticks": 56,
+          "start_time_ms": 70000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 4928,
+          "duration_ticks": 56,
+          "start_time_ms": 70000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 4928,
+          "duration_ticks": 56,
+          "start_time_ms": 70000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 4992,
+          "duration_ticks": 128,
+          "start_time_ms": 70909,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 5056,
+          "duration_ticks": 56,
+          "start_time_ms": 71818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 5056,
+          "duration_ticks": 56,
+          "start_time_ms": 71818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 5056,
+          "duration_ticks": 56,
+          "start_time_ms": 71818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 5120,
+          "duration_ticks": 56,
+          "start_time_ms": 72727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 5120,
+          "duration_ticks": 56,
+          "start_time_ms": 72727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 5120,
+          "duration_ticks": 56,
+          "start_time_ms": 72727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 5184,
+          "duration_ticks": 128,
+          "start_time_ms": 73636,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 5248,
+          "duration_ticks": 56,
+          "start_time_ms": 74545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 5248,
+          "duration_ticks": 56,
+          "start_time_ms": 74545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 5248,
+          "duration_ticks": 56,
+          "start_time_ms": 74545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 5312,
+          "duration_ticks": 56,
+          "start_time_ms": 75455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 5312,
+          "duration_ticks": 56,
+          "start_time_ms": 75455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 5312,
+          "duration_ticks": 56,
+          "start_time_ms": 75455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 5376,
+          "duration_ticks": 128,
+          "start_time_ms": 76364,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 5440,
+          "duration_ticks": 56,
+          "start_time_ms": 77273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 5440,
+          "duration_ticks": 56,
+          "start_time_ms": 77273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 5440,
+          "duration_ticks": 56,
+          "start_time_ms": 77273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 5504,
+          "duration_ticks": 56,
+          "start_time_ms": 78182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 5504,
+          "duration_ticks": 56,
+          "start_time_ms": 78182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 5504,
+          "duration_ticks": 56,
+          "start_time_ms": 78182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 5568,
+          "duration_ticks": 128,
+          "start_time_ms": 79091,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 5632,
+          "duration_ticks": 56,
+          "start_time_ms": 80000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 5632,
+          "duration_ticks": 56,
+          "start_time_ms": 80000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 5632,
+          "duration_ticks": 56,
+          "start_time_ms": 80000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 5696,
+          "duration_ticks": 56,
+          "start_time_ms": 80909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 5696,
+          "duration_ticks": 56,
+          "start_time_ms": 80909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 5696,
+          "duration_ticks": 56,
+          "start_time_ms": 80909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 5760,
+          "duration_ticks": 128,
+          "start_time_ms": 81818,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 5824,
+          "duration_ticks": 56,
+          "start_time_ms": 82727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 5824,
+          "duration_ticks": 56,
+          "start_time_ms": 82727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 5824,
+          "duration_ticks": 56,
+          "start_time_ms": 82727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 5888,
+          "duration_ticks": 56,
+          "start_time_ms": 83636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 5888,
+          "duration_ticks": 56,
+          "start_time_ms": 83636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 5888,
+          "duration_ticks": 56,
+          "start_time_ms": 83636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 5952,
+          "duration_ticks": 128,
+          "start_time_ms": 84545,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 6016,
+          "duration_ticks": 56,
+          "start_time_ms": 85455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 6016,
+          "duration_ticks": 56,
+          "start_time_ms": 85455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 6016,
+          "duration_ticks": 56,
+          "start_time_ms": 85455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 6080,
+          "duration_ticks": 56,
+          "start_time_ms": 86364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 6080,
+          "duration_ticks": 56,
+          "start_time_ms": 86364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 6080,
+          "duration_ticks": 56,
+          "start_time_ms": 86364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 6144,
+          "duration_ticks": 128,
+          "start_time_ms": 87273,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 6208,
+          "duration_ticks": 56,
+          "start_time_ms": 88182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 6208,
+          "duration_ticks": 56,
+          "start_time_ms": 88182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 6208,
+          "duration_ticks": 56,
+          "start_time_ms": 88182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 6272,
+          "duration_ticks": 56,
+          "start_time_ms": 89091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 6272,
+          "duration_ticks": 56,
+          "start_time_ms": 89091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 6272,
+          "duration_ticks": 56,
+          "start_time_ms": 89091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 6336,
+          "duration_ticks": 128,
+          "start_time_ms": 90000,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 6400,
+          "duration_ticks": 56,
+          "start_time_ms": 90909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 6400,
+          "duration_ticks": 56,
+          "start_time_ms": 90909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 6400,
+          "duration_ticks": 56,
+          "start_time_ms": 90909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 6464,
+          "duration_ticks": 56,
+          "start_time_ms": 91818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 6464,
+          "duration_ticks": 56,
+          "start_time_ms": 91818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 6464,
+          "duration_ticks": 56,
+          "start_time_ms": 91818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 6528,
+          "duration_ticks": 128,
+          "start_time_ms": 92727,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 6592,
+          "duration_ticks": 56,
+          "start_time_ms": 93636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 6592,
+          "duration_ticks": 56,
+          "start_time_ms": 93636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 6592,
+          "duration_ticks": 56,
+          "start_time_ms": 93636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 6656,
+          "duration_ticks": 56,
+          "start_time_ms": 94545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 6656,
+          "duration_ticks": 56,
+          "start_time_ms": 94545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 6656,
+          "duration_ticks": 56,
+          "start_time_ms": 94545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 6720,
+          "duration_ticks": 128,
+          "start_time_ms": 95455,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 6784,
+          "duration_ticks": 56,
+          "start_time_ms": 96364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 6784,
+          "duration_ticks": 56,
+          "start_time_ms": 96364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 6784,
+          "duration_ticks": 56,
+          "start_time_ms": 96364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 6848,
+          "duration_ticks": 56,
+          "start_time_ms": 97273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 6848,
+          "duration_ticks": 56,
+          "start_time_ms": 97273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 6848,
+          "duration_ticks": 56,
+          "start_time_ms": 97273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 6912,
+          "duration_ticks": 128,
+          "start_time_ms": 98182,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 6976,
+          "duration_ticks": 56,
+          "start_time_ms": 99091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 6976,
+          "duration_ticks": 56,
+          "start_time_ms": 99091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 6976,
+          "duration_ticks": 56,
+          "start_time_ms": 99091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 7040,
+          "duration_ticks": 56,
+          "start_time_ms": 100000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 7040,
+          "duration_ticks": 56,
+          "start_time_ms": 100000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 7040,
+          "duration_ticks": 56,
+          "start_time_ms": 100000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 7104,
+          "duration_ticks": 128,
+          "start_time_ms": 100909,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 7168,
+          "duration_ticks": 56,
+          "start_time_ms": 101818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 7168,
+          "duration_ticks": 56,
+          "start_time_ms": 101818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 7168,
+          "duration_ticks": 56,
+          "start_time_ms": 101818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 7232,
+          "duration_ticks": 56,
+          "start_time_ms": 102727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 7232,
+          "duration_ticks": 56,
+          "start_time_ms": 102727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 7232,
+          "duration_ticks": 56,
+          "start_time_ms": 102727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 7296,
+          "duration_ticks": 128,
+          "start_time_ms": 103636,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 7360,
+          "duration_ticks": 56,
+          "start_time_ms": 104545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 7360,
+          "duration_ticks": 56,
+          "start_time_ms": 104545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 7360,
+          "duration_ticks": 56,
+          "start_time_ms": 104545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 7424,
+          "duration_ticks": 56,
+          "start_time_ms": 105455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 7424,
+          "duration_ticks": 56,
+          "start_time_ms": 105455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 7424,
+          "duration_ticks": 56,
+          "start_time_ms": 105455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 7488,
+          "duration_ticks": 128,
+          "start_time_ms": 106364,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 7552,
+          "duration_ticks": 56,
+          "start_time_ms": 107273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 7552,
+          "duration_ticks": 56,
+          "start_time_ms": 107273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 7552,
+          "duration_ticks": 56,
+          "start_time_ms": 107273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 7616,
+          "duration_ticks": 56,
+          "start_time_ms": 108182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 7616,
+          "duration_ticks": 56,
+          "start_time_ms": 108182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 7616,
+          "duration_ticks": 56,
+          "start_time_ms": 108182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 7680,
+          "duration_ticks": 128,
+          "start_time_ms": 109091,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 7744,
+          "duration_ticks": 56,
+          "start_time_ms": 110000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 7744,
+          "duration_ticks": 56,
+          "start_time_ms": 110000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 7744,
+          "duration_ticks": 56,
+          "start_time_ms": 110000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 7808,
+          "duration_ticks": 56,
+          "start_time_ms": 110909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 7808,
+          "duration_ticks": 56,
+          "start_time_ms": 110909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 7808,
+          "duration_ticks": 56,
+          "start_time_ms": 110909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 7872,
+          "duration_ticks": 128,
+          "start_time_ms": 111818,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 7936,
+          "duration_ticks": 56,
+          "start_time_ms": 112727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 7936,
+          "duration_ticks": 56,
+          "start_time_ms": 112727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 7936,
+          "duration_ticks": 56,
+          "start_time_ms": 112727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 8000,
+          "duration_ticks": 56,
+          "start_time_ms": 113636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 8000,
+          "duration_ticks": 56,
+          "start_time_ms": 113636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 8000,
+          "duration_ticks": 56,
+          "start_time_ms": 113636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 8064,
+          "duration_ticks": 128,
+          "start_time_ms": 114545,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 8128,
+          "duration_ticks": 56,
+          "start_time_ms": 115455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 8128,
+          "duration_ticks": 56,
+          "start_time_ms": 115455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 8128,
+          "duration_ticks": 56,
+          "start_time_ms": 115455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 8192,
+          "duration_ticks": 56,
+          "start_time_ms": 116364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 8192,
+          "duration_ticks": 56,
+          "start_time_ms": 116364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 8192,
+          "duration_ticks": 56,
+          "start_time_ms": 116364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 8256,
+          "duration_ticks": 128,
+          "start_time_ms": 117273,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 8320,
+          "duration_ticks": 56,
+          "start_time_ms": 118182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 8320,
+          "duration_ticks": 56,
+          "start_time_ms": 118182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 8320,
+          "duration_ticks": 56,
+          "start_time_ms": 118182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 8384,
+          "duration_ticks": 56,
+          "start_time_ms": 119091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 8384,
+          "duration_ticks": 56,
+          "start_time_ms": 119091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 8384,
+          "duration_ticks": 56,
+          "start_time_ms": 119091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 8448,
+          "duration_ticks": 128,
+          "start_time_ms": 120000,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 8512,
+          "duration_ticks": 56,
+          "start_time_ms": 120909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 8512,
+          "duration_ticks": 56,
+          "start_time_ms": 120909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 8512,
+          "duration_ticks": 56,
+          "start_time_ms": 120909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 8576,
+          "duration_ticks": 56,
+          "start_time_ms": 121818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 8576,
+          "duration_ticks": 56,
+          "start_time_ms": 121818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 8576,
+          "duration_ticks": 56,
+          "start_time_ms": 121818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 8640,
+          "duration_ticks": 128,
+          "start_time_ms": 122727,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 8704,
+          "duration_ticks": 56,
+          "start_time_ms": 123636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 8704,
+          "duration_ticks": 56,
+          "start_time_ms": 123636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 8704,
+          "duration_ticks": 56,
+          "start_time_ms": 123636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 8768,
+          "duration_ticks": 56,
+          "start_time_ms": 124545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 8768,
+          "duration_ticks": 56,
+          "start_time_ms": 124545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 8768,
+          "duration_ticks": 56,
+          "start_time_ms": 124545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 8832,
+          "duration_ticks": 128,
+          "start_time_ms": 125455,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 8896,
+          "duration_ticks": 56,
+          "start_time_ms": 126364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 8896,
+          "duration_ticks": 56,
+          "start_time_ms": 126364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 8896,
+          "duration_ticks": 56,
+          "start_time_ms": 126364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 8960,
+          "duration_ticks": 56,
+          "start_time_ms": 127273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 8960,
+          "duration_ticks": 56,
+          "start_time_ms": 127273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 8960,
+          "duration_ticks": 56,
+          "start_time_ms": 127273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 9024,
+          "duration_ticks": 128,
+          "start_time_ms": 128182,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 9088,
+          "duration_ticks": 56,
+          "start_time_ms": 129091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 9088,
+          "duration_ticks": 56,
+          "start_time_ms": 129091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 9088,
+          "duration_ticks": 56,
+          "start_time_ms": 129091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 9152,
+          "duration_ticks": 56,
+          "start_time_ms": 130000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 9152,
+          "duration_ticks": 56,
+          "start_time_ms": 130000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 9152,
+          "duration_ticks": 56,
+          "start_time_ms": 130000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 9216,
+          "duration_ticks": 128,
+          "start_time_ms": 130909,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 9280,
+          "duration_ticks": 56,
+          "start_time_ms": 131818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 9280,
+          "duration_ticks": 56,
+          "start_time_ms": 131818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 9280,
+          "duration_ticks": 56,
+          "start_time_ms": 131818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 9344,
+          "duration_ticks": 56,
+          "start_time_ms": 132727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 9344,
+          "duration_ticks": 56,
+          "start_time_ms": 132727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 9344,
+          "duration_ticks": 56,
+          "start_time_ms": 132727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 9408,
+          "duration_ticks": 128,
+          "start_time_ms": 133636,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 9472,
+          "duration_ticks": 56,
+          "start_time_ms": 134545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 9472,
+          "duration_ticks": 56,
+          "start_time_ms": 134545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 9472,
+          "duration_ticks": 56,
+          "start_time_ms": 134545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 9536,
+          "duration_ticks": 56,
+          "start_time_ms": 135455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 9536,
+          "duration_ticks": 56,
+          "start_time_ms": 135455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 9536,
+          "duration_ticks": 56,
+          "start_time_ms": 135455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 9600,
+          "duration_ticks": 128,
+          "start_time_ms": 136364,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 9664,
+          "duration_ticks": 56,
+          "start_time_ms": 137273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 9664,
+          "duration_ticks": 56,
+          "start_time_ms": 137273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 9664,
+          "duration_ticks": 56,
+          "start_time_ms": 137273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 9728,
+          "duration_ticks": 56,
+          "start_time_ms": 138182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 9728,
+          "duration_ticks": 56,
+          "start_time_ms": 138182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 9728,
+          "duration_ticks": 56,
+          "start_time_ms": 138182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 9792,
+          "duration_ticks": 128,
+          "start_time_ms": 139091,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 9856,
+          "duration_ticks": 56,
+          "start_time_ms": 140000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 9856,
+          "duration_ticks": 56,
+          "start_time_ms": 140000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 9856,
+          "duration_ticks": 56,
+          "start_time_ms": 140000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 9920,
+          "duration_ticks": 56,
+          "start_time_ms": 140909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 9920,
+          "duration_ticks": 56,
+          "start_time_ms": 140909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 9920,
+          "duration_ticks": 56,
+          "start_time_ms": 140909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 9984,
+          "duration_ticks": 128,
+          "start_time_ms": 141818,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 10048,
+          "duration_ticks": 56,
+          "start_time_ms": 142727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 10048,
+          "duration_ticks": 56,
+          "start_time_ms": 142727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 10048,
+          "duration_ticks": 56,
+          "start_time_ms": 142727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 10112,
+          "duration_ticks": 56,
+          "start_time_ms": 143636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 10112,
+          "duration_ticks": 56,
+          "start_time_ms": 143636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 10112,
+          "duration_ticks": 56,
+          "start_time_ms": 143636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 10176,
+          "duration_ticks": 128,
+          "start_time_ms": 144545,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 10240,
+          "duration_ticks": 56,
+          "start_time_ms": 145455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 10240,
+          "duration_ticks": 56,
+          "start_time_ms": 145455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 10240,
+          "duration_ticks": 56,
+          "start_time_ms": 145455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 10304,
+          "duration_ticks": 56,
+          "start_time_ms": 146364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 10304,
+          "duration_ticks": 56,
+          "start_time_ms": 146364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 10304,
+          "duration_ticks": 56,
+          "start_time_ms": 146364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 10368,
+          "duration_ticks": 128,
+          "start_time_ms": 147273,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 10432,
+          "duration_ticks": 56,
+          "start_time_ms": 148182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 10432,
+          "duration_ticks": 56,
+          "start_time_ms": 148182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 10432,
+          "duration_ticks": 56,
+          "start_time_ms": 148182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 10496,
+          "duration_ticks": 56,
+          "start_time_ms": 149091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 10496,
+          "duration_ticks": 56,
+          "start_time_ms": 149091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 10496,
+          "duration_ticks": 56,
+          "start_time_ms": 149091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 10560,
+          "duration_ticks": 128,
+          "start_time_ms": 150000,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 10624,
+          "duration_ticks": 56,
+          "start_time_ms": 150909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 10624,
+          "duration_ticks": 56,
+          "start_time_ms": 150909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 10624,
+          "duration_ticks": 56,
+          "start_time_ms": 150909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 10688,
+          "duration_ticks": 56,
+          "start_time_ms": 151818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 10688,
+          "duration_ticks": 56,
+          "start_time_ms": 151818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 10688,
+          "duration_ticks": 56,
+          "start_time_ms": 151818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 10752,
+          "duration_ticks": 128,
+          "start_time_ms": 152727,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 10816,
+          "duration_ticks": 56,
+          "start_time_ms": 153636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 10816,
+          "duration_ticks": 56,
+          "start_time_ms": 153636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 10816,
+          "duration_ticks": 56,
+          "start_time_ms": 153636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 10880,
+          "duration_ticks": 56,
+          "start_time_ms": 154545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 10880,
+          "duration_ticks": 56,
+          "start_time_ms": 154545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 10880,
+          "duration_ticks": 56,
+          "start_time_ms": 154545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 10944,
+          "duration_ticks": 128,
+          "start_time_ms": 155455,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 11008,
+          "duration_ticks": 56,
+          "start_time_ms": 156364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 11008,
+          "duration_ticks": 56,
+          "start_time_ms": 156364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 11008,
+          "duration_ticks": 56,
+          "start_time_ms": 156364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 11072,
+          "duration_ticks": 56,
+          "start_time_ms": 157273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 11072,
+          "duration_ticks": 56,
+          "start_time_ms": 157273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 11072,
+          "duration_ticks": 56,
+          "start_time_ms": 157273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 11136,
+          "duration_ticks": 128,
+          "start_time_ms": 158182,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 11200,
+          "duration_ticks": 56,
+          "start_time_ms": 159091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 11200,
+          "duration_ticks": 56,
+          "start_time_ms": 159091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 11200,
+          "duration_ticks": 56,
+          "start_time_ms": 159091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 11264,
+          "duration_ticks": 56,
+          "start_time_ms": 160000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 11264,
+          "duration_ticks": 56,
+          "start_time_ms": 160000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 11264,
+          "duration_ticks": 56,
+          "start_time_ms": 160000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 11328,
+          "duration_ticks": 128,
+          "start_time_ms": 160909,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 11392,
+          "duration_ticks": 56,
+          "start_time_ms": 161818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 11392,
+          "duration_ticks": 56,
+          "start_time_ms": 161818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 11392,
+          "duration_ticks": 56,
+          "start_time_ms": 161818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 11456,
+          "duration_ticks": 56,
+          "start_time_ms": 162727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 11456,
+          "duration_ticks": 56,
+          "start_time_ms": 162727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 11456,
+          "duration_ticks": 56,
+          "start_time_ms": 162727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 11520,
+          "duration_ticks": 128,
+          "start_time_ms": 163636,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 11584,
+          "duration_ticks": 56,
+          "start_time_ms": 164545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 11584,
+          "duration_ticks": 56,
+          "start_time_ms": 164545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 11584,
+          "duration_ticks": 56,
+          "start_time_ms": 164545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 11648,
+          "duration_ticks": 56,
+          "start_time_ms": 165455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 11648,
+          "duration_ticks": 56,
+          "start_time_ms": 165455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 11648,
+          "duration_ticks": 56,
+          "start_time_ms": 165455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 11712,
+          "duration_ticks": 128,
+          "start_time_ms": 166364,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 11776,
+          "duration_ticks": 56,
+          "start_time_ms": 167273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 11776,
+          "duration_ticks": 56,
+          "start_time_ms": 167273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 11776,
+          "duration_ticks": 56,
+          "start_time_ms": 167273,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 11840,
+          "duration_ticks": 56,
+          "start_time_ms": 168182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 11840,
+          "duration_ticks": 56,
+          "start_time_ms": 168182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 11840,
+          "duration_ticks": 56,
+          "start_time_ms": 168182,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 11904,
+          "duration_ticks": 128,
+          "start_time_ms": 169091,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 11968,
+          "duration_ticks": 56,
+          "start_time_ms": 170000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 11968,
+          "duration_ticks": 56,
+          "start_time_ms": 170000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 11968,
+          "duration_ticks": 56,
+          "start_time_ms": 170000,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 12032,
+          "duration_ticks": 56,
+          "start_time_ms": 170909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 12032,
+          "duration_ticks": 56,
+          "start_time_ms": 170909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 12032,
+          "duration_ticks": 56,
+          "start_time_ms": 170909,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 12096,
+          "duration_ticks": 128,
+          "start_time_ms": 171818,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 12160,
+          "duration_ticks": 56,
+          "start_time_ms": 172727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 12160,
+          "duration_ticks": 56,
+          "start_time_ms": 172727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 12160,
+          "duration_ticks": 56,
+          "start_time_ms": 172727,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 12224,
+          "duration_ticks": 56,
+          "start_time_ms": 173636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 12224,
+          "duration_ticks": 56,
+          "start_time_ms": 173636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 12224,
+          "duration_ticks": 56,
+          "start_time_ms": 173636,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 12288,
+          "duration_ticks": 128,
+          "start_time_ms": 174545,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 12352,
+          "duration_ticks": 56,
+          "start_time_ms": 175455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 12352,
+          "duration_ticks": 56,
+          "start_time_ms": 175455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 12352,
+          "duration_ticks": 56,
+          "start_time_ms": 175455,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 12416,
+          "duration_ticks": 56,
+          "start_time_ms": 176364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 12416,
+          "duration_ticks": 56,
+          "start_time_ms": 176364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 12416,
+          "duration_ticks": 56,
+          "start_time_ms": 176364,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 12480,
+          "duration_ticks": 128,
+          "start_time_ms": 177273,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 12544,
+          "duration_ticks": 56,
+          "start_time_ms": 178182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 12544,
+          "duration_ticks": 56,
+          "start_time_ms": 178182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 12544,
+          "duration_ticks": 56,
+          "start_time_ms": 178182,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 12608,
+          "duration_ticks": 56,
+          "start_time_ms": 179091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 12608,
+          "duration_ticks": 56,
+          "start_time_ms": 179091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 12608,
+          "duration_ticks": 56,
+          "start_time_ms": 179091,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 12672,
+          "duration_ticks": 128,
+          "start_time_ms": 180000,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 12736,
+          "duration_ticks": 56,
+          "start_time_ms": 180909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 12736,
+          "duration_ticks": 56,
+          "start_time_ms": 180909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 12736,
+          "duration_ticks": 56,
+          "start_time_ms": 180909,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 12800,
+          "duration_ticks": 56,
+          "start_time_ms": 181818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 12800,
+          "duration_ticks": 56,
+          "start_time_ms": 181818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 12800,
+          "duration_ticks": 56,
+          "start_time_ms": 181818,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 12864,
+          "duration_ticks": 128,
+          "start_time_ms": 182727,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 12928,
+          "duration_ticks": 56,
+          "start_time_ms": 183636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 12928,
+          "duration_ticks": 56,
+          "start_time_ms": 183636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 12928,
+          "duration_ticks": 56,
+          "start_time_ms": 183636,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 12992,
+          "duration_ticks": 56,
+          "start_time_ms": 184545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 12992,
+          "duration_ticks": 56,
+          "start_time_ms": 184545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 12992,
+          "duration_ticks": 56,
+          "start_time_ms": 184545,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 13056,
+          "duration_ticks": 128,
+          "start_time_ms": 185455,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 13120,
+          "duration_ticks": 56,
+          "start_time_ms": 186364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 13120,
+          "duration_ticks": 56,
+          "start_time_ms": 186364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 13120,
+          "duration_ticks": 56,
+          "start_time_ms": 186364,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 13184,
+          "duration_ticks": 56,
+          "start_time_ms": 187273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 13184,
+          "duration_ticks": 56,
+          "start_time_ms": 187273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 13184,
+          "duration_ticks": 56,
+          "start_time_ms": 187273,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 13248,
+          "duration_ticks": 128,
+          "start_time_ms": 188182,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 13312,
+          "duration_ticks": 56,
+          "start_time_ms": 189091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 13312,
+          "duration_ticks": 56,
+          "start_time_ms": 189091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 13312,
+          "duration_ticks": 56,
+          "start_time_ms": 189091,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 13376,
+          "duration_ticks": 56,
+          "start_time_ms": 190000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 13376,
+          "duration_ticks": 56,
+          "start_time_ms": 190000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 13376,
+          "duration_ticks": 56,
+          "start_time_ms": 190000,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 22,
+          "start_tick": 13440,
+          "duration_ticks": 128,
+          "start_time_ms": 190909,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 13504,
+          "duration_ticks": 56,
+          "start_time_ms": 191818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 38,
+          "start_tick": 13504,
+          "duration_ticks": 56,
+          "start_time_ms": 191818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 41,
+          "start_tick": 13504,
+          "duration_ticks": 56,
+          "start_time_ms": 191818,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 13568,
+          "duration_ticks": 56,
+          "start_time_ms": 192727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 38,
+          "start_tick": 13568,
+          "duration_ticks": 56,
+          "start_time_ms": 192727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 41,
+          "start_tick": 13568,
+          "duration_ticks": 56,
+          "start_time_ms": 192727,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 17,
+          "start_tick": 13632,
+          "duration_ticks": 128,
+          "start_time_ms": 193636,
+          "duration_ms": 1818,
+          "velocity": 0.7
+        },
+        {
+          "key_index": 33,
+          "start_tick": 13696,
+          "duration_ticks": 56,
+          "start_time_ms": 194545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 40,
+          "start_tick": 13696,
+          "duration_ticks": 56,
+          "start_time_ms": 194545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 43,
+          "start_tick": 13696,
+          "duration_ticks": 56,
+          "start_time_ms": 194545,
+          "duration_ms": 795,
+          "velocity": 0.6
+        },
+        {
+          "key_index": 33,
+          "start_tick": 13760,
+          "duration_ticks": 56,
+          "start_time_ms": 195455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 40,
+          "start_tick": 13760,
+          "duration_ticks": 56,
+          "start_time_ms": 195455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        },
+        {
+          "key_index": 43,
+          "start_tick": 13760,
+          "duration_ticks": 56,
+          "start_time_ms": 195455,
+          "duration_ms": 795,
+          "velocity": 0.55
+        }
+      ]
+    }
+  ]
+}

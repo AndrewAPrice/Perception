@@ -1,0 +1,19 @@
+[
+  {
+    "page": "Applications>MusicBox",
+    "groups": [
+      {
+        "title": "General",
+        "settings": [
+          {
+            "key": "welcome_shown",
+            "name": "Welcome Shown",
+            "type": "bool",
+            "description": "Whether the welcome screen has been shown. If not, it will be shown on next launch.",
+            "default": false
+          }
+        ]
+      }
+    ]
+  }
+]
