@@ -15,6 +15,10 @@
           "Viewer"
         ],
         [
+          "song",
+          "MusicBox"
+        ],
+        [
           "svg",
           "Viewer"
         ],
@@ -33,6 +37,10 @@
         [
           "txt",
           "Text Editor"
+        ],
+        [
+          "wav",
+          "Music Player"
         ]
       ],
       "launchOnBoot": [
@@ -40,8 +48,7 @@
         "Network Manager",
         "Window Manager",
         "Launcher",
-        "Clipboard",
-        "Audio Manager"
+        "Clipboard"
       ]
     },
     "Permissions Manager": {
@@ -117,8 +124,18 @@
           true
         ],
         [
-          "Audio Manager",
-          "CanDirectlyControlAudioDevice",
+          "MusicBox",
+          "CanPlayAudio",
+          true
+        ],
+        [
+          "Music Player",
+          "CanPlayAudio",
+          true
+        ],
+        [
+          "Music Player",
+          "CanReadAllFiles",
           true
         ]
       ]
