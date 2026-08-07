@@ -49,9 +49,12 @@ public:
         FontIdentity() : fID(0), fTTCIndex(0) {}
 
         bool operator==(const FontIdentity& other) const {
-            return fID == other.fID &&
-                   fTTCIndex == other.fTTCIndex &&
-                   fString == other.fString;
+          if (fIsBuffer != other.fIsBuffer) return false;
+          if (fIsBuffer)
+            return fBuffer == other.fBuffer ||
+                   (fString == other.fString && !fString.isEmpty());
+          return fID == other.fID && fTTCIndex == other.fTTCIndex &&
+                 fString == other.fString;
         }
         bool operator!=(const FontIdentity& other) const {
             return !(*this == other);
