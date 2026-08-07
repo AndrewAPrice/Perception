@@ -17,6 +17,9 @@
 #include <types.h>
 
 #include <functional>
+#include <memory>
+#include <string>
+#include <string_view>
 
 #include "perception/messages.h"
 #include "perception/processes.h"
@@ -25,6 +28,7 @@
 #include "perception/serialization/serializable.h"
 #include "perception/serialization/shared_memory_write_stream.h"
 #include "perception/services.h"
+#include "perception/tracing.h"
 #include "status.h"
 
 namespace perception {
@@ -36,7 +40,18 @@ class ServiceClient : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 
   template <class ResponseType, class RequestType>
-  ResponseType SyncDispatch(const RequestType& request, size_t method_id) {
+  ResponseType SyncDispatch(const RequestType& request, size_t method_id,
+                            std::string_view service_name = "",
+                            std::string_view method_name = "") {
+    std::string full_rpc_name;
+    if (!service_name.empty() && !method_name.empty()) {
+      full_rpc_name =
+          std::string(service_name) + "." + std::string(method_name);
+    }
+    PERCEPTION_TRACE_SPAN_CAT(
+        full_rpc_name.empty() ? "RPC.SyncDispatch" : full_rpc_name.c_str(),
+        "rpc_out");
+
     MessageData message = {};
     if (!PrepareRequestMessageWithParameter<RequestType>(request, method_id,
                                                          message)) {
@@ -46,7 +61,18 @@ class ServiceClient : public serialization::Serializable {
   }
 
   template <class ResponseType, class RequestType>
-  ResponseType SyncDispatch(size_t method_id) {
+  ResponseType SyncDispatch(size_t method_id,
+                            std::string_view service_name = "",
+                            std::string_view method_name = "") {
+    std::string full_rpc_name;
+    if (!service_name.empty() && !method_name.empty()) {
+      full_rpc_name =
+          std::string(service_name) + "." + std::string(method_name);
+    }
+    PERCEPTION_TRACE_SPAN_CAT(
+        full_rpc_name.empty() ? "RPC.SyncDispatch" : full_rpc_name.c_str(),
+        "rpc_out");
+
     MessageData message = {};
     PrepareRequestMessageWithoutParameters(method_id, message);
     return SyncDispatch<ResponseType>(message);
@@ -54,27 +80,74 @@ class ServiceClient : public serialization::Serializable {
 
   template <class ResponseType, class RequestType>
   void AsyncDispatch(const RequestType& request, size_t method_id,
-                     std::function<void(ResponseType)> on_response) {
-    MessageData message = {};
-    if (!PrepareRequestMessageWithParameter<RequestType>(request, method_id,
-                                                         message)) {
-      if (on_response) {
+                     std::function<void(ResponseType)> on_response,
+                     std::string_view service_name = "",
+                     std::string_view method_name = "") {
+    std::string full_rpc_name;
+    if (!service_name.empty() && !method_name.empty()) {
+      full_rpc_name =
+          std::string(service_name) + "." + std::string(method_name);
+    }
+    const char* rpc_name_ptr =
+        full_rpc_name.empty() ? "RPC.AsyncDispatch" : full_rpc_name.c_str();
+
+    if (on_response) {
+#ifdef ENABLE_TRACING
+      auto trace_span =
+          std::make_shared<AsyncTraceSpan>(rpc_name_ptr, "rpc_out");
+#else
+      std::shared_ptr<AsyncTraceSpan> trace_span = nullptr;
+#endif
+      MessageData message = {};
+      if (!PrepareRequestMessageWithParameter<RequestType>(request, method_id,
+                                                           message)) {
+#ifdef ENABLE_TRACING
+        if (trace_span) trace_span->End();
+#endif
         Defer([on_response]() {
           on_response(ResponseType(Status::OUT_OF_MEMORY));
         });
+        return;
       }
-      return;
+      AsyncDispatch<ResponseType>(message, on_response, trace_span);
+    } else {
+      PERCEPTION_TRACE_EVENT_CAT(rpc_name_ptr, "rpc_out");
+      MessageData message = {};
+      (void)PrepareRequestMessageWithParameter<RequestType>(request, method_id,
+                                                            message);
+      AsyncDispatch<ResponseType>(message, on_response, nullptr);
     }
-    AsyncDispatch<ResponseType>(message, on_response);
   }
 
   template <class ResponseType, class RequestType>
   void AsyncDispatch(size_t method_id,
-                     std::function<void(ResponseType)> on_response) {
-    MessageData message = {};
-    PrepareRequestMessageWithoutParameters(method_id, message);
+                     std::function<void(ResponseType)> on_response,
+                     std::string_view service_name = "",
+                     std::string_view method_name = "") {
+    std::string full_rpc_name;
+    if (!service_name.empty() && !method_name.empty()) {
+      full_rpc_name =
+          std::string(service_name) + "." + std::string(method_name);
+    }
+    const char* rpc_name_ptr =
+        full_rpc_name.empty() ? "RPC.AsyncDispatch" : full_rpc_name.c_str();
 
-    AsyncDispatch<ResponseType>(message, on_response);
+    if (on_response) {
+#ifdef ENABLE_TRACING
+      auto trace_span =
+          std::make_shared<AsyncTraceSpan>(rpc_name_ptr, "rpc_out");
+#else
+      std::shared_ptr<AsyncTraceSpan> trace_span = nullptr;
+#endif
+      MessageData message = {};
+      PrepareRequestMessageWithoutParameters(method_id, message);
+      AsyncDispatch<ResponseType>(message, on_response, trace_span);
+    } else {
+      PERCEPTION_TRACE_EVENT_CAT(rpc_name_ptr, "rpc_out");
+      MessageData message = {};
+      PrepareRequestMessageWithoutParameters(method_id, message);
+      AsyncDispatch<ResponseType>(message, on_response, nullptr);
+    }
   }
 
   ProcessId ServerProcessId() const;
@@ -128,8 +201,9 @@ class ServiceClient : public serialization::Serializable {
   }
 
   template <class ResponseType>
-  void AsyncDispatch(MessageData& message,
-                     std::function<void(ResponseType)> on_response) {
+  void AsyncDispatch(
+      MessageData& message, std::function<void(ResponseType)> on_response,
+      [[maybe_unused]] std::shared_ptr<AsyncTraceSpan> trace_span = nullptr) {
     if (on_response) {
       // Care about waiting for a response.
       MessageId message_id_of_response = GenerateUniqueMessageId();
@@ -147,6 +221,9 @@ class ServiceClient : public serialization::Serializable {
                 *shared_memory);
         }
 
+#ifdef ENABLE_TRACING
+        if (trace_span) trace_span->End();
+#endif
         // Something went wrong while sending it out.
         Defer([on_response, send_status]() {
           on_response(ToStatus(send_status));
@@ -156,8 +233,12 @@ class ServiceClient : public serialization::Serializable {
 
       RegisterMessageHandler(
           message_id_of_response,
-          [expected_sender = process_id_, message_id_of_response, on_response](
-              ProcessId sender, const MessageData& message) {
+          [expected_sender = process_id_, message_id_of_response, on_response
+#ifdef ENABLE_TRACING
+           ,
+           trace_span
+#endif
+      ](ProcessId sender, const MessageData& message) {
             if (sender != expected_sender) {
               DealWithUnhandledMessage(sender, message);
               return;  // Not the correct process.
@@ -168,6 +249,10 @@ class ServiceClient : public serialization::Serializable {
             ResponseType response =
                 LoadResponseFromMessageData<ResponseType>(sender, message);
             on_response(std::move(response));
+
+#ifdef ENABLE_TRACING
+            if (trace_span) trace_span->End();
+#endif
           });
     } else {
       // Don't care about waiting for a response.

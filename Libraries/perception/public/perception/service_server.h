@@ -15,6 +15,7 @@
 #pragma once
 
 #include <functional>
+#include <string>
 #include <string_view>
 
 #include "perception/messages.h"
@@ -22,6 +23,7 @@
 #include "perception/serialization/memory_read_stream.h"
 #include "perception/serialization/shared_memory_write_stream.h"
 #include "perception/shared_memory.h"
+#include "perception/tracing.h"
 #include "status.h"
 
 namespace perception {
@@ -50,7 +52,22 @@ class ServiceServer {
   void HandleExpectedRequest(
       Service* service,
       ResponseType (Service::*handler)(const RequestType&, ProcessId),
-      ProcessId sender, const MessageData& message) {
+      ProcessId sender, const MessageData& message,
+      std::string_view service_name = "",
+      std::string_view method_name = "") {
+    std::string full_rpc_name;
+    if (!service_name.empty() && !method_name.empty()) {
+      full_rpc_name = std::string(service_name) + "." + std::string(method_name);
+    }
+#ifdef ENABLE_TRACING
+    std::unique_ptr<ScopedTraceSpan> trace_span;
+    if (IsCallExpectingResponse(message.metadata)) {
+      trace_span = std::make_unique<ScopedTraceSpan>(
+          full_rpc_name.empty() ? "RPC.HandleRequest" : full_rpc_name.c_str(),
+          "rpc_in");
+    }
+#endif
+
     RequestType request;
 
     if (message.param3 == SIZE_MAX) {
@@ -79,7 +96,22 @@ class ServiceServer {
   template <class ResponseType, class RequestType, class Service>
   void HandleExpectedRequest(Service* service,
                              ResponseType (Service::*handler)(ProcessId),
-                             ProcessId sender, const MessageData& message) {
+                             ProcessId sender, const MessageData& message,
+                             std::string_view service_name = "",
+                             std::string_view method_name = "") {
+    std::string full_rpc_name;
+    if (!service_name.empty() && !method_name.empty()) {
+      full_rpc_name = std::string(service_name) + "." + std::string(method_name);
+    }
+#ifdef ENABLE_TRACING
+    std::unique_ptr<ScopedTraceSpan> trace_span;
+    if (IsCallExpectingResponse(message.metadata)) {
+      trace_span = std::make_unique<ScopedTraceSpan>(
+          full_rpc_name.empty() ? "RPC.HandleRequest" : full_rpc_name.c_str(),
+          "rpc_in");
+    }
+#endif
+
     HandleUnexpectedMessageInRequest(sender, message);
 
     if (!IsCallExpectingResponse(message.metadata)) {

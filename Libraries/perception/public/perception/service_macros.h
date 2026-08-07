@@ -136,7 +136,8 @@
     return SyncDispatch<CAT(RESPONSE_FORMAT_,                               \
                             IS_VOID(return_type))(return_type),             \
                         argument_type>(                                     \
-        CAT(ARGUMENT_WITH_COMMA_FORMAT_, IS_VOID(argument_type)) id);       \
+        CAT(ARGUMENT_WITH_COMMA_FORMAT_, IS_VOID(argument_type)) id,        \
+        FullyQualifiedName(), #method_name);                                \
   }                                                                         \
                                                                             \
   void method_name(                                                         \
@@ -148,7 +149,7 @@
     AsyncDispatch<CAT(RESPONSE_FORMAT_, IS_VOID(return_type))(return_type), \
                   argument_type>(                                           \
         CAT(ARGUMENT_WITH_COMMA_FORMAT_, IS_VOID(argument_type)) id,        \
-        on_response);                                                       \
+        on_response, FullyQualifiedName(), #method_name);                   \
   }
 
 #define HANDLE_SERVICE_SERVER_CASE(id, method_name, return_type,  \
@@ -157,7 +158,8 @@
     HandleExpectedRequest<CAT(RESPONSE_FORMAT_,                   \
                               IS_VOID(return_type))(return_type), \
                           argument_type, ServiceType>(            \
-        this, &ServiceType::method_name, sender, message_data);   \
+        this, &ServiceType::method_name, sender, message_data,    \
+        FullyQualifiedName(), #method_name);                      \
     break;                                                        \
   }
 
