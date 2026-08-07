@@ -3,6 +3,7 @@
   package_type: 'library',
   public_include_directories: [
     'public',
+    'public/harfbuzz',
   ],
   defines+: [
     'HAVE_FREETYPE',
@@ -10,8 +11,8 @@
   ],
   source_directories: [
     'source',
-    'public/graph',
-    'public/OT/Var/VARC'
+    'public/harfbuzz/graph',
+    'public/harfbuzz/OT/Var/VARC'
   ],
   files_to_ignore: [
     'source/harfbuzz-world.cc',

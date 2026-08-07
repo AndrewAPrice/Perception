@@ -15,7 +15,8 @@
   ],
   files_to_ignore: [
     'source/cxa_noexception.cpp',
-    'source/vendor/apple/shims.cpp'
+    'source/vendor/apple/shims.cpp',
+    'source/text_encoding.cpp',
   ],
   include_priority: 1,
   defines+: [

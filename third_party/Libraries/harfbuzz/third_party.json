@@ -10,7 +10,7 @@
         {
             "operation": "copy",
             "source": "${git}/src",
-            "destination": "public",
+            "destination": "public/harfbuzz",
             "extension": [".h", ".hh"]
         },
         {
@@ -36,14 +36,14 @@
         {
             "operation": "copy",
             "source": "${git}/src/OT",
-            "destination": "public/OT",
+            "destination": "public/harfbuzz/OT",
             "recursive": true
         },
         {
             "operation": "copy",
             "source": "${git}/src/graph",
-            "destination": "public/graph",
-            "exclude": ["public/graph/test-classdef-graph.cc"]
+            "destination": "public/harfbuzz/graph",
+            "exclude": ["public/harfbuzz/graph/test-classdef-graph.cc"]
         }
     ]
 }
