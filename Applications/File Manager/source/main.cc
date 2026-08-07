@@ -36,6 +36,7 @@
 #include "perception/ui/components/container.h"
 #include "perception/ui/components/input_box.h"
 #include "perception/ui/components/label.h"
+#include "perception/ui/components/pop_up.h"
 #include "perception/ui/components/scroll_container.h"
 #include "perception/ui/components/ui_window.h"
 #include "perception/ui/file_icon.h"
@@ -65,6 +66,8 @@ using ::perception::ui::components::Button;
 using ::perception::ui::components::Container;
 using ::perception::ui::components::InputBox;
 using ::perception::ui::components::Label;
+using ::perception::ui::components::PopUp;
+using ::perception::ui::components::PopUpMenu;
 using ::perception::ui::components::ScrollContainer;
 using ::perception::ui::components::UiWindow;
 using ButtonStyle = ::perception::ui::components::Button::ButtonStyle;
@@ -72,24 +75,100 @@ using ::perception::window::MouseButton;
 
 namespace {
 
+// Default window width.
+constexpr float kWindowWidth = 340.0f;
+
+// Default window height.
+constexpr float kWindowHeight = 400.0f;
+
+// Color of row hover background.
+constexpr uint32 kRowHoverColor = SkColorSetARGB(0xFF, 0xE5, 0xE7, 0xEB);
+
+// Primary header text color.
+constexpr uint32 kHeaderTextColor = 0xFF4B5563;
+
+// Active sorted column header text color.
+constexpr uint32 kHeaderActiveColor = 0xFF111827;
+
+enum class SortColumn { NAME, SIZE };
+enum class SortDirection { ASCENDING, DESCENDING };
+
 std::string current_path = "/";
 std::vector<std::filesystem::directory_entry> current_items;
+SortColumn sort_column = SortColumn::NAME;
+SortDirection sort_direction = SortDirection::ASCENDING;
 
 std::shared_ptr<Node> files_list_container;
 std::shared_ptr<Node> path_label;
 std::shared_ptr<Node> status_label;
 std::shared_ptr<Node> back_button;
+std::shared_ptr<Node> name_header_label;
+std::shared_ptr<Node> size_header_label;
 
 // Forward declaration of NavigateTo.
 void NavigateTo(const std::string& path);
 
 std::string GetExtension(std::string_view name) {
   std::string ext = std::filesystem::path(name).extension().string();
-  if (!ext.empty() && ext[0] == '.') {
-    ext.erase(0, 1);
-  }
+  if (!ext.empty() && ext[0] == '.') ext.erase(0, 1);
   std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
   return ext;
+}
+
+void CreateNewFolder() {
+  std::string base_name = "New Folder";
+  std::string folder_path =
+      current_path == "/" ? "/" + base_name : current_path + "/" + base_name;
+  int index = 1;
+
+  std::error_code ec;
+  while (std::filesystem::exists(folder_path, ec)) {
+    folder_path = (current_path == "/" ? "/" : current_path + "/") + base_name +
+                  " (" + std::to_string(index) + ")";
+    index++;
+  }
+
+  std::filesystem::create_directory(folder_path, ec);
+  NavigateTo(current_path);
+}
+
+void DeleteItem(const std::string& target_path) {
+  std::error_code ec;
+  std::filesystem::remove_all(target_path, ec);
+  NavigateTo(current_path);
+}
+
+void ShowContextMenuForItem(Node& context_node, const Point& anchor,
+                            const std::string& entry_path, bool is_dir) {
+  auto menu = PopUpMenu::Container(
+      PopUpMenu::ContextMenuItem(
+          "Open",
+          [entry_path, is_dir]() {
+            if (is_dir) {
+              ::perception::Defer([entry_path]() { NavigateTo(entry_path); });
+            } else {
+              LoadApplicationRequest request;
+              request.name = entry_path;
+              GetService<Loader>().LaunchApplication(request, nullptr);
+            }
+          }),
+      PopUpMenu::ContextMenuItem(
+          "New Folder",
+          []() { ::perception::Defer([]() { CreateNewFolder(); }); }),
+      PopUpMenu::ContextMenuItem("Delete", [entry_path]() {
+        ::perception::Defer([entry_path]() { DeleteItem(entry_path); });
+      }));
+
+  PopUp::Show(context_node.shared_from_this(), anchor, menu);
+}
+
+void ShowContextMenuForBackground(Node& context_node, const Point& anchor) {
+  auto menu =
+      PopUpMenu::Container(PopUpMenu::ContextMenuItem("New Folder", []() {
+        ::perception::Defer([]() { CreateNewFolder(); });
+      }));
+
+  PopUp::Show(context_node.shared_from_this(), anchor, menu);
 }
 
 void NavigateTo(const std::string& path) {
@@ -102,9 +181,7 @@ void NavigateTo(const std::string& path) {
   std::error_code ec;
   if (std::filesystem::is_symlink(target_path, ec)) {
     auto resolved = std::filesystem::read_symlink(target_path, ec);
-    if (!ec && !resolved.empty()) {
-      target_path = resolved.string();
-    }
+    if (!ec && !resolved.empty()) target_path = resolved.string();
   }
 
   std::vector<std::filesystem::directory_entry> folders;
@@ -135,7 +212,24 @@ void NavigateTo(const std::string& path) {
       [&](std::vector<std::filesystem::directory_entry>& entries) {
         auto compare_entries = [](const std::filesystem::directory_entry& a,
                                   const std::filesystem::directory_entry& b) {
-          return a.path().filename().string() < b.path().filename().string();
+          if (sort_column == SortColumn::NAME) {
+            std::string name_a = a.path().filename().string();
+            std::string name_b = b.path().filename().string();
+            std::transform(name_a.begin(), name_a.end(), name_a.begin(),
+                           ::tolower);
+            std::transform(name_b.begin(), name_b.end(), name_b.begin(),
+                           ::tolower);
+            if (sort_direction == SortDirection::ASCENDING)
+              return name_a < name_b;
+            return name_a > name_b;
+          } else {
+            std::error_code ec_a, ec_b;
+            uintmax_t size_a = a.is_directory() ? 0 : a.file_size(ec_a);
+            uintmax_t size_b = b.is_directory() ? 0 : b.file_size(ec_b);
+            if (sort_direction == SortDirection::ASCENDING)
+              return size_a < size_b;
+            return size_a > size_b;
+          }
         };
 
         std::sort(entries.begin(), entries.end(), compare_entries);
@@ -164,7 +258,7 @@ void NavigateTo(const std::string& path) {
     status_label->Invalidate();
   }
 
-  // Update Back button appearance
+  // Update Back button appearance.
   if (back_button) {
     auto button = back_button->Get<Button>();
     if (current_path == "/") {
@@ -173,6 +267,30 @@ void NavigateTo(const std::string& path) {
       button->SetButtonStyle(ButtonStyle::SECONDARY);
     }
     back_button->Invalidate();
+  }
+
+  // Update Column Header Labels.
+  if (name_header_label) {
+    std::string text = "Name";
+    if (sort_column == SortColumn::NAME) {
+      text += (sort_direction == SortDirection::ASCENDING) ? " ▲" : " ▼";
+    }
+    auto label = name_header_label->Get<Label>();
+    label->SetText(text);
+    label->SetColor(sort_column == SortColumn::NAME ? kHeaderActiveColor
+                                                    : kHeaderTextColor);
+    name_header_label->Invalidate();
+  }
+  if (size_header_label) {
+    std::string text = "Size";
+    if (sort_column == SortColumn::SIZE) {
+      text += (sort_direction == SortDirection::ASCENDING) ? " ▲" : " ▼";
+    }
+    auto label = size_header_label->Get<Label>();
+    label->SetText(text);
+    label->SetColor(sort_column == SortColumn::SIZE ? kHeaderActiveColor
+                                                    : kHeaderTextColor);
+    size_header_label->Invalidate();
   }
 
   // Populate list.
@@ -211,10 +329,9 @@ void NavigateTo(const std::string& path) {
           [entry_path, is_dir](Node& node) {
             auto* row_ptr = &node;
             node.OnMouseHover([row_ptr](const Point& point) {
-              uint32 hover_color = SkColorSetARGB(0xFF, 0xE5, 0xE7, 0xEB);
               auto block = row_ptr->Get<Block>();
-              if (block->GetFillColor() != hover_color) {
-                block->SetFillColor(hover_color);
+              if (block->GetFillColor() != kRowHoverColor) {
+                block->SetFillColor(kRowHoverColor);
                 row_ptr->Invalidate();
               }
             });
@@ -222,19 +339,21 @@ void NavigateTo(const std::string& path) {
               row_ptr->Get<Block>()->SetFillColor(0);
               row_ptr->Invalidate();
             });
-            node.OnMouseButtonDown(
-                [entry_path, is_dir](const Point& point, MouseButton button) {
-                  if (button == MouseButton::Left) {
-                    if (is_dir) {
-                      ::perception::Defer(
-                          [entry_path]() { NavigateTo(entry_path); });
-                    } else {
-                      LoadApplicationRequest request;
-                      request.name = entry_path;
-                      GetService<Loader>().LaunchApplication(request, nullptr);
-                    }
-                  }
-                });
+            node.OnMouseButtonDown([row_ptr, entry_path, is_dir](
+                                       const Point& point, MouseButton button) {
+              if (button == MouseButton::Left) {
+                if (is_dir) {
+                  ::perception::Defer(
+                      [entry_path]() { NavigateTo(entry_path); });
+                } else {
+                  LoadApplicationRequest request;
+                  request.name = entry_path;
+                  GetService<Loader>().LaunchApplication(request, nullptr);
+                }
+              } else if (button == MouseButton::Right) {
+                ShowContextMenuForItem(*row_ptr, point, entry_path, is_dir);
+              }
+            });
           },
           icon,
           Label::BasicLabel(
@@ -269,14 +388,10 @@ void NavigateTo(const std::string& path) {
 }
 
 void GoBack() {
-  if (current_path == "/") {
-    return;
-  }
+  if (current_path == "/") return;
   std::filesystem::path p(current_path);
   std::string parent = p.parent_path().string();
-  if (parent.empty()) {
-    parent = "/";
-  }
+  if (parent.empty()) parent = "/";
   NavigateTo(parent);
 }
 
@@ -287,8 +402,8 @@ int main(int argc, char* argv[]) {
       "File Manager",
       [](UiWindow& window) { window.OnClose([]() { TerminateProcess(); }); },
       [](Layout& layout) {
-        layout.SetWidth(340.0f);
-        layout.SetHeight(400.0f);
+        layout.SetWidth(kWindowWidth);
+        layout.SetHeight(kWindowHeight);
       },
       Container::VerticalContainer(
           [](Layout& layout) {
@@ -346,18 +461,54 @@ int main(int argc, char* argv[]) {
                 layout.SetPadding(YGEdgeBottom, 2.0f);
               },
               Label::BasicLabel(
-                  "Name", [](Layout& layout) { layout.SetFlexGrow(1.0f); },
+                  "Name ▲", [](Layout& layout) { layout.SetFlexGrow(1.0f); },
                   [](Label& label) {
                     label.SetTextAlignment(TextAlignment::MiddleLeft);
-                    label.SetColor(0xFF6B7280);
+                    label.SetColor(kHeaderActiveColor);
                     label.SetFont(GetBold12UiFont());
+                  },
+                  [node_ptr = &name_header_label](Node& node) {
+                    *node_ptr = node.shared_from_this();
+                    node.OnMouseButtonDown([](const Point& point,
+                                              MouseButton button) {
+                      if (button == MouseButton::Left) {
+                        if (sort_column == SortColumn::NAME) {
+                          sort_direction =
+                              (sort_direction == SortDirection::ASCENDING)
+                                  ? SortDirection::DESCENDING
+                                  : SortDirection::ASCENDING;
+                        } else {
+                          sort_column = SortColumn::NAME;
+                          sort_direction = SortDirection::ASCENDING;
+                        }
+                        ::perception::Defer([]() { NavigateTo(current_path); });
+                      }
+                    });
                   }),
               Label::BasicLabel(
                   "Size", [](Layout& layout) { layout.SetWidth(80.0f); },
                   [](Label& label) {
                     label.SetTextAlignment(TextAlignment::MiddleRight);
-                    label.SetColor(0xFF6B7280);
+                    label.SetColor(kHeaderTextColor);
                     label.SetFont(GetBold12UiFont());
+                  },
+                  [node_ptr = &size_header_label](Node& node) {
+                    *node_ptr = node.shared_from_this();
+                    node.OnMouseButtonDown([](const Point& point,
+                                              MouseButton button) {
+                      if (button == MouseButton::Left) {
+                        if (sort_column == SortColumn::SIZE) {
+                          sort_direction =
+                              (sort_direction == SortDirection::ASCENDING)
+                                  ? SortDirection::DESCENDING
+                                  : SortDirection::ASCENDING;
+                        } else {
+                          sort_column = SortColumn::SIZE;
+                          sort_direction = SortDirection::ASCENDING;
+                        }
+                        ::perception::Defer([]() { NavigateTo(current_path); });
+                      }
+                    });
                   })),
           // Files list scroll view
           ScrollContainer::VerticalScrollContainer(
@@ -367,7 +518,15 @@ int main(int argc, char* argv[]) {
                     layout.SetPadding(YGEdgeAll, 6.0f);
                     layout.SetGap(4.0f);
                   },
-                  &files_list_container),
+                  [node_ptr = &files_list_container](Node& node) {
+                    *node_ptr = node.shared_from_this();
+                    node.OnMouseButtonDown(
+                        [&node](const Point& point, MouseButton button) {
+                          if (button == MouseButton::Right) {
+                            ShowContextMenuForBackground(node, point);
+                          }
+                        });
+                  }),
               [](Block& block) {
                 block.SetFillColor(0xFFFFFFFF);
                 block.SetBorderColor(0xFFD1D5DB);
@@ -394,13 +553,9 @@ int main(int argc, char* argv[]) {
   std::string starting_directory = "/";
   if (argc > 1) {
     std::string arg = argv[1];
-    if (arg.size() > 1 && arg.back() == '/') {
-      arg.pop_back();
-    }
+    if (arg.size() > 1 && arg.back() == '/') arg.pop_back();
     std::error_code ec;
-    if (std::filesystem::is_directory(arg, ec)) {
-      starting_directory = arg;
-    }
+    if (std::filesystem::is_directory(arg, ec)) starting_directory = arg;
   }
 
   NavigateTo(starting_directory);
