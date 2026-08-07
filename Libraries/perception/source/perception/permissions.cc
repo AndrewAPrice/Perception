@@ -14,21 +14,90 @@
 
 #include "perception/permissions.h"
 
+#include <chrono>
 #include <map>
 #include <mutex>
 #include <optional>
+#include <string>
 
 #include "perception/processes.h"
 #include "perception/serialization/serializer.h"
 #include "perception/services.h"
-
+#include "perception/time.h"
 namespace perception {
+
+namespace {
+
+void (*g_permission_denied_toast_handler)(ProcessId, Permission) = nullptr;
+
+}  // namespace
+
+void SetPermissionDeniedToastHandler(
+    void (*handler)(ProcessId process, Permission permission)) {
+  g_permission_denied_toast_handler = handler;
+}
+
+std::optional<std::string_view> GetPermissionVerbalization(
+    Permission permission) {
+  switch (permission) {
+    case Permission::CanReadAllFiles:
+      return "read all files";
+    case Permission::CanLaunchPrograms:
+      return "launch programs";
+    case Permission::CanViewAndModifyEntireRegistry:
+      return "view and modify the entire registry";
+    case Permission::CanUseNetworkDevice:
+      return "use the network device directly";
+    case Permission::CanContinueRunningAfterWindowsClose:
+      return "continue running after all windows are closed";
+    case Permission::CanPlayAudio:
+      return "play audio";
+    case Permission::CanAdjustVolume:
+      return "adjust global volume";
+    default:
+      return std::nullopt;
+  }
+}
+
 namespace {
 
 std::mutex g_permission_cache_mutex;
 
 // Map of process -> permission -> whether the process has the permission.
 std::map<ProcessId, std::map<Permission, bool>> g_permission_cache;
+
+void PostPermissionDeniedToast(ProcessId process, Permission permission) {
+  std::string process_name = GetProcessName(process);
+  if (process_name.empty()) process_name = "Process " + std::to_string(process);
+
+  static std::mutex toast_mutex;
+  static std::map<std::pair<ProcessId, Permission>, std::chrono::microseconds>
+      last_toast_times;
+
+  auto now = GetTimeSinceKernelStarted();
+  {
+    std::scoped_lock lock(toast_mutex);
+    auto key = std::make_pair(process, permission);
+    auto it = last_toast_times.find(key);
+    if (it != last_toast_times.end()) {
+      if (now - it->second < std::chrono::seconds(3)) return;
+    }
+    last_toast_times[key] = now;
+  }
+
+  auto verbalization = GetPermissionVerbalization(permission);
+  std::string text;
+  if (verbalization) {
+    text = "\"" + process_name + "\" was denied permission to " +
+           std::string(*verbalization) + ".";
+  } else {
+    text = "\"" + process_name + "\" was denied permission.";
+  }
+
+  if (g_permission_denied_toast_handler) {
+    g_permission_denied_toast_handler(process, permission);
+  }
+}
 
 // Returns the permission if it's cached.
 std::optional<bool> GetCachedPermission(ProcessId process,
@@ -74,7 +143,12 @@ void DoesProcessHavePermissionResponse::Serialize(
 }
 
 bool DoesProcessHavePermission(ProcessId process, Permission permission) {
-  if (auto cached = GetCachedPermission(process, permission)) return *cached;
+  if (auto cached = GetCachedPermission(process, permission)) {
+    if (!*cached) {
+      PostPermissionDeniedToast(process, permission);
+    }
+    return *cached;
+  }
 
   auto permissions_client = GetService<PermissionsManager>();
 
@@ -85,10 +159,16 @@ bool DoesProcessHavePermission(ProcessId process, Permission permission) {
 
   auto status_or_response =
       permissions_client.DoesProcessHavePermission(request);
-  if (!status_or_response.Ok()) return false;
+  if (!status_or_response.Ok()) {
+    PostPermissionDeniedToast(process, permission);
+    return false;
+  }
 
   bool has_permission = status_or_response->has_permission;
   CachePermission(process, permission, has_permission);
+  if (!has_permission) {
+    PostPermissionDeniedToast(process, permission);
+  }
   return has_permission;
 }
 
@@ -98,6 +178,9 @@ void DoesProcessHavePermission(
   if (!on_process_has_permission) return;
 
   if (auto cached = GetCachedPermission(process, permission)) {
+    if (!*cached) {
+      PostPermissionDeniedToast(process, permission);
+    }
     on_process_has_permission(*cached);
     return;
   }
@@ -112,12 +195,16 @@ void DoesProcessHavePermission(
       [on_process_has_permission, process, permission](
           StatusOr<DoesProcessHavePermissionResponse> status_or_response) {
         if (!status_or_response) {
+          PostPermissionDeniedToast(process, permission);
           on_process_has_permission(false);
           return;
         }
 
         bool has_permission = status_or_response->has_permission;
         CachePermission(process, permission, has_permission);
+        if (!has_permission) {
+          PostPermissionDeniedToast(process, permission);
+        }
         on_process_has_permission(has_permission);
       });
 }

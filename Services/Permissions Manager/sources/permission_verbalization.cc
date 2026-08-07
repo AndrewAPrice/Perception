@@ -14,34 +14,8 @@
 
 #include "permission_verbalization.h"
 
+using perception::GetPermissionVerbalization;
 using perception::Permission;
-
-namespace {
-
-// Returns a static string_view verbalization of a permission. Returns nullopt
-// if a permission isn't handled.
-std::optional<std::string_view> GetPermissionVerbalization(
-    Permission permission) {
-  switch (permission) {
-    case Permission::CanReadAllFiles:
-      return "read all files";
-    case Permission::CanLaunchPrograms:
-      return "launch programs";
-    case Permission::CanViewAndModifyEntireRegistry:
-      return "view and modify the entire registry";
-    case Permission::CanUseNetworkDevice:
-      return "use the network device directly";
-    case Permission::CanContinueRunningAfterWindowsClose:
-      return "continue running after all windows are closed";
-    case Permission::CanPlayAudio:
-      return "play audio";
-    case Permission::CanAdjustVolume:
-      return "adjust global volume";
-    default:
-      return std::nullopt;
-  }
-}
-}  // namespace
 
 std::optional<std::string> GetPermissionRequestVerbalization(
     std::string_view process_name, perception::Permission permission) {

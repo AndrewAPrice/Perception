@@ -70,6 +70,14 @@ void DoesProcessHavePermission(
     ProcessId process, Permission permission,
     std::function<void(bool)> on_process_has_permission);
 
+// Returns a human readable verbalization of a permission.
+std::optional<std::string_view> GetPermissionVerbalization(
+    Permission permission);
+
+// Sets the callback handler for permission denied toast notifications.
+void SetPermissionDeniedToastHandler(void (*handler)(ProcessId process,
+                                                     Permission permission));
+
 #define METHOD_LIST(X)                                               \
   X(1, DoesProcessHavePermission, DoesProcessHavePermissionResponse, \
     DoesProcessHavePermissionRequest)
