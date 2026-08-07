@@ -30,6 +30,7 @@ namespace ui {
 
 SkFont* GetBook12UiFont();
 SkFont* GetBold12UiFont();
+SkFont* GetMonospace12UiFont();
 
 SkFont* GetUiFont(std::string_view family_name = "", float size = 12.0f,
                   bool bold = false, bool italic = false);

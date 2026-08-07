@@ -128,7 +128,8 @@ void ImageView::Draw(const DrawContext& draw_context) {
     }
   } else if (SkSVGDOM* svg = image_->GetSkSVGDOM(display_size_)) {
     // This is an SVG image.
-    draw_context.skia_canvas->translate(position_.x, position_.y);
+    draw_context.skia_canvas->translate(draw_context.area.origin.x + position_.x,
+                                        draw_context.area.origin.y + position_.y);
     draw_context.skia_canvas->scale(display_size_.width / image_size_.width,
                                     display_size_.height / image_size_.height);
     svg->render(draw_context.skia_canvas);

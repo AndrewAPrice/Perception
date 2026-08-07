@@ -49,6 +49,11 @@ float kButtonBorderRadius = 4.0f;
 float kButtonPadding = 8.0f;
 float kButtonMinWidth = 24.0f;
 float kButtonMinHeight = 32.0f;
+float kImageButtonWidth = 32.0f;
+float kImageButtonHeight = 32.0f;
+uint32 kButtonGhostIdleColor = 0x00000000;
+uint32 kButtonGhostHoverColor = 0x1F000000;
+uint32 kButtonGhostPushedColor = 0x3F000000;
 
 float kCheckboxSize = 16.0f;
 float kCheckboxMarkerSize = 8.0f;
@@ -164,6 +169,22 @@ uint32 kPopUpMenuBorderColor = kButtonOutlineColor;
 float kPopUpMenuBorderWidth = 1.0f;
 float kPopUpMenuBorderRadius = 4.0f;
 float kPopUpMenuPadding = 2.0f;
+float kPopUpMenuMinWidth = 120.0f;
+
+float kPopUpItemBorderWidth = 0.0f;
+float kPopUpItemBorderRadius = 4.0f;
+uint32 kPopUpItemIdleColor = 0x00000000;
+uint32 kPopUpItemHoverColor = 0xFFE5E7EB;
+uint32 kPopUpItemPushedColor = 0xFFD1D5DB;
+uint32 kPopUpItemTextColor = 0xFF111827;
+float kPopUpItemHorizontalPadding = 8.0f;
+
+float kPopUpDropDownItemHeight = 22.0f;
+float kPopUpContextMenuItemHeight = 28.0f;
+
+uint32 kPopUpCategoryHeaderTextColor = 0xFF6B7280;
+float kPopUpCategoryHeaderHeight = 20.0f;
+float kPopUpCategoryHeaderMarginTop = 4.0f;
 
 float kSliderMinWidth = 100.0f;
 float kSliderHeight = 16.0f;

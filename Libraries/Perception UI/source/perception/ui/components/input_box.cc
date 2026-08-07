@@ -535,7 +535,7 @@ void InputBox::DrawTextBoxOuter(const DrawContext& draw_context, bool has_focus,
   const float& width = draw_context.area.size.width;
   const float& height = draw_context.area.size.height;
 
-  // 1. Draw Background
+  // Draw background.
   SkPaint bg_paint;
   bg_paint.setAntiAlias(true);
   bg_paint.setColor(kTextBoxBackgroundColor);
@@ -544,7 +544,7 @@ void InputBox::DrawTextBoxOuter(const DrawContext& draw_context, bool has_focus,
                                           kTextBoxCornerRadius,
                                           kTextBoxCornerRadius, bg_paint);
 
-  // 2. Draw Outline
+  // Draw outline.
   SkPaint outline_paint;
   outline_paint.setAntiAlias(true);
   outline_paint.setStyle(SkPaint::kStroke_Style);

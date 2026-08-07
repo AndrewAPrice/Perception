@@ -56,5 +56,6 @@
     'source/perception/ui/components/tooltip.cc',
     'source/perception/ui/components/tree_view.cc',
     'source/perception/ui/components/ui_window.cc',
+    'source/perception/ui/components/image_button.cc',
   ],
 } else {})

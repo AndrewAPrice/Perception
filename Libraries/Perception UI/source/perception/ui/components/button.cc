@@ -32,7 +32,8 @@ Button::Button()
       pushed_color_(kButtonBackgroundPushedColor),
       label_color_(kButtonTextColor),
       is_hovering_(false),
-      is_pushed_(false) {}
+      is_pushed_(false),
+      is_toggled_(false) {}
 
 void Button::SetNode(std::weak_ptr<Node> node) {
   node_ = node;
@@ -92,6 +93,14 @@ void Button::SetLabelColor(uint32 color) {
 
 uint32 Button::GetLabelColor() const { return label_color_; }
 
+void Button::SetToggled(bool is_toggled) {
+  if (is_toggled_ == is_toggled) return;
+  is_toggled_ = is_toggled;
+  UpdateFillColor();
+}
+
+bool Button::IsToggled() const { return is_toggled_; }
+
 void Button::SetButtonStyle(ButtonStyle style) {
   if (style == ButtonStyle::DEFAULT) {
     idle_color_ = kButtonBackgroundColor;
@@ -123,6 +132,14 @@ void Button::SetButtonStyle(ButtonStyle style) {
     hover_color_ = 0xFFD1D5DB;
     pushed_color_ = 0xFFD1D5DB;
     label_color_ = 0xFF9CA3AF;
+  } else if (style == ButtonStyle::GHOST) {
+    idle_color_ = kButtonGhostIdleColor;
+    hover_color_ = kButtonGhostHoverColor;
+    pushed_color_ = kButtonGhostPushedColor;
+    label_color_ = kButtonTextColor;
+    if (!block_.expired()) {
+      block_.lock()->SetBorderWidth(0.0f);
+    }
   }
   UpdateFillColor();
   UpdateLabelColor();
@@ -148,7 +165,7 @@ void Button::UpdateLabelColor() {
 }
 
 uint32 Button::GetFillColor() {
-  if (is_pushed_) return pushed_color_;
+  if (is_pushed_ || is_toggled_) return pushed_color_;
   if (is_hovering_) return hover_color_;
 
   return idle_color_;

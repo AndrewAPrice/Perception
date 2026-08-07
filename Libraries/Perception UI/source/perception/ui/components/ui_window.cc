@@ -388,6 +388,9 @@ void UiWindow::WindowFocusChanged() {
   {
     std::scoped_lock lock(window_mutex_);
     if (!IsFocused()) {
+      if (base_window_ && base_window_->IsMouseCaptive()) {
+        base_window_->SetCaptureMouse(false);
+      }
       if (auto node = GetFocusedNode()) {
         if (auto focusable = node->Get<Focusable>()) focusable->Unfocus();
       }
@@ -396,6 +399,30 @@ void UiWindow::WindowFocusChanged() {
       handlers.push_back(handler);
   }
   for (auto& handler : handlers) handler();
+}
+
+void UiWindow::SetCaptureMouse(bool capture) {
+  std::scoped_lock lock(window_mutex_);
+  if (base_window_) {
+    base_window_->SetCaptureMouse(capture);
+  }
+}
+
+bool UiWindow::IsMouseCaptive() const {
+  std::scoped_lock lock(window_mutex_);
+  if (base_window_) {
+    return base_window_->IsMouseCaptive();
+  }
+  return false;
+}
+
+void UiWindow::MouseMoved(const window::MouseMoveEvent& event) {
+  std::scoped_lock lock(window_mutex_);
+  if (auto captured = mouse_captured_node_.lock()) {
+    captured->MouseMoved(event);
+  } else if (auto root = node_.lock()) {
+    root->MouseMoved(event);
+  }
 }
 
 void UiWindow::MouseClicked(const window::MouseClickEvent& event) {

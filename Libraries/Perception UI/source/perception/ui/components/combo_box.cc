@@ -78,17 +78,40 @@ void ComboBox::SetNode(std::weak_ptr<Node> node) {
 }
 
 void ComboBox::SetOptions(const std::vector<std::string>& options) {
-  options_ = options;
+  options_.clear();
+  options_.reserve(options.size());
+  for (const auto& str : options) {
+    options_.push_back(ComboBoxItem{.text = str, .is_category = false});
+  }
   if (selected_index_ >= static_cast<int>(options_.size()))
     selected_index_ = options_.empty() ? -1 : 0;
   UpdateLabelText();
 }
 
-const std::vector<std::string>& ComboBox::GetOptions() const {
+void ComboBox::SetOptions(const std::vector<ComboBoxItem>& options) {
+  options_ = options;
+  if (selected_index_ >= static_cast<int>(options_.size()))
+    selected_index_ = options_.empty() ? -1 : 0;
+  if (selected_index_ >= 0 &&
+      selected_index_ < static_cast<int>(options_.size()) &&
+      options_[selected_index_].is_category) {
+    for (size_t i = 0; i < options_.size(); ++i) {
+      if (!options_[i].is_category) {
+        selected_index_ = static_cast<int>(i);
+        break;
+      }
+    }
+  }
+  UpdateLabelText();
+}
+
+const std::vector<ComboBoxItem>& ComboBox::GetOptions() const {
   return options_;
 }
 
 void ComboBox::SetSelection(int index) {
+  if (index < 0 || index >= static_cast<int>(options_.size())) return;
+  if (options_[index].is_category) return;
   if (selected_index_ == index) return;
   selected_index_ = index;
   UpdateLabelText();
@@ -105,8 +128,9 @@ void ComboBox::UpdateLabelText() {
   auto label = label_.lock();
 
   if (selected_index_ >= 0 &&
-      selected_index_ < static_cast<int>(options_.size())) {
-    label->SetText(options_[selected_index_]);
+      selected_index_ < static_cast<int>(options_.size()) &&
+      !options_[selected_index_].is_category) {
+    label->SetText(options_[selected_index_].text);
   } else {
     label->SetText("");
   }
@@ -129,17 +153,21 @@ void ComboBox::OpenDropdown() {
 
   std::vector<std::shared_ptr<Node>> items;
   for (int i = 0; i < static_cast<int>(options_.size()); ++i) {
-    std::string text = options_[i];
-    items.push_back(PopUpMenu::DropDownItem(text, [this, i]() {
-      SetSelection(i);
-      for (const auto& cb : on_change_) {
-        cb(i);
-      }
-    }));
+    const auto& opt = options_[i];
+    if (opt.is_category) {
+      items.push_back(PopUpMenu::CategoryHeader(opt.text));
+    } else {
+      items.push_back(PopUpMenu::DropDownItem(opt.text, [this, i]() {
+        SetSelection(i);
+        for (const auto& cb : on_change_) {
+          cb(i);
+        }
+      }));
+    }
   }
 
   auto menu =
-      PopUpMenu::Container([width](Layout& l) { l.SetWidth(width); }, items);
+      PopUpMenu::Container([width](Layout& l) { l.SetMinWidth(width); }, items);
 
   PopUp::Show(strong_node,
               Point{pos.x, pos.y + height + (kComboBoxBorderWidth * 2.0f)},

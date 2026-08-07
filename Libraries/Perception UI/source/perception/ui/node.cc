@@ -241,6 +241,17 @@ void Node::OnDrawPostChildren(
   InvalidateWhenDirtied();
 }
 
+void Node::OnMouseMove(
+    std::function<void(const window::MouseMoveEvent& event)> mouse_move_function) {
+  on_mouse_move_functions_.push_back(mouse_move_function);
+  handles_mouse_events_ = true;
+}
+
+void Node::MouseMoved(const window::MouseMoveEvent& event) {
+  for (const auto& handler : on_mouse_move_functions_) handler(event);
+  for (auto& child : children_) child->MouseMoved(event);
+}
+
 void Node::OnMouseHover(
     std::function<void(const Point& point)> mouse_hover_function) {
   on_mouse_hover_functions_.push_back(mouse_hover_function);

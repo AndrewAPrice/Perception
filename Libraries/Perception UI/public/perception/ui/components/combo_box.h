@@ -30,12 +30,18 @@ namespace perception {
 namespace ui {
 namespace components {
 
+// Represents an option or a category header in a ComboBox.
+struct ComboBoxItem {
+  std::string text;
+  bool is_category = false;
+};
+
 class ComboBox : public UniqueIdentifiableType<ComboBox> {
  public:
-  // Creates a combo box component.
-  template <typename... Modifiers>
+  // Creates a combo box component with options.
+  template <typename OptionType, typename... Modifiers>
   static std::shared_ptr<Node> BasicComboBox(
-      const std::vector<std::string>& options, int default_selection,
+      const std::vector<OptionType>& options, int default_selection,
       std::function<void(int)> on_change, Modifiers... modifiers) {
     return Node::Empty(
         [](Node& node) {
@@ -67,8 +73,25 @@ class ComboBox : public UniqueIdentifiableType<ComboBox> {
 
   void SetNode(std::weak_ptr<Node> node);
 
+  // Sets options as plain strings.
   void SetOptions(const std::vector<std::string>& options);
-  const std::vector<std::string>& GetOptions() const;
+
+  // Sets options with structured items and category headers.
+  void SetOptions(const std::vector<ComboBoxItem>& options);
+
+  // Sets options from custom item types with .text and .is_category.
+  template <typename ItemType>
+  void SetOptions(const std::vector<ItemType>& options) {
+    std::vector<ComboBoxItem> items;
+    items.reserve(options.size());
+    for (const auto& item : options) {
+      items.push_back(ComboBoxItem{.text = item.text, .is_category = item.is_category});
+    }
+    SetOptions(items);
+  }
+
+  // Gets the current list of combo box items.
+  const std::vector<ComboBoxItem>& GetOptions() const;
 
   void SetSelection(int index);
   int GetSelection() const;
@@ -76,7 +99,7 @@ class ComboBox : public UniqueIdentifiableType<ComboBox> {
   void OnChange(std::function<void(int)> on_change);
 
  private:
-  std::vector<std::string> options_;
+  std::vector<ComboBoxItem> options_;
   int selected_index_;
   std::vector<std::function<void(int)>> on_change_;
 

@@ -68,7 +68,7 @@ class PopUpMenu {
         [](Layout& layout) {
           layout.SetFlexDirection(YGFlexDirectionColumn);
           layout.SetPadding(YGEdgeAll, kPopUpMenuPadding);
-          layout.SetMinWidth(120.0f);
+          layout.SetMinWidth(kPopUpMenuMinWidth);
         },
         [](Block& block) {
           block.SetFillColor(kPopUpMenuBackgroundColor);
@@ -89,22 +89,22 @@ class PopUpMenu {
           if (on_click) on_click();
         },
         [](Block& block) {
-          block.SetBorderWidth(0.0f);
-          block.SetBorderRadius(4.0f);
+          block.SetBorderWidth(kPopUpItemBorderWidth);
+          block.SetBorderRadius(kPopUpItemBorderRadius);
         },
         [](Button& btn) {
-          btn.SetIdleColor(0x00000000);
-          btn.SetHoverColor(0xFFE5E7EB);
-          btn.SetPushedColor(0xFFD1D5DB);
-          btn.SetLabelColor(0xFF111827);
+          btn.SetIdleColor(kPopUpItemIdleColor);
+          btn.SetHoverColor(kPopUpItemHoverColor);
+          btn.SetPushedColor(kPopUpItemPushedColor);
+          btn.SetLabelColor(kPopUpItemTextColor);
         },
         [](Layout& layout) {
           layout.SetWidthPercent(100.f);
-          layout.SetHeight(22.0f);
-          layout.SetMinHeight(22.0f);
+          layout.SetHeight(kPopUpDropDownItemHeight);
+          layout.SetMinHeight(kPopUpDropDownItemHeight);
           layout.SetAlignItems(YGAlignFlexStart);
           layout.SetJustifyContent(YGJustifyCenter);
-          layout.SetPadding(YGEdgeHorizontal, 8.0f);
+          layout.SetPadding(YGEdgeHorizontal, kPopUpItemHorizontalPadding);
         },
         modifiers...,
         [](Button& btn) {
@@ -126,22 +126,22 @@ class PopUpMenu {
           if (on_click) on_click();
         },
         [](Block& block) {
-          block.SetBorderWidth(0.0f);
-          block.SetBorderRadius(4.0f);
+          block.SetBorderWidth(kPopUpItemBorderWidth);
+          block.SetBorderRadius(kPopUpItemBorderRadius);
         },
         [](Button& btn) {
-          btn.SetIdleColor(0x00000000);
-          btn.SetHoverColor(0xFFE5E7EB);
-          btn.SetPushedColor(0xFFD1D5DB);
-          btn.SetLabelColor(0xFF111827);
+          btn.SetIdleColor(kPopUpItemIdleColor);
+          btn.SetHoverColor(kPopUpItemHoverColor);
+          btn.SetPushedColor(kPopUpItemPushedColor);
+          btn.SetLabelColor(kPopUpItemTextColor);
         },
         [](Layout& layout) {
           layout.SetWidthPercent(100.f);
-          layout.SetHeight(28.0f);
-          layout.SetMinHeight(28.0f);
+          layout.SetHeight(kPopUpContextMenuItemHeight);
+          layout.SetMinHeight(kPopUpContextMenuItemHeight);
           layout.SetAlignItems(YGAlignFlexStart);
           layout.SetJustifyContent(YGJustifyCenter);
-          layout.SetPadding(YGEdgeHorizontal, 8.0f);
+          layout.SetPadding(YGEdgeHorizontal, kPopUpItemHorizontalPadding);
         },
         modifiers...,
         [](Button& btn) {
@@ -151,6 +151,26 @@ class PopUpMenu {
             }
           });
         });
+  }
+
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> CategoryHeader(std::string_view text,
+                                              Modifiers... modifiers) {
+    return Label::SingleLineTruncated(
+        text,
+        [](Label& label) {
+          label.SetColor(kPopUpCategoryHeaderTextColor);
+        },
+        [](Layout& layout) {
+          layout.SetWidthPercent(100.0f);
+          layout.SetHeight(kPopUpCategoryHeaderHeight);
+          layout.SetMinHeight(kPopUpCategoryHeaderHeight);
+          layout.SetAlignItems(YGAlignFlexStart);
+          layout.SetJustifyContent(YGJustifyCenter);
+          layout.SetPadding(YGEdgeHorizontal, kPopUpItemHorizontalPadding);
+          layout.SetMargin(YGEdgeTop, kPopUpCategoryHeaderMarginTop);
+        },
+        modifiers...);
   }
 };
 

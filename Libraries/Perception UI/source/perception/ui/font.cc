@@ -65,6 +65,10 @@ SkFont* GetBold12UiFont() {
   return GetUiFont("DejaVuSans", 12.0f, true, false);
 }
 
+SkFont* GetMonospace12UiFont() {
+  return GetUiFont("DejaVuSansMono", 12.0f, false, false);
+}
+
 SkFont* GetUiFont(std::string_view family_name, float size, bool bold,
                   bool italic) {
   return GetUiFont(
@@ -89,6 +93,13 @@ SkFont* GetUiFont(std::string_view family_name, float size, int weight,
       new SkFont(GetFontManager()->matchFamilyStyle(
                      family_str.c_str(), SkFontStyle(weight, width, slant)),
                  size);
+
+  if (weight >= SkFontStyle::kBold_Weight && font->getTypeface() &&
+      !font->getTypeface()->isBold())
+    font->setEmbolden(true);
+  if (slant != SkFontStyle::kUpright_Slant && font->getTypeface() &&
+      !font->getTypeface()->isItalic())
+    font->setSkewX(-0.25f);
 
   cached_fonts[key] = font;
   return font;

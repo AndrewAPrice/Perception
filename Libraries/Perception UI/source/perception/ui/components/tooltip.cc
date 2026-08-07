@@ -26,6 +26,8 @@ template class UniqueIdentifiableType<ui::components::Tooltip>;
 namespace ui {
 namespace components {
 
+std::weak_ptr<Tooltip> Tooltip::active_tooltip_;
+
 void Tooltip::Attach(std::shared_ptr<Node> target_node, std::string_view text) {
   if (!target_node) return;
   auto tooltip = target_node->GetOrAdd<Tooltip>();
@@ -33,6 +35,10 @@ void Tooltip::Attach(std::shared_ptr<Node> target_node, std::string_view text) {
 }
 
 Tooltip::Tooltip() {}
+
+Tooltip::~Tooltip() {
+  HideTooltip();
+}
 
 void Tooltip::SetNode(std::weak_ptr<Node> node) {
   node_ = node;
@@ -52,6 +58,12 @@ void Tooltip::ShowTooltipAt(const Point& mouse_pos) {
   if (node_.expired() || text_.empty()) return;
   auto strong_node = node_.lock();
 
+  if (auto active = active_tooltip_.lock()) {
+    if (active.get() != this) {
+      active->HideTooltip();
+    }
+  }
+
   // Walk up to root node
   std::shared_ptr<Node> root = strong_node;
   while (true) {
@@ -63,43 +75,84 @@ void Tooltip::ShowTooltipAt(const Point& mouse_pos) {
   Point target_abs = strong_node->GetAbsolutePosition();
   Point abs_mouse_pos = target_abs + mouse_pos;
 
+  if (tooltip_overlay_) {
+    HideTooltip();
+  }
+
   if (!tooltip_overlay_) {
+    // Create tooltip content node first to measure its size.
+    auto tooltip_content = Node::Empty(
+        [](Layout& layout) {
+          layout.SetPadding(YGEdgeAll, kTooltipPadding);
+          layout.SetMaxWidth(kTooltipMaxWidth);
+        },
+        [](Block& block) {
+          block.SetFillColor(kTooltipBackgroundColor);
+          block.SetBorderColor(kTooltipBorderColor);
+          block.SetBorderWidth(kTooltipBorderWidth);
+          block.SetBorderRadius(kTooltipBorderRadius);
+        },
+        Label::BasicLabel(text_, [](Label& label) {
+          label.SetColor(kTooltipTextColor);
+        }));
+
+    tooltip_content->GetLayout().Calculate(YGUndefined, YGUndefined);
+    float content_w =
+        tooltip_content->GetLayout().GetCalculatedWidthWithMargin();
+    float content_h =
+        tooltip_content->GetLayout().GetCalculatedHeightWithMargin();
+
+    float window_w = root->GetLayout().GetCalculatedWidth();
+    float window_h = root->GetLayout().GetCalculatedHeight();
+    if (window_w <= 0.0f || window_h <= 0.0f) {
+      auto sz = root->GetSize();
+      window_w = sz.width;
+      window_h = sz.height;
+    }
+
+    float posX = abs_mouse_pos.x + kTooltipOffsetLeft;
+    if (window_w > 0.0f && posX + content_w > window_w) {
+      posX = window_w - content_w;
+    }
+    if (posX < 0.0f) posX = 0.0f;
+
+    float posY = abs_mouse_pos.y + kTooltipOffsetTop;
+    if (window_h > 0.0f && posY + content_h > window_h) {
+      posY = abs_mouse_pos.y - content_h - kTooltipOffsetTop;
+      if (posY + content_h > window_h) {
+        posY = std::max(0.0f, window_h - content_h);
+      }
+    }
+    if (posY < 0.0f) posY = 0.0f;
+
     // Create the overlay node.
     tooltip_overlay_ = Node::Empty(
-        [abs_mouse_pos](Layout& layout) {
+        [posX, posY](Layout& layout) {
           layout.SetPositionType(YGPositionTypeAbsolute);
-          layout.SetPosition(YGEdgeLeft, abs_mouse_pos.x + kTooltipOffsetLeft);
-          layout.SetPosition(YGEdgeTop, abs_mouse_pos.y + kTooltipOffsetTop);
+          layout.SetPosition(YGEdgeLeft, posX);
+          layout.SetPosition(YGEdgeTop, posY);
         },
         [](Node& node) { node.SetBlocksHitTest(false); },
-        Node::Empty(
-            [](Layout& layout) {
-              layout.SetPadding(YGEdgeAll, kTooltipPadding);
-              layout.SetMaxWidth(kTooltipMaxWidth);
-            },
-            [](Block& block) {
-              block.SetFillColor(kTooltipBackgroundColor);
-              block.SetBorderColor(kTooltipBorderColor);
-              block.SetBorderWidth(kTooltipBorderWidth);
-              block.SetBorderRadius(kTooltipBorderRadius);
-            },
-            Label::BasicLabel(text_, [](Label& label) {
-              label.SetColor(kTooltipTextColor);
-            })));
+        tooltip_content);
     root->AddChild(tooltip_overlay_);
     root->Invalidate();
+    active_tooltip_ = shared_from_this();
   }
 }
 
 void Tooltip::HideTooltip() {
-  if (!tooltip_overlay_) return;
-
-  auto root = tooltip_overlay_->GetParent().lock();
-  if (root) {
-    root->RemoveChild(tooltip_overlay_);
-    root->Invalidate();
+  if (tooltip_overlay_) {
+    auto root = tooltip_overlay_->GetParent().lock();
+    if (root) {
+      root->RemoveChild(tooltip_overlay_);
+      root->Invalidate();
+    }
+    tooltip_overlay_.reset();
   }
-  tooltip_overlay_.reset();
+
+  if (active_tooltip_.lock().get() == this) {
+    active_tooltip_.reset();
+  }
 }
 
 }  // namespace components

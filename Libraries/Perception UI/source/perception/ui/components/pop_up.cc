@@ -43,7 +43,7 @@ std::shared_ptr<PopUp> PopUp::Show(std::shared_ptr<Node> context_node,
                                    std::function<void()> on_close) {
   if (!context_node || !content) return nullptr;
 
-  // 1. Walk up to root node
+  // Walk up to root node.
   std::shared_ptr<Node> root = context_node;
   while (true) {
     auto parent = root->GetParent().lock();
@@ -51,7 +51,7 @@ std::shared_ptr<PopUp> PopUp::Show(std::shared_ptr<Node> context_node,
     root = parent;
   }
 
-  // 2. Measure root window dimensions
+  // Measure root window dimensions.
   float window_w = root->GetLayout().GetCalculatedWidth();
   float window_h = root->GetLayout().GetCalculatedHeight();
   if (window_w <= 0.0f || window_h <= 0.0f) {
@@ -62,7 +62,10 @@ std::shared_ptr<PopUp> PopUp::Show(std::shared_ptr<Node> context_node,
   if (window_w <= 0.0f) window_w = 800.0f;
   if (window_h <= 0.0f) window_h = 600.0f;
 
-  // 3. Measure content dimensions
+  // Measure content dimensions.
+  float max_allowed_w = std::max(0.0f, window_w - ScrollBar::kWidth);
+  content->GetLayout().SetMaxWidth(max_allowed_w);
+
   YGValue target_w_val = content->GetLayout().GetWidth();
   float target_w =
       (target_w_val.unit == YGUnitPoint) ? target_w_val.value : YGUndefined;
@@ -71,13 +74,11 @@ std::shared_ptr<PopUp> PopUp::Show(std::shared_ptr<Node> context_node,
   float content_w = content->GetLayout().GetCalculatedWidthWithMargin();
   float content_h = content->GetLayout().GetCalculatedHeightWithMargin();
 
-  // 4. Adjust anchor coordinates
+  // Adjust anchor coordinates.
   float x = anchor.x;
   float y = anchor.y;
 
-  if (x + content_w > window_w) {
-    x = std::max(0.0f, window_w - content_w);
-  }
+  if (x + content_w > window_w) x = std::max(0.0f, window_w - content_w);
 
   float top = y;
   bool use_scroll = false;
@@ -127,8 +128,22 @@ std::shared_ptr<PopUp> PopUp::Show(std::shared_ptr<Node> context_node,
   popup_container->AddChild(overlay);
 
   if (use_scroll) {
+    content->GetLayout().SetMargin(YGEdgeRight, 0.0f);
+    content->GetLayout().SetPadding(YGEdgeRight,
+                                    kPopUpMenuPadding + ScrollBar::kWidth);
+    if (auto block = content->Get<Block>()) {
+      block->SetBorderWidth(0.0f);
+    }
+
     auto scroll_container = ScrollContainer::VerticalScrollContainer(
-        content, [](Layout& l) { l.SetPositionType(YGPositionTypeAbsolute); });
+        content,
+        [](Layout& l) { l.SetPositionType(YGPositionTypeAbsolute); },
+        [](Block& block) {
+          block.SetFillColor(kPopUpMenuBackgroundColor);
+          block.SetBorderColor(kPopUpMenuBorderColor);
+          block.SetBorderWidth(kPopUpMenuBorderWidth);
+          block.SetBorderRadius(kPopUpMenuBorderRadius);
+        });
     scroll_container->GetLayout().SetPosition(YGEdgeLeft, x);
     scroll_container->GetLayout().SetPosition(YGEdgeTop, top);
     scroll_container->GetLayout().SetWidth(content_w + ScrollBar::kWidth);

@@ -32,6 +32,7 @@
 #include "perception/ui/size.h"
 #include "perception/window/cursor.h"
 #include "perception/window/mouse_button.h"
+#include "perception/window/mouse_move_event.h"
 #include "yoga/Yoga.h"
 
 namespace perception {
@@ -158,6 +159,13 @@ class Node : public std::enable_shared_from_this<Node> {
   void OnDrawPostChildren(
       std::function<void(const DrawContext& context)> draw_function);
 
+  // Adds a function to call when relative mouse movement occurs over this element.
+  void OnMouseMove(
+      std::function<void(const window::MouseMoveEvent& event)> mouse_move_function);
+
+  // Tells the node that relative mouse movement occurred.
+  void MouseMoved(const window::MouseMoveEvent& event);
+
   // Adds a function to call when the mouse hovers over this element.
   void OnMouseHover(
       std::function<void(const Point& point)> mouse_hover_function);
@@ -281,6 +289,8 @@ class Node : public std::enable_shared_from_this<Node> {
   std::vector<std::function<void(const DrawContext&)>> on_draw_functions_;
   std::vector<std::function<void(const DrawContext&)>>
       on_draw_post_children_functions_;
+  std::vector<std::function<void(const window::MouseMoveEvent&)>>
+      on_mouse_move_functions_;
   std::vector<std::function<void(const Point&)>> on_mouse_hover_functions_;
   std::vector<std::function<void()>> on_mouse_leave_functions_;
   std::vector<std::function<void(const Point&, window::MouseButton)>>

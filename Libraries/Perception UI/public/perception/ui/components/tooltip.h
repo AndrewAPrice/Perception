@@ -25,7 +25,8 @@ namespace perception {
 namespace ui {
 namespace components {
 
-class Tooltip : public UniqueIdentifiableType<Tooltip> {
+class Tooltip : public std::enable_shared_from_this<Tooltip>,
+                public UniqueIdentifiableType<Tooltip> {
  public:
   // Attaches a tooltip to an existing node.
   static void Attach(std::shared_ptr<Node> target_node, std::string_view text);
@@ -38,18 +39,20 @@ class Tooltip : public UniqueIdentifiableType<Tooltip> {
   }
 
   Tooltip();
+  ~Tooltip();
 
   void SetNode(std::weak_ptr<Node> node);
   void SetText(std::string_view text);
   std::string_view GetText() const;
+  void ShowTooltipAt(const Point& mouse_pos);
+  void HideTooltip();
 
  private:
+  static std::weak_ptr<Tooltip> active_tooltip_;
+
   std::string text_;
   std::weak_ptr<Node> node_;
   std::shared_ptr<Node> tooltip_overlay_;
-
-  void ShowTooltipAt(const Point& mouse_pos);
-  void HideTooltip();
 };
 
 }  // namespace components

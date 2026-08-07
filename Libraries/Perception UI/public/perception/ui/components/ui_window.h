@@ -158,11 +158,16 @@ class UiWindow : public window::WindowDelegate,
 
   virtual void WindowFocusChanged() override;
 
+  void SetCaptureMouse(bool capture);
+  bool IsMouseCaptive() const;
+
   virtual void MouseClicked(const window::MouseClickEvent& event) override;
 
   virtual void MouseLeft() override;
 
   virtual void MouseHovered(const window::MouseHoverEvent& event) override;
+
+  virtual void MouseMoved(const window::MouseMoveEvent& event) override;
 
   virtual window::DebugUiHierarchy GetUiHierarchy() override;
   virtual window::TweakUiResponse TweakUi(
@@ -210,7 +215,7 @@ class UiWindow : public window::WindowDelegate,
   sk_sp<SkSurface> skia_surface_;
   sk_sp<SkColorSpace> custom_color_space_;
 
-  std::recursive_mutex window_mutex_;
+  mutable std::recursive_mutex window_mutex_;
 
   std::set<std::weak_ptr<Node>, NodeWeakPtrComparator>
       nodes_to_notify_when_mouse_leaves_;

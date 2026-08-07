@@ -64,7 +64,7 @@ class Button : public UniqueIdentifiableType<Button> {
     return BasicButton(on_push, Label::SingleLineTruncated(text), modifiers...);
   }
 
-  enum class ButtonStyle { DEFAULT, RED, PRIMARY, SECONDARY, LIGHT, DISABLED };
+  enum class ButtonStyle { DEFAULT, RED, PRIMARY, SECONDARY, LIGHT, DISABLED, GHOST };
 
   Button();
   void SetNode(std::weak_ptr<Node> node);
@@ -82,6 +82,9 @@ class Button : public UniqueIdentifiableType<Button> {
   void SetLabelColor(uint32 color);
   uint32 GetLabelColor() const;
 
+  void SetToggled(bool is_toggled);
+  bool IsToggled() const;
+
   void SetButtonStyle(ButtonStyle style);
 
   void OnPush(std::function<void()> on_push);
@@ -94,6 +97,7 @@ class Button : public UniqueIdentifiableType<Button> {
 
   bool is_hovering_;
   bool is_pushed_;
+  bool is_toggled_;
   std::vector<std::function<void()>> on_push_;
 
   std::weak_ptr<Node> node_;
