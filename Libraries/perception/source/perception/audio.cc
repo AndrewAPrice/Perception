@@ -12,42 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "perception/audio_manager.h"
+#include "perception/audio.h"
 
-#include "perception/serialization/serializer.h"
+#include "perception/devices/audio_device.h"
 #include "perception/services.h"
 
 namespace perception {
 
-void AudioPlayRequest::Serialize(serialization::Serializer& serializer) {
-  serializer.Serializable("Shared buffer", shared_buffer);
-  serializer.Integer("Loop", loop);
-  serializer.Float("Volume", volume);
-  serializer.Integer("Sample rate", sample_rate);
-  serializer.Integer("Channels", channels);
-  serializer.Integer("Bits per sample", bits_per_sample);
-}
-
-void AudioPlayResponse::Serialize(serialization::Serializer& serializer) {
-  serializer.Integer("Stream ID", stream_id);
-}
-
-void AudioStopRequest::Serialize(serialization::Serializer& serializer) {
-  serializer.Integer("Stream ID", stream_id);
-}
-
-void AudioVolumeRequest::Serialize(serialization::Serializer& serializer) {
-  serializer.Float("Volume", volume);
-}
-
-void AudioVolumeResponse::Serialize(serialization::Serializer& serializer) {
-  serializer.Float("Volume", volume);
-}
-
 AudioStreamID PlayAudio(std::shared_ptr<SharedMemory> buffer, float volume,
                         bool loop, uint32 sample_rate, uint8 channels,
                         uint8 bits_per_sample) {
-  AudioPlayRequest request;
+  devices::AudioDevicePlayRequest request;
   request.shared_buffer = buffer;
   request.volume = volume;
   request.loop = loop;
@@ -55,27 +30,30 @@ AudioStreamID PlayAudio(std::shared_ptr<SharedMemory> buffer, float volume,
   request.channels = channels;
   request.bits_per_sample = bits_per_sample;
 
-  auto response_or = GetService<AudioManager>().PlayAudio(request);
+  auto response_or =
+      GetService<devices::AudioDevice>().PlayAudio(request);
   if (!response_or) return 0;
   return response_or->stream_id;
 }
 
 void StopAudio(AudioStreamID stream_id) {
-  AudioStopRequest request;
+  devices::AudioDeviceStopRequest request;
   request.stream_id = stream_id;
-  (void)GetService<AudioManager>().StopAudio(request, nullptr);
+  (void)GetService<devices::AudioDevice>().StopAudio(request, nullptr);
 }
 
-void StopAllAudio() { (void)GetService<AudioManager>().StopAllAudio(nullptr); }
+void StopAllAudio() {
+  (void)GetService<devices::AudioDevice>().StopAllAudio(nullptr);
+}
 
 void SetAudioVolume(float volume) {
-  AudioVolumeRequest request;
+  devices::AudioDeviceSetVolumeRequest request;
   request.volume = volume;
-  (void)GetService<AudioManager>().SetVolume(request, nullptr);
+  (void)GetService<devices::AudioDevice>().SetVolume(request, nullptr);
 }
 
 float GetAudioVolume() {
-  auto response_or = GetService<AudioManager>().GetVolume();
+  auto response_or = GetService<devices::AudioDevice>().GetVolume();
   if (!response_or) return 1.0f;
   return response_or->volume;
 }
