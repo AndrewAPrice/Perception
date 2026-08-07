@@ -12,19 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <functional>
-#include <iostream>
+#include <chrono>
 #include <cstdlib>
-#include "perception/messages.h"
+#include <functional>
+#include <string_view>
+
 #include "perception/fibers.h"
+#include "perception/futex.h"
+#include "perception/memory.h"
+#include "perception/messages.h"
+#include "perception/permissions.h"
+#include "perception/processes.h"
+#include "perception/registry.h"
 #include "perception/scheduler.h"
 #include "perception/service_client.h"
 #include "perception/service_server.h"
+#include "perception/services.h"
 #include "perception/shared_memory.h"
-#include "perception/permissions.h"
-#include "perception/processes.h"
-#include "perception/memory.h"
-#include "perception/futex.h"
 
 namespace perception {
 
@@ -67,6 +71,10 @@ void Defer(std::function<void()>&& function) {
   function();
 }
 
+void DeferAfterEvents(std::function<void()>&& function) {
+  if (function) function();
+}
+
 void Sleep() {}
 
 Fiber::Fiber(bool custom_stack) {}
@@ -101,6 +109,30 @@ std::string GetProcessName(ProcessId pid) {
 
 bool DoesProcessHavePermission(ProcessId pid, Permission permission) {
   return true; // Grant all permissions during tests
+}
+
+void DoesProcessHavePermission(ProcessId pid, Permission permission,
+                               std::function<void(bool)> on_check) {
+  if (on_check) on_check(true);
+}
+
+bool DoesProcessExist(ProcessId pid) { return false; }
+void SetFocusedProcess(ProcessId pid) {}
+void TerminateProcesss(ProcessId pid) {}
+
+bool FindFirstInstanceOfService(std::string_view name, ProcessId& process_id,
+                                MessageId& message_id) {
+  return false;
+}
+
+StatusOr<serialization::Value> GetRegistryValue(RegistryCorpus corpus,
+                                                std::string_view category,
+                                                std::string_view key) {
+  return Status::FILE_NOT_FOUND;
+}
+
+StatusOr<serialization::Value> GetRegistryValue(std::string_view key) {
+  return Status::FILE_NOT_FOUND;
 }
 
 // ServiceClient stubs
@@ -146,5 +178,31 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForReceivingFromProcess(
 
 void SetMemoryBufferAsReadyForSendingNextMessageToProcess(
     SharedMemory& shared_memory) {}
+
+MessageId NotifyOnEachNewServiceInstance(
+    std::string_view name,
+    const std::function<void(ProcessId, MessageId)>& on_each_service) {
+  return 0;
+}
+
+void StopNotifyingOnEachNewServiceInstance(MessageId message_id) {}
+
+MessageId NotifyWhenServiceDisappears(
+    ProcessId process_id, MessageId message_id,
+    const std::function<void()>& on_disappearance) {
+  return 0;
+}
+
+MessageId NotifyWhenServiceDisappears(
+    const ServiceClient& service_client,
+    const std::function<void()>& on_disappearance) {
+  return 0;
+}
+
+void StopNotifyWhenServiceDisappears(MessageId message_id) {}
+
+void RegisterService(MessageId message_id, std::string_view name) {}
+
+void UnregisterService(MessageId message_id) {}
 
 }  // namespace perception
