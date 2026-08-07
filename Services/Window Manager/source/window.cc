@@ -52,6 +52,7 @@
 #include "perception/window/window_manager.h"
 #include "screen.h"
 #include "tablet.h"
+#include "toasts.h"
 #include "window_buttons.h"
 #include "window_manager.h"
 
@@ -294,6 +295,8 @@ void Window::SetCursor(::perception::window::Cursor cursor) {
 ::perception::window::Cursor Window::GetCursor() const { return cursor_; }
 
 ::perception::window::Cursor Window::GetCursorAtPoint(const Point& point) {
+  if (IsMouseOverToast(point)) return ::perception::window::Cursor::Poke;
+
   ::perception::window::Cursor cursor = ::perception::window::Cursor::Pointer;
 
   if (dragging_window) {
@@ -343,7 +346,7 @@ void Window::SetCursor(::perception::window::Cursor cursor) {
     }
 
     // The point is over this window!
-    // 1. Check if it's over the resizable edge of the window.
+    // Check if it's over the resizable edge of the window.
     if (window.is_resizable_ && !window.is_fullscreen_) {
       bool is_min_x = point.x <= screen_area.origin.x + kDragBorder / 2.0f;
       bool is_max_x = point.x >= screen_area.origin.x + screen_area.size.width -
@@ -370,7 +373,7 @@ void Window::SetCursor(::perception::window::Cursor cursor) {
       }
     }
 
-    // 2. Check if it's over one of the window's system buttons.
+    // Check if it's over one of the window's system buttons.
     if (window.AreWindowButtonsVisible()) {
       auto window_button_area = window.WindowButtonScreenArea();
       if (window_button_area.Contains(point)) {
@@ -386,7 +389,7 @@ void Window::SetCursor(::perception::window::Cursor cursor) {
       return true;
     }
 
-    // 3. Otherwise, it's over the window's contents.
+    // Otherwise, it's over the window's contents.
     cursor = window.GetCursor();
     return true;  // Stop searching
   });
@@ -800,6 +803,7 @@ bool Window::MouseEvent(const Point& point,
     if (IsHovering()) {
       if (mouse_listener_) mouse_listener_.MouseLeave(nullptr);
       hovering_window = nullptr;
+      last_mouse_hover_position_ = std::nullopt;
     }
     if (hovered_window_button_) {
       hovered_window_button_ = std::nullopt;
@@ -903,10 +907,14 @@ bool Window::MouseEvent(const Point& point,
       if (mouse_listener_) mouse_listener_.MouseClick(message, nullptr);
     } else {
       // Hover event.
-      MousePositionEvent message;
-      message.x = local_point.x;
-      message.y = local_point.y;
-      if (mouse_listener_) mouse_listener_.MouseHover(message, nullptr);
+      if (!last_mouse_hover_position_.has_value() ||
+          *last_mouse_hover_position_ != local_point) {
+        last_mouse_hover_position_ = local_point;
+        MousePositionEvent message;
+        message.x = local_point.x;
+        message.y = local_point.y;
+        if (mouse_listener_) mouse_listener_.MouseHover(message, nullptr);
+      }
     }
 
   } else {

@@ -83,6 +83,10 @@ class WindowManager : public ::perception::window::WindowManager::Server {
   StatusOr<::perception::window::GetEnvironmentResponse> GetEnvironment()
       override;
 
+  Status ShowToast(
+      const ::perception::window::ShowToastRequest& request,
+      ::perception::ProcessId sender) override;
+
   static void InitializeEnvironment();
   static void UpdateEnvironmentFromRegistry();
   static std::string GetSerializedColorSpace();

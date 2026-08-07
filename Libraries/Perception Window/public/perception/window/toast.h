@@ -11,25 +11,19 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #pragma once
+
+#include <string_view>
 
 namespace perception {
 namespace window {
 
-enum class Cursor {
-  Pointer = 0,
-  Poke = 1,
-  Drag = 2,
-  ResizeHorizontal = 3,
-  ResizeVertical = 4,
-  ResizeDiagonalTopLeftBottomRight = 5,
-  ResizeDiagonalTopRightBottomLeft = 6,
-  Caret = 7,
-  Hidden = 8,
-  Grab = 9,
-  Pen = 10,
-  Eraser = 11
-};
+// Displays a toast notification with the given title and text.
+void ShowToast(std::string_view title, std::string_view text);
+
+// Displays a toast notification with the given text.
+void ShowToast(std::string_view text);
 
 }  // namespace window
 }  // namespace perception

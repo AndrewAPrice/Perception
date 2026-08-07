@@ -172,6 +172,8 @@ class Window : public std::enable_shared_from_this<Window> {
 
   ::perception::ui::Rectangle last_drawn_area_with_frame_;
   void InvalidateScreenArea();
+
+  std::optional<::perception::ui::Point> last_mouse_hover_position_;
 };
 
 std::shared_ptr<Window> GetWindowWithListener(

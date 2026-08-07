@@ -28,6 +28,7 @@
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
 #include "screen.h"
+#include "toasts.h"
 #include "types.h"
 #include "window.h"
 #include "window_manager.h"
@@ -184,6 +185,7 @@ void DrawScreen() {
   // Prep the overlays for drawing, which will mark which areas need to be
   // drawn to the window manager's texture and not directly to the screen.
   DrawHighlighter(draw_area);
+  DrawToasts(draw_area);
   DrawMouse(draw_area);
 
   // There are 3 stages of commands to construct:

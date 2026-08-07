@@ -23,6 +23,7 @@
 #include "perception/ui/rectangle.h"
 #include "screen.h"
 #include "tablet.h"
+#include "toasts.h"
 #include "window.h"
 #include "window_buttons.h"
 #include "window_manager.h"
@@ -39,6 +40,7 @@ int main(int argc, char *argv[]) {
   InitializeCompositor();
   InitializeHighlighter();
   InitializeWindowButtons();
+  InitializeToasts();
   WindowManager window_manager;
 
   UpdateBackgroundColor();

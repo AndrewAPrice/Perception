@@ -26,6 +26,7 @@
 #include "perception/ui/rectangle.h"
 #include "screen.h"
 #include "status.h"
+#include "toasts.h"
 #include "window.h"
 
 namespace {
@@ -219,6 +220,13 @@ StatusOr<GetEnvironmentResponse> WindowManager::GetEnvironment() {
   response.color_space = GetSerializedColorSpace();
   response.scale = GetScale();
   return response;
+}
+
+Status WindowManager::ShowToast(
+    const ::perception::window::ShowToastRequest& request,
+    ::perception::ProcessId sender) {
+  ::ShowToast(request.title, request.text);
+  return Status::OK;
 }
 
 void WindowManager::InitializeEnvironment() {

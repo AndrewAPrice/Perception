@@ -124,5 +124,10 @@ void GetEnvironmentResponse::Serialize(serialization::Serializer& serializer) {
   serializer.Float("Scale", scale);
 }
 
+void ShowToastRequest::Serialize(serialization::Serializer& serializer) {
+  serializer.String("Title", title);
+  serializer.String("Text", text);
+}
+
 }  // namespace window
 }  // namespace perception

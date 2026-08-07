@@ -25,6 +25,7 @@
 #include "perception/ui/size.h"
 #include "screen.h"
 #include "status.h"
+#include "toasts.h"
 #include "window.h"
 
 namespace graphics = ::perception::devices::graphics;
@@ -182,6 +183,34 @@ const char* kCaretSprite =
     "BWWWWWB\n"
     "BBBBBBB";
 
+const char* kPenSprite =
+    "..........BBB\n"
+    ".........BWGB\n"
+    "........BWGB.\n"
+    ".......BWGB..\n"
+    "......BWGB...\n"
+    ".....BWGB....\n"
+    "....BWGB.....\n"
+    "...BWGB......\n"
+    "..BWGB.......\n"
+    ".BWGB........\n"
+    "BWGB.........\n"
+    "BWB..........\n"
+    "BB...........\n"
+    "B............";
+
+const char* kEraserSprite =
+    "....BBBBBB...\n"
+    "...BWWWWWWBB.\n"
+    "..BWWWWWWWWGB\n"
+    ".BWWWWWWWWGB.\n"
+    "BWWWWWWWWGB..\n"
+    "BBBBBBWWWGB..\n"
+    ".BWWWWWWGB...\n"
+    "..BWWWWWWWGB.\n"
+    "...BWWWWWWGB.\n"
+    "....BBBBBBB..";
+
 struct CursorDef {
   const char* sprite;
   Size size;
@@ -198,7 +227,10 @@ CursorDef cursor_defs[] = {
     {kResizeDiagonalTopLeftBottomRightSprite, {13, 13}, {6, 6}, 0},
     {kResizeDiagonalTopRightBottomLeftSprite, {13, 13}, {6, 6}, 0},
     {kCaretSprite, {7, 17}, {3, 8}, 0},
-    {"", {0, 0}, {0, 0}, 0}};
+    {"", {0, 0}, {0, 0}, 0},
+    {kDragSprite, {13, 12}, {6, 6}, 0},
+    {kPenSprite, {13, 14}, {0, 13}, 0},
+    {kEraserSprite, {13, 10}, {0, 9}, 0}};
 
 void LoadSprite(std::string_view sprite, int width, int height,
                 uint32* destination) {
@@ -226,7 +258,9 @@ void LoadSprite(std::string_view sprite, int width, int height,
 Rectangle MouseBounds() {
   auto cursor_type = Window::GetCursorAtPoint(mouse_position);
   int idx = static_cast<int>(cursor_type);
-  if (idx < 0 || idx >= 9) idx = 0;
+  int num_cursors =
+      static_cast<int>(sizeof(cursor_defs) / sizeof(cursor_defs[0]));
+  if (idx < 0 || idx >= num_cursors) idx = 0;
   const auto& def = cursor_defs[idx];
   return Rectangle{.origin = mouse_position - def.hotspot, .size = def.size};
 }
@@ -306,6 +340,8 @@ void ProcessMouseButtonEvent(
   std::optional<MouseButtonEvent> mouse_button_event = MouseButtonEvent{
       .button = message.button, .is_pressed_down = message.is_pressed_down};
   if (message.is_pressed_down) {
+    if (HandleToastClick(mouse_position)) return;
+
     if (Window::ForEachFrontToBackWindow([mouse_button_event](Window& window) {
           if (window.MouseEvent(mouse_position, mouse_button_event)) {
             pressed_window = window.weak_from_this();
@@ -344,7 +380,7 @@ void InitializeMouse() {
       });
 
   // Create a texture for each cursor.
-  for (int i = 0; i < 9; i++) {
+  for (size_t i = 0; i < sizeof(cursor_defs) / sizeof(cursor_defs[0]); i++) {
     auto& def = cursor_defs[i];
     if (def.size.width <= 0 || def.size.height <= 0) {
       def.texture_id = 0;
@@ -381,7 +417,9 @@ void DrawMouse(const Rectangle& draw_area) {
 
   auto cursor_type = Window::GetCursorAtPoint(mouse_position);
   int idx = static_cast<int>(cursor_type);
-  if (idx < 0 || idx >= 9) idx = 0;
+  int num_cursors =
+      static_cast<int>(sizeof(cursor_defs) / sizeof(cursor_defs[0]));
+  if (idx < 0 || idx >= num_cursors) idx = 0;
   const auto& def = cursor_defs[idx];
   if (def.texture_id == 0 || def.size.width <= 0 || def.size.height <= 0) {
     last_mouse_bounds = mouse_bounds;
