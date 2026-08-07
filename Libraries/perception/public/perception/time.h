@@ -16,9 +16,14 @@
 
 #include <chrono>
 #include <functional>
+#include <string>
+
 #include "types.h"
 
 namespace perception {
+
+// Formats seconds into a human readable string ("d h m s").
+std::string FormatTime(double seconds);
 
 // Returns the current UTC time info.
 void GetTimeInfo(uint64& offset, double& tsc_multiplier);

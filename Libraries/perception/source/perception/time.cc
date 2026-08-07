@@ -14,6 +14,7 @@
 
 #include "perception/time.h"
 
+#include <cmath>
 #ifndef PERCEPTION
 #include <iostream>
 #endif
@@ -23,6 +24,33 @@
 #include "perception/scheduler.h"
 
 namespace perception {
+
+std::string FormatTime(double seconds) {
+  bool is_negative = seconds < 0.0;
+  if (is_negative) seconds = -seconds;
+
+  int64 total_sec = static_cast<int64>(std::floor(seconds));
+
+  int64 days = total_sec / 86400;
+  int64 hours = (total_sec % 86400) / 3600;
+  int64 minutes = (total_sec % 3600) / 60;
+  int64 secs = total_sec % 60;
+
+  std::string prefix = (is_negative && total_sec > 0) ? "-" : "";
+
+  if (total_sec >= 86400) {
+    return prefix + std::to_string(days) + "d " + std::to_string(hours) + "h " +
+           std::to_string(minutes) + "m " + std::to_string(secs) + "s";
+  } else if (total_sec >= 3600) {
+    return prefix + std::to_string(hours) + "h " + std::to_string(minutes) + "m " +
+           std::to_string(secs) + "s";
+  } else if (total_sec >= 60) {
+    return prefix + std::to_string(minutes) + "m " + std::to_string(secs) + "s";
+  } else {
+    return prefix + std::to_string(secs) + "s";
+  }
+}
+
 namespace {
 
 // Tells the kernel to send us a message in a certain number of microseconds
