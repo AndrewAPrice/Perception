@@ -1,5 +1,5 @@
 {
-  package_type: 'application',
+  skip_for_tests: true,
   dependencies+: [
     'musl',
     'libcxx',
