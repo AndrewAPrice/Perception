@@ -17,6 +17,7 @@
 #include "physical_allocator.h"
 #include "process.h"
 #include "scheduler.h"
+#include "text_terminal.h"
 #include "thread.h"
 #include "virtual_allocator.h"
 #include "memory.h"

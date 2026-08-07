@@ -103,8 +103,8 @@ const char *GetSystemCallName(Syscall syscall) {
       return "StopNotifyingWhenProcessDisappears";
     case Syscall::CreateProcess:
       return "CreateProcess";
-    case Syscall::SetChildProcessMemoryPage:
-      return "SetChildProcessMemoryPage";
+    case Syscall::SetChildProcessMemoryPages:
+      return "SetChildProcessMemoryPages";
     case Syscall::StartExecutionProcess:
       return "StartExecutionProcess";
     case Syscall::DestroyChildProcess:

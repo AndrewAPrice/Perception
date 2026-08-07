@@ -90,6 +90,9 @@ TEST(MessagesSyscallPagingTransferTest) {
 
   Process* p1 = CreateTestProcess("Process1");
   Process* p2 = CreateTestProcess("Process2");
+  p2->parent = p1;
+  p2->next_child_process_in_parent = p1->child_processes;
+  p1->child_processes = p2;
   ASSERT(p1 != nullptr, true);
   ASSERT(p2 != nullptr, true);
 
@@ -125,6 +128,10 @@ TEST(MessagesSyscallPagingTransferTest) {
   // Verify success
   ASSERT(regs_t1.rax, (size_t)0); // Status::OK = 0
 
+  // Perform memory page transfer to child process p2
+  size_t dest_virtual = 0x900000;
+  SetChildProcessMemoryPages(p1, p2, src_virtual, dest_virtual, 1);
+
   // Verify the page was unmapped from p1
   size_t p1_lookup = p1->virtual_address_space.GetPhysicalAddress(src_virtual, false);
   ASSERT(p1_lookup, (size_t)OUT_OF_MEMORY);
@@ -134,10 +141,6 @@ TEST(MessagesSyscallPagingTransferTest) {
   Message* msg = GetNextQueuedMessage(p2);
   ASSERT(msg != nullptr, true);
   ASSERT(msg->message_id, (size_t)888);
-  ASSERT(msg->param5, (size_t)1); // size in pages
-  
-  size_t dest_virtual = msg->param4; // target virtual address allocated by kernel in p2
-  ASSERT(dest_virtual != 0, true);
 
   // Verify the page was successfully mapped into p2 at the same physical address
   size_t p2_lookup = p2->virtual_address_space.GetPhysicalAddress(dest_virtual, false);

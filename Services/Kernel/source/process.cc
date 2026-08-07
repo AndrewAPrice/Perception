@@ -1,5 +1,6 @@
 #include "process.h"
 
+#include "../../../Libraries/perception/public/perception/tracing.h"
 #include "interrupts.h"
 #include "kernel_string.h"
 #include "heap_allocator.h"
@@ -15,6 +16,49 @@
 #include "timer.h"
 #include "virtual_address_space.h"
 #include "virtual_allocator.h"
+
+#ifdef ENABLE_TRACING
+namespace {
+
+inline uint64 ReadRdtsc() {
+  uint32 lo, hi;
+  __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+  return ((uint64)hi << 32) | lo;
+}
+
+}  // namespace
+
+void EmitProcessCreatedTrace(Process* process) {
+  if (!process) return;
+  uint64 tsc = ReadRdtsc();
+  uint32 pid = static_cast<uint32>(process->pid);
+  uint8 len = static_cast<uint8>(strlen((char*)process->name));
+
+  char packet[14];
+  packet[0] = 0x07;  // PROCESS_CREATED opcode
+  memcpy(&packet[1], (const char*)&tsc, 8);
+  memcpy(&packet[9], (const char*)&pid, 4);
+  packet[13] = static_cast<char>(len);
+
+  ScopedPrintSource source(0, "Kernel", 2);
+  for (size_t i = 0; i < 14; i++) print << packet[i];
+  for (size_t i = 0; i < len; i++) print << process->name[i];
+}
+
+void EmitProcessTerminatedTrace(Process* process) {
+  if (!process) return;
+  uint64 tsc = ReadRdtsc();
+  uint32 pid = static_cast<uint32>(process->pid);
+
+  char packet[13];
+  packet[0] = 0x08;  // PROCESS_TERMINATED opcode
+  memcpy(&packet[1], (const char*)&tsc, 8);
+  memcpy(&packet[9], (const char*)&pid, 4);
+
+  ScopedPrintSource source(0, "Kernel", 2);
+  for (size_t i = 0; i < 13; i++) print << packet[i];
+}
+#endif
 
 namespace {
 
@@ -223,6 +267,10 @@ void DestroyProcess(Process* process) {
   // Remove from tree.
   all_processes.Remove(process);
 
+#ifdef ENABLE_TRACING
+  EmitProcessTerminatedTrace(process);
+#endif
+
   // Free the process.
   free(process);
 }
@@ -312,6 +360,9 @@ Process* CreateChildProcess(Process* parent, char* name, size_t bitfield) {
 
   CopyString((char*)name, PROCESS_NAME_LENGTH, PROCESS_NAME_LENGTH,
              (char*)child_process->name);
+#ifdef ENABLE_TRACING
+  EmitProcessCreatedTrace(child_process);
+#endif
   return child_process;
 }
 
@@ -325,55 +376,55 @@ bool IsProcessAChildOfParent(Process* parent, Process* child) {
   return false;
 }
 
-// Unmaps a memory page from the parent and assigns it to the child. The memory
+// Unmaps memory pages from the parent and assigns them to the child. The memory
 // is unmapped from the calling process regardless of if this call succeeds. If
 // the page already exists in the child process, nothing is set.
-void SetChildProcessMemoryPage(Process* parent, Process* child,
-                               size_t source_address,
-                               size_t destination_address) {
-  // Get the physical address from the parent.
-  size_t page_physical_address =
-      parent->virtual_address_space.GetPhysicalAddress(
-          source_address,
-          /*ignore_unowned_pages=*/true);
-  if (page_physical_address == OUT_OF_MEMORY) {
-    return;  // Page doesn't exist.
+void SetChildProcessMemoryPages(Process* parent, Process* child,
+                                size_t source_address,
+                                size_t destination_address, size_t page_count) {
+  if (!IsProcessAChildOfParent(parent, child)) return;
+
+  for (size_t p = 0; p < page_count; p++) {
+    size_t src = source_address + p * PAGE_SIZE;
+    size_t dest = destination_address + p * PAGE_SIZE;
+
+    // Get the physical address from the parent.
+    size_t page_physical_address =
+        parent->virtual_address_space.GetPhysicalAddress(
+            src,
+            /*ignore_unowned_pages=*/true);
+    if (page_physical_address == OUT_OF_MEMORY) {
+      continue;  // Page doesn't exist.
+    }
+
+    if (!IsPageAlignedAddress(src)) {
+      print << "SetChildProcessMemoryPages called with non page aligned "
+               "source address: "
+            << NumberFormat::Hexidecimal << src << '\n';
+      src = RoundDownToPageAlignedAddress(src);
+    }
+
+    // Unmap the physical page from the parent.
+    parent->virtual_address_space.ReleasePages(src, 1);
+
+    if (!IsPageAlignedAddress(dest)) {
+      print << "SetChildProcessMemoryPages called with non page aligned "
+               "destination address: "
+            << NumberFormat::Hexidecimal << dest << '\n';
+      dest = RoundDownToPageAlignedAddress(dest);
+    }
+
+    if (!child->virtual_address_space.ReserveAddressRange(dest, 1)) {
+      // There's no free memory at this address. Release the memory for this
+      // page.
+      FreePhysicalPage(page_physical_address);
+      continue;
+    }
+
+    // Map the physical page to the new process.
+    child->virtual_address_space.MapPhysicalPageAt(dest, page_physical_address,
+                                                   /*own=*/true, true, false);
   }
-
-  if (!IsPageAlignedAddress(source_address)) {
-    print << "SetChildProcessMemoryPage called with non page aligned "
-             "source address: "
-          << NumberFormat::Hexidecimal << source_address << '\n';
-    source_address = RoundDownToPageAlignedAddress(source_address);
-  }
-
-  // Unmap the physical page from the parent.
-  parent->virtual_address_space.ReleasePages(source_address, 1);
-
-  if (!IsProcessAChildOfParent(parent, child)) {
-    // This isn't a child process. Release the memory for this page.
-    FreePhysicalPage(page_physical_address);
-    return;
-  }
-
-  if (!IsPageAlignedAddress(destination_address)) {
-    print << "SetChildProcessMemoryPage called with non page aligned "
-             "destination address: "
-          << NumberFormat::Hexidecimal << destination_address << '\n';
-    destination_address = RoundDownToPageAlignedAddress(destination_address);
-  }
-
-  if (!child->virtual_address_space.ReserveAddressRange(destination_address,
-                                                        1)) {
-    // There's no free memory at this address. Release the memory for this page.
-    FreePhysicalPage(page_physical_address);
-    return;
-  }
-
-  // Map the physical page to the new process.
-  child->virtual_address_space.MapPhysicalPageAt(destination_address,
-                                                 page_physical_address,
-                                                 /*own=*/true, true, false);
 }
 
 // Creates a thread in the a process that is currently in the `creating` state.

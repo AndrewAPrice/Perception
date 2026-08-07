@@ -182,6 +182,12 @@ Process* CreateProcess(bool is_driver, bool can_create_processes);
 // destroying all of it's threads!
 void DestroyProcess(Process* process);
 
+// Emits binary trace event for process creation on Channel 2.
+void EmitProcessCreatedTrace(Process* process);
+
+// Emits binary trace event for process termination on Channel 2.
+void EmitProcessTerminatedTrace(Process* process);
+
 // Returns whether any processes are running.
 bool AreAnyProcessesRunning();
 
@@ -208,12 +214,12 @@ Process* FindNextProcessWithName(const char* name, Process* start_from);
 // children. Returns ERROR if there was an error.
 Process* CreateChildProcess(Process* parent, char* name, size_t bitfield);
 
-// Unmaps a memory page from the parent and assigns it to the child. The memory
+// Unmaps memory pages from the parent and assigns them to the child. The memory
 // is unmapped from the calling process regardless of if this call succeeds. If
 // the page already exists in the child process, nothing is set.
-void SetChildProcessMemoryPage(Process* parent, Process* child,
-                               size_t source_address,
-                               size_t destination_address);
+void SetChildProcessMemoryPages(Process* parent, Process* child,
+                                size_t source_address,
+                                size_t destination_address, size_t page_count);
 
 // Creates a thread in the a process that is currently in the `creating` state.
 // The child process will no longer be in the `creating` state. The calling

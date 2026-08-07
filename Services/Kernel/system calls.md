@@ -65,7 +65,7 @@ System calls are invoked using the x86_64 `syscall` instruction. The system call
 | `49` | [Allocate Memory Pages Below Physical Address](#allocate-memory-pages-below-physical-address) 🔒 | Memory Management | Allocates physical pages below a bounded physical address. |
 | `50` | [Get Physical Address of Virtual Address](#get-physical-address-of-virtual-address) 🔒 | Memory Management | Translates a virtual address to physical address. |
 | `51` | [Create Process](#create-process) ⚙️ | Process Management | Instantiates a process in `creating` state. |
-| `52` | [Set Child Process Memory Page](#set-child-process-memory-page) 👶 | Process Management | Transfers virtual memory page into a child process. |
+| `52` | [Set Child Process Memory Pages](#set-child-process-memory-pages) 👶 | Process Management | Transfers virtual memory pages into a child process. |
 | `53` | [Start Execution Process](#start-execution-process) 👶 | Process Management | Launches thread in `creating` child process. |
 | `54` | [Destroy Child Process](#destroy-child-process) 👶 | Process Management | Cancels and frees an unlaunched child process. |
 | `55` | [Enable Profiling](#enable-profiling) | Profiling & CPU Tracking | Starts recording CPU cycle metrics. |
@@ -105,6 +105,10 @@ Prints a single debug character via COM1 serial output.
 ### Input
 * `rdi` - `0`
 * `rax` - ASCII character code to print.
+* `rbx` - Channel ID:
+  * 1 - stdout
+  * 2 - exceptions and errors
+  * 3 - traces
 
 ### Output
 Nothing.
@@ -363,14 +367,15 @@ Instantiates a new process structure in the `creating` state. The child process 
 
 ---
 
-## Set Child Process Memory Page 👶
-Unmaps a virtual memory page from the calling process and transfers it into a child process in the `creating` state. Only the parent/creator process may call this while the child is in the creating state.
+## Set Child Process Memory Pages 👶
+Unmaps virtual memory pages from the calling process and transfers them into a child process in the `creating` state. Only the parent/creator process may call this while the child is in the creating state.
 
 ### Input
 * `rdi` - `52`
 * `rax` - Child Process ID.
 * `rbx` - Source virtual page address in calling process.
 * `rdx` - Destination virtual page address in child process.
+* `rsi` - Number of 4KB memory pages to transfer (`page_count`).
 
 ### Output
 Nothing.

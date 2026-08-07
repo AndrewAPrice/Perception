@@ -109,7 +109,7 @@ TEST(SharedMemoryEventsTest) {
   ASSERT(shm_p1 != nullptr, true);
   SharedMemory* shm = shm_p1->shared_memory;
 
-  // 1. Register an event for p2
+  // Register an event for p2
   RegisterSharedMemoryEvent(p2, shm->id, 0x100, 999);
 
   // Check event exists in both lists
@@ -126,13 +126,13 @@ TEST(SharedMemoryEventsTest) {
   SharedMemoryEvent* ev2 = p2->shared_memory_events.FirstItem();
   ASSERT(ev1, ev2);  // should be the exact same event object
 
-  // 2. Registering same event with different message ID updates it
+  // Registering same event with different message ID updates it
   RegisterSharedMemoryEvent(p2, shm->id, 0x100, 111);
   ASSERT(ev1->message_id, (size_t)111);
   ASSERT(shm->events.FirstItem() == shm->events.LastItem(),
          true);  // still only 1 event
 
-  // 3. Trigger the event
+  // Trigger the event
   TriggerSharedMemoryEvent(shm->id, 0x100);
 
   // Verify event is removed from both lists
@@ -145,7 +145,7 @@ TEST(SharedMemoryEventsTest) {
   ASSERT(msg != nullptr, true);
   ASSERT(msg->message_id, (size_t)111);
 
-  // 4. Register and then manually unregister an event
+  // Register and then manually unregister an event
   RegisterSharedMemoryEvent(p2, shm->id, 0x200, 222);
   ASSERT(shm->events.IsEmpty(), false);
   ASSERT(p2->shared_memory_events.IsEmpty(), false);
@@ -154,7 +154,7 @@ TEST(SharedMemoryEventsTest) {
   ASSERT(shm->events.IsEmpty(), true);
   ASSERT(p2->shared_memory_events.IsEmpty(), true);
 
-  // 5. Register multiple events and unregister all for process
+  // Register multiple events and unregister all for process
   RegisterSharedMemoryEvent(p2, shm->id, 0x300, 333);
   RegisterSharedMemoryEvent(p2, shm->id, 0x400, 444);
   ASSERT(p2->shared_memory_events.IsEmpty(), false);

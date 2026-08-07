@@ -43,6 +43,28 @@ class Printer {
   NumberFormat number_format_;
 };
 
+// RAII context for setting the current log source (process PID, process name,
+// stream channel).
+class ScopedPrintSource {
+ public:
+  // Sets the current print source for the duration of this object's scope.
+  ScopedPrintSource(int pid, const char* name, int channel = 0);
+
+  // Restores the previous print source when leaving scope.
+  ~ScopedPrintSource();
+
+  int pid() const { return pid_; }
+  const char* name() const { return name_; }
+  int channel() const { return channel_; }
+  ScopedPrintSource* previous_source() const { return previous_source_; }
+
+ private:
+  ScopedPrintSource* previous_source_;
+  int pid_;
+  const char* name_;
+  int channel_;
+};
+
 // Singleton instance of the text printer.
 extern Printer print;
 

@@ -64,7 +64,7 @@ enum class Syscall {
   NotifyWhenProcessDisappears = 30,
   StopNotifyingWhenProcessDisappears = 31,
   CreateProcess = 51,
-  SetChildProcessMemoryPage = 52,
+  SetChildProcessMemoryPages = 52,
   StartExecutionProcess = 53,
   DestroyChildProcess = 54,
   GetMultibootModule = 60,

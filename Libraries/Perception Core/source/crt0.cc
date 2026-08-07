@@ -77,7 +77,8 @@ void DebugPrint(const char *str) {
   while (*str) {
     volatile register size_t syscall_num asm("rdi") = 0;
     volatile register size_t param1 asm("rax") = *str;
-    __asm__ __volatile__("syscall" ::"r"(syscall_num), "r"(param1)
+    volatile register size_t param2 asm("rbx") = 0;
+    __asm__ __volatile__("syscall" ::"r"(syscall_num), "r"(param1), "r"(param2)
                          : "rcx", "r11");
     str++;
   }

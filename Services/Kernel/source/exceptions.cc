@@ -41,6 +41,10 @@ constexpr bool kCoreDumpOnException = true;
 
 void PrintException(bool in_kernel, int exception_no, size_t cr2,
                     size_t error_code) {
+  ScopedPrintSource source(in_kernel ? 0 : running_thread->process->pid,
+                           in_kernel ? "Kernel" : running_thread->process->name,
+                           1);
+
   if (kCoreDumpOnException && !in_kernel) {
     PrintCoreDump(running_thread->process, running_thread, exception_no, cr2,
                   error_code);

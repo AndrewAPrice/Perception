@@ -50,9 +50,6 @@ void InitializeSystemCalls() {
   //  SetInterruptHandler(0x80, (size_t)syscall_isr, 0x08, 0x8E);
 }
 
-int last_printing_process = -1;
-bool last_char_was_newline = false;
-
 extern "C" void SyscallHandler(int syscall_number) {
   if (running_thread) running_thread->in_syscall = true;
 
@@ -68,17 +65,16 @@ extern "C" void SyscallHandler(int syscall_number) {
       PrintRegistersAndStackTrace();
       break;
     case Syscall::PrintDebugCharacter: {
-      if (last_printing_process != running_thread->process->pid) {
-        if (!last_char_was_newline) print << '\n';
-        print << running_thread->process->name << ": ";
-        last_printing_process = running_thread->process->pid;
-      }
       char c = (char)currently_executing_thread_regs->rax;
+      int channel = (int)currently_executing_thread_regs->rbx;
+      ScopedPrintSource source(running_thread->process->pid,
+                               running_thread->process->name, channel);
       print << c;
-      last_char_was_newline = (c == '\n');
       break;
     }
     case Syscall::PrintRegistersAndStack: {
+      ScopedPrintSource source(running_thread->process->pid,
+                               running_thread->process->name, 0);
       print << "Dump requested by PID " << NumberFormat::Decimal
             << running_thread->process->pid << " ("
             << running_thread->process->name << ") in TID "
@@ -497,12 +493,13 @@ extern "C" void SyscallHandler(int syscall_number) {
           ((size_t)child_process == ERROR) ? 0 : child_process->pid;
       break;
     }
-    case Syscall::SetChildProcessMemoryPage: {
+    case Syscall::SetChildProcessMemoryPages: {
       Process* child_process =
           GetProcessFromPid(currently_executing_thread_regs->rax);
-      SetChildProcessMemoryPage(running_thread->process, child_process,
-                                currently_executing_thread_regs->rbx,
-                                currently_executing_thread_regs->rdx);
+      SetChildProcessMemoryPages(running_thread->process, child_process,
+                                 currently_executing_thread_regs->rbx,
+                                 currently_executing_thread_regs->rdx,
+                                 currently_executing_thread_regs->rsi);
       break;
     }
     case Syscall::StartExecutionProcess: {

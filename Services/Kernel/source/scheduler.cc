@@ -1,9 +1,11 @@
 #ifndef TEST
 #include "scheduler.h"
 
-#include "interrupts.h"
+#include "../../../Libraries/perception/public/perception/tracing.h"
 #include "heap_allocator.h"
+#include "interrupts.h"
 #include "linked_list.h"
+#include "memory.h"
 #include "process.h"
 #include "registers.h"
 #include "text_terminal.h"
@@ -103,8 +105,6 @@ void InitializeScheduler() {
     new (&ready_queues[i]) LinkedList<Thread, &Thread::node_in_scheduler>();
     queue_credits[i] = kBaseCredits[i];
   }
-  focused_process = nullptr;
-  running_thread = nullptr;
   awake_thread_count = 0;
   currently_executing_thread_regs = (Registers*)malloc(sizeof(Registers));
   if (!currently_executing_thread_regs) {
@@ -115,9 +115,48 @@ void InitializeScheduler() {
   idle_regs = currently_executing_thread_regs;
 }
 
+#ifdef ENABLE_TRACING
+namespace {
+
+inline uint64 ReadRdtsc() {
+  uint32 lo, hi;
+  __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+  return ((uint64)hi << 32) | lo;
+}
+
+void EmitContextSwitchTrace(Thread* prev, Thread* next) {
+  uint64 tsc = ReadRdtsc();
+  uint32 prev_pid =
+      (prev && prev->process) ? static_cast<uint32>(prev->process->pid) : 0;
+  uint32 prev_tid = prev ? static_cast<uint32>(prev->id) : 0;
+  uint32 next_pid =
+      (next && next->process) ? static_cast<uint32>(next->process->pid) : 0;
+  uint32 next_tid = next ? static_cast<uint32>(next->id) : 0;
+  uint8 reason = (prev && prev->awake) ? 0 : 1;
+
+  char packet[26];
+  packet[0] = 0x05;  // CONTEXT_SWITCH opcode
+  memcpy(&packet[1], (const char*)&tsc, 8);
+  memcpy(&packet[9], (const char*)&prev_pid, 4);
+  memcpy(&packet[13], (const char*)&prev_tid, 4);
+  memcpy(&packet[17], (const char*)&next_pid, 4);
+  memcpy(&packet[21], (const char*)&next_tid, 4);
+  packet[25] = static_cast<char>(reason);
+
+  ScopedPrintSource source(0, "Kernel", 2);
+  for (size_t i = 0; i < 26; i++) print << packet[i];
+}
+
+}  // namespace
+#endif  // ENABLE_TRACING
+
 // Schedule the next thread.
 void ScheduleNextThread() {
   UpdateRunningThreadTimeslice();
+
+#ifdef ENABLE_TRACING
+  Thread* prev = running_thread;
+#endif
 
   if (running_thread) {
     if (running_thread->uses_fpu_registers)
@@ -133,12 +172,23 @@ void ScheduleNextThread() {
 
   Thread* next = PickNextThread();
   if (!next) {
+#ifdef ENABLE_TRACING
+    if (prev != nullptr) {
+      EmitContextSwitchTrace(prev, nullptr);
+    }
+#endif
     // If there's no next thread, return to the kernel's idle thread.
     running_thread = 0;
     currently_executing_thread_regs = idle_regs;
     KernelAddressSpace().SwitchToAddressSpace();
     return;
   }
+
+#ifdef ENABLE_TRACING
+  if (prev != next) {
+    EmitContextSwitchTrace(prev, next);
+  }
+#endif
 
   // Enter the next thread.
   running_thread = next;

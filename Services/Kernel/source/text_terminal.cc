@@ -12,7 +12,21 @@ namespace {
 // The IO port to use.
 constexpr unsigned short kPort = 0x3f8;  // COM1
 
-static const char* kHexidecimalCharset = "0123456789ABCDEF";
+// Charset for hexadecimal digits.
+constexpr const char* kHexidecimalCharset = "0123456789ABCDEF";
+
+// Default kernel print source attributes.
+constexpr int kKernelPid = 0;
+constexpr const char* kKernelName = "Kernel";
+constexpr int kDefaultChannel = 0;
+
+// Track current active ScopedPrintSource context.
+ScopedPrintSource* current_print_source = nullptr;
+
+// Track last emitted print source attributes.
+int last_emitted_pid = -1;
+const char* last_emitted_name = nullptr;
+int last_emitted_channel = -1;
 
 // Initialize the serial output.
 void InitializeSerialOutput() {
@@ -26,14 +40,105 @@ void InitializeSerialOutput() {
   WriteIOByte(kPort + 4, 0x0B);  // IRQs enabled, RTS/DSR set
 }
 
+// Writes a single byte directly to serial COM1 without context checking.
+void WriteSerialByte(char c) {
+  while ((ReadIOByte(kPort + 5) & 0x20) == 0);
+  WriteIOByte(kPort, c);
+}
+
+// Writes a null-terminated string directly to serial.
+void WriteSerialString(const char* str) {
+  if (str == nullptr) return;
+  while (*str) {
+    WriteSerialByte(*str);
+    str++;
+  }
+}
+
+// Emits decimal integer directly to serial.
+void WriteSerialDecimal(int val) {
+  if (val < 0) {
+    WriteSerialByte('-');
+    val = -val;
+  }
+  if (val == 0) {
+    WriteSerialByte('0');
+    return;
+  }
+  char temp[12];
+  int idx = 0;
+  while (val > 0) {
+    temp[idx++] = '0' + (val % 10);
+    val /= 10;
+  }
+  for (int i = idx - 1; i >= 0; i--) WriteSerialByte(temp[i]);
+}
+
+// Checks string equality.
+bool StringsAreEqual(const char* a, const char* b) {
+  if (a == b) return true;
+  if (a == nullptr || b == nullptr) return false;
+  while (*a && *b) {
+    if (*a != *b) return false;
+    a++;
+    b++;
+  }
+  return *a == *b;
+}
+
+// Ensures the serial output stream has emitted the current source's control
+// sequence.
+void EnsurePrintSourceEmitted() {
+  int target_pid = kKernelPid;
+  const char* target_name = kKernelName;
+  int target_channel = kDefaultChannel;
+
+  if (current_print_source != nullptr) {
+    target_pid = current_print_source->pid();
+    target_name = current_print_source->name();
+    target_channel = current_print_source->channel();
+  }
+
+  if (last_emitted_pid == target_pid &&
+      StringsAreEqual(last_emitted_name, target_name) &&
+      last_emitted_channel == target_channel)
+    return;
+
+  // Emit escape sequence \033]P;<pid>;<channel_id>;<name>\007
+  WriteSerialByte('\033');
+  WriteSerialByte(']');
+  WriteSerialByte('P');
+  WriteSerialByte(';');
+  WriteSerialDecimal(target_pid);
+  WriteSerialByte(';');
+  WriteSerialDecimal(target_channel);
+  WriteSerialByte(';');
+  WriteSerialString(target_name ? target_name : kKernelName);
+  WriteSerialByte('\007');
+
+  last_emitted_pid = target_pid;
+  last_emitted_name = target_name;
+  last_emitted_channel = target_channel;
+}
+
 }  // namespace
+
+ScopedPrintSource::ScopedPrintSource(int pid, const char* name, int channel)
+    : pid_(pid), name_(name), channel_(channel) {
+  previous_source_ = current_print_source;
+  current_print_source = this;
+}
+
+ScopedPrintSource::~ScopedPrintSource() {
+  current_print_source = previous_source_;
+}
 
 Printer::Printer() : number_format_(NumberFormat::Decimal) {}
 
 // Prints a single character.
 Printer& Printer::operator<<(char c) {
-  while ((ReadIOByte(kPort + 5) & 0x20) == 0);
-  WriteIOByte(kPort, c);
+  EnsurePrintSourceEmitted();
+  WriteSerialByte(c);
   return *this;
 }
 

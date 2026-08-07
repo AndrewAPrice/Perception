@@ -14,17 +14,18 @@
 
 #include "elf_loader.h"
 
+#include "../../../Libraries/perception/public/perception/tracing.h"
 #include "../../../third_party/Libraries/elf/public/elf.h"
+#include "kernel_string.h"
+#include "memory.h"
 #include "multiboot_modules.h"
 #include "physical_allocator.h"
 #include "process.h"
 #include "scheduler.h"
-#include "kernel_string.h"
 #include "text_terminal.h"
 #include "thread.h"
 #include "virtual_address_space.h"
 #include "virtual_allocator.h"
-#include "memory.h"
 
 namespace {
 
@@ -308,6 +309,9 @@ bool LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
   }
 
   CopyString(name, PROCESS_NAME_LENGTH, name_length, (char*)process->name);
+#ifdef ENABLE_TRACING
+  EmitProcessCreatedTrace(process);
+#endif
 
   size_t phnum = GetNumberOfSegments(header, memory_start, memory_end);
   size_t phent = header->e_phentsize;
