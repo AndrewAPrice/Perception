@@ -168,14 +168,14 @@ std::string FormatUptime(size_t uptime_micros) {
 }  // namespace
 
 void OpenProcessDetailsWindow(ProcessId pid) {
-  // 1. If there is already an open window for this PID, focus on it and return.
+  // If there is already an open window for this PID, focus on it and return.
   auto itr = open_process_details_windows.find(pid);
   if (itr != open_process_details_windows.end()) {
     itr->second.window_node->Get<UiWindow>()->Focus();
     return;
   }
 
-  // 2. Otherwise, let's get the initial process information.
+  // Otherwise, let's get the initial process information.
   std::string proc_name = perception::GetProcessName(pid);
   if (proc_name.empty()) return;  // Process doesn't exist or name is empty.
 
@@ -191,7 +191,7 @@ void OpenProcessDetailsWindow(ProcessId pid) {
   // Increment CPU tracking ref count.
   IncrementCpuTracking();
 
-  // 3. Let's build the details window UI.
+  // Build the details window UI.
   auto name_label_node = Label::BasicLabel(
       "Process: " + proc_name + " (PID: " + std::to_string(pid) + ")");
   name_label_node->Apply(
