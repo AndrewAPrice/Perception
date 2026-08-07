@@ -99,6 +99,53 @@ void PerformExpect(std::string_view file, int line,
   }
 }
 
+// Helper to print an approx failure message.
+template <typename T1, typename T2, typename E>
+void PrintApproxFailure(std::string_view file, int line,
+                        std::string_view expected_expr,
+                        std::string_view actual_expr,
+                        std::string_view epsilon_expr, const T1& expected,
+                        const T2& actual, const E& epsilon) {
+  std::cout << file << ":" << line << ": Failure\n"
+            << "  Expected approx: " << expected_expr << " (value: ";
+  PrintValue(expected);
+  std::cout << ")\n    Actual: " << actual_expr << " (value: ";
+  PrintValue(actual);
+  std::cout << ")\n  Within epsilon: " << epsilon_expr << " (value: ";
+  PrintValue(epsilon);
+  std::cout << ")\n" << std::flush;
+}
+
+// Helper for ASSERT_APPROX.
+template <typename T1, typename T2, typename E>
+void PerformAssertApprox(std::string_view file, int line,
+                         std::string_view expected_expr,
+                         std::string_view actual_expr,
+                         std::string_view epsilon_expr, const T1& expected,
+                         const T2& actual, const E& epsilon) {
+  auto diff = expected > actual ? expected - actual : actual - expected;
+  if (diff > epsilon) {
+    PrintApproxFailure(file, line, expected_expr, actual_expr, epsilon_expr,
+                       expected, actual, epsilon);
+    throw AssertFailureException();
+  }
+}
+
+// Helper for EXPECT_APPROX.
+template <typename T1, typename T2, typename E>
+void PerformExpectApprox(std::string_view file, int line,
+                         std::string_view expected_expr,
+                         std::string_view actual_expr,
+                         std::string_view epsilon_expr, const T1& expected,
+                         const T2& actual, const E& epsilon) {
+  auto diff = expected > actual ? expected - actual : actual - expected;
+  if (diff > epsilon) {
+    PrintApproxFailure(file, line, expected_expr, actual_expr, epsilon_expr,
+                       expected, actual, epsilon);
+    NotifyExpectFailed();
+  }
+}
+
 }  // namespace testing
 }  // namespace perception
 
@@ -136,3 +183,13 @@ void PerformExpect(std::string_view file, int line,
 #define EXPECT(expected, actual)                                               \
   ::perception::testing::PerformExpect(__FILE__, __LINE__, #expected, #actual, \
                                        expected, actual)
+
+#define ASSERT_APPROX(expected, actual, epsilon)                            \
+  ::perception::testing::PerformAssertApprox(__FILE__, __LINE__, #expected, \
+                                             #actual, #epsilon, expected,   \
+                                             actual, epsilon)
+
+#define EXPECT_APPROX(expected, actual, epsilon)                            \
+  ::perception::testing::PerformExpectApprox(__FILE__, __LINE__, #expected, \
+                                             #actual, #epsilon, expected,   \
+                                             actual, epsilon)
