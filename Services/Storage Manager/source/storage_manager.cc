@@ -88,6 +88,12 @@ bool IsPathWithinApplicationDirectory(std::string_view path,
 // Returns whether a process has permission to read a path.
 bool DoesProcessHavePermissionToReadPath(std::string_view path,
                                          ProcessId sender) {
+  if (path == "/" || path == "/Applications" || path == "/Libraries" ||
+      path.starts_with("/Applications/") ||
+      path.starts_with("/Libraries/")) {
+    return true;
+  }
+
   std::string process_name = GetProcessName(sender);
   if (!process_name.empty() &&
       IsPathWithinApplicationDirectory(path, process_name)) {
