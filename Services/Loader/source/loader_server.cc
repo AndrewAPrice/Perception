@@ -26,6 +26,7 @@
 #include "perception/permissions.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
+#include "perception/tracing.h"
 #include "process.h"
 
 using ::perception::ProcessId;
@@ -38,6 +39,7 @@ std::shared_ptr<::perception::SharedMemory> multiboot_registry_file_keep_alive;
 
 StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
     const ::perception::LoadApplicationRequest& request, ProcessId sender) {
+  PERCEPTION_TRACE_SPAN("LaunchApplication");
   if (!is_cache_populated) {
     fibers_waiting_for_cache.push_back(
         ::perception::GetCurrentlyExecutingFiber());

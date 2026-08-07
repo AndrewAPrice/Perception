@@ -27,7 +27,7 @@ using ::perception::AllocateMemoryPages;
 using ::perception::kPageSize;
 using ::perception::ProcessId;
 using ::perception::ReleaseMemoryPages;
-using ::perception::SetChildProcessMemoryPage;
+using ::perception::SetChildProcessMemoryPages;
 using ::perception::SharedMemory;
 
 namespace {
@@ -55,7 +55,11 @@ std::shared_ptr<perception::SharedMemory> TurnPagesIntoSharedMemoryBlock(
     if (itr == child_memory_pages.end()) continue;  // Should never happen.
 
     size_t offset = page - first_page;
-    shared_memory->AssignPage(itr->second, offset);
+    void* page_copy = AllocateMemoryPages(1);
+    if (page_copy != nullptr) {
+      memcpy(page_copy, itr->second, kPageSize);
+      shared_memory->AssignPage(page_copy, offset);
+    }
   }
 
   return shared_memory;
@@ -153,10 +157,30 @@ void FreeChildMemoryPages(std::map<size_t, void*>& child_memory_pages) {
 
 void SendMemoryPagesToChild(ProcessId child_pid,
                             std::map<size_t, void*>& child_memory_pages) {
-  for (std::pair<size_t, void*> addr_and_memory : child_memory_pages) {
-    SetChildProcessMemoryPage(child_pid, (size_t)addr_and_memory.second,
-                              addr_and_memory.first);
+  if (child_memory_pages.empty()) return;
+
+  auto it = child_memory_pages.begin();
+  size_t run_dest = it->first;
+  size_t run_src = (size_t)it->second;
+  size_t run_count = 1;
+  ++it;
+
+  for (; it != child_memory_pages.end(); ++it) {
+    size_t dest = it->first;
+    size_t src = (size_t)it->second;
+
+    if (dest == run_dest + run_count * kPageSize &&
+        src == run_src + run_count * kPageSize) {
+      run_count++;
+    } else {
+      SetChildProcessMemoryPages(child_pid, run_src, run_dest, run_count);
+      run_dest = dest;
+      run_src = src;
+      run_count = 1;
+    }
   }
+
+  SetChildProcessMemoryPages(child_pid, run_src, run_dest, run_count);
 }
 
 std::map<size_t, std::shared_ptr<SharedMemory>>

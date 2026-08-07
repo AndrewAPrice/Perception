@@ -93,6 +93,7 @@ class ElfFile {
   // exported symbols throughout the child process. `module_id` is a unique ID
   // representing this ELF file in this process.
   Status FixUpRelocations(
+      ::perception::ProcessId child_pid,
       std::map<size_t, void*>& child_memory_pages, size_t offset,
       const SymbolMap& symbols_to_addresses, size_t module_id,
       const std::map<size_t, size_t>& load_address_to_tls_offset);
@@ -107,6 +108,12 @@ class ElfFile {
 
   // Returns whether there is at least 1 reference to this ELF file.
   bool AreThereStillReferences() const;
+
+  // Assigned base virtual address for pre-linked libraries.
+  size_t GetAssignedBaseAddress() const { return assigned_base_address_; }
+  void SetAssignedBaseAddress(size_t address) { assigned_base_address_ = address; }
+  void ClearAssignedBaseAddress() { assigned_base_address_ = 0; }
+  size_t GetSizeInBytes() const { return highest_virtual_address_; }
 
   // Returns a pointer to the ELF header, or nullptr if it's not valid.
   const Elf64_Ehdr* ElfHeader();
@@ -196,4 +203,7 @@ class ElfFile {
 
   // The highest known virtual address this ELF file references to. Exclusive.
   size_t highest_virtual_address_;
+
+  // Virtual base address assigned to this ELF file by VirtualAddressAllocator.
+  size_t assigned_base_address_ = 0;
 };

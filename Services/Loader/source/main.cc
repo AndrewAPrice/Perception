@@ -56,7 +56,7 @@ void LoadInitialPrograms() {
   const auto* array = value.ArrayValue();
   if (array == nullptr) return;
 
-  // 1. Preload all programs sequentially.
+  // Preload all programs sequentially.
   for (const auto& item : *array) {
     if (item.GetType() == ::perception::serialization::Value::Type::STRING) {
       auto name_opt = item.StringValue();
@@ -64,7 +64,7 @@ void LoadInitialPrograms() {
     }
   }
 
-  // 2. Launch them sequentially.
+  // Launch them sequentially.
   auto pid = ::perception::GetProcessId();
   for (const auto& item : *array) {
     if (item.GetType() == ::perception::serialization::Value::Type::STRING) {

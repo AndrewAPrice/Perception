@@ -31,6 +31,7 @@
 #include "process.h"
 #include "status.h"
 #include "symbol_map.h"
+#include "virtual_address_allocator.h"
 
 using ::perception::AllocateMemoryPages;
 using ::perception::CreateChildProcess;
@@ -42,6 +43,8 @@ using ::perception::ProcessId;
 using ::perception::ReleaseMemoryPages;
 using ::perception::StartExecutingChildProcess;
 
+#include "perception/tracing.h"
+
 namespace {
 
 // Uncomment to be very verbose with where shared libraries are loaded.
@@ -51,6 +54,8 @@ namespace {
 // containing the executable and all depedendecies.
 std::optional<std::vector<std::shared_ptr<ElfFile>>>
 LoadDependencies(std::shared_ptr<ElfFile> executable_file) {
+  PERCEPTION_TRACE_SPAN("LoadDependencies");
+
   std::set<std::string> loaded_dependencies;
   std::queue<std::string> dependencies_to_load;
 
@@ -165,28 +170,49 @@ StatusOr<::perception::ProcessId> LoadProgram(
 
   InitFiniFunctions init_fini_functions;
 
-  // Load in each ELF file.
-  size_t next_free_address = 0x200000;
+  // Assign virtual addresses to all dependencies.
+  std::vector<size_t> load_addresses_of_elf_files(dependencies.size(), 0);
+
+  // 1. Allocate virtual base addresses for shared libraries
+  // (dependencies[1..N]) first
+  for (size_t i = 1; i < dependencies.size(); i++) {
+    auto library = dependencies[i];
+    size_t base_address = library->GetAssignedBaseAddress();
+    if (base_address == 0) {
+      base_address = VirtualAddressAllocator::Get().AllocateRange(
+          library->GetSizeInBytes());
+      library->SetAssignedBaseAddress(base_address);
+    }
+    load_addresses_of_elf_files[i] = base_address;
+  }
+
+  // 2. Main executable (dependencies[0]) is loaded at base address 0 (ET_EXEC)
+  // or 0x200000 (ET_DYN)
+  if (!dependencies.empty()) {
+    auto header = dependencies[0]->ElfHeader();
+    if (header != nullptr && header->e_type == ET_EXEC) {
+      load_addresses_of_elf_files[0] = 0;
+    } else {
+      load_addresses_of_elf_files[0] = 0x200000;
+    }
+  }
+
+  // Pass 1: Load in each ELF file into address space and collect exported
+  // symbols.
   bool something_went_wrong = false;
-  std::vector<size_t> load_addresses_of_elf_files;
-  load_addresses_of_elf_files.reserve(dependencies.size());
-  for (auto dependency : dependencies) {
-    load_addresses_of_elf_files.push_back(next_free_address);
-#if VERBOSE
-    std::cout << "Loading " << dependency->File().Name() << " in process "
-              << name << " at " << std::hex << next_free_address << std::dec
-              << std::endl;
-#endif
+  for (size_t i = 0; i < dependencies.size(); i++) {
+    auto dependency = dependencies[i];
+    size_t base_address = load_addresses_of_elf_files[i];
+
     auto status_or_next_free_address =
         dependency->LoadIntoAddressSpaceAndReturnNextFreeAddress(
-            child_pid, next_free_address, child_memory_pages,
-            symbols_to_addresses, init_fini_functions);
+            child_pid, base_address, child_memory_pages, symbols_to_addresses,
+            init_fini_functions);
 
     if (!status_or_next_free_address.Ok()) {
       something_went_wrong = true;
       break;
     }
-    next_free_address = *status_or_next_free_address;
   }
 
   if (something_went_wrong) {
@@ -194,9 +220,13 @@ StatusOr<::perception::ProcessId> LoadProgram(
     return Status::INTERNAL_ERROR;
   }
 
-  // Create the init and fini arrays.
-  next_free_address = init_fini_functions.PopulateInMemory(
-      next_free_address, child_memory_pages, symbols_to_addresses);
+  // Create the init and fini arrays at a fixed address so pre-linked GOT
+  // entries in shared libraries resolve consistently across all process
+  // instances.
+  constexpr size_t kInitFiniAddress = 0x1FF0000;
+  size_t init_fini_address = kInitFiniAddress;
+  size_t next_free_address = init_fini_functions.PopulateInMemory(
+      init_fini_address, child_memory_pages, symbols_to_addresses);
 
   // Calculate correct TLS module IDs (1-indexed for modules that have TLS).
   std::vector<size_t> tls_module_ids(dependencies.size(), 0);
@@ -239,7 +269,7 @@ StatusOr<::perception::ProcessId> LoadProgram(
   // Fix up the ELF files.
   for (int i = 0; i < dependencies.size(); i++) {
     if (dependencies[i]->FixUpRelocations(
-            child_memory_pages, load_addresses_of_elf_files[i],
+            child_pid, child_memory_pages, load_addresses_of_elf_files[i],
             symbols_to_addresses, tls_module_ids[i],
             load_address_to_tls_offset) != Status::OK) {
       something_went_wrong = true;
@@ -263,8 +293,8 @@ StatusOr<::perception::ProcessId> LoadProgram(
   size_t needed_pages = (needed_bytes + kPageSize - 1) / kPageSize;
 
   size_t args_page_address =
-      (next_free_address + kPageSize - 1) & ~(kPageSize - 1);
-  next_free_address = args_page_address + needed_pages * kPageSize;
+      VirtualAddressAllocator::Get().FindFreeRangeWithoutInserting(
+          needed_pages * kPageSize);
 
   char* args_page = (char*)AllocateMemoryPages(needed_pages);
   for (size_t p = 0; p < needed_pages; p++) {

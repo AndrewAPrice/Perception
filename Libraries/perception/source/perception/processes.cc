@@ -404,18 +404,20 @@ bool CreateChildProcess(std::string_view name, size_t bitfield,
 // process that hasn't began executing. The memory is unmapped from this process
 // regardless of if this call succeeds. If the page already exists in the child
 // process, nothing is set.
-void SetChildProcessMemoryPage(ProcessId& child_pid, size_t source_address,
-                               size_t destination_address) {
+void SetChildProcessMemoryPages(ProcessId& child_pid, size_t source_address,
+                                size_t destination_address,
+                                size_t page_count) {
 #if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 52;
   volatile register size_t pid_r asm("rax") = child_pid;
   volatile register size_t source_r asm("rbx") = source_address;
   volatile register size_t destination_r asm("rdx") = destination_address;
+  volatile register size_t count_r asm("rsi") = page_count;
 
   __asm__ __volatile__("syscall\n"
                        :
                        : "r"(syscall), "r"(pid_r), "r"(source_r),
-                         "r"(destination_r)
+                         "r"(destination_r), "r"(count_r)
                        : "rcx", "r11");
 #endif
 }

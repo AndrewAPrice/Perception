@@ -68,7 +68,6 @@ ElfFile::ElfFile(std::unique_ptr<class File> file)
 
   FindInterestingSections();
   CalculateHighestVirtualAddresses();
-  if (!CreateSharedMemorySegments()) return;
 
   is_valid_ = true;
 }
@@ -94,7 +93,8 @@ size_t ElfFile::EntryAddress(size_t offset) {
     return 0;
   }
 
-  return header->e_entry + offset;  // offset;
+  if (header->e_type == ET_EXEC) return header->e_entry;
+  return header->e_entry + offset;
 }
 
 void ElfFile::ForEachDependentLibrary(
@@ -122,23 +122,24 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
     ::perception::ProcessId child_pid, size_t offset,
     std::map<size_t, void*>& child_memory_pages,
     SymbolMap& symbols_to_addresses, InitFiniFunctions& init_fini_functions) {
-  // Force rebuild comment
-  // Load shared memory segments.
-  for (const auto& address_and_shared_memory : read_only_segments_) {
-    size_t address = address_and_shared_memory.first + offset;
-    if (!address_and_shared_memory.second->JoinChildProcess(child_pid,
-                                                            address)) {
-      std::cout << "Unable to join a child process into shared memory at: "
-                << std::hex << address << std::dec << std::endl;
-      return Status::INTERNAL_ERROR;
+  bool has_prelinked_segments = !read_only_segments_.empty();
+  if (has_prelinked_segments) {
+    for (const auto& address_and_shared_memory : read_only_segments_) {
+      size_t address = address_and_shared_memory.first;
+      if (!address_and_shared_memory.second->JoinChildProcess(child_pid,
+                                                              address)) {
+        std::cout << "Unable to join a child process into shared memory at: "
+                  << std::hex << address << std::dec << std::endl;
+        return Status::INTERNAL_ERROR;
+      }
     }
   }
 
-  // Load non shared memory segments.
+  // Load non shared memory segments (or all segments if not prelinked).
   for (const auto& segment_header : ProgramSegmentHeaders()) {
     if (segment_header.p_type != PT_LOAD)
       continue;  // Segment doesn't get loaded.
-    if ((segment_header.p_flags & PF_W) == 0)
+    if (has_prelinked_segments && (segment_header.p_flags & PF_W) == 0)
       continue;  // Segment isn't writable.
 
     if (segment_header.p_filesz > 0) {
@@ -220,6 +221,7 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
 }
 
 Status ElfFile::FixUpRelocations(
+    ::perception::ProcessId child_pid,
     std::map<size_t, void*>& child_memory_pages, size_t offset,
     const SymbolMap& symbols_to_addresses, size_t module_id,
     const std::map<size_t, size_t>& load_address_to_tls_offset) {
@@ -378,6 +380,11 @@ Status ElfFile::FixUpRelocations(
 
       auto page_itr = child_memory_pages.find(page);
       if (page_itr == child_memory_pages.end()) {
+        if (!read_only_segments_.empty()) {
+          // Read-only segment pages were already pre-relocated in
+          // read_only_segments_.
+          continue;
+        }
         std::cout << "Relocation offset is at an address that doesn't have "
                      "memory allocated to it: "
                   << std::hex << address << std::dec << std::endl;
@@ -386,6 +393,29 @@ Status ElfFile::FixUpRelocations(
 
       ((size_t*)page_itr->second)[offset_in_page / 8] = value;
     }
+  }
+
+  if (!IsExecutable() && read_only_segments_.empty()) {
+    std::map<size_t, void*> read_only_pages;
+    for (const auto& segment_header : ProgramSegmentHeaders()) {
+      if (segment_header.p_type != PT_LOAD) continue;
+      if ((segment_header.p_flags & PF_W) != 0) continue;
+
+      size_t seg_start = (segment_header.p_vaddr + offset) & ~(kPageSize - 1);
+      size_t seg_end = (segment_header.p_vaddr + segment_header.p_memsz +
+                        offset + kPageSize - 1) &
+                       ~(kPageSize - 1);
+
+      for (size_t addr = seg_start; addr < seg_end; addr += kPageSize) {
+        auto it = child_memory_pages.find(addr);
+        if (it != child_memory_pages.end()) {
+          read_only_pages[addr] = it->second;
+        }
+      }
+    }
+
+    read_only_segments_ =
+        ConvertMapOfPagesIntoReadOnlySharedMemoryBlocks(read_only_pages);
   }
 
   return Status::OK;

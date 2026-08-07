@@ -20,6 +20,8 @@
 #include <mutex>
 #include <string_view>
 
+#include "virtual_address_allocator.h"
+
 namespace {
 
 std::mutex cache_mutex;
@@ -90,6 +92,11 @@ void DecrementElfFile(std::shared_ptr<ElfFile> elf_file) {
   elf_file->DecrementInstances();
   // Only continue if there are no more references.
   if (elf_file->AreThereStillReferences()) return;
+
+  if (elf_file->GetAssignedBaseAddress() != 0) {
+    VirtualAddressAllocator::Get().FreeRange(elf_file->GetAssignedBaseAddress());
+    elf_file->ClearAssignedBaseAddress();
+  }
 
   // Remove this ELF file from the cache by name.
   auto range_by_name = elf_files_by_name.equal_range(elf_file->File().Name());

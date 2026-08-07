@@ -77,12 +77,12 @@ void StopNotifyingUponProcessTermination(MessageId message_id);
 // if this process terminates.
 bool CreateChildProcess(std::string_view name, size_t bitfield, ProcessId& pid);
 
-// Unmaps a memory page from the current process and assigns it to a child
+// Unmaps memory pages from the current process and assigns them to a child
 // process that hasn't began executing. The memory is unmapped from this process
 // regardless of if this call succeeds. If the page already exists in the child
 // process, nothing is set.
-void SetChildProcessMemoryPage(ProcessId& child_pid, size_t source_address,
-                               size_t destination_address);
+void SetChildProcessMemoryPages(ProcessId& child_pid, size_t source_address,
+                                size_t destination_address, size_t page_count);
 
 // Creates a thread in the a child process. The child process will begin
 // executing and will no longer terminate if the creator terminates.
