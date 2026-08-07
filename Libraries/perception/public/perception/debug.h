@@ -20,11 +20,16 @@ namespace perception {
 
 class DebugPrinter {
  public:
+  DebugPrinter(int channel = 0);
+
   DebugPrinter& operator<<(char c);
   DebugPrinter& operator<<(size_t number);
   DebugPrinter& operator<<(int64 number);
   DebugPrinter& operator<<(const char* str);
   DebugPrinter& operator<<(bool b);
+
+ private:
+  int channel_;
 };
 
 extern DebugPrinter DebugPrinterSingleton;

@@ -20,12 +20,17 @@
 
 namespace perception {
 
+DebugPrinter::DebugPrinter(int channel) : channel_(channel) {}
+
 DebugPrinter& DebugPrinter::operator<<(char c) {
 #if defined(PERCEPTION) && !defined(TEST)
   register unsigned long long int syscall_num asm("rdi") = 0;
-  register unsigned long long int param asm("rax") = c;
+  register unsigned long long int param_c asm("rax") = c;
+  register unsigned long long int param_channel asm("rbx") = channel_;
 
-  __asm__("syscall\n" ::"r"(syscall_num), "r"(param) : "rcx", "r11");
+  __asm__("syscall\n"
+          ::"r"(syscall_num), "r"(param_c), "r"(param_channel)
+          : "rcx", "r11");
 #else
   std::cout << c;
 #endif
