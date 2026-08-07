@@ -60,41 +60,52 @@ void LoadSettingsJson(const std::string& path, RegistryCorpus corpus,
 
   try {
     json data = json::parse(file);
-    std::string ns_name;
-    if (data.contains("name") && data["name"].is_string())
-      ns_name = data["name"].get<std::string>();
+    std::vector<json> pages;
+    if (data.is_array()) {
+      for (const auto& item : data) {
+        if (item.is_object()) pages.push_back(item);
+      }
+    } else if (data.is_object()) {
+      pages.push_back(data);
+    }
 
-    if (ns_name.empty()) ns_name = std::string(dir_name);
+    for (const auto& page_obj : pages) {
+      std::string ns_name;
+      if (page_obj.contains("name") && page_obj["name"].is_string())
+        ns_name = page_obj["name"].get<std::string>();
 
-    if (data.contains("groups") && data["groups"].is_array()) {
-      for (const auto& gp : data["groups"]) {
-        if (gp.contains("settings") && gp["settings"].is_array()) {
-          for (const auto& st : gp["settings"]) {
-            std::string key;
-            if (st.contains("key") && st["key"].is_string())
-              key = st["key"].get<std::string>();
-            if (key.empty()) continue;
+      if (ns_name.empty()) ns_name = std::string(dir_name);
 
-            Value val;
-            if (st.contains("default")) val = JsonToValue(st["default"]);
+      if (page_obj.contains("groups") && page_obj["groups"].is_array()) {
+        for (const auto& gp : page_obj["groups"]) {
+          if (gp.contains("settings") && gp["settings"].is_array()) {
+            for (const auto& st : gp["settings"]) {
+              std::string key;
+              if (st.contains("key") && st["key"].is_string())
+                key = st["key"].get<std::string>();
+              if (key.empty()) continue;
 
-            if (st.contains("options") && st["options"].is_array() &&
-                val.GetType() == Value::Type::STRING) {
-              std::string default_str =
-                  std::string(val.StringValue().value_or(""));
-              for (const auto& opt : st["options"]) {
-                if (opt.is_object() && opt.contains("name") &&
-                    opt["name"].is_string() &&
-                    opt["name"].get<std::string>() == default_str &&
-                    opt.contains("value")) {
-                  val = JsonToValue(opt["value"]);
-                  break;
+              Value val;
+              if (st.contains("default")) val = JsonToValue(st["default"]);
+
+              if (st.contains("options") && st["options"].is_array() &&
+                  val.GetType() == Value::Type::STRING) {
+                std::string default_str =
+                    std::string(val.StringValue().value_or(""));
+                for (const auto& opt : st["options"]) {
+                  if (opt.is_object() && opt.contains("name") &&
+                      opt["name"].is_string() &&
+                      opt["name"].get<std::string>() == default_str &&
+                      opt.contains("value")) {
+                    val = JsonToValue(opt["value"]);
+                    break;
+                  }
                 }
               }
-            }
 
-            auto ns = ResolveNamespace(corpus, ns_name, 0);
-            if (ns->SetDefaultValue(key, val)) ns->NotifyListeners(key);
+              auto ns = ResolveNamespace(corpus, ns_name, 0);
+              if (ns->SetDefaultValue(key, val)) ns->NotifyListeners(key);
+            }
           }
         }
       }
