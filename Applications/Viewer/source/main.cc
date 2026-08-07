@@ -16,6 +16,7 @@
 #include <cctype>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -32,7 +33,9 @@
 #include "perception/ui/components/container.h"
 #include "perception/ui/components/image_view.h"
 #include "perception/ui/components/label.h"
+#include "perception/ui/components/markdown.h"
 #include "perception/ui/components/open_file_dialog.h"
+#include "perception/ui/components/scroll_container.h"
 #include "perception/ui/components/slider.h"
 #include "perception/ui/components/text_field.h"
 #include "perception/ui/components/ui_window.h"
@@ -55,6 +58,8 @@ using ::perception::ui::components::Block;
 using ::perception::ui::components::Container;
 using ::perception::ui::components::ImageView;
 using ::perception::ui::components::Label;
+using ::perception::ui::components::Markdown;
+using ::perception::ui::components::ScrollContainer;
 using ::perception::ui::components::Slider;
 using ::perception::ui::components::TextField;
 using ::perception::ui::components::UiWindow;
@@ -73,12 +78,7 @@ struct TtfViewerState {
 void ShowErrorDialog(std::string_view title, std::string_view message) {
   opened_instances++;
   auto window = UiWindow::DialogWithTitleBar(
-      title,
-      [](Layout& layout) {
-        layout.SetWidth(320.0f);
-        layout.SetHeight(140.0f);
-        layout.SetPadding(YGEdgeAll, 16.0f);
-      },
+      title, [](Layout& layout) { layout.SetWidth(320.0f); },
       [](UiWindow& window) {
         window.OnClose([]() {
           opened_instances--;
@@ -111,7 +111,7 @@ void OpenImage(std::string_view path) {
 
   opened_instances++;
 
-  auto window = UiWindow::ResizableWindow(
+  auto window = UiWindow::ResizableWindowWithTitleBar(
       path,
       [](Layout& layout) {
         layout.SetJustifyContent(YGJustifyCenter);
@@ -192,10 +192,61 @@ void OpenTtf(std::string_view path) {
   open_windows.push_back(window);
 }
 
+void OpenMarkdown(std::string_view path) {
+  std::ifstream file(std::string(path), std::ios::in | std::ios::binary);
+  if (!file.is_open()) {
+    ShowErrorDialog("Unsupported File", std::string("The file \"") +
+                                            std::string(path) +
+                                            "\" could not be opened.");
+    return;
+  }
+
+  std::string markdown_text((std::istreambuf_iterator<char>(file)),
+                            std::istreambuf_iterator<char>());
+
+  opened_instances++;
+
+  auto content = Markdown::GenerateNode(
+      markdown_text, [](Layout& layout) { layout.SetWidthPercent(100.0f); });
+
+  auto scroll_container = ScrollContainer::VerticalScrollContainer(content);
+
+  auto window = UiWindow::ResizableWindowWithTitleBar(
+      path,
+      [](Layout& layout) {
+        layout.SetWidth(600.0f);
+        layout.SetHeight(500.0f);
+      },
+      [](UiWindow& window) {
+        window.OnClose([]() {
+          opened_instances--;
+          if (opened_instances == 0) TerminateProcess();
+        });
+      },
+      scroll_container);
+  open_windows.push_back(window);
+}
+
 bool IsTtfFile(std::string_view path) {
   std::string ext = std::filesystem::path(path).extension().string();
   std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
   return ext == ".ttf";
+}
+
+bool IsMdFile(std::string_view path) {
+  std::string ext = std::filesystem::path(path).extension().string();
+  std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+  return ext == ".md";
+}
+
+void OpenFile(std::string_view path) {
+  if (IsTtfFile(path)) {
+    OpenTtf(path);
+  } else if (IsMdFile(path)) {
+    OpenMarkdown(path);
+  } else {
+    OpenImage(path);
+  }
 }
 
 }  // namespace
@@ -205,28 +256,17 @@ int main(int argc, char* argv[]) {
     ::perception::ui::components::ShowOpenFileDialog(
         [](bool succeeded, std::string_view path) {
           if (succeeded) {
-            if (IsTtfFile(path)) {
-              OpenTtf(path);
-            } else {
-              OpenImage(path);
-            }
-            if (opened_instances == 0) {
-              TerminateProcess();
-            }
+            OpenFile(path);
+            if (opened_instances == 0) TerminateProcess();
           } else {
             TerminateProcess();
           }
         },
         {".rgba", ".png", ".svg", ".bmp", ".jpg", ".jpeg", ".webp", ".gif",
-         ".ico", ".wbmp", ".ttf"},
+         ".ico", ".wbmp", ".ttf", ".md"},
         "", "Open File");
   } else {
-    std::string_view path = argv[1];
-    if (IsTtfFile(path)) {
-      OpenTtf(path);
-    } else {
-      OpenImage(path);
-    }
+    OpenFile(argv[1]);
   }
 
   HandOverControl();
