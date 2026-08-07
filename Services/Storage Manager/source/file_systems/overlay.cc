@@ -182,7 +182,7 @@ bool OverlayFileSystem::ForEachEntryInDirectory(
   };
   std::map<std::string, MergedEntry> merged_entries;
 
-  // 1. Read from base
+  // Read from base
   base_->ForEachEntryInDirectory(
       parent_dir, 0, 0,
       [&](std::string_view name, DirectoryEntry::Type type, size_t size,
@@ -196,7 +196,7 @@ bool OverlayFileSystem::ForEachEntryInDirectory(
         }
       });
 
-  // 2. Read from overlay (overrides base)
+  // Read from overlay (overrides base)
   overlay_->ForEachEntryInDirectory(
       parent_dir, 0, 0,
       [&](std::string_view name, DirectoryEntry::Type type, size_t size,

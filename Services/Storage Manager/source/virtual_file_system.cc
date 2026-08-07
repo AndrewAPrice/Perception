@@ -54,6 +54,7 @@ std::string first_mounted_file_system = "";
 std::vector<Fiber*> fibers_waiting_for_first_file_system;
 
 int next_optical_drive_index = 1;
+int next_hard_drive_index = 1;
 int next_unknown_device_index = 1;
 
 std::string GetMountNameForFileSystem(FileSystem& file_system) {
@@ -61,6 +62,11 @@ std::string GetMountNameForFileSystem(FileSystem& file_system) {
     case StorageDeviceType::OPTICAL: {
       std::string name = "Optical " + std::to_string(next_optical_drive_index);
       next_optical_drive_index++;
+      return name;
+    }
+    case StorageDeviceType::HARD_DRIVE: {
+      std::string name = "Drive " + std::to_string(next_hard_drive_index);
+      next_hard_drive_index++;
       return name;
     }
     case StorageDeviceType::RAM:
@@ -121,6 +127,10 @@ Status ExtractMountPointAndPath(std::string_view path,
     }
     mount_point = first_mounted_file_system;
     path_on_mount_point = path;
+
+    // Remove prefixed slash.
+    while (!path_on_mount_point.empty() && path_on_mount_point[0] == '/')
+      path_on_mount_point = path_on_mount_point.substr(1);
   }
 
   return Status::OK;

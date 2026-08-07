@@ -33,7 +33,7 @@ TEST(RamdiskFileOperations) {
   size_t size;
   ProcessId sender = 123;
 
-  // 1. Create file and write content
+  // Create file and write content
   {
     auto file_or = fs.OpenFile("test.txt", size, sender, true, true, true, false);
     ASSERT(true, file_or.Ok());
@@ -58,7 +58,7 @@ TEST(RamdiskFileOperations) {
     EXPECT(Status::OK, status);
   }
 
-  // 2. Open and read back content
+  // Open and read back content
   {
     auto file_read_or = fs.OpenFile("test.txt", size, sender, true, false, false, false);
     ASSERT(true, file_read_or.Ok());
@@ -94,14 +94,14 @@ TEST(RamdiskDirectoryAndDeletion) {
   // Verify initial instances
   int initial_instances = RamdiskFileContent::GetInstances();
 
-  // 1. Create directories
+  // Create directories
   Status status = fs.CreateDirectory("dir1", sender);
   EXPECT(Status::OK, status);
 
   status = fs.CreateDirectory("dir1/dir2", sender);
   EXPECT(Status::OK, status);
 
-  // 2. Create nested files inside a block so their unique_ptrs are destroyed
+  // Create nested files inside a block so their unique_ptrs are destroyed
   {
     size_t size;
     auto file1_or = fs.OpenFile("dir1/file1.txt", size, sender, true, true, true, false);
@@ -116,7 +116,8 @@ TEST(RamdiskDirectoryAndDeletion) {
   // Should have 2 file content instances now
   EXPECT(initial_instances + 2, RamdiskFileContent::GetInstances());
 
-  // 3. Delete non-empty directory dir1 (should recursively delete dir1/file1.txt, dir1/dir2, and dir1/dir2/file2.txt)
+  // Delete non-empty directory dir1 (should recursively delete dir1/file1.txt,
+  // dir1/dir2, and dir1/dir2/file2.txt)
   status = fs.DeleteFileOrDirectory("dir1", sender);
   EXPECT(Status::OK, status);
 
