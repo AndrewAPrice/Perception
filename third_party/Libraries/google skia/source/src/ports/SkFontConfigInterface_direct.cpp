@@ -210,6 +210,7 @@ bool SkFontConfigInterfaceDirect::matchFamilyName(const char familyName[],
       case FontData::Type::BUFFER:
         outIdentity->fIsBuffer = true;
         outIdentity->fBuffer = font_data.buffer;
+        outIdentity->fString = SkString(font_data.path);
         break;
       default:
         std::cout << "FontManager can't handle the FontData type "
