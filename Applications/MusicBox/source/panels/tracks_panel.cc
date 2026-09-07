@@ -76,6 +76,7 @@ void TracksPanel::BuildUI() {
           [](Layout& layout) {
             layout.SetAlignSelf(YGAlignStretch);
             layout.SetWidthPercent(100.0f);
+            layout.SetPadding(YGEdgeAll, 4.0f);
             layout.SetGap(4.0f);
           },
           &tracks_list_node_),
@@ -397,7 +398,8 @@ void TracksPanel::UpdateTrackListUI() {
                                     if (on_track_changed_) on_track_changed_();
                                   }
                                 }
-                              });
+                              },
+                              parent_window_.lock());
                         }
                       });
                 },
@@ -525,7 +527,7 @@ void TracksPanel::UpdateTrackListUI() {
                             })));
 
                 UiWindow::DialogWithTitleBar(
-                    "Delete Track",
+                    "Delete Track", UiWindow::Parent(parent_window_.lock()),
                     [close_dialog](UiWindow& window) {
                       window.OnClose([close_dialog]() { close_dialog(); });
                     },
@@ -599,7 +601,7 @@ void TracksPanel::UpdateTrackListUI() {
                   }
                 };
                 UiWindow::DialogWithTitleBar(
-                    "Clear Track",
+                    "Clear Track", UiWindow::Parent(parent_window_.lock()),
                     [close_dialog](UiWindow& window) {
                       window.OnClose([close_dialog]() { close_dialog(); });
                     },

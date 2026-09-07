@@ -248,7 +248,8 @@ void UpdateColorPickerUI(const std::shared_ptr<ColorPickerDialogState>& state,
 
 void ShowColorPickerDialog(
     std::string_view title, uint32 initial_color,
-    std::function<void(bool succeeded, uint32 color)> on_selected) {
+    std::function<void(bool succeeded, uint32 color)> on_selected,
+    std::shared_ptr<Node> parent_window) {
   auto state = std::make_shared<ColorPickerDialogState>();
   state->initial_color = initial_color | 0xFF000000;
   state->current_color = initial_color | 0xFF000000;
@@ -325,7 +326,7 @@ void ShowColorPickerDialog(
   }
 
   auto window_node = UiWindow::DialogWithTitleBar(
-      title,
+      title, UiWindow::Parent(parent_window),
       [state](UiWindow& window) {
         window.OnClose([state]() {
           ::perception::Defer([state]() {

@@ -117,9 +117,15 @@ class Table : public UniqueIdentifiableType<Table> {
                 [](Layout& layout) {
                   layout.SetFlexDirection(YGFlexDirectionColumn);
                   layout.SetWidthPercent(100.0f);
+                  layout.SetPadding(YGEdgeAll, 0.0f);
+                  layout.SetMargin(YGEdgeRight, kWidgetSpacing);
                 },
                 &rows_container),
-            [](Block& block) { block.SetFillColor(kTableBackgroundColor); },
+            [](Block& block) {
+              block.SetBorderWidth(0.0f);
+              block.SetBorderRadius(0.0f);
+              block.SetFillColor(kTableBackgroundColor);
+            },
             [](Layout& layout) {
               layout.SetFlexGrow(1.0f);
               layout.SetFlexShrink(1.0f);

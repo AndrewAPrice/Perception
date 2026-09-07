@@ -15,12 +15,16 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <string_view>
 
 #include "types.h"
 
 namespace perception {
 namespace ui {
+
+class Node;
+
 namespace components {
 
 // Shows a dialog where the user can select a color.
@@ -31,9 +35,12 @@ namespace components {
 // is ignored/forced to 0xFF).
 // - on_selected: Callback when a color is selected (with succeeded=true) or
 //                the dialog is closed/cancelled (with succeeded=false).
+// - parent_window: Optional parent window node. If provided, the parent window
+//                  will be disabled while this dialog is open.
 void ShowColorPickerDialog(
     std::string_view title, uint32 initial_color,
-    std::function<void(bool succeeded, uint32 color)> on_selected);
+    std::function<void(bool succeeded, uint32 color)> on_selected,
+    std::shared_ptr<Node> parent_window = nullptr);
 
 }  // namespace components
 }  // namespace ui

@@ -39,6 +39,24 @@ class InputBox : public UniqueIdentifiableType<InputBox> {
                        modifiers...);
   }
 
+  // A basic, single line, input box that updates the value of the string when
+  // the text changes.
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> BasicInputBox(
+      std::shared_ptr<std::string> mutable_text, Modifiers... modifiers) {
+    return Node::Empty(
+        [mutable_text](InputBox& input_box) {
+          input_box.SetText(*mutable_text);
+          input_box.OnTextChanged([mutable_text](std::string_view text) {
+            *mutable_text = std::string(text);
+          });
+          input_box.OnEnterPressed([mutable_text](std::string_view text) {
+            *mutable_text = std::string(text);
+          });
+        },
+        modifiers...);
+  }
+
   InputBox();
 
   void SetNode(std::weak_ptr<Node> node);

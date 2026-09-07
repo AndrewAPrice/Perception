@@ -15,6 +15,7 @@
 #include <memory>
 
 #include "perception/type_id.h"
+#include "perception/ui/components/block.h"
 #include "perception/ui/components/container.h"
 #include "perception/ui/components/scroll_bar.h"
 #include "perception/ui/layout.h"
@@ -33,14 +34,40 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
  public:
   ScrollContainer();
 
+  // Modifiers to override interior content padding.
+  static auto ContentPadding(float padding) {
+    return [padding](ScrollContainer& container) {
+      container.SetContentPadding(padding);
+    };
+  }
+
+  static auto ContentPadding(YGEdge edge, float padding) {
+    return [edge, padding](ScrollContainer& container) {
+      container.SetContentPadding(edge, padding);
+    };
+  }
+
+  static auto NoContentPadding() {
+    return
+        [](ScrollContainer& container) { container.SetContentPadding(0.0f); };
+  }
+
   template <typename... Modifiers>
   static std::shared_ptr<Node> BidirectionalScrollContainer(
       std::shared_ptr<Node> scroll_content, Modifiers... modifiers) {
     std::shared_ptr<Node> scroll_container_node;
     std::shared_ptr<ScrollBar> horizontal_scroll_bar, vertical_scroll_bar;
 
+    ApplyDefaultPadding(scroll_content);
+
     auto node = Container::HorizontalContainer(
-        modifiers...,
+        [](Block& block) {
+          block.SetFillColor(kScrollContainerBackgroundColor);
+          block.SetBorderColor(kScrollContainerBorderColor);
+          block.SetBorderWidth(kScrollContainerBorderWidth);
+          block.SetBorderRadius(kScrollContainerBorderRadius);
+          block.SetClipContents(true);
+        },
         [&](ScrollContainer& container) {
           container.SetContentAndContainerNodes(scroll_content,
                                                 scroll_container_node);
@@ -66,11 +93,9 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
                 },
                 &scroll_container_node, scroll_content),
             ScrollBar::HorizontalScrollBar(&horizontal_scroll_bar)),
-        ScrollBar::VerticalScrollBar(&vertical_scroll_bar));
+        ScrollBar::VerticalScrollBar(&vertical_scroll_bar), modifiers...);
 
     scroll_content->GetLayout().SetFlexShrink(0.0f);
-    scroll_content->GetLayout().SetMargin(YGEdgeRight, kWidgetSpacing);
-    scroll_content->GetLayout().SetMargin(YGEdgeBottom, kWidgetSpacing);
     node->GetLayout().SetMinHeight(0.0f);
     node->GetLayout().SetMinWidth(0.0f);
     node->GetLayout().SetFlexShrink(1.0f);
@@ -84,17 +109,22 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
     std::shared_ptr<Node> scroll_container_node;
     std::shared_ptr<ScrollBar> vertical_scroll_bar;
 
+    ApplyDefaultPadding(scroll_content);
+
     auto node = Container::HorizontalContainer(
-        modifiers...,
+        [](Block& block) {
+          block.SetFillColor(kScrollContainerBackgroundColor);
+          block.SetBorderColor(kScrollContainerBorderColor);
+          block.SetBorderWidth(kScrollContainerBorderWidth);
+          block.SetBorderRadius(kScrollContainerBorderRadius);
+          block.SetClipContents(true);
+        },
         [&](ScrollContainer& container) {
           container.SetContentAndContainerNodes(scroll_content,
                                                 scroll_container_node);
           container.SetVerticalScrollBar(vertical_scroll_bar);
         },
-        [](Layout& layout) {
-          layout.SetGap(0.0f);
-          layout.SetPadding(YGEdgeBottom, kWidgetSpacing);
-        },
+        [](Layout& layout) { layout.SetGap(0.0f); },
         Node::Empty(
             [](Layout& layout) {
               layout.SetOverflow(YGOverflowScroll);
@@ -103,10 +133,9 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
               layout.SetMinHeight(0.0f);
             },
             &scroll_container_node, scroll_content),
-        ScrollBar::VerticalScrollBar(&vertical_scroll_bar));
+        ScrollBar::VerticalScrollBar(&vertical_scroll_bar), modifiers...);
 
     scroll_content->GetLayout().SetFlexShrink(0.0f);
-    scroll_content->GetLayout().SetMargin(YGEdgeRight, kWidgetSpacing);
     node->GetLayout().SetMinHeight(0.0f);
     node->GetLayout().SetFlexShrink(1.0f);
 
@@ -119,17 +148,22 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
     std::shared_ptr<Node> scroll_container_node;
     std::shared_ptr<ScrollBar> horizontal_scroll_bar;
 
+    ApplyDefaultPadding(scroll_content);
+
     auto node = Container::VerticalContainer(
-        modifiers...,
+        [](Block& block) {
+          block.SetFillColor(kScrollContainerBackgroundColor);
+          block.SetBorderColor(kScrollContainerBorderColor);
+          block.SetBorderWidth(kScrollContainerBorderWidth);
+          block.SetBorderRadius(kScrollContainerBorderRadius);
+          block.SetClipContents(true);
+        },
         [&](ScrollContainer& container) {
           container.SetContentAndContainerNodes(scroll_content,
                                                 scroll_container_node);
           container.SetHorizontalScrollBar(horizontal_scroll_bar);
         },
-        [](Layout& layout) {
-          layout.SetGap(0.0f);
-          layout.SetPadding(YGEdgeRight, kWidgetSpacing);
-        },
+        [](Layout& layout) { layout.SetGap(0.0f); },
         Node::Empty(
             [](Layout& layout) {
               layout.SetOverflow(YGOverflowScroll);
@@ -138,10 +172,9 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
               layout.SetMinWidth(0.0f);
             },
             &scroll_container_node, scroll_content),
-        ScrollBar::HorizontalScrollBar(&horizontal_scroll_bar));
+        ScrollBar::HorizontalScrollBar(&horizontal_scroll_bar), modifiers...);
 
     scroll_content->GetLayout().SetFlexShrink(0.0f);
-    scroll_content->GetLayout().SetMargin(YGEdgeBottom, kWidgetSpacing);
     node->GetLayout().SetMinWidth(0.0f);
     node->GetLayout().SetFlexShrink(1.0f);
 
@@ -149,6 +182,10 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
   }
 
   void SetNode(std::weak_ptr<Node> node);
+
+  // Sets the padding on the interior content.
+  void SetContentPadding(float padding);
+  void SetContentPadding(YGEdge edge, float padding);
 
   void SetContentPosition(const Point& position);
   Point ContentPosition();
@@ -175,6 +212,7 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
   void UpdateScrollBars();
   void MoveContentToScrollBarPosition();
   float GetScrollBarValue(int dimension);
+  static void ApplyDefaultPadding(std::shared_ptr<Node> scroll_content);
 };
 
 }  // namespace components

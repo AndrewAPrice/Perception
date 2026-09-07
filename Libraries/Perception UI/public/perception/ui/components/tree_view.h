@@ -63,7 +63,6 @@ class TreeView : public UniqueIdentifiableType<TreeView>,
           layout.SetFlexShrink(1.0f);
           layout.SetMinHeight(0.0f);
         },
-        [](Block& block) { block.SetFillColor(kTreeViewBackgroundColor); },
         [content](TreeView& tv) { tv.content_container_ = content; },
         modifiers...);
 

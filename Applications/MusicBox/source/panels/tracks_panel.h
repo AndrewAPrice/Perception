@@ -35,6 +35,10 @@ class TracksPanel {
     undo_manager_ = undo_manager;
   }
 
+  void SetParentWindow(std::shared_ptr<perception::ui::Node> parent_window) {
+    parent_window_ = parent_window;
+  }
+
   std::shared_ptr<perception::ui::Node> GetNode() const { return panel_node_; }
 
   void UpdateTrackListUI();
@@ -45,6 +49,7 @@ class TracksPanel {
 
   TrackManager& track_manager_;
   UndoManager* undo_manager_ = nullptr;
+  std::weak_ptr<perception::ui::Node> parent_window_;
   std::function<void()> on_track_changed_;
 
   std::shared_ptr<perception::ui::Node> panel_node_;

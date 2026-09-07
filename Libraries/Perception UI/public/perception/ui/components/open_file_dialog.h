@@ -15,12 +15,16 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace perception {
 namespace ui {
+
+class Node;
+
 namespace components {
 
 // Shows an dialog where the user can select which file to open.
@@ -43,11 +47,14 @@ namespace components {
 //                      of the last successfully opened file in subsequent
 //                      instances.
 // - title: Optional window title for the dialog (e.g. "Open Image").
+// - parent_window: Optional parent window node. If provided, the parent window
+//                  will be disabled while this dialog is open.
 void ShowOpenFileDialog(
     std::function<void(bool succeeded, std::string_view path)> on_open_file,
     const std::vector<std::string>& extensions_to_filter = {},
     std::string_view default_directory = "",
-    std::string_view title = "Open File");
+    std::string_view title = "Open File",
+    std::shared_ptr<Node> parent_window = nullptr);
 
 }  // namespace components
 }  // namespace ui

@@ -50,7 +50,11 @@ void Tooltip::SetNode(std::weak_ptr<Node> node) {
   strong_node->OnMouseLeave([this]() { HideTooltip(); });
 }
 
-void Tooltip::SetText(std::string_view text) { text_ = text; }
+void Tooltip::SetText(std::string_view text) {
+  if (text_ == text) return;
+  text_ = text;
+  if (tooltip_overlay_) HideTooltip();
+}
 
 std::string_view Tooltip::GetText() const { return text_; }
 
@@ -59,10 +63,10 @@ void Tooltip::ShowTooltipAt(const Point& mouse_pos) {
   auto strong_node = node_.lock();
 
   if (auto active = active_tooltip_.lock()) {
-    if (active.get() != this) {
-      active->HideTooltip();
-    }
+    if (active.get() != this) active->HideTooltip();
   }
+
+  if (tooltip_overlay_) return;
 
   // Walk up to root node
   std::shared_ptr<Node> root = strong_node;
@@ -74,10 +78,6 @@ void Tooltip::ShowTooltipAt(const Point& mouse_pos) {
 
   Point target_abs = strong_node->GetAbsolutePosition();
   Point abs_mouse_pos = target_abs + mouse_pos;
-
-  if (tooltip_overlay_) {
-    HideTooltip();
-  }
 
   if (!tooltip_overlay_) {
     // Create tooltip content node first to measure its size.

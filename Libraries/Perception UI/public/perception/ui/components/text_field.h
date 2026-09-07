@@ -48,9 +48,14 @@ class TextField : public UniqueIdentifiableType<TextField> {
         [](Layout& layout) {
           layout.SetMinHeightPercent(100.0f);
           layout.SetMinWidthPercent(100.0f);
+          layout.SetPadding(YGEdgeAll, 0.0f);
         });
     auto node = ScrollContainer::BidirectionalScrollContainer(
         inner_node,
+        [](Block& block) {
+          block.SetBorderWidth(0.0f);
+          block.SetFillColor(0);
+        },
         [](Layout& layout) { layout.SetPadding(YGEdgeAll, kTextFieldPadding); },
         [text, inner_node](TextField& text_field) {
           text_field.SetInnerNode(inner_node);

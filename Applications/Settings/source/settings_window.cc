@@ -484,6 +484,7 @@ void InitializeSettingsWindow() {
   right_container = Container::VerticalContainer([](Layout& layout) {
     layout.SetAlignItems(YGAlignStretch);
     layout.SetMinWidth(520.0f);
+    layout.SetPadding(YGEdgeAll, 8.0f);
   });
 
   right_scroll_node = ScrollContainer::BidirectionalScrollContainer(

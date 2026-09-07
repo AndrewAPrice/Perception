@@ -45,7 +45,6 @@
 #include "perception/window/mouse_button.h"
 
 using ::perception::ui::GetBold12UiFont;
-using ::perception::ui::GetBook12UiFont;
 using ::perception::ui::Layout;
 using ::perception::ui::Node;
 using ::perception::ui::Point;
@@ -294,7 +293,6 @@ void NavigateTo(const std::shared_ptr<OpenFileDialogState>& state,
               [](Label& label) {
                 label.SetTextAlignment(TextAlignment::MiddleLeft);
                 label.SetColor(0xFF1F2937);
-                label.SetFont(GetBook12UiFont());
               }));
 
       row_widgets.push_back(row);
@@ -350,7 +348,8 @@ void HandleCallback(const std::shared_ptr<OpenFileDialogState>& state,
 void ShowOpenFileDialog(
     std::function<void(bool succeeded, std::string_view path)> on_open_file,
     const std::vector<std::string>& extensions_to_filter,
-    std::string_view default_directory, std::string_view title) {
+    std::string_view default_directory, std::string_view title,
+    std::shared_ptr<Node> parent_window) {
   auto state = std::make_shared<OpenFileDialogState>();
   state->on_open_file = on_open_file;
   state->completed = std::make_shared<bool>(false);
@@ -477,12 +476,6 @@ void ShowOpenFileDialog(
                 layout.SetGap(2.0f);
               },
               &state->files_list_container),
-          [](Block& block) {
-            block.SetFillColor(0xFFFFFFFF);
-            block.SetBorderColor(0xFFD1D5DB);
-            block.SetBorderWidth(1.0f);
-            block.SetBorderRadius(8.0f);
-          },
           [](Layout& layout) {
             layout.SetFlexGrow(1.0f);
             layout.SetFlexShrink(1.0f);
@@ -504,7 +497,6 @@ void ShowOpenFileDialog(
               [](Label& label) {
                 label.SetTextAlignment(TextAlignment::MiddleLeft);
                 label.SetColor(0xFF6B7280);
-                label.SetFont(GetBook12UiFont());
               },
               &state->status_label),
           Container::HorizontalContainer(
@@ -542,7 +534,7 @@ void ShowOpenFileDialog(
                   &state->open_button))));
 
   auto window_node = UiWindow::DialogWithTitleBar(
-      title,
+      title, UiWindow::Parent(parent_window),
       [state](UiWindow& window) {
         window.OnClose([state]() {
           ::perception::Defer([state]() { HandleCallback(state, false, ""); });

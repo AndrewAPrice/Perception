@@ -159,7 +159,8 @@ void ComboBox::OpenDropdown() {
     } else {
       items.push_back(PopUpMenu::DropDownItem(opt.text, [this, i]() {
         SetSelection(i);
-        for (const auto& cb : on_change_) {
+        auto callbacks = on_change_;
+        for (const auto& cb : callbacks) {
           cb(i);
         }
       }));

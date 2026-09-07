@@ -25,10 +25,35 @@ template class UniqueIdentifiableType<ui::components::ScrollContainer>;
 
 namespace ui {
 namespace components {
+namespace {
+
+// Checks if any padding has been explicitly set on the layout.
+inline bool HasExplicitPadding(Layout layout) {
+  return layout.GetPadding(YGEdgeAll).unit != YGUnitUndefined ||
+         layout.GetPadding(YGEdgeTop).unit != YGUnitUndefined ||
+         layout.GetPadding(YGEdgeBottom).unit != YGUnitUndefined ||
+         layout.GetPadding(YGEdgeLeft).unit != YGUnitUndefined ||
+         layout.GetPadding(YGEdgeRight).unit != YGUnitUndefined ||
+         layout.GetPadding(YGEdgeHorizontal).unit != YGUnitUndefined ||
+         layout.GetPadding(YGEdgeVertical).unit != YGUnitUndefined ||
+         layout.GetPadding(YGEdgeStart).unit != YGUnitUndefined ||
+         layout.GetPadding(YGEdgeEnd).unit != YGUnitUndefined;
+}
+}  // namespace
 
 ScrollContainer::ScrollContainer() : has_calculated_content_size_(false) {}
 
 void ScrollContainer::SetNode(std::weak_ptr<Node> node) {}
+
+void ScrollContainer::SetContentPadding(float padding) {
+  if (auto content = scroll_content_.lock())
+    content->GetLayout().SetPadding(YGEdgeAll, padding);
+}
+
+void ScrollContainer::SetContentPadding(YGEdge edge, float padding) {
+  if (auto content = scroll_content_.lock())
+    content->GetLayout().SetPadding(edge, padding);
+}
 
 void ScrollContainer::SetContentPosition(const Point& position) {
   auto scroll_container = scroll_container_.lock();
@@ -182,6 +207,14 @@ void ScrollContainer::MoveContentToScrollBarPosition() {
 float ScrollContainer::GetScrollBarValue(int dimension) {
   auto scroll_bar = scroll_bars_[dimension].lock();
   return scroll_bar ? scroll_bar->GetValue() : 0.0f;
+}
+
+// Applies default padding to interior scroll content if not explicitly set.
+void ScrollContainer::ApplyDefaultPadding(
+    std::shared_ptr<Node> scroll_content) {
+  if (!scroll_content) return;
+  if (!HasExplicitPadding(scroll_content->GetLayout()))
+    scroll_content->GetLayout().SetPadding(YGEdgeAll, kScrollContainerPadding);
 }
 
 }  // namespace components

@@ -27,6 +27,7 @@ namespace components {
 
 Checkbox::Checkbox()
     : checked_(false),
+      is_enabled_(true),
       is_hovering_(false),
       is_pushed_(false) {}
 
@@ -35,30 +36,39 @@ void Checkbox::SetNode(std::weak_ptr<Node> node) {
   if (node_.expired()) return;
   auto strong_node = node_.lock();
 
+  strong_node->SetCursor(is_enabled_ ? window::Cursor::Poke
+                                     : window::Cursor::Pointer);
+
   strong_node->OnMouseHover([this](const Point&) {
-    if (is_hovering_) return;
+    if (!is_enabled_ || is_hovering_)
+      return;
     is_hovering_ = true;
     UpdateVisuals();
   });
 
   strong_node->OnMouseLeave([this]() {
-    if (!is_hovering_ && !is_pushed_) return;
+    if (!is_hovering_ && !is_pushed_)
+      return;
     is_hovering_ = false;
     is_pushed_ = false;
     UpdateVisuals();
   });
 
-  strong_node->OnMouseButtonDown([this](const Point&, window::MouseButton button) {
-    if (button != window::MouseButton::Left || is_pushed_) return;
-    is_pushed_ = true;
-    UpdateVisuals();
-  });
+  strong_node->OnMouseButtonDown(
+      [this](const Point&, window::MouseButton button) {
+        if (!is_enabled_ || button != window::MouseButton::Left || is_pushed_)
+          return;
+        is_pushed_ = true;
+        UpdateVisuals();
+      });
 
-  strong_node->OnMouseButtonUp([this](const Point&, window::MouseButton button) {
-    if (button != window::MouseButton::Left || !is_pushed_) return;
-    is_pushed_ = false;
-    Toggle();
-  });
+  strong_node->OnMouseButtonUp(
+      [this](const Point&, window::MouseButton button) {
+        if (!is_enabled_ || button != window::MouseButton::Left || !is_pushed_)
+          return;
+        is_pushed_ = false;
+        Toggle();
+      });
 
   UpdateVisuals();
 }
@@ -76,6 +86,22 @@ void Checkbox::SetChecked(bool checked) {
   checked_ = checked;
   UpdateVisuals();
   for (auto& handler : on_toggle_handlers_) handler(checked_);
+}
+
+bool Checkbox::IsEnabled() const {
+  return is_enabled_;
+}
+
+void Checkbox::SetEnabled(bool enabled) {
+  if (is_enabled_ == enabled)
+    return;
+  is_enabled_ = enabled;
+  if (!node_.expired()) {
+    auto strong_node = node_.lock();
+    strong_node->SetCursor(is_enabled_ ? window::Cursor::Poke
+                                       : window::Cursor::Pointer);
+  }
+  UpdateVisuals();
 }
 
 void Checkbox::OnToggle(std::function<void(bool)> on_toggle) {
@@ -99,11 +125,18 @@ void Checkbox::UpdateVisuals() {
   if (!indicator_) return;
 
   auto block = indicator_->GetOrAdd<components::Block>();
-  block->SetFillColor(GetFillColor());
+  if (is_enabled_) {
+    block->SetFillColor(GetFillColor());
+    block->SetBorderColor(kButtonOutlineColor);
+  } else {
+    block->SetFillColor(kCheckboxDisabledBackgroundColor);
+    block->SetBorderColor(kCheckboxDisabledBorderColor);
+  }
 
   if (marker_) {
     auto marker_block = marker_->GetOrAdd<components::Block>();
-    marker_block->SetFillColor(kButtonTextColor);
+    marker_block->SetFillColor(is_enabled_ ? kButtonTextColor
+                                           : kCheckboxDisabledMarkerColor);
 
     bool has_marker = false;
     for (auto& child : indicator_->GetChildren()) {
@@ -121,9 +154,18 @@ void Checkbox::UpdateVisuals() {
       indicator_->Invalidate();
     }
   }
+
+  if (label_) {
+    auto label_comp = label_->Get<components::Label>();
+    if (label_comp)
+      label_comp->SetColor(is_enabled_ ? kCheckboxTextColor
+                                       : kCheckboxDisabledTextColor);
+  }
 }
 
 void Checkbox::Toggle() {
+  if (!is_enabled_)
+    return;
   SetChecked(!checked_);
 }
 

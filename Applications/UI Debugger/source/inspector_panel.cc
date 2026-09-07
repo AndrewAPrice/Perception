@@ -64,6 +64,7 @@ InspectorPanel::InspectorPanel(OnTweakPropertyFunc on_tweak_property)
 
   inspector_container_ = Container::VerticalContainer([](Layout& layout) {
     layout.SetWidthPercent(100.0f);
+    layout.SetPadding(YGEdgeAll, 8.0f);
     layout.SetGap(12.0f);
   });
 

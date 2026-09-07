@@ -13,6 +13,8 @@
 // limitations under the License.
 #include "perception/ui/components/block.h"
 
+#include <cmath>
+
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
 #include "include/core/SkPaint.h"
@@ -123,6 +125,10 @@ void Block::Draw(const DrawContext& draw_context) {
   const float& width = draw_context.area.size.width;
   const float& height = draw_context.area.size.height;
 
+  if (width <= 0.0f || height <= 0.0f || !std::isfinite(width) || !std::isfinite(height) ||
+      !std::isfinite(x) || !std::isfinite(y))
+    return;
+
   if (clip_contents_) {
     draw_context.skia_canvas->save();
     SkPath path = SkPath::RRect({x, y, x + width, y + height}, border_radius_,
@@ -149,13 +155,17 @@ void Block::Draw(const DrawContext& draw_context) {
 void Block::DrawPostChildren(const DrawContext& draw_context) {
   if (clip_contents_) draw_context.skia_canvas->restore();
   if (border_color_ && border_width_ > 0) {
-    SkPaint p;
-    if (image_effect_) p.setImageFilter(image_effect_->GetSkiaImageFilter());
-
     const float& x = draw_context.area.origin.x;
     const float& y = draw_context.area.origin.y;
     const float& width = draw_context.area.size.width;
     const float& height = draw_context.area.size.height;
+
+    if (width <= 0.0f || height <= 0.0f || !std::isfinite(width) || !std::isfinite(height) ||
+        !std::isfinite(x) || !std::isfinite(y))
+      return;
+
+    SkPaint p;
+    if (image_effect_) p.setImageFilter(image_effect_->GetSkiaImageFilter());
 
     // Draw the outline.
     p.setAntiAlias(true);

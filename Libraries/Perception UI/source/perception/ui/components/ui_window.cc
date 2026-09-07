@@ -159,6 +159,7 @@ UiWindow::UiWindow()
 }
 
 UiWindow::~UiWindow() {
+  Close();
   std::scoped_lock lock(GetGlobalColorSpaceMutex());
   GetOpenUiWindows().erase(this);
 }
@@ -224,6 +225,21 @@ void UiWindow::OnGlobalEnvironmentChanged(sk_sp<SkColorSpace> new_color_space,
     }
     window->InvalidateRender();
   }
+}
+
+void UiWindow::SetParent(std::shared_ptr<UiWindow> parent_window) {
+  std::scoped_lock lock(window_mutex_);
+  parent_ui_window_ = parent_window;
+}
+
+void UiWindow::SetParent(std::shared_ptr<Node> parent_window_node) {
+  if (!parent_window_node) return;
+  SetParent(parent_window_node->Get<UiWindow>());
+}
+
+std::shared_ptr<window::Window> UiWindow::GetBaseWindow() const {
+  std::scoped_lock lock(window_mutex_);
+  return base_window_;
 }
 
 void UiWindow::SetNode(std::weak_ptr<Node> node) {
@@ -356,7 +372,8 @@ void UiWindow::KeyReleased(const window::KeyboardKeyEvent& event) {
 void UiWindow::WindowClosed() {
   std::scoped_lock lock(window_mutex_);
   base_window_.reset();
-  for (auto& handler : on_close_functions_) handler();
+  auto handlers = std::move(on_close_functions_);
+  for (auto& handler : handlers) handler();
 }
 
 void UiWindow::WindowResized() {
@@ -707,7 +724,12 @@ void UiWindow::Create() {
   if (node_.expired()) return;
   auto strong_node = node_.lock();
 
-  window::Window::CreationOptions options{.title = title_,
+  std::shared_ptr<window::Window> parent_base_window;
+  if (auto parent_ui = parent_ui_window_.lock())
+    parent_base_window = parent_ui->GetBaseWindow();
+
+  window::Window::CreationOptions options{.parent_window = parent_base_window,
+                                          .title = title_,
                                           .is_resizable = is_resizable_,
                                           .is_double_buffered = true};
 
@@ -760,13 +782,18 @@ void UiWindow::HandleMouseEvent(
         on_each_node) {
   std::set<std::weak_ptr<Node>, NodeWeakPtrComparator>
       new_nodes_to_notify_when_mouse_leaves;
+  std::vector<std::pair<std::shared_ptr<Node>, Point>> hit_nodes;
 
-  GetNodesAt(point, [&new_nodes_to_notify_when_mouse_leaves, &on_each_node,
+  GetNodesAt(point, [&new_nodes_to_notify_when_mouse_leaves, &hit_nodes,
                      this](Node& node, const Point& point_in_node) {
-    on_each_node(node, point_in_node);
+    hit_nodes.push_back({node.ToSharedPtr(), point_in_node});
     if (node.DoesHandleMouseLeaveEvents())
       new_nodes_to_notify_when_mouse_leaves.insert(node.ToSharedPtr());
   });
+
+  for (const auto& [node, point_in_node] : hit_nodes) {
+    on_each_node(*node, point_in_node);
+  }
 
   for (std::weak_ptr<Node> node : nodes_to_notify_when_mouse_leaves_) {
     if (new_nodes_to_notify_when_mouse_leaves.count(node) == 0) {

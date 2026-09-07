@@ -110,8 +110,26 @@ class UiWindow : public window::WindowDelegate,
     return std::move(window);
   }
 
+  // Modifier to assign a parent window.
+  static auto Parent(std::shared_ptr<UiWindow> parent_window) {
+    return [parent_window](UiWindow& window) {
+      window.SetParent(parent_window);
+    };
+  }
+
+  // Modifier to assign a parent window from a Node containing UiWindow.
+  static auto Parent(std::shared_ptr<Node> parent_window_node) {
+    return [parent_window_node](UiWindow& window) {
+      window.SetParent(parent_window_node);
+    };
+  }
+
   UiWindow();
   virtual ~UiWindow();
+
+  void SetParent(std::shared_ptr<UiWindow> parent_window);
+  void SetParent(std::shared_ptr<Node> parent_window_node);
+  std::shared_ptr<window::Window> GetBaseWindow() const;
 
   void SetNode(std::weak_ptr<Node> node);
   void SetBackgroundColor(uint32 background_color);
@@ -196,6 +214,7 @@ class UiWindow : public window::WindowDelegate,
   void Create();
 
   std::shared_ptr<window::Window> base_window_;
+  std::weak_ptr<UiWindow> parent_ui_window_;
   std::weak_ptr<Node> node_;
 
   std::string title_;

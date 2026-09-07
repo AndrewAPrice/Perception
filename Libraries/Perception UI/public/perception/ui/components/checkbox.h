@@ -93,6 +93,12 @@ class Checkbox : public UniqueIdentifiableType<Checkbox> {
   bool IsChecked() const;
   void SetChecked(bool checked);
 
+  // Returns whether the checkbox is interactive.
+  bool IsEnabled() const;
+
+  // Sets whether the checkbox is interactive.
+  void SetEnabled(bool enabled);
+
   void OnToggle(std::function<void(bool)> on_toggle);
 
  private:
@@ -102,6 +108,7 @@ class Checkbox : public UniqueIdentifiableType<Checkbox> {
   std::shared_ptr<Node> label_;
 
   bool checked_;
+  bool is_enabled_;
   bool is_hovering_;
   bool is_pushed_;
   std::vector<std::function<void(bool)>> on_toggle_handlers_;

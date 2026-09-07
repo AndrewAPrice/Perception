@@ -55,7 +55,6 @@ using ::perception::Loader;
 using ::perception::TerminateProcess;
 using ::perception::ui::CreateFileIcon;
 using ::perception::ui::GetBold12UiFont;
-using ::perception::ui::GetBook12UiFont;
 using ::perception::ui::kTextBoxTextColor;
 using ::perception::ui::Layout;
 using ::perception::ui::Node;
@@ -365,7 +364,6 @@ void NavigateTo(const std::string& path) {
               [](Label& label) {
                 label.SetTextAlignment(TextAlignment::MiddleLeft);
                 label.SetColor(0xFF1F2937);
-                label.SetFont(GetBook12UiFont());
               }),
           Label::BasicLabel(
               size_str,
@@ -376,7 +374,6 @@ void NavigateTo(const std::string& path) {
               [](Label& label) {
                 label.SetTextAlignment(TextAlignment::MiddleRight);
                 label.SetColor(0xFF6B7280);
-                label.SetFont(GetBook12UiFont());
               }));
 
       row_widgets.push_back(row);
@@ -527,12 +524,6 @@ int main(int argc, char* argv[]) {
                           }
                         });
                   }),
-              [](Block& block) {
-                block.SetFillColor(0xFFFFFFFF);
-                block.SetBorderColor(0xFFD1D5DB);
-                block.SetBorderWidth(1.0f);
-                block.SetBorderRadius(8.0f);
-              },
               [](Layout& layout) {
                 layout.SetFlexGrow(1.0f);
                 layout.SetFlexShrink(1.0f);
@@ -546,7 +537,6 @@ int main(int argc, char* argv[]) {
               [](Label& label) {
                 label.SetTextAlignment(TextAlignment::MiddleLeft);
                 label.SetColor(0xFF6B7280);
-                label.SetFont(GetBook12UiFont());
               },
               &status_label)));
 

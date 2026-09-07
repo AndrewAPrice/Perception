@@ -136,7 +136,6 @@ void AddToHistory(const std::string& expression, const std::string& result) {
           result,
           [](Label& label) {
             label.SetTextAlignment(TextAlignment::MiddleRight);
-            label.SetFont(GetBook12UiFont());
           },
           [](Layout& layout) { layout.SetAlignSelf(YGAlignStretch); }));
 
@@ -273,10 +272,15 @@ int main(int argc, char* argv[]) {
 
   std::shared_ptr<Node> history_scroll_container =
       ScrollContainer::VerticalScrollContainer(
-          history_content, &history_scroll_view, [](Layout& layout) {
+          history_content, &history_scroll_view,
+          [](Block& block) {
+            block.SetBorderWidth(0.0f);
+            block.SetBorderRadius(0.0f);
+            block.SetFillColor(kTerminalBackgroundColor);
+          },
+          [](Layout& layout) {
             layout.SetFlexGrow(1.0f);
             layout.SetAlignSelf(YGAlignStretch);
-            layout.SetPadding(YGEdgeAll, 8.0f);
           });
 
   auto terminal_container = Block::SolidColor(
