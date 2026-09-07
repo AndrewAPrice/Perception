@@ -258,12 +258,60 @@ StatusOr<std::shared_ptr<Window>> Window::CreateWindow(
 
   window->CommonInit();
 
+  if (request.parent_window) {
+    auto parent = GetWindowWithListener(request.parent_window);
+    if (parent) {
+      window->parent_window_ = parent;
+      parent->child_windows_.push_back(window);
+      parent->title_bar_texture_dirty_ = true;
+      parent->Invalidate();
+    }
+  }
+
   windows_by_listeners[request.window] = window;
   if (request.window) {
     ::perception::ProcessId pid = request.window.ServerProcessId();
     if (pid != 0) process_window_trackers[pid].window_count++;
   }
   return window;
+}
+
+bool Window::HasModalChild() const {
+  for (const auto& weak_child : child_windows_) {
+    if (auto child = weak_child.lock()) {
+      if (child->IsVisible() && !child->is_closed_) return true;
+    }
+  }
+  return false;
+}
+
+Window* Window::GetTopmostModalChild() {
+  for (auto it = child_windows_.rbegin(); it != child_windows_.rend(); ++it) {
+    if (auto child = it->lock()) {
+      if (child->IsVisible() && !child->is_closed_) {
+        if (child->HasModalChild()) return child->GetTopmostModalChild();
+        return child.get();
+      }
+    }
+  }
+  return this;
+}
+
+void Window::RemoveChildWindow(Window* child) {
+  for (auto it = child_windows_.begin(); it != child_windows_.end();) {
+    if (auto locked = it->lock()) {
+      if (locked.get() == child) {
+        it = child_windows_.erase(it);
+        continue;
+      }
+    } else {
+      it = child_windows_.erase(it);
+      continue;
+    }
+    ++it;
+  }
+  title_bar_texture_dirty_ = true;
+  Invalidate();
 }
 
 Window::~Window() {
@@ -327,7 +375,7 @@ void Window::SetCursor(::perception::window::Cursor cursor) {
 
     if (window.is_fullscreen_) {
       hit_area = screen_area;
-    } else if (window.is_resizable_) {
+    } else if (window.is_resizable_ && !window.HasModalChild()) {
       hit_area = {.origin = screen_area.origin -
                             Point{kDragBorder / 2.0f, kDragBorder / 2.0f},
                   .size = screen_area.size + Size{kDragBorder, kDragBorder}};
@@ -339,6 +387,11 @@ void Window::SetCursor(::perception::window::Cursor cursor) {
     }
 
     if (!hit_area.Contains(point)) return false;  // Keep looking.
+
+    if (window.HasModalChild()) {
+      cursor = ::perception::window::Cursor::Pointer;
+      return true;
+    }
 
     if (window.IsDebugging()) {
       cursor = ::perception::window::Cursor::Pointer;
@@ -422,7 +475,19 @@ std::shared_ptr<Window> Window::GetDebuggingWindowForSender(
   return nullptr;
 }
 
+const BaseWindow::Client& Window::GetWindowListener() const {
+  return window_listener_;
+}
+
 void Window::Focus() {
+  if (HasModalChild()) {
+    auto* modal_child = GetTopmostModalChild();
+    if (modal_child && modal_child != this) {
+      modal_child->Focus();
+      return;
+    }
+  }
+
   if (IsFocused() || !IsVisible()) return;
 
   // There's a different focused window.
@@ -430,6 +495,13 @@ void Window::Focus() {
 
   focused_window = this;
   title_bar_texture_dirty_ = true;
+
+  if (auto parent = parent_window_.lock()) {
+    if (parent->IsVisible()) {
+      z_ordered_windows_.Remove(parent.get());
+      z_ordered_windows_.AddBack(parent.get());
+    }
+  }
 
   z_ordered_windows_.Remove(this);
   z_ordered_windows_.AddBack(this);
@@ -457,7 +529,25 @@ void Window::Close() {
   is_closed_ = true;
 
   if (captive_mouse_window == this) SetCaptureMouse(false);
+
+  auto children_copy = child_windows_;
+  for (auto& weak_child : children_copy) {
+    if (auto child = weak_child.lock()) child->Close();
+  }
+  child_windows_.clear();
+
+  std::shared_ptr<Window> parent_to_focus;
+  if (auto parent = parent_window_.lock()) {
+    parent->RemoveChildWindow(this);
+    if (IsFocused() && parent->IsVisible() && !parent->is_closed_)
+      parent_to_focus = parent;
+    parent_window_.reset();
+  }
+
   Hide();
+
+  if (parent_to_focus) parent_to_focus->Focus();
+
   std::weak_ptr<Window> weak_this = shared_from_this();
 
   window_listener_.StopNotifyingOnDisappearance(
@@ -658,7 +748,7 @@ void Window::EnsureTitleBarTexture() {
   if (!surface) return;
 
   auto canvas = surface->getCanvas();
-  bool is_focused = IsFocused();
+  bool is_focused = IsFocused() && !HasModalChild();
   canvas->clear(is_focused
                     ? ::perception::ui::kTitleBarFocusedBackgroundColor
                     : ::perception::ui::kTitleBarUnfocusedBackgroundColor);
@@ -704,6 +794,31 @@ bool Window::ForEachBackToFrontWindow(
 bool Window::MouseEvent(const Point& point,
                         std::optional<MouseButtonEvent> button_event) {
   if (!IsVisible()) return false;
+
+  if (HasModalChild()) {
+    auto screen_area = GetScreenArea();
+    Rectangle hit_area = {
+        .origin = screen_area.origin - Point{kFrameThickness, kFrameThickness},
+        .size = screen_area.size +
+                Size{kFrameThickness * 2.0f, kFrameThickness * 2.0f}};
+    if (!hit_area.Contains(point)) return false;
+
+    if (hovered_window_button_) {
+      hovered_window_button_ = std::nullopt;
+      InvalidateScreen(WindowButtonScreenArea());
+    }
+    if (IsHovering()) {
+      if (mouse_listener_) mouse_listener_.MouseLeave(nullptr);
+      hovering_window = nullptr;
+      last_mouse_hover_position_ = std::nullopt;
+    }
+
+    if (button_event && button_event->is_pressed_down) {
+      auto* modal_child = GetTopmostModalChild();
+      if (modal_child && modal_child != this) modal_child->Focus();
+    }
+    return true;
+  }
 
   if (IsDragging()) {
     bool resizing = false;
@@ -1035,8 +1150,9 @@ void Window::Draw(const Rectangle& screen_area) {
     auto button_screen_area = WindowButtonScreenArea();
     auto button_intersection = button_screen_area.Intersection(screen_area);
     if (button_intersection) {
-      Point window_button_texture_offset =
-          WindowButtonTextureOffset(is_resizable_, hovered_window_button_);
+      Point window_button_texture_offset = WindowButtonTextureOffset(
+          is_resizable_,
+          HasModalChild() ? std::nullopt : hovered_window_button_);
       CopyAlphaBlendedTexture(*button_intersection, WindowButtonsTextureId(),
                               button_intersection->origin -
                                   button_screen_area.origin +
@@ -1242,11 +1358,24 @@ void Window::Hide() {
   if (IsHovering()) hovering_window = nullptr;
 
   if (IsFocused()) {
-    Window* previous_window = z_ordered_windows_.PreviousItem(this);
-    if (previous_window) {
-      previous_window->Focus();
+    if (auto parent = parent_window_.lock()) {
+      if (parent->IsVisible() && !parent->is_closed_) {
+        parent->Focus();
+      } else {
+        Window* previous_window = z_ordered_windows_.PreviousItem(this);
+        if (previous_window) {
+          previous_window->Focus();
+        } else {
+          UnfocusAllWindows();
+        }
+      }
     } else {
-      UnfocusAllWindows();
+      Window* previous_window = z_ordered_windows_.PreviousItem(this);
+      if (previous_window) {
+        previous_window->Focus();
+      } else {
+        UnfocusAllWindows();
+      }
     }
   }
   z_ordered_windows_.Remove(this);
@@ -1295,7 +1424,7 @@ bool Window::AreWindowButtonsVisible() const {
 }
 
 void Window::HandleWindowButtonClick() {
-  if (!hovered_window_button_) return;
+  if (!hovered_window_button_ || HasModalChild()) return;
 
   switch (*hovered_window_button_) {
     case WindowButton::Close:

@@ -99,6 +99,12 @@ class Window : public std::enable_shared_from_this<Window> {
   static std::shared_ptr<Window> GetDebuggingWindowForSender(
       ::perception::ProcessId sender);
 
+  const ::perception::window::BaseWindow::Client& GetWindowListener() const;
+
+  bool HasModalChild() const;
+  Window* GetTopmostModalChild();
+  void RemoveChildWindow(Window* child);
+
   // Next/previous windows in the Z-order of things. Public for visibility from
   // LinkedList.
   ::perception::LinkedListNode z_ordering_linked_list_node_;
@@ -112,6 +118,9 @@ class Window : public std::enable_shared_from_this<Window> {
   void Unfocus();
   bool IsDragging() const;
   bool IsHovering() const;
+
+  std::weak_ptr<Window> parent_window_;
+  std::vector<std::weak_ptr<Window>> child_windows_;
 
   float GetTitleBarHeight() const;
   ::perception::ui::Rectangle WindowButtonScreenArea() const;

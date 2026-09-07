@@ -140,4 +140,138 @@ TEST(WindowMouseCaptureAndCursor) {
   window->Close();
 }
 
+TEST(WindowParentChildRelationship) {
+  Window::UnfocusAllWindows();
+  InitializeScreen();
+
+  CreateWindowRequest parent_req;
+  parent_req.window = ::perception::window::BaseWindow::Client(1, 105);
+  parent_req.title = "Parent Window";
+  parent_req.is_resizable = true;
+  parent_req.desired_size.width = 400;
+  parent_req.desired_size.height = 300;
+  parent_req.add_title_bar = true;
+  auto parent = *Window::CreateWindow(parent_req);
+  parent->SetTextureId(1);
+
+  EXPECT(true, parent->IsFocused());
+  EXPECT(false, parent->HasModalChild());
+
+  CreateWindowRequest child_req;
+  child_req.window = ::perception::window::BaseWindow::Client(1, 106);
+  child_req.parent_window = parent->GetWindowListener();
+  child_req.title = "Child Dialog";
+  child_req.is_resizable = false;
+  child_req.desired_size.width = 200;
+  child_req.desired_size.height = 150;
+  child_req.add_title_bar = true;
+  auto child = *Window::CreateWindow(child_req);
+  child->SetTextureId(2);
+
+  EXPECT(true, parent->HasModalChild());
+  EXPECT(false, parent->IsFocused());
+  EXPECT(true, child->IsFocused());
+
+  // Attempting to focus parent redirects to child.
+  parent->Focus();
+  EXPECT(false, parent->IsFocused());
+  EXPECT(true, child->IsFocused());
+
+  // Cursor over parent is Pointer (not resize, drag, or button poke).
+  auto parent_pos = parent->GetScreenArea().origin + Point{10.0f, 10.0f};
+  EXPECT(true, Window::GetCursorAtPoint(parent_pos) ==
+                   ::perception::window::Cursor::Pointer);
+
+  // Mouse click on parent redirects focus to child.
+  MouseButtonEvent btn_down{.button = ::perception::devices::MouseButton::Left,
+                            .is_pressed_down = true};
+  bool handled = parent->MouseEvent(parent_pos, btn_down);
+  EXPECT(true, handled);
+  EXPECT(false, parent->IsFocused());
+  EXPECT(true, child->IsFocused());
+
+  // Closing child restores focus to parent.
+  child->Close();
+  EXPECT(false, parent->HasModalChild());
+  EXPECT(true, parent->IsFocused());
+
+  parent->Close();
+}
+
+TEST(ChainedModalDialogs) {
+  Window::UnfocusAllWindows();
+  InitializeScreen();
+
+  CreateWindowRequest req_a;
+  req_a.window = ::perception::window::BaseWindow::Client(1, 107);
+  req_a.title = "Window A";
+  auto win_a = *Window::CreateWindow(req_a);
+  win_a->SetTextureId(1);
+
+  CreateWindowRequest req_b;
+  req_b.window = ::perception::window::BaseWindow::Client(1, 108);
+  req_b.parent_window = win_a->GetWindowListener();
+  req_b.title = "Dialog B";
+  auto win_b = *Window::CreateWindow(req_b);
+  win_b->SetTextureId(2);
+
+  CreateWindowRequest req_c;
+  req_c.window = ::perception::window::BaseWindow::Client(1, 109);
+  req_c.parent_window = win_b->GetWindowListener();
+  req_c.title = "Dialog C";
+  auto win_c = *Window::CreateWindow(req_c);
+  win_c->SetTextureId(3);
+
+  EXPECT(true, win_c->IsFocused());
+  EXPECT(false, win_b->IsFocused());
+  EXPECT(false, win_a->IsFocused());
+
+  // Clicking Window A focuses Dialog C.
+  win_a->Focus();
+  EXPECT(true, win_c->IsFocused());
+
+  // Clicking Dialog B focuses Dialog C.
+  win_b->Focus();
+  EXPECT(true, win_c->IsFocused());
+
+  // Close Dialog C -> Dialog B is focused.
+  win_c->Close();
+  EXPECT(true, win_b->IsFocused());
+  EXPECT(false, win_a->IsFocused());
+
+  // Clicking Window A focuses Dialog B.
+  win_a->Focus();
+  EXPECT(true, win_b->IsFocused());
+
+  // Close Dialog B -> Window A is focused.
+  win_b->Close();
+  EXPECT(true, win_a->IsFocused());
+
+  win_a->Close();
+}
+
+TEST(ParentCloseCascadesToChildren) {
+  Window::UnfocusAllWindows();
+  InitializeScreen();
+
+  CreateWindowRequest req_p;
+  req_p.window = ::perception::window::BaseWindow::Client(1, 110);
+  req_p.title = "Parent";
+  auto win_p = *Window::CreateWindow(req_p);
+  win_p->SetTextureId(1);
+
+  CreateWindowRequest req_c;
+  req_c.window = ::perception::window::BaseWindow::Client(1, 111);
+  req_c.parent_window = win_p->GetWindowListener();
+  req_c.title = "Child";
+  auto win_c = *Window::CreateWindow(req_c);
+  win_c->SetTextureId(2);
+
+  EXPECT(true, win_c->IsVisible());
+
+  // Closing parent closes child.
+  win_p->Close();
+  EXPECT(false, win_c->IsVisible());
+}
+
 }  // namespace
