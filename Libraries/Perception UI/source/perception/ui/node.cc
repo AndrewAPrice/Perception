@@ -249,7 +249,9 @@ void Node::OnMouseMove(
 
 void Node::MouseMoved(const window::MouseMoveEvent& event) {
   for (const auto& handler : on_mouse_move_functions_) handler(event);
-  for (auto& child : children_) child->MouseMoved(event);
+  std::vector<std::shared_ptr<Node>> children(children_.begin(),
+                                              children_.end());
+  for (auto& child : children) child->MouseMoved(event);
 }
 
 void Node::OnMouseHover(
@@ -319,8 +321,10 @@ bool Node::GetNodesAt(
 
   // Walk backwards (from top to bottom).
   bool hit_child = true;
-  for (auto itr = children_.rbegin(); itr != children_.rend(); itr++) {
-    if ((*itr)->GetNodesAt(point_without_margin, on_hit_node)) {
+  std::vector<std::shared_ptr<Node>> children(children_.rbegin(),
+                                              children_.rend());
+  for (const auto& child : children) {
+    if (child->GetNodesAt(point_without_margin, on_hit_node)) {
       // This node blocks the nodes behind it from being hit tested.
       child_blocks_hit_test = true;
       break;
