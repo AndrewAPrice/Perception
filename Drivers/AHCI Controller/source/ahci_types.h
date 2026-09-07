@@ -26,11 +26,59 @@ constexpr uint32 kAhciPortCmdFre = (1 << 4);
 constexpr uint32 kAhciPortCmdFr = (1 << 14);
 constexpr uint32 kAhciPortCmdCr = (1 << 15);
 
+// Register FIS - Host to Device.
 constexpr uint8 kFisTypeRegH2D = 0x27;
 
+// 28-bit LBA Read DMA command.
+constexpr uint8 kAtaCmdReadDma = 0xC8;
+
+// 48-bit LBA Read DMA Extended command.
 constexpr uint8 kAtaCmdReadDmaExt = 0x25;
+
+// 28-bit LBA Write DMA command.
+constexpr uint8 kAtaCmdWriteDma = 0xCA;
+
+// 48-bit LBA Write DMA Extended command.
 constexpr uint8 kAtaCmdWriteDmaExt = 0x35;
+
+// ATA Identify Device command.
 constexpr uint8 kAtaCmdIdentifyDevice = 0xEC;
+
+// ATAPI Identify Packet Device command.
+constexpr uint8 kAtaCmdIdentifyPacketDevice = 0xA1;
+
+// ATAPI Packet command.
+constexpr uint8 kAtaCmdPacket = 0xA0;
+
+// ATAPI SCSI Read Capacity (10) opcode.
+constexpr uint8 kAtapiCmdReadCapacity10 = 0x25;
+
+// ATAPI SCSI Read (12) opcode.
+constexpr uint8 kAtapiCmdRead12 = 0xA8;
+
+// Byte offset of serial number in ATA identify data (words 10-19).
+constexpr size_t kAtaIdentSerialOffset = 20;
+
+// Byte offset of model number in ATA identify data (words 27-46).
+constexpr size_t kAtaIdentModelOffset = 54;
+
+// Byte offset of max 28-bit LBA sectors in ATA identify data (words 60-61).
+constexpr size_t kAtaIdentMaxLba28Offset = 120;
+
+// Byte offset of supported command sets in ATA identify data (words 82-83).
+constexpr size_t kAtaIdentCommandSetsOffset = 164;
+
+// Byte offset of enabled command sets in ATA identify data (words 86-87).
+constexpr size_t kAtaIdentCommandSetsEnabledOffset = 172;
+
+// Byte offset of max 48-bit LBA sectors in ATA identify data (words 100-103).
+constexpr size_t kAtaIdentMaxLba48Offset = 200;
+
+// Byte offset of physical/logical sector size in ATA identify data (word 106).
+constexpr size_t kAtaIdentSectorSizeOffset = 212;
+
+// Byte offset of words per logical sector in ATA identify data (words 117-118).
+constexpr size_t kAtaIdentWordsPerLogicalSectorOffset = 234;
 
 struct HbaPort {
   volatile uint32 clb;       // 0x00, Command List Base Address, 1K-byte aligned
@@ -113,6 +161,10 @@ struct HbaPrdtEntry {
   uint32 i : 1;     // Interrupt on completion
 };
 
+// Maximum number of PRDT entries that fit in a 4KB command table page:
+// (4096 bytes page - 128 bytes header) / 16 bytes per entry = 248.
+constexpr size_t kMaxPrdtEntries = (4096 - 128) / sizeof(HbaPrdtEntry);
+
 struct HbaCmdTbl {
   // 0x00
   uint8 cfis[64];  // Command FIS
@@ -124,7 +176,7 @@ struct HbaCmdTbl {
   uint8 rsv[48];  // Reserved
 
   // 0x80
-  HbaPrdtEntry prdt_entry[1];  // Physical region descriptor table entries
+  HbaPrdtEntry prdt_entry[kMaxPrdtEntries];  // Physical region descriptor table entries
 };
 
 struct FisRegH2D {

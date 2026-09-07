@@ -16,6 +16,7 @@
 
 #include <cstring>
 
+#include "ata.h"
 #include "ide_types.h"
 #include "perception/fibers.h"
 #include "perception/memory.h"
@@ -31,6 +32,7 @@ using ::perception::WakeThread;
 using ::perception::devices::StorageDeviceDetails;
 using ::perception::devices::StorageDeviceReadRequest;
 using ::perception::devices::StorageDeviceType;
+using ::perception::devices::StorageDeviceWriteRequest;
 
 IdeStorageDevice::IdeStorageDevice(IdeDevice* device, bool supports_dma)
     : ::perception::devices::StorageDevice::Server({.defer_registration = true}),
@@ -57,10 +59,10 @@ StatusOr<StorageDeviceDetails> IdeStorageDevice::GetDeviceDetails() {
   StorageDeviceDetails details;
   details.size_in_bytes = device_->size_in_bytes;
   details.is_writable = device_->is_writable;
-  details.type = StorageDeviceType::OPTICAL;
+  details.type = (device_->type == IDE_ATAPI) ? StorageDeviceType::OPTICAL
+                                              : StorageDeviceType::HARD_DRIVE;
   details.name = device_->name;
-  details.optimal_operation_size =
-      device_->size_in_bytes;  // Read full device or block size
+  details.optimal_operation_size = device_->sector_size;
   return details;
 }
 
@@ -114,6 +116,49 @@ Status IdeStorageDevice::Read(const StorageDeviceReadRequest& request) {
     WakeThread(channel->worker_thread_id);
 
   // Yield the fiber until the request is processed by the worker thread.
+  while (!req.completed.load(std::memory_order_acquire)) Sleep();
+
+  return req.status;
+}
+
+Status IdeStorageDevice::Write(const StorageDeviceWriteRequest& request) {
+  if (!device_->is_writable) return Status::NOT_ALLOWED;
+  if (!request.buffer->Join()) return Status::INVALID_ARGUMENT;
+
+  uint64 bytes_to_copy = request.bytes_to_copy;
+  uint64 device_offset_start = request.offset_on_device;
+  uint64 buffer_offset = request.offset_in_buffer;
+
+  if (bytes_to_copy == 0) return Status::OK;
+
+  if (device_offset_start + bytes_to_copy < device_offset_start ||
+      device_offset_start + bytes_to_copy > device_->size_in_bytes)
+    return Status::OVERFLOW;
+
+  if (buffer_offset + bytes_to_copy < buffer_offset ||
+      buffer_offset + bytes_to_copy > request.buffer->GetSize())
+    return Status::OVERFLOW;
+
+  IdeRequest req;
+  req.type = IdeRequestType::WRITE;
+  req.master_drive = device_->master_drive;
+  req.offset_on_device = device_offset_start;
+  req.offset_in_buffer = buffer_offset;
+  req.bytes_to_copy = bytes_to_copy;
+  req.destination_buffer = (uint8*)**request.buffer;
+  req.can_write = false;
+  req.can_assign_pages = false;
+  req.buffer_size = request.buffer->GetSize();
+  req.shared_memory = request.buffer;
+  req.completed.store(false, std::memory_order_release);
+  req.fiber_to_wake = GetCurrentlyExecutingFiber();
+
+  auto* channel = device_->channel;
+  if (!channel->queue.Push(&req)) return Status::OUT_OF_MEMORY;
+
+  if (channel->worker_thread_sleeping.load(std::memory_order_seq_cst))
+    WakeThread(channel->worker_thread_id);
+
   while (!req.completed.load(std::memory_order_acquire)) Sleep();
 
   return req.status;

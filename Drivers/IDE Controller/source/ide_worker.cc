@@ -126,9 +126,17 @@ void ProbeChannelDevices(IdeChannel* channel) {
     device->channel = channel;
 
     if (device->command_sets & (1 << 26)) {
-      device->size = *(uint32*)&buffer[ATA_IDENT_MAX_LBA_EXT];
+      device->size = *(uint64*)&buffer[ATA_IDENT_MAX_LBA_EXT];
     } else {
       device->size = *(uint32*)&buffer[ATA_IDENT_MAX_LBA];
+    }
+
+    device->sector_size = 512;
+    uint16 sector_size_word = *(uint16*)&buffer[ATA_IDENT_LOGICAL_SECTOR_SIZE];
+    if ((sector_size_word & 0xC000) == 0x4000 &&
+        (sector_size_word & (1 << 12))) {
+      uint32 words_per_logical = *(uint32*)&buffer[ATA_IDENT_WORDS_PER_SECTOR];
+      if (words_per_logical > 0) device->sector_size = words_per_logical * 2;
     }
 
     auto model_chars = std::make_unique<char[]>(41);
@@ -169,7 +177,7 @@ void ProbeChannelDevices(IdeChannel* channel) {
                        channel->interrupt_triggered);
 
         uint8 atapi_packet[12] = {
-            ATA_CMD_READ_DMA_EXT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+            ATAPI_CMD_READ_CAPACITY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         // Clear the interrupt triggered flag since the packet phase might have
         // triggered a packet-ready interrupt to ignore during the read capacity
         // command.
@@ -200,12 +208,21 @@ void ProbeChannelDevices(IdeChannel* channel) {
         Write8BitsToPort(ATA_ADDRESS2(bus), ATAPI_SECTOR_SIZE & 0xFF);
         Write8BitsToPort(ATA_ADDRESS3(bus), ATAPI_SECTOR_SIZE >> 8);
 
-        device->size_in_bytes = (uint64)(returnLba + 1) * blockLengthInBytes;
+        device->size = (uint64)returnLba + 1;
+        device->sector_size =
+            blockLengthInBytes > 0 ? blockLengthInBytes : ATAPI_SECTOR_SIZE;
+        device->size_in_bytes = device->size * device->sector_size;
         device->is_writable = false;
 
         device->storage_device = std::make_unique<IdeStorageDevice>(
             device.get(), channel->supports_dma);
       }
+    } else if (device->type == IDE_ATA) {
+      device->size_in_bytes = device->size * device->sector_size;
+      device->is_writable = true;
+
+      device->storage_device = std::make_unique<IdeStorageDevice>(
+          device.get(), channel->supports_dma);
     }
 
     channel->devices.push_back(std::move(device));
@@ -289,20 +306,11 @@ void PrintSenseData(IdeChannel* channel, uint16 bus) {
   Write8BitsToPort(ATA_DCR(bus), 0x00);
 }
 
-Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
+Status ExecuteAtapiRead(IdeChannel* channel, IdeDevice* device,
+                        IdeRequest* request) {
   uint16 bus = channel->is_primary ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
 
   SelectDriveOnBusIfNotSelected(channel, request->master_drive);
-
-  // Find the corresponding IdeDevice for this request
-  IdeDevice* device = nullptr;
-  for (auto& dev : channel->devices) {
-    if (dev->master_drive == request->master_drive) {
-      device = dev.get();
-      break;
-    }
-  }
-  if (!device) return Status::INTERNAL_ERROR;
 
   IdeStorageDevice* storage_device = device->storage_device.get();
   bool use_dma = storage_device && storage_device->SupportsDma();
@@ -646,9 +654,6 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
               kPageSize;
           size_t num_pages = end_page - start_page + 1;
           for (size_t p = 0; p < num_pages; p++) {
-            unsigned char* src = (unsigned char*)allocated_pages[p];
-          }
-          for (size_t p = 0; p < num_pages; p++) {
             size_t page_index = start_page + p;
             request->shared_memory->AssignPage(allocated_pages[p],
                                                page_index * kPageSize);
@@ -701,7 +706,6 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
 
   // Fallback to PIO code path
   {
-    // --- PIO FALLBACK ---
     // If pages were allocated for DMA and a fallback to PIO occurs, free them
     // first
     if (!request->can_write) {
@@ -710,7 +714,6 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
       }
     }
 
-    // --- PIO FALLBACK ---
     // Explicitly write the Features / Address registers for PIO mode
     Write8BitsToPort(ATA_FEATURES(bus), 0);  // PIO mode
     Write8BitsToPort(ATA_ADDRESS2(bus), ATAPI_SECTOR_SIZE & 0xFF);
@@ -857,6 +860,448 @@ Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
   }
 }
 
+Status ExecuteAtaRead(IdeChannel* channel, IdeDevice* device,
+                      IdeRequest* request) {
+  uint16 bus = channel->is_primary ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
+  SelectDriveOnBusIfNotSelected(channel, request->master_drive);
+
+  IdeStorageDevice* storage_device = device->storage_device.get();
+  bool use_dma = storage_device && storage_device->SupportsDma();
+
+  size_t start_lba = request->offset_on_device / 512;
+  size_t end_lba =
+      (request->offset_on_device + request->bytes_to_copy - 1) / 512;
+  size_t skip_bytes = request->offset_on_device - (start_lba * 512);
+  size_t sectors_to_read = end_lba - start_lba + 1;
+
+  std::vector<void*> allocated_pages;
+  auto get_virtual_address = [&](size_t offset) -> uint8* {
+    if (request->can_write) {
+      return &request->destination_buffer[offset];
+    } else {
+      size_t start_page = request->offset_in_buffer / kPageSize;
+      size_t page_index = offset / kPageSize;
+      size_t offset_in_page = offset % kPageSize;
+      size_t p = page_index - start_page;
+      return (uint8*)allocated_pages[p] + offset_in_page;
+    }
+  };
+
+  if (use_dma && storage_device->GetScratchPage()) {
+    uint16 bus_master_id = channel->registers.bus_master_id;
+
+    if (!request->can_write && allocated_pages.empty()) {
+      size_t start_page = request->offset_in_buffer / kPageSize;
+      size_t end_page =
+          (request->offset_in_buffer + request->bytes_to_copy - 1) / kPageSize;
+      size_t num_pages = end_page - start_page + 1;
+      allocated_pages.resize(num_pages, nullptr);
+      for (size_t p = 0; p < num_pages; p++) {
+        size_t page_index = start_page + p;
+        size_t page_offset = page_index * kPageSize;
+        void* new_page = AllocateMemoryPages(1);
+        allocated_pages[p] = new_page;
+        if (request->shared_memory->IsPageAllocated(page_offset)) {
+          memcpy(new_page, &request->destination_buffer[page_offset],
+                 kPageSize);
+        } else {
+          memset(new_page, 0, kPageSize);
+        }
+      }
+    }
+
+    size_t total_sectors = sectors_to_read;
+    size_t sectors_read = 0;
+    size_t bytes_remaining = request->bytes_to_copy;
+    size_t cur_skip = skip_bytes;
+    size_t cur_buf_offset = request->offset_in_buffer;
+    bool failed = false;
+
+    while (sectors_read < total_sectors) {
+      size_t chunk_sectors =
+          std::min((size_t)kMaxScratchSectors, total_sectors - sectors_read);
+      size_t chunk_start_lba = start_lba + sectors_read;
+
+      uint32* prdt = (uint32*)storage_device->GetScratchPage();
+      prdt[0] =
+          (uint32)(storage_device->GetScratchPagePhysicalAddress() + kPageSize);
+      uint16 byte_count = chunk_sectors * 512;
+      prdt[1] = byte_count | (1 << 31);
+
+      Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), 0);
+      Write8BitsToPort(ATA_BMR_STATUS(bus_master_id), 6);
+      Write32BitsToPort(
+          ATA_BMR_PRDT(bus_master_id),
+          (size_t)storage_device->GetScratchPagePhysicalAddress());
+
+      Write8BitsToPort(ATA_DRIVE_SELECT(bus),
+                       0xE0 | ((!request->master_drive) << 4) |
+                           ((chunk_start_lba >> 24) & 0x0F));
+      Write8BitsToPort(ATA_SECTOR_COUNT(bus),
+                       chunk_sectors == 256 ? 0 : chunk_sectors);
+      Write8BitsToPort(ATA_ADDRESS1(bus), chunk_start_lba & 0xFF);
+      Write8BitsToPort(ATA_ADDRESS2(bus), (chunk_start_lba >> 8) & 0xFF);
+      Write8BitsToPort(ATA_ADDRESS3(bus), (chunk_start_lba >> 16) & 0xFF);
+
+      ResetInterrupt(channel->waiting_on_interrupt,
+                     channel->interrupt_triggered);
+      Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_READ_DMA);
+
+      Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id),
+                       ATA_BMR_COMMAND_START_BIT);
+
+      WaitForInterrupt(channel->waiting_on_interrupt,
+                       channel->interrupt_triggered);
+      Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), 0);
+
+      uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
+      if (status & ATA_SR_ERR) {
+        failed = true;
+        break;
+      }
+
+      Write8BitsToPort(ATA_BMR_STATUS(bus_master_id), 6);
+
+      uint8* scratch_data = storage_device->GetScratchPage() + kPageSize;
+      size_t chunk_data_offset = cur_skip;
+      size_t chunk_bytes_available = (chunk_sectors * 512) - chunk_data_offset;
+      size_t bytes_to_copy_now =
+          std::min(bytes_remaining, chunk_bytes_available);
+
+      uint8* dest = get_virtual_address(cur_buf_offset);
+      std::memcpy(dest, scratch_data + chunk_data_offset, bytes_to_copy_now);
+
+      cur_buf_offset += bytes_to_copy_now;
+      bytes_remaining -= bytes_to_copy_now;
+      cur_skip = 0;
+      sectors_read += chunk_sectors;
+    }
+
+    if (!failed) {
+      if (!request->can_write) {
+        size_t start_page = request->offset_in_buffer / kPageSize;
+        size_t end_page =
+            (request->offset_in_buffer + request->bytes_to_copy - 1) /
+            kPageSize;
+        size_t num_pages = end_page - start_page + 1;
+        for (size_t p = 0; p < num_pages; p++) {
+          size_t page_index = start_page + p;
+          request->shared_memory->AssignPage(allocated_pages[p],
+                                             page_index * kPageSize);
+        }
+      }
+      return Status::OK;
+    }
+
+    if (!request->can_write) {
+      for (void* page : allocated_pages) {
+        if (page) ReleaseMemoryPages(page, 1);
+      }
+      allocated_pages.clear();
+    }
+  }
+
+  // PIO Read Fallback
+  Write8BitsToPort(ATA_DRIVE_SELECT(bus), 0xE0 |
+                                              ((!request->master_drive) << 4) |
+                                              ((start_lba >> 24) & 0x0F));
+  Write8BitsToPort(ATA_SECTOR_COUNT(bus),
+                   sectors_to_read == 256 ? 0 : sectors_to_read);
+  Write8BitsToPort(ATA_ADDRESS1(bus), start_lba & 0xFF);
+  Write8BitsToPort(ATA_ADDRESS2(bus), (start_lba >> 8) & 0xFF);
+  Write8BitsToPort(ATA_ADDRESS3(bus), (start_lba >> 16) & 0xFF);
+
+  ResetInterrupt(channel->waiting_on_interrupt, channel->interrupt_triggered);
+  Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_READ_PIO);
+
+  int64 bytes_to_copy = request->bytes_to_copy;
+  int64 buffer_offset = request->offset_in_buffer;
+  size_t current_skip = skip_bytes;
+
+  size_t current_page_in_buffer = 0xFFFFFFFFFFFFFFFF;
+  bool assign_page = false;
+  uint8* current_destination_page = nullptr;
+
+  for (size_t i = 0; i < sectors_to_read; i++) {
+    int timeout = 10000;
+    while (true) {
+      uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
+      if (status & ATA_SR_ERR) return Status::INTERNAL_ERROR;
+      if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ)) break;
+      if (--timeout == 0) return Status::INTERNAL_ERROR;
+      SleepForDuration(std::chrono::milliseconds(1));
+    }
+
+    for (size_t j = 0; j < 512; j += 2) {
+      uint16 b = Read16BitsFromPort(ATA_DATA(bus));
+      if (bytes_to_copy <= 0) continue;
+
+      for (int byte_idx = 0; byte_idx < 2; byte_idx++) {
+        if (bytes_to_copy <= 0) break;
+        if (current_skip > 0) {
+          current_skip--;
+          continue;
+        }
+
+        uint8 byte_val = (byte_idx == 0) ? (b & 0xFF) : ((b >> 8) & 0xFF);
+
+        size_t buffer_page_index = buffer_offset / kPageSize;
+        size_t buffer_page_start = buffer_page_index * kPageSize;
+        size_t offset_in_buffer_page = buffer_offset - buffer_page_start;
+
+        if (buffer_page_index != current_page_in_buffer) {
+          if (assign_page) {
+            request->shared_memory->AssignPage(
+                current_destination_page, current_page_in_buffer * kPageSize);
+          }
+
+          current_page_in_buffer = buffer_page_index;
+          if (request->can_write) {
+            current_destination_page =
+                &request->destination_buffer[buffer_page_start];
+            assign_page = false;
+          } else {
+            current_destination_page = (uint8*)AllocateMemoryPages(1);
+            assign_page = true;
+
+            bool does_old_memory_exist =
+                request->shared_memory->IsPageAllocated(buffer_page_start);
+            if (does_old_memory_exist) {
+              memcpy(current_destination_page,
+                     &request->destination_buffer[buffer_page_start],
+                     kPageSize);
+            } else {
+              memset(current_destination_page, 0, kPageSize);
+            }
+          }
+        }
+
+        current_destination_page[offset_in_buffer_page] = byte_val;
+        bytes_to_copy--;
+        buffer_offset++;
+      }
+    }
+  }
+
+  if (assign_page) {
+    request->shared_memory->AssignPage(current_destination_page,
+                                       current_page_in_buffer * kPageSize);
+  }
+
+  return Status::OK;
+}
+
+Status ExecuteAtaWrite(IdeChannel* channel, IdeDevice* device,
+                       IdeRequest* request) {
+  uint16 bus = channel->is_primary ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
+  SelectDriveOnBusIfNotSelected(channel, request->master_drive);
+
+  IdeStorageDevice* storage_device = device->storage_device.get();
+  bool use_dma = storage_device && storage_device->SupportsDma();
+
+  size_t start_lba = request->offset_on_device / 512;
+  size_t end_lba =
+      (request->offset_on_device + request->bytes_to_copy - 1) / 512;
+  size_t skip_bytes = request->offset_on_device - (start_lba * 512);
+  size_t sectors_to_write = end_lba - start_lba + 1;
+
+  const uint8* src = request->destination_buffer + request->offset_in_buffer;
+  uint8* scratch_data =
+      storage_device ? (storage_device->GetScratchPage() + kPageSize) : nullptr;
+
+  if (use_dma && scratch_data) {
+    uint16 bus_master_id = channel->registers.bus_master_id;
+    size_t total_sectors = sectors_to_write;
+    size_t sectors_written = 0;
+    size_t bytes_remaining = request->bytes_to_copy;
+    size_t cur_src_offset = 0;
+    bool failed = false;
+
+    while (sectors_written < total_sectors) {
+      size_t chunk_sectors =
+          std::min((size_t)kMaxScratchSectors, total_sectors - sectors_written);
+      size_t chunk_start_lba = start_lba + sectors_written;
+      size_t chunk_bytes_total = chunk_sectors * 512;
+
+      size_t chunk_data_offset = (sectors_written == 0) ? skip_bytes : 0;
+      size_t chunk_bytes_available = chunk_bytes_total - chunk_data_offset;
+      size_t bytes_to_write_now =
+          std::min(bytes_remaining, chunk_bytes_available);
+
+      if (chunk_data_offset > 0 || bytes_to_write_now < chunk_bytes_total) {
+        // Read existing sectors into scratch
+        IdeRequest read_req;
+        read_req.type = IdeRequestType::READ;
+        read_req.master_drive = request->master_drive;
+        read_req.offset_on_device = chunk_start_lba * 512;
+        read_req.offset_in_buffer = 0;
+        read_req.bytes_to_copy = chunk_bytes_total;
+        read_req.destination_buffer = scratch_data;
+        read_req.can_write = true;
+        read_req.can_assign_pages = false;
+        read_req.buffer_size = chunk_bytes_total;
+        read_req.shared_memory = request->shared_memory;
+        if (ExecuteAtaRead(channel, device, &read_req) != Status::OK) {
+          failed = true;
+          break;
+        }
+      }
+
+      std::memcpy(scratch_data + chunk_data_offset, src + cur_src_offset,
+                  bytes_to_write_now);
+
+      uint32* prdt = (uint32*)storage_device->GetScratchPage();
+      prdt[0] =
+          (uint32)(storage_device->GetScratchPagePhysicalAddress() + kPageSize);
+      uint16 byte_count = chunk_sectors * 512;
+      prdt[1] = byte_count | (1 << 31);
+
+      Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id),
+                       ATA_BMR_COMMAND_WRITE_BIT);
+      Write8BitsToPort(ATA_BMR_STATUS(bus_master_id), 6);
+      Write32BitsToPort(
+          ATA_BMR_PRDT(bus_master_id),
+          (size_t)storage_device->GetScratchPagePhysicalAddress());
+
+      Write8BitsToPort(ATA_DRIVE_SELECT(bus),
+                       0xE0 | ((!request->master_drive) << 4) |
+                           ((chunk_start_lba >> 24) & 0x0F));
+      Write8BitsToPort(ATA_SECTOR_COUNT(bus),
+                       chunk_sectors == 256 ? 0 : chunk_sectors);
+      Write8BitsToPort(ATA_ADDRESS1(bus), chunk_start_lba & 0xFF);
+      Write8BitsToPort(ATA_ADDRESS2(bus), (chunk_start_lba >> 8) & 0xFF);
+      Write8BitsToPort(ATA_ADDRESS3(bus), (chunk_start_lba >> 16) & 0xFF);
+
+      ResetInterrupt(channel->waiting_on_interrupt,
+                     channel->interrupt_triggered);
+      Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_WRITE_DMA);
+
+      Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id),
+                       ATA_BMR_COMMAND_START_BIT | ATA_BMR_COMMAND_WRITE_BIT);
+
+      WaitForInterrupt(channel->waiting_on_interrupt,
+                       channel->interrupt_triggered);
+      Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), 0);
+
+      uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
+      if (status & ATA_SR_ERR) {
+        failed = true;
+        break;
+      }
+
+      Write8BitsToPort(ATA_BMR_STATUS(bus_master_id), 6);
+
+      cur_src_offset += bytes_to_write_now;
+      bytes_remaining -= bytes_to_write_now;
+      sectors_written += chunk_sectors;
+    }
+
+    if (!failed) {
+      Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_CACHE_FLUSH);
+      return Status::OK;
+    }
+  }
+
+  // PIO Write Fallback
+  size_t bytes_remaining = request->bytes_to_copy;
+  size_t cur_src_offset = 0;
+  for (size_t sector = 0; sector < sectors_to_write; sector++) {
+    size_t cur_lba = start_lba + sector;
+    size_t sector_data_offset = (sector == 0) ? skip_bytes : 0;
+    size_t bytes_in_sector =
+        std::min(bytes_remaining, 512 - sector_data_offset);
+
+    std::vector<uint8> sector_buf(512, 0);
+    if (sector_data_offset > 0 || bytes_in_sector < 512) {
+      IdeRequest read_req;
+      read_req.type = IdeRequestType::READ;
+      read_req.master_drive = request->master_drive;
+      read_req.offset_on_device = cur_lba * 512;
+      read_req.offset_in_buffer = 0;
+      read_req.bytes_to_copy = 512;
+      read_req.destination_buffer = sector_buf.data();
+      read_req.can_write = true;
+      read_req.can_assign_pages = false;
+      read_req.buffer_size = 512;
+      read_req.shared_memory = request->shared_memory;
+      ExecuteAtaRead(channel, device, &read_req);
+    }
+
+    std::memcpy(sector_buf.data() + sector_data_offset, src + cur_src_offset,
+                bytes_in_sector);
+
+    Write8BitsToPort(
+        ATA_DRIVE_SELECT(bus),
+        0xE0 | ((!request->master_drive) << 4) | ((cur_lba >> 24) & 0x0F));
+    Write8BitsToPort(ATA_SECTOR_COUNT(bus), 1);
+    Write8BitsToPort(ATA_ADDRESS1(bus), cur_lba & 0xFF);
+    Write8BitsToPort(ATA_ADDRESS2(bus), (cur_lba >> 8) & 0xFF);
+    Write8BitsToPort(ATA_ADDRESS3(bus), (cur_lba >> 16) & 0xFF);
+
+    ResetInterrupt(channel->waiting_on_interrupt, channel->interrupt_triggered);
+    Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_WRITE_PIO);
+
+    int timeout = 10000;
+    while (true) {
+      uint8 status = Read8BitsFromPort(ATA_COMMAND(bus));
+      if (status & ATA_SR_ERR) return Status::INTERNAL_ERROR;
+      if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ)) break;
+      if (--timeout == 0) return Status::INTERNAL_ERROR;
+      SleepForDuration(std::chrono::milliseconds(1));
+    }
+
+    const uint16* words = (const uint16*)sector_buf.data();
+    for (size_t j = 0; j < 256; j++) {
+      Write16BitsToPort(ATA_DATA(bus), words[j]);
+    }
+
+    WaitForInterrupt(channel->waiting_on_interrupt,
+                     channel->interrupt_triggered);
+
+    cur_src_offset += bytes_in_sector;
+    bytes_remaining -= bytes_in_sector;
+  }
+
+  Write8BitsToPort(ATA_COMMAND(bus), ATA_CMD_CACHE_FLUSH);
+  return Status::OK;
+}
+
+Status ExecuteReadOnChannel(IdeChannel* channel, IdeRequest* request) {
+  IdeDevice* device = nullptr;
+  for (auto& dev : channel->devices) {
+    if (dev->master_drive == request->master_drive) {
+      device = dev.get();
+      break;
+    }
+  }
+  if (!device) return Status::INTERNAL_ERROR;
+
+  if (device->type == IDE_ATAPI) {
+    return ExecuteAtapiRead(channel, device, request);
+  } else if (device->type == IDE_ATA) {
+    return ExecuteAtaRead(channel, device, request);
+  }
+
+  return Status::INTERNAL_ERROR;
+}
+
+Status ExecuteWriteOnChannel(IdeChannel* channel, IdeRequest* request) {
+  IdeDevice* device = nullptr;
+  for (auto& dev : channel->devices) {
+    if (dev->master_drive == request->master_drive) {
+      device = dev.get();
+      break;
+    }
+  }
+  if (!device) return Status::INTERNAL_ERROR;
+
+  if (device->type == IDE_ATA) {
+    return ExecuteAtaWrite(channel, device, request);
+  }
+
+  return Status::NOT_ALLOWED;
+}
+
 }  // namespace
 
 void ChannelWorkerThread(IdeChannel* channel) {
@@ -880,6 +1325,10 @@ void ChannelWorkerThread(IdeChannel* channel) {
       request->fiber_to_wake->WakeUp();
     } else if (request->type == IdeRequestType::READ) {
       request->status = ExecuteReadOnChannel(channel, request);
+      request->completed.store(true, std::memory_order_release);
+      request->fiber_to_wake->WakeUp();
+    } else if (request->type == IdeRequestType::WRITE) {
+      request->status = ExecuteWriteOnChannel(channel, request);
       request->completed.store(true, std::memory_order_release);
       request->fiber_to_wake->WakeUp();
     }

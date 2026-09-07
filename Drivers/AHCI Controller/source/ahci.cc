@@ -75,21 +75,15 @@ void InitializeAhciController(uint8 bus, uint8 slot, uint8 function) {
     if (det == 3 && ipm == 1) {
       uint32 sig = port->sig;
       if (sig == kSataSigAta) {
-        std::string drive_name =
-            "SATA Disk " + std::to_string(ahci_devices.size() + 1);
-        uint64 sector_count = 2000000;
-        uint32 sector_size = 512;
-        ahci_devices.push_back(std::make_unique<AhciStorageDevice>(
-            port, i, sector_count, sector_size, drive_name,
-            StorageDeviceType::HARD_DRIVE));
+        auto device = std::make_unique<AhciStorageDevice>(
+            port, i, StorageDeviceType::HARD_DRIVE);
+        if (device->Initialize())
+          ahci_devices.push_back(std::move(device));
       } else if (sig == kSataSigAtapi) {
-        std::string drive_name =
-            "SATA Optical Drive " + std::to_string(ahci_devices.size() + 1);
-        uint64 sector_count = 2000000;
-        uint32 sector_size = 2048;
-        ahci_devices.push_back(std::make_unique<AhciStorageDevice>(
-            port, i, sector_count, sector_size, drive_name,
-            StorageDeviceType::OPTICAL));
+        auto device = std::make_unique<AhciStorageDevice>(
+            port, i, StorageDeviceType::OPTICAL);
+        if (device->Initialize())
+          ahci_devices.push_back(std::move(device));
       }
     }
   }

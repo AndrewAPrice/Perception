@@ -29,6 +29,9 @@ class IdeStorageDevice : public ::perception::devices::StorageDevice::Server {
   Status Read(
       const ::perception::devices::StorageDeviceReadRequest& request) override;
 
+  Status Write(
+      const ::perception::devices::StorageDeviceWriteRequest& request) override;
+
   // Returns whether the device supports DMA.
   bool SupportsDma() const { return supports_dma_; }
 

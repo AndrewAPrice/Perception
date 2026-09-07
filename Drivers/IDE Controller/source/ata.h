@@ -52,6 +52,7 @@
 /* ATAPI commands */
 #define ATAPI_CMD_READ 0xA8
 #define ATAPI_CMD_READ10 0x28
+#define ATAPI_CMD_READ_CAPACITY 0x25
 #define ATAPI_CMD_EJECT 0x1B
 
 /* offset for the ATAPI identifiers */
@@ -66,6 +67,8 @@
 #define ATA_IDENT_MAX_LBA 120
 #define ATA_IDENT_COMMANDSETS 164
 #define ATA_IDENT_MAX_LBA_EXT 200
+#define ATA_IDENT_LOGICAL_SECTOR_SIZE 212
+#define ATA_IDENT_WORDS_PER_SECTOR 234
 
 /* for selecting a drive */
 #define IDE_ATA 0x00

@@ -15,6 +15,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "ahci_types.h"
 #include "perception/devices/storage_device.h"
@@ -22,11 +23,14 @@
 
 class AhciStorageDevice : public ::perception::devices::StorageDevice::Server {
  public:
-  AhciStorageDevice(HbaPort* port, int port_index, uint64 sector_count,
-                    uint32 sector_size, const std::string& name,
+  AhciStorageDevice(HbaPort* port, int port_index,
                     ::perception::devices::StorageDeviceType device_type =
                         ::perception::devices::StorageDeviceType::HARD_DRIVE);
   virtual ~AhciStorageDevice();
+
+  // Initializes DMA structures, starts port, queries hardware identity/geometry,
+  // and begins serving requests. Returns true if initialization succeeded.
+  bool Initialize();
 
   StatusOr<::perception::devices::StorageDeviceDetails> GetDeviceDetails()
       override;
@@ -34,7 +38,18 @@ class AhciStorageDevice : public ::perception::devices::StorageDevice::Server {
   Status Read(
       const ::perception::devices::StorageDeviceReadRequest& request) override;
 
-  bool PerformRead(uint64 start_sector, uint32 sector_count, void* buffer);
+  Status Write(
+      const ::perception::devices::StorageDeviceWriteRequest& request) override;
+
+  // Reads sectors into buffer using ATA or ATAPI DMA commands. If buffer is
+  // null, data remains staged in dma_buffer_.
+  bool PerformRead(uint64 start_sector, uint32 sector_count,
+                   void* buffer = nullptr);
+
+  // Writes sectors from buffer using ATA DMA commands. If buffer is null,
+  // data is assumed to already be staged in dma_buffer_.
+  bool PerformWrite(uint64 start_sector, uint32 sector_count,
+                    const void* buffer = nullptr);
 
  private:
   HbaPort* port_;
@@ -44,6 +59,19 @@ class AhciStorageDevice : public ::perception::devices::StorageDevice::Server {
   uint64 size_in_bytes_;
   std::string name_;
   ::perception::devices::StorageDeviceType device_type_;
+  bool supports_lba48_;
+
+  // Recovers the AHCI port after a Task File Error.
+  void RecoverPortFromError();
+
+  // Queries device geometry and model via ATA IDENTIFY DEVICE (0xEC).
+  bool IdentifyAtaDevice();
+
+  // Queries device model and media capacity via ATAPI IDENTIFY and READ CAPACITY.
+  bool IdentifyAtapiDevice();
+
+  // Sets up the PRDT entries and command header for a DMA transfer.
+  void SetupDmaPrdt(size_t bytes_to_transfer, bool is_write);
 
   // DMA Memory Structures for slot 0
   HbaCmdHeader* cmd_list_;
@@ -56,5 +84,5 @@ class AhciStorageDevice : public ::perception::devices::StorageDevice::Server {
   size_t cmd_tbl_phys_;
 
   void* dma_buffer_;
-  size_t dma_buffer_phys_;
+  std::vector<size_t> dma_buffer_phys_pages_;
 };

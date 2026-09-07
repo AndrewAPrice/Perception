@@ -47,7 +47,9 @@ enum class IdeRequestType {
   // Probe for connected IDE/ATAPI devices.
   INITIALIZE,
   // Read data from a device.
-  READ
+  READ,
+  // Write data to a device.
+  WRITE
 };
 
 // Represents a pending or in-progress read or initialization operation.
@@ -148,7 +150,10 @@ struct IdeDevice {
   uint32 command_sets;
 
   // Device capacity in sectors.
-  uint32 size;
+  uint64 size;
+
+  // Logical sector size in bytes.
+  uint32 sector_size;
 
   // Device capacity in bytes.
   uint64 size_in_bytes;
