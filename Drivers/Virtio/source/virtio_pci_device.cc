@@ -72,7 +72,7 @@ constexpr uint8 kVirtioStatusReset = 0;
 
 VirtioPciDevice::VirtioPciDevice(const PciDevice& device) : device_(device) {}
 
-bool VirtioPciDevice::Initialize() {
+bool VirtioPciDevice::Initialize(bool force_legacy) {
   EnableVirtioPciDevice(device_);
   interrupt_line_ = GetPciInterruptLine(device_);
 
@@ -104,69 +104,71 @@ bool VirtioPciDevice::Initialize() {
     }
   }
 
-  uint8 cap_ptr =
-      Read8BitsFromPciConfig(device_.bus, device_.slot, device_.function,
-                             kPciConfigCapabilitiesPtrOffset);
+  if (!force_legacy) {
+    uint8 cap_ptr =
+        Read8BitsFromPciConfig(device_.bus, device_.slot, device_.function,
+                               kPciConfigCapabilitiesPtrOffset);
 
-  int max_caps = kMaxPciCapabilities;
-  while (cap_ptr != 0 && cap_ptr != kInvalidCapPtr && max_caps-- > 0) {
-    uint8 cap_id = Read8BitsFromPciConfig(device_.bus, device_.slot,
-                                          device_.function, cap_ptr);
-    uint8 next_cap = Read8BitsFromPciConfig(device_.bus, device_.slot,
-                                            device_.function, cap_ptr + 1);
+    int max_caps = kMaxPciCapabilities;
+    while (cap_ptr != 0 && cap_ptr != kInvalidCapPtr && max_caps-- > 0) {
+      uint8 cap_id = Read8BitsFromPciConfig(device_.bus, device_.slot,
+                                            device_.function, cap_ptr);
+      uint8 next_cap = Read8BitsFromPciConfig(device_.bus, device_.slot,
+                                              device_.function, cap_ptr + 1);
 
-    if (cap_id == kPciCapMsiX) {
-      uint16 msix_control = Read16BitsFromPciConfig(
-          device_.bus, device_.slot, device_.function,
-          cap_ptr + kPciCapMsixControlOffset);
-      if (msix_control & kPciCapMsixEnableBit) {
-        msix_control &= ~kPciCapMsixEnableBit;
-        Write16BitsToPciConfig(device_.bus, device_.slot, device_.function,
-                               cap_ptr + kPciCapMsixControlOffset,
-                               msix_control);
-      }
-    } else if (cap_id == kPciCapVendorSpecific) {
-      uint8 cfg_type =
-          Read8BitsFromPciConfig(device_.bus, device_.slot, device_.function,
-                                 cap_ptr + kVirtioPciCapTypeOffset);
-      uint8 bar_idx =
-          Read8BitsFromPciConfig(device_.bus, device_.slot, device_.function,
-                                 cap_ptr + kVirtioPciCapBarOffset);
-      uint32 offset =
-          Read32BitsFromPciConfig(device_.bus, device_.slot, device_.function,
-                                  cap_ptr + kVirtioPciCapOffsetOffset);
-      uint32 length =
-          Read32BitsFromPciConfig(device_.bus, device_.slot, device_.function,
-                                  cap_ptr + kVirtioPciCapLengthOffset);
+      if (cap_id == kPciCapMsiX) {
+        uint16 msix_control = Read16BitsFromPciConfig(
+            device_.bus, device_.slot, device_.function,
+            cap_ptr + kPciCapMsixControlOffset);
+        if (msix_control & kPciCapMsixEnableBit) {
+          msix_control &= ~kPciCapMsixEnableBit;
+          Write16BitsToPciConfig(device_.bus, device_.slot, device_.function,
+                                 cap_ptr + kPciCapMsixControlOffset,
+                                 msix_control);
+        }
+      } else if (cap_id == kPciCapVendorSpecific) {
+        uint8 cfg_type =
+            Read8BitsFromPciConfig(device_.bus, device_.slot, device_.function,
+                                   cap_ptr + kVirtioPciCapTypeOffset);
+        uint8 bar_idx =
+            Read8BitsFromPciConfig(device_.bus, device_.slot, device_.function,
+                                   cap_ptr + kVirtioPciCapBarOffset);
+        uint32 offset =
+            Read32BitsFromPciConfig(device_.bus, device_.slot, device_.function,
+                                    cap_ptr + kVirtioPciCapOffsetOffset);
+        uint32 length =
+            Read32BitsFromPciConfig(device_.bus, device_.slot, device_.function,
+                                    cap_ptr + kVirtioPciCapLengthOffset);
 
-      if (bar_idx < kMaxPciBars && bar_phys[bar_idx] != 0 && length > 0) {
-        uint64 cap_phys = bar_phys[bar_idx] + offset;
-        size_t page_offset = cap_phys & kPageMask;
-        size_t pages = (length + page_offset + kPageMask) / kPageSize;
-        if (pages == 0) pages = 1;
+        if (bar_idx < kMaxPciBars && bar_phys[bar_idx] != 0 && length > 0) {
+          uint64 cap_phys = bar_phys[bar_idx] + offset;
+          size_t page_offset = cap_phys & kPageMask;
+          size_t pages = (length + page_offset + kPageMask) / kPageSize;
+          if (pages == 0) pages = 1;
 
-        void* mapped = MapPhysicalMemory(cap_phys & ~kPageMask, pages);
+          void* mapped = MapPhysicalMemory(cap_phys & ~kPageMask, pages);
 
-        if (mapped != nullptr && (size_t)mapped != (size_t)-1) {
-          volatile uint8* ptr = (volatile uint8*)mapped + page_offset;
+          if (mapped != nullptr && (size_t)mapped != (size_t)-1) {
+            volatile uint8* ptr = (volatile uint8*)mapped + page_offset;
 
-          if (cfg_type == kVirtioPciCapCommonConfig) {
-            common_cfg_ = ptr;
-          } else if (cfg_type == kVirtioPciCapNotifyConfig) {
-            notify_cfg_ = ptr;
-            notify_off_multiplier_ = Read32BitsFromPciConfig(
-                device_.bus, device_.slot, device_.function,
-                cap_ptr + kVirtioPciCapNotifyOffMultiplierOffset);
-          } else if (cfg_type == kVirtioPciCapIsrConfig) {
-            isr_cfg_ = ptr;
-            isr_phys_ = cap_phys;
-          } else if (cfg_type == kVirtioPciCapDeviceConfig) {
-            device_cfg_ = ptr;
+            if (cfg_type == kVirtioPciCapCommonConfig) {
+              common_cfg_ = ptr;
+            } else if (cfg_type == kVirtioPciCapNotifyConfig) {
+              notify_cfg_ = ptr;
+              notify_off_multiplier_ = Read32BitsFromPciConfig(
+                  device_.bus, device_.slot, device_.function,
+                  cap_ptr + kVirtioPciCapNotifyOffMultiplierOffset);
+            } else if (cfg_type == kVirtioPciCapIsrConfig) {
+              isr_cfg_ = ptr;
+              isr_phys_ = cap_phys;
+            } else if (cfg_type == kVirtioPciCapDeviceConfig) {
+              device_cfg_ = ptr;
+            }
           }
         }
       }
+      cap_ptr = next_cap;
     }
-    cap_ptr = next_cap;
   }
 
   io_base_ = io_port_base;
@@ -223,9 +225,9 @@ void VirtioPciDevice::KickQueue(const QueueDetails& queue) {
   if (common_cfg_ != nullptr && notify_cfg_ != nullptr) {
     uint16 notify_off = queue.notify_off;
     uint32 offset = notify_off * notify_off_multiplier_;
-    *(volatile uint16*)(notify_cfg_ + offset) = 0;
+    *(volatile uint16*)(notify_cfg_ + offset) = queue.queue_index;
   } else if (io_base_ != 0) {
-    Write16BitsToPort(io_base_ + kVirtioPciQueueNotify, 0);
+    Write16BitsToPort(io_base_ + kVirtioPciQueueNotify, queue.queue_index);
   }
 }
 

@@ -103,6 +103,7 @@ void QueueDetails::Setup(uint16 queue_idx, uint16 io_base) {
   memset(virt_addr, 0, pages * kPageSize);
 
   size = qsize;
+  queue_index = queue_idx;
   mem = virt_addr;
   phys = physical_address;
   last_seen_used = 0;
@@ -144,6 +145,7 @@ void QueueDetails::SetupModern(uint16 queue_idx, volatile uint8* common_cfg) {
   memset(used_virt, 0, kPageSize);
 
   size = qsize;
+  queue_index = queue_idx;
   mem = desc_virt;
   phys = GetPhysicalAddressOfVirtualAddress((size_t)desc_virt);
   last_seen_used = 0;

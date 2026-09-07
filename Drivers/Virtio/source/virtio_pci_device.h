@@ -26,7 +26,9 @@ class VirtioPciDevice {
   explicit VirtioPciDevice(const perception::devices::PciDevice& device);
   ~VirtioPciDevice() = default;
 
-  bool Initialize();
+  // Initializes the Virtio PCI device. If force_legacy is true, legacy I/O
+  // ports are used exclusively and modern MMIO capabilities are skipped.
+  bool Initialize(bool force_legacy = false);
 
   const perception::devices::PciDevice& device() const { return device_; }
   uint16 io_base() const { return io_base_; }

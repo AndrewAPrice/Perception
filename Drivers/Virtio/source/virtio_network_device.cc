@@ -62,7 +62,7 @@ constexpr uint16 kVirtioPciIsr = 19;
 
 VirtioNetworkDevice::VirtioNetworkDevice(const PciDevice& device)
     : NetworkDevice::Server({.defer_registration = true}), virtio_pci_(device) {
-  virtio_pci_.Initialize();
+  virtio_pci_.Initialize(/*force_legacy=*/true);
 
   uint16 io_base = virtio_pci_.io_base();
 
@@ -77,7 +77,8 @@ VirtioNetworkDevice::VirtioNetworkDevice(const PciDevice& device)
   // Initialize Virtqueues (0 for RX, 1 for TX)
   rx_queue_.Setup(kRxQueueIndex, io_base);
   tx_queue_.Setup(kTxQueueIndex, io_base);
-  if (!rx_queue_.desc || !rx_queue_.avail || !tx_queue_.desc || !tx_queue_.avail) {
+  if (!rx_queue_.desc || !rx_queue_.avail || !tx_queue_.desc ||
+      !tx_queue_.avail) {
     std::cout << "VirtioNetworkDevice: Virtqueue setup failed!" << std::endl;
     return;
   }
@@ -96,7 +97,7 @@ VirtioNetworkDevice::VirtioNetworkDevice(const PciDevice& device)
   rx_queue_.avail->idx = rx_queue_.size;
   __asm__ __volatile__("" ::: "memory");
 
-  FlushRange((void*)rx_queue_.avail, kPageSize);
+  FlushRange(rx_queue_.mem, kQueueMemoryFlushSize);
 
   // Initial RX queue notification
   virtio_pci_.KickQueue(rx_queue_);
@@ -207,9 +208,7 @@ void VirtioNetworkDevice::HandleInterrupt() {
           (const char*)rx_queue_.buffers_virt[desc_idx] + kVirtioNetHeaderSize,
           len - kVirtioNetHeaderSize);
 
-      if (listener_.IsValid()) {
-        (void)listener_.PacketReceived(packet);
-      }
+      if (listener_.IsValid()) (void)listener_.PacketReceived(packet);
     }
 
     // Recycle descriptor slot back to available ring.
@@ -234,7 +233,10 @@ void VirtioNetworkDevice::HandleInterrupt() {
   virtio_pci_.KickQueue(rx_queue_);
 
   // Reclaim finished transmit descriptors.
-  tx_queue_.last_seen_used = tx_queue_.used->idx;
+  {
+    std::lock_guard<std::mutex> lock(tx_mutex_);
+    tx_queue_.last_seen_used = tx_queue_.used->idx;
+  }
 
   processing_interrupt_ = false;
 }

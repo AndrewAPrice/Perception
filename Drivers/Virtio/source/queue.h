@@ -46,6 +46,7 @@ struct VirtQueueUsed {
 } __attribute__((packed));
 
 struct QueueDetails {
+  uint16 queue_index = 0;
   uint16 size = 0;
   void* mem = nullptr;
   size_t phys = 0;
