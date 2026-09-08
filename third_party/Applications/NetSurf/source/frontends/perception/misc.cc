@@ -47,32 +47,37 @@ struct ScheduledTimer {
   bool cancelled;
 };
 
+std::mutex active_timers_mutex;
 std::vector<std::shared_ptr<ScheduledTimer>> active_timers;
 
 nserror ScheduleTimer(int tival, void (*callback)(void* p), void* p) {
-  // Unschedule/cancel any existing timer matching callback and p.
-  for (auto& timer : active_timers) {
-    if (timer->callback == callback && timer->p == p) {
-      timer->cancelled = true;
+  std::shared_ptr<ScheduledTimer> timer;
+  {
+    std::scoped_lock lock(active_timers_mutex);
+    // Unschedule/cancel any existing timer matching callback and p.
+    for (auto& t : active_timers) {
+      if (t->callback == callback && t->p == p) {
+        t->cancelled = true;
+      }
     }
+
+    // Clean up cancelled/inactive timers.
+    active_timers.erase(
+        std::remove_if(active_timers.begin(), active_timers.end(),
+                       [](const std::shared_ptr<ScheduledTimer>& t) {
+                         return t->cancelled;
+                       }),
+        active_timers.end());
+
+    // If tival is negative, it is an unschedule request, so just return!
+    if (tival < 0) return NSERROR_OK;
+
+    timer = std::make_shared<ScheduledTimer>();
+    timer->callback = callback;
+    timer->p = p;
+    timer->cancelled = false;
+    active_timers.push_back(timer);
   }
-
-  // Clean up cancelled/inactive timers.
-  active_timers.erase(
-      std::remove_if(active_timers.begin(), active_timers.end(),
-                     [](const std::shared_ptr<ScheduledTimer>& t) {
-                       return t->cancelled;
-                     }),
-      active_timers.end());
-
-  // If tival is negative, it is an unschedule request, so just return!
-  if (tival < 0) return NSERROR_OK;
-
-  auto timer = std::make_shared<ScheduledTimer>();
-  timer->callback = callback;
-  timer->p = p;
-  timer->cancelled = false;
-  active_timers.push_back(timer);
 
   if (tival == 0) {
     ::perception::Defer([timer]() {
@@ -80,6 +85,7 @@ nserror ScheduleTimer(int tival, void (*callback)(void* p), void* p) {
         NETSURF_LOCK;
         timer->callback(timer->p);
       }
+      timer->cancelled = true;
     });
   } else {
     ::perception::Defer([tival, timer]() {
@@ -88,6 +94,7 @@ nserror ScheduleTimer(int tival, void (*callback)(void* p), void* p) {
         NETSURF_LOCK;
         timer->callback(timer->p);
       }
+      timer->cancelled = true;
     });
   }
   return NSERROR_OK;

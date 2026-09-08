@@ -153,7 +153,7 @@ const char** GetResourcePaths() { return (const char**)internal_respaths; }
 
 char** FbInitResourcePath(const char* resource_path) {
   char* pathv[2];
-  pathv[0] = (char*)"/Applications/netsurf/res";
+  pathv[0] = (char*)"/Applications/NetSurf/res";
   pathv[1] = NULL;
 
   char** langv = get_language_names();

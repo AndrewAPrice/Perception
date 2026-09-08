@@ -130,18 +130,19 @@ void UpdateScrollBars(Window* gw) {
   int content_width = 0;
   int content_height = 0;
   if (gw->GetBrowserWindow()) {
-    browser_window_get_extents(gw->GetBrowserWindow(), false, &content_width,
+    browser_window_get_extents(gw->GetBrowserWindow(), true, &content_width,
                                &content_height);
   }
-
-  if (content_width == 0) content_width = 800;
-  if (content_height == 0) content_height = 600;
 
   float viewport_width = gw->GetContentNode()->GetSize().width;
   float viewport_height = gw->GetContentNode()->GetSize().height;
 
   if (viewport_width < 1.0f) viewport_width = 1.0f;
   if (viewport_height < 1.0f) viewport_height = 1.0f;
+
+  if (content_width < (int)viewport_width) content_width = (int)viewport_width;
+  if (content_height < (int)viewport_height)
+    content_height = (int)viewport_height;
 
   if (gw->GetHorizontalScrollBar()) {
     gw->GetHorizontalScrollBar()->SetValue(

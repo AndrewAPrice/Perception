@@ -37,7 +37,6 @@
 #include <vector>
 
 #include "bearssl.h"
-#include "perception/debug.h"
 #include "perception/fibers.h"
 #include "perception/network/network_service.h"
 #include "perception/processes.h"
@@ -66,41 +65,29 @@ struct br_x509_unsafe_context {
 static void unsafe_start_chain(const br_x509_class** ctx,
                                const char* server_name) {
   br_x509_unsafe_context* uc = (br_x509_unsafe_context*)ctx;
-  std::cout << "unsafe_start_chain for " << (server_name ? server_name : "NULL")
-            << std::endl;
-  uc->minimal.vtable->start_chain(&uc->minimal.vtable, server_name);
+  uc->minimal.vtable->start_chain(&uc->minimal.vtable, nullptr);
 }
 static void unsafe_start_cert(const br_x509_class** ctx, uint32_t length) {
   br_x509_unsafe_context* uc = (br_x509_unsafe_context*)ctx;
-  std::cout << "unsafe_start_cert length = " << length
-            << ", err = " << uc->minimal.err << std::endl;
   uc->minimal.vtable->start_cert(&uc->minimal.vtable, length);
 }
 static void unsafe_append(const br_x509_class** ctx, const unsigned char* buf,
                           size_t len) {
   br_x509_unsafe_context* uc = (br_x509_unsafe_context*)ctx;
   uc->minimal.vtable->append(&uc->minimal.vtable, buf, len);
-  if (uc->minimal.err != 0) {
-    std::cout << "unsafe_append err = " << uc->minimal.err << std::endl;
-  }
 }
 static void unsafe_end_cert(const br_x509_class** ctx) {
   br_x509_unsafe_context* uc = (br_x509_unsafe_context*)ctx;
   uc->minimal.vtable->end_cert(&uc->minimal.vtable);
-  std::cout << "unsafe_end_cert err = " << uc->minimal.err << std::endl;
 }
 static unsigned unsafe_end_chain(const br_x509_class** ctx) {
   br_x509_unsafe_context* uc = (br_x509_unsafe_context*)ctx;
-  unsigned err = uc->minimal.vtable->end_chain(&uc->minimal.vtable);
-  std::cout << "unsafe_end_chain minimal_err = " << uc->minimal.err
-            << ", end_chain returned = " << err << std::endl;
+  uc->minimal.vtable->end_chain(&uc->minimal.vtable);
   return 0;  // Ignore all verification errors
 }
 static const br_x509_pkey* unsafe_get_pkey(const br_x509_class* const* ctx,
                                            unsigned* usages) {
   br_x509_unsafe_context* uc = (br_x509_unsafe_context*)ctx;
-  std::cout << "unsafe_get_pkey: minimal.pkey.key_type = "
-            << (int)uc->minimal.pkey.key_type << std::endl;
   if (usages != nullptr) {
     *usages = BR_KEYTYPE_KEYX | BR_KEYTYPE_SIGN;
   }
@@ -137,7 +124,7 @@ struct http_fetch_context {
   bool socket_closed;
   br_ssl_client_context sc;
   br_x509_unsafe_context uc;
-  unsigned char io_buffer[BR_SSL_BUFSIZE_MONO];
+  unsigned char io_buffer[BR_SSL_BUFSIZE_BIDI];
 };
 
 static std::mutex active_fetches_mutex;
@@ -206,12 +193,62 @@ static void* http_fetch_setup(struct fetch* parent_fetch, struct nsurl* url,
     lwc_string_unref(query_lwc);
   }
 
-  ctx->request_data =
-      "GET " + ctx->path_and_query + " HTTP/1.1\r\n" + "Host: " + ctx->host +
-      "\r\n" + "User-Agent: NetSurf/3.11 (Perception; x86_64)\r\n" +
-      "Accept: "
-      "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n" +
-      "Accept-Language: en-US,en;q=0.5\r\n" + "Connection: close\r\n\r\n";
+  std::string method = post_urlenc ? "POST" : "GET";
+  ctx->request_data = method + " " + ctx->path_and_query + " HTTP/1.1\r\n";
+  ctx->request_data += "Host: " + ctx->host + "\r\n";
+
+  bool has_user_agent = false;
+  bool has_accept = false;
+  bool has_connection = false;
+  bool has_content_type = false;
+  bool has_content_length = false;
+
+  if (headers) {
+    for (int i = 0; headers[i] != nullptr; ++i) {
+      std::string h(headers[i]);
+      if (h.rfind("User-Agent:", 0) == 0 || h.rfind("user-agent:", 0) == 0)
+        has_user_agent = true;
+      if (h.rfind("Accept:", 0) == 0 || h.rfind("accept:", 0) == 0)
+        has_accept = true;
+      if (h.rfind("Connection:", 0) == 0 || h.rfind("connection:", 0) == 0)
+        has_connection = true;
+      if (h.rfind("Content-Type:", 0) == 0 || h.rfind("content-type:", 0) == 0)
+        has_content_type = true;
+      if (h.rfind("Content-Length:", 0) == 0 ||
+          h.rfind("content-length:", 0) == 0)
+        has_content_length = true;
+      ctx->request_data += h + "\r\n";
+    }
+  }
+
+  if (!has_user_agent) {
+    ctx->request_data += "User-Agent: NetSurf/3.11 (Perception; x86_64)\r\n";
+  }
+  if (!has_accept) {
+    ctx->request_data +=
+        "Accept: "
+        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
+        "Accept-Language: en-US,en;q=0.5\r\n";
+  }
+  if (!has_connection) {
+    ctx->request_data += "Connection: close\r\n";
+  }
+
+  if (post_urlenc) {
+    size_t post_len = strlen(post_urlenc);
+    if (!has_content_type) {
+      ctx->request_data +=
+          "Content-Type: application/x-www-form-urlencoded\r\n";
+    }
+    if (!has_content_length) {
+      ctx->request_data +=
+          "Content-Length: " + std::to_string(post_len) + "\r\n";
+    }
+    ctx->request_data += "\r\n";
+    ctx->request_data += post_urlenc;
+  } else {
+    ctx->request_data += "\r\n";
+  }
 
   if (ctx->is_https) {
     // Initialize X509 unsafe engine
@@ -220,15 +257,11 @@ static void* http_fetch_setup(struct fetch* parent_fetch, struct nsurl* url,
     // Initialize SSL client context
     br_ssl_client_init_full(&ctx->sc, &ctx->uc.minimal, nullptr, 0);
 
-    time_t current_time = time(nullptr);
-    std::cout << "NetSurf HTTP Fetcher: time(nullptr) returned " << current_time
-              << std::endl;
-    if (current_time != (time_t)-1) {
-      ctx->uc.minimal.days = (uint32_t)(current_time / 86400) + 719528;
-      ctx->uc.minimal.seconds = (uint32_t)(current_time % 86400);
-      std::cout << "NetSurf HTTP Fetcher: set days = " << ctx->uc.minimal.days
-                << ", seconds = " << ctx->uc.minimal.seconds << std::endl;
-    }
+    // Set time callback to return 0 so certificate validity dates always pass
+    // and certificate parsing succeeds in extracting public keys.
+    br_x509_minimal_set_time_callback(
+        &ctx->uc.minimal, nullptr,
+        [](void*, uint32_t, uint32_t, uint32_t, uint32_t) -> int { return 0; });
 
     // Set unsafe X509 engine
     br_ssl_engine_set_x509(&ctx->sc.eng, &ctx->uc.vtable);
@@ -242,9 +275,9 @@ static void* http_fetch_setup(struct fetch* parent_fetch, struct nsurl* url,
     }
     br_ssl_engine_inject_entropy(&ctx->sc.eng, entropy, 32);
 
-    // Set buffer
+    // Set buffer to bidirectional
     br_ssl_engine_set_buffer(&ctx->sc.eng, ctx->io_buffer,
-                             sizeof(ctx->io_buffer), 0);
+                             sizeof(ctx->io_buffer), 1);
 
     // Reset/ready handshake
     br_ssl_client_reset(&ctx->sc, ctx->host.c_str(), 0);
@@ -311,11 +344,9 @@ static bool http_fetch_start(void* handle) {
     return true;
   }
 
-  if (ctx->is_https) {
-    int flags = fcntl(ctx->sock, F_GETFL, 0);
-    if (flags >= 0) {
-      fcntl(ctx->sock, F_SETFL, flags | O_NONBLOCK);
-    }
+  int flags = fcntl(ctx->sock, F_GETFL, 0);
+  if (flags >= 0) {
+    fcntl(ctx->sock, F_SETFL, flags | O_NONBLOCK);
   }
   ctx->active = true;
   {
@@ -336,10 +367,13 @@ static void http_fetch_abort(void* handle) {
 
 static void http_fetch_free(void* handle) {
   auto ctx = (http_fetch_context*)handle;
-  auto it =
-      std::find(active_http_fetches.begin(), active_http_fetches.end(), ctx);
-  if (it != active_http_fetches.end()) {
-    active_http_fetches.erase(it);
+  {
+    std::scoped_lock lock(active_fetches_mutex);
+    auto it =
+        std::find(active_http_fetches.begin(), active_http_fetches.end(), ctx);
+    if (it != active_http_fetches.end()) {
+      active_http_fetches.erase(it);
+    }
   }
   if (ctx->sock >= 0) {
     close(ctx->sock);
@@ -407,6 +441,9 @@ static bool is_http_response_complete(const http_fetch_context* ctx) {
       return true;
     }
   }
+
+  // 204 No Content and 304 Not Modified responses have no body.
+  if (status_code == 204 || status_code == 304) return true;
 
   // Check for Content-Length
   size_t cl_pos = headers.find("Content-Length:");
@@ -664,7 +701,8 @@ static void run_ssl_engine(http_fetch_context* ctx) {
       int err = br_ssl_engine_last_error(&ctx->sc.eng);
       std::cout << "SSL engine is closed. Last error code: " << (int64)err
                 << std::endl;
-      if (err != BR_ERR_OK && !ctx->socket_closed) {
+      if (err != BR_ERR_OK && !ctx->socket_closed &&
+          ctx->response_data.empty()) {
         ctx->failed = true;
         ctx->failure_reason = "SslHandshakeOrConnectionFailed";
       } else {
@@ -683,28 +721,25 @@ static void run_ssl_engine(http_fetch_context* ctx) {
 
     bool did_work = false;
 
-    // 1. Send encrypted data to socket
+    // Send encrypted data to socket
     if (state & BR_SSL_SENDREC) {
       size_t len;
       unsigned char* buf = br_ssl_engine_sendrec_buf(&ctx->sc.eng, &len);
       if (len > 0) {
         if (ctx->socket_closed) {
-          std::cout << "NetSurf SSL: Socket closed, discarding " << len
-                    << " bytes of outgoing record" << std::endl;
+          std::cout << "NetSurf SSL: Socket closed, discarding " << (int64)len
+                    << " bytes of outgoing record\n";
           br_ssl_engine_sendrec_ack(&ctx->sc.eng, len);
           did_work = true;
         } else {
-          std::cout << "NetSurf SSL: Writing " << len
-                    << " encrypted bytes to socket " << ctx->sock << std::endl;
           ssize_t sent = write(ctx->sock, buf, len);
           if (sent < 0) {
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
-              std::cout << "NetSurf SSL: Socket write failed! errno = " << errno
-                        << std::endl;
+              std::cout << "NetSurf SSL: Socket write failed! errno = "
+                        << (int64)errno << std::endl;
               if (errno == ECONNRESET || errno == EPIPE) {
                 std::cout << "NetSurf SSL: Connection closed by peer. Ignoring "
-                             "close/write error."
-                          << std::endl;
+                             "close/write error.\n";
                 br_ssl_engine_sendrec_ack(&ctx->sc.eng, len);
                 did_work = true;
               } else {
@@ -714,8 +749,6 @@ static void run_ssl_engine(http_fetch_context* ctx) {
               }
             }
           } else if (sent > 0) {
-            std::cout << "NetSurf SSL: Wrote " << sent << " bytes to socket"
-                      << std::endl;
             br_ssl_engine_sendrec_ack(&ctx->sc.eng, sent);
             did_work = true;
           }
@@ -723,7 +756,7 @@ static void run_ssl_engine(http_fetch_context* ctx) {
       }
     }
 
-    // 2. Read encrypted data from socket
+    // Read encrypted data from socket
     if ((state & BR_SSL_RECVREC) && !ctx->socket_closed) {
       size_t len;
       unsigned char* buf = br_ssl_engine_recvrec_buf(&ctx->sc.eng, &len);
@@ -731,14 +764,14 @@ static void run_ssl_engine(http_fetch_context* ctx) {
         ssize_t recved = read(ctx->sock, buf, len);
         if (recved < 0) {
           if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            std::cout << "SSL socket read failed! recved = " << recved
-                      << ", errno = " << errno << std::endl;
+            std::cout << "SSL socket read failed! recved = " << (int64)recved
+                      << ", errno = " << (int64)errno << std::endl;
             ctx->failed = true;
             ctx->failure_reason = "SocketReadFailed";
             return;
           }
         } else if (recved == 0) {
-          std::cout << "SSL socket EOF during read" << std::endl;
+          std::cout << "SSL socket EOF during read\n";
           ctx->socket_closed = true;
           br_ssl_engine_close(&ctx->sc.eng);
           did_work = true;
@@ -749,7 +782,7 @@ static void run_ssl_engine(http_fetch_context* ctx) {
       }
     }
 
-    // 3. Send plaintext app request data to SSL engine
+    // Send plaintext app request data to SSL engine
     if (state & BR_SSL_SENDAPP) {
       size_t len;
       unsigned char* buf = br_ssl_engine_sendapp_buf(&ctx->sc.eng, &len);
@@ -768,13 +801,11 @@ static void run_ssl_engine(http_fetch_context* ctx) {
       }
     }
 
-    // 4. Read decrypted plaintext response data from SSL engine
+    // Read decrypted plaintext response data from SSL engine
     if (state & BR_SSL_RECVAPP) {
       size_t len;
       unsigned char* buf = br_ssl_engine_recvapp_buf(&ctx->sc.eng, &len);
       if (len > 0) {
-        std::cout << "NetSurf SSL: Received " << len
-                  << " decrypted plaintext bytes from SSL engine" << std::endl;
         ctx->response_data.append((const char*)buf, len);
         br_ssl_engine_recvapp_ack(&ctx->sc.eng, len);
         did_work = true;
@@ -786,15 +817,19 @@ static void run_ssl_engine(http_fetch_context* ctx) {
     }
 
     if (!did_work) {
-      // If we didn't perform any progress-making operation in this loop
-      // iteration, we must break to avoid an infinite loop.
+      // If no progress-making operation occurred in this loop iteration,
+      // return to avoid spinning.
       return;
     }
   }
 }
 
 static void http_fetch_poll(lwc_string* scheme) {
-  auto fetches_to_process = active_http_fetches;
+  std::vector<http_fetch_context*> fetches_to_process;
+  {
+    std::scoped_lock lock(active_fetches_mutex);
+    fetches_to_process = active_http_fetches;
+  }
   for (auto ctx : fetches_to_process) {
     if (ctx->freed) {
       if (!ctx->in_poll) delete ctx;
@@ -828,6 +863,10 @@ static void http_fetch_poll(lwc_string* scheme) {
           write(ctx->sock, ctx->request_data.data() + ctx->sent_bytes,
                 ctx->request_data.length() - ctx->sent_bytes);
       if (sent < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+          ctx->in_poll = false;
+          continue;
+        }
         ctx->active = false;
         fetch_remove_from_queues(ctx->parent_fetch);
 
@@ -846,6 +885,10 @@ static void http_fetch_poll(lwc_string* scheme) {
       char buf[2048];
       ssize_t recved = read(ctx->sock, buf, sizeof(buf));
       if (recved < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+          ctx->in_poll = false;
+          continue;
+        }
         ctx->active = false;
         fetch_remove_from_queues(ctx->parent_fetch);
 
@@ -857,6 +900,7 @@ static void http_fetch_poll(lwc_string* scheme) {
         if (ctx->freed) delete ctx;
         continue;
       } else if (recved == 0) {
+        ctx->socket_closed = true;
         process_http_response(ctx);
       } else {
         ctx->response_data.append(buf, recved);
@@ -888,7 +932,7 @@ void RegisterPerceptionHttpFetcher() {
   if (auto error = fetcher_add(http_scheme, &http_fetch_ops);
       error != NSERROR_OK) {
     std::cout << "Failed to register NetSurf Custom HTTP Fetcher: "
-              << (int)error << std::endl;
+              << (int64)error << std::endl;
   }
 
   lwc_string* https_scheme = nullptr;
@@ -896,7 +940,7 @@ void RegisterPerceptionHttpFetcher() {
   if (auto error = fetcher_add(https_scheme, &http_fetch_ops);
       error != NSERROR_OK) {
     std::cout << "Failed to register NetSurf Custom HTTPS Fetcher: "
-              << (int)error << std::endl;
+              << (int64)error << std::end;
   }
 }
 

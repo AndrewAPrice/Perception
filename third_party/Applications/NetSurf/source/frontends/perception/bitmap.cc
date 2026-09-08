@@ -30,15 +30,34 @@ namespace {
 
 void* BitmapCreate(int width, int height, enum gui_bitmap_flags flags) {
   struct bitmap* bm = new struct bitmap();
+  bm->opaque = (flags & BITMAP_OPAQUE) != 0;
   SkColorType color_type = kRGBA_8888_SkColorType;
   SkAlphaType alpha_type =
-      (flags & BITMAP_OPAQUE) ? kOpaque_SkAlphaType : kPremul_SkAlphaType;
+      bm->opaque ? kOpaque_SkAlphaType : kPremul_SkAlphaType;
   bm->sk_bitmap.allocPixels(
       SkImageInfo::Make(width, height, color_type, alpha_type));
+  if (flags & BITMAP_CLEAR) {
+    bm->sk_bitmap.eraseColor(0);
+  }
   return bm;
 }
 
 void BitmapDestroy(void* bitmap) { delete (struct bitmap*)bitmap; }
+
+void BitmapSetOpaque(void* bitmap, bool opaque) {
+  if (!bitmap) return;
+  auto* bm = (struct bitmap*)bitmap;
+  bm->opaque = opaque;
+  bm->sk_bitmap.setAlphaType(opaque ? kOpaque_SkAlphaType
+                                    : kPremul_SkAlphaType);
+  bm->cached_image.reset();
+}
+
+bool BitmapGetOpaque(void* bitmap) {
+  if (!bitmap) return false;
+  auto* bm = (struct bitmap*)bitmap;
+  return bm->opaque;
+}
 
 unsigned char* BitmapGetBuffer(void* bitmap) {
   struct bitmap* bm = (struct bitmap*)bitmap;
@@ -74,8 +93,8 @@ nserror BitmapRender(struct bitmap* bitmap, struct hlcache_handle* content) {
 struct gui_bitmap_table skia_bitmap_table = {
     .create = BitmapCreate,
     .destroy = BitmapDestroy,
-    .set_opaque = [](void*, bool) {},
-    .get_opaque = [](void*) { return false; },
+    .set_opaque = BitmapSetOpaque,
+    .get_opaque = BitmapGetOpaque,
     .get_buffer = BitmapGetBuffer,
     .get_rowstride = BitmapGetRowstride,
     .get_width = BitmapGetWidth,

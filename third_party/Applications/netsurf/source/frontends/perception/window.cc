@@ -72,7 +72,6 @@ const uint8_t* content_get_source_data(struct hlcache_handle* h, size_t* size);
 #include "include/core/SkPath.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkString.h"
-#include "perception/debug.h"
 #include "perception/fibers.h"
 #include "perception/processes.h"
 #include "perception/random.h"
@@ -128,15 +127,11 @@ Window::~Window() {
 namespace {
 
 SkColor ConvertColor(colour c) {
+  if (c == NS_TRANSPARENT) return SK_ColorTRANSPARENT;
   uint8_t r = (c) & 0xff;
   uint8_t g = (c >> 8) & 0xff;
   uint8_t b = (c >> 16) & 0xff;
-  uint8_t a = 255;
-  if (c == NS_TRANSPARENT) {
-    a = 0;
-  } else if ((c & 0xff000000) != 0) {
-    a = (c >> 24) & 0xff;
-  }
+  uint8_t a = 255 - ((c >> 24) & 0xff);
   return SkColorSetARGB(a, r, g, b);
 }
 
@@ -202,6 +197,8 @@ nserror GuiWindowGetDimensions(struct gui_window* gw, int* width, int* height) {
   if (gw && gw->GetContentNode()) {
     *width = (int)gw->GetContentNode()->GetSize().width;
     *height = (int)gw->GetContentNode()->GetSize().height;
+    if (*width <= 0) *width = 800;
+    if (*height <= 0) *height = 600;
   } else {
     *width = 800;
     *height = 600;
@@ -373,26 +370,25 @@ static struct gui_window* gui_window_create(struct browser_window* bw,
       return;
     }
 
-    struct hlcache_handle* content =
-        browser_window_get_content(gw->GetBrowserWindow());
-    if (!content) return;
-
-    content_status status = content_get_status(content);
-    if (status != CONTENT_STATUS_READY && status != CONTENT_STATUS_DONE) {
-      SkPaint paint;
-      paint.setColor(SkColorSetARGB(255, 255, 255, 255));
-      context.skia_canvas->drawRect(
-          SkRect::MakeXYWH(context.area.origin.x, context.area.origin.y,
-                           context.area.size.width, context.area.size.height),
-          paint);
-      return;
-    }
+    if (!browser_window_redraw_ready(gw->GetBrowserWindow())) return;
 
     int w = (int)context.area.size.width;
     int h = (int)context.area.size.height;
 
+    if (w > 0 && h > 0) {
+      if (gw->GetLastFormatWidth() != w || gw->GetLastFormatHeight() != h) {
+        gw->SetLastFormatWidth(w);
+        gw->SetLastFormatHeight(h);
+        browser_window_schedule_reformat(gw->GetBrowserWindow());
+      }
+    }
+
     if (w < 100) w = 100;
     if (h < 100) h = 100;
+
+    int initial_save = context.skia_canvas->save();
+    context.skia_canvas->translate(context.area.origin.x - gw->GetScroll().x,
+                                   context.area.origin.y - gw->GetScroll().y);
 
     SetActiveCanvas(context.skia_canvas);
 
@@ -404,16 +400,10 @@ static struct gui_window* gui_window_create(struct browser_window* bw,
                         .x1 = (int)gw->GetScroll().x + w,
                         .y1 = (int)gw->GetScroll().y + h};
 
-    context.skia_canvas->save();
-    context.skia_canvas->translate(context.area.origin.x - gw->GetScroll().x,
-                                   context.area.origin.y - gw->GetScroll().y);
-    context.skia_canvas->save();
-
     browser_window_redraw(gw->GetBrowserWindow(), 0, 0, &rect, &ctx);
 
-    context.skia_canvas->restore();
-    context.skia_canvas->restore();
     SetActiveCanvas(nullptr);
+    context.skia_canvas->restoreToCount(initial_save);
   });
 
   // Wire up Mouse interaction.
@@ -554,9 +544,6 @@ static struct gui_window* gui_window_create(struct browser_window* bw,
                     "", [](Layout& layout) { layout.SetFlexGrow(1.0f); },
                     [](InputBox& input_box) {
                       input_box.OnEnterPressed([](std::string_view text) {
-                        ::perception::DebugPrinterSingleton
-                            << "NetSurf Native: OnEnterPressed for URL: \""
-                            << std::string(text).c_str() << "\"\n";
                         NETSURF_LOCK;
                         if (GetActiveTab()) {
                           std::string url_str(text);
@@ -565,16 +552,10 @@ static struct gui_window* gui_window_create(struct browser_window* bw,
                           }
                           nsurl* url;
                           nserror ret = nsurl_create(url_str.c_str(), &url);
-                          ::perception::DebugPrinterSingleton
-                              << "NetSurf Native: nsurl_create returned: "
-                              << (int64)ret << "\n";
                           if (ret == NSERROR_OK) {
-                            ::perception::DebugPrinterSingleton
-                                << "NetSurf Native: Navigating active tab to "
-                                   "URL!\n";
-                            browser_window_navigate(
+                            nserror nav_ret = browser_window_navigate(
                                 GetActiveTab()->GetBrowserWindow(), url, NULL,
-                                BW_NAVIGATE_NONE, NULL, NULL, NULL);
+                                BW_NAVIGATE_HISTORY, NULL, NULL, NULL);
                             nsurl_unref(url);
                           }
                         }
@@ -638,16 +619,12 @@ static struct gui_window* gui_window_create(struct browser_window* bw,
           node.OnMouseButtonUp([](const Point&,
                                   ::perception::window::MouseButton button) {
             if (button != ::perception::window::MouseButton::Left) return;
-            ::perception::DebugPrinterSingleton
-                << "NetSurf Native: Clicked '+' button to add a new tab.\n";
             ::perception::DeferAfterEvents([]() {
               NETSURF_LOCK;
               if (GetActiveTab()) {
                 struct nsurl* url = nullptr;
                 nserror ret = nsurl_create(
                     "file:///Applications/netsurf/res/en/welcome.html", &url);
-                ::perception::DebugPrinterSingleton
-                    << "  nsurl_create returned " << (int64)ret << "\n";
                 if (ret == NSERROR_OK) {
                   struct browser_window* new_bw = nullptr;
                   nserror create_ret = browser_window_create(
@@ -656,9 +633,6 @@ static struct gui_window* gui_window_create(struct browser_window* bw,
                                                     BW_CREATE_HISTORY),
                       url, nullptr, GetActiveTab()->GetBrowserWindow(),
                       &new_bw);
-                  ::perception::DebugPrinterSingleton
-                      << "  browser_window_create returned "
-                      << (int64)create_ret << "\n";
                   nsurl_unref(url);
                 }
               }

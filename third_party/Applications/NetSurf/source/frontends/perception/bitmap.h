@@ -21,6 +21,7 @@
 struct bitmap {
   SkBitmap sk_bitmap;
   sk_sp<SkImage> cached_image;
+  bool opaque = false;
 };
 
 extern "C" {

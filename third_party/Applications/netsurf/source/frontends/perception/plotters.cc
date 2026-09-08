@@ -47,24 +47,21 @@ namespace perception {
 namespace {
 
 SkCanvas* active_canvas = nullptr;
+int canvas_save_count = 0;
 
 /* Color Conversion */
 SkColor ConvertColor(colour c) {
+  if (c == NS_TRANSPARENT) return SK_ColorTRANSPARENT;
   uint8_t r = (c) & 0xff;
   uint8_t g = (c >> 8) & 0xff;
   uint8_t b = (c >> 16) & 0xff;
-  uint8_t a = 255;
-  if (c == NS_TRANSPARENT) {
-    a = 0;
-  } else if ((c & 0xff000000) != 0) {
-    a = (c >> 24) & 0xff;
-  }
+  uint8_t a = 255 - ((c >> 24) & 0xff);
   return SkColorSetARGB(a, r, g, b);
 }
 
 nserror PlotClip(const struct redraw_context* ctx, const struct rect* clip) {
   if (!active_canvas) return NSERROR_INVALID;
-  active_canvas->restore();
+  active_canvas->restoreToCount(canvas_save_count);
   active_canvas->save();
   active_canvas->clipRect(SkRect::MakeLTRB((float)clip->x0, (float)clip->y0,
                                            (float)clip->x1, (float)clip->y1));
@@ -116,6 +113,7 @@ nserror PlotDisc(const struct redraw_context* ctx, const plot_style_t* style,
 nserror PlotLine(const struct redraw_context* ctx, const plot_style_t* style,
                  const struct rect* line) {
   if (!active_canvas) return NSERROR_INVALID;
+  if (style->stroke_type == PLOT_OP_TYPE_NONE) return NSERROR_OK;
   SkPaint paint;
   paint.setAntiAlias(true);
   paint.setColor(ConvertColor(style->stroke_colour));
@@ -177,9 +175,11 @@ nserror PlotPath(const struct redraw_context* ctx, const plot_style_t* pstyle,
   if (static_cast<int>(p[0]) != PLOTTER_PATH_MOVE) return NSERROR_INVALID;
 
   auto tx = [&](float x, float y) {
+    if (!transform) return x;
     return transform[0] * x + transform[2] * y + transform[4];
   };
   auto ty = [&](float x, float y) {
+    if (!transform) return y;
     return transform[1] * x + transform[3] * y + transform[5];
   };
 
@@ -292,7 +292,7 @@ nserror PlotBitmap(const struct redraw_context* ctx, struct bitmap* bitmap,
       SkRect dest = SkRect::MakeXYWH(cx, cy, (float)width, (float)height);
       if (has_bg) active_canvas->drawRect(dest, bg_paint);
       active_canvas->drawImageRect(bitmap->cached_image, dest,
-                                   SkSamplingOptions());
+                                   SkSamplingOptions(SkFilterMode::kLinear));
     }
   }
   return NSERROR_OK;
@@ -300,7 +300,10 @@ nserror PlotBitmap(const struct redraw_context* ctx, struct bitmap* bitmap,
 
 }  // namespace
 
-void SetActiveCanvas(SkCanvas* canvas) { active_canvas = canvas; }
+void SetActiveCanvas(SkCanvas* canvas) {
+  active_canvas = canvas;
+  canvas_save_count = canvas ? canvas->getSaveCount() : 0;
+}
 SkCanvas* GetActiveCanvas() { return active_canvas; }
 
 const struct plotter_table skia_plotters = {
@@ -313,7 +316,7 @@ const struct plotter_table skia_plotters = {
     .path = PlotPath,
     .bitmap = PlotBitmap,
     .text = PlotText,
-    .option_knockout = true,
+    .option_knockout = false,
 };
 
 }  // namespace perception

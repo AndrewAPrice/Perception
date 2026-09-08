@@ -119,6 +119,11 @@ class Window {
   bool& GetTitleDeferred() { return title_deferred_; }
   bool GetTitleDeferred() const { return title_deferred_; }
 
+  int GetLastFormatWidth() const { return last_format_width_; }
+  void SetLastFormatWidth(int w) { last_format_width_ = w; }
+  int GetLastFormatHeight() const { return last_format_height_; }
+  void SetLastFormatHeight(int h) { last_format_height_ = h; }
+
  private:
   struct browser_window* bw_ = nullptr;
   std::shared_ptr<::perception::ui::Node> tab_root_node_;
@@ -140,6 +145,8 @@ class Window {
   bool scroll_deferred_ = false;
   bool extent_deferred_ = false;
   bool title_deferred_ = false;
+  int last_format_width_ = 0;
+  int last_format_height_ = 0;
 };
 
 extern struct gui_window_table perception_window_table;

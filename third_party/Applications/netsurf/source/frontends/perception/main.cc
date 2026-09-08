@@ -19,6 +19,7 @@
 
 extern "C" {
 #include "desktop/browser_history.h"
+#include "netsurf/bitmap.h"
 #include "netsurf/browser_window.h"
 #include "netsurf/cookie_db.h"
 #include "netsurf/layout.h"
@@ -125,6 +126,12 @@ int main(int argc, char* argv[]) {
   if (ret != NSERROR_OK) {
     Die("NetSurf operation table failed registration");
   }
+
+  bitmap_fmt_t bfmt = {
+      .layout = BITMAP_LAYOUT_R8G8B8A8,
+      .pma = true,
+  };
+  bitmap_set_format(&bfmt);
 
   netsurf::perception::FbInitResourcePath(nullptr);
 
