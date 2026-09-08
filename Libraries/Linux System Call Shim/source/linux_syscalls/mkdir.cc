@@ -29,7 +29,9 @@ long mkdir(const char* pathname, mode_t mode) {
     case Status::OK:
       return 0;
     case Status::NOT_ALLOWED:
-      return -EACCES;
+      return -EEXIST;
+    case Status::FILE_NOT_FOUND:
+      return -ENOENT;
     default:
       return -EINVAL;
   }

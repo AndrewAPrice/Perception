@@ -31,23 +31,20 @@ namespace {
 long ReadSocket(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
                 long iovcnt) {
   if (iovcnt < 0) {
-    errno = EINVAL;
-    return -1;
+    return -EINVAL;
   }
   // Count how many bytes to read.
   size_t bytes_to_read = 0;
   for (int io_entry = 0; io_entry < iovcnt; io_entry++) {
     const auto& io = ((const iovec*)iov)[io_entry];
     if ((ssize_t)io.iov_len < 0) {
-      errno = EINVAL;
-      return -1;
+      return -EINVAL;
     }
     bytes_to_read += (size_t)io.iov_len;
   }
 
   if ((ssize_t)bytes_to_read < 0) {
-    errno = EINVAL;
-    return -1;
+    return -EINVAL;
   }
 
   if (bytes_to_read == 0) {
@@ -85,23 +82,20 @@ long ReadSocket(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
 long ReadFile(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
               long iovcnt) {
   if (iovcnt < 0) {
-    errno = EINVAL;
-    return -1;
+    return -EINVAL;
   }
   // Count how many bytes to read.
   size_t bytes_to_read = 0;
   for (int io_entry = 0; io_entry < iovcnt; io_entry++) {
     const auto& io = ((const iovec*)iov)[io_entry];
     if ((ssize_t)io.iov_len < 0) {
-      errno = EINVAL;
-      return -1;
+      return -EINVAL;
     }
     bytes_to_read += (size_t)io.iov_len;
   }
 
   if ((ssize_t)bytes_to_read < 0) {
-    errno = EINVAL;
-    return -1;
+    return -EINVAL;
   }
 
   // Prune to how many bytes there actually are remaining in the file.
@@ -143,8 +137,7 @@ long ReadFile(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
 
     if (status != Status::OK) {
       kSharedMemoryPool.ReleaseSharedMemory(pooled_shared_memory);
-      errno = EINVAL;
-      return -1;
+      return -EINVAL;
     }
 
     // Copy from the shared buffer with Storage Manager into the buffers
@@ -197,8 +190,7 @@ long ReadFile(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
 long readv(long fd, void* iov, long iovcnt) {
   auto descriptor = GetFileDescriptor(fd);
   if (!descriptor) {
-    errno = EBADF;
-    return -1;
+    return -EBADF;
   }
 
   long ret;
@@ -211,8 +203,7 @@ long readv(long fd, void* iov, long iovcnt) {
       break;
     case FileDescriptor::DIRECTORY:
     default:
-      errno = EINVAL;
-      ret = -1;
+      ret = -EINVAL;
       break;
   }
   return ret;

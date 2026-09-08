@@ -27,13 +27,11 @@ using ::perception::network::BindRequest;
 long bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen) {
   auto descriptor = GetFileDescriptor(sockfd);
   if (!descriptor || descriptor->type != FileDescriptor::SOCKET) {
-    errno = EBADF;
-    return -1;
+    return -EBADF;
   }
 
   if (addr->sa_family != AF_INET) {
-    errno = EAFNOSUPPORT;
-    return -1;
+    return -EAFNOSUPPORT;
   }
 
   const struct sockaddr_in* addr_in = (const struct sockaddr_in*)addr;
@@ -42,8 +40,7 @@ long bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen) {
 
   auto status = descriptor->socket.socket.Bind(request);
   if (status != Status::OK) {
-    errno = EADDRINUSE;
-    return -1;
+    return -EADDRINUSE;
   }
 
   return 0;

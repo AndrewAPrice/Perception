@@ -24,14 +24,12 @@ namespace linux_syscalls {
 long listen(int sockfd, int backlog) {
   auto descriptor = GetFileDescriptor(sockfd);
   if (!descriptor || descriptor->type != FileDescriptor::SOCKET) {
-    errno = EBADF;
-    return -1;
+    return -EBADF;
   }
 
   auto status = descriptor->socket.socket.Listen();
   if (status != Status::OK) {
-    errno = EOPNOTSUPP;
-    return -1;
+    return -EOPNOTSUPP;
   }
 
   return 0;

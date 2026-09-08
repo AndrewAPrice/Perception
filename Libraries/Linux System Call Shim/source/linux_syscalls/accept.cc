@@ -27,14 +27,12 @@ using ::perception::network::Socket;
 long accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen) {
   auto descriptor = GetFileDescriptor(sockfd);
   if (!descriptor || descriptor->type != FileDescriptor::SOCKET) {
-    errno = EBADF;
-    return -1;
+    return -EBADF;
   }
 
   auto status_or_response = descriptor->socket.socket.Accept();
   if (!status_or_response) {
-    errno = ECONNABORTED;
-    return -1;
+    return -ECONNABORTED;
   }
 
   // Populate peer address if requested

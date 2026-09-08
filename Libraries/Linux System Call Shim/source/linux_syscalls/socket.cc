@@ -42,8 +42,7 @@ long socket(int domain, int type, int protocol) {
 
   auto status_or_res = GetService<NetworkService>().CreateSocket(request);
   if (!status_or_res) {
-    errno = ENETDOWN;
-    return -1;
+    return -ENETDOWN;
   }
 
   // Create a file descriptor mapping to the Socket Client reference
