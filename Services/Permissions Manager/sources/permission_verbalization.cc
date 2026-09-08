@@ -44,6 +44,8 @@ std::optional<std::string_view> GetPermissionKey(Permission permission) {
       return "CanPlayAudio";
     case Permission::CanAdjustVolume:
       return "CanAdjustVolume";
+    case Permission::CanMountAndUnmountDrives:
+      return "CanMountAndUnmountDrives";
     default:
       return std::nullopt;
   }
@@ -59,5 +61,7 @@ std::optional<Permission> ParsePermissionKey(std::string_view key) {
     return Permission::CanContinueRunningAfterWindowsClose;
   if (key == "CanPlayAudio") return Permission::CanPlayAudio;
   if (key == "CanAdjustVolume") return Permission::CanAdjustVolume;
+  if (key == "CanMountAndUnmountDrives")
+    return Permission::CanMountAndUnmountDrives;
   return std::nullopt;
 }

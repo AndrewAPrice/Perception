@@ -54,6 +54,8 @@ std::optional<std::string_view> GetPermissionVerbalization(
       return "play audio";
     case Permission::CanAdjustVolume:
       return "adjust global volume";
+    case Permission::CanMountAndUnmountDrives:
+      return "mount and unmount drives";
     default:
       return std::nullopt;
   }

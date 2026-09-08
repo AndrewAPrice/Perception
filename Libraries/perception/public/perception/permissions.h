@@ -45,6 +45,8 @@ enum class Permission {
   CanPlayAudio,
   // Permission to adjust the audio volume.
   CanAdjustVolume,
+  // Permission to mount, unmount, and change mount paths of drives.
+  CanMountAndUnmountDrives,
 };
 
 class DoesProcessHavePermissionRequest : public serialization::Serializable {
