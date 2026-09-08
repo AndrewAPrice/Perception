@@ -38,6 +38,18 @@ extern uint32 kLabelTextColor;
 // Text color for labels rendered on dark backgrounds.
 extern uint32 kLabelOnDarkTextColor;
 
+// Secondary descriptive text color.
+extern uint32 kSecondaryTextColor;
+
+// Warning text color.
+extern uint32 kWarningTextColor;
+
+// Success text color.
+extern uint32 kSuccessTextColor;
+
+// Notice amber text color.
+extern uint32 kNoticeTextColor;
+
 // Title bar background color when window is focused.
 extern uint32 kTitleBarFocusedBackgroundColor;
 
@@ -112,6 +124,18 @@ extern uint32 kCheckboxTextColor;
 
 // Spacing between checkbox marker and text label.
 extern float kCheckboxSpacing;
+
+// Background fill color for disabled checkboxes.
+extern uint32 kCheckboxDisabledBackgroundColor;
+
+// Border outline color for disabled checkboxes.
+extern uint32 kCheckboxDisabledBorderColor;
+
+// Checkmark marker color for disabled checkboxes.
+extern uint32 kCheckboxDisabledMarkerColor;
+
+// Text label color for disabled checkboxes.
+extern uint32 kCheckboxDisabledTextColor;
 
 // Width of the color picker dialog window.
 extern float kColorPickerDialogWidth;
@@ -257,11 +281,23 @@ extern float kScrollBarThickness;
 // Border radius of scroll bar thumb handle.
 extern float kScrollBarBorderRadius;
 
+// Background color of scroll containers.
+extern uint32 kScrollContainerBackgroundColor;
+
+// Border color of scroll containers.
+extern uint32 kScrollContainerBorderColor;
+
+// Border width of scroll containers.
+extern float kScrollContainerBorderWidth;
+
 // Border radius of scroll containers.
 extern float kScrollContainerBorderRadius;
 
 // Outline color of scroll containers.
 extern uint32 kScrollContainerOutlineColor;
+
+// Internal padding of scroll containers.
+extern float kScrollContainerPadding;
 
 // Background color of standard containers.
 extern uint32 kContainerBackgroundColor;
@@ -430,6 +466,18 @@ extern float kSliderMinWidth;
 
 // Height of slider widgets.
 extern float kSliderHeight;
+
+// Height of segmented bar widgets.
+extern float kSegmentedBarHeight;
+
+// Border radius of outer segmented bar containers.
+extern float kSegmentedBarBorderRadius;
+
+// Background color of segmented bar widgets.
+extern uint32 kSegmentedBarBackgroundColor;
+
+// Border color of segmented bar widgets.
+extern uint32 kSegmentedBarBorderColor;
 
 // Thickness of slider track.
 extern float kSliderTrackThickness;

@@ -43,7 +43,7 @@
     'source/perception/ui/components/image_view.cc',
     'source/perception/ui/components/input_box.cc',
     'source/perception/ui/components/label.cc',
-    'source/perception/ui/components/open_file_dialog.cc',
+    'source/perception/ui/components/file_dialog.cc',
     'source/perception/ui/components/pop_up.cc',
     'source/perception/ui/components/resizable_container.cc',
     'source/perception/ui/components/scroll_bar.cc',
@@ -57,5 +57,8 @@
     'source/perception/ui/components/tree_view.cc',
     'source/perception/ui/components/ui_window.cc',
     'source/perception/ui/components/image_button.cc',
+    'source/perception/ui/components/markdown.cc',
+    'source/perception/ui/components/message_dialog.cc',
+    'source/perception/ui/components/segmented_bar.cc',
   ],
 } else {})

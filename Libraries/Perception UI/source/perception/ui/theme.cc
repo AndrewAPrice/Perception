@@ -34,6 +34,11 @@ float kMarginAroundWidgets = 4.0f;
 uint32 kLabelTextColor = SkColorSetARGB(0xff, 0x0, 0x0, 0x0);
 uint32 kLabelOnDarkTextColor = SkColorSetARGB(0xff, 0xff, 0xff, 0xff);
 
+uint32 kSecondaryTextColor = 0xFF6B7280;
+uint32 kWarningTextColor = 0xFFDC2626;
+uint32 kSuccessTextColor = 0xFF10B981;
+uint32 kNoticeTextColor = 0xFFD97706;
+
 uint32 kTitleBarFocusedBackgroundColor = SkColorSetARGB(0xff, 0x7e, 0xa0, 0xf8);
 uint32 kTitleBarUnfocusedBackgroundColor =
     SkColorSetARGB(0xff, 0xd9, 0xd9, 0xd9);
@@ -62,6 +67,10 @@ float kCheckboxMarkerBorderRadius = 2.0f;
 float kCheckboxBorderWidth = 1.0f;
 uint32 kCheckboxTextColor = 0xFF1F2937;
 float kCheckboxSpacing = 8.0f;
+uint32 kCheckboxDisabledBackgroundColor = 0xFFF1F5F9;
+uint32 kCheckboxDisabledBorderColor = 0xFFCBD5E1;
+uint32 kCheckboxDisabledMarkerColor = 0xFF94A3B8;
+uint32 kCheckboxDisabledTextColor = 0xFF94A3B8;
 
 float kColorPickerDialogWidth = 300.0f;
 float kColorPickerDialogHeight = 420.0f;
@@ -119,9 +128,13 @@ uint32 kScrollBarTrackBackgroundHoverColor = HSVColor(0.0f, 0.0f, 0.975f);
 uint32 kScrollBarTrackOutlineColor = HSVColor(0.0f, 0.0f, 0.8f);
 float kScrollBarThickness = 16.0f;
 float kScrollBarBorderRadius = kScrollBarThickness / 2.0f;
-float kScrollContainerBorderRadius = kScrollBarBorderRadius;
+uint32 kScrollContainerBackgroundColor = 0xFFFFFFFF;
+uint32 kScrollContainerBorderColor = kButtonOutlineColor;
+float kScrollContainerBorderWidth = 1.0f;
+float kScrollContainerBorderRadius = 4.0f;
 
 uint32 kScrollContainerOutlineColor = kScrollBarTrackOutlineColor;
+float kScrollContainerPadding = 8.0f;
 
 uint32 kContainerBackgroundColor = HSVColor(0.0f, 0.0f, 0.97f);
 uint32 kContainerBorderColor = kButtonOutlineColor;
@@ -182,12 +195,16 @@ float kPopUpItemHorizontalPadding = 8.0f;
 float kPopUpDropDownItemHeight = 22.0f;
 float kPopUpContextMenuItemHeight = 28.0f;
 
-uint32 kPopUpCategoryHeaderTextColor = 0xFF6B7280;
+uint32 kPopUpCategoryHeaderTextColor = kSecondaryTextColor;
 float kPopUpCategoryHeaderHeight = 20.0f;
 float kPopUpCategoryHeaderMarginTop = 4.0f;
 
 float kSliderMinWidth = 100.0f;
 float kSliderHeight = 16.0f;
+float kSegmentedBarHeight = 20.0f;
+float kSegmentedBarBorderRadius = 4.0f;
+uint32 kSegmentedBarBackgroundColor = SkColorSetARGB(0xFF, 0xE5, 0xE7, 0xEB);
+uint32 kSegmentedBarBorderColor = SkColorSetARGB(0xFF, 0xD1, 0xD5, 0xDB);
 float kSliderTrackThickness = 4.0f;
 float kSliderThumbRadius = 8.0f;
 uint32 kSliderTrackColor = 0xFFD1D5DB;
