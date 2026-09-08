@@ -75,13 +75,21 @@ class PerceptionWindow : public Window,
         is_keyboard_captive_(false),
         is_mouse_captive_(false),
         is_focused_(false) {}
-  virtual ~PerceptionWindow() { ReleaseTextures(); }
+  virtual ~PerceptionWindow() {
+    ReleaseTextures();
+    if (created_) {
+      created_ = false;
+      GetService<WindowManager>().CloseWindow(*this);
+    }
+  }
 
   void SetInitialProperties(int width, int height, bool is_double_buffered) {
     width_ = width;
     height_ = height;
     is_double_buffered_ = is_double_buffered;
   }
+
+  BaseWindow::Client GetBaseWindowClient() const override { return *this; }
 
   void SetDelegate(std::weak_ptr<WindowDelegate> delegate) override {
     delegate_ = delegate;
@@ -454,6 +462,10 @@ std::shared_ptr<Window> Window::CreateWindow(
   create_window_request.add_title_bar = creation_options.add_title_bar;
   create_window_request.minimum_size = creation_options.minimum_size;
   create_window_request.maximum_size = creation_options.maximum_size;
+  if (creation_options.parent_window) {
+    create_window_request.parent_window =
+        creation_options.parent_window->GetBaseWindowClient();
+  }
 
   auto status_or_result =
       GetService<WindowManager>().CreateWindow(create_window_request);

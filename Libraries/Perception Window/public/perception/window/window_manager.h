@@ -37,6 +37,9 @@ class CreateWindowRequest : public serialization::Serializable {
   // The window service to open.
   BaseWindow::Client window;
 
+  // The parent window, if this is a child/dialog window.
+  BaseWindow::Client parent_window;
+
   // The title of the window.
   std::string title;
 

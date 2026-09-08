@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 
+#include "perception/window/base_window.h"
 #include "perception/window/cursor.h"
 #include "perception/window/rectangle.h"
 #include "perception/window/size.h"
@@ -31,6 +32,9 @@ class Window {
   // Options for creating a window.
   struct CreationOptions {
    public:
+    // The parent window, if this is a child/dialog window.
+    std::shared_ptr<Window> parent_window;
+
     // The title of the window.
     std::string title;
 
@@ -67,6 +71,9 @@ class Window {
 
   // Windows get closed upon destruction.
   virtual ~Window() {};
+
+  // Returns the BaseWindow client endpoint for this window.
+  virtual BaseWindow::Client GetBaseWindowClient() const = 0;
 
   // The delegate to send messages to.
   virtual void SetDelegate(std::weak_ptr<WindowDelegate> delegate) = 0;

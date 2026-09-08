@@ -20,6 +20,7 @@ namespace window {
 
 void CreateWindowRequest::Serialize(serialization::Serializer& serializer) {
   serializer.Serializable("Window", window);
+  serializer.Serializable("Parent window", parent_window);
   serializer.String("Title", title);
   serializer.Integer("Is resizable", is_resizable);
   serializer.Serializable("Desired size", desired_size);
