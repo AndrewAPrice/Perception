@@ -25,7 +25,7 @@
 #include "perception/ui/components/container.h"
 #include "perception/ui/components/input_box.h"
 #include "perception/ui/components/label.h"
-#include "perception/ui/components/open_file_dialog.h"
+#include "perception/ui/components/file_dialog.h"
 #include "perception/ui/components/ui_window.h"
 #include "perception/ui/layout.h"
 #include "wav_exporter.h"
@@ -37,7 +37,7 @@ using ::perception::ui::components::ComboBox;
 using ::perception::ui::components::Container;
 using ::perception::ui::components::InputBox;
 using ::perception::ui::components::Label;
-using ::perception::ui::components::ShowOpenFileDialog;
+using ::perception::ui::components::ShowSaveFileDialog;
 using ::perception::ui::components::UiWindow;
 
 namespace windows {
@@ -95,15 +95,16 @@ struct ExportDialogState {
   std::weak_ptr<Node> window_node;
 };
 
-// Weak reference to the active export dialog window node.
-std::weak_ptr<Node> g_export_dialog_window;
+// Strong reference to the active export dialog window node.
+std::shared_ptr<Node> g_export_dialog_window;
 
 }  // namespace
 
-void ShowExportWavDialog(const TrackManager& track_manager,
-                         std::string_view current_song_file_path) {
-  if (auto existing_window = g_export_dialog_window.lock()) {
-    if (auto ui_win = existing_window->Get<UiWindow>())
+void ShowExportWavDialog(
+    const TrackManager& track_manager, std::string_view current_song_file_path,
+    std::shared_ptr<::perception::ui::Node> parent_window) {
+  if (g_export_dialog_window) {
+    if (auto ui_win = g_export_dialog_window->Get<UiWindow>())
       ui_win->Focus();
     return;
   }
@@ -122,6 +123,9 @@ void ShowExportWavDialog(const TrackManager& track_manager,
   auto close_dialog = [state]() {
     if (auto win = state->window_node.lock())
       if (auto ui_win = win->Get<UiWindow>()) ui_win->Close();
+    ::perception::Defer([]() {
+      g_export_dialog_window.reset();
+    });
   };
 
   auto update_info_label = [&track_manager, state]() {
@@ -184,12 +188,17 @@ void ShowExportWavDialog(const TrackManager& track_manager,
               "Browse...",
               [state]() {
                 std::string start_dir = kDefaultExportDirectory;
+                std::string default_filename = "Untitled Song.wav";
                 if (!state->export_path.empty()) {
                   size_t slash = state->export_path.rfind('/');
-                  if (slash != std::string::npos)
+                  if (slash != std::string::npos) {
                     start_dir = state->export_path.substr(0, slash);
+                    default_filename = state->export_path.substr(slash + 1);
+                  } else {
+                    default_filename = state->export_path;
+                  }
                 }
-                ShowOpenFileDialog(
+                ShowSaveFileDialog(
                     [state](bool succeeded, std::string_view path) {
                       if (succeeded && !path.empty()) {
                         state->export_path = std::string(path);
@@ -200,7 +209,8 @@ void ShowExportWavDialog(const TrackManager& track_manager,
                         }
                       }
                     },
-                    {"wav"}, start_dir, "Select Export Location");
+                    {"wav"}, default_filename, start_dir,
+                    "Select Export Location", g_export_dialog_window);
               },
               [](Layout& layout) { layout.SetWidth(kBrowseButtonWidth); })),
 
@@ -291,7 +301,7 @@ void ShowExportWavDialog(const TrackManager& track_manager,
   update_info_label();
 
   auto dialog_window = UiWindow::DialogWithTitleBar(
-      "Export as WAV",
+      "Export as WAV", UiWindow::Parent(parent_window),
       [close_dialog](UiWindow& window) {
         window.OnClose([close_dialog]() { close_dialog(); });
       },

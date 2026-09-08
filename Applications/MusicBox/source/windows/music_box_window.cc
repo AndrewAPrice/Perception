@@ -41,7 +41,7 @@
 #include "perception/ui/components/image_view.h"
 #include "perception/ui/components/input_box.h"
 #include "perception/ui/components/label.h"
-#include "perception/ui/components/open_file_dialog.h"
+#include "perception/ui/components/file_dialog.h"
 #include "perception/ui/components/pop_up.h"
 #include "perception/ui/components/resizable_container.h"
 #include "perception/ui/components/scroll_container.h"
@@ -80,6 +80,7 @@ using ::perception::ui::components::ResizableContainer;
 using ::perception::ui::components::ResizableContainerItem;
 using ::perception::ui::components::ScrollContainer;
 using ::perception::ui::components::ShowOpenFileDialog;
+using ::perception::ui::components::ShowSaveFileDialog;
 using ::perception::ui::components::Slider;
 using ::perception::ui::components::Tooltip;
 using ::perception::ui::components::UiWindow;
@@ -210,14 +211,20 @@ void MusicBoxWindow::NewSong() {
 
 void MusicBoxWindow::SaveCurrentSong() {
   std::string default_dir = "/Applications/MusicBox/songs";
+  std::string default_filename = "Untitled Song.song";
   if (!current_song_file_path_.empty()) {
     size_t slash = current_song_file_path_.rfind('/');
     if (slash != std::string::npos) {
       default_dir = current_song_file_path_.substr(0, slash);
+      default_filename = current_song_file_path_.substr(slash + 1);
+    } else {
+      default_filename = current_song_file_path_;
     }
+  } else if (!current_song_metadata_.title.empty()) {
+    default_filename = current_song_metadata_.title + ".song";
   }
 
-  ShowOpenFileDialog(
+  ShowSaveFileDialog(
       [this](bool succeeded, std::string_view path) {
         if (succeeded && !path.empty()) {
           current_song_file_path_ = std::string(path);
@@ -226,11 +233,12 @@ void MusicBoxWindow::SaveCurrentSong() {
                          current_song_metadata_);
         }
       },
-      {"song"}, default_dir, "Save Song");
+      {"song"}, default_filename, default_dir, "Save Song", window_);
 }
 
 void MusicBoxWindow::ShowExportWavDialog() {
-  windows::ShowExportWavDialog(track_manager_, current_song_file_path_);
+  windows::ShowExportWavDialog(track_manager_, current_song_file_path_,
+                               window_);
 }
 
 void MusicBoxWindow::BuildUI() {
@@ -329,7 +337,7 @@ void MusicBoxWindow::BuildUI() {
                                           LoadSongFromPath(path);
                                       },
                                       {"song"}, "/Applications/MusicBox/songs",
-                                      "Load Song");
+                                      "Load Song", window_);
                                 }),
                             PopUpMenu::DropDownItem(
                                 "Save Song", [this]() { SaveCurrentSong(); }),
@@ -655,6 +663,8 @@ void MusicBoxWindow::BuildUI() {
       [this](const perception::window::KeyboardKeyEvent& event) {
         HandleKeyUp(event);
       });
+
+  if (tracks_panel_) tracks_panel_->SetParentWindow(window_);
 
   main_focusable_comp->Focus();
 

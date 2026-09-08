@@ -14,14 +14,22 @@
 
 #pragma once
 
+#include <memory>
 #include <string_view>
 
 #include "track_manager.h"
 
+namespace perception {
+namespace ui {
+class Node;
+}
+}  // namespace perception
+
 namespace windows {
 
 // Shows the Export as WAV dialog.
-void ShowExportWavDialog(const TrackManager& track_manager,
-                         std::string_view current_song_file_path);
+void ShowExportWavDialog(
+    const TrackManager& track_manager, std::string_view current_song_file_path,
+    std::shared_ptr<::perception::ui::Node> parent_window = nullptr);
 
 }  // namespace windows

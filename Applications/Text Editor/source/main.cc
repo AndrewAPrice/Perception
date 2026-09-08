@@ -26,7 +26,7 @@
 #include "perception/ui/components/button.h"
 #include "perception/ui/components/container.h"
 #include "perception/ui/components/label.h"
-#include "perception/ui/components/open_file_dialog.h"
+#include "perception/ui/components/file_dialog.h"
 #include "perception/ui/components/text_field.h"
 #include "perception/ui/components/ui_window.h"
 #include "perception/ui/layout.h"
