@@ -50,7 +50,7 @@ class RamdiskFileSystem : public FileSystem {
                                ::perception::DirectoryEntry::Type, size_t,
                                bool)>& on_each_entry) override;
 
-  virtual std::string_view GetFileSystemType() override;
+  virtual std::string_view GetFileSystemType() const override;
 
   virtual void CheckFilePermissions(std::string_view path, bool& file_exists,
                                     bool& can_read, bool& can_write,

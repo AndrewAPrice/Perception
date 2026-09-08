@@ -13,8 +13,9 @@
 // limitations under the License.
 
 #include <iostream>
+#include <memory>
 
-#include "file_systems/file_system.h"
+#include "partitions.h"
 #include "perception/devices/storage_device.h"
 #include "perception/scheduler.h"
 #include "perception/services.h"
@@ -22,7 +23,6 @@
 #include "storage_manager.h"
 #include "virtual_file_system.h"
 
-using ::file_systems::InitializeStorageDevice;
 using ::perception::HandOverControl;
 using ::perception::NotifyOnEachNewServiceInstance;
 using ::perception::devices::StorageDevice;
@@ -32,13 +32,19 @@ int main(int argc, char *argv[]) {
       ::perception::ThreadPriority::RealtimeService);
   NotifyOnEachNewServiceInstance<StorageDevice>(
       [](StorageDevice::Client storage_device) {
-        auto file_system = InitializeStorageDevice(storage_device);
-        if (file_system) {
-          MountFileSystem(std::move(file_system));
-        } else if (!file_system) {
+        bool mounted_any = false;
+        OnEachFileSystemOnDevice(
+            storage_device,
+            [&](std::unique_ptr<file_systems::FileSystem> file_system) {
+              MountFileSystem(std::move(file_system));
+              mounted_any = true;
+            });
+
+        if (!mounted_any) {
           auto status_or_device_details = storage_device.GetDeviceDetails();
-          std::cout << "Unknown file system on "
-                    << status_or_device_details->name << "." << std::endl;
+          if (status_or_device_details.Ok())
+            std::cout << "Unknown file system on "
+                      << status_or_device_details->name << "." << std::endl;
         }
       });
 

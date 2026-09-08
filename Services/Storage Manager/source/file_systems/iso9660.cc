@@ -38,6 +38,8 @@ namespace file_systems {
 namespace {
 
 constexpr int kIso9660SectorSize = 2048;
+// Optimal operation size for reads (512KB matching AHCI DMA buffer).
+constexpr size_t kIso9660OptimalOperationSize = 524288;
 std::string kIso9660Name = "ISO 9660";
 
 }  // namespace
@@ -97,32 +99,6 @@ class Iso9660File : public File {
   ProcessId allowed_process_;
 };
 
-void SplitPath(std::string_view path, std::string_view &directory,
-               std::string_view &file_name) {
-  // Trim off last backslash.
-  if (path[path.length() - 1] == '/') path = path.substr(0, path.length() - 1);
-
-  // Find the split point (/) between the mount path and everything else.
-  int split_point = path.find_last_of('/');
-
-  if (split_point == std::string_view::npos) {
-    directory = "";
-    file_name = path;
-  } else {
-    directory = path.substr(0, split_point);
-    file_name = path.substr(split_point + 1);
-  }
-}
-
-bool EqualsIgnoreCase(std::string_view a, std::string_view b) {
-  if (a.length() != b.length()) return false;
-  for (size_t i = 0; i < a.length(); i++) {
-    if (std::tolower((unsigned char)a[i]) != std::tolower((unsigned char)b[i]))
-      return false;
-  }
-  return true;
-}
-
 }  // namespace
 
 Iso9660::Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
@@ -133,9 +109,10 @@ Iso9660::Iso9660(uint32 size_in_blocks, uint16 logical_block_size,
       root_directory_(std::move(root_directory)),
       FileSystem(storage_device),
       cache_(std::make_unique<SectorCache>(logical_block_size)) {
+  optimal_operation_size_ = kIso9660OptimalOperationSize;
   prefetch_buffer_ = ::perception::SharedMemory::FromSize(
-      32768,
-      ::perception::SharedMemory::kJoinersCanWrite);  // 32KB (16 sectors)
+      131072,
+      ::perception::SharedMemory::kJoinersCanWrite);  // 128KB (64 sectors)
   prefetch_buffer_->GrantPermissionToLazilyAllocatePage(
       storage_device.ServerProcessId());
   prefetch_buffer_->Join();
@@ -286,12 +263,11 @@ Status Iso9660::ReadCached(uint64 offset_on_device, uint64 offset_in_buffer,
                      copy_size)) {
       // Hit!
     } else {
-      // Cache miss! Pre-fetch up to 16 sectors (32KB, size of prefetch_buffer_)
+      // Cache miss! Pre-fetch up to 64 sectors (128KB, size of prefetch_buffer_)
       // or up to the end of the device.
-      size_t sectors_to_prefetch = 16;
-      if (sector + sectors_to_prefetch > size_in_blocks_) {
+      size_t sectors_to_prefetch = 64;
+      if (sector + sectors_to_prefetch > size_in_blocks_)
         sectors_to_prefetch = size_in_blocks_ - sector;
-      }
 
       StorageDeviceReadRequest read_request;
       read_request.offset_on_device = sector_offset;
@@ -300,9 +276,7 @@ Status Iso9660::ReadCached(uint64 offset_on_device, uint64 offset_in_buffer,
       read_request.buffer = prefetch_buffer_;
 
       auto status = storage_device_.Read(read_request);
-      if (status != Status::OK) {
-        return status;
-      }
+      if (status != Status::OK) return status;
 
       // Store pre-fetched sectors in cache
       for (size_t i = 0; i < sectors_to_prefetch; i++) {
@@ -479,7 +453,7 @@ void Iso9660::ForRawEachEntryInDirectory(
   }
 }
 
-std::string_view Iso9660::GetFileSystemType() { return kIso9660Name; }
+std::string_view Iso9660::GetFileSystemType() const { return kIso9660Name; }
 
 std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
     StorageDevice::Client storage_device) {

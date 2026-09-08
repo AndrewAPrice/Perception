@@ -60,7 +60,20 @@ class StorageManager : public ::perception::StorageManager::Server {
       const ::perception::RequestWithFilePath& request,
       ::perception::ProcessId sender) override;
 
+  virtual StatusOr<::perception::MountFileSystemResponse> MountFileSystem(
+      const ::perception::MountFileSystemRequest& request,
+      ::perception::ProcessId sender) override;
+
+  virtual Status UnmountFileSystem(
+      const ::perception::RequestWithFilePath& request,
+      ::perception::ProcessId sender) override;
+
+  virtual Status SetMountPath(
+      const ::perception::SetMountPathRequest& request,
+      ::perception::ProcessId sender) override;
+
   static void BroadcastMount(std::string_view mount_point);
+  static void BroadcastUnmount(std::string_view mount_point);
 
   struct MountListenerInfo {
     ::perception::FileSystemMountListener::Client client;

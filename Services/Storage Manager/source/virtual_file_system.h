@@ -23,7 +23,15 @@
 class File;
 class MemoryMappedFile;
 
-void MountFileSystem(std::unique_ptr<file_systems::FileSystem> file_system);
+StatusOr<std::string> MountFileSystem(
+    std::unique_ptr<file_systems::FileSystem> file_system,
+    std::string_view target_mount_name = "");
+
+Status UnmountFileSystemByName(std::string_view mount_name);
+
+Status SetMountPath(std::string_view old_name, std::string_view new_name);
+
+bool IsFirstMountedFileSystem(std::string_view mount_name);
 
 StatusOr<File*> OpenFile(std::string_view path, size_t& size_in_bytes,
                          size_t& optimal_operation_size,
@@ -59,4 +67,8 @@ Status DeleteFileOrDirectory(std::string_view path,
 StatusOr<std::string> ReadLink(std::string_view path);
 
 void ForEachMountedFileSystem(
-    const std::function<void(std::string_view)>& on_each);
+    const std::function<void(file_systems::FileSystem&)>& on_each);
+
+void ForEachMountedFileSystemDetails(
+    const std::function<void(const ::perception::MountedFileSystemDetails&)>&
+        on_each);

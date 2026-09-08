@@ -24,3 +24,9 @@ Status MountListener::FileSystemMounted(
   ScanAndLoadSettings("/" + event.mount_point);
   return Status::OK;
 }
+
+Status MountListener::FileSystemUnmounted(
+    const ::perception::FileSystemMountEvent& event,
+    ::perception::ProcessId sender) {
+  return Status::OK;
+}

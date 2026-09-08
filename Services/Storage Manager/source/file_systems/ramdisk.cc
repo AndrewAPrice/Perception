@@ -33,17 +33,6 @@ using ::perception::WriteFileRequest;
 
 namespace file_systems {
 
-void SplitPath(std::string_view path, std::string& parent, std::string& child) {
-  size_t idx = path.find_last_of('/');
-  if (idx == std::string_view::npos) {
-    parent = "";
-    child = std::string(path);
-  } else {
-    parent = std::string(path.substr(0, idx));
-    child = std::string(path.substr(idx + 1));
-  }
-}
-
 namespace {
 std::atomic<int> ramdisk_file_content_instances = 0;
 }
@@ -179,17 +168,17 @@ StatusOr<std::unique_ptr<File>> RamdiskFileSystem::OpenFile(
 
 void RamdiskFileSystem::AddChildToParent(std::string_view path,
                                          bool is_directory) {
-  std::string parent, child;
+  std::string_view parent, child;
   SplitPath(path, parent, child);
-  directories_[parent].insert({child, is_directory});
+  directories_[std::string(parent)].insert({std::string(child), is_directory});
 }
 
 void RamdiskFileSystem::RemoveChildFromParent(std::string_view path) {
-  std::string parent, child;
+  std::string_view parent, child;
   SplitPath(path, parent, child);
-  auto itr = directories_.find(parent);
+  auto itr = directories_.find(std::string(parent));
   if (itr != directories_.end()) {
-    itr->second.erase({child, false});
+    itr->second.erase({std::string(child), false});
   }
 }
 
@@ -278,7 +267,7 @@ bool RamdiskFileSystem::ForEachEntryInDirectory(
   return !aborted;
 }
 
-std::string_view RamdiskFileSystem::GetFileSystemType() { return kRamdiskName; }
+std::string_view RamdiskFileSystem::GetFileSystemType() const { return kRamdiskName; }
 
 void RamdiskFileSystem::CheckFilePermissions(std::string_view path,
                                              bool& file_exists, bool& can_read,

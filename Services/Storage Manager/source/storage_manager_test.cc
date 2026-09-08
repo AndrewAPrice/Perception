@@ -16,6 +16,7 @@
 #include "testing.h"
 #include "file_systems/ramdisk.h"
 #include "file_systems/overlay.h"
+#include "partitions.h"
 #include "perception/shared_memory.h"
 
 using ::file_systems::RamdiskFileSystem;
@@ -208,3 +209,126 @@ TEST(OverlayCoWAndTombstones) {
   auto file_fail_or = overlay.OpenFile("base_file.txt", size, sender, true, false, false, false);
   EXPECT(Status::FILE_NOT_FOUND, file_fail_or.Status());
 }
+
+TEST(ToMountedFileSystemDetails) {
+  RamdiskFileSystem fs;
+  fs.SetMountPoint("Temp");
+  fs.SetStartByteOffset(1024);
+  fs.SetByteLength(2048);
+  fs.SetDeviceName("TestRamdisk");
+  fs.SetBootDrive(false);
+
+  auto details = fs.ToMountedFileSystemDetails();
+  EXPECT(std::string("Temp"), details.mount_point);
+  EXPECT(std::string("Ramdisk"), details.filesystem_type);
+  EXPECT(std::string("TestRamdisk"), details.device_name);
+  EXPECT((uint64)1024, details.start_byte_offset);
+  EXPECT((uint64)2048, details.byte_length);
+  EXPECT(true, details.is_writable);
+  EXPECT(false, details.is_boot_drive);
+
+  auto custom_details = fs.ToMountedFileSystemDetails("CustomMount");
+  EXPECT(std::string("CustomMount"), custom_details.mount_point);
+
+  fs.SetBootDrive(true);
+  auto boot_details = fs.ToMountedFileSystemDetails();
+  EXPECT(true, boot_details.is_boot_drive);
+
+  auto base = std::make_unique<RamdiskFileSystem>();
+  base->SetMountPoint("System");
+  base->SetDeviceName("BootDisk");
+  base->SetBootDrive(true);
+  OverlayFileSystem overlay(std::move(base));
+
+  auto overlay_details = overlay.ToMountedFileSystemDetails();
+  EXPECT(std::string("System"), overlay_details.mount_point);
+  EXPECT(std::string("OVERLAY"), overlay_details.filesystem_type);
+  EXPECT(std::string("BootDisk"), overlay_details.device_name);
+  EXPECT(true, overlay_details.is_boot_drive);
+}
+
+TEST(ReadPartitionsNoTable) {
+  std::vector<uint8_t> disk_data(512, 0);
+  auto mock_reader = [&](uint64 offset, size_t bytes, void* dest) -> bool {
+    if (offset + bytes > disk_data.size()) return false;
+    std::memcpy(dest, disk_data.data() + offset, bytes);
+    return true;
+  };
+
+  auto partitions = ReadPartitions(512, mock_reader);
+  EXPECT((size_t)0, partitions.size());
+}
+
+TEST(ReadPartitionsMbr) {
+  std::vector<uint8_t> disk_data(512, 0);
+  disk_data[510] = 0x55;
+  disk_data[511] = 0xAA;
+
+  // Primary partition entry 0 at offset 446.
+  size_t entry_offset = 446;
+  disk_data[entry_offset + 0] = 0x80;
+  disk_data[entry_offset + 4] = 0x07;
+  uint32 starting_lba = 2048;
+  uint32 sector_count = 10000;
+  std::memcpy(&disk_data[entry_offset + 8], &starting_lba, sizeof(starting_lba));
+  std::memcpy(&disk_data[entry_offset + 12], &sector_count, sizeof(sector_count));
+
+  auto mock_reader = [&](uint64 offset, size_t bytes, void* dest) -> bool {
+    if (offset + bytes > disk_data.size()) return false;
+    std::memcpy(dest, disk_data.data() + offset, bytes);
+    return true;
+  };
+
+  auto partitions = ReadPartitions(512, mock_reader);
+  EXPECT((size_t)1, partitions.size());
+  EXPECT((uint64)(2048 * 512), partitions[0].start_offset);
+  EXPECT((uint64)(10000 * 512), partitions[0].length);
+  EXPECT((uint8_t)0x07, partitions[0].mbr_type);
+}
+
+TEST(ReadPartitionsGpt) {
+  std::vector<uint8_t> disk_data(34 * 512, 0);
+
+  // Protective MBR in sector 0.
+  disk_data[510] = 0x55;
+  disk_data[511] = 0xAA;
+  disk_data[446 + 4] = 0xEE;
+
+  // GPT Header in sector 1 (offset 512).
+  uint64 gpt_signature = 0x5452415020494645ULL;
+  uint32 gpt_header_size = 92;
+  uint64 partition_entry_lba = 2;
+  uint32 num_entries = 128;
+  uint32 entry_size = 128;
+
+  std::memcpy(&disk_data[512 + 0], &gpt_signature, sizeof(gpt_signature));
+  std::memcpy(&disk_data[512 + 12], &gpt_header_size, sizeof(gpt_header_size));
+  std::memcpy(&disk_data[512 + 72], &partition_entry_lba, sizeof(partition_entry_lba));
+  std::memcpy(&disk_data[512 + 80], &num_entries, sizeof(num_entries));
+  std::memcpy(&disk_data[512 + 84], &entry_size, sizeof(entry_size));
+
+  // GPT Entry 0 in sector 2 (offset 1024).
+  size_t entry0_offset = 1024;
+  disk_data[entry0_offset + 0] = 0xA2;
+  disk_data[entry0_offset + 1] = 0xA0;
+  uint64 starting_lba = 2048;
+  uint64 ending_lba = 4095;
+  std::memcpy(&disk_data[entry0_offset + 32], &starting_lba, sizeof(starting_lba));
+  std::memcpy(&disk_data[entry0_offset + 40], &ending_lba, sizeof(ending_lba));
+
+  const char16_t name[] = u"System";
+  std::memcpy(&disk_data[entry0_offset + 56], name, sizeof(name));
+
+  auto mock_reader = [&](uint64 offset, size_t bytes, void* dest) -> bool {
+    if (offset + bytes > disk_data.size()) return false;
+    std::memcpy(dest, disk_data.data() + offset, bytes);
+    return true;
+  };
+
+  auto partitions = ReadPartitions(512, mock_reader);
+  EXPECT((size_t)1, partitions.size());
+  EXPECT((uint64)(2048 * 512), partitions[0].start_offset);
+  EXPECT((uint64)((4095 - 2048 + 1) * 512), partitions[0].length);
+  EXPECT(std::string("System"), partitions[0].name);
+}
+

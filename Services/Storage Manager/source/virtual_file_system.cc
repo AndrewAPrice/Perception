@@ -162,11 +162,107 @@ StatusOr<std::unique_ptr<File>> OpenFileInternal(
 
 }  // namespace
 
-void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
+bool IsFirstMountedFileSystem(std::string_view mount_name) {
+  while (!mount_name.empty() && mount_name.front() == '/')
+    mount_name.remove_prefix(1);
+  while (!mount_name.empty() && mount_name.back() == '/')
+    mount_name.remove_suffix(1);
+
+  std::lock_guard<std::mutex> lock(file_system_mutex);
+  return mount_name == first_mounted_file_system;
+}
+
+Status UnmountFileSystemByName(std::string_view mount_name) {
+  while (!mount_name.empty() && mount_name.front() == '/')
+    mount_name.remove_prefix(1);
+  while (!mount_name.empty() && mount_name.back() == '/')
+    mount_name.remove_suffix(1);
+
+  if (mount_name.empty()) return Status::INVALID_ARGUMENT;
+
+  std::string name_str(mount_name);
+  {
+    std::lock_guard<std::mutex> lock(file_system_mutex);
+    if (name_str == first_mounted_file_system) return Status::NOT_ALLOWED;
+    auto itr = mounted_file_systems.find(name_str);
+    if (itr == mounted_file_systems.end()) return Status::FILE_NOT_FOUND;
+
+    std::cout << "Unmounting " << itr->second->GetFileSystemType() << " on "
+              << itr->second->GetDeviceName() << " as /" << name_str << "/"
+              << std::endl;
+    mounted_file_systems.erase(itr);
+  }
+  ::StorageManager::BroadcastUnmount(name_str);
+  return Status::OK;
+}
+
+Status SetMountPath(std::string_view old_name, std::string_view new_name) {
+  while (!old_name.empty() && old_name.front() == '/')
+    old_name.remove_prefix(1);
+  while (!old_name.empty() && old_name.back() == '/') old_name.remove_suffix(1);
+  while (!new_name.empty() && new_name.front() == '/')
+    new_name.remove_prefix(1);
+  while (!new_name.empty() && new_name.back() == '/') new_name.remove_suffix(1);
+
+  if (old_name.empty() || new_name.empty()) return Status::INVALID_ARGUMENT;
+  if (new_name.find('/') != std::string_view::npos)
+    return Status::INVALID_ARGUMENT;
+  if (new_name == "Applications" || new_name == "Libraries")
+    return Status::INVALID_ARGUMENT;
+
+  std::string old_str(old_name);
+  std::string new_str(new_name);
+
+  {
+    std::lock_guard<std::mutex> lock(file_system_mutex);
+    auto old_itr = mounted_file_systems.find(old_str);
+    if (old_itr == mounted_file_systems.end()) return Status::FILE_NOT_FOUND;
+
+    if (old_str == new_str) return Status::OK;
+
+    auto new_itr = mounted_file_systems.find(new_str);
+    if (new_itr != mounted_file_systems.end()) return Status::INVALID_ARGUMENT;
+
+    auto fs = old_itr->second;
+    mounted_file_systems.erase(old_itr);
+    fs->SetMountPoint(new_str);
+    mounted_file_systems[new_str] = fs;
+
+    if (first_mounted_file_system == old_str) {
+      first_mounted_file_system = new_str;
+    }
+  }
+
+  ::StorageManager::BroadcastUnmount(old_str);
+  ::StorageManager::BroadcastMount(new_str);
+  return Status::OK;
+}
+
+StatusOr<std::string> MountFileSystem(std::unique_ptr<FileSystem> file_system,
+                                      std::string_view target_mount_name) {
+  if (!file_system) return Status::INVALID_ARGUMENT;
+
   std::string mount_name;
   {
     std::lock_guard<std::mutex> lock(file_system_mutex);
-    mount_name = GetMountNameForFileSystem(*file_system);
+    if (!target_mount_name.empty()) {
+      std::string_view cleaned_name = target_mount_name;
+      while (!cleaned_name.empty() && cleaned_name.front() == '/')
+        cleaned_name.remove_prefix(1);
+      while (!cleaned_name.empty() && cleaned_name.back() == '/')
+        cleaned_name.remove_suffix(1);
+      if (cleaned_name.empty() ||
+          cleaned_name.find('/') != std::string_view::npos ||
+          cleaned_name == "Applications" || cleaned_name == "Libraries" ||
+          mounted_file_systems.find(cleaned_name) !=
+              mounted_file_systems.end()) {
+        return Status::INVALID_ARGUMENT;
+      }
+      mount_name = std::string(cleaned_name);
+    } else {
+      mount_name = GetMountNameForFileSystem(*file_system);
+    }
+
     std::cout << "Mounting " << file_system->GetFileSystemType() << " on "
               << file_system->GetDeviceName() << " as /" << mount_name << "/"
               << std::endl;
@@ -174,9 +270,11 @@ void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
     if (first_mounted_file_system.empty()) {
       fs = std::make_shared<file_systems::OverlayFileSystem>(
           std::move(file_system));
+      fs->SetBootDrive(true);
     } else {
       fs = std::shared_ptr<FileSystem>(std::move(file_system));
     }
+    fs->SetMountPoint(mount_name);
     mounted_file_systems[mount_name] = fs;
     if (first_mounted_file_system.empty()) {
       first_mounted_file_system = mount_name;
@@ -186,18 +284,29 @@ void MountFileSystem(std::unique_ptr<FileSystem> file_system) {
         fiber->WakeUp();
       fibers_waiting_for_first_file_system.clear();
     }
-    fs->NotifyOnDisappearance(
-        [mount_name]() { UnmountFileSystem(mount_name); });
+    fs->NotifyOnDisappearance([mount_name]() {
+      UnmountFileSystem(mount_name);
+      ::StorageManager::BroadcastUnmount(mount_name);
+    });
   }
   ::StorageManager::BroadcastMount(mount_name);
+  return mount_name;
 }
 
 void ForEachMountedFileSystem(
-    const std::function<void(std::string_view)>& on_each) {
+    const std::function<void(file_systems::FileSystem&)>& on_each) {
   std::lock_guard<std::mutex> lock(file_system_mutex);
   for (const auto& mounted_file_system : mounted_file_systems) {
-    on_each(mounted_file_system.first);
+    on_each(*mounted_file_system.second);
   }
+}
+
+void ForEachMountedFileSystemDetails(
+    const std::function<void(const ::perception::MountedFileSystemDetails&)>&
+        on_each) {
+  ForEachMountedFileSystem([&](file_systems::FileSystem& file_system) {
+    on_each(file_system.ToMountedFileSystemDetails());
+  });
 }
 
 StatusOr<File*> OpenFile(std::string_view path, size_t& size_in_bytes,

@@ -940,7 +940,7 @@ void RegisterPerceptionHttpFetcher() {
   if (auto error = fetcher_add(https_scheme, &http_fetch_ops);
       error != NSERROR_OK) {
     std::cout << "Failed to register NetSurf Custom HTTPS Fetcher: "
-              << (int64)error << std::end;
+              << (int64)error << std::endl;
   }
 }
 

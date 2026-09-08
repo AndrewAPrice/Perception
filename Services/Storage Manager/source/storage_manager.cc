@@ -17,6 +17,7 @@
 #include <iostream>
 #include <string_view>
 
+#include "file_systems/file_system.h"
 #include "memory_mapped_file.h"
 #include "perception/permissions.h"
 #include "perception/processes.h"
@@ -114,6 +115,11 @@ bool DoesProcessHavePermissionToWritePath(std::string_view path,
 
   return ::perception::DoesProcessHavePermission(
       sender, ::perception::Permission::CanReadAllFiles);
+}
+
+bool DoesProcessHavePermissionToMountAndUnmountDrives(ProcessId sender) {
+  return ::perception::DoesProcessHavePermission(
+      sender, ::perception::Permission::CanMountAndUnmountDrives);
 }
 
 }  // namespace
@@ -223,9 +229,9 @@ Status StorageManager::ListenForMounts(
 
   listeners_.push_back({listener_copy, disappearance_id});
 
-  ForEachMountedFileSystem([&](std::string_view mount_point) {
+  ForEachMountedFileSystem([&](file_systems::FileSystem& file_system) {
     ::perception::FileSystemMountEvent event;
-    event.mount_point = std::string(mount_point);
+    event.mount_point = std::string(file_system.GetMountPoint());
     listener_copy.FileSystemMounted(event, nullptr);
   });
 
@@ -253,12 +259,23 @@ void StorageManager::BroadcastMount(std::string_view mount_point) {
   }
 }
 
+void StorageManager::BroadcastUnmount(std::string_view mount_point) {
+  ::perception::FileSystemMountEvent event;
+  event.mount_point = std::string(mount_point);
+  for (auto& info : listeners_)
+    info.client.FileSystemUnmounted(event, nullptr);
+}
+
 StatusOr<::perception::GetMountedFileSystemsResponse>
 StorageManager::GetMountedFileSystems() {
   ::perception::GetMountedFileSystemsResponse response;
-  ForEachMountedFileSystem([&](std::string_view mount_point) {
-    response.mount_points.push_back(std::string(mount_point));
+  ForEachMountedFileSystem([&](file_systems::FileSystem& file_system) {
+    response.mount_points.push_back(std::string(file_system.GetMountPoint()));
   });
+  ForEachMountedFileSystemDetails(
+      [&](const ::perception::MountedFileSystemDetails& details) {
+        response.file_systems.push_back(details);
+      });
   return response;
 }
 
@@ -276,4 +293,41 @@ Status StorageManager::DeleteFileOrDirectory(const RequestWithFilePath& request,
     return Status::NOT_ALLOWED;
 
   return ::DeleteFileOrDirectory(request.path, sender);
+}
+
+StatusOr<::perception::MountFileSystemResponse> StorageManager::MountFileSystem(
+    const ::perception::MountFileSystemRequest& request,
+    ::perception::ProcessId sender) {
+  if (!DoesProcessHavePermissionToMountAndUnmountDrives(sender))
+    return Status::NOT_ALLOWED;
+
+  std::unique_ptr<file_systems::FileSystem> fs =
+      file_systems::InitializeStorageDevice(
+          request.device, request.start_byte_offset, request.byte_length);
+  if (!fs)
+    return Status::FILE_NOT_FOUND;
+
+  ASSIGN_OR_RETURN(std::string mount_name,
+                   ::MountFileSystem(std::move(fs), request.target_mount_point));
+
+  ::perception::MountFileSystemResponse response;
+  response.mount_point = mount_name;
+  return response;
+}
+
+Status StorageManager::UnmountFileSystem(
+    const RequestWithFilePath& request, ::perception::ProcessId sender) {
+  if (!DoesProcessHavePermissionToMountAndUnmountDrives(sender))
+    return Status::NOT_ALLOWED;
+
+  return ::UnmountFileSystemByName(request.path);
+}
+
+Status StorageManager::SetMountPath(
+    const ::perception::SetMountPathRequest& request,
+    ::perception::ProcessId sender) {
+  if (!DoesProcessHavePermissionToMountAndUnmountDrives(sender))
+    return Status::NOT_ALLOWED;
+
+  return ::SetMountPath(request.old_mount_point, request.new_mount_point);
 }

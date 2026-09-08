@@ -24,4 +24,8 @@ class MountListener : public ::perception::FileSystemMountListener::Server {
   virtual Status FileSystemMounted(
       const ::perception::FileSystemMountEvent& event,
       ::perception::ProcessId sender) override;
+
+  virtual Status FileSystemUnmounted(
+      const ::perception::FileSystemMountEvent& event,
+      ::perception::ProcessId sender) override;
 };

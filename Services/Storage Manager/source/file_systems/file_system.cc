@@ -14,11 +14,38 @@
 
 #include "file_systems/file_system.h"
 
+#include <cctype>
+
+#include "file_systems/exfat.h"
 #include "file_systems/iso9660.h"
 
 using ::perception::devices::StorageDevice;
 
 namespace file_systems {
+
+void SplitPath(std::string_view path, std::string_view& directory,
+               std::string_view& file_name) {
+  while (!path.empty() && path.back() == '/')
+    path = path.substr(0, path.size() - 1);
+  size_t split_point = path.find_last_of('/');
+  if (split_point == std::string_view::npos) {
+    directory = "";
+    file_name = path;
+  } else {
+    directory = path.substr(0, split_point);
+    file_name = path.substr(split_point + 1);
+  }
+}
+
+bool EqualsIgnoreCase(std::string_view a, std::string_view b) {
+  if (a.length() != b.length()) return false;
+  for (size_t i = 0; i < a.length(); i++) {
+    if (std::tolower(static_cast<unsigned char>(a[i])) !=
+        std::tolower(static_cast<unsigned char>(b[i])))
+      return false;
+  }
+  return true;
+}
 
 FileSystem::FileSystem() : storage_device_(StorageDevice::Client()) {
   device_name_ = "Ramdisk";
@@ -37,9 +64,31 @@ FileSystem::FileSystem(StorageDevice::Client storage_device)
 }
 
 std::unique_ptr<FileSystem> InitializeStorageDevice(
-    StorageDevice::Client storage_device) {
+    StorageDevice::Client storage_device, uint64 start_byte_offset,
+    uint64 partition_byte_length, std::string_view label) {
   // Try each known file system to see which one we can initialize.
-  return InitializeIso9960ForStorageDevice(storage_device);
+  if (start_byte_offset == 0) {
+    if (auto iso = InitializeIso9960ForStorageDevice(storage_device)) return iso;
+  }
+  if (auto exfat = InitializeExfatForStorageDevice(
+          storage_device, start_byte_offset, partition_byte_length, label))
+    return exfat;
+  return nullptr;
+}
+
+::perception::MountedFileSystemDetails FileSystem::ToMountedFileSystemDetails(
+    std::string_view mount_point) const {
+  ::perception::MountedFileSystemDetails details;
+  details.mount_point =
+      mount_point.empty() ? mount_point_ : std::string(mount_point);
+  details.device = storage_device_;
+  details.start_byte_offset = start_byte_offset_;
+  details.byte_length = byte_length_;
+  details.device_name = device_name_;
+  details.filesystem_type = std::string(GetFileSystemType());
+  details.is_writable = is_writable_;
+  details.is_boot_drive = is_boot_drive_;
+  return details;
 }
 
 void FileSystem::NotifyOnDisappearance(

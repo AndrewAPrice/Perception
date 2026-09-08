@@ -32,7 +32,7 @@ class Iso9660 : public FileSystem {
 
   virtual ~Iso9660();
 
-  virtual std::string_view GetFileSystemType() override;
+  virtual std::string_view GetFileSystemType() const override;
 
   // Opens a file.
   virtual StatusOr<std::unique_ptr<File>> OpenFile(

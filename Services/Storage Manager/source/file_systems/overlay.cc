@@ -39,7 +39,16 @@ OverlayFileSystem::OverlayFileSystem(std::unique_ptr<FileSystem> base)
     : FileSystem(),
       base_(std::move(base)),
       overlay_(std::make_unique<RamdiskFileSystem>()) {
-  optimal_operation_size_ = base_->GetOptionalOperationSize();
+  if (base_) {
+    storage_device_ = base_->GetStorageDevice();
+    storage_type_ = base_->GetStorageType();
+    device_name_ = std::string(base_->GetDeviceName());
+    optimal_operation_size_ = base_->GetOptionalOperationSize();
+    start_byte_offset_ = base_->GetStartByteOffset();
+    byte_length_ = base_->GetByteLength();
+    is_boot_drive_ = base_->IsBootDrive();
+    mount_point_ = std::string(base_->GetMountPoint());
+  }
 }
 
 OverlayFileSystem::~OverlayFileSystem() {}
@@ -223,7 +232,7 @@ bool OverlayFileSystem::ForEachEntryInDirectory(
   return !aborted;
 }
 
-std::string_view OverlayFileSystem::GetFileSystemType() { return kOverlayName; }
+std::string_view OverlayFileSystem::GetFileSystemType() const { return kOverlayName; }
 
 void OverlayFileSystem::CheckFilePermissions(std::string_view path,
                                              bool& file_exists, bool& can_read,

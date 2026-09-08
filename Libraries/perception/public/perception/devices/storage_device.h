@@ -66,9 +66,27 @@ class StorageDeviceReadRequest : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
+class StorageDeviceWriteRequest : public serialization::Serializable {
+ public:
+  // The offset on the device to start writing to.
+  uint64 offset_on_device;
+
+  // The offset in the buffer to start reading from.
+  uint64 offset_in_buffer;
+
+  // The number of bytes to copy from the buffer to the device.
+  uint64 bytes_to_copy;
+
+  // The shared memory buffer to read from.
+  std::shared_ptr<SharedMemory> buffer;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
 #define METHOD_LIST(X)                               \
   X(1, GetDeviceDetails, StorageDeviceDetails, void) \
-  X(2, Read, void, StorageDeviceReadRequest)
+  X(2, Read, void, StorageDeviceReadRequest)         \
+  X(3, Write, void, StorageDeviceWriteRequest)
 
 DEFINE_PERCEPTION_SERVICE(StorageDevice, "perception.devices.StorageDevice",
                           METHOD_LIST)
