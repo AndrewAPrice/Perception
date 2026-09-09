@@ -56,6 +56,10 @@ std::optional<std::string_view> GetPermissionVerbalization(
       return "adjust global volume";
     case Permission::CanMountAndUnmountDrives:
       return "mount and unmount drives";
+    case Permission::CanPowerDown:
+      return "restart, power down, or sleep the system";
+    case Permission::CanWake:
+      return "wake the system when sleeping";
     default:
       return std::nullopt;
   }

@@ -89,7 +89,8 @@ std::shared_ptr<Node> BuildTableCellComponent(
           "CanReadAllFiles", "CanLaunchPrograms",
           "CanViewAndModifyEntireRegistry", "CanUseNetworkDevice",
           "CanContinueRunningAfterWindowsClose", "CanPlayAudio",
-          "CanAdjustVolume", "CanMountAndUnmountDrives"};
+          "CanAdjustVolume", "CanMountAndUnmountDrives",
+          "CanPowerDown", "CanWake"};
       std::string curr_str = std::string(cell_val.StringValue().value_or(""));
       int selection = 0;
       for (int i = 0; i < static_cast<int>(options.size()); ++i) {

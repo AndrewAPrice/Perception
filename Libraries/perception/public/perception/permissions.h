@@ -47,6 +47,10 @@ enum class Permission {
   CanAdjustVolume,
   // Permission to mount, unmount, and change mount paths of drives.
   CanMountAndUnmountDrives,
+  // Permission to restart, power down, or sleep the system.
+  CanPowerDown,
+  // Permission to wake the system when sleeping.
+  CanWake,
 };
 
 class DoesProcessHavePermissionRequest : public serialization::Serializable {

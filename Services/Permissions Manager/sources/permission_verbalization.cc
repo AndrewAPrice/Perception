@@ -46,6 +46,10 @@ std::optional<std::string_view> GetPermissionKey(Permission permission) {
       return "CanAdjustVolume";
     case Permission::CanMountAndUnmountDrives:
       return "CanMountAndUnmountDrives";
+    case Permission::CanPowerDown:
+      return "CanPowerDown";
+    case Permission::CanWake:
+      return "CanWake";
     default:
       return std::nullopt;
   }
@@ -63,5 +67,7 @@ std::optional<Permission> ParsePermissionKey(std::string_view key) {
   if (key == "CanAdjustVolume") return Permission::CanAdjustVolume;
   if (key == "CanMountAndUnmountDrives")
     return Permission::CanMountAndUnmountDrives;
+  if (key == "CanPowerDown") return Permission::CanPowerDown;
+  if (key == "CanWake") return Permission::CanWake;
   return std::nullopt;
 }
