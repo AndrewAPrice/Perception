@@ -21,6 +21,7 @@
 #include "perception/scheduler.h"
 #include "perception/threads.h"
 #include "perception/ui/rectangle.h"
+#include "power.h"
 #include "screen.h"
 #include "tablet.h"
 #include "toasts.h"
@@ -41,6 +42,7 @@ int main(int argc, char *argv[]) {
   InitializeHighlighter();
   InitializeWindowButtons();
   InitializeToasts();
+  InitializePower();
   WindowManager window_manager;
 
   UpdateBackgroundColor();

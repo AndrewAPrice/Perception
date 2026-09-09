@@ -57,6 +57,7 @@ class Window : public std::enable_shared_from_this<Window> {
   static bool ExitFullScreenOrMouseCapture();
   void SetCaptureMouse(bool capture);
   static Window* GetCaptiveMouseWindow();
+  static void UpdateKeyboardListener();
   ::perception::devices::MouseListener::Client& GetMouseListener();
   void SetTitle(std::string_view title);
   std::string_view GetTitle() const;

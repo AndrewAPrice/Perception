@@ -27,6 +27,7 @@
 #include "perception/scheduler.h"
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
+#include "power.h"
 #include "screen.h"
 #include "toasts.h"
 #include "types.h"
@@ -50,6 +51,9 @@ Rectangle invalidated_area;
 CompositorQuadTree quad_tree;
 
 int z_index;
+
+// Whether the screen has been blanked for sleeping.
+bool is_screen_blanked = false;
 
 }  // namespace
 
@@ -165,6 +169,7 @@ void InvalidateScreen(const Rectangle& screen_area) {
 
 void DrawScreen() {
   if (!has_invalidated_area) return;
+  if (IsSystemSleeping() && is_screen_blanked) return;
 
   SleepUntilWeAreReadyToStartDrawing();
 
@@ -176,17 +181,24 @@ void DrawScreen() {
   Rectangle& draw_area = *opt_draw_area;
 
   if (draw_area.Width() <= 0 || draw_area.Height() <= 0) return;
-  DrawBackground(draw_area);
 
-  (void)Window::ForEachBackToFrontWindow([&](Window& window) {
-    window.Draw(draw_area);
-    return false;
-  });
-  // Prep the overlays for drawing, which will mark which areas need to be
-  // drawn to the window manager's texture and not directly to the screen.
-  DrawHighlighter(draw_area);
-  DrawToasts(draw_area);
-  DrawMouse(draw_area);
+  if (IsSystemSleeping()) {
+    DrawOpaqueColor(draw_area, 0xFF000000);
+    is_screen_blanked = true;
+  } else {
+    is_screen_blanked = false;
+    DrawBackground(draw_area);
+
+    (void)Window::ForEachBackToFrontWindow([&](Window& window) {
+      window.Draw(draw_area);
+      return false;
+    });
+    // Prep the overlays for drawing, which will mark which areas need to be
+    // drawn to the window manager's texture and not directly to the screen.
+    DrawHighlighter(draw_area);
+    DrawToasts(draw_area);
+    DrawMouse(draw_area);
+  }
 
   // There are 3 stages of commands to construct:
   // (1) Draw any rectangles into the WM Texture.

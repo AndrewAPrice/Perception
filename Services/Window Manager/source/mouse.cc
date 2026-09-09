@@ -19,10 +19,12 @@
 #include "compositor.h"
 #include "perception/devices/mouse_device.h"
 #include "perception/devices/mouse_listener.h"
+#include "perception/power.h"
 #include "perception/services.h"
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
 #include "perception/ui/size.h"
+#include "power.h"
 #include "screen.h"
 #include "status.h"
 #include "toasts.h"
@@ -268,6 +270,8 @@ Rectangle MouseBounds() {
 class MyMouseListener : public MouseListener::Server {
  public:
   Status MouseMove(const RelativeMousePositionEvent& message) override {
+    if (IsSystemSleeping()) return Status::OK;
+
     if (auto captive_win = Window::GetCaptiveMouseWindow()) {
       if (captive_win->IsVisible() && captive_win->IsFocused()) {
         captive_win->GetMouseListener().MouseMove(message, nullptr);
@@ -312,6 +316,8 @@ std::unique_ptr<MyMouseListener> mouse_listener;
 }  // namespace
 
 void SetMousePosition(const Point& position) {
+  if (IsSystemSleeping()) return;
+
   auto old_mouse_position = mouse_position;
   auto screen_size = GetScreenSize();
 
@@ -330,6 +336,11 @@ void SetMousePosition(const Point& position) {
 
 void ProcessMouseButtonEvent(
     const ::perception::devices::MouseButtonEvent& message) {
+  if (IsSystemSleeping()) {
+    if (message.is_pressed_down) ::perception::power::Wake();
+    return;
+  }
+
   if (auto captive_win = Window::GetCaptiveMouseWindow()) {
     if (captive_win->IsVisible() && captive_win->IsFocused()) {
       captive_win->GetMouseListener().MouseButton(message, nullptr);

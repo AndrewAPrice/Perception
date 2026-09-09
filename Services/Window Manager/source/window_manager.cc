@@ -24,6 +24,7 @@
 #include "perception/ui/color_space.h"
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
+#include "power.h"
 #include "screen.h"
 #include "status.h"
 #include "toasts.h"
@@ -112,6 +113,8 @@ Status WindowManager::SystemButtonPushed() {
 Status WindowManager::InvalidateWindow(
     const InvalidateWindowParameters& parameters,
     ::perception::ProcessId sender) {
+  if (IsSystemSleeping()) return Status::OK;
+
   auto window = GetWindowWithListener(parameters.window);
   if (!window) return Status::INVALID_ARGUMENT;
 

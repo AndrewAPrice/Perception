@@ -50,6 +50,7 @@
 #include "perception/ui/size.h"
 #include "perception/ui/theme.h"
 #include "perception/window/window_manager.h"
+#include "power.h"
 #include "screen.h"
 #include "tablet.h"
 #include "toasts.h"
@@ -514,11 +515,19 @@ void Window::Focus() {
   }
 
   // We now want to send keyboard events to this window.
-  if (is_debugging_) {
-    GetService<KeyboardDevice>().SetKeyboardListener({}, nullptr);
+  UpdateKeyboardListener();
+}
+
+void Window::UpdateKeyboardListener() {
+  if (focused_window) {
+    if (focused_window->is_debugging_) {
+      GetService<KeyboardDevice>().SetKeyboardListener({}, nullptr);
+    } else {
+      GetService<KeyboardDevice>().SetKeyboardListener(
+          focused_window->keyboard_listener_, nullptr);
+    }
   } else {
-    GetService<KeyboardDevice>().SetKeyboardListener(keyboard_listener_,
-                                                     nullptr);
+    GetService<KeyboardDevice>().SetKeyboardListener({}, nullptr);
   }
 }
 
@@ -1185,6 +1194,8 @@ void Window::InvalidateScreenArea() {
 }
 
 void Window::InvalidateLocalArea(const Rectangle& window_area) {
+  if (IsSystemSleeping()) return;
+
   Rectangle physical_window_area = {
       .origin = {.x = std::round(window_area.origin.x),
                  .y = std::round(window_area.origin.y)},
@@ -1259,7 +1270,7 @@ void Window::SetTextureId(int texture_id) {
   texture_id_ = texture_id;
   if (!is_visible_) {
     Show();
-  } else {
+  } else if (!IsSystemSleeping()) {
     Invalidate();
   }
 }
