@@ -17,7 +17,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <vector>
 
 #include "instruments.h"
@@ -209,9 +211,24 @@ bool ExportSongToWav(const std::string& file_path,
     }
   }
 
-  std::ofstream out(file_path, std::ios::binary);
-  if (!out.is_open()) return false;
+  std::error_code ec;
+  std::filesystem::path p(file_path);
+  if (p.has_parent_path() && p.parent_path() != "/" && p.parent_path() != "/Drive 1") {
+    std::filesystem::create_directories(p.parent_path(), ec);
+  }
+
+  std::ofstream out(file_path, std::ios::binary | std::ios::out | std::ios::trunc);
+  if (!out.is_open()) {
+    std::cout << "[wav_exporter] ERROR: ofstream failed to open " << file_path << std::endl;
+    return false;
+  }
 
   out.write(reinterpret_cast<const char*>(wav_bytes.data()), wav_bytes.size());
-  return out.good();
+  if (!out.good()) {
+    std::cout << "[wav_exporter] ERROR: out.write failed! state=" << out.rdstate()
+              << " size=" << wav_bytes.size() << std::endl;
+    return false;
+  }
+  out.close();
+  return true;
 }
