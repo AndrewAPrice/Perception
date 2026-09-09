@@ -14,12 +14,20 @@
 
 #include "interface.h"
 
-#include <iostream>
+#include <chrono>
+#include <memory>
 #include <string>
 
+#include "perception/time.h"
 #include "protocols.h"
 
 namespace {
+
+// Minimum length required for an Ethernet frame payload + header (without FCS).
+constexpr size_t kMinEthernetFrameSize = 60;
+
+// Timeout duration for waiting for an ARP resolution reply.
+constexpr auto kArpWaitTimeout = std::chrono::milliseconds(500);
 
 std::vector<NetworkInterface> interfaces;
 std::vector<std::pair<size_t, ::perception::Fiber*>> fibers_waiting_for_arp;
@@ -34,9 +42,7 @@ NetworkInterface& GetNetworkInterface(size_t index) {
   return interfaces[index];
 }
 
-size_t GetNetworkInterfaceCount() {
-  return interfaces.size();
-}
+size_t GetNetworkInterfaceCount() { return interfaces.size(); }
 
 size_t AddNetworkInterface(NetworkInterface interface) {
   size_t idx = interfaces.size();
@@ -57,9 +63,27 @@ void WakeFibersWaitingForArp(size_t iface_idx) {
 }
 
 void WaitForArp(size_t iface_idx) {
-  fibers_waiting_for_arp.push_back(
-      {iface_idx, ::perception::GetCurrentlyExecutingFiber()});
+  auto current_fiber = ::perception::GetCurrentlyExecutingFiber();
+  fibers_waiting_for_arp.push_back({iface_idx, current_fiber});
+
+  auto finished = std::make_shared<bool>(false);
+  auto timeout_fiber = ::perception::Fiber::Create([current_fiber, finished]() {
+    ::perception::SleepForDuration(kArpWaitTimeout);
+    if (!*finished) current_fiber->WakeUp();
+  });
+  timeout_fiber->WakeUp();
+
   ::perception::Sleep();
+  *finished = true;
+
+  auto it = fibers_waiting_for_arp.begin();
+  while (it != fibers_waiting_for_arp.end()) {
+    if (it->second == current_fiber) {
+      it = fibers_waiting_for_arp.erase(it);
+    } else {
+      ++it;
+    }
+  }
 }
 
 void SendArpRequest(size_t iface_idx, uint32 target_ip) {
@@ -84,6 +108,9 @@ void SendArpRequest(size_t iface_idx, uint32 target_ip) {
   }
   arp->spa = interfaces[iface_idx].ip;
   arp->tpa = target_ip;
+
+  if (packet_data.length() < kMinEthernetFrameSize)
+    packet_data.resize(kMinEthernetFrameSize, '\0');
 
   ::perception::devices::Packet pkt;
   pkt.data = packet_data;
@@ -112,6 +139,9 @@ void SendArpReply(size_t iface_idx, const uint8* target_mac, uint32 target_ip) {
   }
   arp->spa = interfaces[iface_idx].ip;
   arp->tpa = target_ip;
+
+  if (packet_data.length() < kMinEthernetFrameSize)
+    packet_data.resize(kMinEthernetFrameSize, '\0');
 
   ::perception::devices::Packet pkt;
   pkt.data = packet_data;

@@ -16,6 +16,7 @@
 
 #include <chrono>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -30,6 +31,21 @@ using ::perception::network::IpAddress;
 using ::perception::network::ResolveHostResponse;
 
 namespace {
+
+// Source port used when originating outbound DNS queries.
+constexpr uint16 kDnsSourcePort = 50053;
+
+// Destination port for DNS servers.
+constexpr uint16 kDnsDestinationPort = 53;
+
+// Timeout duration for individual DNS resolution attempts.
+constexpr auto kDnsAttemptTimeout = std::chrono::milliseconds(1500);
+
+// Fallback DNS server address (8.8.8.8) in host-endian format.
+constexpr uint32 kFallbackDnsServerIp = 0x08080808;
+
+// Total retry attempts for DNS queries.
+constexpr int kMaxDnsAttempts = 3;
 
 struct DnsQuery {
   uint16 transaction_id;
@@ -58,6 +74,8 @@ void SetDnsMac(const ::perception::devices::MacAddress& mac) {
 
 StatusOr<ResolveHostResponse> PerformDnsResolution(const std::string& host) {
   ResolveHostResponse response;
+  if (GetNetworkInterfaceCount() == 0) return Status::INTERNAL_ERROR;
+
   uint16 tx_id = GetNextDnsId();
 
   DnsHeader dns;
@@ -87,8 +105,8 @@ StatusOr<ResolveHostResponse> PerformDnsResolution(const std::string& host) {
   uint16 qclass = Swap16BitEndian(1);
   dns_payload.append((const char*)&qclass, 2);
 
-  uint32 dns_server_ip = 0x08080808;
-  uint16 dns_src_port = 50053;
+  const auto& iface = GetNetworkInterface(0);
+  uint32 primary_dns_ip = iface.gateway_ip + Swap32BitEndian(1);
 
   DnsQuery query;
   query.transaction_id = tx_id;
@@ -100,8 +118,11 @@ StatusOr<ResolveHostResponse> PerformDnsResolution(const std::string& host) {
   auto current_fiber = ::perception::GetCurrentlyExecutingFiber();
   bool got_reply = false;
 
-  for (int attempt = 0; attempt < 3; attempt++) {
-    SendUdpPacket(0, dns_server_ip, dns_src_port, 53, dns_payload);
+  for (int attempt = 0; attempt < kMaxDnsAttempts; attempt++) {
+    uint32 dns_server_ip =
+        (attempt < 2) ? primary_dns_ip : kFallbackDnsServerIp;
+    SendUdpPacket(0, dns_server_ip, kDnsSourcePort, kDnsDestinationPort,
+                  dns_payload);
 
     struct AttemptState {
       bool finished = false;
@@ -110,10 +131,8 @@ StatusOr<ResolveHostResponse> PerformDnsResolution(const std::string& host) {
 
     auto timeout_fiber =
         ::perception::Fiber::Create([current_fiber, attempt_state]() {
-          ::perception::SleepForDuration(std::chrono::milliseconds(1500));
-          if (!attempt_state->finished) {
-            current_fiber->WakeUp();
-          }
+          ::perception::SleepForDuration(kDnsAttemptTimeout);
+          if (!attempt_state->finished) current_fiber->WakeUp();
         });
     timeout_fiber->WakeUp();
 
@@ -126,9 +145,7 @@ StatusOr<ResolveHostResponse> PerformDnsResolution(const std::string& host) {
         break;
       }
     }
-    if (got_reply) {
-      break;
-    }
+    if (got_reply) break;
   }
 
   bool success = false;
@@ -136,15 +153,16 @@ StatusOr<ResolveHostResponse> PerformDnsResolution(const std::string& host) {
        ++it) {
     if (it->transaction_id == tx_id) {
       success = it->success;
-      if (it->success) {
-        response.addresses.push_back(it->resolved_address);
-      }
+      if (it->success) response.addresses.push_back(it->resolved_address);
       pending_dns_queries.erase(it);
       break;
     }
   }
 
-  if (!success) return Status::INTERNAL_ERROR;
+  if (!success) {
+    std::cout << "DNS resolution failed for " << host << std::endl;
+    return Status::INTERNAL_ERROR;
+  }
   return response;
 }
 
@@ -170,17 +188,16 @@ void ProcessDnsResponse(const uint8* payload, size_t len) {
         offset += 4;  // QType, QClass
 
         for (uint16 a = 0; a < answers_count && offset < len; a++) {
-          if ((payload[offset] & 0xC0) == 0xC0) {
-            offset += 2;
-          } else {
-            while (offset < len) {
-              uint8 label_len = payload[offset];
-              if (label_len == 0) {
-                offset++;
-                break;
-              }
-              offset += 1 + label_len;
+          while (offset < len) {
+            if ((payload[offset] & 0xC0) == 0xC0) {
+              offset += 2;
+              break;
             }
+            if (payload[offset] == 0) {
+              offset++;
+              break;
+            }
+            offset += 1 + payload[offset];
           }
 
           if (offset + 10 > len) break;

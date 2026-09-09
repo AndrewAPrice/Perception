@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <iostream>
 
 #include "dns.h"
 #include "interface.h"
@@ -24,6 +25,12 @@
 #include "protocols.h"
 
 namespace {
+
+// Minimum length required for an Ethernet frame payload + header (without FCS).
+constexpr size_t kMinEthernetFrameSize = 60;
+
+// Maximum retry attempts when trying to resolve gateway ARP before fallback.
+constexpr int kMaxArpRetries = 3;
 
 std::vector<std::shared_ptr<SocketImpl>> active_sockets;
 
@@ -41,9 +48,22 @@ void SendTcpPacket(size_t iface_idx, std::shared_ptr<SocketImpl> sock,
                    uint8 flags_val, const std::string& payload) {
   auto& iface = GetNetworkInterface(iface_idx);
   if (!iface.gateway_mac_resolved) {
-    SendArpRequest(iface_idx, iface.gateway_ip);
-    while (!iface.gateway_mac_resolved) {
+    for (int retry = 0; retry < kMaxArpRetries && !iface.gateway_mac_resolved;
+         retry++) {
+      SendArpRequest(iface_idx, iface.gateway_ip);
       WaitForArp(iface_idx);
+    }
+    if (!iface.gateway_mac_resolved) {
+      std::cout << "Gateway ARP resolution timed out. Defaulting to QEMU SLIRP "
+                   "gateway MAC."
+                << std::endl;
+      iface.gateway_mac[0] = 0x52;
+      iface.gateway_mac[1] = 0x55;
+      iface.gateway_mac[2] = 0x0A;
+      iface.gateway_mac[3] = 0x00;
+      iface.gateway_mac[4] = 0x02;
+      iface.gateway_mac[5] = 0x02;
+      iface.gateway_mac_resolved = true;
     }
   }
 
@@ -91,6 +111,9 @@ void SendTcpPacket(size_t iface_idx, std::shared_ptr<SocketImpl> sock,
   tcp->checksum = CalculateTcpChecksum(ip->src_ip, ip->dest_ip,
                                        (const uint8*)tcp, ip_payload_len);
 
+  if (packet_data.length() < kMinEthernetFrameSize)
+    packet_data.resize(kMinEthernetFrameSize, '\0');
+
   ::perception::devices::Packet pkt;
   pkt.data = packet_data;
   iface.device.SendPacket(pkt);
@@ -100,20 +123,23 @@ void SendUdpPacket(size_t iface_idx, uint32 dest_ip, uint16 src_port,
                    uint16 dest_port, const std::string& payload) {
   auto& iface = GetNetworkInterface(iface_idx);
 
-  bool is_dns_server = (dest_ip == iface.gateway_ip + Swap32BitEndian(1));
-  if (is_dns_server) {
-    if (!IsDnsMacResolved()) {
-      SendArpRequest(iface_idx, dest_ip);
-      while (!IsDnsMacResolved()) {
-        WaitForArp(iface_idx);
-      }
-    }
-  } else {
-    if (!iface.gateway_mac_resolved) {
+  if (!iface.gateway_mac_resolved) {
+    for (int retry = 0; retry < kMaxArpRetries && !iface.gateway_mac_resolved;
+         retry++) {
       SendArpRequest(iface_idx, iface.gateway_ip);
-      while (!iface.gateway_mac_resolved) {
-        WaitForArp(iface_idx);
-      }
+      WaitForArp(iface_idx);
+    }
+    if (!iface.gateway_mac_resolved) {
+      std::cout << "Gateway ARP resolution timed out for UDP. Defaulting to "
+                   "QEMU SLIRP gateway MAC."
+                << std::endl;
+      iface.gateway_mac[0] = 0x52;
+      iface.gateway_mac[1] = 0x55;
+      iface.gateway_mac[2] = 0x0A;
+      iface.gateway_mac[3] = 0x00;
+      iface.gateway_mac[4] = 0x02;
+      iface.gateway_mac[5] = 0x02;
+      iface.gateway_mac_resolved = true;
     }
   }
 
@@ -122,9 +148,8 @@ void SendUdpPacket(size_t iface_idx, uint32 dest_ip, uint16 src_port,
       sizeof(EthernetHeader) + sizeof(IpHeader) + ip_payload_len, '\0');
 
   EthernetHeader* eth = (EthernetHeader*)packet_data.data();
-  const uint8* target_mac = is_dns_server ? GetDnsMac().mac : iface.gateway_mac;
   for (int i = 0; i < 6; i++) {
-    eth->dest_mac[i] = target_mac[i];
+    eth->dest_mac[i] = iface.gateway_mac[i];
     eth->src_mac[i] = iface.mac[i];
   }
   eth->type = Swap16BitEndian(0x0800);
@@ -157,6 +182,9 @@ void SendUdpPacket(size_t iface_idx, uint32 dest_ip, uint16 src_port,
   udp->checksum = CalculateUdpChecksum(ip->src_ip, ip->dest_ip,
                                        (const uint8*)udp, ip_payload_len);
   if (udp->checksum == 0) udp->checksum = 0xFFFF;
+
+  if (packet_data.length() < kMinEthernetFrameSize)
+    packet_data.resize(kMinEthernetFrameSize, '\0');
 
   ::perception::devices::Packet pkt;
   pkt.data = packet_data;

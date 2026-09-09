@@ -21,6 +21,7 @@
 #include "dns.h"
 #include "endian.h"
 #include "interface.h"
+#include "perception/scheduler.h"
 #include "protocols.h"
 #include "socket.h"
 
@@ -160,7 +161,7 @@ void ProcessUdp(const std::string& data, uint8 ihl, size_t iface_idx) {
   size_t payload_len = len - sizeof(UdpHeader);
   auto& iface = GetNetworkInterface(iface_idx);
 
-  if (src_port == 53 && (ip->src_ip == iface.gateway_ip ||
+  if (src_port == 53 && (dest_port == 50053 || ip->src_ip == iface.gateway_ip ||
                          ip->src_ip == iface.gateway_ip + Swap32BitEndian(1) ||
                          ip->src_ip == 0x08080808)) {
     ProcessDnsResponse(payload, payload_len);
@@ -186,8 +187,7 @@ void ProcessTcp(const std::string& data, uint8 ihl, size_t iface_idx) {
   uint8 tcp_offset = ((flags >> 12) & 0x0F) * 4;
   size_t ip_logical_len = Swap16BitEndian(ip->len);
   if (ip_logical_len < ihl + tcp_offset) {
-    std::cout << "Network Manager: ProcessTcp: Packet logical length too small "
-                 "for headers: "
+    std::cout << "ProcessTcp: Packet logical length too small for headers: "
               << ip_logical_len << " < " << (ihl + tcp_offset) << std::endl;
     return;
   }
@@ -355,21 +355,30 @@ Status NetworkListener::PacketReceived(
     const ::perception::devices::Packet& packet) {
   if (packet.data.length() < sizeof(EthernetHeader)) return Status::OK;
 
-  const EthernetHeader* eth = (const EthernetHeader*)packet.data.data();
-  uint16 eth_type = Swap16BitEndian(eth->type);
+  std::string data = packet.data;
+  size_t iface_idx = interface_index_;
+  ::perception::Defer([data = std::move(data), iface_idx]() {
+    const EthernetHeader* eth = (const EthernetHeader*)data.data();
+    uint16 eth_type = Swap16BitEndian(eth->type);
 
-  if (eth_type == 0x0806) {
-    ProcessArp(packet.data, interface_index_);
-  } else if (eth_type == 0x0800) {
-    ProcessIp(packet.data, interface_index_);
-  }
+    if (eth_type == 0x0806) {
+      ProcessArp(data, iface_idx);
+    } else if (eth_type == 0x0800) {
+      ProcessIp(data, iface_idx);
+    }
+  });
   return Status::OK;
 }
 
 void CreateAndAddNetworkListener(size_t interface_index) {
   auto listener = std::make_shared<NetworkListener>(interface_index);
   listeners.push_back(listener);
-  GetNetworkInterface(interface_index)
-      .device.SetPacketListener(
-          ::perception::devices::NetworkListener::Client(*listener));
+  auto status =
+      GetNetworkInterface(interface_index)
+          .device.SetPacketListener(
+              ::perception::devices::NetworkListener::Client(*listener));
+  if (status != Status::OK) {
+    std::cout << "SetPacketListener failed! Status=" << static_cast<int>(status)
+              << std::endl;
+  }
 }
