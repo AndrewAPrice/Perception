@@ -14,6 +14,7 @@
 
 #include "power_service.h"
 
+#include "perception/acpi.h"
 #include "perception/permissions.h"
 #include "perception/port_io.h"
 #include "perception/services.h"
@@ -23,36 +24,13 @@ using ::perception::NotifyOnEachNewServiceInstance;
 using ::perception::NotifyWhenServiceDisappears;
 using ::perception::Permission;
 using ::perception::ProcessId;
+using ::perception::Read16BitsFromPort;
 using ::perception::Read8BitsFromPort;
 using ::perception::Write16BitsToPort;
 using ::perception::Write8BitsToPort;
 using ::perception::devices::PowerListener;
 
 namespace {
-
-// QEMU default (PIIX4) ACPI PM1a_CNT I/O port.
-constexpr uint16 kQemuAcpiPm1ControlPort = 0x604;
-
-// ACPI sleep enable bit and sleep type S5 value for QEMU PIIX4.
-constexpr uint16 kAcpiS5SleepCommandPiix4 = 0x2000;
-
-// ACPI sleep enable bit and sleep type S5 value for QEMU Q35.
-constexpr uint16 kAcpiS5SleepCommandQ35 = 0x3400;
-
-// Bochs and older QEMU poweroff I/O port.
-constexpr uint16 kBochsPowerControlPort = 0xB004;
-
-// Bochs and older QEMU poweroff command.
-constexpr uint16 kBochsPowerOffCommand = 0x2000;
-
-// VirtualBox poweroff I/O port.
-constexpr uint16 kVirtualBoxPowerControlPort = 0x4004;
-
-// VirtualBox poweroff command.
-constexpr uint16 kVirtualBoxPowerOffCommand = 0x3400;
-
-// QEMU debug exit I/O port configured in run_qemu.sh.
-constexpr uint16 kQemuDebugExitPort = 0xF4;
 
 // Fast reset / PCI reset control register I/O port.
 constexpr uint16 kPciResetControlPort = 0xCF9;
@@ -75,6 +53,31 @@ constexpr uint8 kPs2InputBufferFull = 0x02;
 // Maximum iterations to wait for PS/2 input buffer to empty.
 constexpr int kPs2BufferTimeoutIterations = 10000;
 
+// Bit in PM1 control register indicating ACPI mode is enabled.
+constexpr uint16 kSciEnableBit = 0x0001;
+
+// Bit in PM1 control register triggering sleep transition.
+constexpr uint16 kSleepEnableBit = 0x2000;
+
+// Maximum iterations to wait for ACPI mode enable transition.
+constexpr int kAcpiEnableTimeoutIterations = 300;
+
+// Standard PC diagnostic I/O delay port.
+constexpr uint16 kIoDelayPort = 0x80;
+
+// ACPI configuration details queried from kernel.
+::perception::AcpiDetails acpi_details;
+
+// Whether ACPI details have been queried from the kernel.
+bool has_queried_acpi = false;
+
+// Queries ACPI details from the kernel on first use.
+void EnsureAcpiQueried() {
+  if (has_queried_acpi) return;
+  has_queried_acpi = true;
+  (void)::perception::GetAcpiDetails(acpi_details);
+}
+
 }  // namespace
 
 PowerService::PowerService() {
@@ -91,17 +94,42 @@ Status PowerService::PowerOff(ProcessId sender) {
   if (!DoesProcessHavePermission(sender, Permission::CanPowerDown))
     return Status::NOT_ALLOWED;
 
-  Write16BitsToPort(kQemuAcpiPm1ControlPort, kAcpiS5SleepCommandPiix4);
-  Write16BitsToPort(kQemuAcpiPm1ControlPort, kAcpiS5SleepCommandQ35);
-  Write16BitsToPort(kBochsPowerControlPort, kBochsPowerOffCommand);
-  Write16BitsToPort(kVirtualBoxPowerControlPort, kVirtualBoxPowerOffCommand);
-  Write8BitsToPort(kQemuDebugExitPort, 0x00);
+  EnsureAcpiQueried();
+  if (acpi_details.has_s5 && acpi_details.pm1a_control_port != 0) {
+    if ((Read16BitsFromPort(acpi_details.pm1a_control_port) & kSciEnableBit) ==
+            0 &&
+        acpi_details.smi_cmd_port != 0 && acpi_details.acpi_enable_value != 0) {
+      Write8BitsToPort(acpi_details.smi_cmd_port,
+                       acpi_details.acpi_enable_value);
+      for (int i = 0; i < kAcpiEnableTimeoutIterations; i++) {
+        if ((Read16BitsFromPort(acpi_details.pm1a_control_port) &
+             kSciEnableBit) != 0)
+          break;
+        (void)Read8BitsFromPort(kIoDelayPort);
+      }
+    }
+
+    uint16 val_a =
+        static_cast<uint16>((acpi_details.slp_typa << 10) | kSleepEnableBit);
+    Write16BitsToPort(acpi_details.pm1a_control_port, val_a);
+
+    if (acpi_details.pm1b_control_port != 0) {
+      uint16 val_b =
+          static_cast<uint16>((acpi_details.slp_typb << 10) | kSleepEnableBit);
+      Write16BitsToPort(acpi_details.pm1b_control_port, val_b);
+    }
+  }
+
   return Status::OK;
 }
 
 Status PowerService::Restart(ProcessId sender) {
   if (!DoesProcessHavePermission(sender, Permission::CanPowerDown))
     return Status::NOT_ALLOWED;
+
+  EnsureAcpiQueried();
+  if (acpi_details.has_reset && acpi_details.reset_port != 0)
+    Write8BitsToPort(acpi_details.reset_port, acpi_details.reset_value);
 
   Write8BitsToPort(kPciResetControlPort, kPciResetPrepare);
   Write8BitsToPort(kPciResetControlPort, kPciResetTrigger);

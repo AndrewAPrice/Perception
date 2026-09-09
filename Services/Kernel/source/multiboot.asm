@@ -24,9 +24,11 @@ MbHdr:
 
 	; request some information from GRUB for the kernel
 	dw 1, 0 ; multiboot_header_tag_information_request
-	dd 16
+	dd 24
 	dd 6 ; request multiboot_tag_type_mmap
 	dd 8 ; request MULTIBOOT_TAG_TYPE_FRAMEBUFFER
+	dd 14 ; request MULTIBOOT_TAG_TYPE_ACPI_OLD
+	dd 15 ; request MULTIBOOT_TAG_TYPE_ACPI_NEW
 
 	; request a video mode
 	dw 5, 0 ; MULTIBOOT_HEADER_TAG_FRAMEBUFFER

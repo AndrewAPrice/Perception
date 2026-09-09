@@ -15,7 +15,7 @@
 #pragma once
 
 // The total number of system calls.
-#define NUMBER_OF_SYSCALLS 73
+#define NUMBER_OF_SYSCALLS 74
 
 // The canonical list of system calls, mapped to the system call number.
 enum class Syscall {
@@ -101,7 +101,8 @@ enum class Syscall {
   SetThatProcessCaresAboutCpuTracking = 64,
   RegisterSharedMemoryEvent = 70,
   UnregisterSharedMemoryEvent = 71,
-  TriggerSharedMemoryEvent = 72
+  TriggerSharedMemoryEvent = 72,
+  GetAcpiDetails = 73
 };
 
 // Returns the name of a system call, by int.

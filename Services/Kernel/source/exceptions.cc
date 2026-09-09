@@ -15,6 +15,7 @@
 
 #include "exceptions.h"
 
+#include "acpi.h"
 #include "core_dump.h"
 #include "exceptions.asm.h"
 #include "idt.h"
@@ -34,10 +35,32 @@
 
 namespace {
 
-#define QUIT_QEMU_ON_ANY_EXCEPTION
+#define SHUTDOWN_ON_ANY_EXCEPTION
 
 // On an exception, print a core dump instead of anything else.
 constexpr bool kCoreDumpOnException = true;
+
+// QEMU default (PIIX4) ACPI PM1a_CNT I/O port.
+constexpr uint16 kQemuAcpiPm1ControlPort = 0x604;
+
+// ACPI sleep enable bit and sleep type S5 value for QEMU PIIX4.
+constexpr uint16 kAcpiS5SleepCommandPiix4 = 0x2000;
+
+// ACPI sleep enable bit and sleep type S5 value for QEMU Q35.
+constexpr uint16 kAcpiS5SleepCommandQ35 = 0x3400;
+
+// Bochs and older QEMU poweroff I/O port.
+constexpr uint16 kBochsPowerControlPort = 0xB004;
+
+// Bochs and older QEMU poweroff command.
+constexpr uint16 kBochsPowerOffCommand = 0x2000;
+
+// QEMU debug exit I/O port. Requires starting QEMU with:
+//   -device isa-debug-exit,iobase=0xf4,iosize=0x04.
+constexpr uint16 kQemuDebugExitPort = 0xF4;
+
+// Exit code passed to QEMU debug exit on unhandled exception.
+constexpr uint8 kQemuDebugExitCode = 0x10;
 
 void PrintException(bool in_kernel, int exception_no, size_t cr2,
                     size_t error_code) {
@@ -166,9 +189,14 @@ const char *GetExceptionName(Exception exception) {
   }
 }
 
-// Exits QEMU. Requires staring QEMU with:
-//   -device isa-debug-exit,iobase=0xf4,iosize=0x04.
-void ExitQemu() { WriteIOByte(0xf4, 0x10); }
+// Emergency shutdown.
+void Shutdown() {
+  if (HasAcpiS5()) AcpiPowerOff();
+  WriteIO16Bits(kQemuAcpiPm1ControlPort, kAcpiS5SleepCommandPiix4);
+  WriteIO16Bits(kQemuAcpiPm1ControlPort, kAcpiS5SleepCommandQ35);
+  WriteIO16Bits(kBochsPowerControlPort, kBochsPowerOffCommand);
+  WriteIOByte(kQemuDebugExitPort, kQemuDebugExitCode);
+}
 
 // The exception handler.
 extern "C" void ExceptionHandler(int exception_no, size_t cr2,
@@ -188,20 +216,22 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
                    ((currently_executing_thread_regs->cs & 3) == 0);
   PrintException(in_kernel, exception_no, cr2, error_code);
 
-#ifdef QUIT_QEMU_ON_ANY_EXCEPTION
-  ExitQemu();
+#ifdef SHUTDOWN_ON_ANY_EXCEPTION
+  Shutdown();
 #endif
 
   if (in_kernel) {
-    ExitQemu();
+    Shutdown();
     asm volatile("cli");
-    asm volatile("hlt");
+    for (;;) {
+      asm volatile("hlt");
+    }
   } else {
     // Terminate the process.
     DestroyProcess(running_thread->process);
     if (!AreAnyProcessesRunning()) {
       print << "All processes terminated.\n";
-      ExitQemu();
+      Shutdown();
     }
     JumpIntoThread(); // Doesn't return.
   }

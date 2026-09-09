@@ -163,6 +163,8 @@ const char *GetSystemCallName(Syscall syscall) {
       return "UnregisterSharedMemoryEvent";
     case Syscall::TriggerSharedMemoryEvent:
       return "TriggerSharedMemoryEvent";
+    case Syscall::GetAcpiDetails:
+      return "GetAcpiDetails";
   }
 }
 

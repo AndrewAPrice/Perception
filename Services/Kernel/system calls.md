@@ -86,6 +86,7 @@ System calls are invoked using the x86_64 `syscall` instruction. The system call
 | `70` | [Register Shared Memory Event](#register-shared-memory-event) | Synchronization Events | Binds shared memory offset mutation to IPC notification. |
 | `71` | [Unregister Shared Memory Event](#unregister-shared-memory-event) | Synchronization Events | Removes shared memory offset event subscription. |
 | `72` | [Trigger Shared Memory Event](#trigger-shared-memory-event) | Synchronization Events | Fires notification events on a shared memory offset. |
+| `73` | [Get ACPI Information](#get-acpi-information) 🔒 | Hardware & Drivers | Queries ACPI power management, reset, and table details. |
 
 Restrictions:  
 🔒 Only drivers may call this.  
@@ -1069,6 +1070,31 @@ Retrieves physical memory address and display layout specifications for the boot
 * `rdx` - Display height in pixels.
 * `rsi` - Pitch (stride in bytes between pixel rows).
 * `r8` - Color depth (bits per pixel).
+
+---
+
+## Get ACPI Information 🔒
+Retrieves power management, sleep state S5 ports, reset configuration, and RSDP physical address discovered from ACPI tables. Only drivers may call this.
+
+### Input
+* `rdi` - `73`
+
+### Output
+* `rax` - ACPI control ports:
+  * Bits 0-15: `PM1a_CNT_BLK` I/O port.
+  * Bits 16-31: `PM1b_CNT_BLK` I/O port.
+* `rbx` - Sleep S5 configuration:
+  * Bits 0-7: `SLP_TYPa` value.
+  * Bits 8-15: `SLP_TYPb` value.
+  * Bit 16: `1` if S5 state is available, `0` otherwise.
+* `rdx` - ACPI hardware enable settings:
+  * Bits 0-15: `SMI_CMD` I/O port.
+  * Bits 16-23: `ACPI_ENABLE` command value.
+* `rsi` - ACPI reset register settings:
+  * Bits 0-15: Reset I/O port address.
+  * Bits 16-23: `RESET_VALUE` command value.
+  * Bit 24: `1` if ACPI reset is supported, `0` otherwise.
+* `r8` - Starting physical address of the ACPI RSDP descriptor.
 
 ---
 

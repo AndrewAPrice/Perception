@@ -1,5 +1,6 @@
 #ifndef TEST
 #include "../../../third_party/multiboot2.h"
+#include "acpi.h"
 #include "framebuffer.h"
 #include "fpu.h"
 #include "interrupts.h"
@@ -50,6 +51,7 @@ extern "C" void kmain() {
   // Loads the multiboot modules, then frees the memory used by them.
   LoadMultibootModules();
   MaybeLoadFramebuffer();
+  InitializeAcpi();
   if (!HasRemainingUnloadedMultibootModules()) DoneWithMultibootMemory();
 
   asm("sti");

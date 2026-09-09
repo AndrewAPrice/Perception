@@ -1,6 +1,7 @@
 #ifndef TEST
 #include "syscall.h"
 
+#include "acpi.h"
 #include "framebuffer.h"
 #include "interrupts.asm.h"
 #include "interrupts.h"
@@ -783,6 +784,10 @@ extern "C" void SyscallHandler(int syscall_number) {
     case Syscall::RegisterMessageForWhenTimeInfoChanges:
       RegisterMessageForWhenTimeInfoChanges(
           running_thread->process, currently_executing_thread_regs->rax);
+      break;
+    case Syscall::GetAcpiDetails:
+      if (running_thread->process->is_driver)
+        PopulateRegistersWithAcpiDetails(currently_executing_thread_regs);
       break;
   }
 

@@ -12,6 +12,12 @@ uint8 ReadIOByte(unsigned short _port);
 // Writes a byte to a port.
 void WriteIOByte(unsigned short _port, unsigned char _data);
 
+// Reads a 16-bit word from a port.
+uint16 ReadIO16Bits(unsigned short port);
+
+// Writes a 16-bit word to a port.
+void WriteIO16Bits(unsigned short port, unsigned short data);
+
 #ifdef __cplusplus
 }
 #endif
