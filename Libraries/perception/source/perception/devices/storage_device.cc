@@ -34,5 +34,13 @@ void StorageDeviceReadRequest::Serialize(serialization::Serializer& serializer) 
   serializer.Serializable("Shared memory", buffer);
 }
 
+void StorageDeviceWriteRequest::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.Integer("Offset on device", offset_on_device);
+  serializer.Integer("Offset in buffer", offset_in_buffer);
+  serializer.Integer("Bytes to copy", bytes_to_copy);
+  serializer.Serializable("Shared memory", buffer);
+}
+
 }  // namespace devices
 }  // namespace perception

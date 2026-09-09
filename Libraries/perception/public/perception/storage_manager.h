@@ -15,7 +15,9 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
+#include "perception/devices/storage_device.h"
 #include "perception/file.h"
 #include "perception/memory_mapped_file.h"
 #include "perception/serialization/serializable.h"
@@ -125,13 +127,55 @@ class FileSystemMountEvent : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
-class GetMountedFileSystemsResponse : public serialization::Serializable {
+class MountedFileSystemDetails : public serialization::Serializable {
  public:
-  std::vector<std::string> mount_points;
+  std::string mount_point;
+  devices::StorageDevice::Client device;
+  uint64 start_byte_offset = 0;
+  uint64 byte_length = 0;
+  std::string device_name;
+  std::string filesystem_type;
+  bool is_writable = false;
+  bool is_boot_drive = false;
+
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
-#define METHOD_LIST(X) X(1, FileSystemMounted, void, FileSystemMountEvent)
+class GetMountedFileSystemsResponse : public serialization::Serializable {
+ public:
+  std::vector<std::string> mount_points;
+  std::vector<MountedFileSystemDetails> file_systems;
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class SetMountPathRequest : public serialization::Serializable {
+ public:
+  std::string old_mount_point;
+  std::string new_mount_point;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class MountFileSystemRequest : public serialization::Serializable {
+ public:
+  devices::StorageDevice::Client device;
+  uint64 start_byte_offset = 0;
+  uint64 byte_length = 0;
+  std::string target_mount_point;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+class MountFileSystemResponse : public serialization::Serializable {
+ public:
+  std::string mount_point;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+#define METHOD_LIST(X)                                  \
+  X(1, FileSystemMounted, void, FileSystemMountEvent)   \
+  X(2, FileSystemUnmounted, void, FileSystemMountEvent)
 DEFINE_PERCEPTION_SERVICE(FileSystemMountListener,
                           "perception.FileSystemMountListener", METHOD_LIST)
 #undef METHOD_LIST
@@ -148,7 +192,11 @@ DEFINE_PERCEPTION_SERVICE(FileSystemMountListener,
   X(8, ReadLink, RequestWithFilePath, RequestWithFilePath)              \
   X(9, GetMountedFileSystems, GetMountedFileSystemsResponse, void)      \
   X(10, CreateDirectory, void, RequestWithFilePath)                     \
-  X(11, DeleteFileOrDirectory, void, RequestWithFilePath)
+  X(11, DeleteFileOrDirectory, void, RequestWithFilePath)                \
+  X(12, MountFileSystem, MountFileSystemResponse,                       \
+    MountFileSystemRequest)                                             \
+  X(13, UnmountFileSystem, void, RequestWithFilePath)                   \
+  X(14, SetMountPath, void, SetMountPathRequest)
 
 DEFINE_PERCEPTION_SERVICE(StorageManager, "perception.StorageManager",
                           METHOD_LIST)

@@ -80,10 +80,38 @@ void FileSystemMountEvent::Serialize(serialization::Serializer& serializer) {
   serializer.String("mount_point", mount_point);
 }
 
+void MountedFileSystemDetails::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.String("mount_point", mount_point);
+  serializer.Serializable("device", device);
+  serializer.Integer("start_byte_offset", start_byte_offset);
+  serializer.Integer("byte_length", byte_length);
+  serializer.String("device_name", device_name);
+  serializer.String("filesystem_type", filesystem_type);
+  serializer.Integer("is_writable", is_writable);
+  serializer.Integer("is_boot_drive", is_boot_drive);
+}
+
 void GetMountedFileSystemsResponse::Serialize(
     serialization::Serializer& serializer) {
   serializer.ArrayOfStrings("mount_points", mount_points);
+  serializer.ArrayOfSerializables("file_systems", file_systems);
+}
+
+void SetMountPathRequest::Serialize(serialization::Serializer& serializer) {
+  serializer.String("old_mount_point", old_mount_point);
+  serializer.String("new_mount_point", new_mount_point);
+}
+
+void MountFileSystemRequest::Serialize(serialization::Serializer& serializer) {
+  serializer.Serializable("device", device);
+  serializer.Integer("start_byte_offset", start_byte_offset);
+  serializer.Integer("byte_length", byte_length);
+  serializer.String("target_mount_point", target_mount_point);
+}
+
+void MountFileSystemResponse::Serialize(serialization::Serializer& serializer) {
+  serializer.String("mount_point", mount_point);
 }
 
 }  // namespace perception
-// force rebuild
