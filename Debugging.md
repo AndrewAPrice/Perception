@@ -55,3 +55,17 @@ Now you're at the point where the exception occured in userland. You can use nor
 ## Inspecting core dumps in VSCode
 
 Install the `CodeLLDB` extension in Visual Studio Code.
+
+## Log Viewing and Demultiplexing
+
+Perception streams kernel and userland logs over serial port COM1 using escape sequence control codes (`\033]P;<pid>;<channel>;<name>\007`).
+
+When running Perception with `rebs --all --build`, REBS invokes `tools/run_qemu.sh`, which pipes QEMU stdout directly into `tools/log_viewer.py`.
+
+The TUI allows interactive filtering by process, auto-scrolling, search filtering, and channel selection:
+- **`Tab` / `0-9`**: Switch process filter (`All`, `Kernel`, individual user processes).
+- **`a`**: Toggle Auto-Scroll on/off.
+- **`/`**: Search log history interactively.
+- **`c`**: Clear displayed log history.
+- **`q`**: Exit the log viewer.
+
