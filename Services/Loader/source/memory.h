@@ -14,8 +14,8 @@
 
 #include <map>
 #include <memory>
+#include <string_view>
 
-#include "perception/shared_memory.h"
 #include "types.h"
 
 // Copies data from the file into the process's memory.
@@ -35,8 +35,3 @@ void FreeChildMemoryPages(std::map<size_t, void*>& child_memory_pages);
 // Sends the memory pages to the child.
 void SendMemoryPagesToChild(::perception::ProcessId child_pid,
                             std::map<size_t, void*>& child_memory_pages);
-
-// Converts a map of pages into a block of read-only shared memory.
-std::map<size_t, std::shared_ptr<perception::SharedMemory>>
-ConvertMapOfPagesIntoReadOnlySharedMemoryBlocks(
-    std::map<size_t, void*>& child_memory_pages);

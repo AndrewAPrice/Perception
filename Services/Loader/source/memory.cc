@@ -21,51 +21,42 @@
 #include "memory.h"
 #include "perception/memory.h"
 #include "perception/processes.h"
-#include "perception/shared_memory.h"
 
 using ::perception::AllocateMemoryPages;
 using ::perception::kPageSize;
 using ::perception::ProcessId;
 using ::perception::ReleaseMemoryPages;
 using ::perception::SetChildProcessMemoryPages;
-using ::perception::SharedMemory;
 
 namespace {
 
-// Turns a set of pages into a shared memory block.
-std::shared_ptr<perception::SharedMemory> TurnPagesIntoSharedMemoryBlock(
-    std::map<size_t, void*>& child_memory_pages, size_t first_page,
-    size_t last_page) {
-  size_t size = last_page - first_page + kPageSize;
+// Allocates any unallocated page ranges in [first_page, last_page) in contiguous batches.
+bool AllocatePageRange(size_t first_page, size_t last_page,
+                       std::map<size_t, void*>& child_memory_pages) {
+  for (size_t page = first_page; page < last_page; page += kPageSize) {
+    if (child_memory_pages.contains(page)) continue;
 
-  std::weak_ptr<SharedMemory> weak_shared_memory;
-
-  std::shared_ptr<SharedMemory> shared_memory = SharedMemory::FromSize(
-      size, SharedMemory::kLazilyAllocated,
-      [&weak_shared_memory](size_t offset_of_page) {
-        // Should never get called. Assign this a blank page.
-        if (auto strong_shared_memory = weak_shared_memory.lock())
-          strong_shared_memory->AssignPage(AllocateMemoryPages(1),
-                                           offset_of_page);
-      });
-  weak_shared_memory = shared_memory;
-
-  for (size_t page = first_page; page <= last_page; page += kPageSize) {
-    auto itr = child_memory_pages.find(page);
-    if (itr == child_memory_pages.end()) continue;  // Should never happen.
-
-    size_t offset = page - first_page;
-    void* page_copy = AllocateMemoryPages(1);
-    if (page_copy != nullptr) {
-      memcpy(page_copy, itr->second, kPageSize);
-      shared_memory->AssignPage(page_copy, offset);
+    size_t unallocated_run = 0;
+    for (size_t next_page = page; next_page < last_page;
+         next_page += kPageSize) {
+      if (child_memory_pages.contains(next_page)) break;
+      unallocated_run++;
     }
+
+    void* allocated = AllocateMemoryPages(unallocated_run);
+    if (allocated == nullptr) {
+      std::cout << "Couldn't allocate memory to child pages." << std::endl;
+      return false;
+    }
+
+    for (size_t i = 0; i < unallocated_run; i++)
+      child_memory_pages[page + i * kPageSize] =
+          (uint8*)allocated + i * kPageSize;
+
+    page += (unallocated_run - 1) * kPageSize;
   }
-
-  return shared_memory;
+  return true;
 }
-
-}  // namespace
 
 // Returns a pointer into the child page (allocating it memory if it doesn't yet
 // exists), or nullptr if it couldn't be allocated.
@@ -83,6 +74,8 @@ void* GetChildPage(size_t page_address,
   return memory;
 }
 
+}  // namespace
+
 // Copies data from the file into the process's memory.
 bool CopyIntoMemory(const void* data, size_t size, size_t address,
                     std::map<size_t, void*>& child_memory_pages,
@@ -93,13 +86,12 @@ bool CopyIntoMemory(const void* data, size_t size, size_t address,
   size_t last_page =
       (address_end + kPageSize - 1) & ~(kPageSize - 1);  // Round up.
 
+  if (!AllocatePageRange(first_page, last_page, child_memory_pages))
+    return false;
+
   size_t page = first_page;
   for (; page < last_page; page += kPageSize) {
-    size_t memory = (size_t)GetChildPage(page, child_memory_pages);
-    if (memory == (size_t)nullptr) {
-      std::cout << "Couldn't allocate memory to child page." << std::endl;
-      return false;
-    }
+    size_t memory = (size_t)child_memory_pages[page];
 
     // Indices where to start/finish clearing within the page.
     size_t offset_in_page_to_start_copying_at =
@@ -128,13 +120,12 @@ bool LoadMemory(size_t address, size_t size,
   size_t last_page =
       (address_end + kPageSize - 1) & ~(kPageSize - 1);  // Round up.
 
+  if (!AllocatePageRange(first_page, last_page, child_memory_pages))
+    return false;
+
   size_t page = first_page;
   for (; page < last_page; page += kPageSize) {
-    size_t memory = (size_t)GetChildPage(page, child_memory_pages);
-    if (memory == (size_t)nullptr) {
-      std::cout << "Couldn't allocate memory to child page." << std::endl;
-      return false;
-    }
+    size_t memory = (size_t)child_memory_pages[page];
 
     // Indices where to start/finish clearing within the page.
     size_t offset_in_page_to_start_copying_at =
@@ -181,41 +172,4 @@ void SendMemoryPagesToChild(ProcessId child_pid,
   }
 
   SetChildProcessMemoryPages(child_pid, run_src, run_dest, run_count);
-}
-
-std::map<size_t, std::shared_ptr<SharedMemory>>
-ConvertMapOfPagesIntoReadOnlySharedMemoryBlocks(
-    std::map<size_t, void*>& child_memory_pages) {
-  std::map<size_t, std::shared_ptr<SharedMemory>> shared_memory_blocks;
-
-  bool has_pages = false;
-  size_t first_page, last_page = 0;
-
-  for (std::pair<size_t, void*> addr_and_memory : child_memory_pages) {
-    size_t page_address = addr_and_memory.first;
-
-    if (has_pages) {
-      if (page_address == last_page + kPageSize) {
-        // A contiguous page that can be part of the same shared memory block.
-        last_page = page_address;
-      } else {
-        // A non-contiguous page. Turn the current first_page->last_page into a
-        // shared memory block.
-        shared_memory_blocks[first_page] = TurnPagesIntoSharedMemoryBlock(
-            child_memory_pages, first_page, last_page);
-        // Start a new block at this address.
-        first_page = last_page = page_address;
-      }
-    } else {
-      has_pages = true;
-      first_page = last_page = page_address;
-    }
-  }
-
-  if (has_pages) {
-    shared_memory_blocks[first_page] = TurnPagesIntoSharedMemoryBlock(
-        child_memory_pages, first_page, last_page);
-  }
-
-  return shared_memory_blocks;
 }

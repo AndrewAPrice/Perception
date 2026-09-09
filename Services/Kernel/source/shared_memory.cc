@@ -351,10 +351,7 @@ SharedMemoryInProcess* JoinSharedMemory(Process* process,
 
   // The shared memory is not mapped to the process, so we'll try to find it.
   SharedMemory* shared_memory = GetSharedMemoryFromId(shared_memory_id);
-  if (shared_memory == nullptr) {
-    // No shared memory with this ID exists.
-    return 0;
-  }
+  if (shared_memory == nullptr) return nullptr;
 
   // Map this shared memory in this process.
   return MapSharedMemoryIntoProcess(process, shared_memory);

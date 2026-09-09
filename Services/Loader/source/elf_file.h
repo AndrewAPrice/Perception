@@ -143,7 +143,7 @@ class ElfFile {
 
   // Create shared memory blocks for the read only segments that can be shared
   // between multiple instances of processes referring to this ELF file.
-  bool CreateSharedMemorySegments();
+  bool CreateSharedMemorySegments(size_t base_address);
 
   // Adds the initializer and finializer functions to `init_fini_functions` for
   // when this ELF file is loaded into a child at the provided memory `offset`.

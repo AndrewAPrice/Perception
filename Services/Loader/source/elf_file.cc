@@ -14,6 +14,7 @@
 
 #include "elf_file.h"
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 
@@ -24,13 +25,21 @@
 #include "memory.h"
 #include "perception/memory.h"
 #include "perception/memory_span.h"
+#include "perception/shared_memory.h"
 
 using ::perception::kPageSize;
 using ::perception::MemorySpan;
 
+namespace {
+
 // Where the high memory for the kernel starts. This is to make sure ELF files
 // only try to load into valid user space memory.
 constexpr size_t kKernelAddressStart = 0x8000000000000000;
+
+// Sentinel value used in the relocation cache indicating that a symbol has not yet been resolved.
+constexpr size_t kUnresolvedSymbol = ~static_cast<size_t>(0);
+
+}  // namespace
 
 ElfFile::ElfFile(std::unique_ptr<class File> file)
     : file_(std::move(file)), instances_(0) {
@@ -122,6 +131,14 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
     ::perception::ProcessId child_pid, size_t offset,
     std::map<size_t, void*>& child_memory_pages,
     SymbolMap& symbols_to_addresses, InitFiniFunctions& init_fini_functions) {
+  if (!IsExecutable() && read_only_segments_.empty()) {
+    if (!CreateSharedMemorySegments(offset)) {
+      std::cout << "Unable to create shared memory segments for "
+                << File().Name() << std::endl;
+      return Status::INTERNAL_ERROR;
+    }
+  }
+
   bool has_prelinked_segments = !read_only_segments_.empty();
   if (has_prelinked_segments) {
     for (const auto& address_and_shared_memory : read_only_segments_) {
@@ -203,10 +220,8 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
 
       bool is_weak = ELF64_ST_BIND(symbol.st_info) == STB_WEAK;
       size_t address = symbol.st_value + offset;
-      if (symbols_to_addresses.contains(name)) {
-        if (!is_weak) {
-          symbols_to_addresses[name] = address;
-        }
+      if (auto* existing_entry = symbols_to_addresses.find_mutable(name)) {
+        if (!is_weak) existing_entry->second = address;
       } else {
         local_symbols.push_back(SymbolMap::Entry{name, address});
       }
@@ -231,6 +246,11 @@ Status ElfFile::FixUpRelocations(
   auto symbols = memory_span_.ToTypedArrayAtOffset<Elf64_Sym>(
       (*dynsym_section_header_)->sh_offset,
       (*dynsym_section_header_)->sh_size / sizeof(Elf64_Sym));
+
+  std::vector<size_t> resolved_symbol_cache(symbols.size(), kUnresolvedSymbol);
+  size_t last_page = ~static_cast<size_t>(0);
+  void* last_page_ptr = nullptr;
+
   for (const auto* relocation_section_header : relocation_section_headers) {
     auto relocation_entries = memory_span_.ToTypedArrayAtOffset<Elf64_Rela>(
         relocation_section_header->sh_offset,
@@ -251,48 +271,56 @@ Status ElfFile::FixUpRelocations(
             return Status::INTERNAL_ERROR;
           }
 
-          const auto& symbol = symbols[symbol_index];
+          size_t sym_val = 0;
+          if (resolved_symbol_cache[symbol_index] != kUnresolvedSymbol) {
+            sym_val = resolved_symbol_cache[symbol_index];
+          } else {
+            const auto& symbol = symbols[symbol_index];
 
-          if (symbol.st_shndx == SHN_UNDEF) {
-            // The symbol is not defined in this image, so it needs to be
-            // resolved from another image.
-            auto name_or = DynamicString(symbol.st_name);
-            if (!name_or) {
-              if (ELF64_ST_BIND(symbol.st_info) == STB_WEAK) {
-                value = 0;
-              } else {
-                std::cout << "Cannot find needed symbol (missing or malformed)"
-                          << std::endl;
-                return Status::INVALID_ARGUMENT;
-              }
-            } else {
-              std::string_view name = *name_or;
-              auto itr = symbols_to_addresses.find(name);
-              if (itr != symbols_to_addresses.end() &&
-                  itr->second >= kKernelAddressStart) {
-                std::cout << "WARNING: Symbol " << name
-                          << " resolved to kernel address: 0x" << std::hex
-                          << itr->second << std::dec << " for " << file_->Name()
-                          << std::endl;
-              }
-              if (itr == symbols_to_addresses.end()) {
+            if (symbol.st_shndx == SHN_UNDEF) {
+              // The symbol is not defined in this image, so it needs to be
+              // resolved from another image.
+              auto name_or = DynamicString(symbol.st_name);
+              if (!name_or) {
                 if (ELF64_ST_BIND(symbol.st_info) == STB_WEAK) {
-                  // Missing weak symbols are fine.
-                  value = 0;
+                  sym_val = 0;
                 } else {
-                  std::cout << "Cannot find needed symbol: " << name
+                  std::cout << "Cannot find needed symbol (missing or malformed)"
                             << std::endl;
                   return Status::INVALID_ARGUMENT;
                 }
               } else {
-                value = itr->second;
+                std::string_view name = *name_or;
+                auto itr = symbols_to_addresses.find(name);
+                if (itr != symbols_to_addresses.end() &&
+                    itr->second >= kKernelAddressStart) {
+                  std::cout << "WARNING: Symbol " << name
+                            << " resolved to kernel address: 0x" << std::hex
+                            << itr->second << std::dec << " for " << file_->Name()
+                            << std::endl;
+                }
+                if (itr == symbols_to_addresses.end()) {
+                  if (ELF64_ST_BIND(symbol.st_info) == STB_WEAK) {
+                    // Missing weak symbols are fine.
+                    sym_val = 0;
+                  } else {
+                    std::cout << "Cannot find needed symbol: " << name
+                              << std::endl;
+                    return Status::INVALID_ARGUMENT;
+                  }
+                } else {
+                  sym_val = itr->second;
+                }
               }
+            } else {
+              // The symbol is defined here.
+              sym_val = symbol.st_value + offset;
             }
-          } else {
-            // The symbol is defined here.
-            value = symbol.st_value + offset;
+
+            resolved_symbol_cache[symbol_index] = sym_val;
           }
 
+          value = sym_val;
           if (type == 1) value += relocation_entry.r_addend;
           break;
         }
@@ -378,44 +406,28 @@ Status ElfFile::FixUpRelocations(
       size_t page = address & ~(kPageSize - 1);
       size_t offset_in_page = address & (kPageSize - 1);
 
-      auto page_itr = child_memory_pages.find(page);
-      if (page_itr == child_memory_pages.end()) {
-        if (!read_only_segments_.empty()) {
-          // Read-only segment pages were already pre-relocated in
-          // read_only_segments_.
-          continue;
+      void* page_ptr = nullptr;
+      if (page == last_page) {
+        page_ptr = last_page_ptr;
+      } else {
+        auto page_itr = child_memory_pages.find(page);
+        if (page_itr != child_memory_pages.end()) {
+          page_ptr = page_itr->second;
+          last_page = page;
+          last_page_ptr = page_ptr;
         }
+      }
+
+      if (page_ptr == nullptr) {
+        if (!read_only_segments_.empty()) continue;
         std::cout << "Relocation offset is at an address that doesn't have "
                      "memory allocated to it: "
                   << std::hex << address << std::dec << std::endl;
         return Status::INTERNAL_ERROR;
       }
 
-      ((size_t*)page_itr->second)[offset_in_page / 8] = value;
+      ((size_t*)page_ptr)[offset_in_page / 8] = value;
     }
-  }
-
-  if (!IsExecutable() && read_only_segments_.empty()) {
-    std::map<size_t, void*> read_only_pages;
-    for (const auto& segment_header : ProgramSegmentHeaders()) {
-      if (segment_header.p_type != PT_LOAD) continue;
-      if ((segment_header.p_flags & PF_W) != 0) continue;
-
-      size_t seg_start = (segment_header.p_vaddr + offset) & ~(kPageSize - 1);
-      size_t seg_end = (segment_header.p_vaddr + segment_header.p_memsz +
-                        offset + kPageSize - 1) &
-                       ~(kPageSize - 1);
-
-      for (size_t addr = seg_start; addr < seg_end; addr += kPageSize) {
-        auto it = child_memory_pages.find(addr);
-        if (it != child_memory_pages.end()) {
-          read_only_pages[addr] = it->second;
-        }
-      }
-    }
-
-    read_only_segments_ =
-        ConvertMapOfPagesIntoReadOnlySharedMemoryBlocks(read_only_pages);
   }
 
   return Status::OK;
@@ -541,53 +553,95 @@ void ElfFile::CalculateHighestVirtualAddresses() {
       (highest_virtual_address_ + kPageSize - 1) & ~(kPageSize - 1);
 }
 
-bool ElfFile::CreateSharedMemorySegments() {
-  // These are readonly memory pages to assign to each child. This must be
-  // cleaned up in all return paths.
-  std::map<size_t, void*> child_memory_pages;
+bool ElfFile::CreateSharedMemorySegments(size_t base_address) {
+  read_only_segments_.clear();
 
+  struct SegmentInfo {
+    size_t p_vaddr;
+    size_t p_offset;
+    size_t p_filesz;
+    size_t p_memsz;
+    size_t seg_start_page;
+    size_t seg_end_page;
+  };
+
+  std::vector<SegmentInfo> ro_segments;
   for (const auto& segment_header : ProgramSegmentHeaders()) {
-    if (segment_header.p_type != PT_LOAD)
-      continue;  // Segment doesn't get loaded.
-    if ((segment_header.p_flags & PF_W) != 0) continue;  // Segment is writable.
+    if (segment_header.p_type != PT_LOAD) continue;
+    if ((segment_header.p_flags & PF_W) != 0) continue;
 
-    if (segment_header.p_filesz > 0) {
-      // There is data from the file to copy into memory.
-      const void* data = *memory_span_.SubSpan(segment_header.p_offset,
-                                               segment_header.p_filesz);
-      if (data == nullptr) {
-        std::cout << "Segment is trying to load memory that is out of bounds "
-                     "of the file."
-                  << std::endl;
-        FreeChildMemoryPages(child_memory_pages);
-        return false;
-      }
+    size_t start_addr = segment_header.p_vaddr + base_address;
+    size_t end_addr = start_addr + segment_header.p_memsz;
+    size_t seg_start_page = start_addr & ~(kPageSize - 1);
+    size_t seg_end_page = (end_addr + kPageSize - 1) & ~(kPageSize - 1);
 
-      size_t address = segment_header.p_vaddr;
-      // Copy the data from the file into memory.
-      if (!CopyIntoMemory(data, segment_header.p_filesz, address,
-                          child_memory_pages, File().Name())) {
-        FreeChildMemoryPages(child_memory_pages);
-        return false;
-      }
-    }
-
-    if (segment_header.p_memsz > segment_header.p_filesz) {
-      // This is memory that takes up no space in the ELF file, but must
-      // be initialized to 0 for the program.
-
-      // SKip over any data that was copied.
-      size_t address = segment_header.p_vaddr + segment_header.p_filesz;
-      size_t size = segment_header.p_memsz - segment_header.p_filesz;
-      if (!LoadMemory(address, size, child_memory_pages)) {
-        FreeChildMemoryPages(child_memory_pages);
-        return false;
-      }
-    }
+    ro_segments.push_back(SegmentInfo{
+        .p_vaddr = segment_header.p_vaddr,
+        .p_offset = segment_header.p_offset,
+        .p_filesz = segment_header.p_filesz,
+        .p_memsz = segment_header.p_memsz,
+        .seg_start_page = seg_start_page,
+        .seg_end_page = seg_end_page,
+    });
   }
 
-  read_only_segments_ =
-      ConvertMapOfPagesIntoReadOnlySharedMemoryBlocks(child_memory_pages);
+  if (ro_segments.empty()) return true;
+
+  std::sort(ro_segments.begin(), ro_segments.end(),
+            [](const SegmentInfo& a, const SegmentInfo& b) {
+              return a.seg_start_page < b.seg_start_page;
+            });
+
+  size_t i = 0;
+  while (i < ro_segments.size()) {
+    size_t group_start_idx = i;
+    size_t range_start = ro_segments[i].seg_start_page;
+    size_t range_end = ro_segments[i].seg_end_page;
+
+    size_t j = i + 1;
+    while (j < ro_segments.size() &&
+           ro_segments[j].seg_start_page <= range_end) {
+      range_end = std::max(range_end, ro_segments[j].seg_end_page);
+      j++;
+    }
+
+    size_t range_size = range_end - range_start;
+    auto shared_memory = ::perception::SharedMemory::FromSize(range_size, 0);
+    if (!shared_memory || shared_memory->GetId() == 0) {
+      std::cout << "Failed to allocate shared memory for " << File().Name()
+                << " of size " << range_size << std::endl;
+      read_only_segments_.clear();
+      return false;
+    }
+
+    void* dest_base = **shared_memory;
+    if (dest_base == nullptr) {
+      std::cout << "Failed to get pointer for shared memory of "
+                << File().Name() << std::endl;
+      read_only_segments_.clear();
+      return false;
+    }
+
+    memset(dest_base, 0, range_size);
+
+    for (size_t k = group_start_idx; k < j; k++) {
+      const auto& seg = ro_segments[k];
+      if (seg.p_filesz > 0) {
+        const void* src = *memory_span_.SubSpan(seg.p_offset, seg.p_filesz);
+        if (src == nullptr) {
+          std::cout << "Segment data out of bounds for " << File().Name()
+                    << std::endl;
+          read_only_segments_.clear();
+          return false;
+        }
+        size_t seg_offset_in_range = (seg.p_vaddr + base_address) - range_start;
+        memcpy((uint8_t*)dest_base + seg_offset_in_range, src, seg.p_filesz);
+      }
+    }
+
+    read_only_segments_[range_start] = shared_memory;
+    i = j;
+  }
 
   return true;
 }

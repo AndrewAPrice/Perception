@@ -101,6 +101,11 @@ int main(int argc, char* argv[]) {
         fiber_to_wake_->WakeUp();
         return Status::OK;
       }
+      virtual Status FileSystemUnmounted(
+          const ::perception::FileSystemMountEvent& event,
+          ::perception::ProcessId sender) override {
+        return Status::OK;
+      }
 
      private:
       ::perception::Fiber* fiber_to_wake_;

@@ -23,15 +23,16 @@
 #include "multiboot.h"
 #include "perception/fibers.h"
 #include "perception/memory.h"
-#include "perception/memory_mapped_file.h"
+#include "perception/file.h"
 #include "perception/services.h"
 #include "perception/storage_manager.h"
 #include "status.h"
 
 using ::perception::GetService;
 using ::perception::kPageSize;
-using ::perception::MemoryMappedFile;
 using ::perception::MemorySpan;
+using ::perception::OpenFileRequest;
+using ::perception::ReadFileRequest;
 using ::perception::ReleaseMemoryPages;
 using ::perception::SharedMemory;
 using ::perception::StorageManager;
@@ -74,17 +75,17 @@ std::string_view GetTrimmedLibraryName(std::string_view library_name) {
 // Represents a file loaded from disk.
 class DiskFile : public File {
  public:
-  DiskFile(MemoryMappedFile::Client memory_mapped_file,
+  DiskFile(::perception::File::Client file,
            std::shared_ptr<SharedMemory> shared_memory, std::string name,
            std::string path)
-      : memory_mapped_file_(memory_mapped_file),
+      : file_(file),
         shared_memory_(shared_memory),
         name_(name),
         path_(path) {
     memory_span_ = shared_memory_->ToSpan();
   }
 
-  ~DiskFile() { memory_mapped_file_.Close(nullptr); }
+  ~DiskFile() { file_.Close(); }
 
   virtual const ::perception::MemorySpan MemorySpan() const override {
     return memory_span_;
@@ -94,8 +95,8 @@ class DiskFile : public File {
   virtual const std::string& Path() const override { return path_; }
 
  private:
-  // The underlying memory mapped file.
-  MemoryMappedFile::Client memory_mapped_file_;
+  // The underlying file client.
+  ::perception::File::Client file_;
 
   // The shared memory block.
   std::shared_ptr<SharedMemory> shared_memory_;
@@ -174,16 +175,41 @@ std::unique_ptr<File> LoadContentsFromDisk(std::string_view name) {
     name = ExtractApplicationNameFromPath(path);
   }
 
-  // Open the file as a memory mapped file.
-  auto status_or_response =
-      GetService<StorageManager>().OpenMemoryMappedFile({path});
+  // Open the file with read access.
+  OpenFileRequest open_request;
+  open_request.path = std::string(path);
+  open_request.read_access = true;
+  auto status_or_response = GetService<StorageManager>().OpenFile(open_request);
   if (!status_or_response.Ok()) return nullptr;
   auto response = std::move(*status_or_response);
 
-  MemoryMappedFile::Client file = response.file;
-  std::shared_ptr<SharedMemory> file_buffer = response.file_contents;
+  size_t size_in_bytes = response.size_in_bytes;
+  if (size_in_bytes == 0) {
+    response.file.Close();
+    return nullptr;
+  }
 
-  return std::make_unique<DiskFile>(file, std::move(file_buffer),
+  // Allocate a writable shared memory buffer for direct reading.
+  auto shared_memory = SharedMemory::FromSize(
+      size_in_bytes, SharedMemory::kJoinersCanWrite);
+  if (!shared_memory) {
+    response.file.Close();
+    return nullptr;
+  }
+
+  ReadFileRequest read_request;
+  read_request.offset_in_file = 0;
+  read_request.offset_in_destination_buffer = 0;
+  read_request.bytes_to_copy = size_in_bytes;
+  read_request.buffer_to_copy_into = shared_memory;
+
+  auto read_status = response.file.Read(read_request);
+  if (read_status != Status::OK) {
+    response.file.Close();
+    return nullptr;
+  }
+
+  return std::make_unique<DiskFile>(response.file, std::move(shared_memory),
                                     std::string(name), std::string(path));
 }
 
