@@ -48,3 +48,10 @@ void RegisterApplicationFoundCallback(
 
 // Registers a callback to be notified when the scanning is finished.
 void RegisterScanFinishedCallback(std::function<void()> callback);
+
+// Initializes listening for filesystem mount and unmount events.
+void InitializeApplicationsMountListener();
+
+// Registers a callback to be notified when the list of applications has changed
+// (e.g. applications were removed due to an unmounted disk).
+void RegisterApplicationsChangedCallback(std::function<void()> callback);

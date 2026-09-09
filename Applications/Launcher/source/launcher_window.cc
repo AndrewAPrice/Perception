@@ -21,14 +21,21 @@
 
 #include "perception/devices/graphics_device.h"
 #include "perception/fibers.h"
+#include "perception/power.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
 #include "perception/services.h"
+#include "perception/ui/components/button.h"
+#include "perception/ui/components/image_button.h"
 #include "perception/ui/components/label.h"
+#include "perception/ui/components/pop_up.h"
 #include "perception/ui/components/tab_bar.h"
+#include "perception/ui/components/tooltip.h"
 #include "perception/ui/components/ui_window.h"
+#include "perception/ui/image.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
+#include "perception/ui/point.h"
 #include "perception/ui/text_alignment.h"
 #include "processes_tab.h"
 #include "tabs.h"
@@ -36,18 +43,38 @@
 using ::perception::Defer;
 using ::perception::GetService;
 using ::perception::devices::GraphicsDevice;
+using ::perception::ui::Image;
 using ::perception::ui::Layout;
 using ::perception::ui::Node;
+using ::perception::ui::Point;
 using ::perception::ui::TextAlignment;
+using ::perception::ui::components::Button;
+using ::perception::ui::components::ImageButton;
 using ::perception::ui::components::Label;
+using ::perception::ui::components::PopUp;
+using ::perception::ui::components::PopUpMenu;
 using ::perception::ui::components::TabBar;
+using ::perception::ui::components::Tooltip;
 using ::perception::ui::components::UiWindow;
 
 namespace {
 
+// Path to the power icon asset.
+constexpr std::string_view kPowerIconPath = "/Applications/Launcher/power.svg";
+
+// Tooltip text for the power button.
+constexpr std::string_view kPowerTooltip = "Power";
+
 std::shared_ptr<Node> launcher_window;
 std::shared_ptr<Node> tab_content_container;
 std::shared_ptr<TabBar> launcher_tab_bar;
+std::shared_ptr<Node> power_button_node;
+
+// Returns the power symbol image, loading it on first access.
+std::shared_ptr<Image> GetPowerImage() {
+  static auto power_img = Image::LoadImage(kPowerIconPath);
+  return power_img;
+}
 
 // The current tab that is showing.
 std::optional<Tab> current_tab;
@@ -124,6 +151,24 @@ void ShowLauncherWindow() {
           Tab tab = (index == 0 ? Tab::APPLICATIONS : Tab::PROCESSES);
           if (!current_tab || *current_tab != tab) SwitchToTab(tab);
         });
+
+        power_button_node = ImageButton::BasicImageButton(
+            []() {
+              if (!power_button_node) return;
+              Point pos = power_button_node->GetAbsolutePosition();
+              float height = power_button_node->GetSize().height;
+              auto menu = PopUpMenu::Container(
+                  PopUpMenu::DropDownItem(
+                      "Power Off", []() { ::perception::power::PowerOff(); }),
+                  PopUpMenu::DropDownItem(
+                      "Sleep", []() { ::perception::power::Sleep(); }),
+                  PopUpMenu::DropDownItem(
+                      "Reset", []() { ::perception::power::Restart(); }));
+              PopUp::Show(power_button_node, Point{pos.x, pos.y + height},
+                          menu);
+            },
+            GetPowerImage(), Tooltip::ShowTooltip(kPowerTooltip));
+        launcher_tab_bar->SetSuffixNode(power_button_node);
       },
       [](UiWindow& window) {
         window.SetTitle("Launcher");
@@ -135,6 +180,7 @@ void ShowLauncherWindow() {
             launcher_window.reset();
             tab_content_container.reset();
             launcher_tab_bar.reset();
+            power_button_node.reset();
             launcher_window_state = WindowState::CLOSED;
           });
         });

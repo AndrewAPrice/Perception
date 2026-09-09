@@ -14,6 +14,7 @@
 
 #include <chrono>
 
+#include "applications.h"
 #include "launcher.h"
 #include "perception/loader.h"
 #include "perception/scheduler.h"
@@ -43,6 +44,8 @@ int main(int argc, char* argv[]) {
           }));
 
   auto launcher = std::make_unique<Launcher>();
+
+  InitializeApplicationsMountListener();
 
   HandOverControl();
   return 0;

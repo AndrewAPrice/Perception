@@ -229,6 +229,9 @@ std::shared_ptr<Node> open_folder_button_node;
 // The index of the currently selected application.
 int selected_application_index = -1;
 
+// The path of the currently selected application.
+std::string selected_application_path_string;
+
 // Launches an application.
 void LaunchApplication(const LoadApplicationRequest& request) {
   ShowOverlay();
@@ -330,6 +333,7 @@ void SelectApplication(int index) {
   selected_application_icon->RemoveChildren();
 
   if (index < 0 || index >= applications.size()) {
+    selected_application_path_string.clear();
     selected_application_title->Get<Label>()->SetText("");
     selected_application_description->Get<Label>()->SetText("");
     selected_application_path->Get<Label>()->SetText("");
@@ -343,6 +347,7 @@ void SelectApplication(int index) {
     }
   } else {
     const Application& application = applications[index];
+    selected_application_path_string = application.path;
     selected_application_title->Get<Label>()->SetText(application.name);
     selected_application_description->Get<Label>()->SetText(
         application.description);
@@ -529,6 +534,32 @@ void AddApplicationToUI(const Application& application) {
   }
 }
 
+void RebuildApplicationsListUI() {
+  if (!applications_list_container) return;
+
+  const std::vector<Application>& applications = GetApplications();
+
+  applications_list_container->RemoveChildren();
+  application_tile_nodes.clear();
+
+  int new_selected_index = -1;
+  for (int i = 0; i < applications.size(); i++) {
+    auto tile = CreateApplicationGridTile(applications[i], i);
+    application_tile_nodes.push_back(tile);
+    applications_list_container->AddChild(tile);
+    if (!selected_application_path_string.empty() &&
+        applications[i].path == selected_application_path_string)
+      new_selected_index = i;
+  }
+
+  if (new_selected_index == -1 && !applications.empty())
+    new_selected_index = 0;
+
+  selected_application_index = -1;
+  SelectApplication(new_selected_index);
+  applications_list_container->Invalidate();
+}
+
 }  // namespace
 
 // Gets or constructs the applications tab of the launcher.
@@ -537,6 +568,7 @@ std::shared_ptr<Node> GetOrConstructApplicationsTab() {
   if (!callback_registered) {
     RegisterApplicationFoundCallback(
         [](const Application& app) { AddApplicationToUI(app); });
+    RegisterApplicationsChangedCallback([]() { RebuildApplicationsListUI(); });
     callback_registered = true;
   }
 
@@ -586,12 +618,6 @@ std::shared_ptr<Node> GetOrConstructApplicationsTab() {
           },
           ScrollContainer::VerticalScrollContainer(
               BuildApplicationsList(),
-              [](Block& block) {
-                block.SetFillColor(0xFFFFFFFF);    // White background
-                block.SetBorderColor(0xFFCCCCCC);  // Subtle border
-                block.SetBorderWidth(1.0f);        // Outline width
-                block.SetBorderRadius(4.0f);       // Rounded corners
-              },
               [](Layout& layout) {
                 layout.SetFlexGrow(1.0f);
                 layout.SetFlexShrink(1.0f);

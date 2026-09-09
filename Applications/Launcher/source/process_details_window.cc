@@ -239,9 +239,8 @@ void OpenProcessDetailsWindow(ProcessId pid) {
       cpu_label_nodes[4], cpu_label_nodes[5], cpu_label_nodes[6],
       cpu_label_nodes[7]);
 
-  auto cpu_section = GroupBox::VerticalGroupBox(
-      "CPU Usage per Core:",
-      cpu_row1, cpu_row2);
+  auto cpu_section =
+      GroupBox::VerticalGroupBox("CPU Usage per Core:", cpu_row1, cpu_row2);
 
   // Services Table columns
   std::vector<Table::Column> columns = {
@@ -261,7 +260,8 @@ void OpenProcessDetailsWindow(ProcessId pid) {
       services_ds, columns,
       [](Layout& layout) {
         layout.SetFlexGrow(1.0f);
-        layout.SetMinHeight(120.0f);
+        layout.SetFlexShrink(1.0f);
+        layout.SetMinHeight(0.0f);
         layout.SetMargin(YGEdgeBottom, 8.0f);
       },
       &services_table_component);
@@ -279,6 +279,8 @@ void OpenProcessDetailsWindow(ProcessId pid) {
   auto content_container = Container::VerticalContainer(
       [](Layout& layout) {
         layout.SetFlexGrow(1.0f);
+        layout.SetFlexShrink(1.0f);
+        layout.SetMinHeight(0.0f);
         layout.SetPadding(YGEdgeAll, 8.0f);
       },
       name_label_node, uptime_label_node, memory_label_node, cpu_section,

@@ -8,4 +8,7 @@
   source_directories: [
     'source',
   ],
+  asset_directories: [
+    'assets',
+  ],
 }
