@@ -113,8 +113,9 @@ class ServiceClient : public serialization::Serializable {
     } else {
       PERCEPTION_TRACE_EVENT_CAT(rpc_name_ptr, "rpc_out");
       MessageData message = {};
-      (void)PrepareRequestMessageWithParameter<RequestType>(request, method_id,
-                                                            message);
+      if (!PrepareRequestMessageWithParameter<RequestType>(request, method_id,
+                                                           message))
+        return;
       AsyncDispatch<ResponseType>(message, on_response, nullptr);
     }
   }

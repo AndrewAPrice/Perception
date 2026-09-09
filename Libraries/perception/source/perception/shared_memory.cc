@@ -67,8 +67,8 @@ void CreateSharedMemory(size_t size_in_pages, size_t flags,
   volatile register size_t msg_r asm("rdx") = on_page_request_message_id;
 
   __asm__ __volatile__("syscall\n"
-                       : "+r"(size_r), "+r"(flags_r)
-                       : "r"(syscall_num), "r"(msg_r)
+                       : "+a"(size_r), "+b"(flags_r)
+                       : "D"(syscall_num), "d"(msg_r)
                        : "rcx", "r11", "memory");
   id = size_r;
   ptr = (void*)flags_r;
@@ -94,8 +94,8 @@ void JoinSharedMemory(size_t id, void*& ptr, size_t& size_in_pages,
   volatile register size_t rdx_r asm("rdx") = 0;
 
   __asm__ __volatile__("syscall\n"
-                       : "+r"(id_r), "=r"(rbx_r), "=r"(rdx_r)
-                       : "r"(syscall_num)
+                       : "+a"(id_r), "=b"(rbx_r), "=d"(rdx_r)
+                       : "D"(syscall_num)
                        : "rcx", "r11", "memory");
   ptr = (void*)rbx_r;
   size_in_pages = id_r;
@@ -126,8 +126,8 @@ void GrowSharedMemory(size_t id, size_t new_size_in_pages, void*& ptr,
   volatile register size_t new_size_r asm("rbx") = new_size_in_pages;
 
   __asm__ __volatile__("syscall\n"
-                       : "+r"(id_r), "+r"(new_size_r)
-                       : "r"(syscall_num)
+                       : "+a"(id_r), "+b"(new_size_r)
+                       : "D"(syscall_num)
                        : "rcx", "r11", "memory");
   ptr = (void*)new_size_r;
   size_in_pages = id_r;
@@ -369,7 +369,9 @@ bool SharedMemory::CanJoinersWrite() {
 }
 
 bool SharedMemory::CanWrite() {
-  return CanJoinersWrite() || is_creator_of_lazily_allocated_buffer_;
+  if (CanJoinersWrite()) return true;
+  if (is_creator_of_lazily_allocated_buffer_) return true;
+  return GetDetails().CanWrite;
 }
 
 // Is this shared memory lazily allocated?
@@ -386,8 +388,8 @@ SharedMemoryDetails SharedMemory::GetDetails() {
   volatile register size_t rbx_r asm("rbx") = 0;
 
   __asm__ __volatile__("syscall\n"
-                       : "+r"(id_r), "=r"(rbx_r)
-                       : "r"(syscall_num)
+                       : "+a"(id_r), "=b"(rbx_r)
+                       : "D"(syscall_num)
                        : "rcx", "r11", "memory");
 
   SharedMemoryDetails details;

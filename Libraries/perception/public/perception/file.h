@@ -25,8 +25,8 @@ namespace serialization {
 class Serializer;
 }  // namespace serialization
 
-// Formats a size in bytes as a string rounded to whole units (e.g. KB, MB,
-// etc.).
+// Formats a size in bytes as a string with 2 decimal places for units KB and
+// larger.
 std::string FormatSize(uint64 bytes);
 
 class ReadFileRequest : public serialization::Serializable {

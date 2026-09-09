@@ -359,12 +359,7 @@ void MusicBoxWindow::BuildUI() {
                                 ? Button::ButtonStyle::GHOST
                                 : Button::ButtonStyle::DISABLED);
                       },
-                      Tooltip::ShowTooltip("Undo"),
-                      [](Layout& layout) {
-                        layout.SetWidth(28.0f);
-                        layout.SetHeight(28.0f);
-                      },
-                      &undo_button_node_),
+                      Tooltip::ShowTooltip("Undo"), &undo_button_node_),
                   ImageButton::BasicImageButton(
                       [this]() { ToggleTracksPanelVisibility(); },
                       GetTracksImage(),
@@ -372,10 +367,6 @@ void MusicBoxWindow::BuildUI() {
                         button.SetToggled(is_tracks_panel_visible_);
                       },
                       Tooltip::ShowTooltip("Toggle Left Tracks Panel"),
-                      [](Layout& layout) {
-                        layout.SetWidth(28.0f);
-                        layout.SetHeight(28.0f);
-                      },
                       &tracks_toggle_button_node_),
                   ImageButton::BasicImageButton(
                       [this]() { ToggleKeyboardVisibility(); },
@@ -384,10 +375,6 @@ void MusicBoxWindow::BuildUI() {
                         button.SetToggled(is_keyboard_visible_);
                       },
                       Tooltip::ShowTooltip("Toggle Piano Keyboard"),
-                      [](Layout& layout) {
-                        layout.SetWidth(28.0f);
-                        layout.SetHeight(28.0f);
-                      },
                       &keyboard_button_node_)),
 
               // Group 2: Transport Buttons, Global Solo, Time Counter
@@ -522,10 +509,6 @@ void MusicBoxWindow::BuildUI() {
                     return ImageButton::BasicImageButton(
                         [this]() { ToggleMetronome(); }, metronome_img,
                         Tooltip::ShowTooltip("Toggle Metronome"),
-                        [](Layout& layout) {
-                          layout.SetWidth(28.0f);
-                          layout.SetHeight(28.0f);
-                        },
                         &metronome_button_node_);
                   }()),
 
@@ -575,10 +558,6 @@ void MusicBoxWindow::BuildUI() {
                     return ImageButton::BasicImageButton(
                         [this]() { ToggleEnvironmentWindow(); }, stage_img,
                         Tooltip::ShowTooltip("Acoustic Environment (Reverb)"),
-                        [](Layout& layout) {
-                          layout.SetWidth(28.0f);
-                          layout.SetHeight(28.0f);
-                        },
                         &stage_button_node_);
                   }(),
                   [&]() {
@@ -587,10 +566,6 @@ void MusicBoxWindow::BuildUI() {
                     return ImageButton::BasicImageButton(
                         [this]() { ToggleNotationSettingsWindow(); },
                         settings_img, Tooltip::ShowTooltip("Notation Settings"),
-                        [](Layout& layout) {
-                          layout.SetWidth(28.0f);
-                          layout.SetHeight(28.0f);
-                        },
                         &settings_button_node_);
                   }())),
 

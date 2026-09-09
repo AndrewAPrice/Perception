@@ -13,30 +13,36 @@
 // limitations under the License.
 #include "perception/file.h"
 
+#include <cmath>
+#include <cstdio>
+
 #include "perception/serialization/serializer.h"
 
 namespace perception {
+namespace {
+
+// Available size units starting from kilobytes.
+constexpr const char* kUnits[] = {"KB", "MB", "GB", "TB", "PB", "EB"};
+
+// Number of available size units.
+constexpr size_t kNumUnits = sizeof(kUnits) / sizeof(kUnits[0]);
+
+}  // namespace
 
 std::string FormatSize(uint64 bytes) {
   if (bytes < 1024) return std::to_string(bytes) + " B";
 
-  uint64 kb = bytes / 1024;
-  if (kb < 1024) return std::to_string(kb) + " KB";
+  double value = static_cast<double>(bytes) / 1024.0;
+  size_t unit_index = 0;
+  while (unit_index + 1 < kNumUnits &&
+         std::round(value * 100.0) / 100.0 >= 1024.0) {
+    value /= 1024.0;
+    unit_index++;
+  }
 
-  uint64 mb = kb / 1024;
-  if (mb < 1024) return std::to_string(mb) + " MB";
-
-  uint64 gb = mb / 1024;
-  if (gb < 1024) return std::to_string(gb) + " GB";
-
-  uint64 tb = gb / 1024;
-  if (tb < 1024) return std::to_string(tb) + " TB";
-
-  uint64 pb = tb / 1024;
-  if (pb < 1024) return std::to_string(pb) + " PB";
-
-  uint64 eb = pb / 1024;
-  return std::to_string(eb) + " EB";
+  char buffer[64];
+  std::snprintf(buffer, sizeof(buffer), "%.2f %s", value, kUnits[unit_index]);
+  return buffer;
 }
 
 void ReadFileRequest::Serialize(serialization::Serializer& serializer) {

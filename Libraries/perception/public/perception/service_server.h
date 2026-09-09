@@ -70,7 +70,7 @@ class ServiceServer {
 
     RequestType request;
 
-    if (message.param3 == SIZE_MAX) {
+    if (message.param3 == SIZE_MAX || message.param3 == 0) {
       // No attached message.
       serialization::DeserializeToEmpty(request);
     } else {

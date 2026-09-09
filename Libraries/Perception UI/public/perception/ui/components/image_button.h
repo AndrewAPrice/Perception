@@ -36,12 +36,21 @@ class ImageButton : public UniqueIdentifiableType<ImageButton> {
   static std::shared_ptr<Node> BasicImageButton(std::function<void()> on_push,
                                                 std::shared_ptr<Image> image,
                                                 Modifiers... modifiers) {
+    return BasicImageButtonWithSize(on_push, image, kImageButtonIconWidth,
+                                    kImageButtonIconHeight, modifiers...);
+  }
+
+  // Creates an image button with custom icon dimensions.
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> BasicImageButtonWithSize(
+      std::function<void()> on_push, std::shared_ptr<Image> image,
+      float icon_width, float icon_height, Modifiers... modifiers) {
     auto image_node = image
                           ? ImageView::BasicImage(
                                 image,
-                                [](Layout& l) {
-                                  l.SetWidthPercent(100.0f);
-                                  l.SetHeightPercent(100.0f);
+                                [icon_width, icon_height](Layout& l) {
+                                  l.SetWidth(icon_width);
+                                  l.SetHeight(icon_height);
                                 },
                                 [](ImageView& iv) {
                                   iv.SetResizeMethod(ResizeMethod::Contain);
