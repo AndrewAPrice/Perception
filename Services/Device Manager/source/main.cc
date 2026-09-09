@@ -15,6 +15,7 @@
 #include "device_manager.h"
 #include "driver_loader.h"
 #include "pci.h"
+#include "power_service.h"
 #include "perception/multiboot.h"
 #include "perception/scheduler.h"
 #include "types.h"
@@ -60,6 +61,7 @@ int main(int argc, char *argv[]) {
   Defer([]() { LoadAllRemainingDrivers(); });
 
   auto device_manager = std::make_unique<DeviceManager>();
+  auto power_service = std::make_unique<PowerService>();
 
   HandOverControl();
 
