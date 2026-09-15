@@ -239,8 +239,9 @@ void RebuildRunningProcesses() {
     processes_table->Refresh();
   }
 
-  size_t total_bytes = 0, shared_bytes = 0, free_bytes = 0;
-  perception::GetSystemMemoryMetrics(total_bytes, shared_bytes, free_bytes);
+  size_t total_bytes = 0, shared_bytes = 0, free_bytes = 0, core_count = 0;
+  perception::GetSystemMetrics(total_bytes, shared_bytes, free_bytes,
+                               core_count);
 
   size_t total_kb = total_bytes / 1024;
   size_t shared_kb = shared_bytes / 1024;
@@ -253,11 +254,12 @@ void RebuildRunningProcesses() {
   size_t unique_kb = unique_bytes / 1024;
 
   if (status_label) {
-    status_label->SetText(FormatSize(used_bytes) + " used (" +
-                          FormatSize(unique_bytes) + " unique, " +
-                          FormatSize(shared_bytes) + " shared), " +
-                          FormatSize(free_bytes) + " free, " +
-                          FormatSize(total_bytes) + " total");
+    status_label->SetText(
+        FormatSize(used_bytes) + " used (" + FormatSize(unique_bytes) +
+        " unique, " + FormatSize(shared_bytes) + " shared), " +
+        FormatSize(free_bytes) + " free, " + FormatSize(total_bytes) +
+        " total - " + FormatSize(core_count) +
+        (core_count == 1 ? " core" : " cores"));
   }
 
   float u = static_cast<float>(unique_kb);

@@ -28,18 +28,20 @@
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/button.h"
 #include "perception/ui/components/container.h"
-#include "perception/ui/components/group_box.h"
 #include "perception/ui/components/label.h"
+#include "perception/ui/components/resizable_container.h"
 #include "perception/ui/components/scroll_container.h"
 #include "perception/ui/components/table.h"
 #include "perception/ui/components/ui_window.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
 #include "perception/ui/text_alignment.h"
+#include "perception/ui/theme.h"
 #include "process_tracking.h"
 
 using ::perception::MessageId;
 using ::perception::ProcessId;
+using ::perception::ui::kWidgetSpacing;
 using ::perception::ui::Layout;
 using ::perception::ui::Node;
 using ::perception::ui::TextAlignment;
@@ -47,13 +49,23 @@ using ::perception::ui::components::Block;
 using ::perception::ui::components::Button;
 using ::perception::ui::components::CellHighlightability;
 using ::perception::ui::components::Container;
-using ::perception::ui::components::GroupBox;
 using ::perception::ui::components::Label;
+using ::perception::ui::components::ResizableContainer;
+using ::perception::ui::components::ResizableContainerItem;
 using ::perception::ui::components::ScrollContainer;
 using ::perception::ui::components::Table;
 using ::perception::ui::components::UiWindow;
 
 namespace {
+
+// Maximum number of CPU core labels displayed per horizontal row.
+constexpr size_t kCoresPerRow = 4;
+
+// Fixed width in pixels for each CPU core label.
+constexpr float kCpuLabelWidth = 80.0f;
+
+// Maximum number of CPU cores supported by process health metrics.
+constexpr size_t kMaxSupportedCores = 64;
 
 class ServicesDataSource : public Table::DataSource {
  public:
@@ -136,7 +148,7 @@ struct ProcessDetailsWindowInfo {
   std::shared_ptr<Label> uptime_label;
   std::shared_ptr<Label> name_label;
   std::shared_ptr<Label> memory_label;
-  std::shared_ptr<Label> cpu_labels[8];
+  std::vector<std::shared_ptr<Label>> cpu_labels;
   size_t creation_timestamp;
 };
 
@@ -179,118 +191,56 @@ void OpenProcessDetailsWindow(ProcessId pid) {
   std::string proc_name = perception::GetProcessName(pid);
   if (proc_name.empty()) return;  // Process doesn't exist or name is empty.
 
+  size_t core_count = perception::GetSystemCoreCount();
+  if (core_count == 0) core_count = 1;
+  if (core_count > kMaxSupportedCores) core_count = kMaxSupportedCores;
+
   size_t unique_memory = 0;
   size_t shared_memory = 0;
   size_t creation_timestamp = 0;
   size_t registered_services = 0;
-  uint8 cpu_percentages[8] = {0};
+  std::vector<uint8> cpu_percentages(core_count, 0);
   perception::GetProcessHealthMetrics(pid, unique_memory, shared_memory,
                                       creation_timestamp, registered_services,
-                                      cpu_percentages);
-
+                                      cpu_percentages.data(), core_count);
   // Increment CPU tracking ref count.
   IncrementCpuTracking();
 
-  // Build the details window UI.
-  auto name_label_node = Label::BasicLabel(
-      "Process: " + proc_name + " (PID: " + std::to_string(pid) + ")");
-  name_label_node->Apply(
-      [](Label& label) { label.SetColor(0xFF000000); },
-      [](Layout& layout) { layout.SetMargin(YGEdgeBottom, 4.0f); });
+  // Create labels for the cores.
+  std::shared_ptr<Node> cpu_core_rows = Container::VerticalContainer();
 
-  auto uptime_label_node = Label::BasicLabel("Uptime: ");
-  uptime_label_node->Apply(
-      [](Label& label) { label.SetColor(0xFF000000); },
-      [](Layout& layout) { layout.SetMargin(YGEdgeBottom, 4.0f); });
+  ProcessDetailsWindowInfo info;
+  info.creation_timestamp = creation_timestamp;
 
-  auto memory_label_node = Label::BasicLabel("Memory: ");
-  memory_label_node->Apply(
-      [](Label& label) { label.SetColor(0xFF000000); },
-      [](Layout& layout) { layout.SetMargin(YGEdgeBottom, 8.0f); });
+  info.cpu_labels.reserve(core_count);
+  std::vector<std::shared_ptr<Node>> current_row;
+  for (size_t i = 0; i < core_count; i++) {
+    auto label_node = Label::BasicLabel(
+        "Core " + std::to_string(i) + ": 0%",
+        [](Label& label) { label.SetColor(0xFF000000); },
+        [](Layout& layout) { layout.SetWidth(kCpuLabelWidth); });
+    info.cpu_labels.push_back(label_node->Get<Label>());
+    current_row.push_back(label_node);
 
-  // Create labels for the 8 cores.
-  std::shared_ptr<Node> cpu_label_nodes[8];
-  std::shared_ptr<Label> cpu_labels[8];
+    if (current_row.size() == kCoresPerRow || i + 1 == core_count) {
+      while (current_row.size() < kCoresPerRow)
+        current_row.push_back(Node::Empty(
+            [](Layout& layout) { layout.SetWidth(kCpuLabelWidth); }));
 
-  for (int i = 0; i < 8; i++) {
-    cpu_label_nodes[i] =
-        Label::BasicLabel("Core " + std::to_string(i) + ": 0%");
-    cpu_label_nodes[i]->Apply([](Label& label) { label.SetColor(0xFF000000); },
-                              [](Layout& layout) {
-                                layout.SetWidth(80.0f);
-                                layout.SetMargin(YGEdgeBottom, 2.0f);
-                              });
-    cpu_labels[i] = cpu_label_nodes[i]->Get<Label>();
+      auto row = Container::HorizontalContainer(
+          [](Layout& layout) {
+            layout.SetWidthPercent(100.0f);
+            layout.SetJustifyContent(YGJustifySpaceBetween);
+          },
+          current_row);
+      cpu_core_rows->AddChild(row);
+      current_row.clear();
+    }
   }
 
-  // Horizontal rows of CPU labels
-  auto cpu_row1 = Container::HorizontalContainer(
-      [](Layout& layout) {
-        layout.SetWidthPercent(100.0f);
-        layout.SetJustifyContent(YGJustifySpaceBetween);
-      },
-      cpu_label_nodes[0], cpu_label_nodes[1], cpu_label_nodes[2],
-      cpu_label_nodes[3]);
-  auto cpu_row2 = Container::HorizontalContainer(
-      [](Layout& layout) {
-        layout.SetWidthPercent(100.0f);
-        layout.SetJustifyContent(YGJustifySpaceBetween);
-      },
-      cpu_label_nodes[4], cpu_label_nodes[5], cpu_label_nodes[6],
-      cpu_label_nodes[7]);
+  info.services_data_source = std::make_shared<ServicesDataSource>(pid);
 
-  auto cpu_section =
-      GroupBox::VerticalGroupBox("CPU Usage per Core:", cpu_row1, cpu_row2);
-
-  // Services Table columns
-  std::vector<Table::Column> columns = {
-      {.title = "Service Name",
-       .layout_modifier =
-           [](Layout& layout) {
-             layout.SetFlexGrow(1.0f);
-             layout.SetFlexShrink(1.0f);
-             layout.SetWidth(180.0f);
-           }},
-      {.title = "Instances",
-       .layout_modifier = [](Layout& layout) { layout.SetWidth(80.0f); }}};
-
-  auto services_ds = std::make_shared<ServicesDataSource>(pid);
-  std::shared_ptr<Table> services_table_component;
-  auto services_table_node = Table::BasicTable(
-      services_ds, columns,
-      [](Layout& layout) {
-        layout.SetFlexGrow(1.0f);
-        layout.SetFlexShrink(1.0f);
-        layout.SetMinHeight(0.0f);
-        layout.SetMargin(YGEdgeBottom, 8.0f);
-      },
-      &services_table_component);
-
-  // Terminate Button
-  auto terminate_button_node = Button::TextButton(
-      "Terminate Process", [pid]() { ::perception::TerminateProcesss(pid); },
-      [](Button& button) { button.SetButtonStyle(Button::ButtonStyle::RED); },
-      [](Layout& layout) {
-        layout.SetAlignSelf(YGAlignFlexEnd);
-        layout.SetPadding(YGEdgeHorizontal, 16.0f);
-        layout.SetPadding(YGEdgeVertical, 6.0f);
-      });
-
-  auto content_container = Container::VerticalContainer(
-      [](Layout& layout) {
-        layout.SetFlexGrow(1.0f);
-        layout.SetFlexShrink(1.0f);
-        layout.SetMinHeight(0.0f);
-        layout.SetPadding(YGEdgeAll, 8.0f);
-      },
-      name_label_node, uptime_label_node, memory_label_node, cpu_section,
-      Label::BasicLabel(
-          "Registered Services:",
-          [](Label& label) { label.SetColor(0xFF000000); },
-          [](Layout& layout) { layout.SetMargin(YGEdgeBottom, 4.0f); }),
-      services_table_node, terminate_button_node);
-
-  std::shared_ptr<Node> window_node = UiWindow::ResizableWindowWithTitleBar(
+  info.window_node = UiWindow::ResizableWindowWithTitleBar(
       proc_name + " - Process Details",
       [pid](UiWindow& window) {
         window.OnClose([pid]() {
@@ -307,19 +257,91 @@ void OpenProcessDetailsWindow(ProcessId pid) {
         layout.SetWidth(450.0f);
         layout.SetHeight(420.0f);
       },
-      content_container);
-
-  ProcessDetailsWindowInfo info;
-  info.window_node = window_node;
-  info.services_data_source = services_ds;
-  info.services_table = services_table_component;
-  info.uptime_label = uptime_label_node->Get<Label>();
-  info.name_label = name_label_node->Get<Label>();
-  info.memory_label = memory_label_node->Get<Label>();
-  for (int i = 0; i < 8; i++) {
-    info.cpu_labels[i] = cpu_labels[i];
-  }
-  info.creation_timestamp = creation_timestamp;
+      Container::VerticalContainer(
+          [](Layout& layout) {
+            layout.SetFlexGrow(1.0f);
+            layout.SetFlexShrink(1.0f);
+            layout.SetMinHeight(0.0f);
+          },
+          Label::BasicLabel(
+              "Process: " + proc_name + " (PID: " + std::to_string(pid) + ")",
+              [](Label& label) { label.SetColor(0xFF000000); },
+              &info.name_label),
+          Label::BasicLabel(
+              "Uptime: ", [](Label& label) { label.SetColor(0xFF000000); },
+              &info.uptime_label),
+          Label::BasicLabel(
+              "Memory: ", [](Label& label) { label.SetColor(0xFF000000); },
+              &info.memory_label),
+          ResizableContainer::VerticalContainer(
+              [](Layout& layout) {
+                layout.SetFlexGrow(1.0f);
+                layout.SetFlexShrink(1.0f);
+                layout.SetFlexBasis(0.0f);
+                layout.SetMinHeight(0.0f);
+                layout.SetWidthPercent(100.0f);
+                layout.SetGap(kWidgetSpacing, YGGutterAll);
+              },
+              Container::VerticalContainer(
+                  [](ResizableContainerItem& item) {
+                    item.SetBehavior(ResizableContainerItem::Behavior::Flex);
+                  },
+                  [](Layout& layout) {
+                    layout.SetFlexGrow(1.0f);
+                    layout.SetFlexShrink(1.0f);
+                    layout.SetFlexBasis(0.0f);
+                    layout.SetMinHeight(0.0f);
+                  },
+                  Label::BasicLabel(
+                      "CPU Usage per Core:",
+                      [](Label& label) { label.SetColor(0xFF000000); }),
+                  ScrollContainer::VerticalScrollContainer(
+                      cpu_core_rows,
+                      [](Layout& layout) {
+                        layout.SetFlexGrow(1.0f);
+                        layout.SetFlexShrink(1.0f);
+                        layout.SetFlexBasis(0.0f);
+                        layout.SetMinHeight(0.0f);
+                      })),
+              Container::VerticalContainer(
+                  [](ResizableContainerItem& item) {
+                    item.SetBehavior(ResizableContainerItem::Behavior::Flex);
+                  },
+                  [](Layout& layout) {
+                    layout.SetFlexGrow(1.0f);
+                    layout.SetFlexShrink(1.0f);
+                    layout.SetFlexBasis(0.0f);
+                    layout.SetMinHeight(0.0f);
+                  },
+                  Label::BasicLabel(
+                      "Registered Services:",
+                      [](Label& label) { label.SetColor(0xFF000000); }),
+                  Table::BasicTable(
+                      info.services_data_source,
+                      {{.title = "Service Name",
+                        .layout_modifier =
+                            [](Layout& layout) {
+                              layout.SetFlexGrow(1.0f);
+                              layout.SetFlexShrink(1.0f);
+                              layout.SetWidth(180.0f);
+                            }},
+                       {.title = "Instances",
+                        .layout_modifier =
+                            [](Layout& layout) { layout.SetWidth(80.0f); }}},
+                      [](Layout& layout) {
+                        layout.SetFlexGrow(1.0f);
+                        layout.SetFlexShrink(1.0f);
+                        layout.SetFlexBasis(0.0f);
+                        layout.SetMinHeight(0.0f);
+                      },
+                      &info.services_table))),
+          Button::TextButton(
+              "Terminate Process",
+              [pid]() { ::perception::TerminateProcesss(pid); },
+              [](Button& button) {
+                button.SetButtonStyle(Button::ButtonStyle::RED);
+              },
+              [](Layout& layout) { layout.SetAlignSelf(YGAlignFlexEnd); })));
 
   open_process_details_windows[pid] = info;
 
@@ -337,14 +359,15 @@ void UpdateOpenProcessDetailsWindows() {
       pids_to_close.push_back(pid);
     } else {
       // Update UI of open process details window
+      size_t core_count = info.cpu_labels.size();
       size_t unique_memory = 0;
       size_t shared_memory = 0;
       size_t creation_timestamp = 0;
       size_t registered_services = 0;
-      uint8 cpu_percentages[8] = {0};
-      perception::GetProcessHealthMetrics(pid, unique_memory, shared_memory,
-                                          creation_timestamp,
-                                          registered_services, cpu_percentages);
+      std::vector<uint8> cpu_percentages(core_count, 0);
+      perception::GetProcessHealthMetrics(
+          pid, unique_memory, shared_memory, creation_timestamp,
+          registered_services, cpu_percentages.data(), core_count);
 
       // Uptime label
       auto now = perception::GetTimeSinceKernelStarted();
@@ -361,12 +384,11 @@ void UpdateOpenProcessDetailsWindows() {
       }
 
       // CPU labels
-      for (int i = 0; i < 8; i++) {
-        if (info.cpu_labels[i]) {
+      for (size_t i = 0; i < core_count; i++) {
+        if (info.cpu_labels[i])
           info.cpu_labels[i]->SetText(
               "Core " + std::to_string(i) + ": " +
               std::to_string(((int)cpu_percentages[i] * 100) / 255) + "%");
-        }
       }
 
       // Services table
