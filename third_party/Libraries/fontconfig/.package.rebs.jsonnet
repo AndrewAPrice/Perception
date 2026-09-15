@@ -21,6 +21,10 @@
   source_directories: [
     'source',
   ],
+  files_to_ignore: [
+    'source/src/fcgenericalias.c',
+    'source/src/fcobjshash.gperf.c',
+  ],
   dependencies+: [
     'freetype',
     'gnome libxml2',

@@ -35,6 +35,8 @@
   ],
   files_to_ignore: [
     'source/src/sksl/codegen/SkSLHLSLCodeGenerator.cpp',
+    'source/src/codec/SkBmpRustDecoder.cpp',
+    'source/src/codec/SkBmpRustCodec.cpp',
   ],
   dependencies+: [
     'fontconfig',

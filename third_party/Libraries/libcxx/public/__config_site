@@ -34,6 +34,7 @@
 // #define _LIBCPP_ENABLE_DEBUG_MODE
 #define _LIBCPP_NO_ABI_TAG
 #define _LIBCPP_DISABLE_AVAILABILITY
+#define _LIBCPP_PROVIDES_DEFAULT_RUNE_TABLE 1
 
 // __USE_MINGW_ANSI_STDIO gets redefined on MinGW
 #ifdef __clang__

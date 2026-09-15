@@ -16,8 +16,10 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 
 #include "perception/type_id.h"
+#include "types.h"
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/button.h"
 #include "perception/ui/components/image_view.h"
@@ -45,9 +47,10 @@ class ImageButton : public UniqueIdentifiableType<ImageButton> {
   static std::shared_ptr<Node> BasicImageButtonWithSize(
       std::function<void()> on_push, std::shared_ptr<Image> image,
       float icon_width, float icon_height, Modifiers... modifiers) {
+    std::shared_ptr<ImageView> image_view;
     auto image_node = image
                           ? ImageView::BasicImage(
-                                image,
+                                image, &image_view,
                                 [icon_width, icon_height](Layout& l) {
                                   l.SetWidth(icon_width);
                                   l.SetHeight(icon_height);
@@ -58,22 +61,25 @@ class ImageButton : public UniqueIdentifiableType<ImageButton> {
                                 })
                           : Node::Empty();
 
-    return Node::Empty([](ImageButton& image_button) {},
-                       [on_push](Button& button) {
-                         button.OnPush(on_push);
-                         button.SetButtonStyle(Button::ButtonStyle::GHOST);
-                       },
-                       [](Layout& layout) {
-                         layout.SetWidth(kImageButtonWidth);
-                         layout.SetHeight(kImageButtonHeight);
-                         layout.SetAlignItems(YGAlignCenter);
-                         layout.SetJustifyContent(YGJustifyCenter);
-                       },
-                       [](Block& block) {
-                         block.SetBorderRadius(kButtonBorderRadius);
-                         block.SetBorderWidth(0.0f);
-                       },
-                       image_node, modifiers...);
+    return Node::Empty(
+        [image_view](ImageButton& image_button) {
+          image_button.SetImageView(image_view);
+        },
+        [on_push](Button& button) {
+          button.OnPush(on_push);
+          button.SetButtonStyle(Button::ButtonStyle::GHOST);
+        },
+        [](Layout& layout) {
+          layout.SetWidth(kImageButtonWidth);
+          layout.SetHeight(kImageButtonHeight);
+          layout.SetAlignItems(YGAlignCenter);
+          layout.SetJustifyContent(YGJustifyCenter);
+        },
+        [](Block& block) {
+          block.SetBorderRadius(kButtonBorderRadius);
+          block.SetBorderWidth(0.0f);
+        },
+        image_node, modifiers...);
   }
 
   ImageButton();
@@ -81,8 +87,21 @@ class ImageButton : public UniqueIdentifiableType<ImageButton> {
   void SetNode(std::weak_ptr<Node> node);
   std::weak_ptr<Node> GetNode() const;
 
+  void SetImageView(std::weak_ptr<ImageView> image_view);
+  std::weak_ptr<ImageView> GetImageView() const;
+
+  // Sets a tint color for the button icon.
+  void SetColor(uint32 color);
+
+  // Clears any tint color for the button icon.
+  void ClearColor();
+
+  // Returns the tint color for the button icon, if set.
+  std::optional<uint32> GetColor() const;
+
  private:
   std::weak_ptr<Node> node_;
+  std::weak_ptr<ImageView> image_view_;
 };
 
 }  // namespace components

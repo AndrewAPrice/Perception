@@ -1,0 +1,36 @@
+[
+  {
+    "page": "Appearance & Desktop>Launcher",
+    "groups": [
+      {
+        "title": "General",
+        "settings": [
+          {
+            "key": "timeFormat",
+            "type": "enum",
+            "name": "Time Format",
+            "description": "Format for displaying time in the launcher window",
+            "default": "12-hour",
+            "options": [
+              {
+                "name": "12-hour",
+                "value": 0
+              },
+              {
+                "name": "24-hour",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "key": "clockProgram",
+            "type": "application",
+            "name": "Clock Program",
+            "description": "Program to launch when clicking the time display",
+            "default": "Clock"
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -17,7 +17,9 @@
 #include <iostream>
 #include <memory>
 
+#include "include/core/SkBlendMode.h"
 #include "include/core/SkCanvas.h"
+#include "include/core/SkColorFilter.h"
 #include "include/core/SkPath.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkSamplingOptions.h"
@@ -94,6 +96,20 @@ void ImageView::SetResizeMethod(ResizeMethod method) {
 
 ResizeMethod ImageView::GetResizeMethod() const { return resize_method_; }
 
+void ImageView::SetColor(uint32 color) {
+  if (color_ && *color_ == color) return;
+  color_ = color;
+  if (!node_.expired()) node_.lock()->Invalidate();
+}
+
+void ImageView::ClearColor() {
+  if (!color_) return;
+  color_.reset();
+  if (!node_.expired()) node_.lock()->Invalidate();
+}
+
+std::optional<uint32> ImageView::GetColor() const { return color_; }
+
 void ImageView::Draw(const DrawContext& draw_context) {
   if (!image_) return;
 
@@ -115,10 +131,14 @@ void ImageView::Draw(const DrawContext& draw_context) {
     // This is a raster image.
     SkPaint paint;
     paint.setAntiAlias(true);
+    if (color_.has_value())
+      paint.setColorFilter(
+          SkColorFilters::Blend(*color_, SkBlendMode::kSrcIn));
 
     Point position = draw_context.area.origin + position_;
     if (image_matches_displayed_dimensions) {
-      draw_context.skia_canvas->drawImage(image, position.x, position.y);
+      draw_context.skia_canvas->drawImage(image, position.x, position.y,
+                                          SkSamplingOptions(), &paint);
     } else {
       draw_context.skia_canvas->drawImageRect(
           image,
@@ -126,15 +146,28 @@ void ImageView::Draw(const DrawContext& draw_context) {
                            display_size_.height),
           SkSamplingOptions(SkFilterMode::kLinear), &paint);
     }
-  } else if (SkSVGDOM* svg = image_->GetSkSVGDOM(display_size_)) {
-    // This is an SVG image.
-    draw_context.skia_canvas->translate(draw_context.area.origin.x + position_.x,
-                                        draw_context.area.origin.y + position_.y);
-    draw_context.skia_canvas->scale(display_size_.width / image_size_.width,
-                                    display_size_.height / image_size_.height);
-    svg->render(draw_context.skia_canvas);
-  } else {
-    std::cout << "Not sure how to draw the provided image." << std::endl;
+  } else if (image_size_.width > 0.0f && image_size_.height > 0.0f) {
+    if (SkSVGDOM* svg = image_->GetSkSVGDOM(image_size_)) {
+      // This is an SVG image.
+      if (color_.has_value()) {
+        SkPaint paint;
+        paint.setColorFilter(
+            SkColorFilters::Blend(*color_, SkBlendMode::kSrcIn));
+        SkRect layer_bounds = SkRect::MakeXYWH(
+            draw_context.area.origin.x + position_.x,
+            draw_context.area.origin.y + position_.y, display_size_.width,
+            display_size_.height);
+        draw_context.skia_canvas->saveLayer(&layer_bounds, &paint);
+      }
+      draw_context.skia_canvas->translate(draw_context.area.origin.x + position_.x,
+                                          draw_context.area.origin.y + position_.y);
+      draw_context.skia_canvas->scale(display_size_.width / image_size_.width,
+                                      display_size_.height / image_size_.height);
+      svg->render(draw_context.skia_canvas);
+      if (color_.has_value()) draw_context.skia_canvas->restore();
+    } else {
+      std::cout << "Not sure how to draw the provided image." << std::endl;
+    }
   }
 
   draw_context.skia_canvas->restore();
@@ -151,7 +184,7 @@ Size ImageView::Measure(float width, YGMeasureMode width_mode, float height,
 void ImageView::CalculateAlignmentOffsetsIfNeeded() {
   if (!needs_realignment_) return;
 
-  image_size_ = GetImageSize(display_size_);
+  image_size_ = GetImageSize(node_size_);
   display_size_ =
       CalculateResize(resize_method_, image_size_, node_size_, 1.0f);
   position_ = CalculateAlignment(display_size_, node_size_, alignment_);

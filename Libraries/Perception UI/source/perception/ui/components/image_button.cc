@@ -29,6 +29,27 @@ void ImageButton::SetNode(std::weak_ptr<Node> node) { node_ = node; }
 
 std::weak_ptr<Node> ImageButton::GetNode() const { return node_; }
 
+void ImageButton::SetImageView(std::weak_ptr<ImageView> image_view) {
+  image_view_ = image_view;
+}
+
+std::weak_ptr<ImageView> ImageButton::GetImageView() const {
+  return image_view_;
+}
+
+void ImageButton::SetColor(uint32 color) {
+  if (auto iv = image_view_.lock()) iv->SetColor(color);
+}
+
+void ImageButton::ClearColor() {
+  if (auto iv = image_view_.lock()) iv->ClearColor();
+}
+
+std::optional<uint32> ImageButton::GetColor() const {
+  if (auto iv = image_view_.lock()) return iv->GetColor();
+  return std::nullopt;
+}
+
 }  // namespace components
 }  // namespace ui
 }  // namespace perception

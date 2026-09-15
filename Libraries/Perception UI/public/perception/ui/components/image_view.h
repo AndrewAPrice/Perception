@@ -14,8 +14,11 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 
+#include "perception/type_id.h"
+#include "types.h"
 #include "perception/ui/image.h"
 #include "perception/ui/node.h"
 #include "perception/ui/point.h"
@@ -23,7 +26,6 @@
 #include "perception/ui/size.h"
 #include "perception/ui/text_alignment.h"
 #include "yoga/Yoga.h"
-#include "perception/type_id.h"
 
 namespace perception {
 namespace ui {
@@ -58,6 +60,15 @@ class ImageView : public UniqueIdentifiableType<ImageView> {
   void SetResizeMethod(ResizeMethod method);
   ResizeMethod GetResizeMethod() const;
 
+  // Sets a tint color for the image.
+  void SetColor(uint32 color);
+
+  // Clears any tint color.
+  void ClearColor();
+
+  // Returns the tint color if set.
+  std::optional<uint32> GetColor() const;
+
  private:
   std::shared_ptr<Image> image_;
   TextAlignment alignment_;
@@ -68,6 +79,7 @@ class ImageView : public UniqueIdentifiableType<ImageView> {
   Size node_size_;
   Size image_size_;
   Size display_size_;
+  std::optional<uint32> color_;
 
   void Draw(const DrawContext& draw_context);
   Size Measure(float width, YGMeasureMode width_mode, float height,
