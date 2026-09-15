@@ -69,6 +69,21 @@ MessageId NotifyUponProcessTermination(
 // terminating.
 void StopNotifyingUponProcessTermination(MessageId message_id);
 
+// Permissions bitfield flags for CreateChildProcess.
+namespace ProcessBitfield {
+// Process has driver privileges.
+constexpr size_t kIsDriver = 1 << 0;
+
+// Process has permission to spawn child processes.
+constexpr size_t kCanCreateProcesses = 1 << 1;
+
+// Process has permission to set the focused process.
+constexpr size_t kCanSetFocus = 1 << 2;
+
+// Process has permission to terminate processes.
+constexpr size_t kCanTerminateProcesses = 1 << 3;
+}  // namespace ProcessBitfield
+
 // Creates a child process with a given name. Populates the `pid` with the new
 // process's id. The new process doesn't begin executing until
 // `StartExecutingChildProcess` is called. Only some processes are allowed to

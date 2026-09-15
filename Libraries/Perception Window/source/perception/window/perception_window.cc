@@ -181,15 +181,18 @@ class PerceptionWindow : public Window,
     if (rebuild_texture_) {
       RebuildTextures();
       buffer.has_preserved_contents_from_previous_draw = true;
-      rebuild_texture_ = false;
+      if (texture_shared_memory_ &&
+          (!is_double_buffered_ || frontbuffer_shared_memory_))
+        rebuild_texture_ = false;
     } else {
       buffer.has_preserved_contents_from_previous_draw = false;
     }
 
-    if (width_ == 0 || height_ == 0 || !texture_shared_memory_->Join() ||
-        (is_double_buffered_ && !frontbuffer_shared_memory_->Join())) {
+    if (width_ == 0 || height_ == 0 || !texture_shared_memory_ ||
+        !texture_shared_memory_->Join() ||
+        (is_double_buffered_ &&
+         (!frontbuffer_shared_memory_ || !frontbuffer_shared_memory_->Join())))
       return;
-    }
 
     Rectangle invalidated_area(0, 0, width_, height_);
     if (dirty_rect && !rebuild_texture_) {
@@ -416,6 +419,8 @@ class PerceptionWindow : public Window,
   void RebuildTextures() {
     ReleaseTextures();
 
+    if (width_ <= 0 || height_ <= 0) return;
+
     // Create the back buffer that's drawn into (and also the front
     // buffer if not double buffered.)
     graphics::CreateTextureRequest request;
@@ -437,12 +442,14 @@ class PerceptionWindow : public Window,
       }
     }
 
-    // Notify the window manager of the front buffer.
-    SetWindowTextureParameters message;
-    message.window = *this;
-    message.texture.id =
-        is_double_buffered_ ? frontbuffer_texture_id_ : texture_id_;
-    GetService<WindowManager>().SetWindowTexture(message);
+    if (texture_id_ != 0) {
+      // Notify the window manager of the front buffer.
+      SetWindowTextureParameters message;
+      message.window = *this;
+      message.texture.id =
+          is_double_buffered_ ? frontbuffer_texture_id_ : texture_id_;
+      GetService<WindowManager>().SetWindowTexture(message);
+    }
   }
 };
 

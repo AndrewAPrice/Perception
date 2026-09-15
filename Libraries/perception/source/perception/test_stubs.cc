@@ -205,4 +205,18 @@ void RegisterService(MessageId message_id, std::string_view name) {}
 
 void UnregisterService(MessageId message_id) {}
 
+size_t RandomNumber() {
+  static size_t counter = 123456789;
+  return counter++;
+}
+
+namespace power {
+
+void PowerOff() {}
+void Restart() {}
+void Sleep() {}
+void Wake() {}
+
+}  // namespace power
+
 }  // namespace perception

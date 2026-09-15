@@ -55,6 +55,7 @@ void HandlePermissionDeniedToast(ProcessId process, Permission permission) {
   ShowToast("Permission Denied", text);
 }
 
+#ifndef TEST
 struct ToastHandlerRegistrar {
   ToastHandlerRegistrar() {
     SetPermissionDeniedToastHandler(HandlePermissionDeniedToast);
@@ -62,6 +63,7 @@ struct ToastHandlerRegistrar {
 };
 
 static ToastHandlerRegistrar g_toast_handler_registrar;
+#endif
 
 }  // namespace
 

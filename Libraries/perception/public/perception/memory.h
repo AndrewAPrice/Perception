@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "perception/sentinels.h"
 #include "types.h"
 
 namespace perception {
@@ -35,16 +36,19 @@ size_t GetPhysicalAddressOfVirtualAddress(size_t virtual_address);
 
 bool MaybeResizePages(void** ptr, size_t current_number, size_t new_number);
 
-// Gets system memory metrics in bytes:
+// Gets system metrics in bytes and CPU core count:
 // - total_memory: total memory in the system.
 // - shared_memory: shared memory allocated in the system.
 // - free_memory: free memory remaining in the system.
-void GetSystemMemoryMetrics(size_t& total_memory, size_t& shared_memory,
-                            size_t& free_memory);
+// - core_count: total number of CPU cores.
+void GetSystemMetrics(size_t& total_memory, size_t& shared_memory,
+                      size_t& free_memory, size_t& core_count);
 
 size_t GetFreeSystemMemory();
 
 size_t GetTotalSystemMemory();
+
+size_t GetSystemCoreCount();
 
 // Exposes the process's health metrics:
 // - pid: the ID of the process to query, or 0 for the current process.
@@ -52,13 +56,14 @@ size_t GetTotalSystemMemory();
 // - creation_timestamp: timestamp when the process was created (in microseconds
 // since boot).
 // - registered_services: number of services the process has registered.
-// - cpu_percentages: array populated with the CPU percentage of each core (size
-// must be at least 8).
+// - cpu_percentages: array populated with the CPU percentage of each core.
+// - max_cpu_percentages: maximum number of core percentages to write (up to 64, defaults to 8).
 void GetProcessHealthMetrics(ProcessId pid, size_t& unique_memory_used,
                              size_t& shared_memory_used,
                              size_t& creation_timestamp,
                              size_t& registered_services,
-                             uint8* cpu_percentages);
+                             uint8* cpu_percentages,
+                             size_t max_cpu_percentages = 8);
 
 // Controls whether the kernel actively tracks CPU usage metrics for this
 // process. This should be set to 'true' by process managers or monitoring

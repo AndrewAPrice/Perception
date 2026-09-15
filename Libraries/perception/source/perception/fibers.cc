@@ -14,6 +14,7 @@
 
 #include "perception/fibers.h"
 
+#include <cstring>
 #include <exception>
 #include <iostream>
 #include <memory>
@@ -91,13 +92,17 @@ Fiber::Fiber(bool custom_stack)
     : is_scheduled_to_run_(false),
       is_custom_fiber_(custom_stack),
       thread_id_(std::nullopt),
-      bottom_of_stack_(nullptr) {}
+      bottom_of_stack_(nullptr) {
+  memset(&registers_, 0, sizeof(registers_));
+}
 
 Fiber::Fiber(ThreadId thread_id)
     : is_scheduled_to_run_(false),
       is_custom_fiber_(false),
       thread_id_(thread_id),
-      bottom_of_stack_(nullptr) {}
+      bottom_of_stack_(nullptr) {
+  memset(&registers_, 0, sizeof(registers_));
+}
 
 Fiber::~Fiber() {
   if (bottom_of_stack_ != nullptr) {
@@ -111,6 +116,8 @@ Fiber::~Fiber() {
 
 void Fiber::PrepareStack() {
   if (bottom_of_stack_ != nullptr) return;
+
+  memset(&registers_, 0, sizeof(registers_));
 
   if (next_free_stack != nullptr) {
     bottom_of_stack_ = next_free_stack;

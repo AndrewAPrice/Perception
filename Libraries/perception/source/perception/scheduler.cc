@@ -336,8 +336,13 @@ Fiber* Scheduler::GetNextFiberToRun() {
       // Nothing is waiting for to finish, so sleep for the next message.
       while (true) {
         if (!SleepThreadUntilMessage(senders_pid, message_data)) {
-          // The thread randomly woke without a message. This shouldn't
-          // happen.
+          // The thread woke without a message. Check if a secondary thread
+          // scheduled a fiber to run.
+          if (primary_first_scheduled_fiber != nullptr) break;
+          {
+            SpinlockLock lock(GetSchedulerLock());
+            if (first_scheduled_fiber != nullptr) break;
+          }
           continue;
         }
 

@@ -26,7 +26,8 @@
 namespace perception {
 namespace {
 
-constexpr size_t kOutOfMemory = 1;
+// Returned by the memory syscalls when the kernel couldn't satisfy a request.
+constexpr size_t kOutOfMemory = static_cast<size_t>(kOutOfMemorySentinel);
 
 }  // namespace
 
@@ -149,57 +150,80 @@ bool MaybeResizePages(void** ptr, size_t current_number, size_t new_number) {
 #endif
 }
 
-void GetSystemMemoryMetrics(size_t& total_memory, size_t& shared_memory,
-                            size_t& free_memory) {
+void GetSystemMetrics(size_t& total_memory, size_t& shared_memory,
+                      size_t& free_memory, size_t& core_count) {
 #if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t rdi_io asm("rdi") = 14;
   volatile register size_t total_r asm("rax");
   volatile register size_t shared_r asm("rbx");
   volatile register size_t free_r asm("rdx");
+  volatile register size_t cores_r asm("rsi");
 
   __asm__ __volatile__("syscall\n"
-                       : "=r"(total_r), "=r"(shared_r), "=r"(free_r)
+                       : "=r"(total_r), "=r"(shared_r), "=r"(free_r),
+                         "=r"(cores_r)
                        : "r"(rdi_io)
                        : "rcx", "r11");
   total_memory = total_r;
   shared_memory = shared_r;
   free_memory = free_r;
+  core_count = cores_r;
 #else
   long pages = sysconf(_SC_PHYS_PAGES);
   long page_size = sysconf(_SC_PAGE_SIZE);
   total_memory = pages * page_size;
   shared_memory = 0;
   free_memory = total_memory / 2;
+  long cores = sysconf(_SC_NPROCESSORS_ONLN);
+  core_count = cores > 0 ? static_cast<size_t>(cores) : 1;
 #endif
 }
 
 size_t GetFreeSystemMemory() {
-  size_t total, shared, free;
-  GetSystemMemoryMetrics(total, shared, free);
+  size_t total, shared, free, cores;
+  GetSystemMetrics(total, shared, free, cores);
   return free;
 }
 
 size_t GetTotalSystemMemory() {
-  size_t total, shared, free;
-  GetSystemMemoryMetrics(total, shared, free);
+  size_t total, shared, free, cores;
+  GetSystemMetrics(total, shared, free, cores);
   return total;
+}
+
+size_t GetSystemCoreCount() {
+  size_t total, shared, free, cores;
+  GetSystemMetrics(total, shared, free, cores);
+  return cores;
 }
 
 void GetProcessHealthMetrics(ProcessId pid, size_t& unique_memory_used,
                              size_t& shared_memory_used,
                              size_t& creation_timestamp,
                              size_t& registered_services,
-                             uint8* cpu_percentages) {
+                             uint8* cpu_percentages,
+                             size_t max_cpu_percentages) {
 #if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t rax_io asm("rax") = pid;
   volatile register size_t rdi_io asm("rdi") = 15;
   volatile register size_t creation_timestamp_r asm("rbx");
-  volatile register size_t packed_cpu_r asm("rdx");
+  volatile register size_t packed_cpu_0_7 asm("rdx");
   volatile register size_t registered_services_r asm("rsi");
+  volatile register size_t packed_cpu_8_15 asm("r8");
+  volatile register size_t packed_cpu_16_23 asm("r9");
+  volatile register size_t packed_cpu_24_31 asm("r10");
+  volatile register size_t packed_cpu_32_39 asm("r12");
+  volatile register size_t packed_cpu_40_47 asm("r13");
+  volatile register size_t packed_cpu_48_55 asm("r14");
+  volatile register size_t packed_cpu_56_63 asm("r15");
 
   __asm__ __volatile__("syscall\n"
                        : "+r"(rax_io), "+r"(rdi_io), "=r"(creation_timestamp_r),
-                         "=r"(packed_cpu_r), "=r"(registered_services_r)
+                         "=r"(packed_cpu_0_7), "=r"(registered_services_r),
+                         "=r"(packed_cpu_8_15), "=r"(packed_cpu_16_23),
+                         "=r"(packed_cpu_24_31), "=r"(packed_cpu_32_39),
+                         "=r"(packed_cpu_40_47), "=r"(packed_cpu_48_55),
+                         "=r"(packed_cpu_56_63)
                        :
                        : "rcx", "r11");
 
@@ -208,10 +232,16 @@ void GetProcessHealthMetrics(ProcessId pid, size_t& unique_memory_used,
   creation_timestamp = creation_timestamp_r;
   registered_services = registered_services_r;
 
-  if (cpu_percentages != nullptr) {
-    size_t packed = packed_cpu_r;
-    for (int i = 0; i < 8; i++) {
-      cpu_percentages[i] = (uint8)((packed >> (i * 8)) & 0xFF);
+  if (cpu_percentages != nullptr && max_cpu_percentages > 0) {
+    size_t packed_regs[8] = {
+        packed_cpu_0_7,   packed_cpu_8_15,  packed_cpu_16_23,
+        packed_cpu_24_31, packed_cpu_32_39, packed_cpu_40_47,
+        packed_cpu_48_55, packed_cpu_56_63};
+    size_t count = max_cpu_percentages;
+    if (count > 64) count = 64;
+    for (size_t i = 0; i < count; i++) {
+      size_t reg_val = packed_regs[i / 8];
+      cpu_percentages[i] = static_cast<uint8>((reg_val >> ((i % 8) * 8)) & 0xFF);
     }
   }
 #else
@@ -219,8 +249,10 @@ void GetProcessHealthMetrics(ProcessId pid, size_t& unique_memory_used,
   shared_memory_used = 0;
   creation_timestamp = 0;
   registered_services = 0;
-  if (cpu_percentages != nullptr) {
-    for (int i = 0; i < 8; i++) {
+  if (cpu_percentages != nullptr && max_cpu_percentages > 0) {
+    size_t count = max_cpu_percentages;
+    if (count > 64) count = 64;
+    for (size_t i = 0; i < count; i++) {
       cpu_percentages[i] = 0;
     }
   }

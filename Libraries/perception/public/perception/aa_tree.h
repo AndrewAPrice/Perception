@@ -17,15 +17,27 @@
 #include "types.h"
 
 #ifdef KERNEL
-#include "text_terminal.h"
+#include "output/text_terminal.h"
+#define AA_TREE_PRINT(message) ::output::print << (message)
 #else
 #include <iostream>
+#define AA_TREE_PRINT(message) std::cout << (message)
 #endif
 
+// Traversals of a well formed tree terminate quickly, so exceeding this many
+// steps means the tree has been corrupted.
+#ifndef AA_TREE_MAX_LOOP_ITERATIONS
+#define AA_TREE_MAX_LOOP_ITERATIONS 100000
+#endif
+
+// Guards against traversing a corrupted tree forever. Faulting is preferable to
+// spinning, which on a kernel that runs with interrupts disabled hangs the core
+// with no indication of why.
 #ifndef AA_TREE_LOOP_GUARD
-#define AA_TREE_LOOP_GUARD(counter) \
-  if (++counter > 100000) { \
-    while(1); \
+#define AA_TREE_LOOP_GUARD(counter)                     \
+  if (++counter > AA_TREE_MAX_LOOP_ITERATIONS) {        \
+    AA_TREE_PRINT("AATree is corrupted.\n");            \
+    __builtin_trap();                                   \
   }
 #endif
 
@@ -73,8 +85,12 @@ struct AATree {
     }
   }
 
+  // Removes an item from the tree. Removing an item that isn't in this tree
+  // does nothing.
   void Remove(C* item) {
     auto node = ItemToNode(item);
+    if (!IsNodeInTree(node)) return;
+
     if (node->previous != nullptr) {
       // Multiple nodes have the same value, and this is not at the front of the
       // linked list. So just remove it from the linked list and the tree structure doesn't need to be updated.
@@ -107,6 +123,12 @@ struct AATree {
       root_ = RemoveNodeWithValueFromBelowAANode(root_, ValueOfNode(node));
       if (root_ != nullptr) root_->parent = nullptr;
     }
+
+    // Leave the node unlinked, so that the stale pointers of a removed node
+    // can't be mistaken for it still being in a tree.
+    node->parent = node->left = node->right = nullptr;
+    node->previous = node->next = nullptr;
+    node->level = 0;
   }
 
   C* SearchForItemLessThanOrEqualToValue(size_t value) {
@@ -129,7 +151,8 @@ struct AATree {
 
   void PrintAATree() {
 #ifdef KERNEL
-    print << "Tree: " << NumberFormat::Hexidecimal << (size_t)this << '\n';
+    output::print << "Tree: " << output::NumberFormat::Hexidecimal
+                  << (size_t)this << '\n';
     PrintAATreeNode(root_, '*', 1);
 #else
     std::cout << "Tree: 0x" << std::hex << (size_t)this << std::dec << "\n";
@@ -287,23 +310,38 @@ struct AATree {
   Iterator end() { return Iterator(this, nullptr); }
 
  private:
+  // Whether a node is in this tree. The node's own pointers aren't trusted,
+  // because a node that was already removed or never inserted may hold stale
+  // ones. Instead the tree is searched for the node's value, then that value's
+  // list of nodes is walked looking for this exact node.
+  bool IsNodeInTree(AATreeNode* node) {
+    AATreeNode* current = SearchForNodeEqualToValue(ValueOfNode(node));
+    int loop_counter = 0;
+    while (current != nullptr) {
+      AA_TREE_LOOP_GUARD(loop_counter);
+      if (current == node) return true;
+      current = current->next;
+    }
+    return false;
+  }
+
   void PrintAATreeNode(AATreeNode* node, char side, int indentation) {
     if (node == nullptr) return;
 #ifdef KERNEL
-    for (int i = 0; i < indentation; i++) print << ' ';
-    print << side;
+    for (int i = 0; i < indentation; i++) output::print << ' ';
+    output::print << side;
 
     size_t value = ValueOfNode(node);
-    print << " Value: " << NumberFormat::Decimal << value << "/"
-          << NumberFormat::Hexidecimal << value << " Count: ";
+    output::print << " Value: " << output::NumberFormat::Decimal << value << "/"
+                  << output::NumberFormat::Hexidecimal << value << " Count: ";
     int count = 1;
     AATreeNode* next_node = node->next;
     while (next_node != nullptr) {
       count++;
       next_node = next_node->next;
     }
-    print << NumberFormat::Decimal << count << " Level: " << node->level
-          << '\n';
+    output::print << output::NumberFormat::Decimal << count
+                  << " Level: " << node->level << '\n';
     PrintAATreeNode(node->left, 'l', indentation + 1);
     PrintAATreeNode(node->right, 'r', indentation + 1);
 #else
