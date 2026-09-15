@@ -590,6 +590,7 @@ bool AhciStorageDevice::PerformRead(uint64 start_sector, uint32 sector_count,
 }
 
 Status AhciStorageDevice::Read(const StorageDeviceReadRequest& request) {
+  std::scoped_lock lock(mutex_);
   if (!request.buffer->Join()) return Status::INVALID_ARGUMENT;
 
   auto details = request.buffer->GetDetails();
@@ -801,6 +802,7 @@ bool AhciStorageDevice::PerformWrite(uint64 start_sector, uint32 sector_count,
 }
 
 Status AhciStorageDevice::Write(const StorageDeviceWriteRequest& request) {
+  std::scoped_lock lock(mutex_);
   if (device_type_ == StorageDeviceType::OPTICAL) return Status::NOT_ALLOWED;
   if (!request.buffer->Join()) return Status::INVALID_ARGUMENT;
 

@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -85,4 +86,7 @@ class AhciStorageDevice : public ::perception::devices::StorageDevice::Server {
 
   void* dma_buffer_;
   std::vector<size_t> dma_buffer_phys_pages_;
+
+  // Mutex serializing read and write access to the port and DMA structures.
+  std::mutex mutex_;
 };

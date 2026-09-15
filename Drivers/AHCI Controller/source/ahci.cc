@@ -104,8 +104,12 @@ void InitializeAhciControllers() {
   sub_class_filter.value = 0x06;  // SATA
   filters.filters.push_back(sub_class_filter);
 
-  auto status_or_devices = GetService<DeviceManager>().QueryPciDevices(filters);
-  if (!status_or_devices) return;
+  auto device_manager = GetService<DeviceManager>();
+  auto status_or_devices = device_manager.QueryPciDevices(filters);
+  if (!status_or_devices) {
+    std::cout << "QueryPciDevices failed!" << std::endl;
+    return;
+  }
 
   for (const auto& device : status_or_devices->devices)
     InitializeAhciController(device.bus, device.slot, device.function);
