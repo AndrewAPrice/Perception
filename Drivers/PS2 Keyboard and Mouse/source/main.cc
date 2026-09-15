@@ -50,7 +50,7 @@ namespace {
 
 constexpr size_t kTimeout = 100000;
 
-#define SYSTEM_KEY_TOGGLES_PROFILING
+// #define SYSTEM_KEY_TOGGLES_PROFILING
 
 // The system key (set to Escape) to send to the window manager.
 constexpr uint8 kSystemKeyDown = 1;
