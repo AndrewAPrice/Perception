@@ -1,4 +1,4 @@
-// Copyright 2026 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,12 @@
 
 #pragma once
 
-#ifndef printf
-#define printf(...) ((void)sizeof(__VA_ARGS__))
-#endif
+#include "../../../Libraries/perception/public/perception/aa_tree.h"
+
+namespace containers {
+
+using perception::AATree;
+using perception::AATreeNode;
+
+}  // namespace containers
+

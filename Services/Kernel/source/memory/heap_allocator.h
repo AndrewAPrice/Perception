@@ -14,6 +14,24 @@
 
 #pragma once
 
-#ifndef printf
-#define printf(...) ((void)sizeof(__VA_ARGS__))
+#include "types.h"
+
+#if defined(TEST)
+#include <stdlib.h>
+#else
+
+extern "C" {
+void* malloc(size_t size);
+void free(void* ptr);
+void* realloc(void* ptr, size_t size);
+void* calloc(size_t nmemb, size_t size);
+}
+
+// To support placement new.
+inline void *operator new(unsigned long, void *p) throw() { return p; }
+inline void *operator new[](unsigned long, void *p) throw() { return p; }
+inline void operator delete(void *, void *) throw() {};
+inline void operator delete[](void *, void *) throw() {};
+
 #endif
+

@@ -1,4 +1,4 @@
-// Copyright 2026 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,10 @@
 
 #pragma once
 
-#ifndef printf
-#define printf(...) ((void)sizeof(__VA_ARGS__))
-#endif
+namespace diagnostics {
+
+// Prints the registers and a stack trace of the currently running thread.
+void PrintRegistersAndStackTrace();
+
+}  // namespace diagnostics
+

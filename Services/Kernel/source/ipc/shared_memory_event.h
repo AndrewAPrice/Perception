@@ -14,6 +14,26 @@
 
 #pragma once
 
-#ifndef printf
-#define printf(...) ((void)sizeof(__VA_ARGS__))
-#endif
+#include "containers/linked_list.h"
+#include "types.h"
+
+namespace processes {
+struct Process;
+}
+
+namespace ipc {
+
+struct SharedMemory;
+
+// Represents a registered shared memory event.
+struct SharedMemoryEvent {
+  processes::Process* process;
+  SharedMemory* shared_memory;
+  size_t offset;
+  size_t message_id;
+  containers::LinkedListNode node_in_process;
+  containers::LinkedListNode node_in_shared_memory;
+};
+
+}  // namespace ipc
+

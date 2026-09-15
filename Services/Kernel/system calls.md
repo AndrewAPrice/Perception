@@ -20,14 +20,14 @@ System calls are invoked using the x86_64 `syscall` instruction. The system call
 | `4` | [Terminate This Thread](#terminate-this-thread) | Thread Management | Terminates the current thread. |
 | `5` | [Terminate Thread](#terminate-thread) | Thread Management | Terminates a target thread by ID. |
 | `6` | [Terminate This Process](#terminate-this-process) | Process Management | Terminates the calling process. |
-| `7` | [Terminate Process](#terminate-process) | Process Management | Terminates a process by PID. |
+| `7` | [Terminate Process](#terminate-process) 🔒 | Process Management | Terminates a process by PID. |
 | `8` | [Set System Message Handlers](#set-system-message-handlers) | Inter-Process Communication (IPC) | Registers system event message handlers. |
 | `9` | [Sleep Thread](#sleep-thread) | Thread Management | Puts a specified thread to sleep. |
 | `10` | [Wake Thread](#wake-thread) | Thread Management | Wakes up a sleeping thread. |
 | `11` | [Wait and Switch to Thread](#wait-and-switch-to-thread) | Thread Management | Wakes up and immediately yields to a thread. |
 | `12` | [Allocate Memory Pages](#allocate-memory-pages) | Memory Management | Allocates virtual memory pages. |
 | `13` | [Release Memory Pages](#release-memory-pages) | Memory Management | Releases virtual memory pages back to OS. |
-| `14` | [Get System Memory Metrics](#get-system-memory-metrics) | Memory Management | Queries total, shared, and free memory. |
+| `14` | [Get System Metrics](#get-system-metrics) | Memory Management | Queries total, shared, and free memory, and core count. |
 | `15` | [Get Process Health Metrics](#get-process-health-metrics) | Memory Management | Queries memory, CPU usage, and thread metrics for a process. |
 | `16` | *Unassigned* | — | Reserved / Unused. |
 | `17` | [Send Message](#send-message) | Inter-Process Communication (IPC) | Delivers an IPC message to a target process. |
@@ -90,7 +90,7 @@ System calls are invoked using the x86_64 `syscall` instruction. The system call
 
 Restrictions:  
 🔒 Only drivers may call this.  
-🛡️ Only the window manager may call this.  
+🛡️ Only processes with focus management permission may call this.  
 ⚙️ Only processes with process creation permissions may call this.  
 📦 Only the initial loader process may call this.  
 👶 Only the parent/creator process may call this while the child is in the creating state.  
@@ -289,8 +289,8 @@ Does not return.
 
 ---
 
-## Terminate Process
-Terminates a process by its PID.
+## Terminate Process 🔒
+Terminates a process by its PID. Only the process itself, the parent process that created it, or a process holding the `kCanTerminateProcesses` capability may terminate a process.
 
 ### Input
 * `rdi` - `7`
@@ -359,8 +359,10 @@ Instantiates a new process structure in the `creating` state. The child process 
 ### Input
 * `rdi` - `51`
 * `rax` - **Permission Bitfield:**
-  - Bit 0: Process has driver privilege rights.
+  - Bit 0: Process has driver privilege rights (can only be granted if the creator process has driver privileges).
   - Bit 1: Process has permission to spawn child processes.
+  - Bit 2: Process has permission to set the focused process.
+  - Bit 3: Process has permission to terminate processes.
 * `rbx`..`r15` - 10 registers holding up to 80 ASCII characters defining the new process name.
 
 ### Output
@@ -425,7 +427,7 @@ Retrieves initial boot multiboot modules loaded by the bootloader and transfers 
 ---
 
 ## Set Focused Process 🛡️
-Designates the process currently receiving user input focus (foreground). Threads in the focused process with `Normal` priority are temporarily elevated to `InteractiveApp` priority. Only the window manager may call this.
+Designates the process currently receiving user input focus (foreground). Threads in the focused process with `Normal` priority are temporarily elevated to `InteractiveApp` priority. Only processes with focus management permission (`can_set_focus`) may call this.
 
 ### Input
 * `rdi` - `66`
@@ -435,7 +437,7 @@ Designates the process currently receiving user input focus (foreground). Thread
 * `rax` - Status code:
   - `0` - Success.
   - `1` - Process does not exist.
-  - `2` - Access denied (caller is not Window Manager).
+  - `2` - Access denied (caller does not have focus management permission).
 
 ---
 
@@ -693,8 +695,8 @@ Expands a shared memory block to at least the specified size in pages. Only the 
 
 ## Memory & Process Health Metrics
 
-### Get System Memory Metrics
-Queries global RAM utilization metrics across the operating system.
+### Get System Metrics
+Queries global RAM and CPU core metrics across the operating system.
 
 #### Input
 * `rdi` - `14`
@@ -703,6 +705,7 @@ Queries global RAM utilization metrics across the operating system.
 * `rax` - Total system RAM capacity in bytes.
 * `rbx` - Total allocated shared memory in bytes.
 * `rdx` - Total free memory available in bytes.
+* `rsi` - Total number of CPU cores.
 
 ---
 

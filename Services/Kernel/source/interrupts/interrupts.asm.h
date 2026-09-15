@@ -1,4 +1,4 @@
-// Copyright 2026 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "types.h"
 
-#ifndef printf
-#define printf(...) ((void)sizeof(__VA_ARGS__))
-#endif
+extern "C" {
+
+void irq0();
+void irq1();
+void irq2();
+void irq3();
+void irq4();
+void irq5();
+void irq6();
+void irq7();
+void irq8();
+void irq9();
+void irq10();
+void irq11();
+void irq12();
+void irq13();
+void irq14();
+void irq15();
+void apic_timer_interrupt();
+void reschedule_ipi_interrupt();
+void tlb_shootdown_ipi_interrupt();
+
+void JumpIntoThread();
+
+}  // extern "C"

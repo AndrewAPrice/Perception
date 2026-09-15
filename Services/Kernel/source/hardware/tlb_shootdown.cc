@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "hardware/tlb_shootdown.h"
 
-#ifndef printf
-#define printf(...) ((void)sizeof(__VA_ARGS__))
-#endif
+namespace hardware {
+
+size_t g_shootdown_address = kFlushEntireTlb;
+
+uint64 g_shootdown_pending_mask = 0;
+
+}  // namespace hardware

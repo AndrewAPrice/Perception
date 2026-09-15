@@ -12,8 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "processes/process_threads.h"
 
-#ifndef printf
-#define printf(...) ((void)sizeof(__VA_ARGS__))
-#endif
+namespace processes {
+
+ProcessThreads::ProcessThreads(Process& owner) : owner_(owner), count_(0) {}
+
+ProcessThreads::~ProcessThreads() {}
+
+void ProcessThreads::Insert(scheduling::Thread* thread) {
+  threads_.Insert(thread);
+  count_++;
+}
+
+void ProcessThreads::Remove(scheduling::Thread* thread) {
+  threads_.Remove(thread);
+  count_--;
+}
+
+}  // namespace processes

@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(TEST) || defined(TEST)
+#if defined(TEST)
 #include <limits.h>
 
 #include <climits>
@@ -22,12 +22,17 @@ typedef signed int int32;
 typedef signed short int16;
 typedef signed char int8;
 
-// Magic value for when there is an error.
-#define ERROR 1
-
-// Magic value for when we are out of memory.
 #ifdef __cplusplus
-constexpr size_t OUT_OF_MEMORY = 1;
+#include "../../../Libraries/perception/public/perception/sentinels.h"
+
+// Value indicating an error.
+constexpr size_t kError = static_cast<size_t>(::perception::kErrorSentinel);
+
+// Value indicating an out-of-memory condition.
+constexpr size_t kOutOfMemory =
+    static_cast<size_t>(::perception::kOutOfMemorySentinel);
 #else
-#define OUT_OF_MEMORY 1
+#define ERROR 0xFFFFFFFFFFFFFFFFULL
+#define OUT_OF_MEMORY 0xFFFFFFFFFFFFFFFEULL
 #endif
+

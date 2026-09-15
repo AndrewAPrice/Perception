@@ -1,4 +1,5 @@
-// Copyright 2026 Google LLC
+#ifndef TEST
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +13,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "output/text_terminal.h"
+#include "types.h"
 
-#ifndef printf
-#define printf(...) ((void)sizeof(__VA_ARGS__))
-#endif
+namespace {
+
+// Magic canary value used by stack smashing protection (-fstack-protector).
+constexpr uint64 kStackChkGuard = 0x595e9fbd94fda766ULL;
+
+}  // namespace
+
+uint64 __stack_chk_guard = kStackChkGuard;
+
+__attribute__((noreturn)) void __stack_chk_fail(void) {
+  asm volatile("cli");
+  output::print << "Stack smashing detected.";
+  for (;;) asm volatile("hlt");
+}
+
+#endif // TEST

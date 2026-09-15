@@ -14,6 +14,15 @@
 
 #pragma once
 
-#ifndef printf
-#define printf(...) ((void)sizeof(__VA_ARGS__))
-#endif
+#include "types.h"
+
+extern "C" {
+
+// Entry point and boundary symbols for the real-mode AP trampoline.
+extern uint8 ap_trampoline_start[];
+extern uint8 ap_trampoline_end[];
+
+// Secondary core C++ entry point invoked from ap_boot.asm.
+void ApMain(size_t core_id);
+
+}  // extern "C"

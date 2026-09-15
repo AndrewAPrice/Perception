@@ -9,12 +9,13 @@
   dependencies: [],
 } + (if is_testing then {
   files_to_ignore: [
-    'source/boot.asm',
-    'source/exceptions.asm',
-    'source/interrupts.asm',
-    'source/syscall.asm',
-    'source/multiboot.asm',
-    'source/heap_allocator.cc',
+    'source/boot/boot.asm',
+    'source/interrupts/exceptions.asm',
+    'source/interrupts/interrupts.asm',
+    'source/syscall/syscall.asm',
+    'source/boot/multiboot.asm',
+    'source/boot/ap_boot.asm',
+    'source/memory/heap_allocator.cc',
   ]
 } else {
   local cpp_compiler = 'clang',
@@ -40,5 +41,5 @@
     if optimization_level == 'optimized' then ' -g '
     else ' -g ',
   linker_command:
-    linker + linker_optimizations + ' -z max-page-size=4096 -T Services/Kernel/source/linker.ld -o ${out} ${in}',
+    linker + linker_optimizations + ' -z max-page-size=4096 -T Services/Kernel/source/boot/linker.ld -o ${out} ${in}',
 })

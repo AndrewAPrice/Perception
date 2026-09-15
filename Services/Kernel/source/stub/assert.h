@@ -14,6 +14,10 @@
 
 #pragma once
 
-#ifndef printf
-#define printf(...) ((void)sizeof(__VA_ARGS__))
+#ifndef assert
+#define assert(expr) \
+  do { \
+    if (!(expr)) \
+      for (;;) __asm__ __volatile__("hlt"); \
+  } while (0)
 #endif
