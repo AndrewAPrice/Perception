@@ -43,64 +43,119 @@ size_t PageAddressOfStackEntry(size_t entry) {
   return entry & kPhysicalAddressMask & ~(kPageSize - 1);
 }
 
+// Temporary 2MB page directory slot index used by pre-virtual-memory physical
+// memory reads so they do not collide with page-table levels 0..3 or free-stack
+// writes.
+constexpr size_t kPreVmReadTempMappingIndex = 4;
+
+// Temporary 2MB page directory slot index used by pre-virtual-memory physical
+// allocator operations so they do not collide with page-table levels 0..3.
+constexpr size_t kPreVmTempMappingIndex = 5;
+
+// Maximum number of physical memory ranges reserved during boot for the
+// Multiboot2 header and modules.
+constexpr size_t kMaxReservedBootRanges = 64;
+
+struct PhysicalMemoryRange {
+  size_t start;
+  size_t end;
+};
+
+PhysicalMemoryRange g_reserved_boot_ranges[kMaxReservedBootRanges];
+size_t g_reserved_boot_range_count = 0;
+size_t g_multiboot_header_phys_start = 0;
+size_t g_multiboot_header_phys_end = 0;
+
+void AddReservedBootRange(size_t start, size_t end) {
+  if (end <= start || g_reserved_boot_range_count >= kMaxReservedBootRanges)
+    return;
+  g_reserved_boot_ranges[g_reserved_boot_range_count].start = start;
+  g_reserved_boot_ranges[g_reserved_boot_range_count].end = end;
+  g_reserved_boot_range_count++;
+}
+
+bool RemoveReservedBootRange(size_t start, size_t end) {
+  bool modified = false;
+  for (size_t i = 0; i < g_reserved_boot_range_count;) {
+    if (g_reserved_boot_ranges[i].start == start &&
+        g_reserved_boot_ranges[i].end == end) {
+      g_reserved_boot_ranges[i] =
+          g_reserved_boot_ranges[g_reserved_boot_range_count - 1];
+      g_reserved_boot_range_count--;
+      modified = true;
+      continue;
+    }
+    if (g_reserved_boot_ranges[i].start < start &&
+        g_reserved_boot_ranges[i].end == end) {
+      g_reserved_boot_ranges[i].end = start;
+      modified = true;
+    } else if (g_reserved_boot_ranges[i].start == start &&
+               g_reserved_boot_ranges[i].end > end) {
+      g_reserved_boot_ranges[i].start = end;
+      modified = true;
+    }
+    i++;
+  }
+  return modified;
+}
+
+bool IsPageInReservedBootRange(size_t page_addr) {
+  size_t page_end = page_addr + kPageSize;
+  for (size_t i = 0; i < g_reserved_boot_range_count; i++) {
+    if (g_reserved_boot_ranges[i].start < page_end &&
+        g_reserved_boot_ranges[i].end > page_addr)
+      return true;
+  }
+  return false;
+}
+
 // Before virtual memory is set up, the temporary paging system set up in
-// boot.asm only associates the maps the first 8MB of physical memory into
-// virtual memory. The multiboot structure can be quite huge (especially if
-// there are multi-boot modules passed in to the bootloader), and so the
-// multiboot data might extend past this 8MB boundary. The
+// boot.asm only maps the first 8MB of physical memory into virtual memory. The
+// multiboot structure and modules can extend past this 8MB boundary. The
 // SafeReadUint32/SafeReadUint64 functions make sure the physical memory is
-// temporarily mapped into virtual memory before reading it. This only works if
-// the values are sure not to cross the 2MB page boundaries (which they
-// shouldn't).
+// temporarily mapped into virtual memory before reading it.
 uint32 SafeReadUint32(uint32 *value) {
-  return *(volatile uint32 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value,
-                                                                 0);
+  return *(volatile uint32 *)TemporarilyMapPhysicalMemoryPreVirtualMemory(
+      (size_t)value, kPreVmReadTempMappingIndex);
 }
 
 // 64-bit equivalent to SafeReadUint32.
 uint64 SafeReadUint64(uint64 *value) {
-  return *(volatile uint64 *)TemporarilyMapPhysicalMemoryPreVirtualMemory((size_t)value,
-                                                                 0);
+  return *(volatile uint64 *)TemporarilyMapPhysicalMemoryPreVirtualMemory(
+      (size_t)value, kPreVmReadTempMappingIndex);
 }
 
-// Calculates the start of the free memory at boot.
+// Calculates the start of the free kernel memory at boot and records physical
+// ranges occupied by the Multiboot2 tag buffer and modules.
 void CalculateStartOfFreeMemoryAtBoot() {
-  g_start_of_free_memory_at_boot = (size_t)&bssEnd;
+  g_start_of_free_memory_at_boot =
+      RoundUpToPageAlignedAddress((size_t)&bssEnd);
+  g_reserved_boot_range_count = 0;
 
   uint32 mb_addr = SafeReadUint32(&MultibootInfo.addr);
   uint32 mb_total_size = SafeReadUint32((uint32 *)mb_addr);
-  if ((size_t)mb_addr + mb_total_size > g_start_of_free_memory_at_boot)
-    g_start_of_free_memory_at_boot = (size_t)mb_addr + mb_total_size;
+  g_multiboot_header_phys_start = mb_addr;
+  g_multiboot_header_phys_end = (size_t)mb_addr + mb_total_size;
+  AddReservedBootRange(g_multiboot_header_phys_start,
+                       g_multiboot_header_phys_end);
 
-  // Loop through each of the tags in the multiboot.
+  // Loop through each of the tags in the multiboot header.
   multiboot_tag *tag;
   for (tag = (multiboot_tag *)(size_t)(mb_addr + 8);
        SafeReadUint32(&tag->type) != MULTIBOOT_TAG_TYPE_END;
        tag =
            (multiboot_tag *)((size_t)tag +
                              (size_t)((SafeReadUint32(&tag->size) + 7) & ~7))) {
-    // Make sure there's enough space for this tag.
-    size_t tag_end = (size_t)tag + SafeReadUint32(&tag->size);
-    if (tag_end > g_start_of_free_memory_at_boot)
-      g_start_of_free_memory_at_boot = tag_end;
+    uint32 size = SafeReadUint32(&tag->size);
+    if (size == 0) break;
 
     if (SafeReadUint32(&tag->type) == MULTIBOOT_TAG_TYPE_MODULE) {
       auto *module_tag = (multiboot_tag_module *)tag;
       uint32 mod_start = SafeReadUint32(&module_tag->mod_start);
       uint32 mod_end = SafeReadUint32(&module_tag->mod_end);
-
-      // If this is a multiboot module, ensure enough space to fit it.
-      if (mod_end > g_start_of_free_memory_at_boot)
-        g_start_of_free_memory_at_boot = mod_end;
+      AddReservedBootRange(mod_start, mod_end);
     }
   }
-
-  size_t end_tag_end = (size_t)tag + 8;
-  if (end_tag_end > g_start_of_free_memory_at_boot)
-    g_start_of_free_memory_at_boot = end_tag_end;
-
-  g_start_of_free_memory_at_boot =
-      RoundUpToPageAlignedAddress(g_start_of_free_memory_at_boot);
 }
 
 }  // namespace
@@ -111,9 +166,7 @@ size_t g_total_system_memory;
 // The total number of free pages.
 size_t g_free_pages;
 
-// The end of multiboot memory. This is memory that is temporarily reserved to
-// hold the multiboot information put there by the bootloader, and will be
-// released after calling DoneWithMultibootMemory.
+// The end of kernel binary memory at boot.
 size_t g_start_of_free_memory_at_boot;
 
 void InitializePhysicalAllocator() {
@@ -122,12 +175,8 @@ void InitializePhysicalAllocator() {
   CalculateStartOfFreeMemoryAtBoot();
 
   // Initialize the stack to kOutOfPhysicalPages, then pages will be pushed
-  // onto the stack As
+  // onto the stack.
   g_next_free_page_address = kOutOfPhysicalPages;
-
-  // The multiboot bootloader (GRUB) already did the hard work of asking the
-  // BIOS what physical memory is available. The bootloader puts this
-  // information into the multiboot header.
 
   // Loop through each of the tags in the multiboot.
   multiboot_tag *tag;
@@ -137,10 +186,6 @@ void InitializePhysicalAllocator() {
            (multiboot_tag *)((size_t)tag +
                              (size_t)((SafeReadUint32(&tag->size) + 7) & ~7))) {
     uint32 size = SafeReadUint32(&tag->size);
-    // If a tag has size 0 (invalid) and is not the END tag, it implies a
-    // corrupted multiboot structure or an issue with SafeReadUint32.
-    // Continuing to parse with size 0 would lead to an infinite loop in tag
-    // advancement.
     if (size == 0 && SafeReadUint32(&tag->type) != MULTIBOOT_TAG_TYPE_END) {
       print << "Error: Multiboot tag with size 0 encountered at "
             << NumberFormat::Hexidecimal << (size_t)tag
@@ -162,28 +207,24 @@ void InitializePhysicalAllocator() {
         uint64 len = SafeReadUint64(&mmap->len);
 
         if (SafeReadUint32(&mmap->type) == MULTIBOOT_MEMORY_AVAILABLE) {
-          // This memory is avaliable for usage (in contrast to memory that is
-          // reserved, dead, etc.)
-
           size_t start = SafeReadUint64(&mmap->addr);
           size_t end = RoundDownToPageAlignedAddress(start + len);
 
-          // Make sure this is free memory past the kernel.
+          // Make sure this is free memory past the kernel binary.
           if (start < g_start_of_free_memory_at_boot)
             start = g_start_of_free_memory_at_boot;
 
           start = RoundUpToPageAlignedAddress(start);
 
-          // Now divide this memory up into pages and iterate through
-          // them.
+          // Divide this memory up into pages and iterate through them.
           size_t page_addr;
           for (page_addr = start; page_addr < end; page_addr += kPageSize) {
-            // Push this page onto the linked stack.
+            if (IsPageInReservedBootRange(page_addr)) continue;
 
-            // Map this physical memory, so can write the previous stack page to
-            // it.
+            // Map this physical memory, so the previous stack page can be
+            // written to it.
             size_t *bp = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(
-                page_addr, 0);
+                page_addr, kPreVmTempMappingIndex);
 
             // Write the previous stack head to the start of this page.
             *bp = g_next_free_page_address;
@@ -200,21 +241,24 @@ void InitializePhysicalAllocator() {
 }
 
 void DoneWithMultibootMemory() {
-  // Frees the memory pages between the end of kernel memory
-  size_t end_of_kernel_memory = (size_t)&bssEnd;
-  size_t start = RoundUpToPageAlignedAddress(end_of_kernel_memory);
-  size_t end = g_start_of_free_memory_at_boot;
-
-  if (!IsPageAlignedAddress(start) || !IsPageAlignedAddress(end)) {
-    print << "DoneWithMultibootMemory not page aligned: "
-          << NumberFormat::Hexidecimal << start << " -> " << end << '\n';
+  if (g_multiboot_header_phys_end > g_multiboot_header_phys_start) {
+    FreePhysicalMemoryRange(g_multiboot_header_phys_start,
+                            g_multiboot_header_phys_end);
+    g_multiboot_header_phys_start = 0;
+    g_multiboot_header_phys_end = 0;
   }
+  g_reserved_boot_range_count = 0;
+}
 
+void FreePhysicalMemoryRange(size_t phys_start, size_t phys_end) {
+  if (phys_end <= phys_start) return;
+  RemoveReservedBootRange(phys_start, phys_end);
+  size_t start = RoundDownToPageAlignedAddress(phys_start);
+  size_t end = RoundUpToPageAlignedAddress(phys_end);
   for (size_t page = start; page < end; page += kPageSize) {
-    KernelAddressSpace().FreePages(page + kVirtualMemoryOffset, 1);
-    // FreePages adds these to the free list, but they were never counted while
-    // walking the multiboot memory map, so without this the reported free
-    // memory can exceed the reported total.
+    if (page < g_start_of_free_memory_at_boot) continue;
+    if (IsPageInReservedBootRange(page)) continue;
+    FreePhysicalPage(page);
     __atomic_fetch_add(&g_total_system_memory, kPageSize, __ATOMIC_RELAXED);
   }
 }
@@ -228,8 +272,10 @@ size_t GetPhysicalPagePreVirtualMemory() {
   size_t addr = PageAddressOfStackEntry(g_next_free_page_address);
   // Pop it from the stack by mapping the page to physical memory so the
   // pointer to the next free page can be grabbed.
-  size_t *bp = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(addr, 0);
+  size_t *bp = (size_t *)TemporarilyMapPhysicalMemoryPreVirtualMemory(
+      addr, kPreVmTempMappingIndex);
   g_next_free_page_address = *bp;
+  memset(bp, 0, kPageSize);
 
   g_free_pages--;
 
@@ -316,9 +362,10 @@ void FreePhysicalPage(size_t addr) {
 
   // Mask off flags, status bits (e.g. Bit 63), and alignment bits.
   addr &= kPhysicalAddressMask & ~(kPageSize - 1);
-  if (addr == 0) return;
+  if (addr < g_start_of_free_memory_at_boot) return;
 
   InterruptSafeSpinlockGuard guard(g_physical_allocator_spinlock);
+  if (addr == g_next_free_page_address) return;
 
   // Push this page onto the linked stack.
 

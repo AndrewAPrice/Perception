@@ -90,40 +90,46 @@ bool IsValidElfHeader(const Elf64_Ehdr* header, size_t file_size) {
 }
 
 // Figures out the number of segments in the binary.
-size_t GetNumberOfSegments(const Elf64_Ehdr* header, size_t memory_start,
+size_t GetNumberOfSegments(const Elf64_Ehdr& header, size_t memory_start,
                            size_t memory_end) {
-  if (header == nullptr) return 0;
-  if (header->e_phnum == PN_XNUM) {
+  if (header.e_phnum == PN_XNUM) {
     // The number of program headers is too large to fit into e_phnum. Instead,
     // it's found in the field sh_info of section 0.
-    Elf64_Shdr* section_header = (Elf64_Shdr*)(memory_start + header->e_shoff);
-    if ((size_t)section_header + sizeof(Elf64_Shdr) > memory_end) {
+    size_t shdr_phys = memory_start + header.e_shoff;
+    if (shdr_phys + sizeof(Elf64_Shdr) > memory_end ||
+        shdr_phys < memory_start) {
       print << "ELF not big enough for section.\n";
       return 0;
     }
 
-    return section_header->sh_info;
+    Elf64_Shdr section_header;
+    memory::ReadPhysicalMemory(shdr_phys, &section_header, sizeof(Elf64_Shdr));
+    return section_header.sh_info;
   } else {
-    return header->e_phnum;
+    return header.e_phnum;
   }
 }
+
 // Returns whether the ELF executable requires dynamic linking.
-bool RequiresDynamicLinking(const Elf64_Ehdr* header, size_t memory_start,
+bool RequiresDynamicLinking(const Elf64_Ehdr& header, size_t memory_start,
                             size_t memory_end) {
   // Figure out the number of segments in the binary.
   size_t number_of_segments =
       GetNumberOfSegments(header, memory_start, memory_end);
 
   // Loop through the segments to see if there is a dynamic section.
-  Elf64_Phdr* segment_header = (Elf64_Phdr*)(memory_start + header->e_phoff);
-  for (int i = 0; i < number_of_segments; i++, segment_header++) {
-    if ((size_t)segment_header + sizeof(Elf64_Phdr) > memory_end) {
+  for (size_t i = 0; i < number_of_segments; i++) {
+    size_t phdr_phys = memory_start + header.e_phoff + i * sizeof(Elf64_Phdr);
+    if (phdr_phys + sizeof(Elf64_Phdr) > memory_end ||
+        phdr_phys < memory_start) {
       print << "ELF not big enough for segment.\n";
       return false;
     }
 
-    if (segment_header->p_type == PT_DYNAMIC) {
-      // Found a dynamical section, which means the binary requires dynamic
+    Elf64_Phdr segment_header;
+    memory::ReadPhysicalMemory(phdr_phys, &segment_header, sizeof(Elf64_Phdr));
+    if (segment_header.p_type == PT_DYNAMIC) {
+      // Found a dynamic section, which means the binary requires dynamic
       // linking.
       return true;
     }
@@ -131,45 +137,48 @@ bool RequiresDynamicLinking(const Elf64_Ehdr* header, size_t memory_start,
   return false;
 }
 
-bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
+bool LoadSegments(const Elf64_Ehdr& header, size_t memory_start,
                   size_t memory_end, Process* process) {
   // Figure out the number of segments in the binary.
   size_t number_of_segments =
       GetNumberOfSegments(header, memory_start, memory_end);
 
   // Load the segments.
-  Elf64_Phdr* segment_header = (Elf64_Phdr*)(memory_start + header->e_phoff);
-  for (int i = 0; i < number_of_segments; i++, segment_header++) {
-    if ((size_t)segment_header + sizeof(Elf64_Phdr) > memory_end) {
+  for (size_t i = 0; i < number_of_segments; i++) {
+    size_t phdr_phys = memory_start + header.e_phoff + i * sizeof(Elf64_Phdr);
+    if (phdr_phys + sizeof(Elf64_Phdr) > memory_end ||
+        phdr_phys < memory_start) {
       print << "ELF not big enough for segment.\n";
       return false;
     }
 
-    if (segment_header->p_type != PT_LOAD)
+    Elf64_Phdr segment_header;
+    memory::ReadPhysicalMemory(phdr_phys, &segment_header, sizeof(Elf64_Phdr));
+    if (segment_header.p_type != PT_LOAD)
       continue;
 
     // Validate memory size and virtual address range
-    if (segment_header->p_vaddr >= kVirtualMemoryOffset ||
-        segment_header->p_memsz > kVirtualMemoryOffset ||
-        segment_header->p_vaddr + segment_header->p_memsz >
+    if (segment_header.p_vaddr >= kVirtualMemoryOffset ||
+        segment_header.p_memsz > kVirtualMemoryOffset ||
+        segment_header.p_vaddr + segment_header.p_memsz >
             kVirtualMemoryOffset ||
-        segment_header->p_vaddr + segment_header->p_memsz <
-            segment_header->p_vaddr) {
+        segment_header.p_vaddr + segment_header.p_memsz <
+            segment_header.p_vaddr) {
       print << "Trying to load data into kernel memory or invalid segment "
                "size.\n";
       return false;
     }
 
     // Validate that file size is not greater than memory size
-    if (segment_header->p_filesz > segment_header->p_memsz) {
+    if (segment_header.p_filesz > segment_header.p_memsz) {
       print << "Segment file size is greater than memory size.\n";
       return false;
     }
 
-    if (segment_header->p_filesz > 0) {
+    if (segment_header.p_filesz > 0) {
       // There is data from the file to copy into memory.
-      size_t from_start = memory_start + segment_header->p_offset;
-      size_t from_size = segment_header->p_filesz;
+      size_t from_start = memory_start + segment_header.p_offset;
+      size_t from_size = segment_header.p_filesz;
 
       if (from_start + from_size > memory_end ||
           from_start + from_size < from_start) {
@@ -179,22 +188,22 @@ bool LoadSegments(const Elf64_Ehdr* header, size_t memory_start,
         return false;
       }
 
-      size_t to_address = segment_header->p_vaddr;
+      size_t to_address = segment_header.p_vaddr;
       size_t to_end = to_address + from_size;
-      // Copy the data from the file into memory.
-      if (!CopyKernelMemoryIntoProcess(from_start, to_address, to_end,
-                                       process))
+      // Copy the data from the file into memory via temporary page windows.
+      if (!memory::CopyPhysicalMemoryIntoProcess(from_start, to_address, to_end,
+                                                 process))
         return false;
     }
 
-    if (segment_header->p_memsz > segment_header->p_filesz) {
+    if (segment_header.p_memsz > segment_header.p_filesz) {
       // This is memory that takes up no space in the ELF file, but must
       // be initialized to 0 for the program.
 
       // Skip over any data that was copied.
-      size_t to_start = segment_header->p_vaddr + segment_header->p_filesz;
+      size_t to_start = segment_header.p_vaddr + segment_header.p_filesz;
       size_t to_end =
-          to_start + (segment_header->p_memsz - segment_header->p_filesz);
+          to_start + (segment_header.p_memsz - segment_header.p_filesz);
       if (!ZeroProcessMemory(to_start, to_end, process))
         return false;
     }
@@ -272,12 +281,14 @@ bool LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
     return true;
   }
 
-  if (memory_start + sizeof(Elf64_Ehdr) > memory_end) {
+  if (memory_start + sizeof(Elf64_Ehdr) > memory_end ||
+      memory_start + sizeof(Elf64_Ehdr) < memory_start) {
     return false;
   }
 
-  Elf64_Ehdr* header = (Elf64_Ehdr*)memory_start;
-  if (!IsValidElfHeader(header, memory_end - memory_start)) {
+  Elf64_Ehdr header;
+  memory::ReadPhysicalMemory(memory_start, &header, sizeof(Elf64_Ehdr));
+  if (!IsValidElfHeader(&header, memory_end - memory_start)) {
     // Not an ELF file. This is fine - this module can be sent to a process
     // later to see if it can handle it.
     return false;
@@ -311,27 +322,34 @@ bool LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
 #endif
 
   size_t phnum = GetNumberOfSegments(header, memory_start, memory_end);
-  size_t phent = header->e_phentsize;
+  size_t phent = header.e_phentsize;
   size_t phdr_addr = 0;
 
-  Elf64_Phdr* segment_header = (Elf64_Phdr*)(memory_start + header->e_phoff);
-  for (int i = 0; i < phnum; i++, segment_header++) {
-    if ((size_t)segment_header + sizeof(Elf64_Phdr) > memory_end) {
+  for (size_t i = 0; i < phnum; i++) {
+    size_t phdr_phys = memory_start + header.e_phoff + i * sizeof(Elf64_Phdr);
+    if (phdr_phys + sizeof(Elf64_Phdr) > memory_end ||
+        phdr_phys < memory_start) {
       break;
     }
-    if (segment_header->p_type == PT_PHDR) {
-      phdr_addr = segment_header->p_vaddr;
+    Elf64_Phdr segment_header;
+    memory::ReadPhysicalMemory(phdr_phys, &segment_header, sizeof(Elf64_Phdr));
+    if (segment_header.p_type == PT_PHDR) {
+      phdr_addr = segment_header.p_vaddr;
       break;
     }
   }
   if (phdr_addr == 0) {
-    segment_header = (Elf64_Phdr*)(memory_start + header->e_phoff);
-    for (int i = 0; i < phnum; i++, segment_header++) {
-      if ((size_t)segment_header + sizeof(Elf64_Phdr) > memory_end) {
+    for (size_t i = 0; i < phnum; i++) {
+      size_t phdr_phys = memory_start + header.e_phoff + i * sizeof(Elf64_Phdr);
+      if (phdr_phys + sizeof(Elf64_Phdr) > memory_end ||
+          phdr_phys < memory_start) {
         break;
       }
-      if (segment_header->p_type == PT_LOAD && segment_header->p_offset == 0) {
-        phdr_addr = segment_header->p_vaddr + header->e_phoff;
+      Elf64_Phdr segment_header;
+      memory::ReadPhysicalMemory(phdr_phys, &segment_header,
+                                 sizeof(Elf64_Phdr));
+      if (segment_header.p_type == PT_LOAD && segment_header.p_offset == 0) {
+        phdr_addr = segment_header.p_vaddr + header.e_phoff;
         break;
       }
     }
@@ -345,7 +363,7 @@ bool LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
 
   size_t args_address = CreateArgsPageForProcess(process, name, phdr_addr, phnum, phent);
 
-  Thread* thread = CreateThread(process, header->e_entry, args_address);
+  Thread* thread = CreateThread(process, header.e_entry, args_address);
   if (!thread) {
     print << "Can't load: " << name
           << ": Out of memory to create the thread.\n";

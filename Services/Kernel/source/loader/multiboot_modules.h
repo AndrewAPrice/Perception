@@ -34,6 +34,12 @@ constexpr size_t kModuleNameLength = kModuleNameWords * 8;
 bool ParseMultibootModuleName(char*& name, size_t& name_length, bool& is_driver,
                               bool& can_create_processes, bool& can_set_focus);
 
+// Maps the Multiboot2 info tag table into kernel virtual memory (if not already
+// mapped) and populates the physical base address, virtual base address, and
+// byte size of the table. Returns true on success.
+bool GetMappedMultibootHeader(size_t& physical_base, size_t& virtual_base,
+                              size_t& total_size);
+
 // Load the modules provided by the multiboot boot loader.
 void LoadMultibootModules();
 
@@ -49,6 +55,10 @@ void LoadNextMultibootModuleIntoProcess(processes::Process* process,
 
 // Whether there are still remaining unloaded multiboot modules.
 bool HasRemainingUnloadedMultibootModules();
+
+// Releases the virtual address space mapping for the Multiboot2 header,
+// resets multiboot tracking variables, and frees physical multiboot memory.
+void ReleaseMultibootHeaderAndMemory();
 
 }  // namespace loader
 

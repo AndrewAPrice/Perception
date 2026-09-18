@@ -16,12 +16,10 @@
 #include "output/framebuffer.h"
 
 #include "../../../third_party/multiboot2.h"
+#include "loader/multiboot_modules.h"
 #include "output/text_terminal.h"
-#include "memory/virtual_allocator.h"
 
 namespace output {
-
-using memory::kVirtualMemoryOffset;
 
 namespace {
 
@@ -53,17 +51,18 @@ void MaybeLoadFramebuffer() {
   g_framebuffer_pitch = 0;
   g_framebuffer_bits_per_pixel = 0;
 
-  // Now in higher half memory, so kVirtualMemoryOffset must be added.
-  multiboot_info* higher_half_multiboot_info =
-      (multiboot_info*)((size_t)&MultibootInfo + kVirtualMemoryOffset);
+  size_t multiboot_phys = 0;
+  size_t multiboot_address = 0;
+  size_t multiboot_total_size = 0;
+  if (!loader::GetMappedMultibootHeader(multiboot_phys, multiboot_address,
+                                        multiboot_total_size)) {
+    return;
+  }
 
-  size_t multiboot_address =
-      higher_half_multiboot_info->addr + kVirtualMemoryOffset;
-  size_t multiboot_end = multiboot_address + *(uint32*)multiboot_address;
+  size_t multiboot_end = multiboot_address + multiboot_total_size;
 
   // Loop through the multiboot sections.
-  for (multiboot_tag* tag = (multiboot_tag*)(size_t)(higher_half_multiboot_info->addr + 8 +
-                                      kVirtualMemoryOffset);
+  for (multiboot_tag* tag = (multiboot_tag*)(multiboot_address + 8);
        tag != nullptr && (size_t)tag + sizeof(multiboot_tag) <= multiboot_end &&
        tag->type != MULTIBOOT_TAG_TYPE_END;
        tag = (tag->size < 8) ? nullptr : (multiboot_tag*)((size_t)tag + (size_t)((tag->size + 7) & ~7))) {

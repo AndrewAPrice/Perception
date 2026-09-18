@@ -61,6 +61,10 @@ size_t GetPhysicalPageAtOrBelowAddress(size_t max_base_address);
 // Frees a physical page.
 void FreePhysicalPage(size_t addr);
 
+// Frees a range of reserved boot physical pages [phys_start, phys_end) and
+// counts them toward total system memory.
+void FreePhysicalMemoryRange(size_t phys_start, size_t phys_end);
+
 // Returns whether an address is the start of a memory page.
 bool IsPageAlignedAddress(size_t address);
 

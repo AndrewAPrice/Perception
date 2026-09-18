@@ -57,6 +57,14 @@ bool IsKernelAddress(size_t address) {
 
 namespace {
 
+// Per-core temporary mapping slot used to map source physical pages while
+// copying into a destination process page (which uses slot 5).
+constexpr size_t kSourcePhysicalTempSlot = 4;
+
+// Per-core temporary mapping slot used to map destination process physical
+// pages.
+constexpr size_t kDestProcessTempSlot = 5;
+
 // Iterates over process memory pages covering [to_start, to_end), mapping each
 // page and passing the mapped virtual buffer and span length to `op`.
 template <typename PageOp>
@@ -81,8 +89,8 @@ bool ForEachProcessMemorySpan(size_t to_start, size_t to_end, Process *process,
     if (physical_page_address == kOutOfMemory)
       return false;
 
-    size_t temp_addr =
-        (size_t)TemporarilyMapPhysicalPages(physical_page_address, 5);
+    size_t temp_addr = (size_t)TemporarilyMapPhysicalPages(
+        physical_page_address, kDestProcessTempSlot);
 
     size_t offset_in_page_to_start =
         to_start > to_page ? to_start - to_page : 0;
@@ -98,12 +106,45 @@ bool ForEachProcessMemorySpan(size_t to_start, size_t to_end, Process *process,
 
 }  // namespace
 
+bool ReadPhysicalMemory(size_t physical_address, void* dest, size_t count) {
+#ifdef TEST
+  memcpy(dest, reinterpret_cast<const void*>(physical_address), count);
+  return true;
+#else
+  char* out = static_cast<char*>(dest);
+  while (count > 0) {
+    size_t page_phys = RoundDownToPageAlignedAddress(physical_address);
+    size_t offset_in_page = physical_address - page_phys;
+    size_t chunk = kPageSize - offset_in_page;
+    if (chunk > count) chunk = count;
+
+    const char* mapped = static_cast<const char*>(
+        TemporarilyMapPhysicalPages(page_phys, kSourcePhysicalTempSlot));
+    memcpy(out, mapped + offset_in_page, chunk);
+
+    physical_address += chunk;
+    out += chunk;
+    count -= chunk;
+  }
+  return true;
+#endif
+}
+
 bool CopyKernelMemoryIntoProcess(size_t from_start, size_t to_start,
                                  size_t to_end, Process *process) {
   return ForEachProcessMemorySpan(
       to_start, to_end, process, [&](char *dest, size_t length) {
         memcpy(dest, (const char *)from_start, length);
         from_start += length;
+      });
+}
+
+bool CopyPhysicalMemoryIntoProcess(size_t from_physical_start, size_t to_start,
+                                   size_t to_end, Process *process) {
+  return ForEachProcessMemorySpan(
+      to_start, to_end, process, [&](char *dest, size_t length) {
+        ReadPhysicalMemory(from_physical_start, dest, length);
+        from_physical_start += length;
       });
 }
 

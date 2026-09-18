@@ -48,9 +48,18 @@ void Clear(T &object) {
 // Returns whether the provided address lives within kernel space.
 bool IsKernelAddress(size_t address);
 
+// Reads `count` bytes starting at `physical_address` into `dest` using a
+// temporary page window.
+bool ReadPhysicalMemory(size_t physical_address, void* dest, size_t count);
+
 // Copies data from the module into the process's memory.
 bool CopyKernelMemoryIntoProcess(size_t from_start, size_t to_start,
                                  size_t to_end, processes::Process *process);
+
+// Copies data from physical memory into the process's virtual memory using
+// temporary page windows.
+bool CopyPhysicalMemoryIntoProcess(size_t from_physical_start, size_t to_start,
+                                   size_t to_end, processes::Process *process);
 
 // Fills a range of memory in the process with zeroes.
 bool ZeroProcessMemory(size_t to_start, size_t to_end, processes::Process *process);

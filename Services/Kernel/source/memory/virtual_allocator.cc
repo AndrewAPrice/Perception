@@ -109,17 +109,24 @@ void* TemporarilyMapPhysicalMemoryPreVirtualMemory(
   size_t addr_offset = addr - addr_start;
   size_t entry = addr_start | 0x83;
 
-  // The virtual address of the temp page: 1GB - 2MB.
-  size_t temp_page_boot = 1022 * 1024 * 1024;
-  size_t virtual_address = temp_page_boot + addr_offset;
+  // Use a dedicated 2MB slot per index (Pd[505..511]) so concurrent page-table
+  // levels (index 0..3) and physical page allocation (index 5) never overwrite
+  // each other.
+  size_t slot = 511 - (index % 7);
+  size_t temp_page_boot = slot * (2 * 1024 * 1024);
 
-  // Check if it different to what is currently loaded.
+  // Check if it is different from what is currently loaded.
   volatile size_t* volatile_pd = (volatile size_t*)Pd;
-  if (volatile_pd[511] != entry) {
-    // Map this to the last page of the page directory set up at boot time.
-    volatile_pd[511] = entry;  // Flush the page table cache.
-    FlushVirtualPage(temp_page_boot);
+  if (volatile_pd[slot] != entry) {
+    // Map this to the selected page directory slot set up at boot time.
+    volatile_pd[slot] = entry;
+    size_t cr3;
+    __asm__ __volatile__("mov %%cr3, %0\n\tmov %0, %%cr3"
+                         : "=r"(cr3)
+                         :
+                         : "memory");
   }
+  FlushVirtualPage(temp_page_boot + addr_offset);
   __asm__ __volatile__("" : : : "memory");
 
   // Return a pointer to the virtual address of the requested physical memory.

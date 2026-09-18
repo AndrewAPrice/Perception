@@ -20,6 +20,7 @@
 #ifndef TEST
 #include "../../../third_party/multiboot2.h"
 #include "hardware/io.h"
+#include "loader/multiboot_modules.h"
 #include "memory/physical_allocator.h"
 #include "memory/virtual_address_space.h"
 #include "memory/virtual_allocator.h"
@@ -32,7 +33,6 @@ namespace hardware {
 using common::MemoryEquals;
 using memory::KernelAddressSpace;
 using memory::kPageSize;
-using memory::kVirtualMemoryOffset;
 using output::NumberFormat;
 using output::print;
 #endif
@@ -315,7 +315,7 @@ const AcpiTableHeader* MapAcpiTable(size_t phys_addr, size_t& mapped_pages,
 
 void UnmapAcpiTable(size_t mapped_base_virt, size_t mapped_pages) {
   if (mapped_base_virt != 0 && mapped_pages != 0)
-    KernelAddressSpace().FreePages(mapped_base_virt, mapped_pages);
+    KernelAddressSpace().ReleasePages(mapped_base_virt, mapped_pages);
 }
 
 size_t ScanMemoryForRsdp(size_t phys_start, size_t length) {
@@ -339,52 +339,53 @@ size_t ScanMemoryForRsdp(size_t phys_start, size_t length) {
     }
   }
 
-  KernelAddressSpace().FreePages(virt_base, pages);
+  KernelAddressSpace().ReleasePages(virt_base, pages);
   return found_phys;
 }
 
 size_t FindRsdpPhysicalAddress() {
   // Check Multiboot tags first.
-  multiboot_info* higher_half_multiboot_info =
-      reinterpret_cast<multiboot_info*>((size_t)&MultibootInfo +
-                                        kVirtualMemoryOffset);
+  size_t multiboot_phys = 0;
+  size_t multiboot_addr = 0;
+  size_t multiboot_total_size = 0;
+  if (loader::GetMappedMultibootHeader(multiboot_phys, multiboot_addr,
+                                       multiboot_total_size)) {
+    size_t multiboot_end = multiboot_addr + multiboot_total_size;
 
-  size_t multiboot_addr =
-      higher_half_multiboot_info->addr + kVirtualMemoryOffset;
-  size_t multiboot_total_size = *reinterpret_cast<uint32*>(multiboot_addr);
-  size_t multiboot_end = multiboot_addr + multiboot_total_size;
-
-  auto* tag = reinterpret_cast<multiboot_tag*>(multiboot_addr + 8);
-  for (; tag->type != MULTIBOOT_TAG_TYPE_END &&
-         reinterpret_cast<size_t>(tag) < multiboot_end;
-       tag = reinterpret_cast<multiboot_tag*>(reinterpret_cast<size_t>(tag) +
-                                              ((tag->size + 7) & ~7))) {
-    if (tag->size < 8) break;
-    if (tag->type == MULTIBOOT_TAG_TYPE_ACPI_NEW) {
-      const auto* acpi_tag =
-          reinterpret_cast<const multiboot_tag_new_acpi*>(tag);
-      const auto* rsdp =
-          reinterpret_cast<const AcpiRsdpExtendedDescriptor*>(acpi_tag->rsdp);
-      if (ValidateAcpiTableChecksum(rsdp, sizeof(AcpiRsdpDescriptor))) {
-        if (rsdp->first_part.revision >= 2) {
-          size_t rsdp_length = rsdp->length;
-          if (rsdp_length > sizeof(AcpiRsdpExtendedDescriptor))
-            rsdp_length = sizeof(AcpiRsdpExtendedDescriptor);
-          if (ValidateAcpiTableChecksum(rsdp, rsdp_length))
-            return reinterpret_cast<size_t>(acpi_tag->rsdp) -
-                   kVirtualMemoryOffset;
-        } else {
-          return reinterpret_cast<size_t>(acpi_tag->rsdp) -
-                 kVirtualMemoryOffset;
+    auto* tag = reinterpret_cast<multiboot_tag*>(multiboot_addr + 8);
+    for (; tag->type != MULTIBOOT_TAG_TYPE_END &&
+           reinterpret_cast<size_t>(tag) < multiboot_end;
+         tag = reinterpret_cast<multiboot_tag*>(reinterpret_cast<size_t>(tag) +
+                                                ((tag->size + 7) & ~7))) {
+      if (tag->size < 8) break;
+      if (tag->type == MULTIBOOT_TAG_TYPE_ACPI_NEW) {
+        const auto* acpi_tag =
+            reinterpret_cast<const multiboot_tag_new_acpi*>(tag);
+        const auto* rsdp =
+            reinterpret_cast<const AcpiRsdpExtendedDescriptor*>(acpi_tag->rsdp);
+        if (ValidateAcpiTableChecksum(rsdp, sizeof(AcpiRsdpDescriptor))) {
+          size_t rsdp_phys =
+              (reinterpret_cast<size_t>(acpi_tag->rsdp) - multiboot_addr) +
+              multiboot_phys;
+          if (rsdp->first_part.revision >= 2) {
+            size_t rsdp_length = rsdp->length;
+            if (rsdp_length > sizeof(AcpiRsdpExtendedDescriptor))
+              rsdp_length = sizeof(AcpiRsdpExtendedDescriptor);
+            if (ValidateAcpiTableChecksum(rsdp, rsdp_length)) return rsdp_phys;
+          } else {
+            return rsdp_phys;
+          }
+        }
+      } else if (tag->type == MULTIBOOT_TAG_TYPE_ACPI_OLD) {
+        const auto* acpi_tag =
+            reinterpret_cast<const multiboot_tag_old_acpi*>(tag);
+        const auto* rsdp =
+            reinterpret_cast<const AcpiRsdpDescriptor*>(acpi_tag->rsdp);
+        if (ValidateAcpiTableChecksum(rsdp, sizeof(AcpiRsdpDescriptor))) {
+          return (reinterpret_cast<size_t>(acpi_tag->rsdp) - multiboot_addr) +
+                 multiboot_phys;
         }
       }
-    } else if (tag->type == MULTIBOOT_TAG_TYPE_ACPI_OLD) {
-      const auto* acpi_tag =
-          reinterpret_cast<const multiboot_tag_old_acpi*>(tag);
-      const auto* rsdp =
-          reinterpret_cast<const AcpiRsdpDescriptor*>(acpi_tag->rsdp);
-      if (ValidateAcpiTableChecksum(rsdp, sizeof(AcpiRsdpDescriptor)))
-        return reinterpret_cast<size_t>(acpi_tag->rsdp) - kVirtualMemoryOffset;
     }
   }
 
@@ -393,7 +394,7 @@ size_t FindRsdpPhysicalAddress() {
   if (page0 != kOutOfMemory) {
     uint16 ebda_seg =
         *reinterpret_cast<const uint16*>(page0 + kEbdaSegmentPointerPhys);
-    KernelAddressSpace().FreePages(page0, 1);
+    KernelAddressSpace().ReleasePages(page0, 1);
     size_t ebda_phys = static_cast<size_t>(ebda_seg) << 4;
     if (ebda_phys != 0 && ebda_phys < 0x100000) {
       size_t found = ScanMemoryForRsdp(ebda_phys, 1024);
