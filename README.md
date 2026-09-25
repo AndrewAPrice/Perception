@@ -4,18 +4,29 @@ Perception is a hobby operating system. It is a [x86-64](https://en.wikipedia.or
 
 [The kernel](Services/Kernel/README.md) is written in C++. I use [a custom build system](Build/README.md). I provide a C++ runtime for libraries, services, drivers, and programs.
 
+## Screenshots
+
+### Assortment of Applications
+![Assortment of Applications](Screenshots/screenshot.png)
+
+### UI Debugger
+![UI Debugger](Screenshots/screenshot-2.png)
+
+### MusicBox
+![MusicBox](Screenshots/screenshot-3.png)
+
 ## Features
 
-* A x86-64 native microkernel.
-* Full C/C++ standard library support.
-* Processes can discover and register services and send RPCs to one another.
-* Mounting ISO 9660 disks and reading files.
-* Basic hardware support (PS/2 keyboard, IDE storage, Multiboot framebuffer and Virtio graphics, Virtio network).
-* A window manager, custom C++ UI framework, and an interactive UI debugger.
-* Launching userland applications.
-* There's a permissions system (e.g. "Allow File Manger to launch applications?") and a registry with an editor.
-* Some simple applications like File Manager, Calculator, and Image Viewer.
-* Some simple games (2048, Minesweeper, Snake).
+* **Microkernel Architecture & IPC**: Native x86-64 microkernel (minimal kernel with services and drivers in userland), preemptive multithreading, serializable C++ objects for RPCs, shared-memory IPC, and dynamic service registration and discovery.
+* **C/C++ Runtime**: Full C and C++ standard libary support, dynamic shared libraries, and a fiber/event framework.
+* **Hardware Drivers**: AHCI (SATA) and IDE storage controllers, Intel High Definition Audio (HDA), PS/2 keyboard and mouse, Virtio devices (GPU, Network, mouse, and tablet), CMOS real-time clock, and Multiboot framebuffer.
+* **Storage & File Systems**: GPT and MBR partition table discovery, exFAT read/write filesystem, ISO 9660 CD-ROM, RAMDisk overlay filesystem.
+* **Networking Stack**: TCP/IP stack (IPv4, TCP, UDP, DHCP client, DNS resolver), BearSSL TLS/HTTPS, and libcurl.
+* **Desktop & Window Management**: Compositing window manager with damage-tracking quadtree, multi-window management, toast notifications, mouse and tablet pointer support, and clipboard service.
+* **Perception UI Framework**: Declarative C++ GUI framework powered by Flexbox layout (Facebook Yoga), rich widget set (Tree View, Table, Markdown renderer, Color Picker, File Dialogs), and TrueType/OpenType font rendering (FreeType & HarfBuzz).
+* **Graphics & Audio**: Mesa 3D OpenGL software rasterization (Gallium), SDL2 platform backends (SDL_mixer, SDL_image, SDL_sound), OpenAL Soft, and low-latency audio mixing.
+* **Security & Permissions**: Fine-grained capability permissions model with interactive user prompts (e.g., launching programs, accessing storage, network, or audio), and hierarchical system registry with settings editor.
+* **Loaded with Applications**: Many first party and third party.
 
 ## Building and running
 See [building.md](building.md). Perception has only been tested in [QEMU](https://www.qemu.org/). It outputs debugging text via COM1.
