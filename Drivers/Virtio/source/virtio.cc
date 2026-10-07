@@ -33,7 +33,6 @@ constexpr uint8 kPciConfigInterruptLineOffset = 0x3C;
 constexpr uint8 kByteMask = 0xFF;
 constexpr int kBitsPerByte = 8;
 constexpr uint8 kVirtioStatusReset = 0;
-constexpr uint32 kDefaultGuestFeatures = 0;
 
 }  // namespace
 
@@ -60,7 +59,7 @@ uint8 GetPciInterruptLine(const PciDevice& device) {
                                 kPciConfigInterruptLineOffset);
 }
 
-void ResetLegacyVirtioDevice(uint16 io_base) {
+uint32 ResetLegacyVirtioDevice(uint16 io_base, uint32 requested_features) {
   Write8BitsToPort(io_base + kVirtioPciStatus, kVirtioStatusReset);  // Reset
   Write8BitsToPort(io_base + kVirtioPciStatus,
                    Read8BitsFromPort(io_base + kVirtioPciStatus) |
@@ -69,9 +68,10 @@ void ResetLegacyVirtioDevice(uint16 io_base) {
                    Read8BitsFromPort(io_base + kVirtioPciStatus) |
                        kVirtioStatusDriver);  // DRIVER
 
-  // Negotiate features by reading host features and writing 0 to guest features
-  (void)Read32BitsFromPort(io_base + kVirtioPciHostFeatures);
-  Write32BitsToPort(io_base + kVirtioPciGuestFeatures, kDefaultGuestFeatures);
+  uint32 negotiated_features =
+      Read32BitsFromPort(io_base + kVirtioPciHostFeatures) & requested_features;
+  Write32BitsToPort(io_base + kVirtioPciGuestFeatures, negotiated_features);
+  return negotiated_features;
 }
 
 void SetVirtioDriverOk(uint16 io_base) {

@@ -49,6 +49,8 @@ struct QueueDetails {
   uint16 queue_index = 0;
   uint16 size = 0;
   void* mem = nullptr;
+  // Byte size of the contiguous ring memory starting at `mem`.
+  size_t mem_size = 0;
   size_t phys = 0;
   volatile VirtQueueDesc* desc = nullptr;
   volatile VirtQueueAvail* avail = nullptr;

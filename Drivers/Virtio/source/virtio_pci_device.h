@@ -42,7 +42,11 @@ class VirtioPciDevice {
 
   bool is_modern() const { return common_cfg_ != nullptr; }
 
-  void Reset();
+  // Resets the device and performs the ACKNOWLEDGE/DRIVER handshake. On legacy
+  // devices, the subset of `legacy_features` offered by the host is
+  // negotiated and returned. Modern devices negotiate nothing here and return
+  // 0.
+  uint32 Reset(uint32 legacy_features = 0);
   void NegotiateFeatures(uint32 disable_features_mask = (1U << 29));
   void SetDriverOk();
 

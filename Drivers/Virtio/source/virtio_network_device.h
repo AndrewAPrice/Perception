@@ -14,6 +14,7 @@
 #pragma once
 
 #include <mutex>
+#include <string_view>
 
 #include "driver.h"
 #include "perception/devices/device_manager.h"
@@ -38,8 +39,24 @@ class VirtioNetworkDevice : public perception::devices::NetworkDevice::Server,
       const perception::devices::NetworkListener::Client& listener,
       perception::ProcessId sender) override;
 
+  // Programs the device's receive filter through the control virtqueue. A
+  // no-op returning OK when the device lacks VIRTIO_NET_F_CTRL_RX.
+  virtual Status SetMulticastFilter(
+      const perception::devices::MulticastFilter& filter,
+      perception::ProcessId sender) override;
+
  private:
   void HandleInterrupt();
+
+  // Sends a command on the control virtqueue and waits for the device to
+  // acknowledge it. Returns true if the device reported success. The caller
+  // must hold `ctrl_mutex_`.
+  bool SendControlCommand(uint8 command_class, uint8 command,
+                          std::string_view data);
+
+  // Sends a VIRTIO_NET_CTRL_RX on/off command. The caller must hold
+  // `ctrl_mutex_`.
+  bool SetRxMode(uint8 command, bool enabled);
 
   VirtioPciDevice virtio_pci_;
   uint8 mac_[6];
@@ -52,4 +69,14 @@ class VirtioNetworkDevice : public perception::devices::NetworkDevice::Server,
   // TX Queue details
   std::mutex tx_mutex_;
   QueueDetails tx_queue_;
+
+  // Whether VIRTIO_NET_F_CTRL_VQ and VIRTIO_NET_F_CTRL_RX were negotiated and
+  // the control virtqueue is ready.
+  bool has_ctrl_rx_ = false;
+
+  // Serializes use of the control virtqueue.
+  std::mutex ctrl_mutex_;
+
+  // Control virtqueue details.
+  QueueDetails ctrl_queue_;
 };

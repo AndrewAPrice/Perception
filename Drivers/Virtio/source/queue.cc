@@ -34,52 +34,172 @@ using ::perception::Write32BitsToPort;
 
 namespace {
 
+// Highest physical address below 4GB.
 constexpr size_t kMax32BitAddress = 0xFFFFFFFF;
+// Descriptor table entry byte size.
 constexpr size_t kDescTableEntrySize = 16;
+// Available ring header byte size.
 constexpr size_t kAvailRingHeaderSize = 6;
+// Available ring element byte size.
 constexpr size_t kAvailRingElementSize = 2;
+// Used ring header byte size.
 constexpr size_t kUsedRingHeaderSize = 6;
+// Used ring element byte size.
 constexpr size_t kUsedRingElementSize = 8;
+// Page offset bitmask.
 constexpr size_t kPageMask = 4095;
+// Queue select register offset in modern common config.
 constexpr size_t kCommonCfgQueueSelectOffset = 22;
+// Queue size register offset in modern common config.
 constexpr size_t kCommonCfgQueueSizeOffset = 24;
+// MSI-X vector register offset in modern common config.
 constexpr size_t kCommonCfgQueueMsixVectorOffset = 26;
+// Queue enable register offset in modern common config.
 constexpr size_t kCommonCfgQueueEnableOffset = 28;
+// Queue notify offset register offset in modern common config.
 constexpr size_t kCommonCfgQueueNotifyOffOffset = 30;
+// Queue descriptor table address register offset in modern common config.
 constexpr size_t kCommonCfgQueueDescOffset = 32;
+// Queue available ring address register offset in modern common config.
 constexpr size_t kCommonCfgQueueAvailOffset = 40;
+// Queue used ring address register offset in modern common config.
 constexpr size_t kCommonCfgQueueUsedOffset = 48;
+// Modern common config structure byte size.
 constexpr size_t kCommonCfgSize = 64;
+// Maximum single pages to search when freelist fragmentation prevents contiguous allocation.
+constexpr size_t kMaxSearchPages = 128;
+
+struct PageEntry {
+  void* virt;
+  size_t phys;
+};
+
+bool IsAscendingContiguous(void* virt_addr, size_t pages, size_t base_phys) {
+  for (size_t i = 1; i < pages; i++) {
+    if (GetPhysicalAddressOfVirtualAddress((size_t)virt_addr + i * kPageSize) !=
+        base_phys + i * kPageSize)
+      return false;
+  }
+  return true;
+}
+
+bool IsDescendingContiguous(void* virt_addr, size_t pages, size_t base_phys) {
+  for (size_t i = 1; i < pages; i++) {
+    if (GetPhysicalAddressOfVirtualAddress((size_t)virt_addr + i * kPageSize) !=
+        base_phys - i * kPageSize)
+      return false;
+  }
+  return true;
+}
 
 }  // namespace
 
 void* AllocateContiguousMemoryPages(size_t pages, size_t& physical_address) {
   if (pages == 0) return nullptr;
-  int attempts = 32;
-  while (attempts-- > 0) {
-    void* virt_addr = AllocateMemoryPagesBelowPhysicalAddressBase(
-        pages, kMax32BitAddress, physical_address);
-    if (!virt_addr) return nullptr;
-    if (pages == 1) return virt_addr;
+  if (pages == 1)
+    return AllocateMemoryPagesBelowPhysicalAddressBase(1, kMax32BitAddress,
+                                                       physical_address);
 
-    size_t phys0 = GetPhysicalAddressOfVirtualAddress((size_t)virt_addr);
-    bool contiguous = true;
-    for (size_t i = 1; i < pages; i++) {
-      if (GetPhysicalAddressOfVirtualAddress(
-              (size_t)virt_addr + i * kPageSize) != phys0 + i * kPageSize) {
-        contiguous = false;
+  void* virt_addr = AllocateMemoryPagesBelowPhysicalAddressBase(
+      pages, kMax32BitAddress, physical_address);
+  if (!virt_addr) return nullptr;
+
+  size_t phys0 = GetPhysicalAddressOfVirtualAddress((size_t)virt_addr);
+  if (IsAscendingContiguous(virt_addr, pages, phys0)) {
+    physical_address = phys0;
+    return virt_addr;
+  }
+
+  if (IsDescendingContiguous(virt_addr, pages, phys0)) {
+    ReleaseMemoryPages(virt_addr, pages);
+    virt_addr = AllocateMemoryPagesBelowPhysicalAddressBase(
+        pages, kMax32BitAddress, physical_address);
+    if (virt_addr) {
+      phys0 = GetPhysicalAddressOfVirtualAddress((size_t)virt_addr);
+      if (IsAscendingContiguous(virt_addr, pages, phys0)) {
+        physical_address = phys0;
+        return virt_addr;
+      }
+      ReleaseMemoryPages(virt_addr, pages);
+    }
+  } else {
+    ReleaseMemoryPages(virt_addr, pages);
+  }
+
+  if (pages > kMaxSearchPages) return nullptr;
+
+  PageEntry allocated[kMaxSearchPages];
+  size_t allocated_count = 0;
+  void* result = nullptr;
+
+  while (allocated_count < kMaxSearchPages) {
+    size_t single_phys = 0;
+    void* single_virt = AllocateMemoryPagesBelowPhysicalAddressBase(
+        1, kMax32BitAddress, single_phys);
+    if (!single_virt) break;
+
+    size_t insert_index = allocated_count;
+    while (insert_index > 0 &&
+           allocated[insert_index - 1].phys > single_phys) {
+      allocated[insert_index] = allocated[insert_index - 1];
+      insert_index--;
+    }
+    allocated[insert_index].virt = single_virt;
+    allocated[insert_index].phys = single_phys;
+    allocated_count++;
+
+    if (allocated_count >= pages) {
+      size_t contiguous_run = 1;
+      size_t match_start_index = 0;
+      for (size_t index = 1; index < allocated_count; index++) {
+        if (allocated[index].phys ==
+            allocated[index - 1].phys + kPageSize) {
+          contiguous_run++;
+          if (contiguous_run == pages) {
+            match_start_index = index - pages + 1;
+            break;
+          }
+        } else {
+          contiguous_run = 1;
+        }
+      }
+
+      if (contiguous_run == pages) {
+        for (size_t offset = pages; offset > 0; offset--) {
+          ReleaseMemoryPages(allocated[match_start_index + offset - 1].virt, 1);
+        }
+
+        result = AllocateMemoryPagesBelowPhysicalAddressBase(
+            pages, kMax32BitAddress, physical_address);
+
+        for (size_t offset = 0; offset < allocated_count; offset++) {
+          if (offset < match_start_index ||
+              offset >= match_start_index + pages) {
+            ReleaseMemoryPages(allocated[offset].virt, 1);
+          }
+        }
+        allocated_count = 0;
+
+        if (result) {
+          size_t result_phys =
+              GetPhysicalAddressOfVirtualAddress((size_t)result);
+          if (IsAscendingContiguous(result, pages, result_phys)) {
+            physical_address = result_phys;
+            return result;
+          }
+          ReleaseMemoryPages(result, pages);
+          result = nullptr;
+        }
         break;
       }
     }
-
-    if (contiguous) {
-      physical_address = phys0;
-      return virt_addr;
-    }
-
-    ReleaseMemoryPages(virt_addr, pages);
   }
-  return nullptr;
+
+  for (size_t index = 0; index < allocated_count; index++) {
+    ReleaseMemoryPages(allocated[index].virt, 1);
+  }
+
+  return result;
 }
 
 void QueueDetails::Setup(uint16 queue_idx, uint16 io_base) {
@@ -105,6 +225,7 @@ void QueueDetails::Setup(uint16 queue_idx, uint16 io_base) {
   size = qsize;
   queue_index = queue_idx;
   mem = virt_addr;
+  mem_size = pages * kPageSize;
   phys = physical_address;
   last_seen_used = 0;
   next_desc = 0;
@@ -147,6 +268,7 @@ void QueueDetails::SetupModern(uint16 queue_idx, volatile uint8* common_cfg) {
   size = qsize;
   queue_index = queue_idx;
   mem = desc_virt;
+  mem_size = kPageSize;
   phys = GetPhysicalAddressOfVirtualAddress((size_t)desc_virt);
   last_seen_used = 0;
   next_desc = 0;

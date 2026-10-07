@@ -175,12 +175,13 @@ bool VirtioPciDevice::Initialize(bool force_legacy) {
   return (common_cfg_ != nullptr || io_base_ != 0);
 }
 
-void VirtioPciDevice::Reset() {
+uint32 VirtioPciDevice::Reset(uint32 legacy_features) {
   if (common_cfg_ != nullptr) {
     common_cfg_[kCommonCfgDeviceStatusOffset] = kVirtioStatusReset;
   } else if (io_base_ != 0) {
-    ResetLegacyVirtioDevice(io_base_);
+    return ResetLegacyVirtioDevice(io_base_, legacy_features);
   }
+  return 0;
 }
 
 void VirtioPciDevice::NegotiateFeatures(uint32 disable_features_mask) {

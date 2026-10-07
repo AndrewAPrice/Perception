@@ -40,9 +40,9 @@ void EnableVirtioPciDevice(const perception::devices::PciDevice& device);
 // Reads IRQ line from offset 0x3C in PCI config space.
 uint8 GetPciInterruptLine(const perception::devices::PciDevice& device);
 
-// Performs VirtIO Legacy Reset & ACK/DRIVER handshake and clear modern feature
-// requests
-void ResetLegacyVirtioDevice(uint16 io_base);
+// Performs VirtIO Legacy Reset & ACK/DRIVER handshake and negotiates the subset
+// of `requested_features` offered by the host. Returns the negotiated features.
+uint32 ResetLegacyVirtioDevice(uint16 io_base, uint32 requested_features);
 
 // Sets DRIVER_OK status bit on legacy device.
 void SetVirtioDriverOk(uint16 io_base);
