@@ -23,10 +23,12 @@ extern "C" {
 #include "utils/nsurl.h"
 }
 
+#include "devtools.h"
 #include "perception/ui/components/input_box.h"
 #include "perception/ui/components/label.h"
 #include "perception/ui/components/scroll_bar.h"
 #include "perception/ui/components/tab_bar.h"
+#include "perception/ui/layout.h"
 #include "perception/ui/node.h"
 #include "window.h"
 
@@ -49,27 +51,32 @@ size_t active_tab_index = 0;
 void gui_quit();
 
 void UpdateTabBar() {
-  if (!global_tab_bar) return;
+  if (!global_tab_bar)
+    return;
 
   global_tab_bar->ClearTabs();
   for (size_t i = 0; i < open_tabs.size(); i++) {
     auto gw = open_tabs[i];
     std::string title = gw->GetTitle();
-    if (title.empty()) title = "New Tab";
-    global_tab_bar->AddTab(title);
+    if (title.empty())
+      title = "New Tab";
+    global_tab_bar->AddTab(title, true, gw->GetFavicon());
   }
-  global_tab_bar->SelectTab((int)active_tab_index);
+  global_tab_bar->SelectTab(static_cast<int>(active_tab_index));
 }
 
 void SwitchTab(size_t index) {
   NETSURF_LOCK;
-  if (index >= open_tabs.size()) return;
+  if (index >= open_tabs.size())
+    return;
 
   active_tab_index = index;
   auto active_gw = open_tabs[index];
 
-  viewport_container->RemoveChildren();
-  viewport_container->AddChild(active_gw->GetTabRootNode());
+  if (viewport_container) {
+    viewport_container->RemoveChildren();
+    viewport_container->AddChild(active_gw->GetTabRootNode());
+  }
 
   if (global_url_input && active_gw->GetBrowserWindow()) {
     struct nsurl* url = nullptr;
@@ -77,6 +84,7 @@ void SwitchTab(size_t index) {
         browser_window_get_url(active_gw->GetBrowserWindow(), true, &url);
     if (ret == NSERROR_OK && url) {
       global_url_input->SetText(nsurl_access(url));
+      nsurl_unref(url);
     }
   }
 
@@ -86,26 +94,33 @@ void SwitchTab(size_t index) {
   }
 
   UpdateTabBar();
-  if (global_ui_window) global_ui_window->Invalidate();
+  UpdateBrowserToolbar();
+  UpdateStatusBarBadges();
+  NotifyDevToolsTabChanged();
+  if (global_ui_window)
+    global_ui_window->Invalidate();
 }
 
 void CloseTab(size_t index) {
   NETSURF_LOCK;
-  if (index >= open_tabs.size()) return;
+  if (index >= open_tabs.size())
+    return;
   if (open_tabs.size() <= 1) {
     gui_quit();
     return;
   }
 
   Window* closed_gw = open_tabs[index];
-  if (closed_gw->GetBrowserWindow()) {
+  if (closed_gw->GetBrowserWindow())
     browser_window_destroy(closed_gw->GetBrowserWindow());
-  }
 }
 
 void HandleTabDestroyed(Window* gw) {
+  ClearConsoleMessagesForTab(gw, true);
+
   auto it = std::find(open_tabs.begin(), open_tabs.end(), gw);
-  if (it == open_tabs.end()) return;
+  if (it == open_tabs.end())
+    return;
 
   size_t index = std::distance(open_tabs.begin(), it);
   open_tabs.erase(it);
@@ -115,7 +130,9 @@ void HandleTabDestroyed(Window* gw) {
     return;
   }
 
-  if (active_tab_index >= open_tabs.size()) {
+  if (index < active_tab_index) {
+    active_tab_index--;
+  } else if (active_tab_index >= open_tabs.size()) {
     active_tab_index = open_tabs.size() - 1;
   } else if (active_tab_index == index) {
     active_tab_index = (index > 0) ? index - 1 : 0;
@@ -125,76 +142,97 @@ void HandleTabDestroyed(Window* gw) {
 }
 
 void UpdateScrollBars(Window* gw) {
-  if (!gw || !gw->GetContentNode()) return;
+  if (!gw || !gw->GetContentNode())
+    return;
 
-  int content_width = 0;
-  int content_height = 0;
+  int raw_content_width = 0;
+  int raw_content_height = 0;
   if (gw->GetBrowserWindow()) {
-    browser_window_get_extents(gw->GetBrowserWindow(), true, &content_width,
-                               &content_height);
+    browser_window_get_extents(gw->GetBrowserWindow(), true, &raw_content_width,
+                               &raw_content_height);
   }
 
   float viewport_width = gw->GetContentNode()->GetSize().width;
   float viewport_height = gw->GetContentNode()->GetSize().height;
 
-  if (viewport_width < 1.0f) viewport_width = 1.0f;
-  if (viewport_height < 1.0f) viewport_height = 1.0f;
+  if (viewport_width < 1.0f)
+    viewport_width = 1.0f;
+  if (viewport_height < 1.0f)
+    viewport_height = 1.0f;
 
-  if (content_width < (int)viewport_width) content_width = (int)viewport_width;
-  if (content_height < (int)viewport_height)
-    content_height = (int)viewport_height;
+  int compare_width =
+      std::max(static_cast<int>(viewport_width), gw->GetLastFormatWidth());
+  bool show_h = raw_content_width > compare_width;
+  bool show_v = raw_content_height > static_cast<int>(viewport_height);
+
+  if (gw->GetHorizontalScrollBarNode()) {
+    YGDisplay desired = show_h ? YGDisplayFlex : YGDisplayNone;
+    if (gw->GetHorizontalScrollBarNode()->GetLayout().GetDisplay() != desired)
+      gw->GetHorizontalScrollBarNode()->GetLayout().SetDisplay(desired);
+  }
+  if (gw->GetVerticalScrollBarNode()) {
+    YGDisplay desired = show_v ? YGDisplayFlex : YGDisplayNone;
+    if (gw->GetVerticalScrollBarNode()->GetLayout().GetDisplay() != desired)
+      gw->GetVerticalScrollBarNode()->GetLayout().SetDisplay(desired);
+  }
+
+  if (!show_h && gw->GetScroll().x != 0.0f) {
+    gw->GetScroll().x = 0.0f;
+    gw->GetPendingScroll().x = 0.0f;
+    gw->GetContentNode()->Invalidate();
+  }
+  if (!show_v && gw->GetScroll().y != 0.0f) {
+    gw->GetScroll().y = 0.0f;
+    gw->GetPendingScroll().y = 0.0f;
+    gw->GetContentNode()->Invalidate();
+  }
+
+  int effective_content_width =
+      std::max(raw_content_width, static_cast<int>(viewport_width));
+  int effective_content_height =
+      std::max(raw_content_height, static_cast<int>(viewport_height));
 
   if (gw->GetHorizontalScrollBar()) {
+    gw->GetHorizontalScrollBar()->SetAlwaysShowScrollBar(show_h);
     gw->GetHorizontalScrollBar()->SetValue(
-        0.0f, (float)content_width, (float)gw->GetScroll().x, viewport_width);
+        0.0f, static_cast<float>(effective_content_width),
+        static_cast<float>(gw->GetScroll().x), viewport_width);
   }
   if (gw->GetVerticalScrollBar()) {
+    gw->GetVerticalScrollBar()->SetAlwaysShowScrollBar(show_v);
     gw->GetVerticalScrollBar()->SetValue(
-        0.0f, (float)content_height, (float)gw->GetScroll().y,
-        viewport_height);
+        0.0f, static_cast<float>(effective_content_height),
+        static_cast<float>(gw->GetScroll().y), viewport_height);
   }
 }
 
-void AddTab(Window* gw) {
-  open_tabs.push_back(gw);
-}
+void AddTab(Window* gw) { open_tabs.push_back(gw); }
 
 void RemoveTab(Window* gw) {
   auto it = std::find(open_tabs.begin(), open_tabs.end(), gw);
-  if (it != open_tabs.end()) {
+  if (it != open_tabs.end())
     open_tabs.erase(it);
-  }
 }
 
-size_t GetTabCount() {
-  return open_tabs.size();
-}
+size_t GetTabCount() { return open_tabs.size(); }
 
 Window* GetTab(size_t index) {
-  if (index < open_tabs.size()) {
+  if (index < open_tabs.size())
     return open_tabs[index];
-  }
   return nullptr;
 }
 
 Window* GetActiveTab() {
-  if (active_tab_index < open_tabs.size()) {
+  if (active_tab_index < open_tabs.size())
     return open_tabs[active_tab_index];
-  }
   return nullptr;
 }
 
-size_t GetActiveTabIndex() {
-  return active_tab_index;
-}
+size_t GetActiveTabIndex() { return active_tab_index; }
 
-void SetActiveTabIndex(size_t index) {
-  active_tab_index = index;
-}
+void SetActiveTabIndex(size_t index) { active_tab_index = index; }
 
-const std::vector<Window*>& GetOpenTabs() {
-  return open_tabs;
-}
+const std::vector<Window*>& GetOpenTabs() { return open_tabs; }
 
 std::shared_ptr<::perception::ui::Node> GetGlobalUiWindow() {
   return global_ui_window;

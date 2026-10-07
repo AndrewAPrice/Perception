@@ -1,84 +1,97 @@
 {
-    "repositories": [
+  "repositories": [
+    {
+      "url": "https://github.com/netsurf-browser/libdom.git",
+      "type": "git",
+      "placeholder": "git"
+    }
+  ],
+  "operations": [
+    {
+      "operation": "copy",
+      "source": "${git}/src",
+      "destination": "source",
+      "recursive": true,
+      "replace": [
         {
-            "url": "https://github.com/netsurf-browser/libdom.git",
-            "type": "git",
-            "placeholder": "git"
+          "file": "source/core/document.c",
+          "replacements": [
+            [
+              "dom_exception _dom_document_set_quirks_mode(dom_document *doc,\n\t\tdom_document_quirks_mode quirks)\n{\n\tdoc->quirks = quirks;\n\treturn DOM_NO_ERR;\n}",
+              "dom_exception _dom_document_set_quirks_mode(dom_document *doc,\n\t\tdom_document_quirks_mode quirks)\n{\n\tdoc->quirks = quirks;\n\treturn DOM_NO_ERR;\n}\n\ndom_exception dom_document_reset_dispatching_mutation(struct dom_document *doc)\n{\n\tdoc->dispatching_mutation = 0;\n\treturn DOM_NO_ERR;\n}"
+            ]
+          ]
+        },
+        {
+          "file": "source/html/html_form_element.c",
+          "replacements": [
+            [
+              "/* Internal functions */\n\n/* Callback function to test whether certain node is a form control, see \n * src/html/html_collection.h for detail. */",
+              "/* Internal functions */\n\nstatic bool _dom_node_in_form(struct dom_node_internal *node,\n\t\tstruct dom_html_form_element *form)\n{\n\tstruct dom_node_internal *p;\n\tfor (p = node->parent; p != NULL; p = p->parent) {\n\t\tif (p == (struct dom_node_internal *) form)\n\t\t\treturn true;\n\t}\n\treturn false;\n}\n\n/* Callback function to test whether certain node is a form control, see \n * src/html/html_collection.h for detail. */"
+            ],
+            [
+              "        /* Form controls are INPUT TEXTAREA SELECT and BUTTON*/\n        if (dom_string_caseless_isequal(node->name,\n\t\t\t\t\tdoc->elements[DOM_HTML_ELEMENT_TYPE_INPUT]))\n\t\treturn ((dom_html_input_element *)node)->form == form;\n\tif (dom_string_caseless_isequal(node->name,\n\t\t\t\t\tdoc->elements[DOM_HTML_ELEMENT_TYPE_TEXTAREA]))\n\t\treturn ((dom_html_text_area_element *)node)->form == form;\n\tif (dom_string_caseless_isequal(node->name,\n\t\t\t\t\tdoc->elements[DOM_HTML_ELEMENT_TYPE_SELECT]))\n\t\treturn ((dom_html_select_element *)node)->form == form;\n\tif (dom_string_caseless_isequal(node->name,\n\t\t\t\t\tdoc->elements[DOM_HTML_ELEMENT_TYPE_BUTTON])) {\n\t\treturn ((dom_html_button_element *)node)->form == form;\n\t}",
+              "        /* Form controls are INPUT TEXTAREA SELECT and BUTTON*/\n        if (dom_string_caseless_isequal(node->name,\n\t\t\t\t\tdoc->elements[DOM_HTML_ELEMENT_TYPE_INPUT])) {\n\t\tif (((dom_html_input_element *)node)->form == form)\n\t\t\treturn true;\n\t\tif (((dom_html_input_element *)node)->form == NULL &&\n\t\t    _dom_node_in_form(node, form)) {\n\t\t\t_dom_html_input_element_set_form(\n\t\t\t\t(dom_html_input_element *)node, form);\n\t\t\treturn true;\n\t\t}\n\t\treturn false;\n\t}\n\tif (dom_string_caseless_isequal(node->name,\n\t\t\t\t\tdoc->elements[DOM_HTML_ELEMENT_TYPE_TEXTAREA])) {\n\t\tif (((dom_html_text_area_element *)node)->form == form)\n\t\t\treturn true;\n\t\tif (((dom_html_text_area_element *)node)->form == NULL &&\n\t\t    _dom_node_in_form(node, form)) {\n\t\t\t_dom_html_text_area_element_set_form(\n\t\t\t\t(dom_html_text_area_element *)node, form);\n\t\t\treturn true;\n\t\t}\n\t\treturn false;\n\t}\n\tif (dom_string_caseless_isequal(node->name,\n\t\t\t\t\tdoc->elements[DOM_HTML_ELEMENT_TYPE_SELECT])) {\n\t\tif (((dom_html_select_element *)node)->form == form)\n\t\t\treturn true;\n\t\tif (((dom_html_select_element *)node)->form == NULL &&\n\t\t    _dom_node_in_form(node, form)) {\n\t\t\t_dom_html_select_element_set_form(\n\t\t\t\t(dom_html_select_element *)node, form);\n\t\t\treturn true;\n\t\t}\n\t\treturn false;\n\t}\n\tif (dom_string_caseless_isequal(node->name,\n\t\t\t\t\tdoc->elements[DOM_HTML_ELEMENT_TYPE_BUTTON])) {\n\t\tif (((dom_html_button_element *)node)->form == form)\n\t\t\treturn true;\n\t\tif (((dom_html_button_element *)node)->form == NULL &&\n\t\t    _dom_node_in_form(node, form)) {\n\t\t\t_dom_html_button_element_set_form(\n\t\t\t\t(dom_html_button_element *)node, form);\n\t\t\treturn true;\n\t\t}\n\t\treturn false;\n\t}"
+            ]
+          ]
         }
-    ],
-    "operations": [
+      ]
+    },
+    {
+      "operation": "copy",
+      "source": "${git}/include/dom",
+      "destination": "public/dom",
+      "recursive": true,
+      "replace": [
         {
-            "operation": "copy",
-            "source": "${git}/src",
-            "destination": "source",
-            "recursive": true,
-            "replace": [
-                {
-                    "file": "source/core/document.c",
-                    "replacements": [
-                        [
-                            "dom_exception _dom_document_set_quirks_mode(dom_document *doc,\n\t\tdom_document_quirks_mode quirks)\n{\n\tdoc->quirks = quirks;\n\treturn DOM_NO_ERR;\n}",
-                            "dom_exception _dom_document_set_quirks_mode(dom_document *doc,\n\t\tdom_document_quirks_mode quirks)\n{\n\tdoc->quirks = quirks;\n\treturn DOM_NO_ERR;\n}\n\ndom_exception dom_document_reset_dispatching_mutation(struct dom_document *doc)\n{\n\tdoc->dispatching_mutation = 0;\n\treturn DOM_NO_ERR;\n}"
-                        ]
-                    ]
-                }
+          "file": "public/dom/core/document.h",
+          "replacements": [
+            [
+              "#define dom_document_set_quirks_mode(d, q) \\\n\tdom_document_set_quirks_mode((dom_document *) (d), (q))",
+              "#define dom_document_set_quirks_mode(d, q) \\\n\tdom_document_set_quirks_mode((dom_document *) (d), (q))\n\ndom_exception dom_document_reset_dispatching_mutation(struct dom_document *doc);"
             ]
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/include/dom",
-            "destination": "public/dom",
-            "recursive": true,
-            "replace": [
-                {
-                    "file": "public/dom/core/document.h",
-                    "replacements": [
-                        [
-                            "#define dom_document_set_quirks_mode(d, q) \\\n\tdom_document_set_quirks_mode((dom_document *) (d), (q))",
-                            "#define dom_document_set_quirks_mode(d, q) \\\n\tdom_document_set_quirks_mode((dom_document *) (d), (q))\n\ndom_exception dom_document_reset_dispatching_mutation(struct dom_document *doc);"
-                        ]
-                    ]
-                }
-            ]
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/bindings",
-            "destination": "public/dom/bindings",
-            "recursive": true
-        },
-        {
-            "operation": "copy",
-            "source": "${git}/bindings",
-            "destination": "source/bindings",
-            "recursive": true,
-            "replace": [
-                {
-                    "file": "source/bindings/hubbub/parser.c",
-                    "replacements": [
-                        [
-                            "void dom_hubbub_parser_destroy(dom_hubbub_parser *parser)\n{\n\thubbub_parser_destroy(parser->parser);\n\tparser->parser = NULL;",
-                            "void dom_hubbub_parser_destroy(dom_hubbub_parser *parser)\n{\n\tif (parser == NULL) return;\n\tif (parser->parser != NULL) {\n\t\thubbub_parser_destroy(parser->parser);\n\t\tparser->parser = NULL;\n\t}"
-                        ],
-                        [
-                            "dom_hubbub_error dom_hubbub_parser_parse_chunk(dom_hubbub_parser *parser,\n\t\tconst uint8_t *data, size_t len)\n{\n\thubbub_error err;\n\n\terr = hubbub_parser_parse_chunk(parser->parser, data, len);",
-                            "dom_hubbub_error dom_hubbub_parser_parse_chunk(dom_hubbub_parser *parser,\n\t\tconst uint8_t *data, size_t len)\n{\n\thubbub_error err;\n\n\tif (parser == NULL || parser->parser == NULL) return DOM_HUBBUB_OK;\n\n\terr = hubbub_parser_parse_chunk(parser->parser, data, len);"
-                        ],
-                        [
-                            "dom_hubbub_error dom_hubbub_parser_completed(dom_hubbub_parser *parser)\n{\n\thubbub_error err;\n\n\terr = hubbub_parser_completed(parser->parser);",
-                            "dom_hubbub_error dom_hubbub_parser_completed(dom_hubbub_parser *parser)\n{\n\thubbub_error err;\n\n\tif (parser == NULL || parser->parser == NULL) return DOM_HUBBUB_OK;\n\n\terr = hubbub_parser_completed(parser->parser);"
-                        ],
-                        [
-                            "const char *dom_hubbub_parser_get_encoding(dom_hubbub_parser *parser,\n\t\tdom_hubbub_encoding_source *source)\n{\n\t*source = parser->encoding_source;",
-                            "const char *dom_hubbub_parser_get_encoding(dom_hubbub_parser *parser,\n\t\tdom_hubbub_encoding_source *source)\n{\n\tif (parser == NULL) {\n\t\t*source = DOM_HUBBUB_ENCODING_SOURCE_DETECTED;\n\t\treturn \"Windows-1252\";\n\t}\n\n\t*source = parser->encoding_source;"
-                        ],
-                        [
-                            "dom_hubbub_error dom_hubbub_parser_pause(dom_hubbub_parser *parser, bool pause)\n{\n\thubbub_error err;\n\thubbub_parser_optparams params;\n\n\tparams.pause_parse = pause;",
-                            "dom_hubbub_error dom_hubbub_parser_pause(dom_hubbub_parser *parser, bool pause)\n{\n\thubbub_error err;\n\thubbub_parser_optparams params;\n\n\tif (parser == NULL || parser->parser == NULL) return DOM_HUBBUB_OK;\n\n\tparams.pause_parse = pause;"
-                        ]
-                    ]
-                }
-            ]
+          ]
         }
-    ]
+      ]
+    },
+    {
+      "operation": "copy",
+      "source": "${git}/bindings",
+      "destination": "public/dom/bindings",
+      "recursive": true
+    },
+    {
+      "operation": "copy",
+      "source": "${git}/bindings",
+      "destination": "source/bindings",
+      "recursive": true,
+      "replace": [
+        {
+          "file": "source/bindings/hubbub/parser.c",
+          "replacements": [
+            [
+              "void dom_hubbub_parser_destroy(dom_hubbub_parser *parser)\n{\n\thubbub_parser_destroy(parser->parser);\n\tparser->parser = NULL;",
+              "void dom_hubbub_parser_destroy(dom_hubbub_parser *parser)\n{\n\tif (parser == NULL) return;\n\tif (parser->parser != NULL) {\n\t\thubbub_parser_destroy(parser->parser);\n\t\tparser->parser = NULL;\n\t}"
+            ],
+            [
+              "dom_hubbub_error dom_hubbub_parser_parse_chunk(dom_hubbub_parser *parser,\n\t\tconst uint8_t *data, size_t len)\n{\n\thubbub_error err;\n\n\terr = hubbub_parser_parse_chunk(parser->parser, data, len);",
+              "dom_hubbub_error dom_hubbub_parser_parse_chunk(dom_hubbub_parser *parser,\n\t\tconst uint8_t *data, size_t len)\n{\n\thubbub_error err;\n\n\tif (parser == NULL || parser->parser == NULL) return DOM_HUBBUB_OK;\n\n\terr = hubbub_parser_parse_chunk(parser->parser, data, len);"
+            ],
+            [
+              "dom_hubbub_error dom_hubbub_parser_completed(dom_hubbub_parser *parser)\n{\n\thubbub_error err;\n\n\terr = hubbub_parser_completed(parser->parser);",
+              "dom_hubbub_error dom_hubbub_parser_completed(dom_hubbub_parser *parser)\n{\n\thubbub_error err;\n\n\tif (parser == NULL || parser->parser == NULL) return DOM_HUBBUB_OK;\n\n\terr = hubbub_parser_completed(parser->parser);"
+            ],
+            [
+              "const char *dom_hubbub_parser_get_encoding(dom_hubbub_parser *parser,\n\t\tdom_hubbub_encoding_source *source)\n{\n\t*source = parser->encoding_source;",
+              "const char *dom_hubbub_parser_get_encoding(dom_hubbub_parser *parser,\n\t\tdom_hubbub_encoding_source *source)\n{\n\tif (parser == NULL) {\n\t\t*source = DOM_HUBBUB_ENCODING_SOURCE_DETECTED;\n\t\treturn \"Windows-1252\";\n\t}\n\n\t*source = parser->encoding_source;"
+            ],
+            [
+              "dom_hubbub_error dom_hubbub_parser_pause(dom_hubbub_parser *parser, bool pause)\n{\n\thubbub_error err;\n\thubbub_parser_optparams params;\n\n\tparams.pause_parse = pause;",
+              "dom_hubbub_error dom_hubbub_parser_pause(dom_hubbub_parser *parser, bool pause)\n{\n\thubbub_error err;\n\thubbub_parser_optparams params;\n\n\tif (parser == NULL || parser->parser == NULL) return DOM_HUBBUB_OK;\n\n\tparams.pause_parse = pause;"
+            ]
+          ]
+        }
+      ]
+    }
+  ]
 }

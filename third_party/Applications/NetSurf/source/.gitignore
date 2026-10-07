@@ -3,4 +3,12 @@
 !.gitignore
 !testament.h
 !frontends
-
+!content/
+content/*
+!content/handlers/
+content/handlers/*
+!content/handlers/javascript/
+content/handlers/javascript/*
+!content/handlers/javascript/duktape/
+content/handlers/javascript/duktape/*
+!content/handlers/javascript/duktape/duk_quickjs.c

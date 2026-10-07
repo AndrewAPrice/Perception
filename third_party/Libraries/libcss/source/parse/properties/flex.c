@@ -119,18 +119,18 @@ css_error css__parse_flex(css_language *c,
 			goto css__parse_flex_cleanup;
 		}
 
-		if ((grow) && 
+		if ((grow) &&
 			   (error = css__parse_flex_grow(c, vector,
 				ctx, grow_style)) == CSS_OK) {
 			grow = false;
-		} else if ((basis) && 
-			   (error = css__parse_flex_basis(c, vector, 
-				ctx, basis_style)) == CSS_OK) {
-			basis = false;
-		} else if ((shrink) && 
-			   (error = css__parse_flex_shrink(c, vector, 
+		} else if ((shrink) &&
+			   (error = css__parse_flex_shrink(c, vector,
 				ctx, shrink_style)) == CSS_OK) {
 			shrink = false;
+		} else if ((basis) &&
+			   (error = css__parse_flex_basis(c, vector,
+				ctx, basis_style)) == CSS_OK) {
+			basis = false;
 		}
 
 		if (error == CSS_OK) {

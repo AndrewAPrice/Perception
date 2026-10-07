@@ -18,11 +18,16 @@
 #include <stddef.h>
 
 extern "C" {
-#include "utils/errors.h"
+#include "content/hlcache.h"
 #include "netsurf/bitmap.h"
+#include "netsurf/content.h"
+#include "netsurf/plotters.h"
+#include "utils/errors.h"
 }
 
+#include "include/core/SkCanvas.h"
 #include "include/core/SkImageInfo.h"
+#include "plotters.h"
 
 namespace netsurf {
 namespace perception {
@@ -36,9 +41,7 @@ void* BitmapCreate(int width, int height, enum gui_bitmap_flags flags) {
       bm->opaque ? kOpaque_SkAlphaType : kPremul_SkAlphaType;
   bm->sk_bitmap.allocPixels(
       SkImageInfo::Make(width, height, color_type, alpha_type));
-  if (flags & BITMAP_CLEAR) {
-    bm->sk_bitmap.eraseColor(0);
-  }
+  if (flags & BITMAP_CLEAR) bm->sk_bitmap.eraseColor(0);
   return bm;
 }
 
@@ -85,6 +88,24 @@ void BitmapModified(void* bitmap) {
 }
 
 nserror BitmapRender(struct bitmap* bitmap, struct hlcache_handle* content) {
+  if (!bitmap || !content) return NSERROR_INVALID;
+
+  SkCanvas canvas(bitmap->sk_bitmap);
+  SkCanvas* previous_canvas = GetActiveCanvas();
+  SetActiveCanvas(&canvas);
+
+  struct redraw_context ctx = {
+      .interactive = false,
+      .background_images = true,
+      .plot = &skia_plotters,
+      .priv = nullptr,
+  };
+
+  content_scaled_redraw(content, bitmap->sk_bitmap.width(),
+                        bitmap->sk_bitmap.height(), &ctx);
+
+  SetActiveCanvas(previous_canvas);
+  bitmap->cached_image.reset();
   return NSERROR_OK;
 }
 

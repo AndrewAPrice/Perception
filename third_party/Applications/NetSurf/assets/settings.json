@@ -1,44 +1,681 @@
 [
   {
-    "page": "Applications>NetSurf",
+    "page": "Applications>NetSurf>General",
     "groups": [
       {
-        "title": "General Browser Settings",
+        "title": "Startup & Navigation",
         "settings": [
           {
             "key": "homepage",
             "name": "Homepage URL",
             "type": "string",
-            "description": "The URL loaded when the browser starts",
-            "default": "about:welcome"
+            "description": "The URL loaded when the browser starts or a new tab is opened",
+            "default": "https://www.google.com"
           },
+          {
+            "key": "search_url",
+            "name": "Search Engine URL",
+            "type": "string",
+            "description": "Search engine URL template (%s is replaced with the search query)",
+            "default": "https://www.google.com/search?q=%s"
+          },
+          {
+            "key": "url_suggestion",
+            "name": "URL Autocomplete Suggestions",
+            "type": "bool",
+            "description": "Show autocomplete suggestions in the address bar",
+            "default": true
+          }
+        ]
+      },
+      {
+        "title": "Tabs & Links",
+        "settings": [
+          {
+            "key": "target_blank",
+            "name": "Open target=\"_blank\" in New Tab",
+            "type": "bool",
+            "description": "Open links with target=\"_blank\" in a new browser tab",
+            "default": true
+          },
+          {
+            "key": "button_2_tab",
+            "name": "Middle-Click Opens New Tab",
+            "type": "bool",
+            "description": "Open links in a new tab when clicked with the middle mouse button",
+            "default": true
+          },
+          {
+            "key": "foreground_new",
+            "name": "Switch Immediately to New Tabs",
+            "type": "bool",
+            "description": "Switch focus immediately to newly opened tabs",
+            "default": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "page": "Applications>NetSurf>Appearance & Fonts",
+    "groups": [
+      {
+        "title": "Page Appearance",
+        "settings": [
+          {
+            "key": "prefer_dark_mode",
+            "name": "Prefer Dark Mode",
+            "type": "bool",
+            "description": "Prefer dark color scheme for web pages (prefers-color-scheme: dark)",
+            "default": false
+          },
+          {
+            "key": "scale",
+            "name": "Default Page Zoom",
+            "type": "slider",
+            "description": "Default page zoom percentage",
+            "min": 50,
+            "max": 300,
+            "step": 10,
+            "unit": "%",
+            "default": 100
+          },
+          {
+            "key": "author_level_css",
+            "name": "Allow Page CSS Stylesheets",
+            "type": "bool",
+            "description": "Allow web pages to use their own CSS stylesheets",
+            "default": true
+          }
+        ]
+      },
+      {
+        "title": "Typography",
+        "settings": [
+          {
+            "key": "font_default",
+            "name": "Default Font Family",
+            "type": "enum",
+            "description": "Default font family used when a page does not specify one",
+            "options": [
+              {
+                "name": "Sans-serif",
+                "value": 1
+              },
+              {
+                "name": "Serif",
+                "value": 2
+              },
+              {
+                "name": "Monospace",
+                "value": 3
+              },
+              {
+                "name": "Cursive",
+                "value": 4
+              },
+              {
+                "name": "Fantasy",
+                "value": 5
+              }
+            ],
+            "default": 1
+          },
+          {
+            "key": "font_size",
+            "name": "Default Font Size",
+            "type": "slider",
+            "description": "Default base font size for web pages",
+            "min": 6,
+            "max": 36,
+            "step": 1,
+            "unit": "pt",
+            "default": 12
+          },
+          {
+            "key": "font_min_size",
+            "name": "Minimum Font Size",
+            "type": "slider",
+            "description": "Minimum font size allowed on web pages",
+            "min": 4,
+            "max": 24,
+            "step": 1,
+            "unit": "pt",
+            "default": 8
+          },
+          {
+            "key": "treeview_font_size",
+            "name": "Treeview UI Font Size",
+            "type": "slider",
+            "description": "Font size used in Bookmarks, History, and Cookie manager trees",
+            "min": 6,
+            "max": 24,
+            "step": 1,
+            "unit": "pt",
+            "default": 11
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "page": "Applications>NetSurf>Content & Rendering",
+    "groups": [
+      {
+        "title": "Media & Scripts",
+        "settings": [
           {
             "key": "enable_javascript",
             "name": "Enable JavaScript",
             "type": "bool",
-            "description": "Enable JavaScript execution on webpages",
+            "description": "Enable JavaScript execution on web pages",
             "default": true
           },
           {
-            "key": "load_images",
-            "name": "Load Images",
+            "key": "script_timeout",
+            "name": "JavaScript Timeout",
+            "type": "slider",
+            "description": "Maximum time to wait for a script to finish executing",
+            "min": 1,
+            "max": 60,
+            "step": 1,
+            "unit": "s",
+            "default": 10
+          },
+          {
+            "key": "foreground_images",
+            "name": "Load Foreground Images",
             "type": "bool",
-            "description": "Load and display images on web pages",
+            "description": "Fetch and display foreground <img> elements on web pages",
             "default": true
           },
+          {
+            "key": "background_images",
+            "name": "Load Background Images",
+            "type": "bool",
+            "description": "Fetch and display CSS background images on web pages",
+            "default": true
+          },
+          {
+            "key": "animate_images",
+            "name": "Animate Images",
+            "type": "bool",
+            "description": "Play animated GIFs and multi-frame images",
+            "default": true
+          }
+        ]
+      },
+      {
+        "title": "Layout Engine",
+        "settings": [
+          {
+            "key": "incremental_reflow",
+            "name": "Incremental Reflow",
+            "type": "bool",
+            "description": "Reflow pages incrementally while resources are loading",
+            "default": true
+          },
+          {
+            "key": "min_reflow_period",
+            "name": "Minimum Reflow Interval",
+            "type": "slider",
+            "description": "Minimum time between incremental page reflows while loading",
+            "min": 10,
+            "max": 500,
+            "step": 10,
+            "unit": "ms",
+            "default": 25
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "page": "Applications>NetSurf>Privacy & Security",
+    "groups": [
+      {
+        "title": "Tracking & Content Filtering",
+        "settings": [
           {
             "key": "block_advertisements",
             "name": "Block Advertisements",
             "type": "bool",
-            "description": "Block advertisement elements on web pages",
+            "description": "Hide known advertisement elements on web pages",
             "default": false
           },
           {
             "key": "do_not_track",
             "name": "Do Not Track",
             "type": "bool",
-            "description": "Send Do Not Track header with web requests",
+            "description": "Send Do Not Track (DNT: 1) header with web requests",
+            "default": false
+          },
+          {
+            "key": "send_referer",
+            "name": "Send Referer Header",
+            "type": "bool",
+            "description": "Send the HTTP Referer header when navigating between pages",
             "default": true
+          },
+          {
+            "key": "display_decoded_idn",
+            "name": "Display Decoded International Domain Names",
+            "type": "bool",
+            "description": "Display decoded Unicode international domain names instead of Punycode",
+            "default": false
+          }
+        ]
+      },
+      {
+        "title": "History & Cookies",
+        "settings": [
+          {
+            "key": "expire_url",
+            "name": "History Retention Period",
+            "type": "slider",
+            "description": "Number of days to keep visited URLs in browsing history",
+            "min": 1,
+            "max": 365,
+            "step": 1,
+            "unit": " days",
+            "default": 28
+          },
+          {
+            "key": "persist_storage",
+            "name": "Persist Browsing Data",
+            "type": "bool",
+            "description": "Save browsing history, cookies, and bookmarks to disk",
+            "default": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "page": "Applications>NetSurf>Network & Cache",
+    "groups": [
+      {
+        "title": "Language & Encoding",
+        "settings": [
+          {
+            "key": "accept_language",
+            "name": "Accept-Language Header",
+            "type": "string",
+            "description": "Preferred languages sent in the HTTP Accept-Language header",
+            "default": "en-US,en;q=0.5"
+          },
+          {
+            "key": "accept_charset",
+            "name": "Accept-Charset Header",
+            "type": "string",
+            "description": "Preferred character encoding sent in the HTTP Accept-Charset header",
+            "default": "UTF-8"
+          }
+        ]
+      },
+      {
+        "title": "Connection Limits",
+        "settings": [
+          {
+            "key": "max_fetchers",
+            "name": "Max Simultaneous Fetchers",
+            "type": "slider",
+            "description": "Maximum number of simultaneous active network fetches",
+            "min": 4,
+            "max": 64,
+            "step": 1,
+            "default": 24
+          },
+          {
+            "key": "max_fetchers_per_host",
+            "name": "Max Fetchers Per Host",
+            "type": "slider",
+            "description": "Maximum simultaneous network connections per host",
+            "min": 1,
+            "max": 16,
+            "step": 1,
+            "default": 5
+          },
+          {
+            "key": "max_retried_fetches",
+            "name": "Max Retried Fetches",
+            "type": "slider",
+            "description": "Number of times to retry timed-out fetches before giving up",
+            "min": 0,
+            "max": 5,
+            "step": 1,
+            "default": 1
+          },
+          {
+            "key": "fetch_redirect_limit",
+            "name": "Redirect Limit",
+            "type": "slider",
+            "description": "Maximum number of redirects to follow before a fetch fails",
+            "min": 0,
+            "max": 30,
+            "step": 1,
+            "default": 10
+          }
+        ]
+      },
+      {
+        "title": "Cache",
+        "settings": [
+          {
+            "key": "memory_cache_size",
+            "name": "Memory Cache Size",
+            "type": "slider",
+            "description": "Maximum size of the in-memory resource cache",
+            "min": 1,
+            "max": 128,
+            "step": 1,
+            "unit": " MB",
+            "default": 12
+          },
+          {
+            "key": "disc_cache_size",
+            "name": "Disk Cache Size",
+            "type": "slider",
+            "description": "Maximum size of the on-disk resource cache",
+            "min": 0,
+            "max": 1024,
+            "step": 16,
+            "unit": " MB",
+            "default": 128
+          },
+          {
+            "key": "disc_cache_age",
+            "name": "Disk Cache Expiry Age",
+            "type": "slider",
+            "description": "Maximum number of days to keep items in the disk cache",
+            "min": 1,
+            "max": 365,
+            "step": 1,
+            "unit": " days",
+            "default": 28
+          }
+        ]
+      },
+      {
+        "title": "HTTP Proxy",
+        "settings": [
+          {
+            "key": "http_proxy",
+            "name": "Use HTTP Proxy",
+            "type": "bool",
+            "description": "Route HTTP and HTTPS requests through a proxy server",
+            "default": false
+          },
+            {
+            "key": "http_proxy_host",
+            "name": "Proxy Host",
+            "type": "string",
+            "description": "Hostname or IP address of the HTTP proxy server",
+            "default": ""
+          },
+          {
+            "key": "http_proxy_port",
+            "name": "Proxy Port",
+            "type": "int",
+            "description": "Port number of the HTTP proxy server",
+            "default": 8080
+          },
+          {
+            "key": "http_proxy_auth",
+            "name": "Proxy Authentication",
+            "type": "enum",
+            "description": "Authentication method used by the HTTP proxy server",
+            "options": [
+              {
+                "name": "None",
+                "value": 0
+              },
+              {
+                "name": "Basic",
+                "value": 1
+              }
+            ],
+            "default": 0
+          },
+          {
+            "key": "http_proxy_auth_user",
+            "name": "Proxy Username",
+            "type": "string",
+            "description": "Username for HTTP proxy authentication",
+            "default": ""
+          },
+          {
+            "key": "http_proxy_auth_pass",
+            "name": "Proxy Password",
+            "type": "string",
+            "description": "Password for HTTP proxy authentication",
+            "default": ""
+          },
+          {
+            "key": "http_proxy_noproxy",
+            "name": "No Proxy Hosts",
+            "type": "string",
+            "description": "Comma-separated list of hosts that bypass the HTTP proxy",
+            "default": "localhost,127.0.0.1"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "page": "Applications>NetSurf>System Colors",
+    "groups": [
+      {
+        "title": "System Colors",
+        "settings": [
+          {
+            "key": "sys_colour_AccentColor",
+            "name": "Accent Color",
+            "type": "color",
+            "description": "System accent color",
+            "default": {
+              "r": 53,
+              "g": 132,
+              "b": 228
+            }
+          },
+          {
+            "key": "sys_colour_AccentColorText",
+            "name": "Accent Color Text",
+            "type": "color",
+            "description": "Text color on accent color background",
+            "default": {
+              "r": 255,
+              "g": 255,
+              "b": 255
+            }
+          },
+          {
+            "key": "sys_colour_ActiveText",
+            "name": "Active Text",
+            "type": "color",
+            "description": "Color of active links and elements",
+            "default": {
+              "r": 238,
+              "g": 0,
+              "b": 0
+            }
+          },
+          {
+            "key": "sys_colour_ButtonBorder",
+            "name": "Button Border",
+            "type": "color",
+            "description": "Border color for buttons",
+            "default": {
+              "r": 170,
+              "g": 170,
+              "b": 170
+            }
+          },
+          {
+            "key": "sys_colour_ButtonFace",
+            "name": "Button Face",
+            "type": "color",
+            "description": "Background color for buttons",
+            "default": {
+              "r": 221,
+              "g": 221,
+              "b": 221
+            }
+          },
+          {
+            "key": "sys_colour_ButtonText",
+            "name": "Button Text",
+            "type": "color",
+            "description": "Text color for buttons",
+            "default": {
+              "r": 0,
+              "g": 0,
+              "b": 0
+            }
+          },
+          {
+            "key": "sys_colour_Canvas",
+            "name": "Canvas",
+            "type": "color",
+            "description": "Background color for document canvas",
+            "default": {
+              "r": 255,
+              "g": 255,
+              "b": 255
+            }
+          },
+          {
+            "key": "sys_colour_CanvasText",
+            "name": "Canvas Text",
+            "type": "color",
+            "description": "Text color for document canvas",
+            "default": {
+              "r": 0,
+              "g": 0,
+              "b": 0
+            }
+          },
+          {
+            "key": "sys_colour_Field",
+            "name": "Field",
+            "type": "color",
+            "description": "Background color for input fields",
+            "default": {
+              "r": 255,
+              "g": 255,
+              "b": 255
+            }
+          },
+          {
+            "key": "sys_colour_FieldText",
+            "name": "Field Text",
+            "type": "color",
+            "description": "Text color for input fields",
+            "default": {
+              "r": 0,
+              "g": 0,
+              "b": 0
+            }
+          },
+          {
+            "key": "sys_colour_GrayText",
+            "name": "Gray Text",
+            "type": "color",
+            "description": "Color for disabled or grayed-out text",
+            "default": {
+              "r": 119,
+              "g": 119,
+              "b": 119
+            }
+          },
+          {
+            "key": "sys_colour_Highlight",
+            "name": "Highlight",
+            "type": "color",
+            "description": "Background color for highlighted text",
+            "default": {
+              "r": 53,
+              "g": 132,
+              "b": 228
+            }
+          },
+          {
+            "key": "sys_colour_HighlightText",
+            "name": "Highlight Text",
+            "type": "color",
+            "description": "Text color for highlighted text",
+            "default": {
+              "r": 255,
+              "g": 255,
+              "b": 255
+            }
+          },
+          {
+            "key": "sys_colour_LinkText",
+            "name": "Link Text",
+            "type": "color",
+            "description": "Color for unvisited links",
+            "default": {
+              "r": 0,
+              "g": 0,
+              "b": 238
+            }
+          },
+          {
+            "key": "sys_colour_Mark",
+            "name": "Mark",
+            "type": "color",
+            "description": "Background color for marked or highlighted content",
+            "default": {
+              "r": 255,
+              "g": 255,
+              "b": 0
+            }
+          },
+          {
+            "key": "sys_colour_MarkText",
+            "name": "Mark Text",
+            "type": "color",
+            "description": "Text color for marked or highlighted content",
+            "default": {
+              "r": 0,
+              "g": 0,
+              "b": 0
+            }
+          },
+          {
+            "key": "sys_colour_SelectedItem",
+            "name": "Selected Item",
+            "type": "color",
+            "description": "Background color for selected items",
+            "default": {
+              "r": 53,
+              "g": 132,
+              "b": 228
+            }
+          },
+          {
+            "key": "sys_colour_SelectedItemText",
+            "name": "Selected Item Text",
+            "type": "color",
+            "description": "Text color for selected items",
+            "default": {
+              "r": 255,
+              "g": 255,
+              "b": 255
+            }
+          },
+          {
+            "key": "sys_colour_VisitedText",
+            "name": "Visited Text",
+            "type": "color",
+            "description": "Color for visited links",
+            "default": {
+              "r": 85,
+              "g": 26,
+              "b": 139
+            }
           }
         ]
       }

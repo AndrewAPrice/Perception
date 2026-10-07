@@ -20,6 +20,7 @@
     'Perception UI',
     'Perception Window',
     'bearssl',
+    'quickjs',
   ],
   include_directories: [
     'source',
@@ -43,6 +44,7 @@
     'source/content/handlers/image/video.c',
     'source/content/fetchers/curl.c',
     'source/content/handlers/javascript/none/none.c',
+    'source/content/handlers/javascript/duktape/duktape.c',
   ],
   asset_directories: [
     'assets',
@@ -55,8 +57,8 @@
     'WITH_WEBP',
     'WITH_NS_SVG',
     'NETSURF_HOMEPAGE="\\"about:welcome\\""',
-    'NETSURF_LOG_LEVEL=DEEPDEBUG',
-    'NETSURF_FB_RESPATH="\\"/Applications/netsurf/res\\""',
+    'NETSURF_LOG_LEVEL=INFO',
+    'NETSURF_FB_RESPATH="\\"/Applications/NetSurf/res\\""',
     'NETSURF_BUILTIN_LOG_FILTER="\\"\\""',
     'NETSURF_BUILTIN_VERBOSE_FILTER="\\"\\""',
     'NETSURF_FB_FONTPATH="\\"/Libraries/Fonts/assets/assets/\\""',

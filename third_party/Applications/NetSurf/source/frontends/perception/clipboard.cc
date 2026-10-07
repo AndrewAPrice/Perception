@@ -15,10 +15,16 @@
 #include "clipboard.h"
 
 #include <cstddef>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <string_view>
+
+#include "perception/clipboard.h"
 
 extern "C" {
-#include "utils/errors.h"
 #include "netsurf/clipboard.h"
+#include "utils/errors.h"
 }
 
 namespace netsurf {
@@ -27,11 +33,35 @@ namespace perception {
 struct gui_clipboard_table perception_clipboard_table = {
     .get =
         [](char** buffer, size_t* length) {
-          *buffer = NULL;
-          *length = 0;
+          auto status_or_val = ::perception::GetClipboard();
+          if (!status_or_val.Ok()) {
+            *buffer = nullptr;
+            *length = 0;
+            return;
+          }
+          std::string text = status_or_val->ToString();
+          if (text.empty()) {
+            *buffer = nullptr;
+            *length = 0;
+            return;
+          }
+          *buffer = static_cast<char*>(malloc(text.size()));
+          if (*buffer == nullptr) {
+            *length = 0;
+            return;
+          }
+          memcpy(*buffer, text.data(), text.size());
+          *length = text.size();
         },
-    .set = [](const char* buffer, size_t length, nsclipboard_styles styles[],
-              int n_styles) {}};
+    .set =
+        [](const char* buffer, size_t length, nsclipboard_styles styles[],
+           int n_styles) {
+          if (buffer == nullptr || length == 0) {
+            ::perception::SetClipboard(std::string_view(""));
+            return;
+          }
+          ::perception::SetClipboard(std::string_view(buffer, length));
+        }};
 
 }  // namespace perception
 }  // namespace netsurf

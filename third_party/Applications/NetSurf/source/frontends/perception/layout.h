@@ -28,6 +28,7 @@ extern "C" {
 namespace netsurf {
 namespace perception {
 
+// Returns a SkFont pointer corresponding to the given plot_font_style.
 SkFont* GetSkiaFont(const struct plot_font_style* fstyle);
 
 extern struct gui_layout_table skia_layout_table;

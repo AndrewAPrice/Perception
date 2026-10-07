@@ -1867,6 +1867,10 @@ css__parse_calc_value(css_language *c,
 
 	/* On entry, we are already pointing at the value to parse, so peek it */
 	token = parserutils_vector_peek(vector, *ctx);
+	if (token == NULL) {
+		return CSS_INVALID;
+	}
+
 	if (tokenIsChar(token, '(')) {
 		parserutils_vector_iterate(vector, ctx);
 		consumeWhitespace(vector, ctx);

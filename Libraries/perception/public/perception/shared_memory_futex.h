@@ -14,23 +14,23 @@
 
 #pragma once
 
-extern "C" {
-#include "utils/errors.h"
-#include "netsurf/plotters.h"
-}
+#include <atomic>
 
-#include "include/core/SkCanvas.h"
+#include "perception/shared_memory.h"
+#include "types.h"
 
-namespace netsurf {
 namespace perception {
 
-extern const struct plotter_table skia_plotters;
+// A 3-state shared-memory futex that avoids system calls when uncontended.
+class SharedMemoryFutex {
+ public:
+  // Acquires the lock at `offset` inside `shared_memory`.
+  static void Lock(SharedMemory& shared_memory, size_t offset,
+                   std::atomic<uint32>& state);
 
-// Sets the active canvas for plotter operations.
-void SetActiveCanvas(SkCanvas *canvas);
-
-// Returns the active canvas for plotter operations.
-SkCanvas *GetActiveCanvas();
+  // Releases the lock at `offset` inside `shared_memory`.
+  static void Unlock(SharedMemory& shared_memory, size_t offset,
+                     std::atomic<uint32>& state);
+};
 
 }  // namespace perception
-}  // namespace netsurf

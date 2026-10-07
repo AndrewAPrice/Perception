@@ -17,9 +17,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <cmath>
+#include <iostream>
+#include <memory>
+
 extern "C" {
 #include "desktop/browser_history.h"
+#include "desktop/save_complete.h"
 #include "netsurf/bitmap.h"
+#include "netsurf/browser.h"
 #include "netsurf/browser_window.h"
 #include "netsurf/cookie_db.h"
 #include "netsurf/layout.h"
@@ -35,15 +41,27 @@ extern "C" {
 
 #include "gui.h"
 #include "http.h"
+#include "managers.h"
+#include "misc.h"
+#include "network_log.h"
 #include "perception/debug.h"
+#include "perception/fibers.h"
 #include "perception/processes.h"
 #include "perception/scheduler.h"
+#include "perception/window/window_manager.h"
 #include "settings.h"
 #include "tabs.h"
+#include "window.h"
 
 using ::perception::HandOverControl;
 
 namespace {
+
+// Default display DPI for NetSurf.
+constexpr int kDefaultDpi = 90;
+
+// Minimum display scale to consider valid.
+constexpr float kMinValidScale = 0.5f;
 
 bool NslogStreamConfigure(FILE* fptr) {
   setbuf(fptr, NULL);
@@ -51,7 +69,13 @@ bool NslogStreamConfigure(FILE* fptr) {
 }
 
 bool ProcessCmdline(int argc, char* argv[]) {
-  if (argc > 1) ::netsurf::perception::SetInitialUrl(argv[1]);
+  if (argc > 1) {
+    ::netsurf::perception::SetInitialUrl(argv[1]);
+  } else {
+    const char* homepage = nsoption_charp(homepage_url);
+    if (homepage != nullptr && homepage[0] != '\0')
+      ::netsurf::perception::SetInitialUrl(homepage);
+  }
   return true;
 }
 
@@ -61,46 +85,79 @@ void Die(const char* msg) {
 }
 
 nserror SetDefaults(struct nsoption_s* defaults) {
-  int idx;
-  static const struct {
-    enum nsoption_e nsc;
-    colour c;
-  } sys_colour_defaults[] = {
-      {NSOPTION_sys_colour_AccentColor, 0x00666666},
-      {NSOPTION_sys_colour_AccentColorText, 0x00ffffff},
-      {NSOPTION_sys_colour_ActiveText, 0x000000ee},
-      {NSOPTION_sys_colour_ButtonBorder, 0x00aaaaaa},
-      {NSOPTION_sys_colour_ButtonFace, 0x00dddddd},
-      {NSOPTION_sys_colour_ButtonText, 0x00000000},
-      {NSOPTION_sys_colour_Canvas, 0x00aaaaaa},
-      {NSOPTION_sys_colour_CanvasText, 0x00000000},
-      {NSOPTION_sys_colour_Field, 0x00f1f1f1},
-      {NSOPTION_sys_colour_FieldText, 0x00000000},
-      {NSOPTION_sys_colour_GrayText, 0x00777777},
-      {NSOPTION_sys_colour_Highlight, 0x00ee0000},
-      {NSOPTION_sys_colour_HighlightText, 0x00000000},
-      {NSOPTION_sys_colour_LinkText, 0x00ee0000},
-      {NSOPTION_sys_colour_Mark, 0x0000ffff},
-      {NSOPTION_sys_colour_MarkText, 0x00000000},
-      {NSOPTION_sys_colour_SelectedItem, 0x00e48435},
-      {NSOPTION_sys_colour_SelectedItemText, 0x00ffffff},
-      {NSOPTION_sys_colour_VisitedText, 0x008b1a55},
-      {NSOPTION_LISTEND, 0},
-  };
-
   nsoption_setnull_charp(cookie_file, strdup("~/.netsurf/Cookies"));
   nsoption_setnull_charp(cookie_jar, strdup("~/.netsurf/Cookies"));
 
   if (nsoption_charp(cookie_file) == NULL ||
-      nsoption_charp(cookie_jar) == NULL) {
+       nsoption_charp(cookie_jar) == NULL) {
     NSLOG(netsurf, INFO, "Failed initialising cookie options");
     return NSERROR_BAD_PARAMETER;
   }
 
-  for (idx = 0; sys_colour_defaults[idx].nsc != NSOPTION_LISTEND; idx++) {
-    defaults[sys_colour_defaults[idx].nsc].value.c = sys_colour_defaults[idx].c;
-  }
+  ::netsurf::perception::SetSystemColorDefaults(defaults);
   return NSERROR_OK;
+}
+
+class NetSurfWindowManagerEnvironmentListener
+    : public ::perception::window::WindowManagerEnvironmentListener::Server {
+ public:
+  explicit NetSurfWindowManagerEnvironmentListener(int base_dpi)
+      : base_dpi_(base_dpi) {}
+
+  Status WindowManagerEnvironmentChanged(
+      const ::perception::window::WindowManagerEnvironmentChangedNotification&
+          notification) override {
+    float scale = notification.scale;
+    if (scale < kMinValidScale)
+      scale = 1.0f;
+    int scaled_dpi = static_cast<int>(std::lround(base_dpi_ * scale));
+    ::perception::Defer([scaled_dpi]() {
+      NETSURF_LOCK;
+      browser_set_dpi(scaled_dpi);
+      for (auto* gw : ::netsurf::perception::GetOpenTabs()) {
+        if (gw && gw->GetBrowserWindow()) {
+          browser_window_schedule_reformat(gw->GetBrowserWindow());
+          if (gw->GetContentNode())
+            gw->GetContentNode()->Invalidate();
+        }
+      }
+    });
+    return Status::OK;
+  }
+
+ private:
+  int base_dpi_;
+};
+
+std::unique_ptr<NetSurfWindowManagerEnvironmentListener>&
+GetNetSurfEnvironmentListener() {
+  static std::unique_ptr<NetSurfWindowManagerEnvironmentListener> listener;
+  return listener;
+}
+
+void InitializeDpi() {
+  const int default_dpi = browser_get_dpi();
+  const int base_dpi = default_dpi > 0 ? default_dpi : kDefaultDpi;
+
+  float scale = 1.0f;
+  auto window_manager = ::perception::FindFirstInstanceOfService<
+      ::perception::window::WindowManager>();
+  if (window_manager) {
+    auto env = window_manager->GetDisplayEnvironment();
+    if (env.Ok() && env->scale >= kMinValidScale) {
+      scale = env->scale;
+    } else {
+      auto env_resp = window_manager->GetEnvironment();
+      if (env_resp.Ok() && env_resp->scale >= kMinValidScale)
+        scale = env_resp->scale;
+    }
+  }
+
+  int scaled_dpi = static_cast<int>(std::lround(base_dpi * scale));
+  browser_set_dpi(scaled_dpi);
+
+  GetNetSurfEnvironmentListener() =
+      std::make_unique<NetSurfWindowManagerEnvironmentListener>(base_dpi);
 }
 
 }  // namespace
@@ -115,17 +172,22 @@ int main(int argc, char* argv[]) {
   struct netsurf_table perception_table = {
       .misc = &perception_misc_table,
       .window = &perception_window_table,
+      .corewindow = &perception_core_window_table,
+      .download = &perception_download_table,
       .clipboard = &perception_clipboard_table,
       .fetch = &perception_fetch_table,
+      .file = NULL,
       .utf8 = NULL,
+      .search = &perception_search_table,
+      .search_web = NULL,
+      .llcache = NULL,
       .bitmap = &skia_bitmap_table,
       .layout = &skia_layout_table,
   };
 
   ret = netsurf_register(&perception_table);
-  if (ret != NSERROR_OK) {
+  if (ret != NSERROR_OK)
     Die("NetSurf operation table failed registration");
-  }
 
   bitmap_fmt_t bfmt = {
       .layout = BITMAP_LAYOUT_R8G8B8A8,
@@ -135,20 +197,22 @@ int main(int argc, char* argv[]) {
 
   netsurf::perception::FbInitResourcePath(nullptr);
 
+  verbose_log = true;
   nslog_init(NslogStreamConfigure, &argc, argv);
 
   /* user options setup */
   ret = nsoption_init(SetDefaults, &nsoptions, &nsoptions_default);
-  if (ret != NSERROR_OK) {
+  if (ret != NSERROR_OK)
     Die("Options failed to initialise");
-  }
-  options = filepath_find((char**)netsurf::perception::GetResourcePaths(), "Choices");
+  options =
+      filepath_find((char**)netsurf::perception::GetResourcePaths(), "Choices");
   nsoption_read(options, nsoptions);
   free(options);
   nsoption_commandline(&argc, argv, nsoptions);
 
   /* message init */
-  messages = filepath_find((char**)netsurf::perception::GetResourcePaths(), "FatMessages");
+  messages = filepath_find((char**)netsurf::perception::GetResourcePaths(),
+                           "FatMessages");
   if (messages) {
     ::perception::DebugPrinterSingleton
         << "NetSurf Native: Found FatMessages at " << messages << "\n";
@@ -165,33 +229,40 @@ int main(int argc, char* argv[]) {
         << "\n";
   }
 
-  /* common initialisation */
-  ret = netsurf_init(NULL);
-  if (ret != NSERROR_OK) {
-    Die("NetSurf failed to initialise");
-  }
+  {
+    NETSURF_LOCK;
+    /* common initialisation */
+    ret = netsurf_init(NULL);
+    if (ret != NSERROR_OK)
+      Die("NetSurf failed to initialise");
 
-  ::netsurf::perception::RegisterPerceptionHttpFetcher();
+    InitializeDpi();
 
-  /* Override, since we have no support for non-core SELECT menu */
-  nsoption_set_bool(core_select_menu, true);
+    ::netsurf::perception::InitializeNetworkLog();
+    ::netsurf::perception::RegisterPerceptionHttpFetcher();
 
-  /* Disable JavaScript by default so <noscript> fallbacks render correctly */
-  nsoption_set_bool(enable_javascript, false);
+    /* Override, since only core SELECT menu is supported */
+    nsoption_set_bool(core_select_menu, true);
 
-  ::netsurf::perception::LoadSettingsFromRegistry();
+    /* Enable JavaScript by default */
+    nsoption_set_bool(enable_javascript, true);
 
-  if (!ProcessCmdline(argc, argv)) Die("unable to process command line.\n");
+    ::netsurf::perception::LoadSettingsFromRegistry();
+    ::netsurf::perception::InitializeManagers();
+    save_complete_init();
 
-  urldb_load_cookies(nsoption_charp(cookie_file));
+    if (!ProcessCmdline(argc, argv))
+      Die("unable to process command line.\n");
 
-  ret = nsurl_create(netsurf::perception::GetInitialUrl(), &url);
-  if (ret == NSERROR_OK) {
-    ret = browser_window_create(BW_CREATE_HISTORY, url, NULL, NULL, &bw);
-    nsurl_unref(url);
-  }
-  if (ret != NSERROR_OK) {
-    fprintf(stderr, "Error: %s\n", messages_get_errorcode(ret));
+    urldb_load_cookies(nsoption_charp(cookie_file));
+
+    ret = nsurl_create(netsurf::perception::GetInitialUrl(), &url);
+    if (ret == NSERROR_OK) {
+      ret = browser_window_create(BW_CREATE_HISTORY, url, NULL, NULL, &bw);
+      nsurl_unref(url);
+    }
+    if (ret != NSERROR_OK)
+      fprintf(stderr, "Error: %s\n", messages_get_errorcode(ret));
   }
 
   HandOverControl();

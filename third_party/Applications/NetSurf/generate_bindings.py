@@ -115,6 +115,39 @@ def main():
         nsgenbind_bin, "-D", "-I", idl_dir, netsurf_bnd, generated_dir
     ], check=True)
     
+    # Post-process generated C and header files so prototype methods and
+    # properties are writable and configurable per WebIDL specification,
+    # allowing polyfill.js to override unimplemented nsgenbind stubs, and
+    # ensure empty private structs have non-zero size so calloc never returns NULL.
+    for fname in sorted(os.listdir(generated_dir)):
+        fpath = os.path.join(generated_dir, fname)
+        if fname == "private.h":
+            with open(fpath, "r", encoding="utf-8") as f:
+                content = f.read()
+            new_content = content.replace(
+                "typedef struct {\n} __attribute__((aligned))",
+                "typedef struct {\n\tchar _unused;\n} __attribute__((aligned))"
+            )
+            if new_content != content:
+                with open(fpath, "w", encoding="utf-8") as f:
+                    f.write(new_content)
+        elif fname.endswith(".c"):
+            with open(fpath, "r", encoding="utf-8") as f:
+                content = f.read()
+            new_content = content.replace(
+                "DUK_DEFPROP_HAVE_WRITABLE |",
+                "DUK_DEFPROP_HAVE_WRITABLE |\n\t\t     DUK_DEFPROP_WRITABLE |"
+            ).replace(
+                "DUK_DEFPROP_HAVE_CONFIGURABLE)",
+                "DUK_DEFPROP_HAVE_CONFIGURABLE | DUK_DEFPROP_CONFIGURABLE)"
+            ).replace(
+                "calloc(1, sizeof(*priv))",
+                "calloc(1, sizeof(*priv) ? sizeof(*priv) : 1)"
+            )
+            if new_content != content:
+                with open(fpath, "w", encoding="utf-8") as f:
+                    f.write(new_content)
+    
     print("Bindings generated successfully!")
 
 if __name__ == "__main__":

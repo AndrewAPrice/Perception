@@ -20,11 +20,13 @@
 #include <cstring>
 #include <string>
 #include <string_view>
+#include <vector>
 
 extern "C" {
 #include "utils/errors.h"
 #include <libwapcaplet/libwapcaplet.h>
 
+#include "netsurf/browser.h"
 #include "netsurf/layout.h"
 #include "netsurf/plot_style.h"
 }
@@ -39,12 +41,11 @@ namespace perception {
 
 namespace {
 
-// Conversion factor from typographic points (1/72 inch) to pixels at standard
-// 96 DPI.
-constexpr float kPointsToPixels = 96.0f / 72.0f;
-
 // Default fallback font size in points if unspecified or non-positive.
 constexpr float kDefaultFontSizePt = 12.0f;
+
+// Scaling factor applied to font size for small-caps variant.
+constexpr float kSmallCapsScale = 0.8f;
 
 }  // namespace
 
@@ -55,21 +56,47 @@ SkFont* GetSkiaFont(const struct plot_font_style* fstyle) {
       std::string name(lwc_string_data(fstyle->families[i]),
                        lwc_string_length(fstyle->families[i]));
       std::transform(name.begin(), name.end(), name.begin(),
-                     [](unsigned char c) { return std::tolower(c); });
-      if (name.find("dejavu") != std::string::npos ||
-          name.find("sans") != std::string::npos ||
-          name.find("serif") != std::string::npos ||
-          name.find("mono") != std::string::npos ||
-          name.find("math") != std::string::npos ||
+                     [](unsigned char ch) { return std::tolower(ch); });
+      if (name.find("mono") != std::string::npos ||
           name.find("courier") != std::string::npos ||
-          name.find("times") != std::string::npos ||
+          name.find("consolas") != std::string::npos ||
+          name.find("menlo") != std::string::npos ||
+          name.find("monaco") != std::string::npos ||
+          name.find("inconsolata") != std::string::npos ||
+          name.find("fira code") != std::string::npos ||
+          name.find("source code") != std::string::npos ||
+          name.find("lucida console") != std::string::npos) {
+        family_name = "DejaVuSansMono";
+        break;
+      }
+      if (name.find("sans") == std::string::npos &&
+          (name.find("serif") != std::string::npos ||
+           name.find("times") != std::string::npos ||
+           name.find("georgia") != std::string::npos ||
+           name.find("garamond") != std::string::npos ||
+           name.find("palatino") != std::string::npos ||
+           name.find("cambria") != std::string::npos ||
+           name.find("book antiqua") != std::string::npos ||
+           name.find("baskerville") != std::string::npos ||
+           name.find("century") != std::string::npos)) {
+        family_name = "DejaVuSerif";
+        break;
+      }
+      if (name.find("sans") != std::string::npos ||
           name.find("arial") != std::string::npos ||
           name.find("helvetica") != std::string::npos ||
-          name.find("georgia") != std::string::npos ||
+          name.find("verdana") != std::string::npos ||
           name.find("tahoma") != std::string::npos ||
-          name.find("verdana") != std::string::npos) {
-        family_name = std::string(lwc_string_data(fstyle->families[i]),
-                                  lwc_string_length(fstyle->families[i]));
+          name.find("trebuchet") != std::string::npos ||
+          name.find("segoe") != std::string::npos ||
+          name.find("roboto") != std::string::npos ||
+          name.find("inter") != std::string::npos ||
+          name.find("system-ui") != std::string::npos) {
+        family_name = "DejaVuSans";
+        break;
+      }
+      if (name.find("math") != std::string::npos) {
+        family_name = "DejaVuMathTeXGyre";
         break;
       }
     }
@@ -91,7 +118,10 @@ SkFont* GetSkiaFont(const struct plot_font_style* fstyle) {
 
   float pt_size = plot_style_fixed_to_float(fstyle->size);
   if (pt_size <= 0.0f) pt_size = kDefaultFontSizePt;
-  float size = pt_size * kPointsToPixels;
+  const int dpi = browser_get_dpi();
+  const float scale_factor = (dpi > 0) ? (static_cast<float>(dpi) / 72.0f) : (90.0f / 72.0f);
+  float size = pt_size * scale_factor;
+  if ((fstyle->flags & FONTF_SMALLCAPS) != 0) size *= kSmallCapsScale;
 
   int weight = fstyle->weight;
   if (weight <= 0) weight = 400;
@@ -106,13 +136,13 @@ SkFont* GetSkiaFont(const struct plot_font_style* fstyle) {
 
 namespace {
 
-size_t GetNextUtf8CharLength(std::string_view s, size_t index) {
-  if (index >= s.length()) return 0;
-  unsigned char c = s[index];
-  if ((c & 0x80) == 0) return 1;
-  if ((c & 0xE0) == 0xC0) return 2;
-  if ((c & 0xF0) == 0xE0) return 3;
-  if ((c & 0xF8) == 0xF0) return 4;
+size_t GetNextUtf8CharLength(std::string_view text_view, size_t index) {
+  if (index >= text_view.length()) return 0;
+  unsigned char byte_val = text_view[index];
+  if ((byte_val & 0x80) == 0) return 1;
+  if ((byte_val & 0xE0) == 0xC0) return 2;
+  if ((byte_val & 0xF0) == 0xE0) return 3;
+  if ((byte_val & 0xF8) == 0xF0) return 4;
   return 1;
 }
 
@@ -145,7 +175,7 @@ nserror FontPosition(const struct plot_font_style* fstyle, const char* text,
     return NSERROR_OK;
   }
   size_t safe_len = strnlen(text, length);
-  if (safe_len == 0) {
+  if (safe_len == 0 || x <= 0) {
     *char_offset = 0;
     *actual_x = 0;
     return NSERROR_OK;
@@ -156,40 +186,68 @@ nserror FontPosition(const struct plot_font_style* fstyle, const char* text,
     *actual_x = 0;
     return NSERROR_OK;
   }
-  float best_dist = std::abs((float)x);
-  size_t best_idx = 0;
-  float best_x = 0.0f;
 
-  std::string_view sv(text, safe_len);
+  std::string_view text_view(text, safe_len);
+  std::vector<size_t> offsets;
+  offsets.reserve(safe_len + 1);
+  offsets.push_back(0);
   size_t idx = 0;
-  while (true) {
-    float w = font->measureText(text, idx, SkTextEncoding::kUTF8);
-    float dist = std::abs(w - (float)x);
-    if (dist < best_dist) {
-      best_dist = dist;
-      best_idx = idx;
-      best_x = w;
-    }
-    if (idx >= safe_len) break;
-    size_t char_len = GetNextUtf8CharLength(sv, idx);
+  while (idx < safe_len) {
+    size_t char_len = GetNextUtf8CharLength(text_view, idx);
     if (char_len == 0) break;
     idx += char_len;
+    offsets.push_back(idx);
   }
-  *char_offset = best_idx;
-  *actual_x = (int)std::round(best_x);
+
+  float total_advance =
+      font->measureText(text, safe_len, SkTextEncoding::kUTF8);
+  if (static_cast<float>(x) >= total_advance) {
+    *char_offset = safe_len;
+    *actual_x = static_cast<int>(std::round(total_advance));
+    return NSERROR_OK;
+  }
+
+  size_t low = 0;
+  size_t high = offsets.size() - 1;
+  while (low < high) {
+    size_t mid = low + (high - low) / 2;
+    float advance =
+        font->measureText(text, offsets[mid], SkTextEncoding::kUTF8);
+    if (advance < static_cast<float>(x)) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  float advance_high =
+      font->measureText(text, offsets[low], SkTextEncoding::kUTF8);
+  if (low > 0) {
+    float advance_low =
+        font->measureText(text, offsets[low - 1], SkTextEncoding::kUTF8);
+    if (std::abs(advance_low - static_cast<float>(x)) <=
+        std::abs(advance_high - static_cast<float>(x))) {
+      *char_offset = offsets[low - 1];
+      *actual_x = static_cast<int>(std::round(advance_low));
+      return NSERROR_OK;
+    }
+  }
+
+  *char_offset = offsets[low];
+  *actual_x = static_cast<int>(std::round(advance_high));
   return NSERROR_OK;
 }
 
 nserror FontSplit(const struct plot_font_style* fstyle, const char* text,
                   size_t length, int x, size_t* char_offset, int* actual_x) {
   if (!text || length == 0) {
-    *char_offset = 1;
+    *char_offset = 0;
     *actual_x = 0;
     return NSERROR_OK;
   }
   size_t safe_len = strnlen(text, length);
   if (safe_len == 0) {
-    *char_offset = 1;
+    *char_offset = 0;
     *actual_x = 0;
     return NSERROR_OK;
   }
@@ -200,77 +258,67 @@ nserror FontSplit(const struct plot_font_style* fstyle, const char* text,
     return NSERROR_OK;
   }
 
-  // Check if the entire string fits in the available width.
   float total_advance =
       font->measureText(text, safe_len, SkTextEncoding::kUTF8);
-  if (total_advance <= (float)x) {
+  if (total_advance <= static_cast<float>(x)) {
     *char_offset = safe_len;
-    *actual_x = (int)std::ceil(total_advance);
+    *actual_x = static_cast<int>(std::ceil(total_advance));
     return NSERROR_OK;
   }
 
-  std::string_view sv(text, safe_len);
-  size_t last_space_fit = 0;
-  float last_space_fit_w = 0.0f;
-  size_t first_space = 0;
-  float first_space_w = 0.0f;
-
-  size_t last_char_fit = 0;
-  float last_char_fit_w = 0.0f;
-
-  size_t idx = 0;
-  while (idx < safe_len) {
-    size_t char_len = GetNextUtf8CharLength(sv, idx);
-    if (char_len == 0) break;
-    size_t next_idx = idx + char_len;
-
-    float w = font->measureText(text, next_idx, SkTextEncoding::kUTF8);
-    if (w <= (float)x) {
-      last_char_fit = next_idx;
-      last_char_fit_w = w;
-    }
-
-    if (text[idx] == ' ' && idx > 0) {
-      float w_before_space =
-          font->measureText(text, idx, SkTextEncoding::kUTF8);
-      if (first_space == 0) {
-        first_space = idx;
-        first_space_w = w_before_space;
-      }
-      if (w_before_space <= (float)x) {
-        last_space_fit = idx;
-        last_space_fit_w = w_before_space;
-      }
-    }
-
-    idx = next_idx;
+  std::vector<size_t> space_indices;
+  for (size_t i = 1; i + 1 < safe_len; ++i) {
+    if (text[i] == ' ')
+      space_indices.push_back(i);
   }
 
-  if (last_space_fit > 0) {
-    *char_offset = last_space_fit;
-    *actual_x = (int)std::ceil(last_space_fit_w);
+  if (space_indices.empty()) {
+    *char_offset = safe_len;
+    *actual_x = static_cast<int>(std::ceil(total_advance));
     return NSERROR_OK;
   }
 
-  if (first_space > 0) {
+  size_t first_space = space_indices.front();
+  float first_space_advance =
+      font->measureText(text, first_space, SkTextEncoding::kUTF8);
+  if (first_space_advance > static_cast<float>(x)) {
     *char_offset = first_space;
-    *actual_x = (int)std::ceil(first_space_w);
+    *actual_x = static_cast<int>(std::ceil(first_space_advance));
     return NSERROR_OK;
   }
 
-  if (last_char_fit > 0) {
-    *char_offset = last_char_fit;
-    *actual_x = (int)std::ceil(last_char_fit_w);
+  if (space_indices.size() == 1) {
+    *char_offset = first_space;
+    *actual_x = static_cast<int>(std::ceil(first_space_advance));
     return NSERROR_OK;
   }
 
-  // Ensure char_offset is never 0: take at least the first character.
-  size_t first_char_len = GetNextUtf8CharLength(sv, 0);
-  if (first_char_len == 0) first_char_len = 1;
-  if (first_char_len > safe_len) first_char_len = safe_len;
-  *char_offset = first_char_len;
-  *actual_x = (int)std::ceil(
-      font->measureText(text, first_char_len, SkTextEncoding::kUTF8));
+  size_t last_space = space_indices.back();
+  float last_space_advance =
+      font->measureText(text, last_space, SkTextEncoding::kUTF8);
+  if (last_space_advance <= static_cast<float>(x)) {
+    *char_offset = last_space;
+    *actual_x = static_cast<int>(std::ceil(last_space_advance));
+    return NSERROR_OK;
+  }
+
+  size_t low = 0;
+  size_t high = space_indices.size() - 1;
+  float last_fit_advance = first_space_advance;
+  while (low < high) {
+    size_t mid = low + (high - low + 1) / 2;
+    float mid_advance =
+        font->measureText(text, space_indices[mid], SkTextEncoding::kUTF8);
+    if (mid_advance <= static_cast<float>(x)) {
+      low = mid;
+      last_fit_advance = mid_advance;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  *char_offset = space_indices[low];
+  *actual_x = static_cast<int>(std::ceil(last_fit_advance));
   return NSERROR_OK;
 }
 

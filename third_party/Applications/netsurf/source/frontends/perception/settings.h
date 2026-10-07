@@ -14,13 +14,44 @@
 
 #pragma once
 
-#include <memory>
-#include "perception/ui/node.h"
+#include <string>
+#include <string_view>
+#include <utility>
+
+struct nsoption_s;
 
 namespace netsurf {
 namespace perception {
 
+// Sets the default system colors in the options table.
+void SetSystemColorDefaults(struct nsoption_s* defaults);
+
+// Loads settings from the registry into NetSurf options and registers live
+// listeners for updates.
 void LoadSettingsFromRegistry();
+
+// Registers live listeners for settings updates from the registry.
+void RegisterSettingsListeners();
+
+// Returns whether browsing history, cookies, and bookmarks should be persisted
+// to disk.
+bool IsStoragePersistenceEnabled();
+
+// Returns the configured search engine URL template (with optional %s
+// placeholder).
+const std::string& GetSearchUrlTemplate();
+
+// Returns the configured search engine URL prefix.
+const std::string& GetSearchUrl();
+
+// Builds a navigable URL or search query URL from address bar input.
+std::string BuildNavigationUrlFromInput(std::string_view input);
+
+// Builds a navigable URL or search query URL from address bar input.
+template <typename T = std::string_view>
+inline std::string BuildNavigationUrl(T&& input) {
+  return BuildNavigationUrlFromInput(std::string_view(std::forward<T>(input)));
+}
 
 }  // namespace perception
 }  // namespace netsurf

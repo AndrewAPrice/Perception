@@ -39,12 +39,26 @@ const char* FileType(const char* unix_path) {
   size_t dot = path.find_last_of('.');
   if (dot != std::string_view::npos) {
     std::string_view ext = path.substr(dot + 1);
-    if (ext == "html" || ext == "htm") return "text/html";
-    if (ext == "css") return "text/css";
-    if (ext == "png") return "image/png";
-    if (ext == "jpg" || ext == "jpeg") return "image/jpeg";
-    if (ext == "gif") return "image/gif";
-    if (ext == "txt") return "text/plain";
+    if (ext == "html" || ext == "htm")
+      return "text/html";
+    if (ext == "css")
+      return "text/css";
+    if (ext == "png")
+      return "image/png";
+    if (ext == "jpg" || ext == "jpeg")
+      return "image/jpeg";
+    if (ext == "gif")
+      return "image/gif";
+    if (ext == "svg")
+      return "image/svg+xml";
+    if (ext == "webp")
+      return "image/webp";
+    if (ext == "bmp")
+      return "image/bmp";
+    if (ext == "ico")
+      return "image/vnd.microsoft.icon";
+    if (ext == "txt")
+      return "text/plain";
   }
   return "application/octet-stream";
 }
@@ -62,7 +76,7 @@ struct nsurl* GetResourceUrl(const char* path) {
     netsurf_path_to_nsurl(found_path, &url);
   } else {
     std::string fallback_path =
-        "file:///Applications/netsurf/res/" + std::string(path);
+        "file:///Applications/NetSurf/res/" + std::string(path);
     nsurl_create(fallback_path.c_str(), &url);
   }
   return url;

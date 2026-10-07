@@ -76,10 +76,13 @@ class Text:
             pre_formatted: just add text without preprocessing.
         """
         if not text:
-            self._lines.append('{}{}{}'.format(
-                '\t' * self._indent,
-                ' * ' if self._comment else '',
-                '\t' * (9 - self._indent) + '\\' if self._esc_nl else ''))
+            if not self._comment:
+                self._lines.append('')
+            else:
+                self._lines.append('{}{}{}'.format(
+                    '\t' * self._indent,
+                    ' * ' if self._comment else '',
+                    '\t' * (9 - self._indent) + '\\' if self._esc_nl else ''))
             return
 
         if isinstance(text, list):
@@ -648,17 +651,17 @@ class CSSGroup:
 
         return t.to_string()
 
-    def print_propget(self, t, p, only_bits=False):
-        vals = [] if only_bits else p.get_param_values(pointer=True)
+    def print_propget(self, t, p):
+        vals = p.get_param_values(pointer=True)
         params = ', '.join([ 'css_computed_style *style' ]
                            + [ ' '.join(x) for x in vals ])
 
-        underscore_bits = '_bits' if only_bits else ''
-        t.append('static inline uint8_t get_{}{}(const {})'.format(
-            p.name, underscore_bits, params))
+        t.append('static inline uint8_t get_{}(const {})'.format(
+            p.name, params))
         t.append('{')
         t.indent(1)
 
+        t.append('uint8_t type;')
         t.append('uint32_t bits = style->i.bits[{}_INDEX];'.format(
             p.name.upper()))
         t.append('bits &= {}_MASK;'.format(p.name.upper()))
@@ -667,31 +670,30 @@ class CSSGroup:
 
         type_mask, shift_list, bits_comment = p.get_bits()
         t.append(bits_comment)
+        t.append('type = bits & {};'.format(type_mask))
 
-        if only_bits == False:
-            if p.condition:
-                t.append('if ((bits & {}) == {}) {{'.format(
-                    type_mask, p.condition))
-                t.indent(1)
+        if p.condition:
+            t.append('if (type == {}) {{'.format(p.condition))
+            t.indent(1)
 
-            for v in p.values:
-                print(f"name: {p.name}, has_calc: {p.has_calc}, v.name: {v.name}")
-                i_dot = '' if v.is_ptr and v.name != 'string' else 'i.'
-                t.append('*{} = style->{}{};'.format(
-                    v.name + v.suffix, i_dot, p.name + v.suffix))
-            for i, v in enumerate(list(reversed(shift_list))):
-                if i == 0:
-                    t.append('*{} = bits >> {};'.format(v[0], v[1]))
-                else:
-                    t.append('*{} = (bits & 0x{:x}) >> {};'.format(
-                        v[0], v[2], v[1]).lower())
+        for v in p.values:
+            print(f"name: {p.name}, has_calc: {p.has_calc}, v.name: {v.name}")
+            i_dot = '' if v.is_ptr and v.name != 'string' else 'i.'
+            t.append('*{} = style->{}{};'.format(
+                v.name + v.suffix, i_dot, p.name + v.suffix))
+        for i, v in enumerate(list(reversed(shift_list))):
+            if i == 0:
+                t.append('*{} = bits >> {};'.format(v[0], v[1]))
+            else:
+                t.append('*{} = (bits & 0x{:x}) >> {};'.format(
+                    v[0], v[2], v[1]).lower())
 
-            if p.condition:
-                t.indent(-1)
-                t.append('}')
-            t.append()
+        if p.condition:
+            t.indent(-1)
+            t.append('}')
+        t.append()
 
-        t.append('return (bits & {});'.format(type_mask))
+        t.append('return type;')
 
         t.indent(-1)
         t.append('}')
@@ -705,8 +707,6 @@ class CSSGroup:
 
             t.append()
             t.append(defines)
-
-            self.print_propget(t, p, True)
 
             if p.name in overrides['get']:
                 t.append(overrides['get'][p.name], pre_formatted=True)

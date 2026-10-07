@@ -215,7 +215,7 @@ struct css_computed_style_i {
  * counter_increment; color; background_image
  */
 	uint32_t bits[15];
-	
+
 	css_color background_color;
 	lwc_string *background_image;
 	css_fixed background_position_a;
@@ -281,14 +281,14 @@ struct css_computed_style_i {
 
 struct css_computed_style {
 	struct css_computed_style_i i;
-	
+
 	css_computed_content_item *content;
 	css_computed_counter *counter_increment;
 	css_computed_counter *counter_reset;
 	lwc_string **cursor;
 	lwc_string **font_family;
 	lwc_string **quotes;
-	
+
 	struct css_computed_style *next;
 	uint32_t count;
 	uint32_t bin;
