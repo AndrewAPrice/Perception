@@ -146,7 +146,8 @@ void EnvironmentWindow::BuildUI() {
             if (on_closed_) on_closed_();
           });
         },
-        [](Layout& layout) { layout.SetWidth(380.0f); }, content);
+        [](Layout& layout) { layout.SetWidth(380.0f); },
+        UiWindow::FitContent(YGDimensionHeight), content);
   }
 }
 

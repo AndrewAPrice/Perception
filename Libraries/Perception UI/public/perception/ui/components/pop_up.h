@@ -22,6 +22,8 @@
 #include "perception/type_id.h"
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/button.h"
+#include "perception/ui/components/container.h"
+#include "perception/ui/components/image_view.h"
 #include "perception/ui/components/ui_window.h"
 #include "perception/ui/node.h"
 #include "perception/ui/point.h"
@@ -80,6 +82,96 @@ class PopUpMenu {
   }
 
   template <typename... Modifiers>
+  static std::shared_ptr<Node> Divider(Modifiers... modifiers) {
+    return Block::SolidColor(
+        kTableDividerColor,
+        [](Layout& layout) {
+          layout.SetWidthPercent(100.0f);
+          layout.SetHeight(1.0f);
+          layout.SetMargin(YGEdgeVertical, 4.0f);
+        },
+        modifiers...);
+  }
+
+  template <typename... Modifiers>
+  static std::shared_ptr<Node> ItemWithIconAndShortcut(
+      std::string_view text, std::shared_ptr<Image> icon,
+      std::string_view shortcut, std::function<void()> on_click,
+      Modifiers... modifiers) {
+    auto item = Button::BasicButton(
+        [on_click]() {
+          if (on_click) on_click();
+        },
+        [](Block& block) {
+          block.SetBorderWidth(kPopUpItemBorderWidth);
+          block.SetBorderRadius(kPopUpItemBorderRadius);
+        },
+        [](Button& btn) {
+          btn.SetIdleColor(kPopUpItemIdleColor);
+          btn.SetHoverColor(kPopUpItemHoverColor);
+          btn.SetPushedColor(kPopUpItemPushedColor);
+          btn.SetLabelColor(kPopUpItemTextColor);
+        },
+        [](Layout& layout) {
+          layout.SetFlexDirection(YGFlexDirectionRow);
+          layout.SetAlignItems(YGAlignCenter);
+          layout.SetJustifyContent(YGJustifySpaceBetween);
+          layout.SetWidthPercent(100.0f);
+          layout.SetHeight(kPopUpDropDownItemHeight);
+          layout.SetMinHeight(kPopUpDropDownItemHeight);
+          layout.SetPadding(YGEdgeHorizontal, kPopUpItemHorizontalPadding);
+        });
+
+    if (icon) {
+      item->AddChild(ImageView::BasicImage(
+          icon,
+          [](Layout& l) {
+            l.SetWidth(16.0f);
+            l.SetHeight(16.0f);
+            l.SetMargin(YGEdgeRight, 8.0f);
+            l.SetFlexShrink(0.0f);
+          },
+          [](ImageView& iv) {
+            iv.SetResizeMethod(ResizeMethod::Contain);
+            iv.SetAlignment(TextAlignment::MiddleCenter);
+          }));
+    }
+
+    item->AddChild(Label::SingleLineTruncated(
+        text,
+        [](Layout& l) {
+          l.SetFlexGrow(1.0f);
+          l.SetFlexShrink(1.0f);
+        },
+        [](Label& lbl) {
+          lbl.SetColor(kPopUpItemTextColor);
+          lbl.SetTextAlignment(TextAlignment::MiddleLeft);
+        }));
+
+    if (!shortcut.empty()) {
+      item->AddChild(Label::BasicLabel(
+          shortcut,
+          [](Layout& l) {
+            l.SetMargin(YGEdgeLeft, 16.0f);
+            l.SetFlexShrink(0.0f);
+          },
+          [](Label& lbl) {
+            lbl.SetColor(kSecondaryTextColor);
+            lbl.SetTextAlignment(TextAlignment::MiddleRight);
+          }));
+    }
+
+    item->Apply(modifiers..., [](Button& btn) {
+      btn.OnPush([btn_weak = btn.GetNode()]() {
+        if (!btn_weak.expired())
+          PopUp::Close(btn_weak.lock());
+      });
+    });
+
+    return item;
+  }
+
+  template <typename... Modifiers>
   static std::shared_ptr<Node> DropDownItem(std::string_view text,
                                             std::function<void()> on_click,
                                             Modifiers... modifiers) {
@@ -109,9 +201,8 @@ class PopUpMenu {
         modifiers...,
         [](Button& btn) {
           btn.OnPush([btn_weak = btn.GetNode()]() {
-            if (!btn_weak.expired()) {
+            if (!btn_weak.expired())
               PopUp::Close(btn_weak.lock());
-            }
           });
         });
   }
@@ -146,9 +237,8 @@ class PopUpMenu {
         modifiers...,
         [](Button& btn) {
           btn.OnPush([btn_weak = btn.GetNode()]() {
-            if (!btn_weak.expired()) {
+            if (!btn_weak.expired())
               PopUp::Close(btn_weak.lock());
-            }
           });
         });
   }

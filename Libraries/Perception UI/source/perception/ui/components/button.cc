@@ -14,8 +14,10 @@
 
 #include "perception/ui/components/button.h"
 
-#include "perception/ui/components/block.h"
 #include "perception/scheduler.h"
+#include "perception/ui/components/block.h"
+#include "perception/ui/components/image_button.h"
+#include "perception/ui/components/image_view.h"
 #include "perception/ui/node.h"
 #include "perception/ui/theme.h"
 
@@ -25,12 +27,20 @@ template class UniqueIdentifiableType<ui::components::Button>;
 
 namespace ui {
 namespace components {
+namespace {
+
+// Background color for standard buttons when disabled.
+constexpr uint32 kDisabledButtonBackgroundColor = 0xFFD1D5DB;
+
+}  // namespace
 
 Button::Button()
     : idle_color_(kButtonBackgroundColor),
       hover_color_(kButtonBackgroundHoverColor),
       pushed_color_(kButtonBackgroundPushedColor),
       label_color_(kButtonTextColor),
+      style_(ButtonStyle::DEFAULT),
+      is_enabled_(true),
       is_hovering_(false),
       is_pushed_(false),
       is_toggled_(false) {}
@@ -50,8 +60,8 @@ void Button::SetNode(std::weak_ptr<Node> node) {
       std::bind_front(&Button::MouseButtonDown, this));
   strong_node->OnMouseButtonUp(std::bind_front(&Button::MouseButtonUp, this));
   strong_node->SetBlocksHitTest(true);
-  strong_node->SetCursor(window::Cursor::Poke);
 
+  UpdateCursor();
   UpdateFillColor();
   UpdateLabelColor();
 }
@@ -101,7 +111,24 @@ void Button::SetToggled(bool is_toggled) {
 
 bool Button::IsToggled() const { return is_toggled_; }
 
+void Button::SetEnabled(bool enabled) {
+  if (is_enabled_ == enabled) return;
+  is_enabled_ = enabled;
+  if (!IsEnabled()) {
+    is_hovering_ = false;
+    is_pushed_ = false;
+  }
+  UpdateCursor();
+  UpdateFillColor();
+  UpdateLabelColor();
+}
+
+bool Button::IsEnabled() const {
+  return is_enabled_ && style_ != ButtonStyle::DISABLED;
+}
+
 void Button::SetButtonStyle(ButtonStyle style) {
+  style_ = style;
   if (style == ButtonStyle::DEFAULT) {
     idle_color_ = kButtonBackgroundColor;
     hover_color_ = kButtonBackgroundHoverColor;
@@ -128,25 +155,34 @@ void Button::SetButtonStyle(ButtonStyle style) {
     pushed_color_ = 0xFF9CA3AF;
     label_color_ = 0xFF374151;
   } else if (style == ButtonStyle::DISABLED) {
-    idle_color_ = 0xFFD1D5DB;
-    hover_color_ = 0xFFD1D5DB;
-    pushed_color_ = 0xFFD1D5DB;
-    label_color_ = 0xFF9CA3AF;
+    idle_color_ = kDisabledButtonBackgroundColor;
+    hover_color_ = kDisabledButtonBackgroundColor;
+    pushed_color_ = kDisabledButtonBackgroundColor;
+    label_color_ = kCheckboxDisabledTextColor;
+    is_hovering_ = false;
+    is_pushed_ = false;
   } else if (style == ButtonStyle::GHOST) {
     idle_color_ = kButtonGhostIdleColor;
     hover_color_ = kButtonGhostHoverColor;
     pushed_color_ = kButtonGhostPushedColor;
     label_color_ = kButtonTextColor;
-    if (!block_.expired()) {
+    if (!block_.expired())
       block_.lock()->SetBorderWidth(0.0f);
-    }
   }
+  UpdateCursor();
   UpdateFillColor();
   UpdateLabelColor();
 }
 
 void Button::OnPush(std::function<void()> on_push) {
   on_push_.push_back(on_push);
+}
+
+void Button::UpdateCursor() {
+  if (auto strong_node = node_.lock()) {
+    strong_node->SetCursor(IsEnabled() ? window::Cursor::Poke
+                                       : window::Cursor::Pointer);
+  }
 }
 
 void Button::UpdateFillColor() {
@@ -158,13 +194,33 @@ void Button::UpdateFillColor() {
 void Button::UpdateLabelColor() {
   if (node_.expired()) return;
   auto strong_node = node_.lock();
+  bool enabled = IsEnabled();
+  uint32 effective_label_color =
+      enabled ? label_color_ : kCheckboxDisabledTextColor;
+  auto image_button = strong_node->Get<ImageButton>();
   for (auto& child : strong_node->GetChildren()) {
     if (auto label = child->Get<components::Label>())
-      label->SetColor(label_color_);
+      label->SetColor(effective_label_color);
+    if (auto image_view = child->Get<components::ImageView>()) {
+      if (!enabled) {
+        image_view->SetColor(kCheckboxDisabledTextColor);
+      } else if (image_button && image_button->GetColor().has_value()) {
+        image_view->SetColor(*image_button->GetColor());
+      } else {
+        image_view->ClearColor();
+      }
+    }
   }
 }
 
 uint32 Button::GetFillColor() {
+  if (!is_enabled_) {
+    if (style_ == ButtonStyle::GHOST) return kButtonGhostIdleColor;
+    if (auto strong_node = node_.lock()) {
+      if (strong_node->Get<ImageButton>()) return kButtonGhostIdleColor;
+    }
+    return kDisabledButtonBackgroundColor;
+  }
   if (is_pushed_ || is_toggled_) return pushed_color_;
   if (is_hovering_) return hover_color_;
 
@@ -172,7 +228,7 @@ uint32 Button::GetFillColor() {
 }
 
 void Button::MouseHover(const Point& point) {
-  if (is_hovering_) return;
+  if (!IsEnabled() || is_hovering_) return;
   is_hovering_ = true;
   UpdateFillColor();
 }
@@ -185,13 +241,14 @@ void Button::MouseLeave() {
 }
 
 void Button::MouseButtonDown(const Point& point, window::MouseButton button) {
-  if (button != window::MouseButton::Left || is_pushed_) return;
+  if (!IsEnabled() || button != window::MouseButton::Left || is_pushed_) return;
   is_pushed_ = true;
   UpdateFillColor();
 }
 
 void Button::MouseButtonUp(const Point& point, window::MouseButton button) {
-  if (button != window::MouseButton::Left || !is_pushed_) return;
+  if (!IsEnabled() || button != window::MouseButton::Left || !is_pushed_)
+    return;
 
   is_pushed_ = false;
   UpdateFillColor();

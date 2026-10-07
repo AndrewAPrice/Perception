@@ -33,14 +33,14 @@ namespace perception {
 
 class Window;
 
-// Tab management operations
+// Tab management operations.
 void UpdateTabBar();
 void SwitchTab(size_t index);
 void CloseTab(size_t index);
 void HandleTabDestroyed(Window* gw);
 void UpdateScrollBars(Window* gw);
 
-// Tab collection accessors
+// Tab collection accessors.
 void AddTab(Window* gw);
 void RemoveTab(Window* gw);
 size_t GetTabCount();
@@ -50,7 +50,7 @@ size_t GetActiveTabIndex();
 void SetActiveTabIndex(size_t index);
 const std::vector<Window*>& GetOpenTabs();
 
-// Global UI element accessors
+// Global UI element accessors.
 std::shared_ptr<::perception::ui::Node> GetGlobalUiWindow();
 void SetGlobalUiWindow(std::shared_ptr<::perception::ui::Node> window);
 

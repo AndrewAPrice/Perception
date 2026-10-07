@@ -75,6 +75,13 @@ class InputBox : public UniqueIdentifiableType<InputBox> {
   void SetTextColor(uint32 color);
   uint32 GetTextColor() const;
 
+  void SetDrawBorder(bool draw_border);
+  bool GetDrawBorder() const;
+
+  void SelectAll();
+  void Focus();
+  void OnFocusChanged(std::function<void(bool)> handler);
+
   static void DrawTextBoxOuter(const DrawContext& draw_context, bool has_focus,
                                bool is_hovering);
 
@@ -90,10 +97,12 @@ class InputBox : public UniqueIdentifiableType<InputBox> {
   bool ctrl_pressed_;
   bool is_hovering_;
   bool is_pushed_;
+  bool draw_border_;
   uint32 text_color_;
 
   std::vector<std::function<void(std::string_view)>> on_text_changed_handlers_;
   std::vector<std::function<void(std::string_view)>> on_enter_pressed_handlers_;
+  std::vector<std::function<void(bool)>> on_focus_changed_handlers_;
 
   void Draw(const DrawContext& draw_context);
   Size Measure(float width, YGMeasureMode width_mode, float height,

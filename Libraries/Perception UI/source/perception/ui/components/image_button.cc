@@ -31,21 +31,47 @@ std::weak_ptr<Node> ImageButton::GetNode() const { return node_; }
 
 void ImageButton::SetImageView(std::weak_ptr<ImageView> image_view) {
   image_view_ = image_view;
+  if (auto iv = image_view.lock()) {
+    if (!custom_color_.has_value() && iv->GetColor().has_value())
+      custom_color_ = iv->GetColor();
+  }
 }
 
 std::weak_ptr<ImageView> ImageButton::GetImageView() const {
   return image_view_;
 }
 
+void ImageButton::SetImage(std::shared_ptr<Image> image) {
+  if (auto iv = image_view_.lock()) iv->SetImage(std::move(image));
+}
+
+std::shared_ptr<Image> ImageButton::GetImage() const {
+  if (auto iv = image_view_.lock()) return iv->GetImage();
+  return nullptr;
+}
+
 void ImageButton::SetColor(uint32 color) {
+  custom_color_ = color;
+  if (auto strong_node = node_.lock()) {
+    if (auto button = strong_node->Get<Button>()) {
+      if (!button->IsEnabled()) return;
+    }
+  }
   if (auto iv = image_view_.lock()) iv->SetColor(color);
 }
 
 void ImageButton::ClearColor() {
+  custom_color_.reset();
+  if (auto strong_node = node_.lock()) {
+    if (auto button = strong_node->Get<Button>()) {
+      if (!button->IsEnabled()) return;
+    }
+  }
   if (auto iv = image_view_.lock()) iv->ClearColor();
 }
 
 std::optional<uint32> ImageButton::GetColor() const {
+  if (custom_color_.has_value()) return custom_color_;
   if (auto iv = image_view_.lock()) return iv->GetColor();
   return std::nullopt;
 }

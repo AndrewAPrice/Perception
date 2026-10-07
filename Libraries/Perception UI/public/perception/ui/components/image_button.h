@@ -48,18 +48,16 @@ class ImageButton : public UniqueIdentifiableType<ImageButton> {
       std::function<void()> on_push, std::shared_ptr<Image> image,
       float icon_width, float icon_height, Modifiers... modifiers) {
     std::shared_ptr<ImageView> image_view;
-    auto image_node = image
-                          ? ImageView::BasicImage(
-                                image, &image_view,
-                                [icon_width, icon_height](Layout& l) {
-                                  l.SetWidth(icon_width);
-                                  l.SetHeight(icon_height);
-                                },
-                                [](ImageView& iv) {
-                                  iv.SetResizeMethod(ResizeMethod::Contain);
-                                  iv.SetAlignment(TextAlignment::MiddleCenter);
-                                })
-                          : Node::Empty();
+    auto image_node = ImageView::BasicImage(
+        image, &image_view,
+        [icon_width, icon_height](Layout& l) {
+          l.SetWidth(icon_width);
+          l.SetHeight(icon_height);
+        },
+        [](ImageView& iv) {
+          iv.SetResizeMethod(ResizeMethod::Contain);
+          iv.SetAlignment(TextAlignment::MiddleCenter);
+        });
 
     return Node::Empty(
         [image_view](ImageButton& image_button) {
@@ -90,6 +88,9 @@ class ImageButton : public UniqueIdentifiableType<ImageButton> {
   void SetImageView(std::weak_ptr<ImageView> image_view);
   std::weak_ptr<ImageView> GetImageView() const;
 
+  void SetImage(std::shared_ptr<Image> image);
+  std::shared_ptr<Image> GetImage() const;
+
   // Sets a tint color for the button icon.
   void SetColor(uint32 color);
 
@@ -102,6 +103,7 @@ class ImageButton : public UniqueIdentifiableType<ImageButton> {
  private:
   std::weak_ptr<Node> node_;
   std::weak_ptr<ImageView> image_view_;
+  std::optional<uint32> custom_color_;
 };
 
 }  // namespace components

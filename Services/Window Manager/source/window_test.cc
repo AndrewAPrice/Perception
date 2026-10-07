@@ -274,4 +274,38 @@ TEST(ParentCloseCascadesToChildren) {
   EXPECT(false, win_c->IsVisible());
 }
 
+TEST(WindowDefaultScreenFractionSizing) {
+  Window::UnfocusAllWindows();
+  InitializeScreen();
+
+  auto screen_size = GetScreenSize();
+  float expected_default_width = screen_size.width * 0.8f;
+  float expected_default_height = screen_size.height * 0.8f;
+
+  CreateWindowRequest full_default_req;
+  full_default_req.window = ::perception::window::BaseWindow::Client(1, 112);
+  full_default_req.title = "Default Size Window";
+  full_default_req.is_resizable = true;
+  full_default_req.desired_size.width = 0;
+  full_default_req.desired_size.height = 0;
+  auto full_default_win = *Window::CreateWindow(full_default_req);
+  EXPECT(expected_default_width, full_default_win->GetScreenArea().size.width);
+  EXPECT(expected_default_height,
+         full_default_win->GetScreenArea().size.height);
+
+  CreateWindowRequest partial_default_req;
+  partial_default_req.window = ::perception::window::BaseWindow::Client(1, 113);
+  partial_default_req.title = "Partial Default Size Window";
+  partial_default_req.is_resizable = true;
+  partial_default_req.desired_size.width = 400;
+  partial_default_req.desired_size.height = 0;
+  auto partial_default_win = *Window::CreateWindow(partial_default_req);
+  EXPECT(400.0f, partial_default_win->GetScreenArea().size.width);
+  EXPECT(expected_default_height,
+         partial_default_win->GetScreenArea().size.height);
+
+  full_default_win->Close();
+  partial_default_win->Close();
+}
+
 }  // namespace

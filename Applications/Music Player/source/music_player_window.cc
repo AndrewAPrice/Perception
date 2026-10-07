@@ -121,6 +121,7 @@ void MusicPlayerWindow::BuildUI() {
 
   window_node_ = UiWindow::ResizableWindowWithTitleBar(
       "Music Player", [](Layout& layout) { layout.SetWidth(kWindowWidth); },
+      UiWindow::FitContent(YGDimensionHeight),
       [this](UiWindow& window) {
         window.OnClose([]() { TerminateProcess(); });
       },

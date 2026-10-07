@@ -85,6 +85,9 @@ class Button : public UniqueIdentifiableType<Button> {
   void SetToggled(bool is_toggled);
   bool IsToggled() const;
 
+  void SetEnabled(bool enabled);
+  bool IsEnabled() const;
+
   void SetButtonStyle(ButtonStyle style);
 
   void OnPush(std::function<void()> on_push);
@@ -95,6 +98,8 @@ class Button : public UniqueIdentifiableType<Button> {
   uint32 pushed_color_;
   uint32 label_color_;
 
+  ButtonStyle style_;
+  bool is_enabled_;
   bool is_hovering_;
   bool is_pushed_;
   bool is_toggled_;
@@ -103,6 +108,7 @@ class Button : public UniqueIdentifiableType<Button> {
   std::weak_ptr<Node> node_;
   std::weak_ptr<components::Block> block_;
 
+  void UpdateCursor();
   void UpdateFillColor();
   uint32 GetFillColor();
   void UpdateLabelColor();

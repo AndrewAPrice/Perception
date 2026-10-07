@@ -23,7 +23,6 @@
 #include <optional>
 #include <vector>
 
-#include "perception/devices/graphics_device.h"
 #include "perception/fibers.h"
 #include "perception/loader.h"
 #include "perception/power.h"
@@ -51,7 +50,6 @@
 
 using ::perception::Defer;
 using ::perception::GetService;
-using ::perception::devices::GraphicsDevice;
 using ::perception::ui::Image;
 using ::perception::ui::Layout;
 using ::perception::ui::Node;
@@ -318,29 +316,12 @@ void ShowLauncherWindow() {
   InitializeRegistryListeners();
   UpdateSettingsFromRegistry();
 
-  // Query the screen size.
-  auto screen_size = GetService<GraphicsDevice>().GetScreenSize();
-  if (!screen_size.Ok()) {
-    launcher_window_state = WindowState::CLOSED;
-    for (auto fiber : waiting_window_fibers) fiber->WakeUp();
-    waiting_window_fibers.clear();
-    return;
-  }
-
-  // Create the launcher that's 80% of the screen size.
-  int launcher_width = screen_size->width * 8 / 10;
-  int launcher_height = screen_size->height * 8 / 10;
-
   // Pre-load the power icon before constructing the window to avoid yielding
   // during window layout initialization.
   auto power_image = GetPowerImage();
 
   launcher_window = UiWindow::ResizableWindowWithTabBar(
       &launcher_tab_bar,
-      [launcher_width, launcher_height](Layout& layout) {
-        layout.SetWidth((float)launcher_width);
-        layout.SetHeight((float)launcher_height);
-      },
       [](UiWindow& window) {
         window.SetTitle("Launcher");
         window.OnClose([]() {

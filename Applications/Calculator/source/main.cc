@@ -45,8 +45,14 @@ using ::perception::ui::components::UiWindow;
 
 namespace {
 
+// Default window width.
+constexpr float kWindowWidth = 400.0f;
+
+// Background color of the calculator button panel.
 constexpr uint32 kButtonPanelBackgroundColor =
     SkColorSetARGB(0xFF, 0xC7, 0xC7, 0xC7);
+
+// Background color of the calculation history terminal.
 constexpr uint32 kTerminalBackgroundColor =
     SkColorSetARGB(0xFF, 0xF7, 0xF7, 0xF7);
 
@@ -358,12 +364,13 @@ int main(int argc, char* argv[]) {
               Button::TextButton("=", std::bind(PressEquals)))));
 
   auto window = UiWindow::ResizableWindowWithTitleBar(
-      "Calculator",
+      "Calculator", [](Layout& layout) { layout.SetWidth(kWindowWidth); },
+      UiWindow::FitContent(YGDimensionHeight),
       [](UiWindow& window) { window.OnClose([]() { TerminateProcess(); }); },
       Container::HorizontalContainer(
           [](Layout& layout) {
             layout.SetFlexGrow(1.0);
-            layout.SetWidth(400);
+            layout.SetAlignSelf(YGAlignStretch);
           },
           button_panel, terminal_container));
 

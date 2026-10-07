@@ -282,10 +282,6 @@ void MusicBoxWindow::BuildUI() {
 
   window_ = UiWindow::ResizableWindowWithTitleBar(
       "MusicBox",
-      [](Layout& layout) {
-        layout.SetWidth(880.0f);
-        layout.SetHeight(520.0f);
-      },
       [this](UiWindow& window) {
         window.OnClose([this]() {
           window_open_ = false;

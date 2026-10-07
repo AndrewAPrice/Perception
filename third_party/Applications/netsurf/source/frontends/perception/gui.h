@@ -16,15 +16,20 @@
 
 #include "bitmap.h"
 #include "clipboard.h"
+#include "core_window.h"
+#include "download.h"
 #include "fetch.h"
 #include "layout.h"
 #include "misc.h"
 #include "window.h"
 
-// Keep global symbols in C context so NetSurf core can see them
-using ::netsurf::perception::perception_misc_table;
-using ::netsurf::perception::perception_window_table;
+// Keep global symbols in C context so NetSurf core can see them.
 using ::netsurf::perception::perception_clipboard_table;
+using ::netsurf::perception::perception_core_window_table;
+using ::netsurf::perception::perception_download_table;
 using ::netsurf::perception::perception_fetch_table;
+using ::netsurf::perception::perception_misc_table;
+using ::netsurf::perception::perception_search_table;
+using ::netsurf::perception::perception_window_table;
 using ::netsurf::perception::skia_bitmap_table;
 using ::netsurf::perception::skia_layout_table;

@@ -30,6 +30,9 @@ class Image {
   virtual ~Image();
   static std::shared_ptr<Image> LoadImage(std::string_view path);
 
+  // Creates an Image wrapping an existing SkImage.
+  static std::shared_ptr<Image> FromSkImage(sk_sp<SkImage> sk_image);
+
   virtual SkImage* GetSkImage(const Size& size, bool& matches_dimensions) = 0;
   virtual SkSVGDOM* GetSkSVGDOM(const Size& size) = 0;
   virtual Size GetSize(const Size& container_size) = 0;
