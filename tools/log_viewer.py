@@ -8,6 +8,7 @@ import os
 import re
 import struct
 import sys
+import time
 
 # Control code escape sequence regex: \033]P;<pid>;<channel_id>;<name>\007
 CONTROL_CODE_REGEX = re.compile(bytes([0x1b]) + rb']P;(-?\d+);(\d+);([^\x07]*)\x07')
@@ -25,6 +26,17 @@ ANSI_COLORS = [
     "\033[93m",  # Bright Yellow
 ]
 ANSI_RESET = "\033[0m"
+
+
+def _safe_print(text: str, file=None):
+    if file is None:
+        file = sys.stdout
+    while True:
+        try:
+            print(text, file=file, flush=True)
+            break
+        except BlockingIOError:
+            time.sleep(0.005)
 
 
 class DemuxParser:
@@ -314,9 +326,9 @@ class DemuxParser:
         channel_str = f" [ch:{self.current_channel}]" if self.current_channel != 0 else ""
 
         if sys.stdout.isatty():
-            print(f"{color}[{timestamp}] [{self.current_name}]{channel_str} {text}{ANSI_RESET}", flush=True)
+            _safe_print(f"{color}[{timestamp}] [{self.current_name}]{channel_str} {text}{ANSI_RESET}")
         else:
-            print(f"[{timestamp}] [{self.current_name}]{channel_str} {text}", flush=True)
+            _safe_print(f"[{timestamp}] [{self.current_name}]{channel_str} {text}")
 
     def export_trace_json(self, output_path: str = "trace.json"):
         if not self.trace_events and not self.process_creation_ts:
@@ -342,7 +354,7 @@ class DemuxParser:
                 return 0
             return max(1, raw_dur // 1000)
 
-        print("Exporting trace to trace.json", flush=True)
+        _safe_print("Exporting trace to trace.json")
 
         chrome_events = []
         
@@ -488,10 +500,19 @@ class DemuxParser:
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(chrome_events, f, indent=2)
         except Exception as err:
-            print(f"Failed to write trace to {output_path}: {err}", file=sys.stderr)
+            _safe_print(f"Failed to write trace to {output_path}: {err}", file=sys.stderr)
 
 
 def main():
+    try:
+        os.set_blocking(sys.stdout.fileno(), True)
+    except Exception:
+        pass
+    try:
+        os.set_blocking(sys.stderr.fileno(), True)
+    except Exception:
+        pass
+
     parser = DemuxParser()
     stdin_fd = sys.stdin.fileno()
     while True:
