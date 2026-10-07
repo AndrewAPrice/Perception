@@ -77,9 +77,6 @@ namespace {
 // Default window width.
 constexpr float kWindowWidth = 340.0f;
 
-// Default window height.
-constexpr float kWindowHeight = 400.0f;
-
 // Color of row hover background.
 constexpr uint32 kRowHoverColor = SkColorSetARGB(0xFF, 0xE5, 0xE7, 0xEB);
 
@@ -398,10 +395,7 @@ int main(int argc, char* argv[]) {
   auto window = UiWindow::ResizableWindowWithTitleBar(
       "File Manager",
       [](UiWindow& window) { window.OnClose([]() { TerminateProcess(); }); },
-      [](Layout& layout) {
-        layout.SetWidth(kWindowWidth);
-        layout.SetHeight(kWindowHeight);
-      },
+      [](Layout& layout) { layout.SetWidth(kWindowWidth); },
       Container::VerticalContainer(
           [](Layout& layout) {
             layout.SetFlexGrow(1.0f);
