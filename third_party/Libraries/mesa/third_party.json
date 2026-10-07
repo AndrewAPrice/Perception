@@ -1,0 +1,542 @@
+{
+    "dummy": "force_rebuild_28",
+    "repositories": [
+        {
+            "url": "-b 23.0 https://gitlab.freedesktop.org/mesa/mesa.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "readRegExFromFile",
+            "file": "${git}/VERSION",
+            "values": {
+                "version_string": "(.*)"
+            }
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/GL",
+            "destination": "public/include/GL",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/GLES",
+            "destination": "public/include/GLES",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/GLES2",
+            "destination": "public/include/GLES2",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/GLES3",
+            "destination": "public/include/GLES3",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/EGL",
+            "destination": "public/include/EGL",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/KHR",
+            "destination": "public/include/KHR",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/c99_compat.h",
+            "destination": "public/include/c99_compat.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/c99_alloca.h",
+            "destination": "public/include/c99_alloca.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/no_extern_c.h",
+            "destination": "public/include/no_extern_c.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/drm-uapi",
+            "destination": "source/include/drm-uapi",
+            "recursive": true,
+            "replace": [
+                {
+                    "file": "source/include/drm-uapi/drm.h",
+                    "replacements": [
+                        [
+                            "#include <sys/ioccom.h>",
+                            "#include <sys/ioctl.h>"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/vulkan",
+            "destination": "source/include/vulkan",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/vk_video",
+            "destination": "source/include/vk_video",
+            "recursive": true
+        },
+        {
+            "operation": "readFilesInDirectory",
+            "path": [
+                "${git}/src/util/tests",
+                "${git}/src/util/tests/hash_table",
+                "${git}/src/util/tests/format",
+                "${git}/src/util/tests/drirc_configdir",
+                "${git}/src/util/tests/perf",
+                "${git}/src/util/tests/drirc_home",
+                "${git}/src/util/tests/vma",
+                "${git}/src/mapi/glapi/tests",
+                "${git}/src/mapi/shared-glapi/tests",
+                "${git}/src/mesa/state_tracker/tests",
+                "${git}/src/mesa/main/tests",
+                "${git}/src/compiler/spirv/tests",
+                "${git}/src/compiler/glsl/tests",
+                "${git}/src/compiler/glsl/tests/warnings",
+                "${git}/src/compiler/glsl/glcpp/tests",
+                "${git}/src/compiler/nir/tests"
+            ],
+            "placeholder": "test_files",
+            "fullPath": true,
+            "replacements": [
+                [
+                    "${git}/",
+                    "${@}/source/"
+                ]
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/c11",
+            "destination": "source/src/c11",
+            "recursive": true,
+            "exclude": [
+                "${test_files}"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/util",
+            "destination": "source/src/util",
+            "recursive": true,
+            "exclude": [
+                "${test_files}"
+            ],
+            "replace": [
+                {
+                    "file": "source/src/util/macros.h",
+                    "replacements": [
+                        [
+                            "#if defined(HAVE___BUILTIN_UNREACHABLE) || __has_builtin(__builtin_unreachable)\n#define unreachable(str)    \\\ndo {                        \\\n   assert(!str);            \\\n   __builtin_unreachable(); \\\n} while (0)\n#elif defined (_MSC_VER)\n#define unreachable(str)    \\\ndo {                        \\\n   assert(!str);            \\\n   __assume(0);             \\\n} while (0)\n#else\n#define unreachable(str) assert(!str)\n#endif",
+                            "#ifdef __cplusplus\n#include <utility>\n#include <cassert>\nstatic inline void unreachable(const char* str) {\n   (void)str;\n   __builtin_unreachable();\n}\n#else\n#if defined(HAVE___BUILTIN_UNREACHABLE) || __has_builtin(__builtin_unreachable)\n#define unreachable(str)    \\\ndo {                        \\\n   assert(!str);            \\\n   __builtin_unreachable(); \\\n} while (0)\n#elif defined (_MSC_VER)\n#define unreachable(str)    \\\ndo {                        \\\n   assert(!str);            \\\n   __assume(0);             \\\n} while (0)\n#else\n#define unreachable(str) assert(!str)\n#endif\n#endif"
+                        ],
+                        [
+                            "#endif /* UTIL_MACROS_H */",
+                            "#define UNREACHABLE(str) unreachable(str)\n#endif /* UTIL_MACROS_H */"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/util/cnd_monotonic.h",
+                    "replacements": [
+                        [
+                            "#include \"c11/threads.h\"",
+                            "#include <assert.h>\n#include <stddef.h>\n#include \"c11/threads.h\""
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/util/u_dl.c",
+                    "replacements": [
+                        [
+                            "#include \"u_dl.h\"",
+                            "#include <stddef.h>\n#include \"u_dl.h\""
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/mapi",
+            "destination": "source/src/mapi",
+            "recursive": true,
+            "exclude": [
+                "${test_files}"
+            ],
+            "replace": [
+                {
+                    "file": "source/src/mapi/mapi_abi.py",
+                    "replacements": [
+                        [
+                            "self.lib_need_table_size = False",
+                            "self.lib_need_table_size = True"
+                        ],
+                        [
+                            "self.lib_need_noop_array = False",
+                            "self.lib_need_noop_array = True"
+                        ],
+                        [
+                            "self.lib_need_stubs = False",
+                            "self.lib_need_stubs = True"
+                        ],
+                        [
+                            "self.lib_need_all_entries = False",
+                            "self.lib_need_all_entries = True"
+                        ],
+                        [
+                            "self.lib_need_non_hidden_entries = True",
+                            "self.lib_need_non_hidden_entries = False"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/mesa",
+            "destination": "source/src/mesa",
+            "recursive": true,
+            "exclude": [
+                "${test_files}"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/compiler",
+            "destination": "source/src/compiler",
+            "recursive": true,
+            "exclude": [
+                "${test_files}"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gallium/include",
+            "destination": "source/src/gallium/include",
+            "recursive": true,
+            "exclude": [
+                "${test_files}"
+            ],
+            "replace": [
+                {
+                    "file": "source/src/gallium/include/pipe/p_state.h",
+                    "replacements": [
+                        [
+                            "struct pipe_draw_vertex_state_info {\n#if defined(__GNUC__)",
+                            "struct pipe_draw_vertex_state_info {\n#if 0"
+                        ],
+                        [
+                            "struct pipe_draw_info\n{\n#if defined(__GNUC__)",
+                            "struct pipe_draw_info\n{\n#if 0"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gallium/auxiliary",
+            "destination": "source/src/gallium/auxiliary",
+            "recursive": true,
+            "exclude": [
+                "${test_files}"
+            ],
+            "replace": [
+                {
+                    "file": "source/src/gallium/auxiliary/nir/nir_to_tgsi_info.c",
+                    "replacements": [
+                        [
+                            "#include \"tgsi/tgsi_from_mesa.h\"",
+                            "#include \"tgsi/tgsi_from_mesa.h\"\n\n#ifdef DRAW_LLVM_AVAILABLE"
+                        ],
+                        [
+                            "   nir_foreach_block(block, func->impl) {\n      nir_foreach_instr(instr, block)\n         scan_instruction(nir, need_texcoord, info, instr);\n   }\n}",
+                            "   nir_foreach_block(block, func->impl) {\n      nir_foreach_instr(instr, block)\n         scan_instruction(nir, need_texcoord, info, instr);\n   }\n}\n\n#endif"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/gallium/auxiliary/gallivm/lp_bld_init.c",
+                    "replacements": [
+                        [
+                            "#include <llvm-c/Transforms/Scalar.h>",
+                            "#if GALLIVM_USE_NEW_PASS == 0\n#include <llvm-c/Transforms/Scalar.h>\n#endif"
+                        ],
+                        [
+                            "#include <llvm-c/Transforms/Utils.h>",
+                            "#if GALLIVM_USE_NEW_PASS == 0\n#include <llvm-c/Transforms/Utils.h>\n#endif"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/gallium/auxiliary/gallivm/lp_bld_misc.cpp",
+                    "replacements": [
+                        [
+                            "#include <llvm/ADT/Triple.h>",
+                            "#include <llvm/TargetParser/Triple.h>"
+                        ],
+                        [
+                            "#include <llvm/Support/Host.h>",
+                            "#include <llvm/TargetParser/Host.h>"
+                        ],
+                        [
+                            ".setOptLevel((CodeGenOpt::Level)OptLevel);",
+                            "#if LLVM_VERSION_MAJOR >= 18\n          .setOptLevel((llvm::CodeGenOptLevel)OptLevel);\n#else\n          .setOptLevel((CodeGenOpt::Level)OptLevel);\n#endif"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/gallium/auxiliary/gallivm/lp_bld_debug.cpp",
+                    "replacements": [
+                        [
+                            "#include <llvm/Support/Host.h>",
+                            "#include <llvm/TargetParser/Host.h>"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/gallium/auxiliary/draw/draw_llvm.c",
+                    "replacements": [
+                        [
+                            "#if LLVM_VERSION_MAJOR >= 15\n      LLVMContextSetOpaquePointers(llvm->context, false);\n#endif",
+                            "#if LLVM_VERSION_MAJOR >= 15 && LLVM_VERSION_MAJOR < 17\n      LLVMContextSetOpaquePointers(llvm->context, false);\n#endif"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/src/gallium/auxiliary/util/u_prim.c",
+                    "replacements": [
+                        [
+                            "#if defined(__GNUC__)\n   /* Check that the enum is packed: */\n   STATIC_ASSERT(sizeof(enum pipe_prim_type) == 1);\n#endif",
+                            "#if 0\n   /* Check that the enum is packed: */\n   STATIC_ASSERT(sizeof(enum pipe_prim_type) == 1);\n#endif"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gallium/drivers/llvmpipe",
+            "destination": "source/src/gallium/drivers/llvmpipe",
+            "recursive": true,
+            "exclude": [
+                "${test_files}"
+            ],
+            "replace": [
+                {
+                    "file": "source/src/gallium/drivers/llvmpipe/lp_context.c",
+                    "replacements": [
+                        [
+                            "#if LLVM_VERSION_MAJOR >= 15\n   LLVMContextSetOpaquePointers(llvmpipe->context, false);\n#endif",
+                            "#if LLVM_VERSION_MAJOR >= 15 && LLVM_VERSION_MAJOR < 17\n   LLVMContextSetOpaquePointers(llvmpipe->context, false);\n#endif"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gallium/drivers/softpipe",
+            "destination": "source/src/gallium/drivers/softpipe",
+            "recursive": true,
+            "exclude": [
+                "${test_files}"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gallium/winsys",
+            "destination": "source/src/gallium/winsys",
+            "recursive": true,
+            "exclude": [
+                "${test_files}"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gallium/targets/osmesa",
+            "destination": "source/src/gallium/targets/osmesa",
+            "recursive": true,
+            "exclude": [
+                "${test_files}"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/src/gallium/frontends/osmesa",
+            "destination": "source/src/gallium/frontends/osmesa",
+            "recursive": true,
+            "exclude": [
+                "${test_files}"
+            ],
+            "replace": [
+                {
+                    "file": "source/src/gallium/frontends/osmesa/osmesa.c",
+                    "replacements": [
+                        [
+                            "vis->buffer_mask = ST_ATTACHMENT_FRONT_LEFT_MASK;",
+                            "vis->buffer_mask = ST_ATTACHMENT_FRONT_LEFT_MASK | ST_ATTACHMENT_BACK_LEFT_MASK;"
+                        ],
+                        [
+                            "   if (statts[i] == ST_ATTACHMENT_FRONT_LEFT) {",
+                            "   if (statts[i] == ST_ATTACHMENT_FRONT_LEFT || statts[i] == ST_ATTACHMENT_BACK_LEFT) {"
+                        ],
+                        [
+                            "   if (statt != ST_ATTACHMENT_FRONT_LEFT)\n      return false;",
+                            "   if (!res) {\n      if (osbuffer->textures[ST_ATTACHMENT_BACK_LEFT])\n         res = osbuffer->textures[ST_ATTACHMENT_BACK_LEFT];\n      else if (osbuffer->textures[ST_ATTACHMENT_FRONT_LEFT])\n         res = osbuffer->textures[ST_ATTACHMENT_FRONT_LEFT];\n   }\n   if (!res)\n      return false;"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "execute",
+            "command": "python3 extract_mesa.py",
+            "directory": "${@}",
+            "inputs": [
+                "extract_mesa.py",
+                "source/src/compiler/glsl/glsl_parser.yy",
+                "source/src/compiler/glsl/glsl_lexer.ll",
+                "source/src/compiler/glsl/glcpp/glcpp-parse.y",
+                "source/src/compiler/glsl/glcpp/glcpp-lex.l",
+                "source/src/mesa/program/program_parse.y",
+                "source/src/mesa/program/program_lexer.l",
+                "source/src/compiler/glsl/ir_expression_operation.py",
+                "source/src/compiler/nir/nir_builder_opcodes_h.py",
+                "source/src/compiler/nir/nir_constant_expressions.py",
+                "source/src/compiler/nir/nir_opcodes_h.py",
+                "source/src/compiler/nir/nir_opcodes_c.py",
+                "source/src/compiler/nir/nir_opt_algebraic.py",
+                "source/src/compiler/nir/nir_intrinsics_h.py",
+                "source/src/compiler/nir/nir_intrinsics_c.py",
+                "source/src/compiler/nir/nir_intrinsics_indices_h.py",
+                "source/src/mapi/mapi_abi.py",
+                "source/src/mapi/glapi/gen/gl_and_es_API.xml",
+                "source/src/mapi/glapi/gen/gl_API.xml",
+                "source/src/mapi/glapi/gen/gl_procs.py",
+                "source/src/mapi/glapi/gen/gl_apitemp.py",
+                "source/src/mapi/glapi/gen/gl_table.py",
+                "source/src/mapi/glapi/gen/gl_gentable.py",
+                "source/src/mapi/glapi/gen/gl_enums.py",
+                "source/src/mapi/glapi/gen/api_exec_init.py",
+                "source/src/mapi/glapi/gen/api_exec_decl_h.py",
+                "source/src/mapi/glapi/gen/api_save_init_h.py",
+                "source/src/mapi/glapi/gen/api_save_h.py",
+                "source/src/mapi/glapi/gen/api_beginend_init_h.py",
+                "source/src/mapi/glapi/gen/api_hw_select_init_h.py",
+                "source/src/mapi/glapi/gen/gl_unmarshal_table.py",
+                "source/src/mapi/glapi/gen/gl_marshal.py",
+                "source/src/mapi/glapi/gen/gl_marshal_h.py",
+                "source/src/mapi/glapi/gen/remap_helper.py",
+                "source/src/compiler/spirv/vtn_generator_ids_h.py",
+                "source/src/compiler/spirv/spir-v.xml",
+                "source/src/compiler/spirv/spirv_info_c.py",
+                "source/src/compiler/spirv/vtn_gather_types_c.py",
+                "source/src/compiler/spirv/spirv.core.grammar.json",
+                "source/src/mesa/main/format_info.py",
+                "source/src/mesa/main/formats.csv",
+                "source/src/mesa/main/get_hash_generator.py",
+                "source/src/mesa/main/format_fallback.py",
+                "source/src/util/driconf_static.py",
+                "source/src/util/00-mesa-defaults.conf",
+                "source/src/util/format_srgb.py",
+                "source/src/gallium/auxiliary/util/u_tracepoints.py",
+                "source/src/gallium/auxiliary/indices/u_indices_gen.py",
+                "source/src/gallium/auxiliary/indices/u_unfilled_gen.py",
+                "source/src/gallium/auxiliary/driver_trace/enums2names.py",
+                "source/src/gallium/include/pipe/p_defines.h",
+                "source/src/util/xxd.py",
+                "source/src/compiler/glsl/float64.glsl",
+                "source/src/util/format/u_format_table.py",
+                "source/src/util/format/u_format.csv"
+            ],
+            "outputs": [
+                "source/src/git_sha1.h",
+                "source/src/util/reallocarray.c",
+                "source/src/compiler/nir/nir_lower_alpha_test_wrapper.c",
+                "source/src/gallium/drivers/softpipe/sp_quad_depth_test_wrapper.c",
+                "source/src/compiler/glsl/glsl_parser.cpp",
+                "source/src/compiler/glsl/glsl_parser.h",
+                "source/src/compiler/glsl/glsl_lexer.cpp",
+                "source/src/compiler/glsl/glcpp/glcpp-parse.c",
+                "source/src/compiler/glsl/glcpp/glcpp-parse.h",
+                "source/src/compiler/glsl/glcpp/glcpp-lex.c",
+                "source/src/mesa/program/program_parse.tab.c",
+                "source/src/mesa/program/program_parse.tab.h",
+                "source/src/mesa/program/program_lexer.c",
+                "source/src/compiler/ir_expression_operation.h",
+                "source/src/compiler/glsl/ir_expression_operation_constant.h",
+                "source/src/compiler/glsl/ir_expression_operation_strings.h",
+                "source/src/compiler/nir/nir_builder_opcodes.h",
+                "source/src/compiler/nir/nir_constant_expressions.c",
+                "source/src/compiler/nir/nir_opcodes.h",
+                "source/src/compiler/nir/nir_opcodes.c",
+                "source/src/compiler/nir/nir_opt_algebraic.c",
+                "source/src/compiler/nir/nir_intrinsics.h",
+                "source/src/compiler/nir/nir_intrinsics.c",
+                "source/src/compiler/nir/nir_intrinsics_indices.h",
+                "source/src/glapi_mapi_tmp.h",
+                "source/src/mapi/glapi/glprocs.h",
+                "source/src/mapi/glapi/glapitemp.h",
+                "source/src/mapi/glapi/glapitable.h",
+                "source/src/mapi/glapi/glapi_gentable.c",
+                "source/src/mesa/main/enums.c",
+                "source/src/mesa/main/api_exec_init.c",
+                "source/src/mesa/main/api_exec_decl.h",
+                "source/src/mesa/main/api_save_init.h",
+                "source/src/mesa/main/api_save.h",
+                "source/src/mesa/main/api_beginend_init.h",
+                "source/src/mesa/main/api_hw_select_init.h",
+                "source/src/mesa/main/unmarshal_table.c",
+                "source/src/mesa/main/marshal_generated0.c",
+                "source/src/mesa/main/marshal_generated1.c",
+                "source/src/mesa/main/marshal_generated2.c",
+                "source/src/mesa/main/marshal_generated3.c",
+                "source/src/mesa/main/marshal_generated4.c",
+                "source/src/mesa/main/marshal_generated5.c",
+                "source/src/mesa/main/marshal_generated6.c",
+                "source/src/mesa/main/marshal_generated7.c",
+                "source/src/compiler/spirv/vtn_generator_ids.h",
+                "source/src/compiler/spirv/spirv_info.c",
+                "source/src/compiler/spirv/vtn_gather_types.c",
+                "source/src/mesa/main/format_info.h",
+                "source/src/mesa/main/get_hash.h",
+                "source/src/mesa/main/format_fallback.c",
+                "source/src/mesa/main/dispatch.h",
+                "source/src/mesa/main/marshal_generated.h",
+                "source/src/mesa/main/remap_helper.h",
+                "source/src/util/driconf_static.h",
+                "source/src/util/format_srgb.c",
+                "source/src/gallium/auxiliary/tracepoints/u_tracepoints.h",
+                "source/src/gallium/auxiliary/tracepoints/u_tracepoints.c",
+                "source/src/gallium/auxiliary/indices/u_indices_gen.c",
+                "source/src/gallium/auxiliary/indices/u_unfilled_gen.c",
+                "source/src/gallium/auxiliary/driver_trace/tr_util.c",
+                "source/src/gallium/auxiliary/driver_trace/tr_util.h",
+                "source/src/compiler/glsl/float64_glsl.h",
+                "source/src/util/format/u_format_pack.h",
+                "source/src/util/format/u_format_table.c"
+            ]
+        }
+    ]
+}
