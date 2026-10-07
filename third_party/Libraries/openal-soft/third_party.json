@@ -1,0 +1,144 @@
+{
+    "repositories": [
+        {
+            "url": "-b master https://github.com/kcat/openal-soft.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "readRegExFromFile",
+            "file": "${git}/CMakeLists.txt",
+            "values": {
+                ",major,minor,revision": "VERSION (\\d+)\\.(\\d+)\\.(\\d+)"
+            }
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/include/AL",
+            "destination": "public/AL",
+            "recursive": true,
+            "extensions": [
+                ".h"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/gsl/include/gsl",
+            "destination": "public/gsl",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/fmt-11.2.0/include/fmt",
+            "destination": "public/fmt",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/common",
+            "destination": "source/common",
+            "recursive": true,
+            "extensions": [
+                ".cpp",
+                ".h",
+                ".hpp",
+                ".c"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/core",
+            "destination": "source/core",
+            "recursive": true,
+            "extensions": [
+                ".cpp",
+                ".h",
+                ".hpp",
+                ".c"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/al",
+            "destination": "source/al",
+            "recursive": true,
+            "extensions": [
+                ".cpp",
+                ".h",
+                ".hpp",
+                ".c"
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/alc",
+            "destination": "source/alc",
+            "recursive": true,
+            "extensions": [
+                ".cpp",
+                ".h",
+                ".hpp",
+                ".c"
+            ],
+            "exclude": [
+                "source/alc/backends/winmm.cpp",
+                "source/alc/backends/winmm.h",
+                "source/alc/backends/dsound.cpp",
+                "source/alc/backends/dsound.h",
+                "source/alc/backends/wasapi.cpp",
+                "source/alc/backends/wasapi.h",
+                "source/alc/backends/alsa.cpp",
+                "source/alc/backends/alsa.h",
+                "source/alc/backends/oss.cpp",
+                "source/alc/backends/oss.h",
+                "source/alc/backends/pulseaudio.cpp",
+                "source/alc/backends/pulseaudio.h",
+                "source/alc/backends/pipewire.cpp",
+                "source/alc/backends/pipewire.h",
+                "source/alc/backends/portaudio.cpp",
+                "source/alc/backends/portaudio.h",
+                "source/alc/backends/jack.cpp",
+                "source/alc/backends/jack.h",
+                "source/alc/backends/sndio.cpp",
+                "source/alc/backends/sndio.h",
+                "source/alc/backends/solaris.cpp",
+                "source/alc/backends/solaris.h",
+                "source/alc/backends/coreaudio.cpp",
+                "source/alc/backends/coreaudio.h",
+                "source/alc/backends/opensl.cpp",
+                "source/alc/backends/opensl.h",
+                "source/alc/backends/oboe.cpp",
+                "source/alc/backends/oboe.h",
+                "source/alc/backends/sdl3.cpp",
+                "source/alc/backends/sdl3.h"
+            ],
+            "replace": [
+                {
+                    "file": "source/alc/alc.cpp",
+                    "replacements": [
+                        [
+                            "| std::views::transform(&ContextBase::EffectSlotCluster::operator*)",
+                            "| std::views::transform([](auto const &cluster) -> auto& { return *cluster; })"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "execute",
+            "command": "python3 extract_openal.py",
+            "directory": "${@}",
+            "inputs": [
+                "extract_openal.py"
+            ],
+            "outputs": [
+                "source/config.h",
+                "source/config_backends.h",
+                "source/config_simd.h",
+                "source/version.h"
+            ]
+        }
+    ]
+}
