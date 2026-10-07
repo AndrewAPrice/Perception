@@ -28,8 +28,10 @@
 #include "scheduling/scheduler.h"
 #include "ipc/shared_memory.h"
 #include "diagnostics/stack_trace.h"
+#include "output/blue_screen.h"
 #include "output/text_terminal.h"
 #include "scheduling/thread.h"
+#include "scheduling/timer.h"
 #include "memory/virtual_address_space.h"
 #include "memory/virtual_allocator.h"
 
@@ -42,6 +44,7 @@ using hardware::WriteIOByte;
 using memory::FlushVirtualPage;
 using memory::KernelAddressSpace;
 using memory::VirtualAddressSpace;
+using output::EnableBlueScreen;
 using output::NumberFormat;
 using output::print;
 using output::ScopedPrintSource;
@@ -52,10 +55,15 @@ using scheduling::CurrentlyExecutingThreadRegs;
 using scheduling::kKernelCodeSelector;
 using scheduling::RunningThread;
 using scheduling::ScheduleNextThread;
+using scheduling::SleepMicroseconds;
 
 namespace {
 
 // #define SHUTDOWN_ON_ANY_EXCEPTION
+
+// Duration in microseconds (10 seconds) to keep the Blue Screen visible before
+// shutting down on a kernel exception.
+constexpr size_t kBlueScreenShutdownDelayMicroseconds = 10000000;
 
 // QEMU default (PIIX4) ACPI PM1a_CNT I/O port.
 constexpr uint16 kQemuAcpiPm1ControlPort = 0x604;
@@ -235,6 +243,7 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
   bool in_kernel = CurrentlyExecutingThreadRegs() == nullptr ||
                    RunningThread() == nullptr ||
                    ((CurrentlyExecutingThreadRegs()->cs & 3) == 0);
+  EnableBlueScreen();
   PrintException(in_kernel, exception_no, cr2, error_code);
 
 #ifdef SHUTDOWN_ON_ANY_EXCEPTION
@@ -242,8 +251,9 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
 #endif
 
   if (in_kernel) {
-    Shutdown();
     asm volatile("cli");
+    SleepMicroseconds(kBlueScreenShutdownDelayMicroseconds);
+    Shutdown();
     for (;;) asm volatile("hlt");
   } else {
     // Terminate the process.
@@ -251,10 +261,7 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
     RunningThread() = nullptr;
     CurrentlyExecutingThreadRegs() = nullptr;
     DestroyProcess(process);
-    if (!AreAnyProcessesRunning()) {
-      print << "All processes terminated.\n";
-      Shutdown();
-    }
+    if (!AreAnyProcessesRunning()) print << "All processes terminated.\n";
 
     ScheduleNextThread();
     JumpIntoThread();

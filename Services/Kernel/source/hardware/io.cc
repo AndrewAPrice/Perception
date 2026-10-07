@@ -23,6 +23,16 @@ void WriteIO16Bits(unsigned short port, unsigned short data) {
   __asm__ __volatile__("outw %1, %0" : : "dN"(port), "a"(data));
 }
 
+uint32 ReadIO32Bits(unsigned short port) {
+  uint32 rv;
+  __asm__ __volatile__("inl %1, %0" : "=a"(rv) : "dN"(port));
+  return rv;
+}
+
+void WriteIO32Bits(unsigned short port, uint32 data) {
+  __asm__ __volatile__("outl %1, %0" : : "dN"(port), "a"(data));
+}
+
 void WriteModelSpecificRegister(uint64 msr, uint64 value) {
   uint32 low = value & 0xFFFFFFFF;
   uint32 high = value >> 32;

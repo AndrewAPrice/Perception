@@ -39,6 +39,10 @@ MbHdr:
 
 	dd 0 ; align next tag to 8 byte boundry
 
+	; request page-aligned multiboot modules
+	dw 6, 0 ; MULTIBOOT_HEADER_TAG_MODULE_ALIGN
+	dd 8
+
 	; end of tags
 	dw 0, 0 ; MULTIBOOT_TAG_TYPE_END
 	dd 8

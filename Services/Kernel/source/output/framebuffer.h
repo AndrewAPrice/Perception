@@ -25,10 +25,29 @@
 
 namespace output {
 
+// Details about the mapped kernel framebuffer.
+struct FramebufferDetails {
+  uint8* buffer;
+  uint32 width;
+  uint32 height;
+  uint32 pitch;
+  uint8 bits_per_pixel;
+};
+
 // Maybe load the framebuffer from the multiboot header.
 void MaybeLoadFramebuffer();
 
 // Populates the registers with framebuffer details.
 void PopulateRegistersWithFramebufferDetails(hardware::Registers& regs);
+
+// Returns the mapped kernel framebuffer details.
+FramebufferDetails GetFramebufferDetails();
+
+// Reclaims the hardware display scanout for the VBE multiboot framebuffer.
+void ReclaimFramebufferForBlueScreen();
+
+// Overrides the framebuffer details for unit tests.
+void SetFramebufferDetailsForTest(uint8* buffer, uint32 width, uint32 height,
+                                  uint32 pitch, uint8 bpp);
 
 }  // namespace output

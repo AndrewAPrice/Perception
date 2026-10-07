@@ -7,6 +7,7 @@
 #include "common/kernel_string.h"
 #include "common/string_view.h"
 #include "memory/virtual_allocator.h"
+#include "output/blue_screen.h"
 
 namespace output {
 
@@ -197,6 +198,7 @@ void AppendCharToCoreBuffer(size_t core_id, char c) {
     g_print_buffers[core_id].channel = target_channel;
   }
 
+  PrintBlueScreenCharacter(c);
   g_print_buffers[core_id].buffer[g_print_buffers[core_id].length++] = c;
   if (c == '\n') FlushCorePrintBuffer(core_id);
 }

@@ -2,6 +2,7 @@
 
 #include "hardware/acpi.h"
 #include "memory/heap_allocator.h"
+#include "interrupts/exceptions.h"
 #include "interrupts/interrupts.h"
 #include "hardware/io.h"
 #include "hardware/lapic.h"
@@ -95,6 +96,8 @@ LinkedList<TimeInfoChangeSubscription, &TimeInfoChangeSubscription::node>
     time_info_change_subscriptions;
 
 volatile size_t microseconds_since_kernel_started;
+volatile size_t g_shutdown_timestamp = 0;
+volatile bool g_has_shutdown_deadline = false;
 AATree<TimerEvent, &TimerEvent::node_in_all_timer_events,
        &TimerEvent::timestamp_to_trigger_at>
     scheduled_timer_events;
@@ -246,6 +249,8 @@ void TimerHandler() {
   size_t prev_time = microseconds_since_kernel_started;
   size_t delta_time = now > prev_time ? now - prev_time : 0;
   microseconds_since_kernel_started = now;
+  if (g_has_shutdown_deadline && now >= g_shutdown_timestamp)
+    interrupts::Shutdown();
 
 #ifdef VERBOSE_POLLING
   // Periodic process activity dump to debug freezes
@@ -347,6 +352,8 @@ void TimerHandler() {
 // Initializes the timer.
 void InitializeTimer() {
   microseconds_since_kernel_started = 0;
+  g_shutdown_timestamp = 0;
+  g_has_shutdown_deadline = false;
   new (&scheduled_timer_events)
       AATree<TimerEvent, &TimerEvent::node_in_all_timer_events,
              &TimerEvent::timestamp_to_trigger_at>();
@@ -470,6 +477,13 @@ void UpdateRunningThreadTimeslice() {
 #endif
 }
 
+void ScheduleShutdownAfterMicroseconds(size_t microseconds) {
+  if (g_has_shutdown_deadline) return;
+  g_shutdown_timestamp = GetCurrentTimestampInMicroseconds() + microseconds;
+  g_has_shutdown_deadline = true;
+  ReprogramTimerForNextDeadline();
+}
+
 void ReprogramTimerForNextDeadline() {
 #ifndef TEST
   size_t now = GetCurrentTimestampInMicroseconds();
@@ -483,6 +497,14 @@ void ReprogramTimerForNextDeadline() {
   } else if (RunningThread() == nullptr && HasAwakeThreads()) {
     next_deadline = now;
     has_deadline = true;
+  }
+
+  if (g_has_shutdown_deadline) {
+    size_t shutdown_time = g_shutdown_timestamp;
+    if (!has_deadline || shutdown_time < next_deadline) {
+      next_deadline = shutdown_time;
+      has_deadline = true;
+    }
   }
 
   {

@@ -30,6 +30,12 @@ uint16 ReadIO16Bits(unsigned short port);
 // Writes a 16-bit word to a port.
 void WriteIO16Bits(unsigned short port, unsigned short data);
 
+// Reads a 32-bit double word from a port.
+uint32 ReadIO32Bits(unsigned short port);
+
+// Writes a 32-bit double word to a port.
+void WriteIO32Bits(unsigned short port, uint32 data);
+
 // Model Specific Register containing the kernel SYSCALL entry point.
 constexpr uint32 kLstarMsr = 0xC0000082;
 

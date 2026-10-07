@@ -55,7 +55,7 @@ extern "C" void kmain() {
   output::MaybeLoadFramebuffer();
   hardware::InitializeSmp();
   if (!loader::HasRemainingUnloadedMultibootModules())
-    memory::DoneWithMultibootMemory();
+    loader::ReleaseMultibootHeaderAndMemory();
 
   asm("sti");
   for (;;) {

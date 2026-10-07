@@ -49,6 +49,9 @@ void RegisterExceptionInterrupts();
 // Returns the name for an exception.
 const char* GetExceptionName(Exception exception);
 
+// Powers off the machine immediately.
+void Shutdown();
+
 }  // namespace interrupts
 
 

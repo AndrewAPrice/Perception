@@ -45,6 +45,10 @@ void CancelAllTimerEventsForProcess(processes::Process* process);
 // Reprograms the APIC timer to fire at the next scheduling or event deadline.
 void ReprogramTimerForNextDeadline();
 
+// Arms the hardware timer to shut down the system after the specified number
+// of microseconds have elapsed.
+void ScheduleShutdownAfterMicroseconds(size_t microseconds);
+
 // Updates the currently executing thread's remaining timeslice by measuring
 // elapsed TSC time.
 void UpdateRunningThreadTimeslice();
