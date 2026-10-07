@@ -46,6 +46,22 @@ class MacAddress : public serialization::Serializable {
   }
 };
 
+// The set of multicast MAC addresses a NIC should deliver. Unicast frames to
+// the NIC's own MAC and broadcast frames are always delivered.
+class MulticastFilter : public serialization::Serializable {
+ public:
+  // Deliver every multicast frame, ignoring `addresses`.
+  bool all_multicast = false;
+
+  // Multicast MAC addresses to deliver when `all_multicast` is false.
+  std::vector<MacAddress> addresses;
+
+  virtual void Serialize(serialization::Serializer& serializer) override {
+    serializer.Integer("all_multicast", all_multicast);
+    serializer.ArrayOfSerializables("addresses", addresses);
+  }
+};
+
 // Listener service implemented by the Network Manager to receive packets from
 // drivers.
 #define NETWORK_LISTENER_METHOD_LIST(X) X(1, PacketReceived, void, Packet)
@@ -54,11 +70,14 @@ DEFINE_PERCEPTION_SERVICE(NetworkListener, "perception.devices.NetworkListener",
                           NETWORK_LISTENER_METHOD_LIST)
 #undef NETWORK_LISTENER_METHOD_LIST
 
-// Service implemented by NIC drivers.
-#define NETWORK_DEVICE_METHOD_LIST(X)   \
-  X(1, GetMacAddress, MacAddress, void) \
-  X(2, SendPacket, void, Packet)        \
-  X(3, SetPacketListener, void, NetworkListener::Client)
+// Service implemented by NIC drivers. SetMulticastFilter replaces the NIC's
+// receive filter. Drivers without hardware filtering return OK and keep
+// delivering frames as before, so receivers must still filter in software.
+#define NETWORK_DEVICE_METHOD_LIST(X)                     \
+  X(1, GetMacAddress, MacAddress, void)                   \
+  X(2, SendPacket, void, Packet)                          \
+  X(3, SetPacketListener, void, NetworkListener::Client)  \
+  X(4, SetMulticastFilter, void, MulticastFilter)
 
 DEFINE_PERCEPTION_SERVICE(NetworkDevice, "perception.devices.NetworkDevice",
                           NETWORK_DEVICE_METHOD_LIST)

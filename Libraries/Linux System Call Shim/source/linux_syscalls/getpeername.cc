@@ -14,16 +14,34 @@
 
 #include "linux_syscalls/getpeername.h"
 
-#include "perception/debug.h"
 #include <errno.h>
+
+#include "files.h"
+#include "sockaddr_conversion.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long getpeername() {
-  perception::DebugPrinterSingleton
-      << "System call getpeername is unimplemented.\n";
-  return -ENOSYS;
+long getpeername(int sockfd, struct sockaddr* addr, socklen_t* addrlen) {
+  if (addr == nullptr || addrlen == nullptr)
+    return -EFAULT;
+  auto descriptor = GetFileDescriptor(sockfd);
+  if (!descriptor)
+    return -EBADF;
+  if (descriptor->type != FileDescriptor::SOCKET)
+    return -ENOTSOCK;
+
+  auto endpoints_or = descriptor->socket.socket.GetEndpoints();
+  if (!endpoints_or)
+    return -ENOTCONN;
+
+  const auto& endpoints = *endpoints_or;
+  if (endpoints.remote_port == 0 && endpoints.remote_address.IsUnspecified())
+    return -ENOTCONN;
+
+  EndpointToSockaddr(endpoints.remote_address, endpoints.remote_port,
+                     descriptor->socket.domain, addr, addrlen);
+  return 0;
 }
 
 }  // namespace linux_syscalls

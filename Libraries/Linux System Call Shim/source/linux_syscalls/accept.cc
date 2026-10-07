@@ -18,6 +18,7 @@
 #include <netinet/in.h>
 
 #include "files.h"
+#include "sockaddr_conversion.h"
 
 namespace perception {
 namespace linux_syscalls {
@@ -26,31 +27,20 @@ using ::perception::network::Socket;
 
 long accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen) {
   auto descriptor = GetFileDescriptor(sockfd);
-  if (!descriptor || descriptor->type != FileDescriptor::SOCKET) {
-    return -EBADF;
-  }
+  if (!descriptor || descriptor->type != FileDescriptor::SOCKET) return -EBADF;
 
   auto status_or_response = descriptor->socket.socket.Accept();
-  if (!status_or_response) {
-    return -ECONNABORTED;
-  }
+  if (!status_or_response) return -ECONNABORTED;
 
-  // Populate peer address if requested
   if (addr && addrlen) {
-    struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
-    addr_in->sin_family = AF_INET;
-    addr_in->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    addr_in->sin_port = htons(0);
-    *addrlen = sizeof(struct sockaddr_in);
+    EndpointToSockaddr(status_or_response->remote_address,
+                       status_or_response->remote_port,
+                       descriptor->socket.domain, addr, addrlen);
   }
 
-  // Reconstruct the Socket::Client from the AcceptResponse
   Socket::Client client(status_or_response->process_id,
                         status_or_response->message_id);
-
-  // Map the new Socket Client reference to a new file descriptor
-  long client_fd = CreateSocketDescriptor(client);
-  return client_fd;
+  return CreateSocketDescriptor(client, descriptor->socket.domain);
 }
 
 }  // namespace linux_syscalls

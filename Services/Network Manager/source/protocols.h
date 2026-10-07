@@ -14,219 +14,116 @@
 
 #pragma once
 
-#include <stddef.h>
 #include <types.h>
 
 #include "endian.h"
 
-// Ethernet frame header representation.
+// Represents an Ethernet II frame header.
 struct EthernetHeader {
-  // Destination MAC hardware address (6 bytes).
+  // Destination hardware MAC address.
   uint8 dest_mac[6];
-  // Source MAC hardware address (6 bytes).
+  // Source hardware MAC address.
   uint8 src_mac[6];
-  // EtherType field (e.g., IPv4 = 0x0800, ARP = 0x0806) in big-endian.
-  uint16 type;
+  // Protocol type (e.g. 0x0800 for IPv4, 0x0806 for ARP, 0x86DD for IPv6).
+  uint16 ether_type;
 } __attribute__((packed));
 
-// Address Resolution Protocol (ARP) header representation.
+// Represents an Address Resolution Protocol (ARP) packet for IPv4 over
+// Ethernet.
 struct ArpHeader {
-  // Hardware Type (e.g., Ethernet = 1).
+  // Hardware type (1 for Ethernet).
   uint16 htype;
-  // Protocol Type (e.g., IPv4 = 0x0800).
+  // Protocol type (0x0800 for IPv4).
   uint16 ptype;
-  // Hardware Address Length (e.g., MAC size = 6 bytes).
+  // Hardware address length (6 for MAC).
   uint8 hlen;
-  // Protocol Address Length (e.g., IP size = 4 bytes).
+  // Protocol address length (4 for IPv4).
   uint8 plen;
-  // Opcode field (e.g., Request = 1, Reply = 2).
+  // Operation (1 for Request, 2 for Reply).
   uint16 oper;
-  // Sender Hardware Address (MAC).
+  // Sender hardware address.
   uint8 sha[6];
-  // Sender Protocol Address (IPv4).
-  uint32 spa;
-  // Target Hardware Address (MAC).
+  // Sender protocol address in network byte order.
+  uint8 spa[4];
+  // Target hardware address.
   uint8 tha[6];
-  // Target Protocol Address (IPv4).
-  uint32 tpa;
+  // Target protocol address in network byte order.
+  uint8 tpa[4];
 } __attribute__((packed));
 
-// IPv4 header representation.
+// Represents an IPv4 packet header.
 struct IpHeader {
   // Version (4 bits) and Internet Header Length (4 bits).
   uint8 version_ihl;
-  // Type of Service / DSCP / ECN.
-  uint8 tos;
-  // Total packet length (header + payload size) in big-endian.
-  uint16 len;
-  // Identification tag for reassembly.
-  uint16 id;
+  // Differentiated Services Code Point (DSCP) and Explicit Congestion
+  // Notification (ECN).
+  uint8 dscp_ecn;
+  // Total length of the IPv4 packet (header + payload).
+  uint16 total_length;
+  // Identification field for fragmentation.
+  uint16 identification;
   // Flags (3 bits) and Fragment Offset (13 bits).
-  uint16 flags_offset;
-  // Time to Live router count boundary.
+  uint16 flags_fragment;
+  // Time To Live (hop count limit).
   uint8 ttl;
-  // Transport protocol identifier (TCP = 6, UDP = 17, ICMP = 1).
+  // Transport layer protocol (1 for ICMP, 6 for TCP, 17 for UDP).
   uint8 protocol;
-  // IP Header checksum verification.
+  // Header checksum.
   uint16 checksum;
-  // Source IP address in host-endianness.
-  uint32 src_ip;
-  // Destination IP address in host-endianness.
-  uint32 dest_ip;
+  // Source IPv4 address in network byte order.
+  uint8 src_ip[4];
+  // Destination IPv4 address in network byte order.
+  uint8 dest_ip[4];
 } __attribute__((packed));
 
-// Internet Control Message Protocol (ICMP) header representation.
+// Represents an ICMPv4 header (specifically structured for Echo Request/Reply).
 struct IcmpHeader {
-  // Type of ICMP packet (e.g., Echo Reply = 0, Echo Request = 8).
+  // Message type (8 for Echo Request, 0 for Echo Reply).
   uint8 type;
-  // Subcode identifier (usually 0).
+  // Message subtype code.
   uint8 code;
-  // ICMP Header/Payload checksum verify.
+  // Internet Checksum of the ICMP header and payload.
   uint16 checksum;
-  // Query packet identifier tag.
+  // Identifier to aid in matching Echo Replies to Requests.
   uint16 id;
-  // Query packet sequence number.
-  uint16 seq;
+  // Sequence number to aid in matching Echo Replies to Requests.
+  uint16 sequence;
 } __attribute__((packed));
 
-// User Datagram Protocol (UDP) header representation.
+// Represents a User Datagram Protocol (UDP) packet header.
 struct UdpHeader {
-  // Source transport port.
+  // Source port number.
   uint16 src_port;
-  // Destination transport port.
+  // Destination port number.
   uint16 dest_port;
-  // Total length (UDP header + payload size) in big-endian.
-  uint16 len;
-  // Optional UDP checksum verify (can be set to 0).
-  uint16 checksum;
-} __attribute__((packed));
-
-// Transmission Control Protocol (TCP) header representation.
-struct TcpHeader {
-  // Source transport port.
-  uint16 src_port;
-  // Destination transport port.
-  uint16 dest_port;
-  // Sequence number of the segment in big-endian.
-  uint32 seq;
-  // Acknowledgment number of the expected next byte in big-endian.
-  uint32 ack;
-  // Data Offset (4 bits), Reserved (3 bits), and flags (9 bits).
-  uint16 flags;
-  // Advertised window size.
-  uint16 window;
-  // Header & payload checksum verify.
-  uint16 checksum;
-  // Urgent data offset pointer.
-  uint16 urgent;
-} __attribute__((packed));
-
-// Pseudo IP Header representation used to calculate TCP and UDP checksums.
-struct PseudoHeader {
-  // Source IP address.
-  uint32 src_ip;
-  // Destination IP address.
-  uint32 dest_ip;
-  // Reserved byte (must be 0).
-  uint8 reserved;
-  // Protocol identifier (e.g., TCP = 6, UDP = 17).
-  uint8 protocol;
-  // Total TCP/UDP header + payload size.
+  // Length of the UDP header and payload in bytes.
   uint16 length;
+  // Checksum of the pseudo-header, UDP header, and payload.
+  uint16 checksum;
 } __attribute__((packed));
 
-// Domain Name System (DNS) header representation.
-struct DnsHeader {
-  // Transaction identification token.
-  uint16 id;
-  // Query flags (e.g., Standard Query = 0x0100).
-  uint16 flags;
-  // Number of questions in the DNS query.
-  uint16 questions;
-  // Number of answers returned.
-  uint16 answers;
-  // Number of authority resource records.
-  uint16 authority;
-  // Number of additional resource records.
-  uint16 additional;
+// Represents a Transmission Control Protocol (TCP) packet header.
+struct TcpHeader {
+  // Source port number.
+  uint16 src_port;
+  // Destination port number.
+  uint16 dest_port;
+  // Sequence number of the first data octet in this segment (unless SYN is
+  // present).
+  uint32 seq_num;
+  // Acknowledgment number: next sequence number the sender of the ACK is
+  // expecting.
+  uint32 ack_num;
+  // Data offset (4 bits, header length in 32-bit words) + Reserved (3 bits) +
+  // NS flag (1 bit).
+  uint8 data_offset;
+  // Control flags (FIN=0x01, SYN=0x02, RST=0x04, PSH=0x08, ACK=0x10, URG=0x20).
+  uint8 flags;
+  // Receive window size (number of data octets the sender is willing to
+  // accept).
+  uint16 window_size;
+  // Checksum of the pseudo-header, TCP header, and payload.
+  uint16 checksum;
+  // Urgent pointer.
+  uint16 urgent_ptr;
 } __attribute__((packed));
-
-// Standard Internet Checksum algorithm (1's complement sum of 16-bit words).
-inline uint16 CalculateChecksum(const uint16* data, size_t length) {
-  uint32 sum = 0;
-  while (length > 1) {
-    sum += *data++;
-    length -= 2;
-  }
-  if (length > 0) {
-    sum += *(const uint8*)data;
-  }
-  while (sum >> 16) {
-    sum = (sum & 0xFFFF) + (sum >> 16);
-  }
-  return (uint16)~sum;
-}
-
-// Computes the TCP packet checksum incorporating the IP pseudo-header contents.
-inline uint16 CalculateTcpChecksum(uint32 src_ip, uint32 dest_ip,
-                                   const uint8* tcp_packet, uint16 tcp_length) {
-  PseudoHeader pseudo;
-  pseudo.src_ip = src_ip;
-  pseudo.dest_ip = dest_ip;
-  pseudo.reserved = 0;
-  pseudo.protocol = 6;  // TCP
-  pseudo.length = Swap16BitEndian(tcp_length);
-
-  uint32 sum = 0;
-  const uint16* pseudo_words = (const uint16*)&pseudo;
-  for (size_t i = 0; i < sizeof(pseudo) / 2; i++) {
-    sum += pseudo_words[i];
-  }
-
-  const uint16* tcp_words = (const uint16*)tcp_packet;
-  size_t length = tcp_length;
-  while (length > 1) {
-    sum += *tcp_words++;
-    length -= 2;
-  }
-  if (length > 0) {
-    sum += *(const uint8*)tcp_words;
-  }
-
-  while (sum >> 16) {
-    sum = (sum & 0xFFFF) + (sum >> 16);
-  }
-  return (uint16)~sum;
-}
-
-// Computes the UDP packet checksum incorporating the IP pseudo-header contents.
-inline uint16 CalculateUdpChecksum(uint32 src_ip, uint32 dest_ip,
-                                   const uint8* udp_packet, uint16 udp_length) {
-  PseudoHeader pseudo;
-  pseudo.src_ip = src_ip;
-  pseudo.dest_ip = dest_ip;
-  pseudo.reserved = 0;
-  pseudo.protocol = 17;  // UDP
-  pseudo.length = Swap16BitEndian(udp_length);
-
-  uint32 sum = 0;
-  const uint16* pseudo_words = (const uint16*)&pseudo;
-  for (size_t i = 0; i < sizeof(pseudo) / 2; i++) {
-    sum += pseudo_words[i];
-  }
-
-  const uint16* udp_words = (const uint16*)udp_packet;
-  size_t length = udp_length;
-  while (length > 1) {
-    sum += *udp_words++;
-    length -= 2;
-  }
-  if (length > 0) {
-    sum += *(const uint8*)udp_words;
-  }
-
-  while (sum >> 16) {
-    sum = (sum & 0xFFFF) + (sum >> 16);
-  }
-  return (uint16)~sum;
-}

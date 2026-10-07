@@ -17,30 +17,22 @@
 #include <types.h>
 
 #include <string>
-#include <vector>
 
-#include "perception/devices/network_device.h"
-#include "perception/fibers.h"
 #include "perception/network/network_service.h"
+#include "status.h"
 
 // Returns the next unique transaction ID identifier to utilize when composing a
 // new DNS query.
 uint16 GetNextDnsId();
 
-// Returns true if the DNS server's MAC address has been resolved via ARP.
-bool IsDnsMacResolved();
-
-// Returns the resolved DNS server MAC hardware address.
-const ::perception::devices::MacAddress& GetDnsMac();
-
-// Sets the resolved DNS server MAC hardware address and marks it as resolved.
-void SetDnsMac(const ::perception::devices::MacAddress& mac);
-
-// Composes, transmits, and waits for DNS query resolution targeting the
-// specified host.
+// Composes, transmits, and waits for dual-stack DNS query resolution targeting
+// the specified host and optional address family filter.
 StatusOr<::perception::network::ResolveHostResponse> PerformDnsResolution(
-    const std::string& host);
+    const std::string& host,
+    ::perception::network::IpAddressFamily family =
+        ::perception::network::IpAddressFamily::Unspecified);
 
-// Parses a received DNS response packet, extracts the resolved A-record IP,
-// matches it to the pending query transaction, and wakes the initiating fiber.
+// Parses a received DNS response packet, caches the A/AAAA records or negative
+// response, matches it to the pending query transaction, and wakes the
+// initiating fiber.
 void ProcessDnsResponse(const uint8* payload, size_t len);

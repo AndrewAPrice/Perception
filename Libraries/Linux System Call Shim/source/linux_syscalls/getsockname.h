@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/socket.h>
+
 namespace perception {
 namespace linux_syscalls {
 
-long getsockname();
+long getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen);
 
 }
 }  // namespace perception

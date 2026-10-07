@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "perception/network/ip_address.h"
 #include "perception/serialization/serializable.h"
 #include "perception/serialization/serializer.h"
 #include "perception/service_macros.h"
@@ -24,21 +25,10 @@
 namespace perception {
 namespace network {
 
-class IpAddress : public serialization::Serializable {
- public:
-  uint8 address[4];  // IPv4 address representation
-
-  virtual void Serialize(serialization::Serializer& serializer) override {
-    for (int i = 0; i < 4; i++) {
-      serializer.Integer("ip_" + std::to_string(i), address[i]);
-    }
-  }
-};
-
 class ConnectRequest : public serialization::Serializable {
  public:
   IpAddress address;
-  uint16 port;
+  uint16 port = 0;
 
   virtual void Serialize(serialization::Serializer& serializer) override {
     serializer.Serializable("address", address);
@@ -48,9 +38,11 @@ class ConnectRequest : public serialization::Serializable {
 
 class BindRequest : public serialization::Serializable {
  public:
-  uint16 port;
+  IpAddress address;
+  uint16 port = 0;
 
   virtual void Serialize(serialization::Serializer& serializer) override {
+    serializer.Serializable("address", address);
     serializer.Integer("port", port);
   }
 };
@@ -66,8 +58,8 @@ class SendRequest : public serialization::Serializable {
 
 class ReceiveRequest : public serialization::Serializable {
  public:
-  uint64 max_bytes;
-  bool non_blocking;
+  uint64 max_bytes = 0;
+  bool non_blocking = false;
 
   virtual void Serialize(serialization::Serializer& serializer) override {
     serializer.Integer("max_bytes", max_bytes);
@@ -78,7 +70,7 @@ class ReceiveRequest : public serialization::Serializable {
 class ReceiveResponse : public serialization::Serializable {
  public:
   std::string data;
-  bool closed;
+  bool closed = false;
 
   virtual void Serialize(serialization::Serializer& serializer) override {
     serializer.String("data", data);
@@ -87,15 +79,35 @@ class ReceiveResponse : public serialization::Serializable {
 };
 
 // Response containing process and message ID to construct the new
-// Socket::Client
+// Socket::Client, along with the peer's remote address and port.
 class AcceptResponse : public serialization::Serializable {
  public:
-  ProcessId process_id;
-  MessageId message_id;
+  ProcessId process_id = 0;
+  MessageId message_id = 0;
+  IpAddress remote_address;
+  uint16 remote_port = 0;
 
   virtual void Serialize(serialization::Serializer& serializer) override {
     serializer.Integer("process_id", process_id);
     serializer.Integer("message_id", message_id);
+    serializer.Serializable("remote_address", remote_address);
+    serializer.Integer("remote_port", remote_port);
+  }
+};
+
+// Local and remote endpoints of a bound or connected socket.
+class SocketEndpoints : public serialization::Serializable {
+ public:
+  IpAddress local_address;
+  uint16 local_port = 0;
+  IpAddress remote_address;
+  uint16 remote_port = 0;
+
+  virtual void Serialize(serialization::Serializer& serializer) override {
+    serializer.Serializable("local_address", local_address);
+    serializer.Integer("local_port", local_port);
+    serializer.Serializable("remote_address", remote_address);
+    serializer.Integer("remote_port", remote_port);
   }
 };
 
@@ -106,7 +118,8 @@ class AcceptResponse : public serialization::Serializable {
   X(4, Accept, AcceptResponse, void)             \
   X(5, Send, void, SendRequest)                  \
   X(6, Receive, ReceiveResponse, ReceiveRequest) \
-  X(7, Close, void, void)
+  X(7, Close, void, void)                        \
+  X(8, GetEndpoints, SocketEndpoints, void)
 
 DEFINE_PERCEPTION_SERVICE(Socket, "perception.network.Socket",
                           SOCKET_METHOD_LIST)

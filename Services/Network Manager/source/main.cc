@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <utility>
@@ -23,13 +24,33 @@
 #include "perception/scheduler.h"
 #include "perception/services.h"
 #include "perception/threads.h"
+#include "perception/time.h"
+#include "socket.h"
 
+// Cross-module periodic TCP timer entry point implemented in socket.cc.
+void TickTcpSockets();
+
+namespace {
+
+using ::perception::AfterDuration;
 using ::perception::devices::NetworkDevice;
+
+// Periodic tick interval for network interface and TCP socket state machines.
+constexpr auto kNetworkTickInterval = std::chrono::milliseconds(250);
+
+void SchedulePeriodicNetworkTick() {
+  AfterDuration(kNetworkTickInterval, []() {
+    TickNetworkInterfaces();
+    TickTcpSockets();
+    SchedulePeriodicNetworkTick();
+  });
+}
+
+}  // namespace
 
 int main() {
   ::perception::SetThreadPriority(
       ::perception::ThreadPriority::RealtimeService);
-  // Listen for any Network Devices (NICs)
   ::perception::NotifyOnEachNewServiceInstance<NetworkDevice>(
       [](NetworkDevice::Client device) {
         auto status_or_mac = device.GetMacAddress();
@@ -42,15 +63,13 @@ int main() {
         NetworkInterface iface;
         iface.device = device;
         for (int i = 0; i < 6; i++) iface.mac[i] = status_or_mac->mac[i];
-        iface.ip = (10) | (0 << 8) | (2 << 16) | (15 << 24);  // 10.0.2.15
-        iface.gateway_ip = (10) | (0 << 8) | (2 << 16) | (2 << 24);  // 10.0.2.2
-        iface.gateway_mac_resolved = false;
 
-        size_t iface_idx = AddNetworkInterface(std::move(iface));
-
-        // Create listener server for this device.
-        CreateAndAddNetworkListener(iface_idx);
+        const size_t next_idx = GetNetworkInterfaceCount();
+        CreateAndAddNetworkListener(next_idx, device);
+        (void)AddNetworkInterface(std::move(iface));
       });
+
+  SchedulePeriodicNetworkTick();
 
   NetworkService network_service;
   perception::HandOverControl();

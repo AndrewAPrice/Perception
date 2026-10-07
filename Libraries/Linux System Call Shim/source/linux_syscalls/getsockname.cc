@@ -14,16 +14,31 @@
 
 #include "linux_syscalls/getsockname.h"
 
-#include "perception/debug.h"
 #include <errno.h>
+
+#include "files.h"
+#include "sockaddr_conversion.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long getsockname() {
-  perception::DebugPrinterSingleton
-      << "System call getsockname is unimplemented.\n";
-  return -ENOSYS;
+long getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen) {
+  if (addr == nullptr || addrlen == nullptr)
+    return -EFAULT;
+  auto descriptor = GetFileDescriptor(sockfd);
+  if (!descriptor)
+    return -EBADF;
+  if (descriptor->type != FileDescriptor::SOCKET)
+    return -ENOTSOCK;
+
+  auto endpoints_or = descriptor->socket.socket.GetEndpoints();
+  if (!endpoints_or)
+    return -EINVAL;
+
+  const auto& endpoints = *endpoints_or;
+  EndpointToSockaddr(endpoints.local_address, endpoints.local_port,
+                     descriptor->socket.domain, addr, addrlen);
+  return 0;
 }
 
 }  // namespace linux_syscalls

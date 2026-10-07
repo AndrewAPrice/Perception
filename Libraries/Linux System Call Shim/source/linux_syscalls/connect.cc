@@ -18,7 +18,7 @@
 #include <netinet/in.h>
 
 #include "files.h"
-#include "perception/debug.h"
+#include "sockaddr_conversion.h"
 
 namespace perception {
 namespace linux_syscalls {
@@ -27,28 +27,23 @@ using ::perception::network::ConnectRequest;
 
 long connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen) {
   auto descriptor = GetFileDescriptor(sockfd);
-  if (!descriptor || descriptor->type != FileDescriptor::SOCKET) {
-    return -EBADF;
-  }
+  if (!descriptor || descriptor->type != FileDescriptor::SOCKET) return -EBADF;
 
-  if (addr->sa_family != AF_INET) {
+  auto endpoint = SockaddrToEndpoint(addr, addrlen);
+  if (!endpoint.has_value()) return -EAFNOSUPPORT;
+
+  if (descriptor->socket.domain == AF_INET && endpoint->address.IsV6())
     return -EAFNOSUPPORT;
-  }
-
-  const struct sockaddr_in* addr_in = (const struct sockaddr_in*)addr;
-  uint32 s_addr = addr_in->sin_addr.s_addr;
+  if (descriptor->socket.domain == AF_INET6 && descriptor->socket.ipv6_v6only &&
+      endpoint->address.IsV4())
+    return -EAFNOSUPPORT;
 
   ConnectRequest request;
-  request.address.address[0] = (s_addr & 0x000000FF);
-  request.address.address[1] = (s_addr & 0x0000FF00) >> 8;
-  request.address.address[2] = (s_addr & 0x00FF0000) >> 16;
-  request.address.address[3] = (s_addr & 0xFF000000) >> 24;
-  request.port = ntohs(addr_in->sin_port);
+  request.address = endpoint->address;
+  request.port = endpoint->port;
 
   auto status = descriptor->socket.socket.Connect(request);
-  if (status != Status::OK) {
-    return -ECONNREFUSED;
-  }
+  if (status != Status::OK) return -ECONNREFUSED;
 
   return 0;
 }

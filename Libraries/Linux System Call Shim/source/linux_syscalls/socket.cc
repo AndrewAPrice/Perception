@@ -30,23 +30,28 @@ namespace perception {
 namespace linux_syscalls {
 
 long socket(int domain, int type, int protocol) {
-  // Map type to standard protocol enum.
+  (void)protocol;
+  if (domain != AF_INET && domain != AF_INET6) return -EAFNOSUPPORT;
+
+  int base_type = type & ~(SOCK_NONBLOCK | SOCK_CLOEXEC);
   SocketProtocol socket_protocol = SocketProtocol::TCP;
-  if (type == SOCK_DGRAM) {
+  if (base_type == SOCK_DGRAM) {
     socket_protocol = SocketProtocol::UDP;
+  } else if (base_type != SOCK_STREAM) {
+    return -EPROTONOSUPPORT;
   }
 
-  // Contact the NetworkService RPC explicitly
   CreateSocketRequest request;
   request.protocol = socket_protocol;
 
   auto status_or_res = GetService<NetworkService>().CreateSocket(request);
-  if (!status_or_res) {
-    return -ENETDOWN;
-  }
+  if (!status_or_res) return -ENETDOWN;
 
-  // Create a file descriptor mapping to the Socket Client reference
-  long fd = CreateSocketDescriptor(status_or_res->socket);
+  long fd = CreateSocketDescriptor(status_or_res->socket, domain);
+  if ((type & SOCK_NONBLOCK) != 0) {
+    if (auto descriptor = GetFileDescriptor(fd))
+      descriptor->socket.non_blocking = true;
+  }
   return fd;
 }
 

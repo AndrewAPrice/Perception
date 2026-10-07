@@ -14,334 +14,489 @@
 
 #include "network_listener.h"
 
+#include <array>
+#include <chrono>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
+#include "checksum.h"
+#include "dhcpv4.h"
+#include "dhcpv6.h"
 #include "dns.h"
 #include "endian.h"
+#include "ethernet.h"
+#include "firewall.h"
+#include "forwarding.h"
+#include "icmpv6.h"
 #include "interface.h"
+#include "ip.h"
+#include "ipsec.h"
+#include "ipv6_header.h"
+#include "mipv6.h"
+#include "nat64_clat.h"
 #include "perception/scheduler.h"
 #include "protocols.h"
+#include "reassembly.h"
 #include "socket.h"
+
+// Cross-module entry points implemented in socket.cc.
+void DispatchUdpPacket(const ::perception::network::IpAddress& src_ip,
+                       uint16 src_port,
+                       const ::perception::network::IpAddress& dst_ip,
+                       uint16 dest_port, const uint8* payload, size_t len);
+void ProcessTcpSegment(size_t iface_idx,
+                       const ::perception::network::IpAddress& src_ip,
+                       const ::perception::network::IpAddress& dst_ip,
+                       std::string_view tcp_segment);
+void NotifySocketIcmpError(const ::perception::network::IpAddress& src_ip,
+                           const ::perception::network::IpAddress& dst_ip,
+                           uint8 inner_proto, std::string_view inner_transport,
+                           Status status, uint16 new_pmtu);
 
 namespace {
 
+using ::perception::network::IpAddress;
+using ::perception::network::IpAddressFamily;
+
+// Hardware type for Ethernet in ARP packets (1).
+constexpr uint16 kArpHtypeEthernet = 1;
+
+// Hardware address length for Ethernet in ARP packets (6).
+constexpr uint8 kArpHlenEthernet = 6;
+
+// Protocol address length for IPv4 in ARP packets (4).
+constexpr uint8 kArpPlenIpv4 = 4;
+
+// ARP operation code for Request (1).
+constexpr uint16 kArpOperRequest = 1;
+
+// ARP operation code for Reply (2).
+constexpr uint16 kArpOperReply = 2;
+
+// IP protocol number for ICMPv4 (1).
+constexpr uint8 kProtocolIcmpv4 = 1;
+
+// IP protocol number for TCP (6).
+constexpr uint8 kProtocolTcp = 6;
+
+// IP protocol number for UDP (17).
+constexpr uint8 kProtocolUdp = 17;
+
+// IP protocol number for ICMPv6 (58).
+constexpr uint8 kProtocolIcmpv6 = 58;
+
+// ICMPv4 Echo Reply type (0).
+constexpr uint8 kIcmpEchoReply = 0;
+
+// ICMPv4 Destination Unreachable type (3).
+constexpr uint8 kIcmpDestUnreachable = 3;
+
+// ICMPv4 Fragmentation Needed code (4).
+constexpr uint8 kIcmpFragNeededCode = 4;
+
+// ICMPv4 Echo Request type (8).
+constexpr uint8 kIcmpEchoRequest = 8;
+
+// ICMPv4 Time Exceeded type (11).
+constexpr uint8 kIcmpTimeExceeded = 11;
+
+// Standard DNS server port (53).
+constexpr uint16 kDnsServerPort = 53;
+
+// IPv4 more-fragments flag mask in fragment_offset field (0x2000).
+constexpr uint16 kIpv4MoreFragmentsMask = 0x2000;
+
+// IPv4 fragment offset 8-byte block mask (0x1FFF).
+constexpr uint16 kIpv4FragmentOffsetMask = 0x1FFF;
+
 std::vector<std::shared_ptr<NetworkListener>> listeners;
 
-void SendIcmpEchoRequest(size_t iface_idx, uint32 dest_ip) {
-  auto& iface = GetNetworkInterface(iface_idx);
-  bool is_external = (dest_ip & 0x00FFFFFF) != (iface.ip & 0x00FFFFFF);
-  if (is_external && !iface.gateway_mac_resolved) {
-    SendArpRequest(iface_idx, iface.gateway_ip);
-    while (!iface.gateway_mac_resolved) {
-      WaitForArp(iface_idx);
-    }
+void ProcessArp(std::string_view payload, size_t iface_idx) {
+  if (payload.size() < sizeof(ArpHeader)) return;
+
+  const auto* arp = reinterpret_cast<const ArpHeader*>(payload.data());
+  if (Swap16BitEndian(arp->htype) != kArpHtypeEthernet ||
+      Swap16BitEndian(arp->ptype) != kEtherTypeIpv4 ||
+      arp->hlen != kArpHlenEthernet || arp->plen != kArpPlenIpv4) {
+    return;
   }
 
-  size_t ip_payload_len = sizeof(IcmpHeader);
-  std::string packet_data(
-      sizeof(EthernetHeader) + sizeof(IpHeader) + ip_payload_len, '\0');
-
-  EthernetHeader* eth = (EthernetHeader*)packet_data.data();
-  for (int i = 0; i < 6; i++) {
-    eth->dest_mac[i] = iface.gateway_mac[i];
-    eth->src_mac[i] = iface.mac[i];
-  }
-  eth->type = Swap16BitEndian(0x0800);
-
-  IpHeader* ip = (IpHeader*)(packet_data.data() + sizeof(EthernetHeader));
-  ip->version_ihl = 0x45;
-  ip->tos = 0;
-  ip->len = Swap16BitEndian(sizeof(IpHeader) + ip_payload_len);
-  ip->id = Swap16BitEndian(9999);
-  ip->flags_offset = 0;
-  ip->ttl = 64;
-  ip->protocol = 1;  // ICMP
-  ip->src_ip = iface.ip;
-  ip->dest_ip = dest_ip;
-  ip->checksum = 0;
-  ip->checksum = CalculateChecksum((const uint16*)ip, sizeof(IpHeader));
-
-  IcmpHeader* icmp = (IcmpHeader*)(packet_data.data() + sizeof(EthernetHeader) +
-                                   sizeof(IpHeader));
-  icmp->type = 8;  // Echo Request
-  icmp->code = 0;
-  icmp->checksum = 0;
-  icmp->id = Swap16BitEndian(0x1234);
-  icmp->seq = Swap16BitEndian(1);
-  icmp->checksum = CalculateChecksum((const uint16*)icmp, sizeof(IcmpHeader));
-
-  ::perception::devices::Packet pkt;
-  pkt.data = packet_data;
-  iface.device.SendPacket(pkt);
-}
-
-void ProcessArp(const std::string& data, size_t iface_idx) {
-  if (data.length() < sizeof(EthernetHeader) + sizeof(ArpHeader)) return;
-
-  const ArpHeader* arp =
-      (const ArpHeader*)(data.data() + sizeof(EthernetHeader));
   uint16 oper = Swap16BitEndian(arp->oper);
-  auto& iface = GetNetworkInterface(iface_idx);
+  std::array<uint8, 6> sender_mac{};
+  std::memcpy(sender_mac.data(), arp->sha, 6);
+  IpAddress sender_ip =
+      IpAddress::FromBytes(IpAddressFamily::V4, {arp->spa, 4});
+  IpAddress target_ip =
+      IpAddress::FromBytes(IpAddressFamily::V4, {arp->tpa, 4});
 
-  if (oper == 1) {
-    if (arp->tpa == iface.ip) SendArpReply(iface_idx, arp->sha, arp->spa);
-  } else if (oper == 2) {
-    if (arp->spa == iface.gateway_ip) {
-      for (int i = 0; i < 6; i++) {
-        iface.gateway_mac[i] = arp->sha[i];
-      }
-      iface.gateway_mac_resolved = true;
-      WakeFibersWaitingForArp(iface_idx);
-    } else if (arp->spa == iface.gateway_ip + Swap32BitEndian(1)) {
-      ::perception::devices::MacAddress mac;
-      for (int i = 0; i < 6; i++) mac.mac[i] = arp->sha[i];
-      SetDnsMac(mac);
-      WakeFibersWaitingForArp(iface_idx);
+  NetworkInterface* iface = GetInterface(iface_idx);
+  if (iface == nullptr) return;
+
+  if (!sender_ip.IsUnspecified()) {
+    if (oper == kArpOperReply) {
+      RecordNeighborReachable(iface_idx, sender_ip, sender_mac);
+    } else if (oper == kArpOperRequest) {
+      RecordUnsolicitedNeighbor(iface_idx, sender_ip, sender_mac, true);
     }
   }
+
+  ProcessIncomingArpForDhcpv4(iface_idx, sender_ip, target_ip, sender_mac);
+
+  if (oper == kArpOperRequest && iface->HasAddress(target_ip))
+    SendArpReply(iface_idx, sender_mac, sender_ip);
 }
 
-void ProcessIcmp(const std::string& data, uint8 ihl, size_t iface_idx) {
-  if (data.length() < sizeof(EthernetHeader) + ihl + sizeof(IcmpHeader)) return;
+void ProcessIcmpv4(const IpPacketView& ip_view, size_t iface_idx) {
+  if (ip_view.payload.size() < sizeof(IcmpHeader)) return;
+  if (InternetChecksum(ip_view.payload) != 0) return;
 
-  const IpHeader* ip = (const IpHeader*)(data.data() + sizeof(EthernetHeader));
-  const IcmpHeader* icmp =
-      (const IcmpHeader*)(data.data() + sizeof(EthernetHeader) + ihl);
-
-  if (icmp->type == 8) {
-    std::string reply_data = data;
-    auto& iface = GetNetworkInterface(iface_idx);
-
-    EthernetHeader* eth = (EthernetHeader*)reply_data.data();
-    for (int i = 0; i < 6; i++) {
-      eth->dest_mac[i] = eth->src_mac[i];
-      eth->src_mac[i] = iface.mac[i];
-    }
-
-    IpHeader* reply_ip =
-        (IpHeader*)(reply_data.data() + sizeof(EthernetHeader));
-    reply_ip->dest_ip = ip->src_ip;
-    reply_ip->src_ip = iface.ip;
-    reply_ip->checksum = 0;
-    reply_ip->checksum = CalculateChecksum((const uint16*)reply_ip, ihl);
-
-    IcmpHeader* reply_icmp =
-        (IcmpHeader*)(reply_data.data() + sizeof(EthernetHeader) + ihl);
-    reply_icmp->type = 0;
+  const auto* icmp = reinterpret_cast<const IcmpHeader*>(ip_view.payload.data());
+  if (icmp->type == kIcmpEchoRequest) {
+    std::string reply(ip_view.payload.data(), ip_view.payload.size());
+    auto* reply_icmp = reinterpret_cast<IcmpHeader*>(reply.data());
+    reply_icmp->type = kIcmpEchoReply;
+    reply_icmp->code = 0;
     reply_icmp->checksum = 0;
+    reply_icmp->checksum = Swap16BitEndian(InternetChecksum(reply));
 
-    size_t icmp_len = data.length() - sizeof(EthernetHeader) - ihl;
-    reply_icmp->checksum =
-        CalculateChecksum((const uint16*)reply_icmp, icmp_len);
+    IpPacketRequest req;
+    req.interface_index = iface_idx;
+    req.src = ip_view.dst;
+    req.dst = ip_view.src;
+    req.protocol = kProtocolIcmpv4;
+    req.payload = reply;
+    (void)SendIpPacket(req);
+    return;
+  }
 
-    ::perception::devices::Packet pkt;
-    pkt.data = reply_data;
-    iface.device.SendPacket(pkt);
+  if (icmp->type == kIcmpDestUnreachable || icmp->type == kIcmpTimeExceeded) {
+    std::string_view quoted = ip_view.payload.substr(sizeof(IcmpHeader));
+    auto inner = ParseIpv4Packet(quoted);
+    if (!inner.has_value()) return;
+    uint16 new_pmtu = 0;
+    if (icmp->type == kIcmpDestUnreachable &&
+        icmp->code == kIcmpFragNeededCode) {
+      new_pmtu = Swap16BitEndian(icmp->sequence);
+      UpdatePathMtu(inner->dst, new_pmtu);
+    }
+    NotifySocketIcmpError(inner->src, inner->dst, inner->protocol,
+                          inner->payload, Status::MISSING_MEDIA, new_pmtu);
   }
 }
 
-void ProcessUdp(const std::string& data, uint8 ihl, size_t iface_idx) {
-  if (data.length() < sizeof(EthernetHeader) + ihl + sizeof(UdpHeader)) return;
+void ProcessIcmpv6(const IpAddress& src_ip, const IpAddress& dst_ip,
+                   uint8 hop_limit, bool has_router_alert,
+                   std::string_view payload, size_t iface_idx) {
+  if (payload.size() < 4) return;
+  if (!VerifyIcmpv6Checksum(src_ip, dst_ip, payload)) return;
 
-  const IpHeader* ip = (const IpHeader*)(data.data() + sizeof(EthernetHeader));
-  const UdpHeader* udp =
-      (const UdpHeader*)(data.data() + sizeof(EthernetHeader) + ihl);
+  const uint8 raw_type = static_cast<uint8>(payload[0]);
+  if (raw_type == static_cast<uint8>(Icmpv6Type::EchoRequest)) {
+    auto echo = ParseIcmpv6Echo(payload);
+    if (!echo.has_value() || echo->is_reply) return;
+    NetworkInterface* iface = GetInterface(iface_idx);
+    if (iface == nullptr) return;
+    IpAddress reply_src = dst_ip;
+    if (dst_ip.IsMulticast()) {
+      auto selected = SelectSourceAddress(iface_idx, src_ip);
+      if (!selected.has_value()) return;
+      reply_src = *selected;
+    }
+    Icmpv6EchoMessage reply_msg = *echo;
+    reply_msg.is_reply = true;
+    std::string reply = BuildIcmpv6Echo(reply_src, src_ip, reply_msg);
+    IpPacketRequest req;
+    req.interface_index = iface_idx;
+    req.src = reply_src;
+    req.dst = src_ip;
+    req.protocol = kProtocolIcmpv6;
+    req.payload = reply;
+    (void)SendIpPacket(req);
+    return;
+  }
 
+  if (raw_type >= 133 && raw_type <= 137) {
+    ProcessIncomingNdpPacket(iface_idx, src_ip, dst_ip, hop_limit, payload);
+    return;
+  }
+
+  if (raw_type == static_cast<uint8>(Icmpv6Type::MulticastListenerQuery)) {
+    ProcessIncomingMldQuery(iface_idx, src_ip, hop_limit, has_router_alert,
+                            payload);
+    return;
+  }
+
+  if (IsIcmpv6ErrorMessage(raw_type)) {
+    auto err = ParseIcmpv6Error(payload);
+    if (!err.has_value() || !err->invoking_header.has_value()) return;
+    uint16 new_pmtu = 0;
+    if (err->type == Icmpv6Type::PacketTooBig) {
+      if (err->parameter >= 1280 && err->parameter <= 65535) {
+        new_pmtu = static_cast<uint16>(err->parameter);
+        UpdatePathMtu(err->invoking_header->destination, new_pmtu);
+      }
+    }
+    ExtensionWalkResult inner_walk =
+        WalkExtensionHeaders(*err->invoking_header, err->invoking_packet);
+    if (inner_walk.status == ExtensionWalkStatus::UpperLayer) {
+      NotifySocketIcmpError(err->invoking_header->source,
+                            err->invoking_header->destination,
+                            inner_walk.next_header, inner_walk.payload,
+                            Status::MISSING_MEDIA, new_pmtu);
+    }
+  }
+}
+
+void ProcessUdp(size_t iface_idx, const IpAddress& src_ip,
+                const IpAddress& dst_ip, std::string_view udp_segment) {
+  if (udp_segment.size() < sizeof(UdpHeader)) return;
+
+  const auto* udp = reinterpret_cast<const UdpHeader*>(udp_segment.data());
   uint16 src_port = Swap16BitEndian(udp->src_port);
   uint16 dest_port = Swap16BitEndian(udp->dest_port);
+  uint16 len = Swap16BitEndian(udp->length);
 
-  uint16 len = Swap16BitEndian(udp->len);
+  if (len < sizeof(UdpHeader) || len > udp_segment.size()) return;
 
-  if (data.length() < sizeof(EthernetHeader) + ihl + len) return;
+  // RFC 8200 §8.1: IPv6 UDP packets with a zero checksum must be discarded.
+  if (src_ip.IsV6()) {
+    if (udp->checksum == 0) return;
+    if (TransportChecksum(src_ip, dst_ip, kProtocolUdp,
+                          udp_segment.substr(0, len)) != 0)
+      return;
+  } else if (udp->checksum != 0 && !src_ip.IsUnspecified() &&
+             !dst_ip.IsBroadcast()) {
+    if (TransportChecksum(src_ip, dst_ip, kProtocolUdp,
+                          udp_segment.substr(0, len)) != 0)
+      return;
+  }
 
-  const uint8* payload = (const uint8*)data.data() + sizeof(EthernetHeader) +
-                         ihl + sizeof(UdpHeader);
-  size_t payload_len = len - sizeof(UdpHeader);
-  auto& iface = GetNetworkInterface(iface_idx);
+  std::string_view body =
+      udp_segment.substr(sizeof(UdpHeader), len - sizeof(UdpHeader));
+  const auto* payload = reinterpret_cast<const uint8*>(body.data());
+  const size_t payload_len = body.size();
 
-  if (src_port == 53 && (dest_port == 50053 || ip->src_ip == iface.gateway_ip ||
-                         ip->src_ip == iface.gateway_ip + Swap32BitEndian(1) ||
-                         ip->src_ip == 0x08080808)) {
-    ProcessDnsResponse(payload, payload_len);
+  if (src_ip.IsV4() && dest_port == kDhcpv4ClientPort) {
+    ProcessIncomingDhcpv4Packet(iface_idx, body);
     return;
   }
 
-  DispatchUdpPacket(ip->src_ip, src_port, dest_port, payload, payload_len);
+  if (src_ip.IsV6() && dest_port == kDhcpv6ClientPort) {
+    ProcessIncomingDhcpv6Packet(iface_idx, body);
+    return;
+  }
+
+  if (src_port == kDnsServerPort) {
+    ProcessDnsResponse(payload, payload_len);
+  }
+
+  DispatchUdpPacket(src_ip, src_port, dst_ip, dest_port, payload, payload_len);
 }
 
-void ProcessTcp(const std::string& data, uint8 ihl, size_t iface_idx) {
-  if (data.length() < sizeof(EthernetHeader) + ihl + sizeof(TcpHeader)) return;
-
-  const IpHeader* ip = (const IpHeader*)(data.data() + sizeof(EthernetHeader));
-  const TcpHeader* tcp =
-      (const TcpHeader*)(data.data() + sizeof(EthernetHeader) + ihl);
-
-  uint16 src_port = Swap16BitEndian(tcp->src_port);
-  uint16 dest_port = Swap16BitEndian(tcp->dest_port);
-  uint32 seq = Swap32BitEndian(tcp->seq);
-  uint32 ack = Swap32BitEndian(tcp->ack);
-  uint16 flags = Swap16BitEndian(tcp->flags);
-
-  uint8 tcp_offset = ((flags >> 12) & 0x0F) * 4;
-  size_t ip_logical_len = Swap16BitEndian(ip->len);
-  if (ip_logical_len < ihl + tcp_offset) {
-    std::cout << "ProcessTcp: Packet logical length too small for headers: "
-              << ip_logical_len << " < " << (ihl + tcp_offset) << std::endl;
-    return;
-  }
-
-  size_t payload_len = ip_logical_len - ihl - tcp_offset;
-  const uint8* payload =
-      (const uint8*)data.data() + sizeof(EthernetHeader) + ihl + tcp_offset;
-
-  std::shared_ptr<SocketImpl> best_sock = nullptr;
-  std::shared_ptr<SocketImpl> listener_sock = nullptr;
-
-  for (auto& sock : GetActiveSockets()) {
-    if (sock->GetType() == SocketType::TCP &&
-        sock->GetLocalPort() == dest_port) {
-      if (sock->GetState() == SocketImpl::ListenState) {
-        listener_sock = sock;
-      } else if (sock->GetRemoteIp() == ip->src_ip &&
-                 sock->GetRemotePort() == src_port) {
-        best_sock = sock;
-        break;
-      }
+std::vector<ForwardingInterface> BuildForwardingInterfaces() {
+  std::vector<ForwardingInterface> result;
+  const auto& nics = GetNetworkInterfaces();
+  for (size_t i = 0; i < nics.size(); ++i) {
+    ForwardingInterface fi;
+    fi.index = i;
+    fi.mtu = nics[i].mtu;
+    for (const InterfaceAddress& a : nics[i].addresses) {
+      if (a.state != AddressState::Duplicate) fi.addresses.push_back(a.address);
     }
+    result.push_back(std::move(fi));
   }
+  return result;
+}
 
-  std::shared_ptr<SocketImpl> sock = best_sock ? best_sock : listener_sock;
-  if (!sock) return;
+void ProcessIpv4(std::string_view frame_payload, size_t iface_idx) {
+  const auto now = std::chrono::steady_clock::now();
+  IpsecResult ipsec_res = GetIpsecEngine().ProcessInbound(frame_payload);
+  if (ipsec_res.status == IpsecStatus::Dropped) return;
+  std::string_view packet = (ipsec_res.status == IpsecStatus::Protected)
+                                ? std::string_view(ipsec_res.packet)
+                                : frame_payload;
 
-  bool syn = (flags & 0x02) != 0;
-  bool ack_flag = (flags & 0x10) != 0;
-  bool fin = (flags & 0x01) != 0;
-  bool rst = (flags & 0x04) != 0;
+  auto ip_view = ParseIpv4Packet(packet);
+  if (!ip_view.has_value()) return;
 
-  if (sock->GetState() == SocketImpl::ListenState) {
-    if (syn) {
-      auto new_sock = std::make_shared<SocketImpl>(SocketType::TCP);
-      new_sock->SetLocalPort(dest_port);
-      new_sock->SetRemotePort(src_port);
-      new_sock->SetRemoteIp(ip->src_ip);
-      new_sock->SetState(SocketImpl::SynReceivedState);
-      new_sock->SetSeq(2000);
-      new_sock->SetAck(seq + 1);
+  NetworkInterface* iface = GetInterface(iface_idx);
+  if (iface == nullptr) return;
 
-      AddActiveSocket(new_sock);
-      SendTcpPacket(iface_idx, new_sock, 0x12);
-      new_sock->SetSeq(new_sock->GetSeq() + 1);
+  const bool is_local =
+      iface->HasAddress(ip_view->dst) || ip_view->dst.IsBroadcast() ||
+      ip_view->dst.IsMulticast() || ip_view->dst == ClatLocalIpv4Address() ||
+      ip_view->protocol == kProtocolUdp;
+  if (!is_local) {
+    ForwardingConfig fwd_cfg = GetForwardingConfig();
+    if (!fwd_cfg.ipv4_forwarding_enabled) return;
+    auto fwd_ifaces = BuildForwardingInterfaces();
+    ForwardingResult fwd = EvaluatePacketForwarding(
+        packet, iface_idx, fwd_cfg, GetRoutingTable(), fwd_ifaces, {}, now);
+    if (fwd.action == ForwardingAction::Forward ||
+        fwd.action == ForwardingAction::SendIcmpError) {
+      (void)SendRawIpPacket(fwd.egress_interface_index, fwd.next_hop,
+                            fwd.packet);
     }
     return;
   }
 
-  if (sock->GetState() == SocketImpl::SynSentState) {
-    if (syn && ack_flag) {
-      sock->SetAck(seq + 1);
-      sock->SetState(SocketImpl::EstablishedState);
-      SendTcpPacket(iface_idx, sock, 0x10);
+  std::string reassembled_buf;
+  std::string_view upper_payload = ip_view->payload;
+  uint8 upper_proto = ip_view->protocol;
 
-      if (sock->GetBlockedFiber()) {
-        sock->GetBlockedFiber()->WakeUp();
-        sock->SetBlockedFiber(nullptr);
-      }
+  if (packet.size() >= sizeof(IpHeader)) {
+    const auto* raw_hdr = reinterpret_cast<const IpHeader*>(packet.data());
+    const uint16 frag_field = Swap16BitEndian(raw_hdr->flags_fragment);
+    const bool more_frags = (frag_field & kIpv4MoreFragmentsMask) != 0;
+    const uint16 frag_off_bytes =
+        static_cast<uint16>((frag_field & kIpv4FragmentOffsetMask) * 8);
+    if (more_frags || frag_off_bytes != 0) {
+      ReassemblyKey key;
+      key.family = IpAddressFamily::V4;
+      key.source = ip_view->src;
+      key.destination = ip_view->dst;
+      key.identification = Swap16BitEndian(raw_hdr->identification);
+      key.protocol = ip_view->protocol;
+      ReassemblyResult r = GetReassembler().AddFragment(
+          key, frag_off_bytes, more_frags, ip_view->payload, now);
+      if (r.status != ReassemblyStatus::Complete) return;
+      reassembled_buf = std::move(r.payload);
+      upper_payload = reassembled_buf;
+      upper_proto = r.protocol;
+    }
+  }
+
+  FirewallPacket fw_pkt = FirewallPacket::FromPayload(
+      FirewallDirection::Inbound, ip_view->src, ip_view->dst, upper_proto,
+      upper_payload, ip_view->hop_limit, static_cast<uint32>(iface_idx));
+  if (GetFirewall().Evaluate(fw_pkt, now) != FirewallAction::Allow) return;
+
+  IpPacketView effective_view = *ip_view;
+  effective_view.protocol = upper_proto;
+  effective_view.payload = upper_payload;
+
+  if (upper_proto == kProtocolIcmpv4) {
+    ProcessIcmpv4(effective_view, iface_idx);
+  } else if (upper_proto == kProtocolUdp) {
+    ProcessUdp(iface_idx, effective_view.src, effective_view.dst,
+               effective_view.payload);
+  } else if (upper_proto == kProtocolTcp) {
+    ProcessTcpSegment(iface_idx, effective_view.src, effective_view.dst,
+                      effective_view.payload);
+  }
+}
+
+void ProcessIpv6(std::string_view frame_payload, size_t iface_idx) {
+  const auto now = std::chrono::steady_clock::now();
+  IpsecResult ipsec_res = GetIpsecEngine().ProcessInbound(frame_payload);
+  if (ipsec_res.status == IpsecStatus::Dropped) return;
+  std::string_view packet = (ipsec_res.status == IpsecStatus::Protected)
+                                ? std::string_view(ipsec_res.packet)
+                                : frame_payload;
+
+  auto fixed = ParseIpv6Header(packet);
+  if (!fixed.has_value()) return;
+  std::string_view trimmed =
+      packet.substr(0, kIpv6HeaderSize + fixed->payload_length);
+
+  NetworkInterface* iface = GetInterface(iface_idx);
+  if (iface == nullptr) return;
+
+  if (!iface->HasAddress(fixed->destination) &&
+      !fixed->destination.IsMulticast()) {
+    ForwardingConfig fwd_cfg = GetForwardingConfig();
+    if (!fwd_cfg.ipv6_forwarding_enabled) return;
+    auto fwd_ifaces = BuildForwardingInterfaces();
+    ForwardingResult fwd = EvaluatePacketForwarding(
+        trimmed, iface_idx, fwd_cfg, GetRoutingTable(), fwd_ifaces, {}, now);
+    if (fwd.action == ForwardingAction::Forward ||
+        fwd.action == ForwardingAction::SendIcmpError) {
+      (void)SendRawIpPacket(fwd.egress_interface_index, fwd.next_hop,
+                            fwd.packet);
     }
     return;
   }
 
-  if (sock->GetState() == SocketImpl::SynReceivedState) {
-    if (ack_flag) {
-      sock->SetState(SocketImpl::EstablishedState);
-
-      for (auto& parent : GetActiveSockets()) {
-        if (parent->GetType() == SocketType::TCP &&
-            parent->GetLocalPort() == dest_port &&
-            parent->GetState() == SocketImpl::ListenState) {
-          parent->QueueAcceptedSocket(sock);
-          if (parent->GetBlockedFiber()) {
-            parent->GetBlockedFiber()->WakeUp();
-            parent->SetBlockedFiber(nullptr);
-          }
-          break;
-        }
-      }
-    }
-    return;
-  }
-
-  if (sock->GetState() == SocketImpl::EstablishedState) {
-    if (rst) {
-      sock->SetState(SocketImpl::ClosedState);
-      if (sock->GetBlockedFiber()) {
-        sock->GetBlockedFiber()->WakeUp();
-        sock->SetBlockedFiber(nullptr);
-      }
+  // 464XLAT CLAT inbound translation for packets arriving from a NAT64 prefix.
+  if (iface->nat64_prefix.has_value() && iface->nat64_prefix->IsValid() &&
+      fixed->source.IsInPrefix(iface->nat64_prefix->prefix,
+                               iface->nat64_prefix->prefix_length)) {
+    auto v4_pkt =
+        TranslateIpv6ToIpv4(trimmed, fixed->destination, *iface->nat64_prefix);
+    if (v4_pkt.has_value()) {
+      ProcessIpv4(*v4_pkt, iface_idx);
       return;
     }
+  }
 
-    if (payload_len > 0) {
-      sock->AppendRxBuffer(std::string((const char*)payload, payload_len));
-      sock->SetAck(seq + payload_len);
-      SendTcpPacket(iface_idx, sock, 0x10);
-
-      if (sock->GetBlockedFiber()) {
-        sock->GetBlockedFiber()->WakeUp();
-        sock->SetBlockedFiber(nullptr);
+  ExtensionWalkResult walk = WalkExtensionHeaders(*fixed, trimmed);
+  if (walk.status == ExtensionWalkStatus::Discard) return;
+  if (walk.status == ExtensionWalkStatus::ParameterProblem) {
+    if (CanSendIcmpv6Error(Icmpv6Type::ParameterProblem, walk.problem_code,
+                           trimmed) &&
+        GetIcmpv6RateLimiter().Allow(now)) {
+      IpAddress err_src = fixed->destination.IsMulticast()
+                              ? SelectSourceAddress(iface_idx, fixed->source)
+                                    .value_or(LinkLocalAddressFromMac(iface->mac))
+                              : fixed->destination;
+      auto err_icmp = BuildIcmpv6Error(
+          err_src, fixed->source, Icmpv6Type::ParameterProblem,
+          walk.problem_code, walk.problem_pointer, trimmed);
+      if (err_icmp.has_value()) {
+        IpPacketRequest req;
+        req.interface_index = iface_idx;
+        req.src = err_src;
+        req.dst = fixed->source;
+        req.protocol = kProtocolIcmpv6;
+        req.payload = *err_icmp;
+        (void)SendIpPacket(req);
       }
     }
-
-    if (fin) {
-      sock->SetAck(seq + payload_len + 1);
-      SendTcpPacket(iface_idx, sock, 0x10);
-      sock->SetState(SocketImpl::CloseWaitState);
-
-      if (sock->GetBlockedFiber()) {
-        sock->GetBlockedFiber()->WakeUp();
-        sock->SetBlockedFiber(nullptr);
-      }
-    }
     return;
   }
+  if (walk.status == ExtensionWalkStatus::NoNextHeader) return;
 
-  if (sock->GetState() == SocketImpl::LastAckState) {
-    if (ack_flag) {
-      sock->SetState(SocketImpl::ClosedState);
-    }
-    return;
+  std::string reassembled_buf;
+  std::string_view upper_payload = walk.payload;
+  uint8 upper_proto = walk.next_header;
+
+  if (walk.status == ExtensionWalkStatus::Fragment &&
+      walk.fragment.has_value()) {
+    ReassemblyKey key;
+    key.family = IpAddressFamily::V6;
+    key.source = fixed->source;
+    key.destination = fixed->destination;
+    key.identification = walk.fragment->identification;
+    key.protocol = walk.next_header;
+    ReassemblyResult r = GetReassembler().AddFragment(
+        key, walk.fragment->offset, walk.fragment->more_fragments,
+        walk.payload, now, walk.fragment_header_offset);
+    if (r.status != ReassemblyStatus::Complete) return;
+    reassembled_buf = std::move(r.payload);
+    upper_payload = reassembled_buf;
+    upper_proto = r.protocol;
   }
 
-  if (sock->GetState() == SocketImpl::FinWait1State) {
-    if (ack_flag) {
-      sock->SetState(SocketImpl::FinWait2State);
-    }
-    if (fin) {
-      sock->SetAck(seq + payload_len + 1);
-      SendTcpPacket(iface_idx, sock, 0x10);
-      sock->SetState(SocketImpl::ClosedState);
-    }
-    return;
-  }
-}
+  if (upper_proto == static_cast<uint8>(Ipv6NextHeader::NoNextHeader)) return;
 
-void ProcessIp(const std::string& data, size_t iface_idx) {
-  if (data.length() < sizeof(EthernetHeader) + sizeof(IpHeader)) return;
+  FirewallPacket fw_pkt = FirewallPacket::FromPayload(
+      FirewallDirection::Inbound, fixed->source, fixed->destination,
+      upper_proto, upper_payload, fixed->hop_limit,
+      static_cast<uint32>(iface_idx));
+  if (GetFirewall().Evaluate(fw_pkt, now) != FirewallAction::Allow) return;
 
-  const IpHeader* ip = (const IpHeader*)(data.data() + sizeof(EthernetHeader));
-  uint8 ihl = (ip->version_ihl & 0x0F) * 4;
-  if (data.length() < sizeof(EthernetHeader) + ihl) return;
-
-  if (ip->dest_ip != GetNetworkInterface(iface_idx).ip &&
-      ip->dest_ip != 0xFFFFFFFF)
-    return;
-
-  if (ip->protocol == 1) {
-    ProcessIcmp(data, ihl, iface_idx);
-  } else if (ip->protocol == 17) {
-    ProcessUdp(data, ihl, iface_idx);
-  } else if (ip->protocol == 6) {
-    ProcessTcp(data, ihl, iface_idx);
+  if (upper_proto == kProtocolIcmpv6) {
+    ProcessIcmpv6(fixed->source, fixed->destination, fixed->hop_limit,
+                  walk.router_alert, upper_payload, iface_idx);
+  } else if (upper_proto == kProtocolUdp) {
+    ProcessUdp(iface_idx, fixed->source, fixed->destination, upper_payload);
+  } else if (upper_proto == kProtocolTcp) {
+    ProcessTcpSegment(iface_idx, fixed->source, fixed->destination,
+                      upper_payload);
   }
 }
 
@@ -353,32 +508,43 @@ NetworkListener::NetworkListener(size_t interface_index)
 
 Status NetworkListener::PacketReceived(
     const ::perception::devices::Packet& packet) {
-  if (packet.data.length() < sizeof(EthernetHeader)) return Status::OK;
+  if (packet.data.size() < kEthernetHeaderSize) return Status::OK;
 
   std::string data = packet.data;
   size_t iface_idx = interface_index_;
   ::perception::Defer([data = std::move(data), iface_idx]() {
-    const EthernetHeader* eth = (const EthernetHeader*)data.data();
-    uint16 eth_type = Swap16BitEndian(eth->type);
+    NetworkInterface* iface = GetInterface(iface_idx);
+    if (iface == nullptr) return;
 
-    if (eth_type == 0x0806) {
-      ProcessArp(data, iface_idx);
-    } else if (eth_type == 0x0800) {
-      ProcessIp(data, iface_idx);
+    auto eth_frame = ParseEthernetFrame(data);
+    if (!eth_frame.has_value()) return;
+    if (!iface->IsDestinedForMac(eth_frame->dest_mac)) return;
+
+    if (eth_frame->ether_type == kEtherTypeArp) {
+      ProcessArp(eth_frame->payload, iface_idx);
+    } else if (eth_frame->ether_type == kEtherTypeIpv4) {
+      ProcessIpv4(eth_frame->payload, iface_idx);
+    } else if (eth_frame->ether_type == kEtherTypeIpv6) {
+      ProcessIpv6(eth_frame->payload, iface_idx);
     }
   });
   return Status::OK;
 }
 
-void CreateAndAddNetworkListener(size_t interface_index) {
+void CreateAndAddNetworkListener(
+    size_t interface_index,
+    ::perception::devices::NetworkDevice::Client device) {
   auto listener = std::make_shared<NetworkListener>(interface_index);
   listeners.push_back(listener);
-  auto status =
-      GetNetworkInterface(interface_index)
-          .device.SetPacketListener(
-              ::perception::devices::NetworkListener::Client(*listener));
+  auto status = device.SetPacketListener(
+      ::perception::devices::NetworkListener::Client(*listener));
   if (status != Status::OK) {
     std::cout << "SetPacketListener failed! Status=" << static_cast<int>(status)
               << std::endl;
   }
+}
+
+void CreateAndAddNetworkListener(size_t interface_index) {
+  CreateAndAddNetworkListener(interface_index,
+                              GetNetworkInterface(interface_index).device);
 }

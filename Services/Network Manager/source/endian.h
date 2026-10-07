@@ -16,31 +16,11 @@
 
 #include <types.h>
 
-#include "perception/network/network_service.h"
+// Swaps the byte order of a 16-bit integer (host <-> big-endian network order).
+inline uint16 Swap16BitEndian(uint16 val) { return (val >> 8) | (val << 8); }
 
-// Swaps the byte order of a 16-bit value.
-inline uint16 Swap16BitEndian(uint16 val) { return (val << 8) | (val >> 8); }
-
-// Swaps the byte order of a 32-bit value.
+// Swaps the byte order of a 32-bit integer (host <-> big-endian network order).
 inline uint32 Swap32BitEndian(uint32 val) {
-  return ((val & 0xFF000000) >> 24) | ((val & 0x00FF0000) >> 8) |
-         ((val & 0x0000FF00) << 8) | ((val & 0x000000FF) << 24);
-}
-
-// Converts a structured IpAddress into a raw 32-bit
-// integer in host-endianness representation.
-inline uint32 IpToUint32(const ::perception::network::IpAddress& ip) {
-  return (uint32)ip.address[0] | ((uint32)ip.address[1] << 8) |
-         ((uint32)ip.address[2] << 16) | ((uint32)ip.address[3] << 24);
-}
-
-// Converts a raw 32-bit integer in host-endianness representation back into
-// a structured IpAddress.
-inline ::perception::network::IpAddress Uint32ToIp(uint32 ip_val) {
-  ::perception::network::IpAddress ip;
-  ip.address[0] = ip_val & 0xFF;
-  ip.address[1] = (ip_val >> 8) & 0xFF;
-  ip.address[2] = (ip_val >> 16) & 0xFF;
-  ip.address[3] = (ip_val >> 24) & 0xFF;
-  return ip;
+  return ((val >> 24) & 0xff) | ((val << 8) & 0xff0000) |
+         ((val >> 8) & 0xff00) | ((val << 24) & 0xff000000);
 }

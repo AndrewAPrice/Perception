@@ -108,10 +108,12 @@ long OpenFile(const char* path, bool read_access, bool write_access,
   return id;
 }
 
-long CreateSocketDescriptor(perception::network::Socket::Client socket) {
+long CreateSocketDescriptor(perception::network::Socket::Client socket,
+                            int domain) {
   auto descriptor = std::make_shared<FileDescriptor>();
   descriptor->type = FileDescriptor::SOCKET;
   descriptor->socket.socket = socket;
+  descriptor->socket.domain = domain;
 
   std::lock_guard<std::mutex> lock(files_mutex);
   long id = GetUniqueFileId();

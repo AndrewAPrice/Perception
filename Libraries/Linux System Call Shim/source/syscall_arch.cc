@@ -582,7 +582,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_getitimer:
       return ::perception::linux_syscalls::getitimer();
     case SYS_getpeername:
-      return ::perception::linux_syscalls::getpeername();
+      return ::perception::linux_syscalls::getpeername(
+          (int)a1, (struct sockaddr *)a2, (socklen_t *)a3);
     case SYS_getpgid:
       return ::perception::linux_syscalls::getpgid();
     case SYS_getpgrp:
@@ -608,7 +609,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_getsid:
       return ::perception::linux_syscalls::getsid();
     case SYS_getsockname:
-      return ::perception::linux_syscalls::getsockname();
+      return ::perception::linux_syscalls::getsockname(
+          (int)a1, (struct sockaddr *)a2, (socklen_t *)a3);
     case SYS_getsockopt:
       return ::perception::linux_syscalls::getsockopt();
     case SYS_gettid:
@@ -982,7 +984,8 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_setsid:
       return ::perception::linux_syscalls::setsid();
     case SYS_setsockopt:
-      return ::perception::linux_syscalls::setsockopt();
+      return ::perception::linux_syscalls::setsockopt(
+          (int)a1, (int)a2, (int)a3, (const void *)a4, (socklen_t)a5);
     case SYS_settimeofday:
       return ::perception::linux_syscalls::settimeofday();
     case SYS_setuid:

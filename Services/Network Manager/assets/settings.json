@@ -1,0 +1,307 @@
+[
+  {
+    "name": "Network Manager",
+    "page": "Network",
+    "groups": [
+      {
+        "title": "General",
+        "settings": [
+          {
+            "key": "connectStrategy",
+            "type": "enum",
+            "name": "Connection Strategy",
+            "description": "Dual-stack connection establishment strategy",
+            "default": "Happy Eyeballs",
+            "options": [
+              {
+                "name": "Happy Eyeballs",
+                "value": 0
+              },
+              {
+                "name": "Strict RFC 6724",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "key": "preferIpv4",
+            "type": "boolean",
+            "name": "Prefer IPv4",
+            "description": "Prefer IPv4 addresses over IPv6 when establishing connections",
+            "default": false
+          },
+          {
+            "key": "enableTemporaryAddresses",
+            "type": "boolean",
+            "name": "IPv6 Temporary Privacy Addresses",
+            "description": "Generate RFC 4941 temporary privacy addresses for outbound IPv6 connections",
+            "default": false
+          },
+          {
+            "key": "ipv4Forwarding",
+            "type": "boolean",
+            "name": "IPv4 Packet Forwarding",
+            "description": "Forward IPv4 packets between network interfaces",
+            "default": false
+          },
+          {
+            "key": "ipv6Forwarding",
+            "type": "boolean",
+            "name": "IPv6 Packet Forwarding",
+            "description": "Forward IPv6 packets between network interfaces",
+            "default": false
+          }
+        ]
+      },
+      {
+        "title": "Routing & Security",
+        "settings": [
+          {
+            "key": "staticRoutes",
+            "name": "Static Routes",
+            "description": "Manually configured IPv4 and IPv6 routing table entries",
+            "type": [
+              {
+                "name": "Destination",
+                "type": "string"
+              },
+              {
+                "name": "Prefix",
+                "type": "integer"
+              },
+              {
+                "name": "Next Hop",
+                "type": "string"
+              },
+              {
+                "name": "Interface",
+                "type": "string"
+              }
+            ],
+            "default": []
+          },
+          {
+            "key": "firewallRules",
+            "name": "Firewall Rules",
+            "description": "Packet filter rules evaluated in order",
+            "type": [
+              {
+                "name": "Direction",
+                "type": "string"
+              },
+              {
+                "name": "Action",
+                "type": "string"
+              },
+              {
+                "name": "Protocol",
+                "type": "string"
+              },
+              {
+                "name": "Source",
+                "type": "string"
+              },
+              {
+                "name": "Destination",
+                "type": "string"
+              },
+              {
+                "name": "Port",
+                "type": "string"
+              }
+            ],
+            "default": []
+          },
+          {
+            "key": "ipsecPolicies",
+            "name": "IPsec Policies",
+            "description": "Manual IPsec security associations and policies",
+            "type": [
+              {
+                "name": "Peer Address",
+                "type": "string"
+              },
+              {
+                "name": "Mode",
+                "type": "string"
+              },
+              {
+                "name": "Protocol",
+                "type": "string"
+              },
+              {
+                "name": "SPI",
+                "type": "integer"
+              },
+              {
+                "name": "Key",
+                "type": "string"
+              }
+            ],
+            "default": []
+          }
+        ]
+      },
+      {
+        "instancePrefix": "interfaces/",
+        "title": "Interface {instance}",
+        "settings": [
+          {
+            "key": "ipv4Mode",
+            "type": "enum",
+            "name": "IPv4 Configuration Mode",
+            "description": "How IPv4 addresses, routes, and DNS are configured on this interface",
+            "default": "Automatic (DHCPv4)",
+            "options": [
+              {
+                "name": "Automatic (DHCPv4)",
+                "value": 0
+              },
+              {
+                "name": "Static",
+                "value": 1
+              },
+              {
+                "name": "Disabled",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "key": "ipv4StaticAddresses",
+            "name": "IPv4 Static Addresses",
+            "description": "Static IPv4 addresses and prefix lengths used when IPv4 mode is Static",
+            "type": [
+              {
+                "name": "Address",
+                "type": "string"
+              },
+              {
+                "name": "Prefix",
+                "type": "integer"
+              }
+            ],
+            "default": []
+          },
+          {
+            "key": "ipv4Gateway",
+            "type": "string",
+            "name": "IPv4 Static Gateway",
+            "description": "Default IPv4 router address used when IPv4 mode is Static",
+            "default": ""
+          },
+          {
+            "key": "ipv4DnsServers",
+            "type": "string",
+            "name": "IPv4 Static DNS Servers",
+            "description": "Comma-separated IPv4 DNS server addresses used when IPv4 mode is Static",
+            "default": ""
+          },
+          {
+            "key": "ipv6Mode",
+            "type": "enum",
+            "name": "IPv6 Configuration Mode",
+            "description": "How IPv6 addresses, routes, and DNS are configured on this interface",
+            "default": "Automatic (SLAAC + DHCPv6)",
+            "options": [
+              {
+                "name": "Automatic (SLAAC + DHCPv6)",
+                "value": 0
+              },
+              {
+                "name": "Static",
+                "value": 1
+              },
+              {
+                "name": "Disabled",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "key": "ipv6StaticAddresses",
+            "name": "IPv6 Static Addresses",
+            "description": "Static IPv6 addresses and prefix lengths used when IPv6 mode is Static",
+            "type": [
+              {
+                "name": "Address",
+                "type": "string"
+              },
+              {
+                "name": "Prefix",
+                "type": "integer"
+              }
+            ],
+            "default": []
+          },
+          {
+            "key": "ipv6Gateway",
+            "type": "string",
+            "name": "IPv6 Static Gateway",
+            "description": "Default IPv6 router address used when IPv6 mode is Static",
+            "default": ""
+          },
+          {
+            "key": "ipv6DnsServers",
+            "type": "string",
+            "name": "IPv6 Static DNS Servers",
+            "description": "Comma-separated IPv6 DNS server addresses used when IPv6 mode is Static",
+            "default": ""
+          },
+          {
+            "key": "ipv6RouterMode",
+            "type": "boolean",
+            "name": "IPv6 Router Advertisements",
+            "description": "Send periodic ICMPv6 Router Advertisements on this interface",
+            "default": false
+          },
+          {
+            "key": "currentAddresses",
+            "name": "Current IP Addresses",
+            "description": "Active IPv4 and IPv6 addresses assigned to this interface",
+            "readonly": true,
+            "type": [
+              {
+                "name": "Address",
+                "type": "string"
+              },
+              {
+                "name": "Prefix",
+                "type": "integer"
+              },
+              {
+                "name": "Origin",
+                "type": "string"
+              },
+              {
+                "name": "State",
+                "type": "string"
+              },
+              {
+                "name": "Expires",
+                "type": "string"
+              }
+            ],
+            "default": []
+          },
+          {
+            "key": "currentRouters",
+            "type": "string",
+            "name": "Current Default Routers",
+            "description": "Active default gateway routers on this interface",
+            "readonly": true,
+            "default": ""
+          },
+          {
+            "key": "currentDnsServers",
+            "type": "string",
+            "name": "Current DNS Servers",
+            "description": "Active DNS servers learned or configured on this interface",
+            "readonly": true,
+            "default": ""
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -20,9 +20,11 @@
 #include <memory>
 
 #include "perception/network/network_service.h"
+#include "status.h"
 
 class SocketImpl;
 
+// NetworkService IPC server implementation.
 class NetworkService : public ::perception::network::NetworkService::Server {
  public:
   NetworkService();
@@ -32,6 +34,12 @@ class NetworkService : public ::perception::network::NetworkService::Server {
 
   virtual StatusOr<::perception::network::ResolveHostResponse> ResolveHost(
       const ::perception::network::ResolveHostRequest& request) override;
+
+  virtual StatusOr<::perception::network::ConnectToHostResponse> ConnectToHost(
+      const ::perception::network::ConnectToHostRequest& request) override;
+
+  virtual StatusOr<::perception::network::GetInterfacesResponse> GetInterfaces()
+      override;
 
  private:
   std::map<size_t, std::shared_ptr<SocketImpl>> sockets_;

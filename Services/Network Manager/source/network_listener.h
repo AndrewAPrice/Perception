@@ -32,4 +32,7 @@ class NetworkListener : public ::perception::devices::NetworkListener::Server {
   size_t interface_index_;
 };
 
+void CreateAndAddNetworkListener(
+    size_t interface_index,
+    ::perception::devices::NetworkDevice::Client device);
 void CreateAndAddNetworkListener(size_t interface_index);

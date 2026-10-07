@@ -18,6 +18,7 @@
 #include <netinet/in.h>
 
 #include "files.h"
+#include "sockaddr_conversion.h"
 
 namespace perception {
 namespace linux_syscalls {
@@ -26,22 +27,17 @@ using ::perception::network::BindRequest;
 
 long bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen) {
   auto descriptor = GetFileDescriptor(sockfd);
-  if (!descriptor || descriptor->type != FileDescriptor::SOCKET) {
-    return -EBADF;
-  }
+  if (!descriptor || descriptor->type != FileDescriptor::SOCKET) return -EBADF;
 
-  if (addr->sa_family != AF_INET) {
-    return -EAFNOSUPPORT;
-  }
+  auto endpoint = SockaddrToEndpoint(addr, addrlen);
+  if (!endpoint.has_value()) return -EAFNOSUPPORT;
 
-  const struct sockaddr_in* addr_in = (const struct sockaddr_in*)addr;
   BindRequest request;
-  request.port = ntohs(addr_in->sin_port);
+  request.address = endpoint->address;
+  request.port = endpoint->port;
 
   auto status = descriptor->socket.socket.Bind(request);
-  if (status != Status::OK) {
-    return -EADDRINUSE;
-  }
+  if (status != Status::OK) return -EADDRINUSE;
 
   return 0;
 }

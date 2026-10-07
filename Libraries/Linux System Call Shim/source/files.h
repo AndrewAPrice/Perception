@@ -46,6 +46,8 @@ struct FileDescriptor {
 
   struct Socket {
     perception::network::Socket::Client socket;
+    int domain = 2;
+    bool ipv6_v6only = false;
     bool non_blocking = false;
   } socket;
 };
@@ -53,7 +55,8 @@ struct FileDescriptor {
 long OpenDirectory(const char* path);
 long OpenFile(const char* path, bool read_access, bool write_access,
               bool create_if_not_exists, bool truncate);
-long CreateSocketDescriptor(perception::network::Socket::Client socket);
+long CreateSocketDescriptor(perception::network::Socket::Client socket,
+                            int domain = 2);
 
 std::shared_ptr<FileDescriptor> GetFileDescriptor(long id);
 bool ReadAndIncrementFile(long id, void* buffer, long bytes);

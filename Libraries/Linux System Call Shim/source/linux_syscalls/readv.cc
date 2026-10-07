@@ -28,6 +28,9 @@ using ::perception::network::ReceiveRequest;
 
 namespace {
 
+// Maximum number of bytes to request in a single socket receive RPC.
+constexpr size_t kMaxSocketReadBytes = 65536;
+
 long ReadSocket(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
                 long iovcnt) {
   if (iovcnt < 0) {
@@ -52,7 +55,7 @@ long ReadSocket(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
   }
 
   ReceiveRequest request;
-  request.max_bytes = std::min(bytes_to_read, (size_t)4096);
+  request.max_bytes = std::min(bytes_to_read, kMaxSocketReadBytes);
   request.non_blocking = descriptor->socket.non_blocking;
   auto status_or_res = descriptor->socket.socket.Receive(request);
 

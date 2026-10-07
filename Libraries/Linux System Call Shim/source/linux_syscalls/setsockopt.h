@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/socket.h>
+
 namespace perception {
 namespace linux_syscalls {
 
-long setsockopt();
+long setsockopt(int sockfd, int level, int optname, const void* optval,
+                socklen_t optlen);
 
 }
 }  // namespace perception
