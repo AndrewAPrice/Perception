@@ -56,6 +56,16 @@ struct ActiveSetting {
   double max_val = 1.0;
   double step_val = 0.0;
   std::string unit;
+  bool read_only = false;
+};
+
+struct InstanceGroupTemplate {
+  ::perception::RegistryCorpus corpus;
+  std::string ns_name;
+  std::string instance_prefix;
+  std::string base_page;
+  std::string title;
+  std::vector<ActiveSetting> settings;
 };
 
 struct PackageMetadata {
@@ -65,12 +75,19 @@ struct PackageMetadata {
 };
 
 extern std::map<std::string, ActiveSetting> all_settings;
+extern std::vector<InstanceGroupTemplate> instance_group_templates;
 extern std::vector<PackageMetadata> all_packages;
 extern std::string selected_page_path;
 extern int selected_package_index;
 
 const std::vector<std::string>& GetInstalledApplications();
 void ScanAllSettings();
+bool RefreshInstanceGroupSettings();
+bool MatchesInstanceGroupSchema(::perception::RegistryCorpus corpus,
+                                std::string_view ns_name,
+                                std::string_view key);
 
-SettingType ParseSettingType(std::string_view type_str, bool has_options = false);
-::perception::serialization::Value GetDefaultValueForColumnType(SettingType type);
+SettingType ParseSettingType(std::string_view type_str,
+                             bool has_options = false);
+::perception::serialization::Value GetDefaultValueForColumnType(
+    SettingType type);

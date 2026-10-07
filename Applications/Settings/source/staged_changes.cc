@@ -74,6 +74,7 @@ void StageChange(RegistryCorpus corpus, const std::string& ns_name,
   } else {
     staged_changes[change_key] = {corpus, ns_name, key, val};
   }
+  UpdateSettingDirtyIndicator(change_key);
   UpdateButtonStates();
 }
 
@@ -148,7 +149,7 @@ void AddTableRow(RegistryCorpus corpus, const std::string& ns_name,
   if (on_update) {
     on_update();
   } else {
-    RefreshRightPanel();
+    RefreshSettingInPlace(change_key);
   }
 }
 
@@ -180,17 +181,27 @@ void RemoveTableRow(RegistryCorpus corpus, const std::string& ns_name,
     if (on_update) {
       on_update();
     } else {
-      RefreshRightPanel();
+      RefreshSettingInPlace(change_key);
     }
   }
 }
 
 void ApplyStagedChanges() {
   if (staged_changes.empty()) return;
+
+  std::map<std::pair<RegistryCorpus, std::string>,
+           std::vector<::perception::RegistryKeyValue>>
+      batches;
   for (const auto& [ck, change] : staged_changes) {
-    SetRegistryValue(change.corpus, change.ns_name, change.key, change.value);
+    batches[{change.corpus, change.ns_name}].push_back(
+        ::perception::RegistryKeyValue{change.key, change.value});
     original_values[ck] = change.value;
   }
+  for (auto& [ns_id, values] : batches) {
+    (void)::perception::SetRegistryValues(ns_id.first, ns_id.second,
+                                          std::move(values));
+  }
+
   staged_changes.clear();
   RefreshRightPanel();
   UpdateButtonStates();

@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "perception/registry.h"
+#include "perception/ui/components/label.h"
 #include "perception/ui/node.h"
 #include "schema.h"
 
@@ -28,7 +29,8 @@ std::shared_ptr<::perception::ui::Node> BuildTableCellComponent(
     ::perception::RegistryCorpus corpus, const std::string& ns_name,
     const std::string& key, int row_idx, int col_idx,
     const TableColumn& col,
-    const ::perception::serialization::Value& cell_val);
+    const ::perception::serialization::Value& cell_val,
+    bool read_only = false);
 
 std::shared_ptr<::perception::ui::Node> BuildSettingComponent(
     ::perception::RegistryCorpus corpus, const std::string& ns_name,
@@ -36,7 +38,15 @@ std::shared_ptr<::perception::ui::Node> BuildSettingComponent(
     const ActiveSetting& setting,
     const ::perception::serialization::Value& display_val);
 
-std::shared_ptr<::perception::ui::Node> BuildTableSetting(
+std::shared_ptr<::perception::ui::Node> BuildTableWidget(
     ::perception::RegistryCorpus corpus, const std::string& ns_name,
     const std::string& key, const std::string& change_key,
     const ActiveSetting& setting);
+
+std::shared_ptr<::perception::ui::Node> BuildTableSetting(
+    ::perception::RegistryCorpus corpus, const std::string& ns_name,
+    const std::string& key, const std::string& change_key,
+    const ActiveSetting& setting,
+    std::shared_ptr<::perception::ui::components::Label>* dirty_label_out =
+        nullptr,
+    std::shared_ptr<::perception::ui::Node>* value_container_out = nullptr);

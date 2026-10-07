@@ -14,7 +14,11 @@
 
 #pragma once
 
+#include <string>
+
 void UpdateButtonStates();
+void UpdateSettingDirtyIndicator(const std::string& change_key);
+void RefreshSettingInPlace(const std::string& change_key);
 void RefreshLeftPanel();
 void RefreshRightPanel(bool preserve_scroll = true);
 void InitializeSettingsWindow();

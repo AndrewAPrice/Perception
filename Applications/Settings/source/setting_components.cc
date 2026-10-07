@@ -65,13 +65,21 @@ float GetTableColumnWidth(SettingType type) {
 
 std::shared_ptr<Node> BuildTableCellComponent(
     RegistryCorpus corpus, const std::string& ns_name, const std::string& key,
-    int row_idx, int col_idx, const TableColumn& col, const Value& cell_val) {
+    int row_idx, int col_idx, const TableColumn& col, const Value& cell_val,
+    bool read_only) {
   auto cell_wrapper = Container::HorizontalContainer([col](Layout& layout) {
     layout.SetWidth(GetTableColumnWidth(col.type));
     layout.SetFlexShrink(0.0f);
     layout.SetAlignItems(YGAlignCenter);
     layout.SetPadding(YGEdgeRight, 4.0f);
   });
+
+  if (read_only) {
+    std::string text = RegistryValueToString(cell_val);
+    cell_wrapper->AddChild(Label::BasicLabel(
+        text, [](Label& label) { label.SetColor(0xFF374151); }));
+    return cell_wrapper;
+  }
 
   switch (col.type) {
     case SettingType::BOOLEAN: {
@@ -139,17 +147,32 @@ std::shared_ptr<Node> BuildTableCellComponent(
       break;
     }
     default: {
-      std::string text = std::string(cell_val.StringValue().value_or(""));
+      std::string text = RegistryValueToString(cell_val);
       auto input = InputBox::BasicInputBox(text, [](Layout& layout) {
         layout.SetHeight(22.0f);
         layout.SetWidthPercent(100.0f);
       });
       auto input_comp = input->Get<InputBox>();
       if (input_comp) {
-        input_comp->OnTextChanged([corpus, ns_name, key, row_idx,
-                                   col_idx](std::string_view text_str) {
+        input_comp->OnTextChanged([corpus, ns_name, key, row_idx, col_idx,
+                                   col](std::string_view text_str) {
           Value val;
-          val.SetString(std::string(text_str));
+          std::string s(text_str);
+          if (col.type == SettingType::INTEGER) {
+            try {
+              val.SetInteger(std::stoi(s));
+            } catch (...) {
+              return;
+            }
+          } else if (col.type == SettingType::FLOAT) {
+            try {
+              val.SetFloat(std::stof(s));
+            } catch (...) {
+              return;
+            }
+          } else {
+            val.SetString(s);
+          }
           UpdateTableCell(corpus, ns_name, key, row_idx, col_idx, val);
         });
       }
@@ -167,6 +190,18 @@ std::shared_ptr<Node> BuildSettingComponent(RegistryCorpus corpus,
                                             const std::string& change_key,
                                             const ActiveSetting& setting,
                                             const Value& display_val) {
+  if (setting.read_only) {
+    std::string text_val = RegistryValueToString(display_val);
+    bool is_empty = text_val.empty();
+    if (is_empty) text_val = "(none)";
+    return Label::BasicLabel(
+        text_val,
+        [is_empty](Label& label) {
+          label.SetColor(is_empty ? 0xFF9CA3AF : 0xFF374151);
+        },
+        [](Layout& layout) { layout.SetFlexShrink(0.0f); });
+  }
+
   switch (setting.type) {
     case SettingType::OPTIONS: {
       int default_sel = 0;
@@ -383,27 +418,12 @@ std::shared_ptr<Node> BuildSettingComponent(RegistryCorpus corpus,
   }
 }
 
-std::shared_ptr<Node> BuildTableSetting(RegistryCorpus corpus,
-                                        const std::string& ns_name,
-                                        const std::string& key,
-                                        const std::string& change_key,
-                                        const ActiveSetting& setting) {
-  auto row = Container::VerticalContainer([](Layout& layout) {
-    layout.SetMargin(YGEdgeBottom, 12.0f);
-    layout.SetAlignItems(YGAlignStretch);
-  });
-
-  std::shared_ptr<Node> name_label;
-  row->AddChild(Label::BasicLabel(
-      setting.name.empty() ? key : setting.name,
-      [](Label& label) { label.SetColor(0xFF1F2937); }, &name_label));
-  row->AddChild(Label::BasicLabel(
-      setting.description, [](Label& label) { label.SetColor(0xFF6B7280); }));
-
-  Tooltip::Attach(name_label, "Default value: " +
-                                  RegistryValueToString(setting.default_val));
-
-  float table_width = 70.0f;
+std::shared_ptr<Node> BuildTableWidget(RegistryCorpus corpus,
+                                       const std::string& ns_name,
+                                       const std::string& key,
+                                       const std::string& change_key,
+                                       const ActiveSetting& setting) {
+  float table_width = setting.read_only ? 0.0f : 70.0f;
   for (const auto& col : setting.table_columns) {
     table_width += GetTableColumnWidth(col.type);
   }
@@ -442,12 +462,14 @@ std::shared_ptr<Node> BuildTableSetting(RegistryCorpus corpus,
     header_row->AddChild(col_header);
   }
 
-  header_row->AddChild(Label::BasicLabel(
-      "Actions", [](Label& label) { label.SetColor(0xFF374151); },
-      [](Layout& layout) {
-        layout.SetWidth(70.0f);
-        layout.SetFlexShrink(0.0f);
-      }));
+  if (!setting.read_only) {
+    header_row->AddChild(Label::BasicLabel(
+        "Actions", [](Label& label) { label.SetColor(0xFF374151); },
+        [](Layout& layout) {
+          layout.SetWidth(70.0f);
+          layout.SetFlexShrink(0.0f);
+        }));
+  }
   table_container->AddChild(header_row);
 
   Value curr_val;
@@ -480,34 +502,81 @@ std::shared_ptr<Node> BuildTableSetting(RegistryCorpus corpus,
       Value cell_val;
       if (c < static_cast<int>(row_cells.size())) cell_val = row_cells[c];
 
-      row_container->AddChild(
-          BuildTableCellComponent(corpus, ns_name, key, r, c, col, cell_val));
+      row_container->AddChild(BuildTableCellComponent(
+          corpus, ns_name, key, r, c, col, cell_val, setting.read_only));
     }
-    row_container->AddChild(Button::TextButton(
-        "Remove",
-        [corpus, ns_name, key, r]() {
-          RemoveTableRow(corpus, ns_name, key, r, nullptr);
-        },
-        [](Layout& layout) {
-          layout.SetWidth(70.0f);
-          layout.SetHeight(22.0f);
-          layout.SetFlexShrink(0.0f);
-        }));
+    if (!setting.read_only) {
+      row_container->AddChild(Button::TextButton(
+          "Remove",
+          [corpus, ns_name, key, r]() {
+            RemoveTableRow(corpus, ns_name, key, r, nullptr);
+          },
+          [](Layout& layout) {
+            layout.SetWidth(70.0f);
+            layout.SetHeight(22.0f);
+            layout.SetFlexShrink(0.0f);
+          }));
+    }
     table_container->AddChild(row_container);
   }
 
-  table_container->AddChild(Button::TextButton(
-      "Add Row",
-      [corpus, ns_name, key, setting]() {
-        AddTableRow(corpus, ns_name, key, setting, nullptr);
-      },
-      [](Layout& layout) {
-        layout.SetMargin(YGEdgeVertical, 4.0f);
-        layout.SetMargin(YGEdgeHorizontal, 6.0f);
-        layout.SetWidth(80.0f);
-        layout.SetHeight(24.0f);
-      }));
+  if (!setting.read_only) {
+    table_container->AddChild(Button::TextButton(
+        "Add Row",
+        [corpus, ns_name, key, setting]() {
+          AddTableRow(corpus, ns_name, key, setting, nullptr);
+        },
+        [](Layout& layout) {
+          layout.SetMargin(YGEdgeVertical, 4.0f);
+          layout.SetMargin(YGEdgeHorizontal, 6.0f);
+          layout.SetWidth(80.0f);
+          layout.SetHeight(24.0f);
+        }));
+  } else if (current_rows.empty()) {
+    table_container->AddChild(Label::BasicLabel(
+        "(none)", [](Label& label) { label.SetColor(0xFF9CA3AF); },
+        [](Layout& layout) {
+          layout.SetPadding(YGEdgeVertical, 4.0f);
+          layout.SetPadding(YGEdgeHorizontal, 6.0f);
+        }));
+  }
 
-  row->AddChild(table_container);
+  return table_container;
+}
+
+std::shared_ptr<Node> BuildTableSetting(
+    RegistryCorpus corpus, const std::string& ns_name, const std::string& key,
+    const std::string& change_key, const ActiveSetting& setting,
+    std::shared_ptr<Label>* dirty_label_out,
+    std::shared_ptr<Node>* value_container_out) {
+  auto row = Container::VerticalContainer([](Layout& layout) {
+    layout.SetMargin(YGEdgeBottom, 12.0f);
+    layout.SetAlignItems(YGAlignStretch);
+  });
+
+  std::shared_ptr<Node> name_label;
+  std::shared_ptr<Label> dirty_label;
+  bool is_dirty = staged_changes.find(change_key) != staged_changes.end();
+  row->AddChild(Container::HorizontalContainer(
+      [](Layout& layout) { layout.SetAlignItems(YGAlignCenter); },
+      Label::BasicLabel(
+          setting.name.empty() ? key : setting.name,
+          [](Label& label) { label.SetColor(0xFF1F2937); }, &name_label),
+      Label::BasicLabel(
+          is_dirty ? " \xE2\x80\xA2 Modified" : "",
+          [](Label& label) { label.SetColor(0xFFD97706); }, &dirty_label)));
+  if (dirty_label_out) *dirty_label_out = dirty_label;
+
+  row->AddChild(Label::BasicLabel(
+      setting.description, [](Label& label) { label.SetColor(0xFF6B7280); }));
+
+  Tooltip::Attach(name_label, "Default value: " +
+                                  RegistryValueToString(setting.default_val));
+
+  auto value_container = Container::VerticalContainer(
+      [](Layout& layout) { layout.SetAlignItems(YGAlignStretch); },
+      BuildTableWidget(corpus, ns_name, key, change_key, setting));
+  if (value_container_out) *value_container_out = value_container;
+  row->AddChild(value_container);
   return row;
 }

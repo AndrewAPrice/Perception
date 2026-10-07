@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <chrono>
+#include <iostream>
 
 #include "applications.h"
 #include "launcher.h"
@@ -24,7 +25,10 @@
 #include "perception/ui/components/ui_window.h"
 #include "perception/ui/layout.h"
 
+using ::perception::GetService;
 using ::perception::HandOverControl;
+using ::perception::Loader;
+using ::perception::LoadApplicationRequest;
 using ::perception::ui::Layout;
 using ::perception::ui::TextAlignment;
 using ::perception::ui::components::Label;

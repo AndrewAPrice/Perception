@@ -47,8 +47,11 @@
 using ::perception::DeleteRegistryValue;
 using ::perception::GetRegistryKeys;
 using ::perception::GetRegistryValue;
+using ::perception::RegisterRegistryListener;
 using ::perception::RegistryCorpus;
+using ::perception::RegistryListenerToken;
 using ::perception::TerminateProcess;
+using ::perception::UnregisterRegistryListener;
 using ::perception::serialization::Value;
 using ::perception::ui::Layout;
 using ::perception::ui::Node;
@@ -69,6 +72,9 @@ using ::perception::ui::components::UiWindow;
 
 namespace {
 
+// Badge text shown next to a setting name when it has unsaved edits.
+constexpr std::string_view kModifiedBadgeText = " \xE2\x80\xA2 Modified";
+
 std::shared_ptr<Node> left_list_container;
 std::shared_ptr<Node> right_container;
 std::shared_ptr<Node> right_scroll_node;
@@ -76,6 +82,10 @@ std::shared_ptr<Label> status_label;
 std::shared_ptr<Button> apply_button;
 std::shared_ptr<Button> revert_button;
 std::shared_ptr<Node> settings_window;
+
+std::map<std::string, std::shared_ptr<Label>> active_dirty_labels;
+std::map<std::string, std::shared_ptr<Node>> active_value_containers;
+std::map<std::string, RegistryListenerToken> active_page_listeners;
 
 struct PageTreeNode {
   std::string name;
@@ -145,6 +155,7 @@ struct OrphanedKey {
 std::vector<OrphanedKey> orphaned_keys;
 
 void ScanForOrphanedKeys() {
+  RefreshInstanceGroupSettings();
   orphaned_keys.clear();
   auto check_pkg = [&](RegistryCorpus corpus, const std::string& ns_name) {
     auto keys_or = GetRegistryKeys(corpus, ns_name);
@@ -152,7 +163,8 @@ void ScanForOrphanedKeys() {
     for (const auto& k : *keys_or) {
       std::string ck = (corpus == RegistryCorpus::APPLICATIONS ? "a:" : "l:") +
                        ns_name + ":" + k;
-      if (all_settings.find(ck) == all_settings.end()) {
+      if (all_settings.find(ck) == all_settings.end() &&
+          !MatchesInstanceGroupSchema(corpus, ns_name, k)) {
         Value val;
         auto val_or = GetRegistryValue(corpus, ns_name, k);
         if (val_or.Ok()) val = *val_or;
@@ -179,7 +191,93 @@ void PrepopulateOriginalValues() {
   }
 }
 
+void OnRegistrySettingChanged(const std::string& change_key) {
+  auto setting_it = all_settings.find(change_key);
+  if (setting_it == all_settings.end()) return;
+  const auto& setting = setting_it->second;
+
+  Value new_val = setting.default_val;
+  auto val_or = GetRegistryValue(setting.corpus, setting.ns_name, setting.key);
+  if (val_or.Ok()) new_val = *val_or;
+  original_values[change_key] = new_val;
+
+  auto staged_it = staged_changes.find(change_key);
+  if (staged_it != staged_changes.end()) {
+    if (RegistryValueToString(staged_it->second.value) ==
+        RegistryValueToString(new_val)) {
+      staged_changes.erase(staged_it);
+      UpdateSettingDirtyIndicator(change_key);
+      UpdateButtonStates();
+    }
+    return;
+  }
+
+  RefreshSettingInPlace(change_key);
+}
+
+void SyncPageListeners(const std::set<std::string>& desired_change_keys) {
+  for (auto it = active_page_listeners.begin();
+       it != active_page_listeners.end();) {
+    if (desired_change_keys.find(it->first) == desired_change_keys.end()) {
+      (void)UnregisterRegistryListener(it->second);
+      it = active_page_listeners.erase(it);
+    } else {
+      ++it;
+    }
+  }
+
+  for (const auto& change_key : desired_change_keys) {
+    if (active_page_listeners.find(change_key) != active_page_listeners.end())
+      continue;
+    auto setting_it = all_settings.find(change_key);
+    if (setting_it == all_settings.end()) continue;
+    const auto& setting = setting_it->second;
+    auto token_or = RegisterRegistryListener(
+        setting.corpus, setting.ns_name, setting.key,
+        [change_key]() { OnRegistrySettingChanged(change_key); });
+    if (token_or.Ok()) active_page_listeners[change_key] = *token_or;
+  }
+}
+
+void UnregisterAllPageListeners() {
+  for (const auto& [change_key, token] : active_page_listeners)
+    (void)UnregisterRegistryListener(token);
+  active_page_listeners.clear();
+}
+
 }  // namespace
+
+void UpdateSettingDirtyIndicator(const std::string& change_key) {
+  auto it = active_dirty_labels.find(change_key);
+  if (it == active_dirty_labels.end() || !it->second) return;
+  bool is_dirty = staged_changes.find(change_key) != staged_changes.end();
+  it->second->SetText(is_dirty ? kModifiedBadgeText : "");
+}
+
+void RefreshSettingInPlace(const std::string& change_key) {
+  auto setting_it = all_settings.find(change_key);
+  if (setting_it == all_settings.end()) return;
+  auto container_it = active_value_containers.find(change_key);
+  if (container_it == active_value_containers.end() || !container_it->second)
+    return;
+
+  const auto& setting = setting_it->second;
+  Value display_val = original_values[change_key];
+  auto staged_it = staged_changes.find(change_key);
+  if (staged_it != staged_changes.end()) display_val = staged_it->second.value;
+
+  std::shared_ptr<Node> new_widget;
+  if (setting.type == SettingType::TABLE) {
+    new_widget = BuildTableWidget(setting.corpus, setting.ns_name, setting.key,
+                                  change_key, setting);
+  } else {
+    new_widget = BuildSettingComponent(setting.corpus, setting.ns_name,
+                                       setting.key, change_key, setting,
+                                       display_val);
+  }
+  container_it->second->ReplaceChildren({new_widget});
+  UpdateSettingDirtyIndicator(change_key);
+}
 
 void UpdateButtonStates() {
   bool has_changes = !staged_changes.empty();
@@ -205,6 +303,8 @@ void UpdateButtonStates() {
 }
 
 void RefreshLeftPanel() {
+  RefreshInstanceGroupSettings();
+  PrepopulateOriginalValues();
   auto tree_view = left_list_container->Get<TreeView>();
   if (tree_view && tree_view->GetContentContainer()) {
     tree_view->GetContentContainer()->RemoveChildren();
@@ -263,6 +363,10 @@ void RefreshLeftPanel() {
 }
 
 void RefreshRightPanel(bool preserve_scroll) {
+  RefreshInstanceGroupSettings();
+  active_dirty_labels.clear();
+  active_value_containers.clear();
+
   ::perception::ui::Point current_scroll{0.0f, 0.0f};
   if (right_scroll_node) {
     auto sc = right_scroll_node->Get<ScrollContainer>();
@@ -273,6 +377,7 @@ void RefreshRightPanel(bool preserve_scroll) {
       preserve_scroll ? current_scroll : ::perception::ui::Point{0.0f, 0.0f};
 
   if (selected_page_path.empty()) {
+    SyncPageListeners({});
     right_container->RemoveChildren();
     if (!(target_scroll == current_scroll) && right_scroll_node) {
       auto sc = right_scroll_node->Get<ScrollContainer>();
@@ -282,8 +387,8 @@ void RefreshRightPanel(bool preserve_scroll) {
   }
 
   std::vector<std::shared_ptr<Node>> new_children;
-
   std::map<std::string, std::vector<std::string>> page_cards;
+  std::set<std::string> displayed_change_keys;
 
   for (const auto& [change_key, setting] : all_settings) {
     if (selected_package_index > 0) {
@@ -304,15 +409,20 @@ void RefreshRightPanel(bool preserve_scroll) {
       matches = true;
     }
 
-    if (matches) page_cards[setting.page].push_back(change_key);
+    if (matches) {
+      page_cards[setting.page].push_back(change_key);
+      displayed_change_keys.insert(change_key);
+    }
   }
+
+  SyncPageListeners(displayed_change_keys);
 
   float max_page_width = 520.0f;
   for (const auto& [page_str, change_keys] : page_cards) {
     for (const auto& change_key : change_keys) {
       const auto& setting = all_settings[change_key];
       if (setting.type == SettingType::TABLE) {
-        float tw = 70.0f;
+        float tw = setting.read_only ? 0.0f : 70.0f;
         for (const auto& col : setting.table_columns) {
           tw += GetTableColumnWidth(col.type);
         }
@@ -327,7 +437,7 @@ void RefreshRightPanel(bool preserve_scroll) {
     for (const auto& change_key : change_keys) {
       const auto& setting = all_settings[change_key];
       if (setting.type == SettingType::TABLE) {
-        float tw = 70.0f;
+        float tw = setting.read_only ? 0.0f : 70.0f;
         for (const auto& col : setting.table_columns) {
           tw += GetTableColumnWidth(col.type);
         }
@@ -389,10 +499,26 @@ void RefreshRightPanel(bool preserve_scroll) {
         display_val = staged_it->second.value;
 
       if (setting.type == SettingType::TABLE) {
-        card_container->AddChild(
-            BuildTableSetting(corpus, ns_name, key, change_key, setting));
+        std::shared_ptr<Label> dirty_label;
+        std::shared_ptr<Node> value_container;
+        card_container->AddChild(BuildTableSetting(
+            corpus, ns_name, key, change_key, setting, &dirty_label,
+            &value_container));
+        active_dirty_labels[change_key] = dirty_label;
+        active_value_containers[change_key] = value_container;
       } else {
         std::shared_ptr<Node> name_label;
+        std::shared_ptr<Label> dirty_label;
+        bool is_dirty = staged_changes.find(change_key) != staged_changes.end();
+        auto value_container = Container::HorizontalContainer(
+            [](Layout& layout) {
+              layout.SetAlignItems(YGAlignCenter);
+              layout.SetFlexShrink(0.0f);
+            },
+            BuildSettingComponent(corpus, ns_name, key, change_key, setting,
+                                  display_val));
+        active_value_containers[change_key] = value_container;
+
         card_container->AddChild(Container::HorizontalContainer(
             [](Layout& layout) {
               layout.SetJustifyContent(YGJustifySpaceBetween);
@@ -407,17 +533,23 @@ void RefreshRightPanel(bool preserve_scroll) {
                   layout.SetMinWidth(220.0f);
                   layout.SetMargin(YGEdgeRight, 16.0f);
                 },
-                Label::BasicLabel(
-                    setting.name.empty() ? key : setting.name,
-                    [](Label& label) { label.SetColor(0xFF1F2937); },
-                    &name_label),
+                Container::HorizontalContainer(
+                    [](Layout& layout) { layout.SetAlignItems(YGAlignCenter); },
+                    Label::BasicLabel(
+                        setting.name.empty() ? key : setting.name,
+                        [](Label& label) { label.SetColor(0xFF1F2937); },
+                        &name_label),
+                    Label::BasicLabel(
+                        is_dirty ? kModifiedBadgeText : "",
+                        [](Label& label) { label.SetColor(0xFFD97706); },
+                        &dirty_label)),
                 Label::BasicLabel(
                     setting.description,
                     [](Label& label) { label.SetColor(0xFF6B7280); },
                     [](Layout& layout) { layout.SetMargin(YGEdgeTop, 2.0f); })),
-            BuildSettingComponent(corpus, ns_name, key, change_key, setting,
-                                  display_val)));
+            value_container));
 
+        active_dirty_labels[change_key] = dirty_label;
         Tooltip::Attach(
             name_label,
             "Default value: " + RegistryValueToString(setting.default_val));
@@ -497,7 +629,12 @@ void InitializeSettingsWindow() {
 
   settings_window = UiWindow::ResizableWindowWithTitleBar(
       "Settings",
-      [](UiWindow& window) { window.OnClose([]() { TerminateProcess(); }); },
+      [](UiWindow& window) {
+        window.OnClose([]() {
+          UnregisterAllPageListeners();
+          TerminateProcess();
+        });
+      },
       ResizableContainer::HorizontalContainer(
           [](Layout& layout) {
             layout.SetFlexGrow(1.0f);

@@ -29,6 +29,7 @@ using ::perception::RegistryCorpus;
 using ::perception::serialization::Value;
 
 std::map<std::string, ActiveSetting> all_settings;
+std::vector<InstanceGroupTemplate> instance_group_templates;
 std::vector<PackageMetadata> all_packages;
 std::string selected_page_path = "";
 int selected_package_index = 0;
@@ -75,6 +76,9 @@ const std::vector<std::string>& GetInstalledApplications() {
 
 namespace {
 
+// Placeholder token in instance group titles replaced with the instance ID.
+constexpr std::string_view kInstancePlaceholder = "{instance}";
+
 Value JsonToValue(const json& j) {
   if (j.is_boolean()) {
     return Value(j.get<bool>());
@@ -98,6 +102,25 @@ Value JsonToValue(const json& j) {
     return Value(arr);
   }
   return Value();
+}
+
+std::string NormalizePagePath(std::string page_str) {
+  for (char& c : page_str) {
+    if (c == '/') c = '>';
+  }
+  return page_str;
+}
+
+std::string FormatInstancePageTitle(std::string_view title_template,
+                                    std::string_view instance_id) {
+  if (title_template.empty()) return "Interface " + std::string(instance_id);
+  std::string result(title_template);
+  size_t pos = result.find(kInstancePlaceholder);
+  if (pos != std::string::npos) {
+    result.replace(pos, kInstancePlaceholder.size(), instance_id);
+    return result;
+  }
+  return result + " (" + std::string(instance_id) + ")";
 }
 
 void LoadSchemaFile(const std::string& path, RegistryCorpus corpus,
@@ -132,13 +155,15 @@ void LoadSchemaFile(const std::string& path, RegistryCorpus corpus,
       all_packages.push_back({corpus, ns_name, ns_name});
     }
 
-    auto parse_setting = [&](const json& st, const std::string& fallback_page) {
-      ActiveSetting ast;
+    auto build_setting = [&](const json& st,
+                             const std::string& fallback_page,
+                             ActiveSetting& ast) -> bool {
+      ast = ActiveSetting{};
       ast.corpus = corpus;
       ast.ns_name = ns_name;
       if (st.contains("key") && st["key"].is_string())
         ast.key = st["key"].get<std::string>();
-      if (ast.key.empty()) return;
+      if (ast.key.empty()) return false;
 
       if (st.contains("name") && st["name"].is_string()) {
         ast.name = st["name"].get<std::string>();
@@ -169,6 +194,9 @@ void LoadSchemaFile(const std::string& path, RegistryCorpus corpus,
       }
       if (st.contains("default")) {
         ast.default_val = JsonToValue(st["default"]);
+      }
+      if (st.contains("readonly") && st["readonly"].is_boolean()) {
+        ast.read_only = st["readonly"].get<bool>();
       }
       if (st.contains("options") && st["options"].is_array()) {
         for (const auto& opt : st["options"]) {
@@ -220,11 +248,13 @@ void LoadSchemaFile(const std::string& path, RegistryCorpus corpus,
       } else {
         page_str = fallback_page;
       }
-      for (char& c : page_str) {
-        if (c == '/') c = '>';
-      }
-      ast.page = page_str;
+      ast.page = NormalizePagePath(page_str);
+      return true;
+    };
 
+    auto parse_setting = [&](const json& st, const std::string& fallback_page) {
+      ActiveSetting ast;
+      if (!build_setting(st, fallback_page, ast)) return;
       std::string change_key =
           (corpus == RegistryCorpus::APPLICATIONS ? "a:" : "l:") + ns_name +
           ":" + ast.key;
@@ -248,6 +278,35 @@ void LoadSchemaFile(const std::string& path, RegistryCorpus corpus,
           std::string gp_title;
           if (gp.contains("title") && gp["title"].is_string())
             gp_title = gp["title"].get<std::string>();
+
+          std::string instance_prefix;
+          if (gp.contains("instancePrefix") &&
+              gp["instancePrefix"].is_string()) {
+            instance_prefix = gp["instancePrefix"].get<std::string>();
+          } else if (gp.contains("keyPrefix") && gp["keyPrefix"].is_string()) {
+            instance_prefix = gp["keyPrefix"].get<std::string>();
+          }
+
+          if (!instance_prefix.empty()) {
+            if (instance_prefix.back() != '/') instance_prefix.push_back('/');
+            InstanceGroupTemplate tmpl;
+            tmpl.corpus = corpus;
+            tmpl.ns_name = ns_name;
+            tmpl.instance_prefix = instance_prefix;
+            tmpl.base_page = NormalizePagePath(
+                page_name.empty() ? ("Applications>" + ns_name) : page_name);
+            tmpl.title = gp_title;
+            if (gp.contains("settings") && gp["settings"].is_array()) {
+              for (const auto& st : gp["settings"]) {
+                ActiveSetting ast;
+                if (build_setting(st, tmpl.base_page, ast))
+                  tmpl.settings.push_back(std::move(ast));
+              }
+            }
+            instance_group_templates.push_back(std::move(tmpl));
+            continue;
+          }
+
           std::string fallback = page_name;
           if (fallback.empty()) {
             fallback = "Applications>" + ns_name;
@@ -282,8 +341,64 @@ void ScanDirectoryForSettings(const std::string& dir_path,
 
 }  // namespace
 
+bool RefreshInstanceGroupSettings() {
+  bool changed = false;
+  for (const auto& tmpl : instance_group_templates) {
+    auto keys_or = ::perception::GetRegistryKeys(tmpl.corpus, tmpl.ns_name);
+    if (!keys_or.Ok()) continue;
+
+    std::set<std::string> instance_ids;
+    for (const auto& k : *keys_or) {
+      if (!k.starts_with(tmpl.instance_prefix)) continue;
+      std::string_view rest =
+          std::string_view(k).substr(tmpl.instance_prefix.size());
+      size_t slash_pos = rest.find('/');
+      if (slash_pos == std::string_view::npos || slash_pos == 0) continue;
+      instance_ids.insert(std::string(rest.substr(0, slash_pos)));
+    }
+
+    for (const auto& instance_id : instance_ids) {
+      std::string instance_page = tmpl.base_page;
+      std::string sub_title = FormatInstancePageTitle(tmpl.title, instance_id);
+      if (!sub_title.empty()) instance_page += ">" + sub_title;
+
+      for (const auto& st_tmpl : tmpl.settings) {
+        ActiveSetting concrete = st_tmpl;
+        concrete.key = tmpl.instance_prefix + instance_id + "/" + st_tmpl.key;
+        concrete.page = instance_page;
+        std::string change_key =
+            (tmpl.corpus == RegistryCorpus::APPLICATIONS ? "a:" : "l:") +
+            tmpl.ns_name + ":" + concrete.key;
+        if (all_settings.find(change_key) == all_settings.end()) {
+          all_settings[change_key] = std::move(concrete);
+          changed = true;
+        }
+      }
+    }
+  }
+  return changed;
+}
+
+bool MatchesInstanceGroupSchema(RegistryCorpus corpus,
+                                std::string_view ns_name,
+                                std::string_view key) {
+  for (const auto& tmpl : instance_group_templates) {
+    if (tmpl.corpus != corpus || tmpl.ns_name != ns_name) continue;
+    if (!key.starts_with(tmpl.instance_prefix)) continue;
+    std::string_view rest = key.substr(tmpl.instance_prefix.size());
+    size_t slash_pos = rest.find('/');
+    if (slash_pos == std::string_view::npos || slash_pos == 0) continue;
+    std::string_view suffix = rest.substr(slash_pos + 1);
+    for (const auto& st : tmpl.settings) {
+      if (st.key == suffix) return true;
+    }
+  }
+  return false;
+}
+
 void ScanAllSettings() {
   all_settings.clear();
+  instance_group_templates.clear();
   all_packages.clear();
   ScanDirectoryForSettings("/Applications", RegistryCorpus::APPLICATIONS);
   ScanDirectoryForSettings("/Libraries", RegistryCorpus::LIBRARIES);
@@ -294,6 +409,8 @@ void ScanAllSettings() {
     ScanDirectoryForSettings("/" + mount + "/Libraries",
                              RegistryCorpus::LIBRARIES);
   }
+
+  RefreshInstanceGroupSettings();
 
   std::sort(all_packages.begin(), all_packages.end(),
             [](const PackageMetadata& a, const PackageMetadata& b) {
