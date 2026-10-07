@@ -18,6 +18,7 @@
 #include <cctype>
 #include <iostream>
 #include <map>
+#include <string_view>
 
 #include "perception/memory_mapped_file.h"
 #include "perception/services.h"
@@ -70,6 +71,32 @@ FontStyle MakeStyle(FontStyle::Weight weight, FontStyle::Width width,
   return style;
 }
 
+bool IsMonospaceFamily(std::string_view fname) {
+  return fname.find("mono") != std::string_view::npos ||
+         fname.find("courier") != std::string_view::npos ||
+         fname.find("consolas") != std::string_view::npos ||
+         fname.find("menlo") != std::string_view::npos ||
+         fname.find("monaco") != std::string_view::npos ||
+         fname.find("inconsolata") != std::string_view::npos ||
+         fname.find("fira code") != std::string_view::npos ||
+         fname.find("source code") != std::string_view::npos ||
+         fname.find("lucida console") != std::string_view::npos;
+}
+
+bool IsSerifFamily(std::string_view fname) {
+  if (fname.find("sans") != std::string_view::npos)
+    return false;
+  return fname.find("serif") != std::string_view::npos ||
+         fname.find("times") != std::string_view::npos ||
+         fname.find("georgia") != std::string_view::npos ||
+         fname.find("garamond") != std::string_view::npos ||
+         fname.find("palatino") != std::string_view::npos ||
+         fname.find("cambria") != std::string_view::npos ||
+         fname.find("book antiqua") != std::string_view::npos ||
+         fname.find("baskerville") != std::string_view::npos ||
+         fname.find("century") != std::string_view::npos;
+}
+
 }  // namespace
 
 FontManager::FontManager() {}
@@ -82,7 +109,7 @@ StatusOr<MatchFontResponse> FontManager::MatchFont(
 
   std::string fname = request.family_name;
   std::transform(fname.begin(), fname.end(), fname.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
+                 [](unsigned char ch) { return std::tolower(ch); });
 
   bool is_condensed =
       (request.style.width <= FontStyle::Width::SEMICONDENSED) ||
@@ -100,9 +127,7 @@ StatusOr<MatchFontResponse> FontManager::MatchFont(
   if (fname.find("math") != std::string::npos) {
     font_path = "/Libraries/Fonts/DejaVuMathTeXGyre.ttf";
     resolved_family = "DejaVuMathTeXGyre";
-  } else if (fname.find("mono") != std::string::npos ||
-             fname.find("courier") != std::string::npos ||
-             fname.find("consolas") != std::string::npos) {
+  } else if (IsMonospaceFamily(fname)) {
     resolved_family = "DejaVuSansMono";
     if (is_bold && is_italic) {
       font_path = "/Libraries/Fonts/DejaVuSansMono-BoldOblique.ttf";
@@ -113,34 +138,7 @@ StatusOr<MatchFontResponse> FontManager::MatchFont(
     } else {
       font_path = "/Libraries/Fonts/DejaVuSansMono.ttf";
     }
-  } else if (fname.find("serif") != std::string::npos &&
-             fname.find("sans") == std::string::npos) {
-    if (is_condensed) {
-      resolved_family = "DejaVuSerifCondensed";
-      if (is_bold && is_italic) {
-        font_path = "/Libraries/Fonts/DejaVuSerifCondensed-BoldItalic.ttf";
-      } else if (is_bold) {
-        font_path = "/Libraries/Fonts/DejaVuSerifCondensed-Bold.ttf";
-      } else if (is_italic) {
-        font_path = "/Libraries/Fonts/DejaVuSerifCondensed-Italic.ttf";
-      } else {
-        font_path = "/Libraries/Fonts/DejaVuSerifCondensed.ttf";
-      }
-    } else {
-      resolved_family = "DejaVuSerif";
-      if (is_bold && is_italic) {
-        font_path = "/Libraries/Fonts/DejaVuSerif-BoldItalic.ttf";
-      } else if (is_bold) {
-        font_path = "/Libraries/Fonts/DejaVuSerif-Bold.ttf";
-      } else if (is_italic) {
-        font_path = "/Libraries/Fonts/DejaVuSerif-Italic.ttf";
-      } else {
-        font_path = "/Libraries/Fonts/DejaVuSerif.ttf";
-      }
-    }
-  } else if (fname.find("times") != std::string::npos ||
-             fname.find("georgia") != std::string::npos ||
-             fname.find("garamond") != std::string::npos) {
+  } else if (IsSerifFamily(fname)) {
     if (is_condensed) {
       resolved_family = "DejaVuSerifCondensed";
       if (is_bold && is_italic) {
@@ -204,6 +202,7 @@ StatusOr<MatchFontResponse> FontManager::MatchFont(
       request.family_name.empty() ? resolved_family : request.family_name;
   response.data.type = FontData::Type::BUFFER;
   response.data.buffer = font_data_by_path[font_path]->buffer;
+  response.data.path = font_path;
   response.style.weight = is_bold
                               ? FontStyle::Weight::BOLD
                               : (is_extralight ? FontStyle::Weight::EXTRALIGHT
@@ -239,7 +238,7 @@ StatusOr<FontStyles> FontManager::GetFontFamilyStyles(
 
   std::string fname = request.name;
   std::transform(fname.begin(), fname.end(), fname.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
+                 [](unsigned char ch) { return std::tolower(ch); });
 
   bool is_condensed = fname.find("condensed") != std::string::npos;
 
@@ -249,9 +248,7 @@ StatusOr<FontStyles> FontManager::GetFontFamilyStyles(
     response.styles.push_back(MakeStyle(FontStyle::Weight::REGULAR,
                                         FontStyle::Width::NORMAL,
                                         FontStyle::Slant::UPRIGHT));
-  } else if (fname.find("mono") != std::string::npos ||
-             fname.find("courier") != std::string::npos ||
-             fname.find("consolas") != std::string::npos) {
+  } else if (IsMonospaceFamily(fname)) {
     response.styles.push_back(MakeStyle(FontStyle::Weight::REGULAR,
                                         FontStyle::Width::NORMAL,
                                         FontStyle::Slant::UPRIGHT));
@@ -264,21 +261,7 @@ StatusOr<FontStyles> FontManager::GetFontFamilyStyles(
     response.styles.push_back(MakeStyle(FontStyle::Weight::BOLD,
                                         FontStyle::Width::NORMAL,
                                         FontStyle::Slant::ITALIC));
-  } else if (fname.find("serif") != std::string::npos &&
-             fname.find("sans") == std::string::npos) {
-    FontStyle::Width width =
-        is_condensed ? FontStyle::Width::CONDENSED : FontStyle::Width::NORMAL;
-    response.styles.push_back(MakeStyle(FontStyle::Weight::REGULAR, width,
-                                        FontStyle::Slant::UPRIGHT));
-    response.styles.push_back(
-        MakeStyle(FontStyle::Weight::BOLD, width, FontStyle::Slant::UPRIGHT));
-    response.styles.push_back(
-        MakeStyle(FontStyle::Weight::REGULAR, width, FontStyle::Slant::ITALIC));
-    response.styles.push_back(
-        MakeStyle(FontStyle::Weight::BOLD, width, FontStyle::Slant::ITALIC));
-  } else if (fname.find("times") != std::string::npos ||
-             fname.find("georgia") != std::string::npos ||
-             fname.find("garamond") != std::string::npos) {
+  } else if (IsSerifFamily(fname)) {
     FontStyle::Width width =
         is_condensed ? FontStyle::Width::CONDENSED : FontStyle::Width::NORMAL;
     response.styles.push_back(MakeStyle(FontStyle::Weight::REGULAR, width,

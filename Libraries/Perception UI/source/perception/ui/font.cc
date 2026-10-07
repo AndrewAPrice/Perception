@@ -13,10 +13,13 @@
 // limitations under the License.
 #include "perception/ui/font.h"
 
+#include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "include/core/SkFont.h"
@@ -55,6 +58,50 @@ struct FontKey {
   }
 };
 
+bool IsMonospaceFamily(std::string_view fname) {
+  return fname.find("mono") != std::string_view::npos ||
+         fname.find("courier") != std::string_view::npos ||
+         fname.find("consolas") != std::string_view::npos ||
+         fname.find("menlo") != std::string_view::npos ||
+         fname.find("monaco") != std::string_view::npos ||
+         fname.find("inconsolata") != std::string_view::npos ||
+         fname.find("fira code") != std::string_view::npos ||
+         fname.find("source code") != std::string_view::npos ||
+         fname.find("lucida console") != std::string_view::npos;
+}
+
+bool IsSerifFamily(std::string_view fname) {
+  if (fname.find("sans") != std::string_view::npos)
+    return false;
+  return fname.find("serif") != std::string_view::npos ||
+         fname.find("times") != std::string_view::npos ||
+         fname.find("georgia") != std::string_view::npos ||
+         fname.find("garamond") != std::string_view::npos ||
+         fname.find("palatino") != std::string_view::npos ||
+         fname.find("cambria") != std::string_view::npos ||
+         fname.find("book antiqua") != std::string_view::npos ||
+         fname.find("baskerville") != std::string_view::npos ||
+         fname.find("century") != std::string_view::npos;
+}
+
+std::string CanonicalizeFamily(std::string_view family_name, int width) {
+  std::string lower_name(family_name);
+  std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(),
+                 [](unsigned char ch) { return std::tolower(ch); });
+
+  bool is_condensed = (width <= SkFontStyle::kSemiCondensed_Width) ||
+                      (lower_name.find("condensed") != std::string::npos);
+
+  if (lower_name.find("math") != std::string::npos) return "DejaVuMathTeXGyre";
+
+  if (IsMonospaceFamily(lower_name)) return "DejaVuSansMono";
+
+  if (IsSerifFamily(lower_name))
+    return is_condensed ? "DejaVuSerifCondensed" : "DejaVuSerif";
+
+  return is_condensed ? "DejaVuSansCondensed" : "DejaVuSans";
+}
+
 }  // namespace
 
 SkFont* GetBook12UiFont() {
@@ -82,17 +129,19 @@ SkFont* GetUiFont(std::string_view family_name, float size, int weight,
                   SkFontStyle::Slant slant, int width) {
   static std::map<FontKey, SkFont*> cached_fonts;
 
-  FontKey key{std::string(family_name), size, weight, (int)slant, width};
-  auto it = cached_fonts.find(key);
-  if (it != cached_fonts.end()) return it->second;
+  std::string canonical_family = CanonicalizeFamily(family_name, width);
 
-  std::string family_str =
-      family_name.empty() ? "DejaVuSans" : std::string(family_name);
+  FontKey key{canonical_family, size, weight, (int)slant, width};
+  auto iterator = cached_fonts.find(key);
+  if (iterator != cached_fonts.end()) return iterator->second;
 
-  SkFont* font =
-      new SkFont(GetFontManager()->matchFamilyStyle(
-                     family_str.c_str(), SkFontStyle(weight, width, slant)),
-                 size);
+  sk_sp<SkTypeface> typeface = GetFontManager()->matchFamilyStyle(
+      canonical_family.c_str(), SkFontStyle(weight, width, slant));
+  if (!typeface)
+    typeface = GetFontManager()->matchFamilyStyle(
+        "DejaVuSans", SkFontStyle(weight, width, slant));
+
+  SkFont* font = new SkFont(typeface, size);
 
   if (weight >= SkFontStyle::kBold_Weight && font->getTypeface() &&
       !font->getTypeface()->isBold())
