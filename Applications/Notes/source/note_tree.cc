@@ -156,6 +156,18 @@ void NoteTree::FromJson(const nlohmann::json& j) {
       if (note) root_notes.push_back(note);
     }
   }
+
+  int max_id = -1;
+  auto find_max_id = [&](auto& self,
+                         const std::shared_ptr<NoteNode>& node) -> void {
+    if (!node) return;
+    max_id = std::max(max_id, node->id);
+    for (const auto& child : node->children)
+      self(self, child);
+  };
+  for (const auto& note : root_notes)
+    find_max_id(find_max_id, note);
+  next_id = std::max(next_id, max_id + 1);
 }
 
 std::string GetNotesStorageDir() { return "/Applications/Notes/Notes"; }

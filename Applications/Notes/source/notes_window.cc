@@ -133,13 +133,19 @@ void NotesWindow::Initialize() {
       auto source_note = note_by_item_ptr_[source_item.get()];
       if (!source_note) return;
 
+      auto target_note =
+          target_item ? note_by_item_ptr_[target_item.get()] : nullptr;
+      if (target_item && !target_note) return;
+
+      for (auto cur = target_note; cur != nullptr; cur = cur->parent.lock()) {
+        if (cur == source_note) return;
+      }
+
       tree_.RemoveNote(source_note->id);
 
       if (position ==
           ::perception::ui::components::TreeViewDropPosition::ON_TOP) {
-        if (target_item) {
-          auto target_note = note_by_item_ptr_[target_item.get()];
-          if (!target_note) return;
+        if (target_note) {
           source_note->parent = target_note;
           target_note->children.push_back(source_note);
         } else {
@@ -147,17 +153,14 @@ void NotesWindow::Initialize() {
           tree_.root_notes.push_back(source_note);
         }
       } else {
-        auto target_note =
-            target_item ? note_by_item_ptr_[target_item.get()] : nullptr;
         if (target_note) {
           auto parent_note = target_note->parent.lock();
           auto& list = parent_note ? parent_note->children : tree_.root_notes;
           auto it = std::find(list.begin(), list.end(), target_note);
           if (position ==
                   ::perception::ui::components::TreeViewDropPosition::AFTER &&
-              it != list.end()) {
+              it != list.end())
             ++it;
-          }
           list.insert(it, source_note);
           source_note->parent = parent_note;
           if (parent_note) expanded_note_ids_.insert(parent_note->id);
