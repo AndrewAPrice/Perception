@@ -26,7 +26,7 @@ using ::perception::devices::PciDevices;
 namespace {
 void ParseFiltersIntoParameters(const PciDeviceFilters& filters,
                                 int16& base_class, int16& sub_class,
-                                int16& prog_if, int16& vendor_id,
+                                int16& prog_if, int32& vendor_id,
                                 int32& device_id, int16& bus, int16& slot,
                                 int16& function) {
   for (const auto& filter : filters.filters) {
@@ -41,7 +41,7 @@ void ParseFiltersIntoParameters(const PciDeviceFilters& filters,
         prog_if = static_cast<int16>(filter.value);
         break;
       case PciDeviceFilter::Key::VENDOR:
-        vendor_id = static_cast<int16>(filter.value);
+        vendor_id = static_cast<int32>(filter.value);
         break;
       case PciDeviceFilter::Key::DEVICE_ID:
         device_id = static_cast<int32>(filter.value);
@@ -65,7 +65,7 @@ StatusOr<PciDevices> DeviceManager::QueryPciDevices(
   int16 base_class = -1;
   int16 sub_class = -1;
   int16 prog_if = -1;
-  int16 vendor_id = -1;
+  int32 vendor_id = -1;
   int32 device_id = -1;
   int16 bus = -1;
   int16 slot = -1;

@@ -103,7 +103,7 @@ void ForEachPciDevice(
     const std::function<void(uint8, uint8, uint8, uint16, uint16, uint8, uint8,
                              uint8)>& on_each_pci_device) {
   /* scan buses for devices */
-  uint16 header_type = Read16BitsFromPciConfig(0, 0, 0, kPciHdrVendorId);
+  uint8 header_type = Read8BitsFromPciConfig(0, 0, 0, kPciHdrHeaderType);
   if ((header_type & 0x80) == 0) /* single pci host controller */
     ForEachPciDeviceInBus(0, on_each_pci_device);
   else {
