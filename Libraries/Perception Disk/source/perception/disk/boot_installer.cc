@@ -187,7 +187,8 @@ bool EnsureGptBiosBootPartition(DiskInfo& disk,
   for (const auto& range : disk.free_space_ranges) {
     if (range.sector_count >= kBiosBootPartitionSectors) {
       if (disk_manager.AddPartition(disk, range.start_lba,
-                                    kBiosBootPartitionSectors, "BIOS Boot")) {
+                                    kBiosBootPartitionSectors, "BIOS Boot",
+                                    GetBiosBootGuid())) {
         out_bios_boot_start_lba = range.start_lba;
         return true;
       }

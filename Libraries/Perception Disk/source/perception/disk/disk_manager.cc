@@ -258,6 +258,7 @@ void DiskManager::RescanDisk(DiskInfo& disk) {
       break;
     }
   }
+  disk = disk_copy;
   NotifyDisksUpdated();
 }
 
@@ -289,7 +290,7 @@ void DiskManager::ScanDiskInternal(DiskInfo& disk) {
     if (reader(entries_offset, kGptEntriesSize, gpt_entries.data())) {
       ParseGptPartitions(sector1.data(), gpt_entries.data(), disk.total_sectors,
                          disk.sector_size, disk.partitions,
-                         disk.free_space_ranges);
+                         disk.free_space_ranges, gpt_entries.size());
     }
   } else if (has_sector0 && DetectMbr(sector0.data(), disk.total_sectors)) {
     disk.scheme = PartitionScheme::MBR;
@@ -411,7 +412,8 @@ bool DiskManager::InitializeDiskWithScheme(DiskInfo& disk,
 }
 
 bool DiskManager::AddPartition(DiskInfo& disk, uint64_t start_lba,
-                               uint64_t sector_count, const std::string& name) {
+                               uint64_t sector_count, const std::string& name,
+                               const uint8_t* type_guid) {
   if (!disk.is_writable || sector_count == 0 ||
       IsDiskOrAnyPartitionMounted(disk))
     return false;
@@ -446,8 +448,13 @@ bool DiskManager::AddPartition(DiskInfo& disk, uint64_t start_lba,
     GptHeader* backup_header =
         reinterpret_cast<GptHeader*>(backup_header_buf.data());
 
+    const uint8_t* resolved_guid = type_guid;
+    if (resolved_guid == nullptr &&
+        (name == "BIOS Boot" || name == "BIOS Boot Partition"))
+      resolved_guid = GetBiosBootGuid();
+
     if (!AddGptPartitionToEntries(entries_buf, *primary_header, *backup_header,
-                                  start_lba, sector_count, name))
+                                  start_lba, sector_count, name, resolved_guid))
       return false;
 
     if (!writer(disk.sector_size, primary_header_buf.size(),
@@ -518,8 +525,25 @@ bool DiskManager::DeletePartition(DiskInfo& disk, int partition_number) {
     GptHeader* backup_header =
         reinterpret_cast<GptHeader*>(backup_header_buf.data());
 
+    int target_slot = -1;
+    for (const auto& part : disk.partitions) {
+      if (part.partition_number == partition_number && part.slot_index >= 0) {
+        target_slot = part.slot_index;
+        break;
+      }
+    }
+    if (target_slot < 0) {
+      for (const auto& part : disk.partitions) {
+        if (part.slot_index == partition_number - 1) {
+          target_slot = part.slot_index;
+          break;
+        }
+      }
+    }
+    if (target_slot < 0) target_slot = partition_number - 1;
+
     if (!DeleteGptPartitionFromEntries(entries_buf, *primary_header,
-                                       *backup_header, partition_number - 1))
+                                       *backup_header, target_slot))
       return false;
 
     if (!writer(disk.sector_size, primary_header_buf.size(),
@@ -680,7 +704,10 @@ bool DiskManager::PartitionAndFormatDisk(
         ShiftTask task;
         task.res = &res;
         task.current_start_lba = res.plan.original_start_lba;
-        task.current_sector_count = res.plan.original_sector_count;
+        task.current_sector_count =
+            res.plan.original_sector_count > 0
+                ? std::min(res.plan.original_sector_count, res.new_sector_count)
+                : res.new_sector_count;
         task.target_start_lba = res.new_start_lba;
         task.completed = false;
         shift_tasks.push_back(task);
@@ -959,8 +986,16 @@ bool DiskManager::UnmountAllPartitions(DiskInfo& disk) {
   if (!storage_manager.IsValid()) return false;
 
   bool any_unmounted = false;
+  if (disk.is_mounted && !disk.is_boot_drive && !disk.mount_point.empty()) {
+    perception::RequestWithFilePath req;
+    req.path = disk.mount_point;
+    auto status = storage_manager.UnmountFileSystem(req);
+    if (status == Status::OK) any_unmounted = true;
+  }
+
   for (const auto& part : disk.partitions) {
-    if (!part.is_mounted || part.is_boot_drive) continue;
+    if (!part.is_mounted || part.is_boot_drive || part.mount_point.empty())
+      continue;
 
     perception::RequestWithFilePath req;
     req.path = part.mount_point;

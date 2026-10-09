@@ -106,9 +106,13 @@ bool AnalyzeExfatVolume(uint64_t start_offset,
   }
 
   if (bitmap_cluster >= 2 && bitmap_length > 0) {
-    std::vector<uint8_t> bitmap_buf(bitmap_length);
+    uint64_t max_bitmap_bytes =
+        (static_cast<uint64_t>(cluster_count) + 7) / 8;
+    uint64_t bytes_to_read = std::min(bitmap_length, max_bitmap_bytes);
+    std::vector<uint8_t> bitmap_buf(static_cast<size_t>(bytes_to_read));
     uint64_t bitmap_offset = cluster_to_offset(bitmap_cluster);
-    if (reader(bitmap_offset, bitmap_length, bitmap_buf.data())) {
+    if (reader(bitmap_offset, static_cast<size_t>(bytes_to_read),
+               bitmap_buf.data())) {
       uint64_t used_clusters = 0;
       for (uint32_t c = 0; c < cluster_count; c++) {
         size_t byte_idx = c / 8;

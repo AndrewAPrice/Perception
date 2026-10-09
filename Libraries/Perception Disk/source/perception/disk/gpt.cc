@@ -37,8 +37,19 @@ constexpr uint32_t kGptEntryCount = 128;
 // Size in bytes of each partition entry.
 constexpr uint32_t kGptEntrySize = 128;
 
+// Standard GPT entries buffer size in bytes (128 * 128).
+constexpr size_t kGptEntriesBufferSize = kGptEntryCount * kGptEntrySize;
+
 // Standard 1 MiB alignment offset in 512-byte sectors.
 constexpr uint64_t kDefaultAlignmentSectors = 2048;
+
+// Validates that the GPT partition entry size is a valid power-of-two multiple
+// of GptPartitionEntry within reasonable bounds.
+bool IsValidGptEntrySize(uint32_t entry_size) {
+  return entry_size >= sizeof(perception::disk::GptPartitionEntry) &&
+         entry_size <= kGptEntriesBufferSize &&
+         (entry_size & (entry_size - 1)) == 0;
+}
 
 // Microsoft Basic Data Partition Type GUID:
 // EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
@@ -140,18 +151,24 @@ bool ParseGptPartitions(const uint8_t* gpt_header_sector,
                         const uint8_t* partition_entries_buffer,
                         uint64_t total_sectors, uint32_t sector_size,
                         std::vector<PartitionInfo>& out_partitions,
-                        std::vector<FreeSpaceRange>& out_free_ranges) {
+                        std::vector<FreeSpaceRange>& out_free_ranges,
+                        size_t entries_buffer_size) {
   out_partitions.clear();
   out_free_ranges.clear();
+
+  if (gpt_header_sector == nullptr || partition_entries_buffer == nullptr)
+    return false;
 
   const GptHeader* header =
       reinterpret_cast<const GptHeader*>(gpt_header_sector);
   if (header->signature != kGptSignature) return false;
 
-  uint32_t num_entries = header->num_partition_entries;
   uint32_t entry_size = header->sizeof_partition_entry;
-  if (entry_size < sizeof(GptPartitionEntry))
-    entry_size = sizeof(GptPartitionEntry);
+  if (!IsValidGptEntrySize(entry_size)) return false;
+
+  uint32_t num_entries = header->num_partition_entries;
+  if (static_cast<uint64_t>(num_entries) * entry_size > entries_buffer_size)
+    return false;
 
   struct Extent {
     uint64_t start;
@@ -162,7 +179,7 @@ bool ParseGptPartitions(const uint8_t* gpt_header_sector,
   int partition_idx = 1;
   for (uint32_t i = 0; i < num_entries; i++) {
     const GptPartitionEntry* entry = reinterpret_cast<const GptPartitionEntry*>(
-        &partition_entries_buffer[i * entry_size]);
+        &partition_entries_buffer[static_cast<size_t>(i) * entry_size]);
 
     if (IsGuidEmpty(entry->type_guid) || entry->starting_lba == 0 ||
         entry->ending_lba < entry->starting_lba)
@@ -170,6 +187,7 @@ bool ParseGptPartitions(const uint8_t* gpt_header_sector,
 
     PartitionInfo info;
     info.partition_number = partition_idx++;
+    info.slot_index = static_cast<int>(i);
     info.type_guid = FormatGuid(entry->type_guid);
     info.type_name = GetGptTypeName(entry->type_guid);
     info.name = Utf16LeToUtf8(entry->name, 36);
@@ -302,12 +320,16 @@ bool AddGptPartitionToEntries(std::vector<uint8_t>& entries_buffer,
                               uint64_t sector_count,
                               const std::string& name_utf8,
                               const uint8_t* type_guid) {
+  if (sector_count == 0) return false;
   uint32_t num_entries = primary_header.num_partition_entries;
   uint32_t entry_size = primary_header.sizeof_partition_entry;
+  if (!IsValidGptEntrySize(entry_size)) return false;
+  uint64_t total_entries_bytes = static_cast<uint64_t>(num_entries) * entry_size;
+  if (total_entries_bytes > entries_buffer.size()) return false;
 
   for (uint32_t i = 0; i < num_entries; i++) {
-    GptPartitionEntry* entry =
-        reinterpret_cast<GptPartitionEntry*>(&entries_buffer[i * entry_size]);
+    GptPartitionEntry* entry = reinterpret_cast<GptPartitionEntry*>(
+        &entries_buffer[static_cast<size_t>(i) * entry_size]);
     if (IsGuidEmpty(entry->type_guid)) {
       std::memset(entry, 0, entry_size);
       if (type_guid != nullptr)
@@ -321,8 +343,8 @@ bool AddGptPartitionToEntries(std::vector<uint8_t>& entries_buffer,
       entry->attributes = 0;
       Utf8ToUtf16Le(name_utf8, entry->name, 36);
 
-      uint32_t entries_crc =
-          CalculateCrc32(entries_buffer.data(), entries_buffer.size());
+      uint32_t entries_crc = CalculateCrc32(
+          entries_buffer.data(), static_cast<size_t>(total_entries_bytes));
       primary_header.partition_entries_crc32 = entries_crc;
       backup_header.partition_entries_crc32 = entries_crc;
 
@@ -344,17 +366,21 @@ bool DeleteGptPartitionFromEntries(std::vector<uint8_t>& entries_buffer,
                                    GptHeader& primary_header,
                                    GptHeader& backup_header,
                                    int partition_index) {
+  uint32_t num_entries = primary_header.num_partition_entries;
   uint32_t entry_size = primary_header.sizeof_partition_entry;
-  if (partition_index < 0 || static_cast<size_t>(partition_index) >=
-                                 primary_header.num_partition_entries)
+  if (!IsValidGptEntrySize(entry_size)) return false;
+  uint64_t total_entries_bytes = static_cast<uint64_t>(num_entries) * entry_size;
+  if (total_entries_bytes > entries_buffer.size()) return false;
+  if (partition_index < 0 ||
+      static_cast<uint32_t>(partition_index) >= num_entries)
     return false;
 
   GptPartitionEntry* entry = reinterpret_cast<GptPartitionEntry*>(
-      &entries_buffer[partition_index * entry_size]);
+      &entries_buffer[static_cast<size_t>(partition_index) * entry_size]);
   std::memset(entry, 0, entry_size);
 
-  uint32_t entries_crc =
-      CalculateCrc32(entries_buffer.data(), entries_buffer.size());
+  uint32_t entries_crc = CalculateCrc32(
+      entries_buffer.data(), static_cast<size_t>(total_entries_bytes));
   primary_header.partition_entries_crc32 = entries_crc;
   backup_header.partition_entries_crc32 = entries_crc;
 

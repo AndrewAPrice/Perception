@@ -64,7 +64,8 @@ class DiskManager {
 
   // Creates a new partition in the specified free space range.
   bool AddPartition(DiskInfo& disk, uint64_t start_lba, uint64_t sector_count,
-                    const std::string& name);
+                    const std::string& name,
+                    const uint8_t* type_guid = nullptr);
 
   // Deletes an existing partition from the disk's partition table.
   bool DeletePartition(DiskInfo& disk, int partition_number);

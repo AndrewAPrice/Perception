@@ -96,8 +96,13 @@ bool FormatExfat(uint64_t start_lba, uint64_t sector_count,
 
   uint32_t bitmap_first_cluster = 2;
   uint64_t bitmap_size_bytes = (cluster_count + 7) / 8;
-  uint32_t upcase_first_cluster = 3;
-  uint32_t root_dir_first_cluster = 4;
+  uint32_t bitmap_clusters = static_cast<uint32_t>(
+      (bitmap_size_bytes + kClusterSize - 1) / kClusterSize);
+  if (cluster_count < bitmap_clusters + 14) return false;
+
+  uint32_t upcase_first_cluster = bitmap_first_cluster + bitmap_clusters;
+  uint32_t root_dir_first_cluster = upcase_first_cluster + 1;
+  uint32_t total_metadata_clusters = bitmap_clusters + 2;
 
   uint32_t volume_serial = static_cast<uint32_t>(perception::RandomNumber());
 
@@ -165,7 +170,10 @@ bool FormatExfat(uint64_t start_lba, uint64_t sector_count,
   std::vector<uint32_t> fat_table(fat_length * (kSectorSize / 4), 0);
   fat_table[0] = kFatMediaType;
   fat_table[1] = kFatEndOfChain;
-  fat_table[bitmap_first_cluster] = kFatEndOfChain;
+  for (uint32_t i = 0; i < bitmap_clusters; i++) {
+    uint32_t cl = bitmap_first_cluster + i;
+    fat_table[cl] = (i + 1 < bitmap_clusters) ? (cl + 1) : kFatEndOfChain;
+  }
   fat_table[upcase_first_cluster] = kFatEndOfChain;
   fat_table[root_dir_first_cluster] = kFatEndOfChain;
 
@@ -174,11 +182,11 @@ bool FormatExfat(uint64_t start_lba, uint64_t sector_count,
               fat_table.data()))
     return false;
 
-  // Write Allocation Bitmap (Cluster 2)
-  std::vector<uint8_t> bitmap(kClusterSize, 0);
-  // Mark cluster 2 (bitmap), cluster 3 (upcase), cluster 4 (root dir) as
-  // allocated
-  bitmap[0] = 0x07;  // bits 0, 1, 2 = 1
+  // Write Allocation Bitmap (Clusters 2 .. 2 + bitmap_clusters - 1)
+  std::vector<uint8_t> bitmap(
+      static_cast<size_t>(bitmap_clusters) * kClusterSize, 0);
+  for (uint32_t b = 0; b < total_metadata_clusters; b++)
+    bitmap[b / 8] |= static_cast<uint8_t>(1u << (b % 8));
   uint64_t bitmap_offset =
       base_offset +
       (cluster_heap_offset + (bitmap_first_cluster - 2) * kSectorsPerCluster) *

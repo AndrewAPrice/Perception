@@ -47,6 +47,9 @@ struct PartitionInfo {
   // Partition index (1-based for user display).
   int partition_number = 0;
 
+  // Underlying 0-based slot index in the partition table.
+  int slot_index = -1;
+
   // Label or partition name.
   std::string name;
 

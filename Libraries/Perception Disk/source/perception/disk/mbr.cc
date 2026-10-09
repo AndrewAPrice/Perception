@@ -112,6 +112,7 @@ void ParseMbrPartitions(const uint8_t* sector0, uint64_t total_sectors,
 
     PartitionInfo info;
     info.partition_number = i + 1;
+    info.slot_index = i;
     info.mbr_type = entries[i].partition_type;
     info.type_name = GetMbrTypeName(entries[i].partition_type);
     info.name = "Partition " + std::to_string(i + 1);

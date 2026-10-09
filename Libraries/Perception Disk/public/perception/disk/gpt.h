@@ -97,7 +97,8 @@ bool ParseGptPartitions(const uint8_t* gpt_header_sector,
                         const uint8_t* partition_entries_buffer,
                         uint64_t total_sectors, uint32_t sector_size,
                         std::vector<PartitionInfo>& out_partitions,
-                        std::vector<FreeSpaceRange>& out_free_ranges);
+                        std::vector<FreeSpaceRange>& out_free_ranges,
+                        size_t entries_buffer_size = 16384);
 
 // Generates a protective MBR sector 0.
 std::vector<uint8_t> CreateProtectiveMbrSector(uint64_t total_sectors);
