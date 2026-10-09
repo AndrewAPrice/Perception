@@ -87,9 +87,9 @@ class FramebufferGraphicsDevice : GraphicsDevice::Server {
         screen_height_(height),
         screen_pitch_(pitch),
         screen_bits_per_pixel_(bpp),
-        framebuffer_(
-            MapPhysicalMemory(physical_address_of_framebuffer,
-                              (width * pitch + kPageSize - 1) / kPageSize)),
+        framebuffer_(MapPhysicalMemory(
+            physical_address_of_framebuffer,
+            (static_cast<size_t>(height) * pitch + kPageSize - 1) / kPageSize)),
         next_texture_id_(1),
         process_allowed_to_write_to_the_screen_(0) {
     // Create the initial texture, which is the screen buffer.
@@ -561,10 +561,10 @@ class FramebufferGraphicsDevice : GraphicsDevice::Server {
             destination += 4;
             break;
           case 32:
-            destination[0] = source[3];
-            destination[1] = source[0];
-            destination[2] = source[1];
-            destination[3] = source[2];
+            destination[0] = source[2];
+            destination[1] = source[1];
+            destination[2] = source[0];
+            destination[3] = 0;
             destination += 4;
             break;
           case 24:
@@ -722,10 +722,10 @@ class FramebufferGraphicsDevice : GraphicsDevice::Server {
               destination += 4;
               break;
             case 32:
-              destination[0] = color_channels[3];
-              destination[1] = color_channels[0];
-              destination[2] = color_channels[1];
-              destination[3] = color_channels[2];
+              destination[0] = color_channels[2];
+              destination[1] = color_channels[1];
+              destination[2] = color_channels[0];
+              destination[3] = 0;
               destination += 4;
               break;
             case 24:
