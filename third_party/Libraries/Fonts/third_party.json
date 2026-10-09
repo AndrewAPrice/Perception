@@ -4,6 +4,11 @@
             "url": "https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip",
             "type": "zip",
             "placeholder": "zip"
+        },
+        {
+            "url": "https://github.com/githubnext/monaspace/releases/download/v1.300/monaspace-static-v1.300.zip",
+            "type": "zip",
+            "placeholder": "monaspace_zip"
         }
     ],
     "operations": [
@@ -12,6 +17,66 @@
             "source": "${zip}/dejavu-fonts-ttf-2.37/ttf",
             "destination": "assets",
             "extensions": [".ttf"]
+        },
+        {
+            "operation": "copy",
+            "source": "${monaspace_zip}/Static Fonts/Monaspace Neon",
+            "destination": "assets",
+            "files": [
+                "MonaspaceNeon-Regular.otf",
+                "MonaspaceNeon-Bold.otf",
+                "MonaspaceNeon-Italic.otf",
+                "MonaspaceNeon-BoldItalic.otf"
+            ],
+            "extensions": [".otf"]
+        },
+        {
+            "operation": "copy",
+            "source": "${monaspace_zip}/Static Fonts/Monaspace Argon",
+            "destination": "assets",
+            "files": [
+                "MonaspaceArgon-Regular.otf",
+                "MonaspaceArgon-Bold.otf",
+                "MonaspaceArgon-Italic.otf",
+                "MonaspaceArgon-BoldItalic.otf"
+            ],
+            "extensions": [".otf"]
+        },
+        {
+            "operation": "copy",
+            "source": "${monaspace_zip}/Static Fonts/Monaspace Xenon",
+            "destination": "assets",
+            "files": [
+                "MonaspaceXenon-Regular.otf",
+                "MonaspaceXenon-Bold.otf",
+                "MonaspaceXenon-Italic.otf",
+                "MonaspaceXenon-BoldItalic.otf"
+            ],
+            "extensions": [".otf"]
+        },
+        {
+            "operation": "copy",
+            "source": "${monaspace_zip}/Static Fonts/Monaspace Radon",
+            "destination": "assets",
+            "files": [
+                "MonaspaceRadon-Regular.otf",
+                "MonaspaceRadon-Bold.otf",
+                "MonaspaceRadon-Italic.otf",
+                "MonaspaceRadon-BoldItalic.otf"
+            ],
+            "extensions": [".otf"]
+        },
+        {
+            "operation": "copy",
+            "source": "${monaspace_zip}/Static Fonts/Monaspace Krypton",
+            "destination": "assets",
+            "files": [
+                "MonaspaceKrypton-Regular.otf",
+                "MonaspaceKrypton-Bold.otf",
+                "MonaspaceKrypton-Italic.otf",
+                "MonaspaceKrypton-BoldItalic.otf"
+            ],
+            "extensions": [".otf"]
         }
     ]
 }

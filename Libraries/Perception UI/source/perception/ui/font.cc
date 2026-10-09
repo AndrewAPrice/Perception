@@ -60,6 +60,7 @@ struct FontKey {
 
 bool IsMonospaceFamily(std::string_view fname) {
   return fname.find("mono") != std::string_view::npos ||
+         fname.find("monaspace") != std::string_view::npos ||
          fname.find("courier") != std::string_view::npos ||
          fname.find("consolas") != std::string_view::npos ||
          fname.find("menlo") != std::string_view::npos ||
@@ -94,6 +95,24 @@ std::string CanonicalizeFamily(std::string_view family_name, int width) {
 
   if (lower_name.find("math") != std::string::npos) return "DejaVuMathTeXGyre";
 
+  if (lower_name.find("monaspaceneon") != std::string::npos ||
+      lower_name.find("monaspace neon") != std::string::npos)
+    return "MonaspaceNeon";
+  if (lower_name.find("monaspaceargon") != std::string::npos ||
+      lower_name.find("monaspace argon") != std::string::npos)
+    return "MonaspaceArgon";
+  if (lower_name.find("monaspacexenon") != std::string::npos ||
+      lower_name.find("monaspace xenon") != std::string::npos)
+    return "MonaspaceXenon";
+  if (lower_name.find("monaspaceradon") != std::string::npos ||
+      lower_name.find("monaspace radon") != std::string::npos)
+    return "MonaspaceRadon";
+  if (lower_name.find("monaspacekrypton") != std::string::npos ||
+      lower_name.find("monaspace krypton") != std::string::npos)
+    return "MonaspaceKrypton";
+  if (lower_name.find("monaspace") != std::string::npos)
+    return "MonaspaceNeon";
+
   if (IsMonospaceFamily(lower_name)) return "DejaVuSansMono";
 
   if (IsSerifFamily(lower_name))
@@ -114,6 +133,29 @@ SkFont* GetBold12UiFont() {
 
 SkFont* GetMonospace12UiFont() {
   return GetUiFont("DejaVuSansMono", 12.0f, false, false);
+}
+
+SkFont* GetMonaspaceUiFont(MonaspaceFamily family, float size, bool bold,
+                           bool italic) {
+  std::string_view family_name = "MonaspaceNeon";
+  switch (family) {
+    case MonaspaceFamily::Neon:
+      family_name = "MonaspaceNeon";
+      break;
+    case MonaspaceFamily::Argon:
+      family_name = "MonaspaceArgon";
+      break;
+    case MonaspaceFamily::Xenon:
+      family_name = "MonaspaceXenon";
+      break;
+    case MonaspaceFamily::Radon:
+      family_name = "MonaspaceRadon";
+      break;
+    case MonaspaceFamily::Krypton:
+      family_name = "MonaspaceKrypton";
+      break;
+  }
+  return GetUiFont(family_name, size, bold, italic);
 }
 
 SkFont* GetUiFont(std::string_view family_name, float size, bool bold,

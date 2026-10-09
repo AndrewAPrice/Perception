@@ -47,18 +47,33 @@ struct MemoryMappedFont {
 
 std::map<std::string, std::shared_ptr<MemoryMappedFont>> font_data_by_path;
 
-Status MakeSureFontIsLoaded(const std::string& path) {
-  if (!font_data_by_path.contains(path)) {
-    // Open the font as a memory mapped file.
-    ASSIGN_OR_RETURN(auto response,
-                     GetService<StorageManager>().OpenMemoryMappedFile({path}));
-
-    auto memory_mapped_font = std::make_shared<MemoryMappedFont>();
-    memory_mapped_font->file = response.file;
-    memory_mapped_font->buffer = response.file_contents;
-
-    font_data_by_path[path] = memory_mapped_font;
+Status MakeSureFontIsLoaded(const std::string& path, std::mutex& mutex,
+                            std::shared_ptr<SharedMemory>* out_buffer = nullptr) {
+  {
+    std::scoped_lock lock(mutex);
+    auto it = font_data_by_path.find(path);
+    if (it != font_data_by_path.end()) {
+      if (out_buffer != nullptr) *out_buffer = it->second->buffer;
+      return Status::OK;
+    }
   }
+
+  // Open the font as a memory mapped file without holding the mutex.
+  ASSIGN_OR_RETURN(auto response,
+                   GetService<StorageManager>().OpenMemoryMappedFile({path}));
+
+  auto memory_mapped_font = std::make_shared<MemoryMappedFont>();
+  memory_mapped_font->file = response.file;
+  memory_mapped_font->buffer = response.file_contents;
+
+  bool duplicate = false;
+  {
+    std::scoped_lock lock(mutex);
+    auto [it, inserted] = font_data_by_path.emplace(path, memory_mapped_font);
+    duplicate = !inserted;
+    if (out_buffer != nullptr) *out_buffer = it->second->buffer;
+  }
+  if (duplicate) response.file.Close();
   return Status::OK;
 }
 
@@ -71,8 +86,38 @@ FontStyle MakeStyle(FontStyle::Weight weight, FontStyle::Width width,
   return style;
 }
 
+std::string_view MatchMonaspaceFamily(std::string_view fname) {
+  if (fname.find("monaspaceneon") != std::string_view::npos ||
+      fname.find("monaspace neon") != std::string_view::npos)
+    return "MonaspaceNeon";
+  if (fname.find("monaspaceargon") != std::string_view::npos ||
+      fname.find("monaspace argon") != std::string_view::npos)
+    return "MonaspaceArgon";
+  if (fname.find("monaspacexenon") != std::string_view::npos ||
+      fname.find("monaspace xenon") != std::string_view::npos)
+    return "MonaspaceXenon";
+  if (fname.find("monaspaceradon") != std::string_view::npos ||
+      fname.find("monaspace radon") != std::string_view::npos)
+    return "MonaspaceRadon";
+  if (fname.find("monaspacekrypton") != std::string_view::npos ||
+      fname.find("monaspace krypton") != std::string_view::npos)
+    return "MonaspaceKrypton";
+  if (fname.find("monaspace") != std::string_view::npos)
+    return "MonaspaceNeon";
+  return "";
+}
+
+std::string GetDejaVuSansMonoPath(bool is_bold, bool is_italic) {
+  if (is_bold && is_italic)
+    return "/Libraries/Fonts/DejaVuSansMono-BoldOblique.ttf";
+  if (is_bold) return "/Libraries/Fonts/DejaVuSansMono-Bold.ttf";
+  if (is_italic) return "/Libraries/Fonts/DejaVuSansMono-Oblique.ttf";
+  return "/Libraries/Fonts/DejaVuSansMono.ttf";
+}
+
 bool IsMonospaceFamily(std::string_view fname) {
   return fname.find("mono") != std::string_view::npos ||
+         fname.find("monaspace") != std::string_view::npos ||
          fname.find("courier") != std::string_view::npos ||
          fname.find("consolas") != std::string_view::npos ||
          fname.find("menlo") != std::string_view::npos ||
@@ -105,8 +150,6 @@ FontManager::~FontManager() {}
 
 StatusOr<MatchFontResponse> FontManager::MatchFont(
     const MatchFontRequest& request) {
-  std::scoped_lock lock(mutex_);
-
   std::string fname = request.family_name;
   std::transform(fname.begin(), fname.end(), fname.begin(),
                  [](unsigned char ch) { return std::tolower(ch); });
@@ -123,21 +166,38 @@ StatusOr<MatchFontResponse> FontManager::MatchFont(
 
   std::string font_path;
   std::string resolved_family;
+  std::string_view monaspace_family = MatchMonaspaceFamily(fname);
+  std::shared_ptr<SharedMemory> font_buffer;
 
   if (fname.find("math") != std::string::npos) {
     font_path = "/Libraries/Fonts/DejaVuMathTeXGyre.ttf";
     resolved_family = "DejaVuMathTeXGyre";
+  } else if (!monaspace_family.empty()) {
+    resolved_family = std::string(monaspace_family);
+    std::string_view style_suffix = "Regular";
+    if (is_bold && is_italic) {
+      style_suffix = "BoldItalic";
+    } else if (is_bold) {
+      style_suffix = "Bold";
+    } else if (is_italic) {
+      style_suffix = "Italic";
+    }
+
+    std::string base_path =
+        "/Libraries/Fonts/" + resolved_family + "-" + std::string(style_suffix);
+    std::string otf_path = base_path + ".otf";
+    std::string ttf_path = base_path + ".ttf";
+    if (MakeSureFontIsLoaded(otf_path, mutex_, &font_buffer) == Status::OK) {
+      font_path = otf_path;
+    } else if (MakeSureFontIsLoaded(ttf_path, mutex_, &font_buffer) ==
+               Status::OK) {
+      font_path = ttf_path;
+    } else {
+      font_path = GetDejaVuSansMonoPath(is_bold, is_italic);
+    }
   } else if (IsMonospaceFamily(fname)) {
     resolved_family = "DejaVuSansMono";
-    if (is_bold && is_italic) {
-      font_path = "/Libraries/Fonts/DejaVuSansMono-BoldOblique.ttf";
-    } else if (is_bold) {
-      font_path = "/Libraries/Fonts/DejaVuSansMono-Bold.ttf";
-    } else if (is_italic) {
-      font_path = "/Libraries/Fonts/DejaVuSansMono-Oblique.ttf";
-    } else {
-      font_path = "/Libraries/Fonts/DejaVuSansMono.ttf";
-    }
+    font_path = GetDejaVuSansMonoPath(is_bold, is_italic);
   } else if (IsSerifFamily(fname)) {
     if (is_condensed) {
       resolved_family = "DejaVuSerifCondensed";
@@ -191,9 +251,10 @@ StatusOr<MatchFontResponse> FontManager::MatchFont(
     }
   }
 
-  if (MakeSureFontIsLoaded(font_path) != Status::OK) {
+  if (!font_buffer &&
+      MakeSureFontIsLoaded(font_path, mutex_, &font_buffer) != Status::OK) {
     font_path = "/Libraries/Fonts/DejaVuSans.ttf";
-    RETURN_ON_ERROR(MakeSureFontIsLoaded(font_path));
+    RETURN_ON_ERROR(MakeSureFontIsLoaded(font_path, mutex_, &font_buffer));
   }
 
   MatchFontResponse response;
@@ -201,7 +262,7 @@ StatusOr<MatchFontResponse> FontManager::MatchFont(
   response.family_name =
       request.family_name.empty() ? resolved_family : request.family_name;
   response.data.type = FontData::Type::BUFFER;
-  response.data.buffer = font_data_by_path[font_path]->buffer;
+  response.data.buffer = font_buffer;
   response.data.path = font_path;
   response.style.weight = is_bold
                               ? FontStyle::Weight::BOLD
@@ -224,6 +285,11 @@ StatusOr<FontFamilies> FontManager::GetFontFamilies() {
            "DejaVuSerif",
            "DejaVuSansCondensed",
            "DejaVuSans",
+           "MonaspaceNeon",
+           "MonaspaceArgon",
+           "MonaspaceXenon",
+           "MonaspaceRadon",
+           "MonaspaceKrypton",
        }) {
     FontFamily family;
     family.name = name;

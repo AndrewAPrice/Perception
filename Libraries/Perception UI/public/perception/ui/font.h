@@ -28,9 +28,23 @@ class SkFont;
 namespace perception {
 namespace ui {
 
+// Monaspace font families available for terminal and code rendering.
+enum class MonaspaceFamily {
+  Neon = 0,
+  Argon = 1,
+  Xenon = 2,
+  Radon = 3,
+  Krypton = 4,
+};
+
 SkFont* GetBook12UiFont();
 SkFont* GetBold12UiFont();
 SkFont* GetMonospace12UiFont();
+
+// Returns a Monaspace UI font for the requested family, size, and style.
+SkFont* GetMonaspaceUiFont(MonaspaceFamily family = MonaspaceFamily::Neon,
+                           float size = 13.0f, bool bold = false,
+                           bool italic = false);
 
 SkFont* GetUiFont(std::string_view family_name = "", float size = 12.0f,
                   bool bold = false, bool italic = false);
