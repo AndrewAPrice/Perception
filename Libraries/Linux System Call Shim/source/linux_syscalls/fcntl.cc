@@ -14,46 +14,62 @@
 
 #include "linux_syscalls/fcntl.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "perception/debug.h"
-
 #include "files.h"
+#include "perception/debug.h"
 
 namespace perception {
 namespace linux_syscalls {
 
 long fcntl(long fd, long cmd, long arg) {
   auto file_descriptor = GetFileDescriptor(fd);
-  if (!file_descriptor) return 0;
+  if (!file_descriptor) {
+    if (fd >= 0 && fd <= 2) {
+      if (cmd == F_GETFL)
+        return fd == 0 ? O_RDONLY : O_WRONLY;
+      if (cmd == F_GETFD || cmd == F_SETFD || cmd == F_SETFL)
+        return 0;
+    }
+    errno = EBADF;
+    return -EBADF;
+  }
 
   switch (cmd) {
     case F_DUPFD:
-      perception::DebugPrinterSingleton
-          << "Musl syscall fnctl called with unimplemented command F_DUPFD\n";
-      break;
+      if (arg < 0) {
+        errno = EINVAL;
+        return -EINVAL;
+      }
+      return DuplicateFileDescriptor(static_cast<int>(fd),
+                                     static_cast<int>(arg), false, 0);
     case F_DUPFD_CLOEXEC:
-      perception::DebugPrinterSingleton << "Musl syscall fnctl called with unimplemented command "
-                   "F_DUPFD_CLOEXEC\n";
-      break;
+      if (arg < 0) {
+        errno = EINVAL;
+        return -EINVAL;
+      }
+      return DuplicateFileDescriptor(static_cast<int>(fd),
+                                     static_cast<int>(arg), false, O_CLOEXEC);
     case F_GETFD:
     case F_SETFD:
-      // The only flag supported is FD_CLOEXEC.
-      if (arg != FD_CLOEXEC) {
-        perception::DebugPrinterSingleton << "Musl syscall fnctl/F_{GET|SET}FD called with arg other "
-                     "than FD_CLOEXEC.\n";
-      }
-      break;
+      return 0;
     case F_GETFL:
-      if (file_descriptor->type == FileDescriptor::SOCKET) {
+      if (file_descriptor->type == FileDescriptor::SOCKET)
         return file_descriptor->socket.non_blocking ? O_NONBLOCK : 0;
+      if (file_descriptor->type == FileDescriptor::PIPE) {
+        long flags = file_descriptor->pipe.is_writer ? O_WRONLY : O_RDONLY;
+        if (file_descriptor->pipe.non_blocking)
+          flags |= O_NONBLOCK;
+        return flags;
       }
       return 0;
     case F_SETFL:
-      if (file_descriptor->type == FileDescriptor::SOCKET) {
+      if (file_descriptor->type == FileDescriptor::SOCKET)
         file_descriptor->socket.non_blocking = (arg & O_NONBLOCK) != 0;
-      }
+      else if (file_descriptor->type == FileDescriptor::PIPE)
+        file_descriptor->pipe.non_blocking = (arg & O_NONBLOCK) != 0;
       return 0;
     case F_SETLK:
       perception::DebugPrinterSingleton

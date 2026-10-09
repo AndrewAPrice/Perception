@@ -97,18 +97,18 @@ long ReadFile(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
     bytes_to_read += (size_t)io.iov_len;
   }
 
-  if ((ssize_t)bytes_to_read < 0) {
+  if ((ssize_t)bytes_to_read < 0)
     return -EINVAL;
-  }
+
+  if (descriptor->file.offset_in_file >= descriptor->file.size_in_bytes)
+    return 0;
 
   // Prune to how many bytes there actually are remaining in the file.
   bytes_to_read = std::min(bytes_to_read, descriptor->file.size_in_bytes -
                                               descriptor->file.offset_in_file);
 
-  if (bytes_to_read == 0) {
-    // Nothing to read. Either the file is empty or all contents have been read.
+  if (bytes_to_read == 0)
     return 0;
-  }
 
   // Break into page size chunks.
   int num_chunks = (bytes_to_read + kPageSize - 1) / kPageSize;
@@ -188,16 +188,56 @@ long ReadFile(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
   return bytes_read;
 }
 
+long ReadPipe(const std::shared_ptr<FileDescriptor>& descriptor, void* iov,
+              long iovcnt) {
+  if (iovcnt < 0)
+    return -EINVAL;
+  if (descriptor->pipe.is_writer || !descriptor->pipe.pipe)
+    return -EBADF;
+
+  const auto* buffers = static_cast<const iovec*>(iov);
+  size_t total_copied = 0;
+  for (long i = 0; i < iovcnt; i++) {
+    if (static_cast<ssize_t>(buffers[i].iov_len) < 0)
+      return -EINVAL;
+    if (buffers[i].iov_len == 0)
+      continue;
+
+    long result = descriptor->pipe.pipe->Read(
+        static_cast<char*>(buffers[i].iov_base), buffers[i].iov_len,
+        descriptor->pipe.non_blocking || total_copied > 0);
+    if (result < 0) {
+      if (total_copied > 0)
+        break;
+      errno = static_cast<int>(-result);
+      return result;
+    }
+    if (result == 0)
+      break;
+
+    total_copied += static_cast<size_t>(result);
+    if (static_cast<size_t>(result) < buffers[i].iov_len)
+      break;
+  }
+
+  return static_cast<long>(total_copied);
+}
+
 }  // namespace
 
 long readv(long fd, void* iov, long iovcnt) {
   auto descriptor = GetFileDescriptor(fd);
   if (!descriptor) {
+    if (fd == 0)
+      return 0;
     return -EBADF;
   }
 
   long ret;
   switch (descriptor->type) {
+    case FileDescriptor::PIPE:
+      ret = ReadPipe(descriptor, iov, iovcnt);
+      break;
     case FileDescriptor::SOCKET:
       ret = ReadSocket(descriptor, iov, iovcnt);
       break;

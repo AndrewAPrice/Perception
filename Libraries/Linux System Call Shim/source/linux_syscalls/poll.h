@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
+#include <poll.h>
+
 namespace perception {
 namespace linux_syscalls {
 
-long poll();
+long poll(struct pollfd* fds, nfds_t nfds, int timeout);
 
-}
+}  // namespace linux_syscalls
 }  // namespace perception

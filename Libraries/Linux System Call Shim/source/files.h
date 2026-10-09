@@ -21,6 +21,7 @@
 #include "perception/memory_mapped_file.h"
 #include "perception/network/network_service.h"
 #include "perception/shared_memory.h"
+#include "perception/shared_memory_pipe.h"
 #include "perception/shared_memory_pool.h"
 
 namespace perception {
@@ -28,8 +29,9 @@ namespace perception {
 extern SharedMemoryPool<kPageSize> kSharedMemoryPool;
 
 struct FileDescriptor {
-  enum Type { DIRECTORY = 0, FILE = 1, SOCKET = 2 };
+  enum Type { DIRECTORY = 0, FILE = 1, SOCKET = 2, PIPE = 3 };
   Type type;
+  bool closed = false;
 
   struct Directory {
     std::string name;
@@ -50,6 +52,15 @@ struct FileDescriptor {
     bool ipv6_v6only = false;
     bool non_blocking = false;
   } socket;
+
+  struct PipeFileDescriptor {
+    std::shared_ptr<SharedMemoryPipe> pipe;
+    bool is_writer = false;
+    bool non_blocking = false;
+  };
+  PipeFileDescriptor pipe;
+
+  ~FileDescriptor();
 };
 
 long OpenDirectory(const char* path);
@@ -57,8 +68,12 @@ long OpenFile(const char* path, bool read_access, bool write_access,
               bool create_if_not_exists, bool truncate);
 long CreateSocketDescriptor(perception::network::Socket::Client socket,
                             int domain = 2);
+int CreatePipeFileDescriptors(int pipefd[2], int flags);
+long DuplicateFileDescriptor(int oldfd, int newfd, bool exact_target,
+                             int flags);
 
 std::shared_ptr<FileDescriptor> GetFileDescriptor(long id);
+std::shared_ptr<SharedMemoryPipe> GetFileDescriptorPipe(int fd);
 bool ReadAndIncrementFile(long id, void* buffer, long bytes);
 
 void CloseFile(long id);
@@ -68,7 +83,7 @@ void* AddMemoryMappedFile(::perception::MemoryMappedFile::Client file,
 
 bool MaybeCloseMemoryMappedFile(size_t start_address);
 
-std::string_view CurrentWorkingDirectory();
+std::string CurrentWorkingDirectory();
 
 bool SetCurrentWorkingDirectory(std::string_view cwd);
 

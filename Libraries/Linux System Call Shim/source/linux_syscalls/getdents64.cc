@@ -14,6 +14,9 @@
 
 #include "linux_syscalls/getdents64.h"
 
+#include <algorithm>
+#include <cstring>
+
 #include "perception/debug.h"
 
 #include "files.h"
@@ -66,9 +69,11 @@ long getdents64(unsigned int fd, dirent *dirp, unsigned int count) {
       }
     }
 
-    int chars_to_copy = entry.name.size();
-    memcpy(dirp[return_index].d_name, entry.name.c_str(), chars_to_copy);
-    memset(&dirp[return_index].d_name[chars_to_copy], 0, 256 - chars_to_copy);
+    size_t name_len =
+        std::min<size_t>(entry.name.size(), sizeof(dirp[return_index].d_name) - 1);
+    memcpy(dirp[return_index].d_name, entry.name.c_str(), name_len);
+    memset(&dirp[return_index].d_name[name_len], 0,
+           sizeof(dirp[return_index].d_name) - name_len);
     dirp[return_index].d_reclen = sizeof(dirent);
     dirp[return_index].d_off = sizeof(dirent) * (return_index + 1);
 

@@ -14,15 +14,19 @@
 
 #include "linux_syscalls/dup3.h"
 
-#include "perception/debug.h"
 #include <errno.h>
+
+#include "files.h"
 
 namespace perception {
 namespace linux_syscalls {
 
-long dup3() {
-  perception::DebugPrinterSingleton << "System call dup3 is unimplemented.\n";
-  return -ENOSYS;
+long dup3(int oldfd, int newfd, int flags) {
+  if (oldfd == newfd) {
+    errno = EINVAL;
+    return -EINVAL;
+  }
+  return DuplicateFileDescriptor(oldfd, newfd, true, flags);
 }
 
 }  // namespace linux_syscalls

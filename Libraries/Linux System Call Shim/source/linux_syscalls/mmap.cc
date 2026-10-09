@@ -32,17 +32,14 @@ long mmap(long addr, long length, long prot, long flags, long fd, long offset) {
     // Treat as a hint. Ignore and allocate anywhere.
   }
 
-  if (length == 0) {
-    errno = EINVAL;
-    return -1;
-  }
+  if (length <= 0)
+    return -EINVAL;
 
   if ((flags & (MAP_PRIVATE | MAP_SHARED)) == 0) {
     perception::DebugPrinterSingleton
         << "mmap passed flags " << (size_t)flags
         << " but not setting MAP_PRIVATE or MAP_SHARED is unsupported.\n";
-    errno = EINVAL;
-    return -1;
+    return -EINVAL;
   }
 
   if ((flags & ~(MAP_ANON | MAP_PRIVATE | MAP_SHARED)) != 0) {
@@ -50,8 +47,7 @@ long mmap(long addr, long length, long prot, long flags, long fd, long offset) {
         << "mmap passed flags " << (size_t)flags
         << " but flags other than MAP_ANON, MAP_PRIVATE, and MAP_SHARED are "
            "unsupported.\n";
-    errno = EINVAL;
-    return -1;
+    return -EINVAL;
   }
 
   // 'prot' sepecifies if the memory can be executed, read, written, etc. The
@@ -62,33 +58,23 @@ long mmap(long addr, long length, long prot, long flags, long fd, long offset) {
     // Allocate 0-initialized memory.
     size_t pages = (size_t)(length + kPageSize - 1) / kPageSize;
     void *addr = AllocateMemoryPages(pages);
-    if (addr == nullptr) {
-       errno = ENOMEM;
-       return -1; // MAP_FAILED
-    }
+    if (addr == nullptr)
+      return -ENOMEM;
     memset(addr, 0, pages * kPageSize);
     return (long)addr;
   } else {
     // Allocate a memory mapped file.
     auto file_descriptor = GetFileDescriptor(fd);
-    if (!file_descriptor) {
-      // File not found.
-      errno = EINVAL;
-      return -1;
-    }
+    if (!file_descriptor)
+      return -EBADF;
 
-    if (file_descriptor->type != FileDescriptor::FILE) {
-      // Not a file.
-      errno = EINVAL;
-      return -1;
-    }
+    if (file_descriptor->type != FileDescriptor::FILE)
+      return -EINVAL;
 
     auto status_or_response = GetService<StorageManager>().OpenMemoryMappedFile(
         {file_descriptor->file.path});
-    if (!status_or_response.Ok()) {
-      errno = EINVAL;
-      return -1;
-    }
+    if (!status_or_response.Ok())
+      return -EINVAL;
 
     return (long)AddMemoryMappedFile(status_or_response->file,
                                      status_or_response->file_contents);

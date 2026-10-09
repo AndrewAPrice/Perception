@@ -465,11 +465,13 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_delete_module:
       return ::perception::linux_syscalls::delete_module();
     case SYS_dup:
-      return ::perception::linux_syscalls::dup();
+      return ::perception::linux_syscalls::dup(static_cast<int>(a1));
     case SYS_dup2:
-      return ::perception::linux_syscalls::dup2();
+      return ::perception::linux_syscalls::dup2(static_cast<int>(a1),
+                                                static_cast<int>(a2));
     case SYS_dup3:
-      return ::perception::linux_syscalls::dup3();
+      return ::perception::linux_syscalls::dup3(
+          static_cast<int>(a1), static_cast<int>(a2), static_cast<int>(a3));
     case SYS_epoll_create:
       return ::perception::linux_syscalls::epoll_create();
     case SYS_epoll_create1:
@@ -796,9 +798,10 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_pidfd_send_signal:
       return ::perception::linux_syscalls::pidfd_send_signal();
     case SYS_pipe:
-      return ::perception::linux_syscalls::pipe();
+      return ::perception::linux_syscalls::pipe(reinterpret_cast<int*>(a1));
     case SYS_pipe2:
-      return ::perception::linux_syscalls::pipe2();
+      return ::perception::linux_syscalls::pipe2(reinterpret_cast<int*>(a1),
+                                                 static_cast<int>(a2));
     case SYS_pivot_root:
       return ::perception::linux_syscalls::pivot_root();
     case SYS_pkey_alloc:
@@ -808,7 +811,9 @@ extern "C" long __syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     case SYS_pkey_mprotect:
       return ::perception::linux_syscalls::pkey_mprotect();
     case SYS_poll:
-      return ::perception::linux_syscalls::poll();
+      return ::perception::linux_syscalls::poll(
+          reinterpret_cast<struct pollfd*>(a1), static_cast<nfds_t>(a2),
+          static_cast<int>(a3));
     case SYS_ppoll:
       return ::perception::linux_syscalls::ppoll();
     case SYS_prctl:

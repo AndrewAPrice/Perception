@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
 namespace perception {
 namespace linux_syscalls {
 
-long dup3();
+long dup3(int oldfd, int newfd, int flags);
 
-}
+}  // namespace linux_syscalls
 }  // namespace perception

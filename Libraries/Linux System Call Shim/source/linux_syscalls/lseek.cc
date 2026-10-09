@@ -14,36 +14,46 @@
 
 #include "linux_syscalls/lseek.h"
 
-#include "perception/debug.h"
+#include <errno.h>
 
 #include "files.h"
+#include "perception/debug.h"
 
 namespace perception {
 namespace linux_syscalls {
 
 off_t lseek(long fd, off_t offset, int whence) {
   auto file = GetFileDescriptor(fd);
-  if (!file || file->type != FileDescriptor::Type::FILE) {
-    // File not open or not a file.
-    return -1;
-  }
+  if (!file)
+    return -EBADF;
+  if (file->type == FileDescriptor::Type::PIPE ||
+      file->type == FileDescriptor::Type::SOCKET)
+    return -ESPIPE;
+  if (file->type != FileDescriptor::Type::FILE)
+    return -EINVAL;
 
+  off_t new_offset = 0;
   switch (whence) {
     case SEEK_SET:
-      file->file.offset_in_file = offset;
+      new_offset = offset;
       break;
     case SEEK_CUR:
-      file->file.offset_in_file += offset;
+      new_offset = static_cast<off_t>(file->file.offset_in_file) + offset;
       break;
     case SEEK_END:
-      file->file.offset_in_file = file->file.size_in_bytes + offset;
+      new_offset = static_cast<off_t>(file->file.size_in_bytes) + offset;
       break;
     default:
-      perception::DebugPrinterSingleton << "Unknown whence passed to lseek: " << (size_t)whence << '\n';
-      return -1;
+      perception::DebugPrinterSingleton << "Unknown whence passed to lseek: "
+                                        << (size_t)whence << '\n';
+      return -EINVAL;
   }
 
-  return (off_t)file->file.offset_in_file;
+  if (new_offset < 0)
+    return -EINVAL;
+
+  file->file.offset_in_file = static_cast<size_t>(new_offset);
+  return new_offset;
 }
 
 }  // namespace linux_syscalls

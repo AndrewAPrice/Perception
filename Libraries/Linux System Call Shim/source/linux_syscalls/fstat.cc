@@ -25,9 +25,19 @@ namespace perception {
 namespace linux_syscalls {
 
 long fstat(long fd, struct kstat* statbuf) {
+  if (!statbuf) {
+    errno = EFAULT;
+    return -1;
+  }
+
   auto file_descriptor = GetFileDescriptor(fd);
   if (!file_descriptor) {
-    errno = EINVAL;
+    if (fd >= 0 && fd <= 2) {
+      memset(statbuf, 0, sizeof(struct kstat));
+      statbuf->st_mode = S_IFCHR;
+      return 0;
+    }
+    errno = EBADF;
     return -1;
   }
 
@@ -37,6 +47,15 @@ long fstat(long fd, struct kstat* statbuf) {
   } else if (file_descriptor->type == FileDescriptor::FILE) {
     statbuf->st_mode = S_IFREG;
     statbuf->st_size = file_descriptor->file.size_in_bytes;
+  } else if (file_descriptor->type == FileDescriptor::PIPE) {
+    if (file_descriptor->pipe.pipe &&
+        file_descriptor->pipe.pipe->HasTerminalService()) {
+      statbuf->st_mode = S_IFCHR;
+    } else {
+      statbuf->st_mode = S_IFIFO;
+    }
+  } else if (file_descriptor->type == FileDescriptor::SOCKET) {
+    statbuf->st_mode = S_IFSOCK;
   }
 
   return 0;

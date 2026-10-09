@@ -66,7 +66,8 @@ long munmap(long addr, long length) {
     }
 
     // Not a thread stack, just normal memory to release.
-    ReleaseMemoryPages((void*)addr, (size_t)length / kPageSize);
+    size_t pages = ((size_t)length + kPageSize - 1) / kPageSize;
+    ReleaseMemoryPages((void*)addr, pages);
   }
   return 0;
 }

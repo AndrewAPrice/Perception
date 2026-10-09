@@ -23,11 +23,13 @@ namespace perception {
 namespace linux_syscalls {
 
 long getcwd(char* buf, size_t size) {
-  if (buf == nullptr || size == 0) return -EINVAL;
+  if (buf == nullptr || size == 0)
+    return -EINVAL;
 
-  std::string_view cwd = CurrentWorkingDirectory();
+  std::string cwd = CurrentWorkingDirectory();
 
-  if (cwd.length() + 1 > size) return -ERANGE;
+  if (cwd.length() + 1 > size)
+    return -ERANGE;
 
   memcpy(buf, cwd.data(), cwd.length());
   buf[cwd.length()] = '\0';

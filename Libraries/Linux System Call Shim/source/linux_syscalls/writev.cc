@@ -26,42 +26,40 @@ using ::perception::network::SendRequest;
 
 namespace {
 
+// Maximum bytes to send in a single socket Send RPC.
+constexpr size_t kMaxSocketSendBytes = 4096;
+
 long WriteSocket(const std::shared_ptr<FileDescriptor>& descriptor,
                  struct iovec* buffers, long buffer_count) {
   std::string data_to_send = "";
   for (size_t i = 0; i < buffer_count; i++) {
     const auto& buffer = buffers[i];
-    size_t to_append =
-        std::min((size_t)buffer.iov_len, 4096 - data_to_send.length());
+    size_t to_append = std::min((size_t)buffer.iov_len,
+                                kMaxSocketSendBytes - data_to_send.length());
     data_to_send.append((const char*)buffer.iov_base, to_append);
-    if (data_to_send.length() >= 4096) break;
+    if (data_to_send.length() >= kMaxSocketSendBytes) break;
   }
 
   SendRequest request;
   request.data = data_to_send;
   auto status = descriptor->socket.socket.Send(request);
-  if (status != Status::OK) {
+  if (status != Status::OK)
     return -ECONNRESET;
-  }
 
   return data_to_send.length();
 }
 
 long WriteFile(const std::shared_ptr<FileDescriptor>& descriptor,
                struct iovec* buffers, long buffer_count) {
-  if (buffer_count < 0) {
-    errno = EINVAL;
-    return -1;
-  }
+  if (buffer_count < 0)
+    return -EINVAL;
 
   // Count how many bytes to write.
   size_t bytes_to_write = 0;
   for (int io_entry = 0; io_entry < buffer_count; io_entry++) {
     const auto& io = buffers[io_entry];
-    if ((ssize_t)io.iov_len < 0) {
-      errno = EINVAL;
-      return -1;
-    }
+    if ((ssize_t)io.iov_len < 0)
+      return -EINVAL;
     bytes_to_write += (size_t)io.iov_len;
   }
 
@@ -121,8 +119,7 @@ long WriteFile(const std::shared_ptr<FileDescriptor>& descriptor,
     auto status = descriptor->file.file.Write(request);
     if (status != Status::OK) {
       kSharedMemoryPool.ReleaseSharedMemory(pooled_shared_memory);
-      errno = EINVAL;
-      return -1;
+      return -EINVAL;
     }
 
     bytes_written += bytes_to_write_this_chunk;
@@ -137,6 +134,38 @@ long WriteFile(const std::shared_ptr<FileDescriptor>& descriptor,
       std::max(descriptor->file.size_in_bytes, descriptor->file.offset_in_file);
 
   return bytes_written;
+}
+
+long WritePipe(const std::shared_ptr<FileDescriptor>& descriptor,
+               struct iovec* buffers, long buffer_count) {
+  if (buffer_count < 0)
+    return -EINVAL;
+  if (!descriptor->pipe.is_writer || !descriptor->pipe.pipe)
+    return -EBADF;
+
+  size_t total_written = 0;
+  for (long i = 0; i < buffer_count; i++) {
+    const auto& buffer = buffers[i];
+    if (static_cast<ssize_t>(buffer.iov_len) < 0)
+      return -EINVAL;
+    if (buffer.iov_len == 0)
+      continue;
+
+    long result = descriptor->pipe.pipe->Write(
+        static_cast<const char*>(buffer.iov_base), buffer.iov_len,
+        descriptor->pipe.non_blocking);
+    if (result < 0) {
+      if (total_written > 0)
+        break;
+      return result;
+    }
+
+    total_written += static_cast<size_t>(result);
+    if (static_cast<size_t>(result) < buffer.iov_len)
+      break;
+  }
+
+  return static_cast<long>(total_written);
 }
 
 long WriteDefault(struct iovec* buffers, long buffer_count) {
@@ -156,22 +185,23 @@ long WriteDefault(struct iovec* buffers, long buffer_count) {
 long writev(long file_descriptor, struct iovec* buffers, long buffer_count) {
   auto descriptor = GetFileDescriptor(file_descriptor);
   if (!descriptor) {
-    return WriteDefault(buffers, buffer_count);
+    if (file_descriptor == 1 || file_descriptor == 2)
+      return WriteDefault(buffers, buffer_count);
+    return -EBADF;
   }
 
   switch (descriptor->type) {
+    case FileDescriptor::PIPE:
+      return WritePipe(descriptor, buffers, buffer_count);
     case FileDescriptor::SOCKET:
       return WriteSocket(descriptor, buffers, buffer_count);
     case FileDescriptor::FILE:
       return WriteFile(descriptor, buffers, buffer_count);
     case FileDescriptor::DIRECTORY:
     default:
-      return WriteDefault(buffers, buffer_count);
+      return -EBADF;
   }
 }
 
 }  // namespace linux_syscalls
 }  // namespace perception
-// force rebuild 2
-
-

@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
 namespace perception {
 namespace linux_syscalls {
 
-long pipe2();
+long pipe2(int* pipefd, int flags);
 
-}
+}  // namespace linux_syscalls
 }  // namespace perception
