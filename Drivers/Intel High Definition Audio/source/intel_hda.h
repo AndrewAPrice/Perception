@@ -90,6 +90,7 @@ class IntelHdaController : public ::perception::devices::AudioDevice::Server {
   size_t dma_buffer_size_ = 65536;  // 64 KB DMA buffer
   size_t last_frame_ = 0;
   bool first_update_ = true;
+  bool dma_buffer_silenced_ = true;
 
   std::mutex stream_mutex_;
   uint64 next_stream_id_ = 1;

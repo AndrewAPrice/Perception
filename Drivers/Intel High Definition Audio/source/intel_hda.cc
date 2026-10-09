@@ -441,6 +441,16 @@ void IntelHdaController::UpdateDmaBuffer() {
 
   last_frame_ = current_frame;
 
+  if (active_streams_.empty()) {
+    if (!dma_buffer_silenced_) {
+      std::memset(dma_buffer_, 0, dma_buffer_size_);
+      perception::FlushRange(dma_buffer_, dma_buffer_size_);
+      dma_buffer_silenced_ = true;
+    }
+    return;
+  }
+  dma_buffer_silenced_ = false;
+
   // Render and mix audio into an 80ms lookahead window ahead of current
   // hardware read pointer, leaving a 5ms guard band untouched.
   constexpr size_t safety_frames =
