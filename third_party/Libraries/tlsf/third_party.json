@@ -60,6 +60,30 @@
                             "return block_start_offset + block_header_overhead;"
                         ],
                         [
+                            "\treturn block_size(block) >= sizeof(block_header_t) + size;",
+                            "#if defined (TLSF_64BIT)\n\treturn block_size(block) >= size + block_start_offset + block_size_min;\n#else\n\treturn block_size(block) >= sizeof(block_header_t) + size;\n#endif"
+                        ],
+                        [
+                            "\t\tblock_size(block) - block_header_overhead);",
+                            "#if defined (TLSF_64BIT)\n\t\tblock_size(block));\n#else\n\t\tblock_size(block) - block_header_overhead);\n#endif"
+                        ],
+                        [
+                            "\t\toffset_to_block(block_to_ptr(block), size - block_header_overhead);",
+                            "#if defined (TLSF_64BIT)\n\t\toffset_to_block(block_to_ptr(block), size);\n#else\n\t\toffset_to_block(block_to_ptr(block), size - block_header_overhead);\n#endif"
+                        ],
+                        [
+                            "\tconst size_t remain_size = block_size(block) - (size + block_header_overhead);",
+                            "#if defined (TLSF_64BIT)\n\tconst size_t remain_size = block_size(block) - (size + block_start_offset);\n#else\n\tconst size_t remain_size = block_size(block) - (size + block_header_overhead);\n#endif"
+                        ],
+                        [
+                            "\ttlsf_assert(block_size(block) == remain_size + size + block_header_overhead);",
+                            "#if defined (TLSF_64BIT)\n\ttlsf_assert(block_size(block) == remain_size + size + block_start_offset);\n#else\n\ttlsf_assert(block_size(block) == remain_size + size + block_header_overhead);\n#endif"
+                        ],
+                        [
+                            "\tprev->size += block_size(block) + block_header_overhead;",
+                            "#if defined (TLSF_64BIT)\n\tprev->size += block_size(block) + block_start_offset;\n#else\n\tprev->size += block_size(block) + block_header_overhead;\n#endif"
+                        ],
+                        [
                             "\tblock = offset_to_block(mem, -(tlsfptr_t)block_header_overhead);",
                             "#if defined (TLSF_64BIT)\n\tblock = (block_header_t*)mem;\n#else\n\tblock = offset_to_block(mem, -(tlsfptr_t)block_header_overhead);\n#endif"
                         ]
