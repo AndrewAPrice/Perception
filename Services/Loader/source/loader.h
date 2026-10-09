@@ -17,14 +17,27 @@
 #include <string>
 #include <vector>
 
+#include "perception/loader.h"
 #include "status.h"
 #include "types.h"
+
+// Loads a program from a launch request. Returns the Process ID of the newly
+// created process on success.
+StatusOr<::perception::ProcessId> LoadProgram(
+    const ::perception::LoadApplicationRequest& request,
+    ::perception::ProcessId creator);
 
 // Loads an program with a given name or path. Returns the Process ID of the
 // newly created process on success.
 StatusOr< ::perception::ProcessId> LoadProgram(
     ::perception::ProcessId creator, std::string_view name,
     const std::vector<std::string>& arguments = {});
+
+// Returns the configured window manager application name.
+std::string GetConfiguredWindowManager();
+
+// Initializes the window manager setting from the registry and listens for changes.
+void InitializeWindowManagerSetting();
 
 namespace perception {
 class Fiber;

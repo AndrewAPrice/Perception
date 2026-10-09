@@ -42,6 +42,13 @@
             "type": "array",
             "description": "List of applications to launch on boot",
             "default": []
+          },
+          {
+            "key": "windowManager",
+            "name": "Window Manager",
+            "type": "application",
+            "description": "Application responsible for window management and focus control",
+            "default": "Window Manager"
           }
         ]
       }

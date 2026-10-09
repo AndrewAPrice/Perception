@@ -47,10 +47,9 @@ std::shared_ptr<ElfFile> GetCachedElfFile(std::string_view name) {
   return {};
 }
 
-// Loads an ELF file (by name or path), then caches and returns it. Returns an
+// Loads an ELF file (by name or path) without holding cache_mutex. Returns an
 // empty shared_ptr if the ELF file cannot be loaded.
-// Assumes cache_mutex is held.
-std::shared_ptr<ElfFile> LoadAndCacheElfFile(std::string_view name) {
+std::shared_ptr<ElfFile> LoadElfFile(std::string_view name) {
   auto file = LoadFile(name);
   if (!file) {
     std::cout << "Cannot load file: " << name << std::endl;
@@ -62,27 +61,34 @@ std::shared_ptr<ElfFile> LoadAndCacheElfFile(std::string_view name) {
               << std::endl;
     return {};
   }
-
-  elf_files_by_name.insert({elf_file->File().Name(), elf_file});
-  elf_files_by_path.insert({elf_file->File().Path(), elf_file});
   return elf_file;
 }
 
 }  // namespace
 
 std::shared_ptr<ElfFile> LoadOrIncrementElfFile(std::string_view name) {
+  {
+    std::lock_guard<std::mutex> lock(cache_mutex);
+    if (auto elf_file = GetCachedElfFile(name)) {
+      elf_file->IncrementInstances();
+      return elf_file;
+    }
+  }
+
+  // Load the ELF file without holding cache_mutex across disk I/O.
+  auto loaded_elf_file = LoadElfFile(name);
+  if (!loaded_elf_file) return {};
+
   std::lock_guard<std::mutex> lock(cache_mutex);
+  if (auto existing = GetCachedElfFile(name)) {
+    existing->IncrementInstances();
+    return existing;
+  }
 
-  // Look for a cached ELF file.
-  auto elf_file = GetCachedElfFile(name);
-  // Load an ELF file if there was no cached file.
-  if (!elf_file) elf_file = LoadAndCacheElfFile(name);
-  // Return an empty shared_ptr if no ELF file could be loaded.
-  if (!elf_file) return {};
-
-  // Increase a reference count to the ELF file.
-  elf_file->IncrementInstances();
-  return elf_file;
+  elf_files_by_name.insert({loaded_elf_file->File().Name(), loaded_elf_file});
+  elf_files_by_path.insert({loaded_elf_file->File().Path(), loaded_elf_file});
+  loaded_elf_file->IncrementInstances();
+  return loaded_elf_file;
 }
 
 void DecrementElfFile(std::shared_ptr<ElfFile> elf_file) {

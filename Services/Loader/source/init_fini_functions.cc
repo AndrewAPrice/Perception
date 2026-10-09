@@ -60,6 +60,8 @@ size_t InitFiniFunctions::PopulateInMemory(
   size_t write_page_index = 0xFFFFFFFFFFFFFFFF;
   char *write_page = nullptr;
 
+  bool allocation_failed = false;
+
   // Switches to a page.
   auto switch_to_page = [&](size_t address, size_t &page_index,
                             char *&page_ptr) {
@@ -71,6 +73,10 @@ size_t InitFiniFunctions::PopulateInMemory(
       auto itr = child_memory_pages.find(page_start_addr);
       if (itr == child_memory_pages.end()) {
         page_ptr = (char *)AllocateMemoryPages(1);
+        if (page_ptr == nullptr) {
+          allocation_failed = true;
+          return;
+        }
         child_memory_pages[page_start_addr] = page_ptr;
       } else {
         page_ptr = (char *)itr->second;
@@ -80,7 +86,9 @@ size_t InitFiniFunctions::PopulateInMemory(
 
   // Writes a value and increments to write address.
   auto write_value = [&](size_t value) {
+    if (allocation_failed) return;
     switch_to_page(write_address, write_page_index, write_page);
+    if (allocation_failed || write_page == nullptr) return;
 
     size_t index_in_page = write_address % kPageSize;
 
@@ -132,6 +140,7 @@ size_t InitFiniFunctions::PopulateInMemory(
     write_value(segment.align);
   }
 
+  if (allocation_failed) return 0;
   return write_address;
 }
 

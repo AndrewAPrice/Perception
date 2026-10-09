@@ -11,6 +11,7 @@ class SymbolMap {
   struct Entry {
     std::string_view first;
     size_t second;
+    bool is_weak = false;
   };
 
   using iterator = const Entry*;
@@ -58,7 +59,10 @@ class SymbolMap {
     if (new_symbols.empty()) return;
 
     std::sort(new_symbols.begin(), new_symbols.end(),
-              [](const Entry& a, const Entry& b) { return a.first < b.first; });
+              [](const Entry& a, const Entry& b) {
+                if (a.first != b.first) return a.first < b.first;
+                return !a.is_weak && b.is_weak;
+              });
 
     auto new_unique_end = std::unique(
         new_symbols.begin(), new_symbols.end(),

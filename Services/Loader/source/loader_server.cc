@@ -97,8 +97,12 @@ StatusOr<::perception::LoadApplicationResponse> LoaderServer::LaunchApplication(
     }
   }
 
+  ::perception::LoadApplicationRequest resolved_request = request;
+  resolved_request.name = std::move(name_to_load);
+  resolved_request.arguments = std::move(arguments);
+
   ASSIGN_OR_RETURN(ProcessId child_pid,
-                   LoadProgram(sender, name_to_load, arguments));
+                   LoadProgram(resolved_request, sender));
 
   ::perception::LoadApplicationResponse response;
   response.process = child_pid;

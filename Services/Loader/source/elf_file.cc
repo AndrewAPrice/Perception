@@ -158,6 +158,11 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
       continue;  // Segment doesn't get loaded.
     if (has_prelinked_segments && (segment_header.p_flags & PF_W) == 0)
       continue;  // Segment isn't writable.
+    if (segment_header.p_filesz > segment_header.p_memsz) {
+      std::cout << "Segment file size exceeds memory size in " << File().Name()
+                << std::endl;
+      return Status::INTERNAL_ERROR;
+    }
 
     if (segment_header.p_filesz > 0) {
       // There is data from the file to copy into memory.
@@ -193,7 +198,8 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
   }
 
   // Add exported symbols.
-  if (dynsym_section_header_) {
+  if (dynsym_section_header_ &&
+      (*dynsym_section_header_)->sh_size >= sizeof(Elf64_Sym)) {
     // Skip the first symbol entry, as it's the a special entry for "undefined"
     // symbols.
     auto symbols = memory_span_.ToTypedArrayAtOffset<Elf64_Sym>(
@@ -221,9 +227,12 @@ StatusOr<size_t> ElfFile::LoadIntoAddressSpaceAndReturnNextFreeAddress(
       bool is_weak = ELF64_ST_BIND(symbol.st_info) == STB_WEAK;
       size_t address = symbol.st_value + offset;
       if (auto* existing_entry = symbols_to_addresses.find_mutable(name)) {
-        if (!is_weak) existing_entry->second = address;
+        if (existing_entry->is_weak && !is_weak) {
+          existing_entry->second = address;
+          existing_entry->is_weak = false;
+        }
       } else {
-        local_symbols.push_back(SymbolMap::Entry{name, address});
+        local_symbols.push_back(SymbolMap::Entry{name, address, is_weak});
       }
     }
     symbols_to_addresses.insert_bulk(local_symbols);
@@ -569,6 +578,18 @@ bool ElfFile::CreateSharedMemorySegments(size_t base_address) {
   for (const auto& segment_header : ProgramSegmentHeaders()) {
     if (segment_header.p_type != PT_LOAD) continue;
     if ((segment_header.p_flags & PF_W) != 0) continue;
+    if (segment_header.p_filesz > segment_header.p_memsz) {
+      std::cout << "Segment file size exceeds memory size for "
+                << File().Name() << std::endl;
+      return false;
+    }
+    if (segment_header.p_offset > memory_span_.Length() ||
+        segment_header.p_filesz >
+            memory_span_.Length() - segment_header.p_offset) {
+      std::cout << "Segment data out of bounds for " << File().Name()
+                << std::endl;
+      return false;
+    }
 
     size_t start_addr = segment_header.p_vaddr + base_address;
     size_t end_addr = start_addr + segment_header.p_memsz;
@@ -635,6 +656,13 @@ bool ElfFile::CreateSharedMemorySegments(size_t base_address) {
           return false;
         }
         size_t seg_offset_in_range = (seg.p_vaddr + base_address) - range_start;
+        if (seg_offset_in_range > range_size ||
+            seg.p_filesz > range_size - seg_offset_in_range) {
+          std::cout << "Segment data exceeds shared memory range for "
+                    << File().Name() << std::endl;
+          read_only_segments_.clear();
+          return false;
+        }
         memcpy((uint8_t*)dest_base + seg_offset_in_range, src, seg.p_filesz);
       }
     }
@@ -687,7 +715,9 @@ std::vector<const Elf64_Shdr*> ElfFile::GetRelocationSectionHeaders() {
 }
 
 std::optional<ElfFile::SymbolResult> ElfFile::GetSymbolAddress(std::string_view name) {
-  if (!dynsym_section_header_) return std::nullopt;
+  if (!dynsym_section_header_ ||
+      (*dynsym_section_header_)->sh_size < sizeof(Elf64_Sym))
+    return std::nullopt;
 
   auto symbols = memory_span_.ToTypedArrayAtOffset<Elf64_Sym>(
       (*dynsym_section_header_)->sh_offset + sizeof(Elf64_Sym),
