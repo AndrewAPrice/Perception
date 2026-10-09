@@ -1,0 +1,417 @@
+{
+    "dummy": "force_rebuild_37",
+    "repositories": [
+        {
+            "url": "-b release/20.x https://github.com/llvm/llvm-project.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "readRegExFromFile",
+            "file": "${git}/cmake/Modules/LLVMVersion.cmake",
+            "values": {
+                ",major,minor,patch": "set\\(LLVM_VERSION_MAJOR (\\d+)\\)[\\s\\S]*set\\(LLVM_VERSION_MINOR (\\d+)\\)[\\s\\S]*set\\(LLVM_VERSION_PATCH (\\d+)\\)"
+            }
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/llvm/include/llvm",
+            "destination": "public/llvm",
+            "recursive": true,
+            "replace": [
+                {
+                    "file": "public/llvm/IR/DiagnosticInfo.h",
+                    "replacements": [
+                        [
+                            "template <class RemarkT>\nRemarkT &\noperator<<(RemarkT &&R,\n           std::enable_if_t<\n               std::is_base_of<DiagnosticInfoOptimizationBase, RemarkT>::value,\n               StringRef>\n               S) {\n  R.insert(S);\n  return R;\n}",
+                            "template <class RemarkT>\nRemarkT &\noperator<<(RemarkT &&R,\n           std::enable_if_t<\n               std::is_base_of<DiagnosticInfoOptimizationBase, RemarkT>::value,\n               StringRef>\n               S) {\n  R.insert(S);\n  return static_cast<RemarkT &>(R);\n}"
+                        ],
+                        [
+                            "template <class RemarkT>\nRemarkT &\noperator<<(RemarkT &&R,\n           std::enable_if_t<\n               std::is_base_of<DiagnosticInfoOptimizationBase, RemarkT>::value,\n               DiagnosticInfoOptimizationBase::Argument>\n               A) {\n  R.insert(A);\n  return R;\n}",
+                            "template <class RemarkT>\nRemarkT &\noperator<<(RemarkT &&R,\n           std::enable_if_t<\n               std::is_base_of<DiagnosticInfoOptimizationBase, RemarkT>::value,\n               DiagnosticInfoOptimizationBase::Argument>\n               A) {\n  R.insert(A);\n  return static_cast<RemarkT &>(R);\n}"
+                        ],
+                        [
+                            "template <class RemarkT>\nRemarkT &\noperator<<(RemarkT &&R,\n           std::enable_if_t<\n               std::is_base_of<DiagnosticInfoOptimizationBase, RemarkT>::value,\n               DiagnosticInfoOptimizationBase::setIsVerbose>\n               V) {\n  R.insert(V);\n  return R;\n}",
+                            "template <class RemarkT>\nRemarkT &\noperator<<(RemarkT &&R,\n           std::enable_if_t<\n               std::is_base_of<DiagnosticInfoOptimizationBase, RemarkT>::value,\n               DiagnosticInfoOptimizationBase::setIsVerbose>\n               V) {\n  R.insert(V);\n  return static_cast<RemarkT &>(R);\n}"
+                        ]
+                    ]
+                },
+                {
+                    "file": "public/llvm/CodeGen/MachineFunctionAnalysis.h",
+                    "replacements": [
+                        [
+                            "#include \"llvm/IR/PassManager.h\"",
+                            "#include \"llvm/IR/PassManager.h\"\n#include \"llvm/CodeGen/MachineFunction.h\""
+                        ]
+                    ]
+                },
+                {
+                    "file": "public/llvm/CodeGen/RDFRegisters.h",
+                    "replacements": [
+                        [
+                            "template <> struct less<llvm::rdf::RegisterRef> {\n  constexpr less(const llvm::rdf::PhysicalRegisterInfo &pri) : PRI(&pri) {}\n\n  bool operator()(llvm::rdf::RegisterRef A, llvm::rdf::RegisterRef B) const {\n    return PRI->less(A, B);\n  }\n\nprivate:\n  // Make it a pointer because apparently some versions of MSVC use std::swap\n  // on the std::less specialization.\n  const llvm::rdf::PhysicalRegisterInfo *PRI;\n};\n\n} // namespace std\n\nnamespace llvm::rdf {\nusing RegisterSet = std::set<RegisterRef, std::less<RegisterRef>>;\n} // namespace llvm::rdf",
+                            "} // namespace std\n\nnamespace llvm::rdf {\nstruct RegisterRefLess {\n  constexpr RegisterRefLess(const PhysicalRegisterInfo &pri) : PRI(&pri) {}\n  bool operator()(RegisterRef A, RegisterRef B) const {\n    return PRI->less(A, B);\n  }\nprivate:\n  const PhysicalRegisterInfo *PRI;\n};\nusing RegisterSet = std::set<RegisterRef, RegisterRefLess>;\n} // namespace llvm::rdf"
+                        ]
+                    ]
+                },
+                {
+                    "file": "public/llvm/CodeGen/RDFGraph.h",
+                    "replacements": [
+                        [
+                            "using RegisterSet = std::set<RegisterRef>;",
+                            ""
+                        ]
+                    ]
+                },
+                {
+                    "file": "public/llvm/DebugInfo/PDB/PDBSymbolFunc.h",
+                    "replacements": [
+                        [
+                            "#include \"PDBSymbol.h\"",
+                            "#include \"PDBSymbol.h\"\n#include \"llvm/DebugInfo/PDB/PDBSymbolTypeFunctionSig.h\""
+                        ]
+                    ]
+                },
+                {
+                    "file": "public/llvm/DebugInfo/PDB/PDBSymbolTypeUDT.h",
+                    "replacements": [
+                        [
+                            "#include \"PDBSymbol.h\"",
+                            "#include \"PDBSymbol.h\"\n#include \"llvm/DebugInfo/PDB/IPDBLineNumber.h\""
+                        ]
+                    ]
+                },
+                {
+                    "file": "public/llvm/DebugInfo/PDB/PDBSymbolTypeEnum.h",
+                    "replacements": [
+                        [
+                            "#include \"PDBSymbol.h\"",
+                            "#include \"PDBSymbol.h\"\n#include \"llvm/DebugInfo/PDB/IPDBLineNumber.h\"\n#include \"llvm/DebugInfo/PDB/PDBSymbolTypeBuiltin.h\""
+                        ]
+                    ]
+                },
+                {
+                    "file": "public/llvm/MC/MCGOFFStreamer.h",
+                    "replacements": [
+                        [
+                            "#include \"llvm/MC/MCObjectStreamer.h\"",
+                            "#include \"llvm/MC/MCObjectStreamer.h\"\n#include \"llvm/MC/MCAsmBackend.h\"\n#include \"llvm/MC/MCCodeEmitter.h\""
+                        ]
+                    ]
+                },
+                {
+                    "file": "public/llvm/DebugInfo/PDB/Native/InputFile.h",
+                    "replacements": [
+                        [
+                            "#include \"llvm/Support/Error.h\"",
+                            "#include \"llvm/Support/Error.h\"\n#include \"llvm/DebugInfo/PDB/Native/NativeSession.h\"\n#include \"llvm/DebugInfo/CodeView/LazyRandomTypeCollection.h\""
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/llvm/include/llvm-c",
+            "destination": "public/llvm-c",
+            "recursive": true
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/llvm/lib",
+            "destination": "source/lib",
+            "recursive": true,
+            "extensions": [
+                ".cpp",
+                ".c",
+                ".h",
+                ".inc",
+                ".def"
+            ],
+            "exclude": [
+                "Support/BLAKE3/*_windows_msvc.asm",
+                "Support/BLAKE3/*_windows_gnu.S",
+                "Support/BLAKE3/*_windows_gnu.asm",
+                "Support/BLAKE3/*_windows_msvc.S",
+                "Support/BLAKE3/*_sse41.c",
+                "Support/BLAKE3/*_avx2.c",
+                "Support/BLAKE3/*_avx512.c",
+                "Support/BLAKE3/*_sse41_*",
+                "Support/BLAKE3/*_avx2_*",
+                "Support/BLAKE3/*_avx512_*",
+                "Support/BLAKE3/blake3_sse2.c",
+                "Target/AArch64/*",
+                "Target/AMDGPU/*",
+                "Target/ARC/*",
+                "Target/ARM/*",
+                "Target/AVR/*",
+                "Target/BPF/*",
+                "Target/CSKY/*",
+                "Target/DirectX/*",
+                "Target/Hexagon/*",
+                "Target/Lanai/*",
+                "Target/LoongArch/*",
+                "Target/M68k/*",
+                "Target/MSP430/*",
+                "Target/Mips/*",
+                "Target/NVPTX/*",
+                "Target/PowerPC/*",
+                "Target/RISCV/*",
+                "Target/SPIRV/*",
+                "Target/Sparc/*",
+                "Target/SystemZ/*",
+                "Target/VE/*",
+                "Target/WebAssembly/*",
+                "Target/XCore/*",
+                "Target/Xtensa/*",
+                "Testing/*",
+                "DebugInfo/PDB/DIA/*",
+                "ExecutionEngine/PerfJITEvents/*",
+                "source/lib/Support/BLAKE3/*_windows_msvc.asm",
+                "source/lib/Support/BLAKE3/*_windows_gnu.S",
+                "source/lib/Support/BLAKE3/*_windows_gnu.asm",
+                "source/lib/Support/BLAKE3/*_windows_msvc.S",
+                "source/lib/Support/BLAKE3/*_sse41.c",
+                "source/lib/Support/BLAKE3/*_avx2.c",
+                "source/lib/Support/BLAKE3/*_avx512.c",
+                "source/lib/Support/BLAKE3/*_sse41_*",
+                "source/lib/Support/BLAKE3/*_avx2_*",
+                "source/lib/Support/BLAKE3/*_avx512_*",
+                "source/lib/Support/BLAKE3/blake3_sse2.c",
+                "source/lib/Target/AArch64/*",
+                "source/lib/Target/AMDGPU/*",
+                "source/lib/Target/ARC/*",
+                "source/lib/Target/ARM/*",
+                "source/lib/Target/AVR/*",
+                "source/lib/Target/BPF/*",
+                "source/lib/Target/CSKY/*",
+                "source/lib/Target/DirectX/*",
+                "source/lib/Target/Hexagon/*",
+                "source/lib/Target/Lanai/*",
+                "source/lib/Target/LoongArch/*",
+                "source/lib/Target/M68k/*",
+                "source/lib/Target/MSP430/*",
+                "source/lib/Target/Mips/*",
+                "source/lib/Target/NVPTX/*",
+                "source/lib/Target/PowerPC/*",
+                "source/lib/Target/RISCV/*",
+                "source/lib/Target/SPIRV/*",
+                "source/lib/Target/Sparc/*",
+                "source/lib/Target/SystemZ/*",
+                "source/lib/Target/VE/*",
+                "source/lib/Target/WebAssembly/*",
+                "source/lib/Target/XCore/*",
+                "source/lib/Target/Xtensa/*",
+                "source/lib/Testing/*",
+                "source/lib/DebugInfo/PDB/DIA/*",
+                "source/lib/ExecutionEngine/PerfJITEvents/*"
+            ],
+            "replace": [
+                {
+                    "file": "source/lib/Support/Unix/Path.inc",
+                    "replacements": [
+                        [
+                            "#else\n#error GetMainExecutable is not implemented on this host yet.\n#endif",
+                            "#elif defined(PERCEPTION)\n  return \"\";\n#else\n#error GetMainExecutable is not implemented on this host yet.\n#endif"
+                        ],
+                        [
+                            "#else\n  return !!(STATVFS_F_FLAG(Vfs) & MNT_LOCAL);\n#endif",
+                            "#elif defined(PERCEPTION)\n  return true;\n#else\n  return !!(STATVFS_F_FLAG(Vfs) & MNT_LOCAL);\n#endif"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib/Remarks/BitstreamRemarkParser.h",
+                    "replacements": [
+                        [
+                            "#include \"llvm/Remarks/RemarkParser.h\"",
+                            "#include \"llvm/Remarks/RemarkParser.h\"\n#include \"llvm/Support/MemoryBuffer.h\""
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib/CodeGen/LiveDebugVariables.cpp",
+                    "replacements": [
+                        [
+                            "LiveDebugVariables::LiveDebugVariables() = default;\nLiveDebugVariables::~LiveDebugVariables() = default;\nLiveDebugVariables::LiveDebugVariables(LiveDebugVariables &&) = default;",
+                            ""
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib/CodeGen/RDFLiveness.cpp",
+                    "replacements": [
+                        [
+                            "std::less<RegisterRef>(PRI)",
+                            "RegisterRefLess(PRI)"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib/Analysis/ValueTracking.cpp",
+                    "replacements": [
+                        [
+                            "uint64_t MaxVL = MaxVLEN / RISCVVType::getSEWLMULRatio(SEW, VLMUL);",
+                            "uint64_t MaxVL = 0; // Stubbed for X86-only build"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib/BinaryFormat/MachO.cpp",
+                    "replacements": [
+                        [
+                            "ARM::parseArch(Arch)",
+                            "ARM::ArchKind::INVALID"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib/TargetParser/Triple.cpp",
+                    "replacements": [
+                        [
+                            "ARM::parseArchISA(ArchName)",
+                            "ARM::ISAKind::INVALID"
+                        ],
+                        [
+                            "ARM::parseArchEndian(ArchName)",
+                            "ARM::EndianKind::INVALID"
+                        ],
+                        [
+                            "ARM::parseArchProfile(ArchName)",
+                            "ARM::ProfileKind::INVALID"
+                        ],
+                        [
+                            "ARM::parseArchVersion(ArchName)",
+                            "0"
+                        ],
+                        [
+                            "ARM::parseArch(ARMSubArch)",
+                            "ARM::ArchKind::INVALID"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib/ExecutionEngine/GDBRegistrationListener.cpp",
+                    "replacements": [
+                        [
+                            "  extern struct jit_descriptor __jit_debug_descriptor;\n\n  // Debuggers puts a breakpoint in this function.\n  extern \"C\" void __jit_debug_register_code();",
+                            "  // Define these here as dummy symbols to satisfy the linker, since they\n  // don't compile Orc's JITLoaderGDB.cpp which normally defines them.\n  struct jit_descriptor __jit_debug_descriptor = { 1, 0, nullptr, nullptr };\n  LLVM_ATTRIBUTE_NOINLINE void __jit_debug_register_code() {\n#if defined(__GNUC__)\n    asm(\"\");\n#endif\n  }"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib/Object/ELFObjectFile.cpp",
+                    "replacements": [
+                        [
+                            "  std::optional<StringRef> Attr =\n      Attributes.getAttributeString(RISCVAttrs::ARCH);\n  if (Attr) {\n    auto ParseResult = RISCVISAInfo::parseNormalizedArchString(*Attr);\n    if (!ParseResult)\n      return ParseResult.takeError();\n    auto &ISAInfo = *ParseResult;\n\n    if (ISAInfo->getXLen() == 32)\n      Features.AddFeature(\"64bit\", false);\n    else if (ISAInfo->getXLen() == 64)\n      Features.AddFeature(\"64bit\");\n    else\n      llvm_unreachable(\"XLEN should be 32 or 64.\");\n\n    Features.addFeaturesVector(ISAInfo->toFeatures());\n  }",
+                            "  std::optional<StringRef> Attr =\n      Attributes.getAttributeString(RISCVAttrs::ARCH);\n  if (Attr) {\n    // Stubbed out for X86-only build to avoid RISCVISAInfo dependency\n  }"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib/TableGen/TGParser.h",
+                    "replacements": [
+                        [
+                            "  RecordsEntry();\n  RecordsEntry(std::unique_ptr<Record> Rec) : Rec(std::move(Rec)) {}\n  RecordsEntry(std::unique_ptr<ForeachLoop> Loop) : Loop(std::move(Loop)) {}\n  RecordsEntry(std::unique_ptr<Record::AssertionInfo> Assertion)\n      : Assertion(std::move(Assertion)) {}\n  RecordsEntry(std::unique_ptr<Record::DumpInfo> Dump)\n      : Dump(std::move(Dump)) {}\n  ~RecordsEntry();",
+                            "  RecordsEntry();\n  RecordsEntry(std::unique_ptr<Record> Rec);\n  RecordsEntry(std::unique_ptr<ForeachLoop> Loop);\n  RecordsEntry(std::unique_ptr<Record::AssertionInfo> Assertion);\n  RecordsEntry(std::unique_ptr<Record::DumpInfo> Dump);\n  RecordsEntry(RecordsEntry &&);\n  RecordsEntry &operator=(RecordsEntry &&);\n  ~RecordsEntry();"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib/TableGen/TGParser.cpp",
+                    "replacements": [
+                        [
+                            "using namespace llvm;\n\n//===----------------------------------------------------------------------===//",
+                            "using namespace llvm;\n\nRecordsEntry::RecordsEntry() = default;\nRecordsEntry::RecordsEntry(std::unique_ptr<Record> Rec) : Rec(std::move(Rec)) {}\nRecordsEntry::RecordsEntry(std::unique_ptr<ForeachLoop> Loop) : Loop(std::move(Loop)) {}\nRecordsEntry::RecordsEntry(std::unique_ptr<Record::AssertionInfo> Assertion)\n    : Assertion(std::move(Assertion)) {}\nRecordsEntry::RecordsEntry(std::unique_ptr<Record::DumpInfo> Dump)\n    : Dump(std::move(Dump)) {}\nRecordsEntry::RecordsEntry(RecordsEntry &&) = default;\nRecordsEntry &RecordsEntry::operator=(RecordsEntry &&) = default;\nRecordsEntry::~RecordsEntry() = default;\n\n//===----------------------------------------------------------------------===//"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib/ObjCopy/ELF/ELFObject.h",
+                    "replacements": [
+                        [
+                            "public:\n  BasicELFBuilder() : Obj(std::make_unique<Object>()) {}\n};",
+                            "public:\n  BasicELFBuilder();\n  virtual ~BasicELFBuilder();\n};"
+                        ]
+                    ]
+                },
+                {
+                    "file": "source/lib/ObjCopy/ELF/ELFObject.cpp",
+                    "replacements": [
+                        [
+                            "using namespace llvm;\nusing namespace llvm::ELF;",
+                            "using namespace llvm;\nusing namespace object;\nusing namespace objcopy;\nusing namespace objcopy::elf;\n\nBasicELFBuilder::BasicELFBuilder() : Obj(std::make_unique<Object>()) {}\nBasicELFBuilder::~BasicELFBuilder() = default;\nusing namespace llvm::ELF;"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "operation": "execute",
+            "command": "python3 extract_llvm.py ${git}/llvm",
+            "directory": "${@}",
+            "inputs": [
+                "extract_llvm.py",
+                "${git}/llvm/include/llvm/CodeGen/ValueTypes.td",
+                "${git}/llvm/include/llvm/IR/Attributes.td",
+                "${git}/llvm/include/llvm/IR/Intrinsics.td",
+                "${git}/llvm/lib/Target/X86/X86.td",
+                "${git}/llvm/include/llvm/Frontend/OpenMP/OMP.td"
+            ],
+            "outputs": [
+                "generated/llvm/Config/config.h",
+                "generated/llvm/Config/llvm-config.h",
+                "generated/llvm/Config/abi-breaking.h",
+                "generated/machine/endian.h",
+                "generated/llvm/Config/Targets.def",
+                "generated/llvm/Config/AsmPrinters.def",
+                "generated/llvm/Config/AsmParsers.def",
+                "generated/llvm/Config/Disassemblers.def",
+                "generated/llvm/Config/TargetMCAs.def",
+                "generated/llvm/Support/VCSRevision.h",
+                "generated/llvm/Support/Extension.def",
+                "generated/llvm/CodeGen/GenVT.inc",
+                "generated/llvm/IR/Attributes.inc",
+                "generated/llvm/IR/IntrinsicImpl.inc",
+                "generated/llvm/IR/IntrinsicEnums.inc",
+                "generated/llvm/IR/IntrinsicsAArch64.h",
+                "generated/llvm/IR/IntrinsicsAMDGPU.h",
+                "generated/llvm/IR/IntrinsicsARM.h",
+                "generated/llvm/IR/IntrinsicsBPF.h",
+                "generated/llvm/IR/IntrinsicsDirectX.h",
+                "generated/llvm/IR/IntrinsicsHexagon.h",
+                "generated/llvm/IR/IntrinsicsLoongArch.h",
+                "generated/llvm/IR/IntrinsicsMips.h",
+                "generated/llvm/IR/IntrinsicsNVPTX.h",
+                "generated/llvm/IR/IntrinsicsPowerPC.h",
+                "generated/llvm/IR/IntrinsicsR600.h",
+                "generated/llvm/IR/IntrinsicsRISCV.h",
+                "generated/llvm/IR/IntrinsicsSPIRV.h",
+                "generated/llvm/IR/IntrinsicsS390.h",
+                "generated/llvm/IR/IntrinsicsWebAssembly.h",
+                "generated/llvm/IR/IntrinsicsX86.h",
+                "generated/llvm/IR/IntrinsicsXCore.h",
+                "generated/llvm/IR/IntrinsicsVE.h",
+                "generated/llvm/Target/X86/X86GenAsmMatcher.inc",
+                "generated/llvm/Target/X86/X86GenAsmWriter.inc",
+                "generated/llvm/Target/X86/X86GenAsmWriter1.inc",
+                "generated/llvm/Target/X86/X86GenCallingConv.inc",
+                "generated/llvm/Target/X86/X86GenDAGISel.inc",
+                "generated/llvm/Target/X86/X86GenDisassemblerTables.inc",
+                "generated/llvm/Target/X86/X86GenFastISel.inc",
+                "generated/llvm/Target/X86/X86GenInstrInfo.inc",
+                "generated/llvm/Target/X86/X86GenRegisterBank.inc",
+                "generated/llvm/Target/X86/X86GenRegisterInfo.inc",
+                "generated/llvm/Target/X86/X86GenSubtargetInfo.inc",
+                "generated/llvm/Target/X86/X86GenInstrMapping.inc",
+                "generated/llvm/Target/X86/X86GenGlobalISel.inc",
+                "generated/llvm/Target/X86/X86GenFoldTables.inc",
+                "generated/llvm/Target/X86/X86GenMnemonicTables.inc",
+                "public/llvm/Frontend/OpenMP/OMP.h.inc",
+                "public/llvm/Frontend/OpenMP/OMP.inc"
+            ]
+        }
+    ]
+}
