@@ -444,6 +444,46 @@ void ScanAllSettings() {
   }
 }
 
+void SelectPackageByName(std::string_view package_name) {
+  if (package_name.empty()) {
+    selected_package_index = 0;
+    return;
+  }
+
+  for (size_t i = 0; i < all_packages.size(); ++i) {
+    if (all_packages[i].corpus == RegistryCorpus::APPLICATIONS &&
+        (all_packages[i].ns_name == package_name ||
+         all_packages[i].display_name == package_name)) {
+      selected_package_index = static_cast<int>(i) + 1;
+      selected_page_path.clear();
+      return;
+    }
+  }
+
+  for (size_t i = 0; i < all_packages.size(); ++i) {
+    if (all_packages[i].ns_name == package_name ||
+        all_packages[i].display_name == package_name) {
+      selected_package_index = static_cast<int>(i) + 1;
+      selected_page_path.clear();
+      return;
+    }
+  }
+
+  std::string target_lower(package_name);
+  std::transform(target_lower.begin(), target_lower.end(), target_lower.begin(),
+                 ::tolower);
+  for (size_t i = 0; i < all_packages.size(); ++i) {
+    std::string ns_lower = all_packages[i].ns_name;
+    std::transform(ns_lower.begin(), ns_lower.end(), ns_lower.begin(),
+                   ::tolower);
+    if (ns_lower == target_lower) {
+      selected_package_index = static_cast<int>(i) + 1;
+      selected_page_path.clear();
+      return;
+    }
+  }
+}
+
 SettingType ParseSettingType(std::string_view type_str, bool has_options) {
   if (has_options) return SettingType::OPTIONS;
   static const std::map<std::string, SettingType, std::less<>> kTypeMap = {

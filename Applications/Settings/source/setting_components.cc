@@ -321,6 +321,11 @@ std::shared_ptr<Node> BuildSettingComponent(RegistryCorpus corpus,
           (setting.min_val != setting.max_val) ? setting.max_val : 1000.0;
       double step_v = (setting.step_val > 0.0) ? setting.step_val : 1.0;
 
+      bool is_float =
+          (display_val.GetType() == Value::Type::FLOAT) ||
+          (original_values[change_key].GetType() == Value::Type::FLOAT) ||
+          (step_v != std::floor(step_v));
+
       double current_val = 1.0;
       if (display_val.GetType() == Value::Type::INTEGER) {
         current_val =
@@ -334,10 +339,15 @@ std::shared_ptr<Node> BuildSettingComponent(RegistryCorpus corpus,
 
       auto label_ptr = std::make_shared<std::shared_ptr<Node>>();
       char label_buf[32];
+      const char* fmt_with_unit =
+          (step_v != std::floor(step_v)) ? "%.2f%s" : "%.0f%s";
+      const char* fmt_pct =
+          (step_v != std::floor(step_v)) ? "%.2f%%" : "%.0f%%";
       if (!setting.unit.empty()) {
-        std::sprintf(label_buf, "%.0f%s", current_val, setting.unit.c_str());
+        std::sprintf(label_buf, fmt_with_unit, current_val,
+                     setting.unit.c_str());
       } else {
-        std::sprintf(label_buf, "%.0f%%", current_val);
+        std::sprintf(label_buf, fmt_pct, current_val);
       }
       auto value_label = Label::BasicLabel(
           label_buf, [](Layout& layout) { layout.SetMinWidth(50.0f); });
@@ -350,7 +360,8 @@ std::shared_ptr<Node> BuildSettingComponent(RegistryCorpus corpus,
           Slider::BasicSlider(
               static_cast<float>(min_v), static_cast<float>(max_v),
               static_cast<float>(current_val),
-              [corpus, ns_name, key, min_v, max_v, step_v, setting, change_key,
+              [corpus, ns_name, key, min_v, max_v, step_v, is_float,
+               fmt_with_unit, fmt_pct, setting, change_key,
                label_ptr](float raw_val) {
                 double snapped =
                     min_v + std::round((raw_val - min_v) / step_v) * step_v;
@@ -360,17 +371,21 @@ std::shared_ptr<Node> BuildSettingComponent(RegistryCorpus corpus,
                 if (label_ptr && *label_ptr) {
                   char buf[32];
                   if (!setting.unit.empty()) {
-                    std::sprintf(buf, "%.0f%s", snapped, setting.unit.c_str());
+                    std::sprintf(buf, fmt_with_unit, snapped,
+                                 setting.unit.c_str());
                   } else {
-                    std::sprintf(buf, "%.0f%%", snapped);
+                    std::sprintf(buf, fmt_pct, snapped);
                   }
-                  if (auto lbl = (*label_ptr)->Get<Label>()) {
+                  if (auto lbl = (*label_ptr)->Get<Label>())
                     lbl->SetText(buf);
-                  }
                 }
 
                 Value new_val;
-                new_val.SetInteger(static_cast<int64>(std::round(snapped)));
+                if (is_float) {
+                  new_val.SetFloat(static_cast<float>(snapped));
+                } else {
+                  new_val.SetInteger(static_cast<int64>(std::round(snapped)));
+                }
                 StageChange(corpus, ns_name, key, new_val,
                             original_values[change_key]);
               },

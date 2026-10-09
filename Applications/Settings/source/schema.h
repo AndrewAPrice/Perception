@@ -82,6 +82,8 @@ extern int selected_package_index;
 
 const std::vector<std::string>& GetInstalledApplications();
 void ScanAllSettings();
+// Selects a package filter by package or application name.
+void SelectPackageByName(std::string_view package_name);
 bool RefreshInstanceGroupSettings();
 bool MatchesInstanceGroupSchema(::perception::RegistryCorpus corpus,
                                 std::string_view ns_name,

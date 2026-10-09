@@ -343,6 +343,13 @@ void RefreshLeftPanel() {
     curr->has_settings = true;
   }
 
+  if (selected_page_path.empty() && !root->children.empty()) {
+    auto default_node = root->children.begin()->second;
+    while (!default_node->has_settings && default_node->children.size() == 1)
+      default_node = default_node->children.begin()->second;
+    selected_page_path = default_node->full_path;
+  }
+
   std::shared_ptr<TreeViewItem> item_to_select;
   auto root_items = BuildTreeNodes(root, item_to_select);
   if (tree_view && tree_view->GetContentContainer()) {
@@ -559,7 +566,17 @@ void RefreshRightPanel(bool preserve_scroll) {
     new_children.push_back(card_container);
   }
 
-  if (!orphaned_keys.empty()) {
+  std::vector<OrphanedKey> visible_orphaned_keys;
+  for (const auto& ok : orphaned_keys) {
+    if (selected_package_index > 0 &&
+        selected_package_index <= static_cast<int>(all_packages.size())) {
+      const auto& pkg = all_packages[selected_package_index - 1];
+      if (ok.corpus != pkg.corpus || ok.ns_name != pkg.ns_name) continue;
+    }
+    visible_orphaned_keys.push_back(ok);
+  }
+
+  if (!visible_orphaned_keys.empty()) {
     new_children.push_back(Label::BasicLabel(
         "Orphaned Settings (Registry Clean Up)",
         [](Label& label) { label.SetColor(0xFF990000); },
@@ -568,7 +585,7 @@ void RefreshRightPanel(bool preserve_scroll) {
           layout.SetMargin(YGEdgeBottom, 8.0f);
         }));
 
-    for (const auto& ok : orphaned_keys) {
+    for (const auto& ok : visible_orphaned_keys) {
       new_children.push_back(Label::BasicLabel(
           ok.ns_name + ":" + ok.key + " = " + RegistryValueToString(ok.val),
           [](Label& label) { label.SetColor(0xFF666666); },
@@ -577,10 +594,9 @@ void RefreshRightPanel(bool preserve_scroll) {
 
     new_children.push_back(Button::TextButton(
         "Clean Up Orphaned Keys",
-        []() {
-          for (const auto& ok : orphaned_keys) {
+        [visible_orphaned_keys]() {
+          for (const auto& ok : visible_orphaned_keys)
             DeleteRegistryValue(ok.corpus, ok.ns_name, ok.key);
-          }
           ScanForOrphanedKeys();
           RefreshRightPanel();
         },
@@ -667,6 +683,7 @@ void InitializeSettingsWindow() {
                       PackageDropdownOptions(), selected_package_index,
                       [](int idx) {
                         selected_package_index = idx;
+                        selected_page_path.clear();
                         RefreshLeftPanel();
                       },
                       [](Layout& layout) { layout.SetWidthPercent(100.0f); })),

@@ -18,8 +18,10 @@
 
 using ::perception::HandOverControl;
 
-int main() {
+int main(int argc, char* argv[]) {
   ScanAllSettings();
+  if (argc > 1 && argv[1] != nullptr)
+    SelectPackageByName(argv[1]);
   InitializeSettingsWindow();
   HandOverControl();
   return 0;
