@@ -1,4 +1,5 @@
 {
+  skip_for_tests: true,
   asset_directories: [
     'assets',
   ],
