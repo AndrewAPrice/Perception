@@ -189,6 +189,10 @@ class ScrollContainer : public UniqueIdentifiableType<ScrollContainer>,
 
   void SetContentPosition(const Point& position);
   Point ContentPosition();
+
+  // Scrolls the container by `delta` and returns the consumed scroll delta.
+  Point ScrollBy(const Point& delta);
+
   void SetContentAndContainerNodes(std::weak_ptr<Node> scroll_content,
                                    std::weak_ptr<Node> scroll_container);
 

@@ -43,7 +43,15 @@ inline bool HasExplicitPadding(Layout layout) {
 
 ScrollContainer::ScrollContainer() : has_calculated_content_size_(false) {}
 
-void ScrollContainer::SetNode(std::weak_ptr<Node> node) {}
+void ScrollContainer::SetNode(std::weak_ptr<Node> node) {
+  if (auto strong_node = node.lock()) {
+    strong_node->SetBlocksHitTest(true);
+    strong_node->OnMouseScroll(
+        [this](const Point&, const Point& delta) -> Point {
+          return ScrollBy(delta);
+        });
+  }
+}
 
 void ScrollContainer::SetContentPadding(float padding) {
   if (auto content = scroll_content_.lock())
@@ -79,6 +87,21 @@ Point ScrollContainer::ContentPosition() {
   if (!scroll_container) return Point{0.0f, 0.0f};
 
   return scroll_container->GetOffset();
+}
+
+Point ScrollContainer::ScrollBy(const Point& delta) {
+  bool can_scroll_x = !scroll_bars_[0].expired() || scroll_bars_[1].expired();
+  bool can_scroll_y = !scroll_bars_[1].expired() || scroll_bars_[0].expired();
+  Point effective_delta = {.x = can_scroll_x ? delta.x : 0.0f,
+                           .y = can_scroll_y ? delta.y : 0.0f};
+  if (effective_delta.x == 0.0f && effective_delta.y == 0.0f)
+    return Point{0.0f, 0.0f};
+
+  Point old_pos = ContentPosition();
+  SetContentPosition(old_pos + effective_delta);
+  UpdateScrollBars();
+  Point new_pos = ContentPosition();
+  return new_pos - old_pos;
 }
 
 void ScrollContainer::SetContentAndContainerNodes(
@@ -146,14 +169,14 @@ void ScrollContainer::ScrollIntoView(std::shared_ptr<Node> node) {
   Size container_size = ContainerSize();
   Point scroll = ContentPosition();
 
-  Point new_pos;
+  Point new_pos = scroll;
   for (int d = 0; d < 2; d++) {
     if (rel_pos[d] + node_size[d] > scroll[d] + container_size[d])
       new_pos[d] = rel_pos[d] + node_size[d] - container_size[d];
     if (rel_pos[d] < new_pos[d]) new_pos[d] = rel_pos[d];
   }
 
-  if (new_pos != rel_pos) {
+  if (new_pos != scroll) {
     SetContentPosition(new_pos);
     UpdateScrollBars();
   }

@@ -31,10 +31,17 @@ namespace ui {
 namespace components {
 namespace {
 
-constexpr float kMinFabSize = 12;
+// Minimum length in pixels of the scroll bar thumb handle.
+constexpr float kMinFabSize = 12.0f;
+
+// Thumb handle fill color when idle.
 constexpr uint32 kIdleFabColor = SkColorSetARGB(0xff, 0xDC, 0xDC, 0xDC);
-constexpr uint32 kHoverFabColor = SkColorSetARGB(0xff, 0xCF, 0xCF, 0XCF);
-constexpr uint32 kDragFabColor = SkColorSetARGB(0xff, 0xC0, 0xC0, 0XC0);
+
+// Thumb handle fill color on mouse hover.
+constexpr uint32 kHoverFabColor = SkColorSetARGB(0xff, 0xCF, 0xCF, 0xCF);
+
+// Thumb handle fill color while being dragged.
+constexpr uint32 kDragFabColor = SkColorSetARGB(0xff, 0xC0, 0xC0, 0xC0);
 
 }  // namespace
 
@@ -65,6 +72,7 @@ void ScrollBar::SetNode(std::weak_ptr<Node> node) {
       std::bind_front(&ScrollBar::MouseButtonDown, this));
   strong_node->OnMouseButtonUp(
       std::bind_front(&ScrollBar::MouseButtonUp, this));
+  strong_node->OnMouseScroll(std::bind_front(&ScrollBar::MouseScroll, this));
 }
 
 std::shared_ptr<Node> ScrollBar::GetFab() { return fab_; }
@@ -96,18 +104,16 @@ void ScrollBar::OnScroll(std::function<void(float)> on_scroll_handler) {
 void ScrollBar::SetValue(float minimum, float maximum, float value,
                          float size) {
   if (minimum_ == minimum && maximum_ == maximum && value_ == value &&
-      size_ == size) {
+      size_ == size)
     return;
-  }
 
   minimum_ = minimum;
   maximum_ = maximum;
   value_ = value;
   size_ = size;
 
-  if (!node_.expired()) {
+  if (!node_.expired())
     node_.lock()->Invalidate();
-  }
 }
 
 float ScrollBar::GetValue() const { return value_; }
@@ -115,15 +121,18 @@ float ScrollBar::GetValue() const { return value_; }
 std::pair<float, float> ScrollBar::CalculateFabOffsetAndSize(
     float available_length) const {
   float range = maximum_ - minimum_;
-  if (range <= size_ || range == 0.0f) {
+  if (range <= size_ || range <= 0.0f || available_length <= 0.0f)
     return {0.0f, available_length};
-  }
-  // Percentage of the scroll bar that the fab takes up.
-  float size = size_ / range;
-  // Percentage of the scroll bar to be offset into.
-  float offset = (value_ - minimum_) / range;
 
-  return {offset * available_length, size * available_length};
+  float fab_length =
+      std::min(available_length,
+               std::max((size_ / range) * available_length, kMinFabSize));
+  float max_scroll_value = range - size_;
+  float scroll_pct =
+      std::clamp((value_ - minimum_) / max_scroll_value, 0.0f, 1.0f);
+  float offset = scroll_pct * (available_length - fab_length);
+
+  return {offset, fab_length};
 }
 
 float ScrollBar::CalculateDragPosition(float mouse_offset, float fab_length,
@@ -133,9 +142,8 @@ float ScrollBar::CalculateDragPosition(float mouse_offset, float fab_length,
 
   float fab_offset = fab_length / 2.0f;
 
-  if (drag_started_on_fab_) {
+  if (drag_started_on_fab_)
     mouse_offset += fab_length / 2.0f - fab_drag_offset_;
-  }
 
   // Get percentage along the clickable length.
   float clicked_track_pct =
@@ -236,9 +244,11 @@ void ScrollBar::MouseButtonDown(const Point& point,
     return;
 
   uint32 previous_fab_color = GetFabColor();
+  is_mouse_hovering_over_track_ = true;
+  is_mouse_hovering_over_fab_ = GetFabArea().Contains(point);
+
   if (is_mouse_hovering_over_fab_) {
-    // The user started to draw the fab. Record the grab position but don't move
-    // the fab until the user moves the mouse.
+    // Record the grab position on the fab without moving it until the mouse moves.
     is_dragging_ = true;
     drag_started_on_fab_ = true;
 
@@ -264,7 +274,7 @@ void ScrollBar::MouseButtonDown(const Point& point,
     }
 
   } else if (is_mouse_hovering_over_track_) {
-    // User clicked the track, so move the fab to the track location.
+    // Move the fab to the clicked track location.
     is_dragging_ = true;
     drag_started_on_fab_ = false;
     MouseHover(point);
@@ -281,8 +291,40 @@ void ScrollBar::MouseButtonUp(const Point& point, window::MouseButton button) {
   is_dragging_ = false;
   drag_started_on_fab_ = false;
 
+  if (!node_.expired()) {
+    auto strong_node = node_.lock();
+    Rectangle track_area = {.origin = {.x = 0.0f, .y = 0.0f},
+                            .size = strong_node->GetSize()};
+    is_mouse_hovering_over_track_ = track_area.Contains(point);
+    is_mouse_hovering_over_fab_ =
+        is_mouse_hovering_over_track_ && GetFabArea().Contains(point);
+  }
+
   if (previous_fab_color != GetFabColor() && !node_.expired())
     node_.lock()->Invalidate();
+}
+
+Point ScrollBar::MouseScroll(const Point& point, const Point& delta) {
+  (void)point;
+  float max_scroll_value = std::max(minimum_, maximum_ - size_);
+  if (max_scroll_value <= minimum_) return Point{.x = 0.0f, .y = 0.0f};
+
+  float axis_delta =
+      (direction_ == Direction::HORIZONTAL) ? delta.x : delta.y;
+  if (axis_delta == 0.0f) return Point{.x = 0.0f, .y = 0.0f};
+
+  float old_value = value_;
+  float new_value =
+      std::clamp(old_value + axis_delta, minimum_, max_scroll_value);
+  if (new_value != old_value) {
+    value_ = new_value;
+    for (const auto& handler : on_scroll_handlers_) handler(value_);
+    if (!node_.expired()) node_.lock()->Invalidate();
+  }
+  float consumed = new_value - old_value;
+  return (direction_ == Direction::HORIZONTAL)
+             ? Point{.x = consumed, .y = 0.0f}
+             : Point{.x = 0.0f, .y = consumed};
 }
 
 void ScrollBar::Draw(const DrawContext& draw_context) {

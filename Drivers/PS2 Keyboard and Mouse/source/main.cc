@@ -48,33 +48,64 @@ using ::perception::window::WindowManager;
 
 namespace {
 
+// Maximum polling iterations when waiting for PS/2 controller readiness.
 constexpr size_t kTimeout = 100000;
+
+// PS/2 Set 1 extended scancode prefix byte.
+constexpr uint8 kExtendedScancodePrefix = 0xE0;
+
+// PS/2 command to set mouse sample rate.
+constexpr uint8 kSetSampleRateCommand = 0xF3;
+
+// PS/2 command to query device ID.
+constexpr uint8 kGetDeviceIdCommand = 0xF2;
+
+// PS/2 command to set default mouse parameters.
+constexpr uint8 kSetDefaultsCommand = 0xF6;
+
+// PS/2 command to enable mouse packet streaming.
+constexpr uint8 kEnablePacketStreamingCommand = 0xF4;
+
+// PS/2 device ID for standard IntelliMouse with vertical scroll wheel.
+constexpr uint8 kIntelliMouseDeviceId = 3;
+
+// PS/2 device ID for IntelliMouse Explorer with 5 buttons and scroll wheel.
+constexpr uint8 kIntelliMouseExplorerDeviceId = 4;
 
 // #define SYSTEM_KEY_TOGGLES_PROFILING
 
 // The system key (set to Escape) to send to the window manager.
 constexpr uint8 kSystemKeyDown = 1;
 
-enum class MousePacketState { kAwaitingByte1, kAwaitingByte2, kAwaitingByte3 };
+enum class MousePacketState {
+  kAwaitingByte1,
+  kAwaitingByte2,
+  kAwaitingByte3,
+  kAwaitingByte4
+};
 
 class PS2MouseDevice : public MouseDevice::Server {
  public:
   PS2MouseDevice()
       : packet_state_(MousePacketState::kAwaitingByte1),
-        last_button_state_{false, false, false} {}
+        last_button_state_{false, false, false},
+        has_scroll_wheel_(false),
+        is_five_button_wheel_(false) {}
 
   virtual ~PS2MouseDevice() {
-    if (mouse_captor_) {
-      // Tell the captor the mouse was let go.
-      mouse_captor_->MouseReleased(nullptr);
-    }
+    if (mouse_captor_) mouse_captor_->MouseReleased(nullptr);
+  }
+
+  void SetHasScrollWheel(bool has_scroll_wheel, bool is_five_button_wheel) {
+    has_scroll_wheel_ = has_scroll_wheel;
+    is_five_button_wheel_ = is_five_button_wheel;
   }
 
   void HandleMouseInterrupt(uint8 val) {
     switch (packet_state_) {
       case MousePacketState::kAwaitingByte1:
-        // The first byte must have bit 3 set. If not, we're out of sync.
-        // Stay in this state and ignore the byte.
+        // The first byte must have bit 3 set. If not, the stream is out of
+        // sync; stay in this state and ignore the byte.
         if ((val & (1 << 3)) == 0) return;
         mouse_byte_buffer_[0] = val;
         packet_state_ = MousePacketState::kAwaitingByte2;
@@ -84,8 +115,18 @@ class PS2MouseDevice : public MouseDevice::Server {
         packet_state_ = MousePacketState::kAwaitingByte3;
         break;
       case MousePacketState::kAwaitingByte3:
-        // We have all 3 bytes, process the packet.
-        ProcessMouseMessage(mouse_byte_buffer_[0], mouse_byte_buffer_[1], val);
+        if (has_scroll_wheel_) {
+          mouse_byte_buffer_[2] = val;
+          packet_state_ = MousePacketState::kAwaitingByte4;
+        } else {
+          ProcessMouseMessage(mouse_byte_buffer_[0], mouse_byte_buffer_[1], val,
+                              0);
+          packet_state_ = MousePacketState::kAwaitingByte1;
+        }
+        break;
+      case MousePacketState::kAwaitingByte4:
+        ProcessMouseMessage(mouse_byte_buffer_[0], mouse_byte_buffer_[1],
+                            mouse_byte_buffer_[2], val);
         packet_state_ = MousePacketState::kAwaitingByte1;
         break;
     }
@@ -93,13 +134,9 @@ class PS2MouseDevice : public MouseDevice::Server {
 
   virtual Status SetMouseListener(
       const MouseListener::Client& listener) override {
-    if (mouse_captor_) {
-      // Let the old captor know the mouse has escaped.
-      mouse_captor_->MouseReleased(nullptr);
-    }
+    if (mouse_captor_) mouse_captor_->MouseReleased(nullptr);
     if (listener.IsValid()) {
       mouse_captor_ = std::make_unique<MouseListener::Client>(listener);
-      // Let our captor know they have taken the mouse captive.
       mouse_captor_->MouseTakenCaptive(nullptr);
     } else {
       mouse_captor_.reset();
@@ -108,19 +145,26 @@ class PS2MouseDevice : public MouseDevice::Server {
   }
 
  private:
-  // Messages from the mouse come in 3 bytes. Buffer these until there are
+  // Messages from the mouse come in 3 or 4 bytes. Buffer these until there are
   // enough bytes to process the message.
   MousePacketState packet_state_;
-  uint8 mouse_byte_buffer_[2];
+  uint8 mouse_byte_buffer_[3];
 
   // The last known state of the mouse buttons.
   bool last_button_state_[3];
+
+  // Whether the mouse sends 4-byte packets with scroll wheel data.
+  bool has_scroll_wheel_;
+
+  // Whether the 4th byte uses 4-bit signed scroll plus extra button bits.
+  bool is_five_button_wheel_;
 
   // The service to send mouse events to.
   std::unique_ptr<MouseListener::Client> mouse_captor_;
 
   // Processes the mouse message.
-  void ProcessMouseMessage(uint8 status, uint8 offset_x, uint8 offset_y) {
+  void ProcessMouseMessage(uint8 status, uint8 offset_x, uint8 offset_y,
+                           uint8 byte4) {
     int16 delta_x = 0;
     if (status & (1 << 6)) {
       std::cout << "X overflowed!" << std::endl;
@@ -136,11 +180,22 @@ class PS2MouseDevice : public MouseDevice::Server {
     }
 
     if ((delta_x != 0 || delta_y != 0) && mouse_captor_) {
-      // Send our captor a message that the mouse has moved.
       RelativeMousePositionEvent message;
       message.delta_x = static_cast<float>(delta_x);
       message.delta_y = static_cast<float>(delta_y);
       mouse_captor_->MouseMove(message, nullptr);
+    }
+
+    if (has_scroll_wheel_ && mouse_captor_) {
+      int8 scroll_z = is_five_button_wheel_
+                          ? (static_cast<int8>(byte4 << 4) >> 4)
+                          : static_cast<int8>(byte4);
+      if (scroll_z != 0) {
+        RelativeMousePositionEvent scroll_msg;
+        scroll_msg.delta_x = 0.0f;
+        scroll_msg.delta_y = static_cast<float>(scroll_z);
+        mouse_captor_->MouseScroll(scroll_msg, nullptr);
+      }
     }
 
     // Read the left, middle, right buttons.
@@ -151,7 +206,6 @@ class PS2MouseDevice : public MouseDevice::Server {
       if (buttons[button_index] != last_button_state_[button_index]) {
         last_button_state_[button_index] = buttons[button_index];
         if (mouse_captor_) {
-          // Send our captor a message that a mouse button has changed state.
           MouseButtonEvent message;
           switch (button_index) {
             case 0:
@@ -184,6 +238,8 @@ class PS2KeyboardDevice : public KeyboardDevice::Server {
   }
 
   void HandleKeyboardInterrupt(uint8 val) {
+    if (val == kExtendedScancodePrefix) return;
+
     if (val == kSystemKeyDown) {
 #ifdef SYSTEM_KEY_TOGGLES_PROFILING
       static bool profiling_enabled = false;
@@ -256,9 +312,11 @@ void InterruptHandler(const uint8* bytes) {
     }
 
     if (status & (1 << 5)) {
-      mouse_device->HandleMouseInterrupt(bytes[offset + 1]);
+      if (mouse_device != nullptr)
+        mouse_device->HandleMouseInterrupt(bytes[offset + 1]);
     } else {
-      keyboard_device->HandleKeyboardInterrupt(bytes[offset + 1]);
+      if (keyboard_device != nullptr)
+        keyboard_device->HandleKeyboardInterrupt(bytes[offset + 1]);
     }
   }
 }
@@ -291,6 +349,13 @@ uint8 MouseRead() {
   return Read8BitsFromPort(0x60);
 }
 
+void SetMouseSampleRate(uint8 rate) {
+  MouseWrite(kSetSampleRateCommand);
+  (void)MouseRead();
+  MouseWrite(rate);
+  (void)MouseRead();
+}
+
 void InitializePS2Controller() {
   // Enable auxiliary device.
   WaitForMouseSignal();
@@ -308,11 +373,26 @@ void InitializePS2Controller() {
   Write8BitsToPort(0x60, status);
 
   // Set the default values.
-  MouseWrite(0xF6);
+  MouseWrite(kSetDefaultsCommand);
   (void)MouseRead();
 
+  // Send the IntelliMouse magic sample rate sequence (200, 100, 80) to enable
+  // the vertical scroll wheel.
+  SetMouseSampleRate(200);
+  SetMouseSampleRate(100);
+  SetMouseSampleRate(80);
+
+  MouseWrite(kGetDeviceIdCommand);
+  (void)MouseRead();
+  uint8 device_id = MouseRead();
+
+  if (device_id == kIntelliMouseDeviceId ||
+      device_id == kIntelliMouseExplorerDeviceId)
+    mouse_device->SetHasScrollWheel(true,
+                                    device_id == kIntelliMouseExplorerDeviceId);
+
   // Enable packet streaming.
-  MouseWrite(0xF4);
+  MouseWrite(kEnablePacketStreamingCommand);
   (void)MouseRead();
 }
 
@@ -337,15 +417,21 @@ int main(int argc, char* argv[]) {
   if (enable_keyboard) {
     std::cout << "Initializing PS/2 Keyboard..." << std::endl;
     keyboard_device = std::make_unique<PS2KeyboardDevice>();
-    RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
-        /*irq=*/1, /*status_port=*/0x64, /*mask=*/1, /*read_port=*/0x60,
-        InterruptHandler);
   }
 
   if (enable_mouse) {
     std::cout << "Initializing PS/2 Mouse..." << std::endl;
     mouse_device = std::make_unique<PS2MouseDevice>();
     InitializePS2Controller();
+  }
+
+  if (enable_keyboard) {
+    RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
+        /*irq=*/1, /*status_port=*/0x64, /*mask=*/1, /*read_port=*/0x60,
+        InterruptHandler);
+  }
+
+  if (enable_mouse) {
     RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
         /*irq=*/12, /*status_port=*/0x64, /*mask=*/1, /*read_port=*/0x60,
         InterruptHandler);

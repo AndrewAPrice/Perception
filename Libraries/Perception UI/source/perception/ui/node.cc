@@ -39,8 +39,8 @@ namespace ui {
 Node::Node()
     : yoga_node_(YGNodeNew()),
       invalidate_when_dirtied_(true),
-      invalidated_(false),
       handles_mouse_events_(false),
+      blocks_hit_test_(false),
       scroll_offset_({.x = 0.0f, .y = 0.0f}) {
   YGNodeSetContext(yoga_node_, this);
   YGNodeSetDirtiedFunc(yoga_node_, &Node::LayoutDirtied);
@@ -58,7 +58,14 @@ std::weak_ptr<Node> Node::GetParent() { return parent_; }
 Layout Node::GetLayout() { return Layout(yoga_node_); }
 
 void Node::AddChildren(const std::vector<std::shared_ptr<Node>>& children) {
-  for (auto child : children) AddChild(child);
+  if (YGNodeHasMeasureFunc(yoga_node_)) return;
+  for (const auto& child : children) {
+    if (!child) continue;
+    child->SetParent(shared_from_this());
+    YGNodeInsertChild(yoga_node_, child->yoga_node_, children_.size());
+    children_.push_back(child);
+  }
+  Invalidate();
 }
 
 void Node::AddChild(std::shared_ptr<Node> child) {
@@ -155,7 +162,6 @@ void Node::Draw(DrawContext& draw_context) {
     return;
   }
 
-  invalidated_ = false;
   if (!on_draw_functions_.empty()) {
     for (const auto& draw_function : on_draw_functions_)
       draw_function(draw_context);
@@ -249,9 +255,7 @@ void Node::OnMouseMove(
 
 void Node::MouseMoved(const window::MouseMoveEvent& event) {
   for (const auto& handler : on_mouse_move_functions_) handler(event);
-  std::vector<std::shared_ptr<Node>> children(children_.begin(),
-                                              children_.end());
-  for (auto& child : children) child->MouseMoved(event);
+  for (const auto& child : children_) child->MouseMoved(event);
 }
 
 void Node::OnMouseHover(
@@ -277,6 +281,7 @@ void Node::OnMouseButtonDown(
     std::function<void(const Point& point, window::MouseButton button)>
         mouse_button_down_function) {
   on_mouse_button_down_functions_.push_back(mouse_button_down_function);
+  if (!cursor_.has_value()) cursor_ = window::Cursor::Poke;
 }
 
 void Node::MouseButtonDown(const Point& point, window::MouseButton button) {
@@ -288,6 +293,7 @@ void Node::OnMouseButtonUp(
     std::function<void(const Point& point, window::MouseButton button)>
         mouse_button_up_function) {
   on_mouse_button_up_functions_.push_back(mouse_button_up_function);
+  if (!cursor_.has_value()) cursor_ = window::Cursor::Poke;
 }
 
 void Node::MouseButtonUp(const Point& point, window::MouseButton button) {
@@ -295,9 +301,33 @@ void Node::MouseButtonUp(const Point& point, window::MouseButton button) {
     handler(point, button);
 }
 
+void Node::OnMouseScroll(
+    std::function<Point(const Point& point, const Point& delta)>
+        mouse_scroll_function) {
+  on_mouse_scroll_functions_.push_back(std::move(mouse_scroll_function));
+  handles_mouse_events_ = true;
+}
+
+Point Node::MouseScroll(const Point& point, const Point& delta) {
+  Point remaining = delta;
+  Point total_consumed{.x = 0.0f, .y = 0.0f};
+  for (const auto& handler : on_mouse_scroll_functions_) {
+    if (remaining.x == 0.0f && remaining.y == 0.0f) break;
+    Point consumed = handler(point, remaining);
+    total_consumed += consumed;
+    remaining -= consumed;
+  }
+  return total_consumed;
+}
 
 void Node::OnInvalidate(std::function<void()> invalidate_function) {
   on_invalidate_functions_.push_back(invalidate_function);
+  InvalidateWhenDirtied();
+}
+
+void Node::OnInvalidate(
+    std::function<void(const std::optional<Rectangle>&)> invalidate_function) {
+  on_invalidate_with_area_functions_.push_back(invalidate_function);
   InvalidateWhenDirtied();
 }
 
@@ -320,11 +350,8 @@ bool Node::GetNodesAt(
   bool child_blocks_hit_test = false;
 
   // Walk backwards (from top to bottom).
-  bool hit_child = true;
-  std::vector<std::shared_ptr<Node>> children(children_.rbegin(),
-                                              children_.rend());
-  for (const auto& child : children) {
-    if (child->GetNodesAt(point_without_margin, on_hit_node)) {
+  for (auto it = children_.rbegin(); it != children_.rend(); ++it) {
+    if ((*it)->GetNodesAt(point_without_margin, on_hit_node)) {
       // This node blocks the nodes behind it from being hit tested.
       child_blocks_hit_test = true;
       break;
@@ -344,11 +371,51 @@ void Node::SetBlocksHitTest(bool blocks_hit_test) {
 bool Node::BlocksHitTest() { return blocks_hit_test_; }
 
 void Node::Invalidate() {
-  if (invalidated_) return;
-  invalidated_ = true;
-  if (!parent_.expired()) parent_.lock()->Invalidate();
+  std::optional<Rectangle> area;
+  if (!YGNodeIsDirty(yoga_node_)) {
+    Size size = GetSize();
+    if (size.width > 0.0f && size.height > 0.0f)
+      area = Rectangle{.origin = GetAbsolutePosition(), .size = size};
+  }
+  InvalidateInternal(area);
+}
+
+void Node::Invalidate(const Rectangle& local_area) {
+  std::optional<Rectangle> area;
+  if (!YGNodeIsDirty(yoga_node_) && local_area.size.width > 0.0f &&
+      local_area.size.height > 0.0f) {
+    Size size = GetSize();
+    if (size.width > 0.0f && size.height > 0.0f) {
+      Point abs_pos = GetAbsolutePosition();
+      area = Rectangle{.origin = abs_pos + local_area.origin,
+                       .size = local_area.size};
+    }
+  }
+  InvalidateInternal(area);
+}
+
+void Node::InvalidateInternal(const std::optional<Rectangle>& area_in_root) {
+  std::optional<Rectangle> clipped_area = area_in_root;
+  if (YGNodeIsDirty(yoga_node_)) {
+    clipped_area = std::nullopt;
+  } else if (clipped_area.has_value() &&
+             GetLayout().GetOverflow() != YGOverflowVisible) {
+    Rectangle my_bounds = {.origin = GetAbsolutePosition(), .size = GetSize()};
+    clipped_area = clipped_area->Intersection(my_bounds);
+    if (!clipped_area.has_value() || clipped_area->size.width <= 0.0f ||
+        clipped_area->size.height <= 0.0f)
+      return;
+  }
+
+  if (!parent_.expired()) parent_.lock()->InvalidateFromChild(clipped_area);
 
   for (const auto& handler : on_invalidate_functions_) handler();
+  for (const auto& handler : on_invalidate_with_area_functions_)
+    handler(clipped_area);
+}
+
+void Node::InvalidateFromChild(const std::optional<Rectangle>& area_in_root) {
+  InvalidateInternal(area_in_root);
 }
 
 void Node::SetCursor(window::Cursor cursor) { cursor_ = cursor; }
@@ -415,7 +482,14 @@ bool Node::HasOnMouseButtonUp() const {
   return !on_mouse_button_up_functions_.empty();
 }
 
-bool Node::HasOnInvalidate() const { return !on_invalidate_functions_.empty(); }
+bool Node::HasOnMouseScroll() const {
+  return !on_mouse_scroll_functions_.empty();
+}
+
+bool Node::HasOnInvalidate() const {
+  return !on_invalidate_functions_.empty() ||
+         !on_invalidate_with_area_functions_.empty();
+}
 
 std::shared_ptr<Node> Node::ToSharedPtr() { return shared_from_this(); }
 

@@ -48,5 +48,8 @@ class VirtioMouseDevice : public Driver,
   float accum_delta_x_ = 0.0f;
   float accum_delta_y_ = 0.0f;
   bool delta_changed_ = false;
+  float accum_scroll_x_ = 0.0f;
+  float accum_scroll_y_ = 0.0f;
+  bool scroll_changed_ = false;
   bool is_captured_ = false;
 };

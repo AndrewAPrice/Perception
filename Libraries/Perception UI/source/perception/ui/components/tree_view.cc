@@ -46,6 +46,7 @@ void TreeView::SetNode(std::weak_ptr<Node> node) {
   auto strong_node = node_.lock();
 
   focusable_ = strong_node->GetOrAdd<Focusable>();
+  strong_node->SetCursor(window::Cursor::Pointer);
 
   strong_node->OnMouseButtonDown(
       [this](const Point&, window::MouseButton button) {
@@ -610,22 +611,30 @@ void TreeViewItem::SetContainers(std::weak_ptr<Node> row_container,
   children_container_ = children_container;
 
   if (auto row = row_container_.lock()) {
+    row->SetCursor(window::Cursor::Poke);
     auto block = row->GetOrAdd<components::Block>();
     block->SetBorderRadius(kTreeViewItemBorderRadius);
   }
 
   if (auto toggle = toggle_button_.lock()) {
+    toggle->SetCursor(window::Cursor::Poke);
     toggle->OnDraw(std::bind_front(&TreeViewItem::DrawToggle, this));
     toggle->SetBlocksHitTest(true);
     toggle->OnMouseButtonDown(
         [this](const Point&, window::MouseButton button) {
           if (button == window::MouseButton::Left) {
-            ToggleExpanded();
+            auto children = children_container_.lock();
+            if (children && !children->GetChildren().empty()) {
+              ToggleExpanded();
+            } else {
+              Select(false, true);
+            }
           }
         });
   }
 
   if (auto content = content_container_.lock()) {
+    content->SetCursor(window::Cursor::Poke);
     content->SetBlocksHitTest(true);
     content->OnMouseButtonDown(
         [this](const Point& pt, window::MouseButton button) {

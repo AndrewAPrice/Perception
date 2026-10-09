@@ -112,6 +112,7 @@ class ScrollBar : public UniqueIdentifiableType<ScrollBar> {
   void MouseLeave();
   void MouseButtonDown(const Point& point, window::MouseButton button);
   void MouseButtonUp(const Point& point, window::MouseButton button);
+  Point MouseScroll(const Point& point, const Point& delta);
 };
 
 }  // namespace components

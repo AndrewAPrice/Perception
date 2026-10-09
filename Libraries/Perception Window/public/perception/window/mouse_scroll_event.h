@@ -17,7 +17,8 @@ namespace perception {
 namespace window {
 
 struct MouseScrollEvent {
-  float delta;
+  float delta = 0.0f;
+  float delta_x = 0.0f;
 };
 
 }  // namespace window

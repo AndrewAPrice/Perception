@@ -32,12 +32,29 @@ using ::perception::devices::RelativeMousePositionEvent;
 
 namespace {
 
+// Linux evdev synchronization event type.
 constexpr uint16 kEvSyn = 0x00;
+
+// Linux evdev key/button event type.
 constexpr uint16 kEvKey = 0x01;
+
+// Linux evdev relative axis event type.
 constexpr uint16 kEvRel = 0x02;
+
+// Linux evdev synchronization report code.
 constexpr uint16 kSynReport = 0x00;
+
+// Linux evdev relative X axis code.
 constexpr uint16 kRelX = 0x00;
+
+// Linux evdev relative Y axis code.
 constexpr uint16 kRelY = 0x01;
+
+// Linux evdev relative horizontal wheel axis code.
+constexpr uint16 kRelHWheel = 0x06;
+
+// Linux evdev relative vertical wheel axis code.
+constexpr uint16 kRelWheel = 0x08;
 
 }  // namespace
 
@@ -78,6 +95,14 @@ void VirtioMouseDevice::HandleInterrupt() {
             accum_delta_y_ += static_cast<float>(static_cast<int32>(ev.value));
             delta_changed_ = true;
             break;
+          case kRelHWheel:
+            accum_scroll_x_ += static_cast<float>(static_cast<int32>(ev.value));
+            scroll_changed_ = true;
+            break;
+          case kRelWheel:
+            accum_scroll_y_ -= static_cast<float>(static_cast<int32>(ev.value));
+            scroll_changed_ = true;
+            break;
         }
         break;
       case kEvKey: {
@@ -102,6 +127,17 @@ void VirtioMouseDevice::HandleInterrupt() {
             accum_delta_x_ = 0.0f;
             accum_delta_y_ = 0.0f;
             delta_changed_ = false;
+          }
+          if (scroll_changed_) {
+            if (mouse_listener_) {
+              RelativeMousePositionEvent scroll_event;
+              scroll_event.delta_x = accum_scroll_x_;
+              scroll_event.delta_y = accum_scroll_y_;
+              mouse_listener_->MouseScroll(scroll_event, nullptr);
+            }
+            accum_scroll_x_ = 0.0f;
+            accum_scroll_y_ = 0.0f;
+            scroll_changed_ = false;
           }
         }
         break;

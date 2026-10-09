@@ -180,12 +180,12 @@ class PerceptionWindow : public Window,
     buffer.height = height_;
     if (rebuild_texture_) {
       RebuildTextures();
-      buffer.has_preserved_contents_from_previous_draw = true;
+      buffer.has_preserved_contents_from_previous_draw = false;
       if (texture_shared_memory_ &&
           (!is_double_buffered_ || frontbuffer_shared_memory_))
         rebuild_texture_ = false;
     } else {
-      buffer.has_preserved_contents_from_previous_draw = false;
+      buffer.has_preserved_contents_from_previous_draw = true;
     }
 
     if (width_ == 0 || height_ == 0 || !texture_shared_memory_ ||
@@ -255,8 +255,8 @@ class PerceptionWindow : public Window,
   virtual Status MouseScroll(
       const RelativeMousePositionEvent& message) override {
     if (!delegate_.expired()) {
-      delegate_.lock()->MouseScrolled(
-          MouseScrollEvent{.delta = message.delta_y});
+      delegate_.lock()->MouseScrolled(MouseScrollEvent{
+          .delta = message.delta_y, .delta_x = message.delta_x});
     }
     return Status::OK;
   }
