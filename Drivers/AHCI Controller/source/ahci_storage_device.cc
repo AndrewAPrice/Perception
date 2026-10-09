@@ -40,6 +40,10 @@ namespace {
 // Size of the DMA bounce buffer in 4KB pages (128 pages = 512 KB).
 constexpr size_t kDmaBufferPages = 128;
 
+// Maximum number of sectors per LBA28 command (256 sectors, encoded as 0 in the
+// 8-bit sector count register).
+constexpr uint32 kMaxLba28SectorsPerCommand = 256;
+
 // Maximum byte count per AHCI PRDT entry (4MB).
 constexpr size_t kMaxPrdtByteCount = 0x400000;
 
@@ -520,13 +524,16 @@ bool AhciStorageDevice::PerformRead(uint64 start_sector, uint32 sector_count,
       fis->countl = sector_count & 0xFF;
       fis->counth = (sector_count >> 8) & 0xFF;
     } else {
+      if (sector_count > kMaxLba28SectorsPerCommand) return false;
       fis->command = kAtaCmdReadDma;
       fis->lba0 = start_sector & 0xFF;
       fis->lba1 = (start_sector >> 8) & 0xFF;
       fis->lba2 = (start_sector >> 16) & 0xFF;
       fis->device = (1 << 6) | ((start_sector >> 24) & 0x0F);
 
-      fis->countl = sector_count & 0xFF;
+      fis->countl = (sector_count == kMaxLba28SectorsPerCommand)
+                        ? 0
+                        : (sector_count & 0xFF);
       fis->counth = 0;
     }
   }
@@ -613,6 +620,7 @@ Status AhciStorageDevice::Read(const StorageDeviceReadRequest& request) {
 
   bool can_write = details.CanWrite && !details.IsLazilyAllocated;
   std::vector<void*> allocated_pages;
+  std::vector<std::pair<void*, size_t>> batch_allocations;
   size_t start_page = buffer_offset / kPageSize;
   size_t end_page = (buffer_offset + bytes_to_copy - 1) / kPageSize;
   size_t num_pages = end_page - start_page + 1;
@@ -621,6 +629,7 @@ Status AhciStorageDevice::Read(const StorageDeviceReadRequest& request) {
     allocated_pages.resize(num_pages, nullptr);
     void* batch_pages = AllocateMemoryPages(num_pages);
     if (batch_pages == nullptr) return Status::OUT_OF_MEMORY;
+    batch_allocations.emplace_back(batch_pages, num_pages);
 
     for (size_t p = 0; p < num_pages; p++) {
       size_t page_index = start_page + p;
@@ -654,8 +663,12 @@ Status AhciStorageDevice::Read(const StorageDeviceReadRequest& request) {
 
   uint64 sector_offset_bytes = device_offset_start % sector_size_;
 
-  const uint32 max_sectors_per_read = static_cast<uint32>(
+  uint32 max_sectors_per_read = static_cast<uint32>(
       (kDmaBufferPages * kPageSize) / sector_size_);
+  if (!supports_lba48_ && device_type_ != StorageDeviceType::OPTICAL) {
+    max_sectors_per_read =
+        std::min(max_sectors_per_read, kMaxLba28SectorsPerCommand);
+  }
   uint64 remaining_sectors = sector_count;
   uint64 current_sector = start_sector;
   uint64 bytes_copied = 0;
@@ -666,9 +679,8 @@ Status AhciStorageDevice::Read(const StorageDeviceReadRequest& request) {
 
     if (!PerformRead(current_sector, chunk_sectors, nullptr)) {
       if (!can_write) {
-        for (size_t p = 0; p < num_pages; p++) {
-          if (allocated_pages[p]) ReleaseMemoryPages(allocated_pages[p], 1);
-        }
+        for (const auto& [batch_virt, batch_count] : batch_allocations)
+          ReleaseMemoryPages(batch_virt, batch_count);
       }
       return Status::INTERNAL_ERROR;
     }
@@ -734,13 +746,16 @@ bool AhciStorageDevice::PerformWrite(uint64 start_sector, uint32 sector_count,
     fis->countl = sector_count & 0xFF;
     fis->counth = (sector_count >> 8) & 0xFF;
   } else {
+    if (sector_count > kMaxLba28SectorsPerCommand) return false;
     fis->command = kAtaCmdWriteDma;
     fis->lba0 = start_sector & 0xFF;
     fis->lba1 = (start_sector >> 8) & 0xFF;
     fis->lba2 = (start_sector >> 16) & 0xFF;
     fis->device = (1 << 6) | ((start_sector >> 24) & 0x0F);
 
-    fis->countl = sector_count & 0xFF;
+    fis->countl = (sector_count == kMaxLba28SectorsPerCommand)
+                      ? 0
+                      : (sector_count & 0xFF);
     fis->counth = 0;
   }
 
@@ -827,8 +842,12 @@ Status AhciStorageDevice::Write(const StorageDeviceWriteRequest& request) {
 
   uint64 sector_offset_bytes = device_offset_start % sector_size_;
 
-  const uint32 max_sectors_per_write = static_cast<uint32>(
+  uint32 max_sectors_per_write = static_cast<uint32>(
       (kDmaBufferPages * kPageSize) / sector_size_);
+  if (!supports_lba48_) {
+    max_sectors_per_write =
+        std::min(max_sectors_per_write, kMaxLba28SectorsPerCommand);
+  }
   uint64 remaining_sectors = sector_count;
   uint64 current_sector = start_sector;
   uint64 bytes_written = 0;
