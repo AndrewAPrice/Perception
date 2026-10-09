@@ -1,0 +1,86 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/bellard/quickjs.git",
+            "type": "git",
+            "placeholder": "git"
+        }
+    ],
+    "operations": [
+        {
+            "operation": "copy",
+            "source": "${git}/quickjs.h",
+            "destination": "public/quickjs.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/quickjs.c",
+            "destination": "source/quickjs.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libregexp.c",
+            "destination": "source/libregexp.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libunicode.c",
+            "destination": "source/libunicode.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/cutils.c",
+            "destination": "source/cutils.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/dtoa.c",
+            "destination": "source/dtoa.c"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/quickjs-atom.h",
+            "destination": "source/quickjs-atom.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/quickjs-opcode.h",
+            "destination": "source/quickjs-opcode.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libregexp.h",
+            "destination": "source/libregexp.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libregexp-opcode.h",
+            "destination": "source/libregexp-opcode.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libunicode.h",
+            "destination": "source/libunicode.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/libunicode-table.h",
+            "destination": "source/libunicode-table.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/cutils.h",
+            "destination": "source/cutils.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/dtoa.h",
+            "destination": "source/dtoa.h"
+        },
+        {
+            "operation": "copy",
+            "source": "${git}/list.h",
+            "destination": "source/list.h"
+        }
+    ]
+}

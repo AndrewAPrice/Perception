@@ -1,0 +1,8 @@
+# Third party files
+source/*
+!source/stdatomic.h
+public
+
+# Generated files
+.clangd
+.third_party_files.json
