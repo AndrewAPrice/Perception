@@ -87,6 +87,9 @@ class Window {
   // Returns the height of the window.
   virtual int GetHeight() = 0;
 
+  // Gets the size of the system window buttons area in pixels.
+  virtual void GetSystemButtonSize(int& width, int& height) const = 0;
+
   // Sets the desired size. The delegate will be notified if the window's size
   // changes.
   virtual void SetSize(int width, int height) = 0;

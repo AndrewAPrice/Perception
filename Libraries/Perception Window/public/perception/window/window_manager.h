@@ -101,6 +101,7 @@ class DisplayEnvironment : public serialization::Serializable {
 class CreateWindowResponse : public serialization::Serializable {
  public:
   Size window_size;
+  Size system_button_size;
   DisplayEnvironment display_environment;
 
   virtual void Serialize(serialization::Serializer& serializer) override;

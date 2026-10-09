@@ -60,5 +60,10 @@ void TweakUiRequest::Serialize(serialization::Serializer& serializer) {
   serializer.ArrayOfSerializables("Reparent Nodes", reparent_nodes);
 }
 
+void SetSizeRequest::Serialize(serialization::Serializer& serializer) {
+  serializer.Serializable("Window size", window_size);
+  serializer.Serializable("SystemButtonSize", system_button_size);
+}
+
 }  // namespace window
 }  // namespace perception

@@ -48,6 +48,7 @@ void DisplayEnvironment::Serialize(serialization::Serializer& serializer) {
 
 void CreateWindowResponse::Serialize(serialization::Serializer& serializer) {
   serializer.Serializable("Window size", window_size);
+  serializer.Serializable("SystemButtonSize", system_button_size);
   serializer.Serializable("Display environment", display_environment);
 }
 

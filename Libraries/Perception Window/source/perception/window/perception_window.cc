@@ -68,10 +68,15 @@ class PerceptionWindow : public Window,
                          public KeyboardListener::Server {
  public:
   PerceptionWindow()
-      : created_(true),
-        rebuild_texture_(true),
+      : width_(0),
+        height_(0),
+        system_button_width_(0),
+        system_button_height_(0),
+        is_double_buffered_(true),
         texture_id_(0),
         frontbuffer_texture_id_(0),
+        created_(true),
+        rebuild_texture_(true),
         is_keyboard_captive_(false),
         is_mouse_captive_(false),
         is_focused_(false) {}
@@ -83,9 +88,12 @@ class PerceptionWindow : public Window,
     }
   }
 
-  void SetInitialProperties(int width, int height, bool is_double_buffered) {
+  void SetInitialProperties(int width, int height, int system_button_width,
+                            int system_button_height, bool is_double_buffered) {
     width_ = width;
     height_ = height;
+    system_button_width_ = system_button_width;
+    system_button_height_ = system_button_height;
     is_double_buffered_ = is_double_buffered;
   }
 
@@ -105,6 +113,11 @@ class PerceptionWindow : public Window,
   int GetWidth() override { return width_; }
 
   int GetHeight() override { return height_; }
+
+  void GetSystemButtonSize(int& width, int& height) const override {
+    width = system_button_width_;
+    height = system_button_height_;
+  }
 
   void SetSize(int width, int height) override {
     if (width_ == width && height_ == height) return;
@@ -339,9 +352,11 @@ class PerceptionWindow : public Window,
   }
 
   // BaseWindow::Server
-  virtual Status SetSize(const Size& size) override {
-    width_ = size.width;
-    height_ = size.height;
+  virtual Status SetSize(const SetSizeRequest& request) override {
+    width_ = request.window_size.width;
+    height_ = request.window_size.height;
+    system_button_width_ = request.system_button_size.width;
+    system_button_height_ = request.system_button_size.height;
     rebuild_texture_ = true;
     if (!delegate_.expired()) delegate_.lock()->WindowResized();
     return Status::OK;
@@ -385,6 +400,8 @@ class PerceptionWindow : public Window,
   std::mutex mutex_;
   int width_;
   int height_;
+  int system_button_width_;
+  int system_button_height_;
   bool is_double_buffered_;
   int texture_id_;
   int frontbuffer_texture_id_;
@@ -482,6 +499,8 @@ std::shared_ptr<Window> Window::CreateWindow(
 
   window->SetInitialProperties(status_or_result->window_size.width,
                                status_or_result->window_size.height,
+                               status_or_result->system_button_size.width,
+                               status_or_result->system_button_size.height,
                                creation_options.is_double_buffered);
   return std::static_pointer_cast<Window>(window);
 }

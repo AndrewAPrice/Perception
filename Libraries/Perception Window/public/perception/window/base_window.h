@@ -87,8 +87,16 @@ class TweakUiRequest : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
+class SetSizeRequest : public serialization::Serializable {
+ public:
+  Size window_size;
+  Size system_button_size;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
 #define METHOD_LIST(X) \
-  X(1, SetSize, void, Size) \
+  X(1, SetSize, void, SetSizeRequest) \
   X(2, Closed, void, void) \
   X(3, GainedFocus, void, void) \
   X(4, LostFocus, void, void) \

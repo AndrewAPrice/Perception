@@ -20,6 +20,7 @@
 #include "loader.h"
 #include "loader_server.h"
 #include "multiboot.h"
+#include "ramdisk_storage_device.h"
 #include "perception/fibers.h"
 #include "perception/launcher.h"
 #include "perception/processes.h"
@@ -35,6 +36,9 @@ using ::perception::StorageManager;
 
 std::vector<std::shared_ptr<ElfFile>> preloaded_programs;
 
+// Storage device backed by a ramdisk multiboot module, if present.
+std::unique_ptr<RamdiskStorageDevice> g_ramdisk_storage_device;
+
 void PreloadProgram(std::string_view name) {
   auto path = GetPathToFile(name);
   if (!path) return;
@@ -43,6 +47,8 @@ void PreloadProgram(std::string_view name) {
 }
 
 void LoadInitialPrograms() {
+  InitializeWindowManagerSetting();
+
   auto status_or_value = ::perception::GetRegistryValue(
       ::perception::RegistryCorpus::APPLICATIONS, "Loader", "launchOnBoot");
   if (!status_or_value.Ok()) return;
@@ -82,6 +88,13 @@ void LoadInitialPrograms() {
 int main(int argc, char* argv[]) {
   // Load the multiboot modules first.
   LoadMultibootModules();
+
+  auto ramdisk_module = GetMultibootModule("ramdisk");
+  if (!ramdisk_module)
+    ramdisk_module = GetMultibootModule("image.iso");
+  if (ramdisk_module)
+    g_ramdisk_storage_device =
+        std::make_unique<RamdiskStorageDevice>(std::move(ramdisk_module));
 
   // Create the loader server that listens to requests to launch executables.
   auto loader_server = std::make_unique<LoaderServer>();
