@@ -258,7 +258,7 @@ void RebuildRunningProcesses() {
         FormatSize(used_bytes) + " used (" + FormatSize(unique_bytes) +
         " unique, " + FormatSize(shared_bytes) + " shared), " +
         FormatSize(free_bytes) + " free, " + FormatSize(total_bytes) +
-        " total - " + FormatSize(core_count) +
+        " total - " + std::to_string(core_count) +
         (core_count == 1 ? " core" : " cores"));
   }
 
