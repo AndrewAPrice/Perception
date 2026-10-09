@@ -1,72 +1,45 @@
 # Building
 
 ## Dependencies
-- The build system depends on Node.js and Git.
-- The compilation depends on NASM, and GCC, binutils, and LD that are able to build x86_64 ELF binaries.
-  - (It would be nice if we could also support Clang, but the generated machine code (for both the kernel and userland) code crashes.)
-- Building the bootable ISO depends on GRUB 2.
-- Although you can use any emulator, the build system invokes [QEMU](https://www.qemu.org/).
+- [REBS (Really Easy Build System)](https://github.com/AndrewAPrice/rebs) (`/usr/local/bin/rebs` or on your `PATH`).
+- LLVM/Clang (`clang`, `clang++`, `llvm-ar`, and `ld.lld`) capable of building `x86_64-unknown-none-elf` binaries (C17 and C++23).
+- [NASM](https://www.nasm.us/) for assembling `.asm` files.
+- GRUB 2 (`grub-mkrescue`) and `xorriso` for building the bootable ISO image.
+- [QEMU](https://www.qemu.org/) (`qemu-system-x86_64`) and Python 3 for running Perception in an emulator and viewing demultiplexed serial logs.
+
+### macOS
+
+If you have [Homebrew](https://brew.sh/), you can install the required toolchain and emulator dependencies with:
+
+```bash
+brew tap nativeos/i386-elf-toolchain
+brew install git nasm qemu llvm i386-elf-grub xorriso lld
+```
+
+Ensure Homebrew's `llvm` and `lld` binaries are on your `PATH`, and install [REBS](https://github.com/AndrewAPrice/rebs) to `/usr/local/bin/rebs`.
 
 ### Linux
-Check if your distro's package manager has a prebuilt version of GCC/binutils/LD that supports x86_64 ELF. x86_64-elf-gcc. If not, [follow these instructions](https://wiki.osdev.org/GCC_Cross-Compiler) to build your own GCC cross compiler.
+Install `clang`, `lld`, `llvm`, `nasm`, `grub-pc-bin` / `grub-efi-amd64-bin` (`grub-mkrescue`), `xorriso`, `qemu-system-x86_64`, and `python3` via your distribution's package manager, along with [REBS](https://github.com/AndrewAPrice/rebs).
 
-### Windows
-- Node.js https://nodejs.org/en/download/
-- NASM: https://www.nasm.us/
-- QEMU: https://www.qemu.org/download/
-- Git: https://git-scm.com/downloads
+## Building and Running
 
-You can find precompiled x86_64-elf binaries online with a bit of hunting. Examples:
-- https://github.com/lordmilko/i686-elf-tools
-- https://blog.futuremillennium.com/post/140862688548/getting-started-with-os-development-on-windows
+Build configurations are defined in [`.universe.rebs.jsonnet`](.universe.rebs.jsonnet) and per-package `.package.rebs.jsonnet` files. Run REBS from the repository root:
 
-Otherwise, you can [follow these instructions](https://wiki.osdev.org/GCC_Cross-Compiler) to build your own GCC cross compiler.
+- `/usr/local/bin/rebs --all` - Builds the kernel, drivers, services, libraries, and applications, creates `.build/<configuration>/image.iso`, and launches Perception in QEMU with the interactive serial log viewer ([`tools/run_qemu.sh`](tools/run_qemu.sh)).
+- `/usr/local/bin/rebs --all --build` - Builds everything and packages the bootable ISO without launching QEMU.
+- `/usr/local/bin/rebs --test "<Package Name>"` - Builds and runs host-native unit tests for a specific package.
 
-Likewise with GRUB 2.
-- https://www.aioboot.com/en/install-grub2-from-windows/
+### Optimization Levels
+You can pass an optimization flag to any `rebs` invocation:
+- `--fast` *(default)* - Builds with `-O2` and frame pointers enabled.
+- `--debug` - Builds with `-Og` and debug symbols for debugging.
+- `--optimized` - Builds with `-Os`, LTO (`-flto`), and stripped debug symbols.
 
-Otherwise, you can will have to [build GRUB 2 from source] (https://www.gnu.org/software/grub/grub-download.html).
+You can learn more about REBS and its configuration options in the [REBS repository](https://github.com/AndrewAPrice/rebs).
 
-### Mac OS
+## Running on Physical Hardware
+See [docs/network_booting.md](docs/network_booting.md) for instructions on booting Perception on a physical x86-64 PC via UEFI Network Boot (PXE/TFTP + HTTP) over Ethernet.
 
-If you have [Homebrew](https://brew.sh/), you can install everything you need with:
-
-```
-brew tap nativeos/i386-elf-toolchain
-brew install node git nasm qemu llvm x86_64-elf-binutils i386-elf-grub xorriso lld
-echo 'export PATH="/usr/local/brew/opt/llvm/bin:$PATH"' >> ~/.bash_profile
-```
-
-## Preparation
-- Create a file Build/local-config.json with the paths to the above tools.
-
-```json
-{
-	"tools": {
-		"ar": "llvm-ar",
-		"gas": "llvm-mc",
-		"nasm": "nasm",
-		"gcc": "clang",
-		"grub-mkrescue": "grub-mkrescue",
-		"ld": "ld.lld",
-		"qemu": "qemu-system-x86_64"
-	},
-	"parallel_tasks": 1
-}
-```
-
-If you're unsure of what to set `parallel_tasks` to, try running `./build benchmark` and it'll find the optimal value for the fastest builds on your system.
-
-## Building
-Call all commands from inside the Build directory. Here are some useful ones:
-
-- `./build all` - Builds everything. The kernel, all applications, and creates a Perception.iso in the root directory.
-- `./build run` - Builds everything and starts QEMU.
-- `./build run <application> --local` - Builds an application and runs it locally in the host OS.
-- `./build clean` - Cleans up built files.
-- `./build all --prepare` - Prepares applications and libraries (downloads third party files, generates auto-complete metadata, transpiles Permebuf files, etc.) without actually building anything.
-
-You can lean more about the build system and more commands in [Build/README.md](Build/README.md).
-
-## Code Completion Support
-Upon building, the build system generates `.clang_complete` files can be used for code completion. I use [Sublime Text](https://www.sublimetext.com/) with [EasyClangComplete](https://github.com/niosus/EasyClangComplete) which works out of the box. It's also helpful to tell your code completer that we're using C17 and C++20, and not to use default includes. If you're using Sublime with EasyClangComplete, you can open the project `build/perception.sublime-project`.
+## Code Completion & Debugging
+- **Code Completion (`clangd`)**: Run `/usr/local/bin/rebs --all --generate-clangd` to generate `.clangd` configuration files across packages for accurate C17 and C++23 code completion in VS Code and other `clangd`-compatible editors.
+- **Debugging**: See [Debugging.md](Debugging.md) for instructions on using GDB, LLDB, and the interactive `COM1` serial log viewer ([`tools/log_viewer.py`](tools/log_viewer.py)).
