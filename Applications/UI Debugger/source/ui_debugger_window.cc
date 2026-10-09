@@ -80,6 +80,10 @@ using ::perception::window::MouseButton;
 
 namespace {
 
+// Path to the refresh hierarchy icon asset.
+constexpr std::string_view kRefreshIconPath =
+    "/Applications/UI Debugger/refresh.svg";
+
 std::shared_ptr<InspectedNode> FindNodeByTreeItem(
     std::shared_ptr<InspectedNode> node,
     std::shared_ptr<::perception::ui::components::TreeViewItem> item) {
@@ -194,7 +198,7 @@ UIDebuggerWindow::UIDebuggerWindow(
       is_live_(live_window.IsValid()),
       disappearance_message_id_(0),
       next_temp_id_(1000000) {
-  refresh_image_ = Image::LoadImage("/Applications/UI Debugger/refresh.png");
+  refresh_image_ = Image::LoadImage(kRefreshIconPath);
   search_image_ = Image::LoadImage("/Applications/UI Debugger/search.png");
   if (is_live_) {
     live_window_ = live_window;
@@ -222,7 +226,6 @@ UIDebuggerWindow::UIDebuggerWindow(
                                 l.SetFont(GetBold12UiFont());
                                 l.SetColor(0xFFFFFFFF);
                               })),
-        // Borderless/backgroundless button showing a refresh symbol
         ImageButton::BasicImageButton(
             [this]() {
               auto hierarchy = live_window_.GetUiHierarchy();
@@ -241,25 +244,7 @@ UIDebuggerWindow::UIDebuggerWindow(
                 }
               }
             },
-            refresh_image_,
-            [](Layout& l) {
-              l.SetWidth(32.0f);
-              l.SetHeight(32.0f);
-              l.SetMinWidth(32.0f);
-              l.SetMinHeight(32.0f);
-              l.SetAlignItems(YGAlignCenter);
-              l.SetJustifyContent(YGJustifyCenter);
-              l.SetPadding(YGEdgeAll, 0.0f);
-            },
-            [](Block& b) {
-              b.SetBorderWidth(0.0f);
-              b.SetBorderRadius(16.0f);
-            },
-            [](Button& btn) {
-              btn.SetIdleColor(0x00000000);
-              btn.SetHoverColor(0xFFE5E7EB);
-              btn.SetPushedColor(0xFFD1D5DB);
-            }));
+            refresh_image_));
   } else {
     live_controls_ = Node::Empty();
   }
@@ -377,6 +362,7 @@ UIDebuggerWindow::UIDebuggerWindow(
       },
       [](Block& block) { block.SetFillColor(0xFFFFFFFF); });
 
+  canvas_->SetCursor(perception::window::Cursor::Pointer);
   canvas_->OnDraw([this](const DrawContext& dc) { DrawCanvas(dc); });
 
   canvas_->OnMouseButtonDown([this](const Point& pt, MouseButton button) {
@@ -405,12 +391,15 @@ UIDebuggerWindow::UIDebuggerWindow(
       float dx = pt.x - last_mouse_.x;
       float dy = pt.y - last_mouse_.y;
       if (std::abs(dx) > 2.0f || std::abs(dy) > 2.0f) pan_dragged_ = true;
+      if (pan_dragged_) canvas_->SetCursor(perception::window::Cursor::Grab);
       pan_x_ += dx;
       pan_y_ += dy;
       last_mouse_ = pt;
       canvas_->Invalidate();
     } else {
       auto hover_hit = HitTestNode(root_node_, pt);
+      canvas_->SetCursor(hover_hit ? perception::window::Cursor::Poke
+                                   : perception::window::Cursor::Pointer);
       if (hover_hit != hovered_node_.lock()) {
         hovered_node_ = hover_hit;
         canvas_->Invalidate();
