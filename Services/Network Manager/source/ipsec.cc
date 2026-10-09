@@ -490,6 +490,86 @@ std::string Aes128GcmCtr(const std::array<uint8, 176>& round_keys,
   return out;
 }
 
+// Encrypts `plaintext` with AES-128-GCM using pre-computed `round_keys` and
+// GHASH subkey `h`.
+std::string Aes128GcmEncryptWithSchedule(
+    const std::array<uint8, 176>& round_keys, const std::array<uint8, 16>& h,
+    const std::array<uint8, 12>& nonce, std::string_view aad,
+    std::string_view plaintext) {
+  std::string ciphertext = Aes128GcmCtr(round_keys, nonce, 2, plaintext);
+  auto ghash = ComputeGhash(h, aad, ciphertext);
+  std::array<uint8, 16> j0{};
+  std::copy(nonce.begin(), nonce.end(), j0.begin());
+  j0[15] = 1;
+  auto tag_mask = Aes128EncryptBlock(round_keys, j0);
+  for (int i = 0; i < 16; i++) ghash[i] ^= tag_mask[i];
+  ciphertext.append(reinterpret_cast<const char*>(ghash.data()), ghash.size());
+  return ciphertext;
+}
+
+// Decrypts and authenticates `ciphertext_and_tag` with AES-128-GCM using
+// pre-computed `round_keys` and GHASH subkey `h`.
+std::optional<std::string> Aes128GcmDecryptWithSchedule(
+    const std::array<uint8, 176>& round_keys, const std::array<uint8, 16>& h,
+    const std::array<uint8, 12>& nonce, std::string_view aad,
+    std::string_view ciphertext_and_tag) {
+  if (ciphertext_and_tag.size() < kEspIcvSize) return std::nullopt;
+  size_t ct_len = ciphertext_and_tag.size() - kEspIcvSize;
+  std::string_view ciphertext = ciphertext_and_tag.substr(0, ct_len);
+  std::string_view received_tag =
+      ciphertext_and_tag.substr(ct_len, kEspIcvSize);
+
+  auto expected_tag = ComputeGhash(h, aad, ciphertext);
+  std::array<uint8, 16> j0{};
+  std::copy(nonce.begin(), nonce.end(), j0.begin());
+  j0[15] = 1;
+  auto tag_mask = Aes128EncryptBlock(round_keys, j0);
+  uint8 diff = 0;
+  for (int i = 0; i < 16; i++) {
+    expected_tag[i] ^= tag_mask[i];
+    diff |= (static_cast<uint8>(received_tag[i]) ^ expected_tag[i]);
+  }
+  if (diff != 0) return std::nullopt;
+  return Aes128GcmCtr(round_keys, nonce, 2, ciphertext);
+}
+
+// Ensures that `sa.aes_round_keys` and `sa.aes_ghash_subkey` are populated
+// when `sa.cipher == EspCipherSuite::Aes128Gcm16`.
+void EnsureAesKeySchedule(SecurityAssociation& sa) {
+  if (sa.cipher != EspCipherSuite::Aes128Gcm16 || sa.aes_key_schedule_ready)
+    return;
+  sa.aes_round_keys = ExpandAes128Key(sa.key.data());
+  std::array<uint8, 16> zero_block{};
+  sa.aes_ghash_subkey = Aes128EncryptBlock(sa.aes_round_keys, zero_block);
+  sa.aes_key_schedule_ready = true;
+}
+
+// Encrypts `plaintext` using the cipher and pre-computed key schedule on `sa`.
+std::string SaAeadEncrypt(SecurityAssociation& sa,
+                          const std::array<uint8, 12>& nonce,
+                          std::string_view aad, std::string_view plaintext) {
+  if (sa.cipher == EspCipherSuite::Aes128Gcm16) {
+    EnsureAesKeySchedule(sa);
+    return Aes128GcmEncryptWithSchedule(sa.aes_round_keys, sa.aes_ghash_subkey,
+                                        nonce, aad, plaintext);
+  }
+  return AeadEncrypt(sa.cipher, sa.key, nonce, aad, plaintext);
+}
+
+// Decrypts `ciphertext_and_tag` using the cipher and pre-computed key schedule
+// on `sa`.
+std::optional<std::string> SaAeadDecrypt(SecurityAssociation& sa,
+                                         const std::array<uint8, 12>& nonce,
+                                         std::string_view aad,
+                                         std::string_view ciphertext_and_tag) {
+  if (sa.cipher == EspCipherSuite::Aes128Gcm16) {
+    EnsureAesKeySchedule(sa);
+    return Aes128GcmDecryptWithSchedule(sa.aes_round_keys, sa.aes_ghash_subkey,
+                                        nonce, aad, ciphertext_and_tag);
+  }
+  return AeadDecrypt(sa.cipher, sa.key, nonce, aad, ciphertext_and_tag);
+}
+
 // Computes the RFC 1071 ones'-complement checksum over `data`.
 uint16 ComputeIpv4Checksum(std::string_view data) {
   uint32 sum = 0;
@@ -570,15 +650,7 @@ std::string AeadEncrypt(EspCipherSuite cipher,
   auto round_keys = ExpandAes128Key(key.data());
   std::array<uint8, 16> zero_block{};
   auto h = Aes128EncryptBlock(round_keys, zero_block);
-  std::string ciphertext = Aes128GcmCtr(round_keys, nonce, 2, plaintext);
-  auto ghash = ComputeGhash(h, aad, ciphertext);
-  std::array<uint8, 16> j0{};
-  std::copy(nonce.begin(), nonce.end(), j0.begin());
-  j0[15] = 1;
-  auto tag_mask = Aes128EncryptBlock(round_keys, j0);
-  for (int i = 0; i < 16; i++) ghash[i] ^= tag_mask[i];
-  ciphertext.append(reinterpret_cast<const char*>(ghash.data()), ghash.size());
-  return ciphertext;
+  return Aes128GcmEncryptWithSchedule(round_keys, h, nonce, aad, plaintext);
 }
 
 std::optional<std::string> AeadDecrypt(EspCipherSuite cipher,
@@ -587,12 +659,11 @@ std::optional<std::string> AeadDecrypt(EspCipherSuite cipher,
                                        std::string_view aad,
                                        std::string_view ciphertext_and_tag) {
   if (ciphertext_and_tag.size() < kEspIcvSize) return std::nullopt;
-  size_t ct_len = ciphertext_and_tag.size() - kEspIcvSize;
-  std::string_view ciphertext = ciphertext_and_tag.substr(0, ct_len);
-  std::string_view received_tag =
-      ciphertext_and_tag.substr(ct_len, kEspIcvSize);
-
   if (cipher == EspCipherSuite::ChaCha20Poly1305) {
+    size_t ct_len = ciphertext_and_tag.size() - kEspIcvSize;
+    std::string_view ciphertext = ciphertext_and_tag.substr(0, ct_len);
+    std::string_view received_tag =
+        ciphertext_and_tag.substr(ct_len, kEspIcvSize);
     auto expected_tag = ComputeChaCha20Poly1305Tag(key, nonce, aad, ciphertext);
     uint8 diff = 0;
     for (size_t i = 0; i < kEspIcvSize; i++)
@@ -604,18 +675,8 @@ std::optional<std::string> AeadDecrypt(EspCipherSuite cipher,
   auto round_keys = ExpandAes128Key(key.data());
   std::array<uint8, 16> zero_block{};
   auto h = Aes128EncryptBlock(round_keys, zero_block);
-  auto expected_tag = ComputeGhash(h, aad, ciphertext);
-  std::array<uint8, 16> j0{};
-  std::copy(nonce.begin(), nonce.end(), j0.begin());
-  j0[15] = 1;
-  auto tag_mask = Aes128EncryptBlock(round_keys, j0);
-  uint8 diff = 0;
-  for (int i = 0; i < 16; i++) {
-    expected_tag[i] ^= tag_mask[i];
-    diff |= (static_cast<uint8>(received_tag[i]) ^ expected_tag[i]);
-  }
-  if (diff != 0) return std::nullopt;
-  return Aes128GcmCtr(round_keys, nonce, 2, ciphertext);
+  return Aes128GcmDecryptWithSchedule(round_keys, h, nonce, aad,
+                                      ciphertext_and_tag);
 }
 
 std::optional<PacketSelectorTuple> ExtractPacketSelector(
@@ -694,7 +755,10 @@ void AntiReplayWindow::Advance(uint64 sequence_number) {
 void IpsecEngine::AddSpdRule(const SpdRule& rule) { spd_.push_back(rule); }
 
 void IpsecEngine::InstallSa(const SecurityAssociation& sa) {
-  sad_[sa.spi] = sa;
+  SecurityAssociation installed = sa;
+  installed.aes_key_schedule_ready = false;
+  EnsureAesKeySchedule(installed);
+  sad_[installed.spi] = installed;
 }
 
 bool IpsecEngine::RemoveSa(uint32 spi) { return sad_.erase(spi) > 0; }
@@ -774,8 +838,7 @@ std::optional<std::string> IpsecEngine::ProtectWithSa(
     esp_plaintext.push_back(static_cast<char>(pad_len));
     esp_plaintext.push_back(static_cast<char>(inner_next_header));
 
-    std::string ct_and_tag =
-        AeadEncrypt(sa.cipher, sa.key, nonce, esp_aad, esp_plaintext);
+    std::string ct_and_tag = SaAeadEncrypt(sa, nonce, esp_aad, esp_plaintext);
     std::string esp;
     esp.reserve(kEspHeaderSize + kEspExplicitIvSize + ct_and_tag.size());
     esp.append(esp_aad);
@@ -906,7 +969,7 @@ IpsecResult IpsecEngine::ProcessInbound(std::string_view ip_packet) {
 
   auto nonce = MakeEspNonce(sa->salt, explicit_iv);
   std::string_view aad = esp_bytes.substr(0, kEspHeaderSize);
-  auto decrypted = AeadDecrypt(sa->cipher, sa->key, nonce, aad, ct_and_tag);
+  auto decrypted = SaAeadDecrypt(*sa, nonce, aad, ct_and_tag);
   if (!decrypted.has_value() || decrypted->size() < 2) return res;
 
   uint8 next_header = static_cast<uint8>((*decrypted)[decrypted->size() - 1]);

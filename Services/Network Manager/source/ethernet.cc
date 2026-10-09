@@ -37,9 +37,6 @@ constexpr uint8 kIpv4VersionIhl20 = 0x45;
 // Don't Fragment flag in the IPv4 flags_fragment field.
 constexpr uint16 kIpv4DontFragment = 0x4000;
 
-// Mask for More Fragments flag (0x2000) and 13-bit fragment offset (0x1FFF).
-constexpr uint16 kIpv4FragmentMask = 0x3FFF;
-
 // Byte offset of the header checksum within an IPv4 header.
 constexpr size_t kIpv4ChecksumOffset = 10;
 
@@ -116,10 +113,7 @@ std::optional<IpPacketView> ParseIpv4Packet(std::string_view frame_payload) {
 
   if (InternetChecksum(frame_payload.substr(0, ihl)) != 0) return std::nullopt;
 
-  reader.Skip(2);
-  uint16 flags_fragment = reader.ReadU16();
-  if ((flags_fragment & kIpv4FragmentMask) != 0) return std::nullopt;
-
+  reader.Skip(4);
   uint8 ttl = reader.ReadU8();
   uint8 protocol = reader.ReadU8();
   reader.Skip(2);

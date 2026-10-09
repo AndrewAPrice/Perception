@@ -44,6 +44,9 @@ constexpr int kMaxCompressionJumps = 16;
 // Maximum encoded length of a domain name, including the root label.
 constexpr size_t kMaxEncodedNameLength = 255;
 
+// Maximum decoded domain name length in bytes.
+constexpr size_t kMaxDomainNameLength = 255;
+
 // Maximum length of a single label.
 constexpr size_t kMaxLabelLength = 63;
 
@@ -121,6 +124,8 @@ class MessageReader {
         return true;
       }
       if (position + 1 + length > packet_.size()) return false;
+      const size_t added = (name.empty() ? 0 : 1) + length;
+      if (name.size() + added > kMaxDomainNameLength) return false;
       if (!name.empty()) name.push_back('.');
       for (size_t i = 0; i < length; i++) {
         char c = static_cast<char>(Byte(position + 1 + i));

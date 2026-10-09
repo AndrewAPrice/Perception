@@ -43,7 +43,10 @@ using ::perception::network::Socket;
 using ::perception::network::SocketProtocol;
 
 NetworkService::NetworkService()
-    : ::perception::network::NetworkService::Server() {}
+    : ::perception::network::NetworkService::Server() {
+  SetSocketClosedCallback(
+      [this](size_t service_id) { sockets_.erase(service_id); });
+}
 
 StatusOr<CreateSocketResponse> NetworkService::CreateSocket(
     const CreateSocketRequest& request) {
@@ -184,8 +187,16 @@ StatusOr<ConnectToHostResponse> NetworkService::ConnectToHost(
 
   while (!state->done) ::perception::Sleep();
   state->caller = nullptr;
+  const auto remaining = state->in_flight;
+  for (const auto& candidate : remaining) {
+    if (candidate != state->winner) {
+      (void)candidate->Close();
+      candidate->SetBlockedFiber(nullptr);
+    }
+  }
 
   if (state->winner) {
+    state->winner->SetBlockedFiber(nullptr);
     sockets_[state->winner->ServiceId()] = state->winner;
     ConnectToHostResponse resp;
     resp.socket = Socket::Client(*state->winner);

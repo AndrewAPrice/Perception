@@ -63,6 +63,8 @@ struct PortRange {
   bool operator==(const PortRange& other) const = default;
 };
 
+struct FirewallPacket;
+
 // An ordered packet-filter rule (decision Q22).
 struct FirewallRule {
   // Verdict when the rule matches.
@@ -84,6 +86,9 @@ struct FirewallRule {
   PortRange dst_port_range;
   // Interface index to match (nullopt matches any interface).
   std::optional<uint32> interface_index;
+
+  // Returns true if this rule matches `packet`.
+  bool Matches(const FirewallPacket& packet) const;
 
   bool operator==(const FirewallRule& other) const = default;
 };
@@ -155,6 +160,11 @@ class Firewall {
   // permitted.
   FirewallAction Evaluate(const FirewallPacket& packet,
                           std::chrono::steady_clock::time_point now);
+
+  // Records an outbound packet in the state table so matching inbound reply
+  // traffic is permitted.
+  void RecordOutboundPacket(const FirewallPacket& packet,
+                            std::chrono::steady_clock::time_point now);
 
   // Removes all expired state entries.
   void Purge(std::chrono::steady_clock::time_point now);

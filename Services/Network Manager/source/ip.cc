@@ -40,6 +40,7 @@ Status SendRawIpPacket(size_t interface_index, const IpAddress& next_hop,
   NetworkInterface* iface = GetInterface(interface_index);
   if (iface == nullptr) return Status::MISSING_MEDIA;
 
+  const auto now = std::chrono::steady_clock::now();
   const uint8 version = static_cast<uint8>(raw_ip_packet[0]) >> 4;
   uint16 ether_type = 0;
   IpAddress dst;
@@ -48,11 +49,25 @@ Status SendRawIpPacket(size_t interface_index, const IpAddress& next_hop,
     if (!view.has_value()) return Status::INVALID_ARGUMENT;
     ether_type = kEtherTypeIpv4;
     dst = view->dst;
+    FirewallPacket fw_pkt = FirewallPacket::FromPayload(
+        FirewallDirection::Outbound, view->src, view->dst, view->protocol,
+        view->payload, view->hop_limit, static_cast<uint32>(interface_index));
+    GetFirewall().RecordOutboundPacket(fw_pkt, now);
   } else if (version == 6) {
     auto hdr = ParseIpv6Header(raw_ip_packet);
     if (!hdr.has_value()) return Status::INVALID_ARGUMENT;
     ether_type = kEtherTypeIpv6;
     dst = hdr->destination;
+    std::string_view trimmed =
+        raw_ip_packet.substr(0, kIpv6HeaderSize + hdr->payload_length);
+    ExtensionWalkResult walk = WalkExtensionHeaders(*hdr, trimmed);
+    if (walk.status == ExtensionWalkStatus::UpperLayer) {
+      FirewallPacket fw_pkt = FirewallPacket::FromPayload(
+          FirewallDirection::Outbound, hdr->source, hdr->destination,
+          walk.next_header, walk.payload, hdr->hop_limit,
+          static_cast<uint32>(interface_index));
+      GetFirewall().RecordOutboundPacket(fw_pkt, now);
+    }
   } else {
     return Status::INVALID_ARGUMENT;
   }
@@ -87,6 +102,13 @@ Status SendIpPacket(const IpPacketRequest& req) {
         auto v6_src = iface->GetPreferredAddress(IpAddressFamily::V6);
         if (v6_src.has_value()) {
           uint8 ttl = req.hop_limit != 0 ? req.hop_limit : kDefaultIpv4Ttl;
+          FirewallPacket clat_fw_pkt = FirewallPacket::FromPayload(
+              FirewallDirection::Outbound, ClatLocalIpv4Address(), req.dst,
+              req.protocol, req.payload, ttl,
+              static_cast<uint32>(req.interface_index));
+          if (GetFirewall().Evaluate(clat_fw_pkt, now) != FirewallAction::Allow)
+            return Status::NOT_ALLOWED;
+          GetFirewall().RecordOutboundPacket(clat_fw_pkt, now);
           std::string v4_pkt =
               BuildIpv4Packet(ClatLocalIpv4Address(), req.dst, req.protocol,
                               req.payload, ttl, req.dont_fragment);
@@ -112,6 +134,7 @@ Status SendIpPacket(const IpPacketRequest& req) {
       effective_hop_limit, static_cast<uint32>(req.interface_index));
   if (GetFirewall().Evaluate(fw_pkt, now) != FirewallAction::Allow)
     return Status::NOT_ALLOWED;
+  GetFirewall().RecordOutboundPacket(fw_pkt, now);
 
   IpAddress next_hop = req.next_hop_override;
   if (next_hop.IsUnspecified()) {

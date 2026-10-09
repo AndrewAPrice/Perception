@@ -175,6 +175,11 @@ void ProcessIcmpv4(const IpPacketView& ip_view, size_t iface_idx) {
 
   if (icmp->type == kIcmpDestUnreachable || icmp->type == kIcmpTimeExceeded) {
     std::string_view quoted = ip_view.payload.substr(sizeof(IcmpHeader));
+    if (quoted.size() < sizeof(IpHeader)) return;
+    const auto* raw_inner = reinterpret_cast<const IpHeader*>(quoted.data());
+    if ((Swap16BitEndian(raw_inner->flags_fragment) & kIpv4FragmentOffsetMask) !=
+        0)
+      return;
     auto inner = ParseIpv4Packet(quoted);
     if (!inner.has_value()) return;
     uint16 new_pmtu = 0;
@@ -297,6 +302,48 @@ void ProcessUdp(size_t iface_idx, const IpAddress& src_ip,
   DispatchUdpPacket(src_ip, src_port, dst_ip, dest_port, payload, payload_len);
 }
 
+bool IsInboundPermittedByFirewall(
+    const FirewallPacket& fw_pkt,
+    std::chrono::steady_clock::time_point now) {
+  if (GetFirewall().Evaluate(fw_pkt, now) == FirewallAction::Allow) return true;
+
+  for (const FirewallRule& rule : GetFirewall().rules()) {
+    if (rule.Matches(fw_pkt)) return rule.action == FirewallAction::Allow;
+  }
+
+  if (fw_pkt.protocol == kProtocolUdp) {
+    if (fw_pkt.source.IsV4() && fw_pkt.dst_port == kDhcpv4ClientPort)
+      return true;
+    if (fw_pkt.source.IsV6() && fw_pkt.dst_port == kDhcpv6ClientPort)
+      return true;
+    if (fw_pkt.src_port == kDnsServerPort) return true;
+  }
+
+  if (fw_pkt.protocol == kProtocolIcmpv4 &&
+      fw_pkt.icmp_type == kIcmpEchoRequest)
+    return true;
+  if (fw_pkt.protocol == kProtocolIcmpv6 &&
+      fw_pkt.icmp_type == static_cast<uint8>(Icmpv6Type::EchoRequest))
+    return true;
+
+  if (fw_pkt.protocol == kProtocolTcp || fw_pkt.protocol == kProtocolUdp) {
+    const SocketType target_type =
+        (fw_pkt.protocol == kProtocolTcp) ? SocketType::TCP : SocketType::UDP;
+    for (const auto& sock : GetActiveSockets()) {
+      if (!sock || sock->GetType() != target_type) continue;
+      if (sock->GetLocalPort() == 0 || sock->GetLocalPort() != fw_pkt.dst_port)
+        continue;
+      if (target_type == SocketType::TCP &&
+          sock->GetState() == SocketImpl::ClosedState)
+        continue;
+      const IpAddress& bound_ip = sock->GetLocalEndpoint().address;
+      if (!bound_ip.IsUnspecified() && bound_ip != fw_pkt.destination) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
 std::vector<ForwardingInterface> BuildForwardingInterfaces() {
   std::vector<ForwardingInterface> result;
   const auto& nics = GetNetworkInterfaces();
@@ -326,10 +373,16 @@ void ProcessIpv4(std::string_view frame_payload, size_t iface_idx) {
   NetworkInterface* iface = GetInterface(iface_idx);
   if (iface == nullptr) return;
 
+  const bool is_dhcpv4 =
+      ip_view->protocol == kProtocolUdp &&
+      ip_view->payload.size() >= sizeof(UdpHeader) &&
+      Swap16BitEndian(
+          reinterpret_cast<const UdpHeader*>(ip_view->payload.data())
+              ->dest_port) == kDhcpv4ClientPort;
   const bool is_local =
       iface->HasAddress(ip_view->dst) || ip_view->dst.IsBroadcast() ||
       ip_view->dst.IsMulticast() || ip_view->dst == ClatLocalIpv4Address() ||
-      ip_view->protocol == kProtocolUdp;
+      is_dhcpv4;
   if (!is_local) {
     ForwardingConfig fwd_cfg = GetForwardingConfig();
     if (!fwd_cfg.ipv4_forwarding_enabled) return;
@@ -340,8 +393,9 @@ void ProcessIpv4(std::string_view frame_payload, size_t iface_idx) {
         fwd.action == ForwardingAction::SendIcmpError) {
       (void)SendRawIpPacket(fwd.egress_interface_index, fwd.next_hop,
                             fwd.packet);
+      return;
     }
-    return;
+    if (fwd.action != ForwardingAction::DeliverLocally) return;
   }
 
   std::string reassembled_buf;
@@ -373,7 +427,7 @@ void ProcessIpv4(std::string_view frame_payload, size_t iface_idx) {
   FirewallPacket fw_pkt = FirewallPacket::FromPayload(
       FirewallDirection::Inbound, ip_view->src, ip_view->dst, upper_proto,
       upper_payload, ip_view->hop_limit, static_cast<uint32>(iface_idx));
-  if (GetFirewall().Evaluate(fw_pkt, now) != FirewallAction::Allow) return;
+  if (!IsInboundPermittedByFirewall(fw_pkt, now)) return;
 
   IpPacketView effective_view = *ip_view;
   effective_view.protocol = upper_proto;
@@ -417,8 +471,9 @@ void ProcessIpv6(std::string_view frame_payload, size_t iface_idx) {
         fwd.action == ForwardingAction::SendIcmpError) {
       (void)SendRawIpPacket(fwd.egress_interface_index, fwd.next_hop,
                             fwd.packet);
+      return;
     }
-    return;
+    if (fwd.action != ForwardingAction::DeliverLocally) return;
   }
 
   // 464XLAT CLAT inbound translation for packets arriving from a NAT64 prefix.
@@ -487,7 +542,7 @@ void ProcessIpv6(std::string_view frame_payload, size_t iface_idx) {
       FirewallDirection::Inbound, fixed->source, fixed->destination,
       upper_proto, upper_payload, fixed->hop_limit,
       static_cast<uint32>(iface_idx));
-  if (GetFirewall().Evaluate(fw_pkt, now) != FirewallAction::Allow) return;
+  if (!IsInboundPermittedByFirewall(fw_pkt, now)) return;
 
   if (upper_proto == kProtocolIcmpv6) {
     ProcessIcmpv6(fixed->source, fixed->destination, fixed->hop_limit,

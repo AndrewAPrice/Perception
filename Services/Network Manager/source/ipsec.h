@@ -141,6 +141,12 @@ struct SecurityAssociation {
   uint32 next_tx_seq = 1;
   // Anti-replay sliding window for inbound packets.
   AntiReplayWindow replay_window;
+  // Pre-computed AES-128 round keys when `cipher == EspCipherSuite::Aes128Gcm16`.
+  std::array<uint8, 176> aes_round_keys{};
+  // Pre-computed AES-GCM GHASH subkey H = AES_K(0^128).
+  std::array<uint8, 16> aes_ghash_subkey{};
+  // True once `aes_round_keys` and `aes_ghash_subkey` have been derived.
+  bool aes_key_schedule_ready = false;
 };
 
 // AEAD encryption helper (AES-128-GCM or ChaCha20-Poly1305) returning

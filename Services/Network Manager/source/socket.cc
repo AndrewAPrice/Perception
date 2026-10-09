@@ -22,6 +22,7 @@
 
 #include "checksum.h"
 #include "endian.h"
+#include "firewall.h"
 #include "interface.h"
 #include "ip.h"
 #include "perception/time.h"
@@ -54,6 +55,13 @@ constexpr uint16 kEphemeralPortBase = 49152;
 // Number of ephemeral ports in the dynamic range [49152, 65535].
 constexpr uint16 kEphemeralPortCount = 16384;
 
+// Maximum UDP payload size over IPv4 (65535 - 20-byte IPv4 header - 8-byte UDP
+// header).
+constexpr size_t kMaxIpv4UdpPayloadSize = 65507;
+
+// Maximum UDP payload size over IPv6 (65535 - 8-byte UDP header).
+constexpr size_t kMaxIpv6UdpPayloadSize = 65527;
+
 // TCP flag bit for FIN.
 constexpr uint8 kTcpFlagFin = 0x01;
 
@@ -78,6 +86,7 @@ constexpr SipHashKey kDefaultIsnSeed = {0x50, 0x65, 0x72, 0x63, 0x65, 0x70,
                                         0x70, 0x49, 0x73, 0x6e};
 
 std::vector<std::shared_ptr<SocketImpl>> active_sockets;
+std::function<void(size_t)> socket_closed_callback;
 uint16 next_ephemeral_port_offset = 0;
 
 TcpTime CurrentTcpTime() { return ::perception::GetTimeSinceKernelStarted(); }
@@ -97,11 +106,61 @@ const TcpIsnGenerator& GetIsnGenerator() {
   return generator;
 }
 
+bool IsPortInUse(SocketType type, const IpAddress& local_addr, uint16 port,
+                 const SocketImpl* ignore_socket = nullptr) {
+  if (port == 0) return false;
+  for (const auto& sock : active_sockets) {
+    if (!sock || sock.get() == ignore_socket) continue;
+    if (sock->GetType() != type || sock->GetLocalPort() != port) continue;
+    if (sock->GetType() == SocketType::TCP &&
+        sock->GetState() == SocketImpl::ClosedState &&
+        sock->GetRemotePort() != 0)
+      continue;
+    const IpAddress& existing_addr = sock->GetLocalEndpoint().address;
+    if (local_addr.IsUnspecified() || existing_addr.IsUnspecified() ||
+        local_addr == existing_addr)
+      return true;
+  }
+  return false;
+}
+
 uint16 AllocateEphemeralPort() {
-  uint16 port = static_cast<uint16>(
+  for (uint16 attempt = 0; attempt < kEphemeralPortCount; ++attempt) {
+    uint16 port = static_cast<uint16>(
+        kEphemeralPortBase + (next_ephemeral_port_offset % kEphemeralPortCount));
+    ++next_ephemeral_port_offset;
+    bool in_use = false;
+    for (const auto& sock : active_sockets) {
+      if (sock && sock->GetLocalPort() == port) {
+        in_use = true;
+        break;
+      }
+    }
+    if (!in_use) return port;
+  }
+  uint16 fallback = static_cast<uint16>(
       kEphemeralPortBase + (next_ephemeral_port_offset % kEphemeralPortCount));
   ++next_ephemeral_port_offset;
-  return port;
+  return fallback;
+}
+
+void AllowInboundForLocalSocket(SocketType type, const IpAddress& local_addr,
+                                uint16 local_port) {
+  if (local_port == 0) return;
+  FirewallRule rule;
+  rule.action = FirewallAction::Allow;
+  rule.direction = FirewallDirection::Inbound;
+  rule.protocol = (type == SocketType::TCP) ? kProtocolTcp : kProtocolUdp;
+  if (!local_addr.IsUnspecified()) {
+    rule.family = local_addr.family();
+    rule.dst_prefix = {local_addr,
+                       static_cast<uint8>(local_addr.IsV6() ? 128 : 32)};
+  }
+  rule.dst_port_range = {local_port, local_port};
+  for (const FirewallRule& existing : GetFirewall().rules()) {
+    if (existing == rule) return;
+  }
+  GetFirewall().AddRule(rule);
 }
 
 void SendRawTcpSegment(size_t iface_idx, const IpAddress& src_ip,
@@ -168,6 +227,20 @@ void AddActiveSocket(std::shared_ptr<SocketImpl> socket) {
   active_sockets.push_back(std::move(socket));
 }
 
+void RemoveActiveSocket(const SocketImpl* socket) {
+  if (socket == nullptr) return;
+  const size_t service_id = socket->ServiceId();
+  std::erase_if(active_sockets,
+                [socket](const std::shared_ptr<SocketImpl>& candidate) {
+                  return candidate.get() == socket;
+                });
+  if (socket_closed_callback) socket_closed_callback(service_id);
+}
+
+void SetSocketClosedCallback(std::function<void(size_t)> callback) {
+  socket_closed_callback = std::move(callback);
+}
+
 const std::vector<std::shared_ptr<SocketImpl>>& GetActiveSockets() {
   return active_sockets;
 }
@@ -185,6 +258,10 @@ void SendTcpPacket(size_t iface_idx, std::shared_ptr<SocketImpl> sock,
 Status SendUdpPacket(size_t iface_idx, const IpAddress& src_ip, uint16 src_port,
                      const IpAddress& dest_ip, uint16 dest_port,
                      const std::string& payload) {
+  const size_t max_payload =
+      dest_ip.IsV6() ? kMaxIpv6UdpPayloadSize : kMaxIpv4UdpPayloadSize;
+  if (payload.size() > max_payload) return Status::INVALID_ARGUMENT;
+
   IpAddress actual_src = src_ip;
   if (actual_src.IsUnspecified()) {
     if (auto selected = SelectSourceAddress(iface_idx, dest_ip);
@@ -322,6 +399,7 @@ void SocketImpl::InitTcpSender(uint32 iss, std::optional<uint16> peer_mss,
 
 Status SocketImpl::Connect(const ConnectRequest& request) {
   if (GetNetworkInterfaceCount() == 0) return Status::INTERNAL_ERROR;
+  auto self = weak_from_this().lock();
 
   remote_.address = request.address;
   remote_.port = request.port;
@@ -378,23 +456,30 @@ Status SocketImpl::Connect(const ConnectRequest& request) {
   }
 
   if (state_ == EstablishedState) return Status::OK;
+  SetState(ClosedState);
   return (last_error_ != Status::OK) ? last_error_ : Status::INTERNAL_ERROR;
 }
 
 Status SocketImpl::Bind(const BindRequest& request) {
+  if (request.port != 0 &&
+      IsPortInUse(type_, request.address, request.port, this))
+    return Status::NOT_ALLOWED;
   local_.address = request.address;
   local_.port =
       (request.port != 0) ? request.port : AllocateEphemeralPort();
+  AllowInboundForLocalSocket(type_, local_.address, local_.port);
   return Status::OK;
 }
 
 Status SocketImpl::Listen() {
   if (local_.port == 0) local_.port = AllocateEphemeralPort();
   state_ = ListenState;
+  AllowInboundForLocalSocket(type_, local_.address, local_.port);
   return Status::OK;
 }
 
 StatusOr<AcceptResponse> SocketImpl::Accept() {
+  auto self = weak_from_this().lock();
   while (accept_queue_.empty()) {
     if (state_ == ClosedState) return Status::INTERNAL_ERROR;
     blocked_fiber_ = ::perception::GetCurrentlyExecutingFiber();
@@ -415,8 +500,13 @@ StatusOr<AcceptResponse> SocketImpl::Accept() {
 
 Status SocketImpl::Send(const SendRequest& request) {
   if (GetNetworkInterfaceCount() == 0) return Status::INTERNAL_ERROR;
+  auto self = weak_from_this().lock();
 
   if (type_ == SocketType::UDP) {
+    const size_t max_payload = remote_.address.IsV6()
+                                   ? kMaxIpv6UdpPayloadSize
+                                   : kMaxIpv4UdpPayloadSize;
+    if (request.data.size() > max_payload) return Status::INVALID_ARGUMENT;
     if (local_.port == 0) local_.port = AllocateEphemeralPort();
     return SendUdpPacket(iface_idx_, local_.address, local_.port,
                          remote_.address, remote_.port, request.data);
@@ -426,18 +516,23 @@ Status SocketImpl::Send(const SendRequest& request) {
     return Status::INTERNAL_ERROR;
 
   if (sender_) {
-    const TcpTime now = CurrentTcpTime();
     std::string_view remaining = request.data;
     while (!remaining.empty()) {
+      if (state_ != EstablishedState && state_ != CloseWaitState)
+        return Status::INTERNAL_ERROR;
+      const TcpTime now = CurrentTcpTime();
       size_t written = sender_->Write(remaining, now);
-      if (written == 0) break;
-      remaining.remove_prefix(written);
-    }
-    seq_ = sender_->SndNxt();
-    if (!remaining.empty()) {
-      SendTcpPacket(iface_idx_, shared_from_this(), kTcpFlagAck | kTcpFlagPsh,
-                    std::string(remaining));
-      seq_ += static_cast<uint32>(remaining.size());
+      seq_ = sender_->SndNxt();
+      if (written > 0) {
+        remaining.remove_prefix(written);
+        if (remaining.empty()) break;
+      }
+      if (sender_->IsAborted() ||
+          (state_ != EstablishedState && state_ != CloseWaitState))
+        return Status::INTERNAL_ERROR;
+      blocked_tx_fiber_ = ::perception::GetCurrentlyExecutingFiber();
+      ::perception::Sleep();
+      blocked_tx_fiber_ = nullptr;
     }
     return Status::OK;
   }
@@ -449,6 +544,7 @@ Status SocketImpl::Send(const SendRequest& request) {
 }
 
 StatusOr<ReceiveResponse> SocketImpl::Receive(const ReceiveRequest& request) {
+  auto self = weak_from_this().lock();
   if (type_ == SocketType::UDP) {
     while (udp_rx_queue_.empty()) {
       if (request.non_blocking) return ReceiveResponse{};
@@ -493,6 +589,13 @@ StatusOr<ReceiveResponse> SocketImpl::Receive(const ReceiveRequest& request) {
 }
 
 Status SocketImpl::Close() {
+  auto self = weak_from_this().lock();
+  const auto queued = std::move(accept_queue_);
+  accept_queue_.clear();
+  for (const auto& child : queued) {
+    if (child) (void)child->Close();
+  }
+
   if (type_ == SocketType::TCP) {
     const TcpTime now = CurrentTcpTime();
     if (state_ == EstablishedState) {
@@ -514,11 +617,12 @@ Status SocketImpl::Close() {
         seq_++;
       }
     } else {
-      state_ = ClosedState;
+      SetState(ClosedState);
     }
   } else {
-    state_ = ClosedState;
+    SetState(ClosedState);
   }
+  if (socket_closed_callback) socket_closed_callback(ServiceId());
   WakeBlockedFiber();
   return Status::OK;
 }
@@ -534,7 +638,10 @@ StatusOr<SocketEndpoints> SocketImpl::GetEndpoints() {
 
 SocketType SocketImpl::GetType() const { return type_; }
 SocketImpl::TcpState SocketImpl::GetState() const { return state_; }
-void SocketImpl::SetState(TcpState state) { state_ = state; }
+void SocketImpl::SetState(TcpState state) {
+  state_ = state;
+  if (state == ClosedState) RemoveActiveSocket(this);
+}
 const IpEndpoint& SocketImpl::GetLocalEndpoint() const { return local_; }
 void SocketImpl::SetLocalEndpoint(const IpEndpoint& endpoint) {
   local_ = endpoint;
@@ -579,6 +686,11 @@ void SocketImpl::WakeBlockedFiber() {
   if (blocked_fiber_ != nullptr) {
     auto* fiber = blocked_fiber_;
     blocked_fiber_ = nullptr;
+    fiber->WakeUp();
+  }
+  if (blocked_tx_fiber_ != nullptr) {
+    auto* fiber = blocked_tx_fiber_;
+    blocked_tx_fiber_ = nullptr;
     fiber->WakeUp();
   }
 }
@@ -737,6 +849,23 @@ void ProcessTcpSegment(size_t iface_idx, const IpAddress& src_ip,
     } else if (seg_info.syn && !seg_info.ack) {
       sock->SetAck(seq + 1);
       sock->SetState(SocketImpl::SynReceivedState);
+      if (auto* sender = sock->GetTcpSender()) {
+        sender->SendSyn(now);
+        sock->SetSeq(sender->SndNxt());
+      } else {
+        SendTcpPacket(iface_idx, sock, kTcpFlagSyn | kTcpFlagAck);
+      }
+    }
+    return;
+  }
+
+  if (sock->GetState() == SocketImpl::SynReceivedState && seg_info.syn &&
+      !seg_info.ack && !seg_info.rst &&
+      seg_info.sequence + 1 == sock->GetAck()) {
+    if (auto* sender = sock->GetTcpSender()) {
+      sender->SendSyn(now);
+      sock->SetSeq(sender->SndNxt());
+    } else {
       SendTcpPacket(iface_idx, sock, kTcpFlagSyn | kTcpFlagAck);
     }
     return;
@@ -780,26 +909,30 @@ void ProcessTcpSegment(size_t iface_idx, const IpAddress& src_ip,
         SendTcpPacket(iface_idx, sock, kTcpFlagAck);
       return;
     }
+    if (sock->GetState() == SocketImpl::SynReceivedState && seg_info.ack &&
+        !sender->IsSynAcknowledged()) {
+      send_rst_reply(seg_info);
+      return;
+    }
     sock->SetSeq(sender->SndNxt());
+    if (ack_res == TcpAckResult::kAdvanced) sock->WakeBlockedFiber();
   }
 
   if (sock->GetState() == SocketImpl::SynReceivedState) {
-    if (seg_info.ack) {
-      sock->SetState(SocketImpl::EstablishedState);
-      const auto current_sockets = active_sockets;
-      for (const auto& parent : current_sockets) {
-        if (parent->GetType() != SocketType::TCP ||
-            parent->GetState() != SocketImpl::ListenState ||
-            parent->GetLocalPort() != dest_port)
-          continue;
-        const IpAddress& bound_ip = parent->GetLocalEndpoint().address;
-        if (!bound_ip.IsUnspecified() && bound_ip != dst_ip) continue;
-        parent->QueueAcceptedSocket(sock);
-        parent->WakeBlockedFiber();
-        break;
-      }
+    if (!seg_info.ack) return;
+    sock->SetState(SocketImpl::EstablishedState);
+    const auto current_sockets = active_sockets;
+    for (const auto& parent : current_sockets) {
+      if (parent->GetType() != SocketType::TCP ||
+          parent->GetState() != SocketImpl::ListenState ||
+          parent->GetLocalPort() != dest_port)
+        continue;
+      const IpAddress& bound_ip = parent->GetLocalEndpoint().address;
+      if (!bound_ip.IsUnspecified() && bound_ip != dst_ip) continue;
+      parent->QueueAcceptedSocket(sock);
+      parent->WakeBlockedFiber();
+      break;
     }
-    return;
   }
 
   if (sock->GetState() == SocketImpl::LastAckState) {

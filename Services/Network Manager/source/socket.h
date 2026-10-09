@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -182,10 +183,19 @@ class SocketImpl : public ::perception::network::Socket::Server,
 
   // Pointer to the fiber currently blocked on a socket operation.
   ::perception::Fiber* blocked_fiber_;
+  // Pointer to the fiber currently blocked waiting for TCP send buffer space.
+  ::perception::Fiber* blocked_tx_fiber_ = nullptr;
 };
 
 // Adds a new active socket to the global registry list.
 void AddActiveSocket(std::shared_ptr<SocketImpl> socket);
+
+// Removes a closed socket from the global registry list and notifies the
+// registered close callback.
+void RemoveActiveSocket(const SocketImpl* socket);
+
+// Registers a callback invoked with a socket's ServiceId when it closes.
+void SetSocketClosedCallback(std::function<void(size_t)> callback);
 
 // Retrieves the global registry list containing all active sockets.
 const std::vector<std::shared_ptr<SocketImpl>>& GetActiveSockets();

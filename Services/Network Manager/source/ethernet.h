@@ -96,8 +96,8 @@ bool IsBroadcastMac(const std::array<uint8, 6>& mac);
 // of the first octet).
 bool IsMulticastMac(const std::array<uint8, 6>& mac);
 
-// Parses and validates a non-fragmented IPv4 packet from an Ethernet frame
-// payload. Validates version == 4, IHL >= 20, total_length >= IHL,
+// Parses and validates an IPv4 packet from an Ethernet frame payload.
+// Validates version == 4, IHL >= 20, total_length >= IHL,
 // total_length <= frame_payload.size() (preventing trailing-padding overreads),
 // and the RFC 1071 IPv4 header checksum.
 std::optional<IpPacketView> ParseIpv4Packet(std::string_view frame_payload);

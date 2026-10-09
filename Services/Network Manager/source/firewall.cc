@@ -38,8 +38,14 @@ constexpr uint8 kProtocolIcmpv6 = 58;
 // ICMPv4 Echo Reply message type.
 constexpr uint8 kIcmpv4EchoReply = 0;
 
+// ICMPv4 Destination Unreachable message type.
+constexpr uint8 kIcmpv4DestinationUnreachable = 3;
+
 // ICMPv4 Echo Request message type.
 constexpr uint8 kIcmpv4EchoRequest = 8;
+
+// ICMPv4 Time Exceeded message type.
+constexpr uint8 kIcmpv4TimeExceeded = 11;
 
 // ICMPv6 Destination Unreachable message type.
 constexpr uint8 kIcmpv6DestinationUnreachable = 1;
@@ -150,34 +156,6 @@ std::optional<FirewallAction> EvaluateEssentialIcmpv6(
   }
 }
 
-// Returns true if `rule` matches `packet`.
-bool RuleMatches(const FirewallRule& rule, const FirewallPacket& packet) {
-  if (rule.direction != FirewallDirection::Any &&
-      rule.direction != packet.direction)
-    return false;
-  if (rule.family != IpAddressFamily::Unspecified &&
-      rule.family != packet.source.family())
-    return false;
-  if (rule.protocol != 0 && rule.protocol != packet.protocol) return false;
-  if (!rule.src_prefix.Matches(packet.source)) return false;
-  if (!rule.dst_prefix.Matches(packet.destination)) return false;
-
-  bool has_port_constraint =
-      !rule.src_port_range.IsWildcard() || !rule.dst_port_range.IsWildcard();
-  if (has_port_constraint) {
-    if (packet.protocol != kProtocolTcp && packet.protocol != kProtocolUdp)
-      return false;
-    if (!rule.src_port_range.Matches(packet.src_port) ||
-        !rule.dst_port_range.Matches(packet.dst_port))
-      return false;
-  }
-
-  if (rule.interface_index.has_value() &&
-      *rule.interface_index != packet.interface_index)
-    return false;
-  return true;
-}
-
 // Returns the state lifetime duration for `protocol`.
 std::chrono::seconds StateLifetimeForProtocol(uint8 protocol) {
   if (protocol == kProtocolTcp)
@@ -192,6 +170,31 @@ std::chrono::seconds StateLifetimeForProtocol(uint8 protocol) {
 bool IpPrefix::Matches(const IpAddress& address) const {
   if (prefix_length == 0 && prefix.IsUnspecified()) return true;
   return address.IsInPrefix(prefix, prefix_length);
+}
+
+bool FirewallRule::Matches(const FirewallPacket& packet) const {
+  if (direction != FirewallDirection::Any && direction != packet.direction)
+    return false;
+  if (family != IpAddressFamily::Unspecified &&
+      family != packet.source.family())
+    return false;
+  if (protocol != 0 && protocol != packet.protocol) return false;
+  if (!src_prefix.Matches(packet.source)) return false;
+  if (!dst_prefix.Matches(packet.destination)) return false;
+
+  bool has_port_constraint =
+      !src_port_range.IsWildcard() || !dst_port_range.IsWildcard();
+  if (has_port_constraint) {
+    if (packet.protocol != kProtocolTcp && packet.protocol != kProtocolUdp)
+      return false;
+    if (!src_port_range.Matches(packet.src_port) ||
+        !dst_port_range.Matches(packet.dst_port))
+      return false;
+  }
+
+  if (interface_index.has_value() && *interface_index != packet.interface_index)
+    return false;
+  return true;
 }
 
 FirewallPacket FirewallPacket::FromPayload(
@@ -286,6 +289,13 @@ FirewallAction Firewall::Evaluate(const FirewallPacket& packet,
   // NDP/MLD with invalid hop limits is always dropped.
   if (auto essential = EvaluateEssentialIcmpv6(packet)) return *essential;
 
+  // Essential ICMPv4 error messages (Destination Unreachable for PMTUD and Time
+  // Exceeded) are permitted.
+  if (packet.source.IsV4() && packet.protocol == kProtocolIcmpv4 &&
+      (packet.icmp_type == kIcmpv4DestinationUnreachable ||
+       packet.icmp_type == kIcmpv4TimeExceeded))
+    return FirewallAction::Allow;
+
   // Check if the packet belongs to an established flow (or is an Echo Reply to
   // an active Echo Request). Unsolicited inbound Echo Requests do not match
   // existing Echo state entries.
@@ -314,7 +324,7 @@ FirewallAction Firewall::Evaluate(const FirewallPacket& packet,
 
   // Evaluate ordered rules; first matching rule wins.
   for (const FirewallRule& rule : rules_) {
-    if (!RuleMatches(rule, packet)) continue;
+    if (!rule.Matches(packet)) continue;
     if (rule.action == FirewallAction::Allow) RecordState(packet, now);
     return rule.action;
   }
@@ -325,6 +335,13 @@ FirewallAction Firewall::Evaluate(const FirewallPacket& packet,
     return FirewallAction::Allow;
   }
   return FirewallAction::Deny;
+}
+
+void Firewall::RecordOutboundPacket(const FirewallPacket& packet,
+                                    std::chrono::steady_clock::time_point now) {
+  FirewallPacket out_packet = packet;
+  out_packet.direction = FirewallDirection::Outbound;
+  RecordState(out_packet, now);
 }
 
 void Firewall::RecordState(const FirewallPacket& packet,
