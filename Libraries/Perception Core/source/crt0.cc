@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <stddef.h>
+#include <stdlib.h>
 #include <exception>
 
 // Some compilers mangle `main` (such as clang), others don't (such as GCC). To
@@ -144,5 +145,9 @@ __attribute__((visibility("default"))) void __libc_exit_fini() {
 }
 
 // Calls main.
-void _main(int argc, char *argv[]) __attribute__((weak)) { main(argc, argv); }
+int _main(int argc, char *argv[]) __attribute__((weak)) {
+  int ret = main(argc, argv);
+  exit(ret);
+  return ret;
+}
 }
