@@ -34,14 +34,28 @@ using ::perception::devices::StorageDeviceReadRequest;
 using ::perception::devices::StorageDeviceType;
 using ::perception::devices::StorageDeviceWriteRequest;
 
+namespace {
+
+// Total number of pages allocated for the PRDT (1 page) and scratch buffer (16
+// pages).
+constexpr size_t kScratchAndPrdtPages = 17;
+
+// Maximum 32-bit physical address supported by PCI IDE Bus Master DMA.
+constexpr size_t kMaxDmaPhysicalAddress = 0xFFFFFFFF;
+
+}  // namespace
+
 IdeStorageDevice::IdeStorageDevice(IdeDevice* device, bool supports_dma)
     : ::perception::devices::StorageDevice::Server({.defer_registration = true}),
       device_(device),
       supports_dma_(supports_dma) {
   if (supports_dma_) {
     scratch_page_ = (unsigned char*)AllocateMemoryPagesBelowPhysicalAddressBase(
-        17, 0xFFFFFFFF - 17 * kPageSize, scratch_page_physical_address_);
-    if (scratch_page_) std::memset(scratch_page_, 0, 17 * kPageSize);
+        kScratchAndPrdtPages,
+        kMaxDmaPhysicalAddress - kScratchAndPrdtPages * kPageSize,
+        scratch_page_physical_address_);
+    if (scratch_page_)
+      std::memset(scratch_page_, 0, kScratchAndPrdtPages * kPageSize);
   } else {
     scratch_page_ = nullptr;
     scratch_page_physical_address_ = 0;
@@ -50,9 +64,8 @@ IdeStorageDevice::IdeStorageDevice(IdeDevice* device, bool supports_dma)
 }
 
 IdeStorageDevice::~IdeStorageDevice() {
-  if (supports_dma_ && scratch_page_) {
-    ReleaseMemoryPages(scratch_page_, 17);
-  }
+  if (supports_dma_ && scratch_page_)
+    ReleaseMemoryPages(scratch_page_, kScratchAndPrdtPages);
 }
 
 StatusOr<StorageDeviceDetails> IdeStorageDevice::GetDeviceDetails() {

@@ -50,7 +50,34 @@ using ::perception::Write8BitsToPort;
 
 namespace {
 
+// Maximum number of sectors transferred in a single scratch-buffer operation.
 constexpr int kMaxScratchSectors = 32;
+
+// Size of an ATA hard drive sector in bytes.
+constexpr size_t kAtaSectorSize = 512;
+
+// End-of-table bit in the second 32-bit word of a PCI Bus Master PRDT entry.
+constexpr uint32 kPrdtEndOfTableBit = 1U << 31;
+
+// Populates the PCI Bus Master PRDT with one entry per 4 KB virtual page of the
+// scratch buffer, resolving each page's physical address independently.
+void PopulateScratchPrdt(IdeStorageDevice* storage_device, size_t total_bytes) {
+  uint32* prdt = reinterpret_cast<uint32*>(storage_device->GetScratchPage());
+  size_t scratch_base_virt =
+      reinterpret_cast<size_t>(storage_device->GetScratchPage()) + kPageSize;
+  size_t num_pages = (total_bytes + kPageSize - 1) / kPageSize;
+  size_t bytes_left = total_bytes;
+  for (size_t p = 0; p < num_pages; p++) {
+    size_t page_bytes = std::min(bytes_left, kPageSize);
+    size_t phys_addr =
+        GetPhysicalAddressOfVirtualAddress(scratch_base_virt + p * kPageSize);
+    prdt[p * 2] = static_cast<uint32>(phys_addr);
+    uint32 flags_and_count = static_cast<uint16>(page_bytes);
+    if (p + 1 == num_pages) flags_and_count |= kPrdtEndOfTableBit;
+    prdt[p * 2 + 1] = flags_and_count;
+    bytes_left -= page_bytes;
+  }
+}
 
 void SelectDriveOnBus(IdeChannel* channel, bool is_master) {
   uint16 bus = channel->is_primary ? ATA_BUS_PRIMARY : ATA_BUS_SECONDARY;
@@ -922,11 +949,7 @@ Status ExecuteAtaRead(IdeChannel* channel, IdeDevice* device,
           std::min((size_t)kMaxScratchSectors, total_sectors - sectors_read);
       size_t chunk_start_lba = start_lba + sectors_read;
 
-      uint32* prdt = (uint32*)storage_device->GetScratchPage();
-      prdt[0] =
-          (uint32)(storage_device->GetScratchPagePhysicalAddress() + kPageSize);
-      uint16 byte_count = chunk_sectors * 512;
-      prdt[1] = byte_count | (1 << 31);
+      PopulateScratchPrdt(storage_device, chunk_sectors * kAtaSectorSize);
 
       Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id), 0);
       Write8BitsToPort(ATA_BMR_STATUS(bus_master_id), 6);
@@ -1150,11 +1173,7 @@ Status ExecuteAtaWrite(IdeChannel* channel, IdeDevice* device,
       std::memcpy(scratch_data + chunk_data_offset, src + cur_src_offset,
                   bytes_to_write_now);
 
-      uint32* prdt = (uint32*)storage_device->GetScratchPage();
-      prdt[0] =
-          (uint32)(storage_device->GetScratchPagePhysicalAddress() + kPageSize);
-      uint16 byte_count = chunk_sectors * 512;
-      prdt[1] = byte_count | (1 << 31);
+      PopulateScratchPrdt(storage_device, chunk_sectors * kAtaSectorSize);
 
       Write8BitsToPort(ATA_BMR_COMMAND(bus_master_id),
                        ATA_BMR_COMMAND_WRITE_BIT);

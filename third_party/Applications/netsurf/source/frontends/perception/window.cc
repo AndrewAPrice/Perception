@@ -2575,9 +2575,6 @@ static struct gui_window* gui_window_create(struct browser_window* bw,
         },
         Image::LoadImage(kPlusIconPath),
         [](ImageButton& btn) { btn.SetColor(kWhiteIconTint); },
-        [](Layout& layout) {
-          layout.SetMargin(YGEdgeRight, ::perception::ui::kUiWindowPadding);
-        },
         Tooltip::ShowTooltip("New Tab (Ctrl+T)")));
 
     tab_bar_ptr->OnTabSelected([](int index) { SwitchTab(index); });

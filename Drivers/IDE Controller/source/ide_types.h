@@ -27,17 +27,17 @@
 // Represents the I/O and control port base addresses for a single IDE channel.
 struct IdeChannelRegisters {
   // The base I/O port address for command/status registers (e.g., 0x1F0).
-  uint16 io_base;
+  uint16 io_base = 0;
 
   // The base I/O port address for control/alternate status registers (e.g.,
   // 0x3F6).
-  uint16 control_base;
+  uint16 control_base = 0;
 
   // The base port address for the channel's DMA bus master registers.
-  uint16 bus_master_id;
+  uint16 bus_master_id = 0;
 
   // Non-zero if interrupts are disabled for the channel.
-  uint8 no_interrupt;
+  uint8 no_interrupt = 0;
 };
 
 struct IdeDevice;

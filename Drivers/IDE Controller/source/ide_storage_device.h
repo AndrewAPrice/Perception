@@ -50,15 +50,14 @@ class IdeStorageDevice : public ::perception::devices::StorageDevice::Server {
   // Whether this device supports Bus Master DMA.
   bool supports_dma_;
 
-  // Pointer to a 2-page memory area used for DMA support.
+  // Pointer to a 17-page memory area used for DMA support.
   // - Page 0: Stores the Physical Region Descriptor Table (PRDT) used by the
-  // Bus Master DMA.
-  // - Page 1: Acts as a scratch sector buffer for DMA transfers that cannot be
-  // performed
-  //   directly (e.g., due to misalignment, 64KB boundary crossing, or partial
-  //   sector reads). It can hold up to 2 sectors (2048 bytes each).
+  //   Bus Master DMA.
+  // - Pages 1..16: Act as a 64 KB scratch sector buffer (4 independent 4 KB
+  //   pages for up to 32 x 512-byte ATA sectors, or 16 pages for up to 32 x
+  //   2048-byte ATAPI sectors).
   unsigned char* scratch_page_;
 
-  // The physical address of the scratch_page_ allocation.
+  // The physical address of page 0 of the scratch_page_ allocation (the PRDT).
   size_t scratch_page_physical_address_;
 };
