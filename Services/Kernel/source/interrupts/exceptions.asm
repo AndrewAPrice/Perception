@@ -274,7 +274,7 @@ exception_common_stub:
     test qword [rsp + 24], 3
     jz .exception_from_kernel
     swapgs
-.exception_from_kernel:
+
     ; Copy what's at the top of the thread's stack.
     push rbp
     push rdi ; Using to keep the interrupt number.
@@ -315,16 +315,8 @@ exception_common_stub:
     push r14
     push r15
 
-    ; Move to the interrupt stack if coming from user mode, or keep kernel stack.
-    test qword [rbp + 16 * 8], 3
-    jz .from_kernel_keep_rsp
+    ; Move to the interrupt stack.
     mov rsp, [gs:24]
-    jmp .rsp_ready
-.from_kernel_keep_rsp:
-    mov rsp, [rbp + 18 * 8]
-    and rsp, -16
-    sub rsp, 8
-.rsp_ready:
 
     ; Jump over profiling code if profiler isn't enabled.
     pushfq
@@ -356,6 +348,66 @@ exception_common_stub:
     mov rax, ExceptionHandler
     call rax
     jmp JumpIntoThread
+
+.exception_from_kernel:
+    ; Build a Registers struct directly on the current kernel stack so the
+    ; running user thread's saved register frame at [gs:16] is not overwritten.
+    xchg rbp, [rsp + 8] ; save rbp at offset 14*8, load error_code into rbp
+    xchg rdi, [rsp]     ; save rdi at offset 13*8, load exception_no into rdi
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov rdx, rbp        ; 3rd argument: error_code
+    mov rbp, rsp        ; rbp points to the stack-allocated Registers frame
+    mov r12, [gs:16]    ; preserve previous CurrentlyExecutingThreadRegs()
+    mov [gs:16], rbp    ; point CurrentlyExecutingThreadRegs() to kernel frame
+    and rsp, -16
+
+    ; Jump over profiling code if profiler isn't enabled.
+    mov r8, [g_profiling_enabling_count]
+    test r8, r8
+    jz .jump_over_kernel_profiling
+
+    push rdi
+    push rdx
+    call ProfileEnteringKernelSpaceForException
+    pop rdx
+    pop rdi
+
+.jump_over_kernel_profiling:
+    mov rsi, cr2
+    mov rax, ExceptionHandler
+    call rax
+
+    mov [gs:16], r12
+    mov rsp, rbp
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    pop rdi
+    pop rbp
+    iretq
 
 .no_current_thread:
     mov rdi, [rsp + 24] ; exception number

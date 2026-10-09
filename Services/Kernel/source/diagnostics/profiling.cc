@@ -54,6 +54,10 @@ size_t g_profiling_enabling_count = 0;
 
 namespace {
 
+// Total number of kernel events tracked in the profiling table.
+constexpr int kItemsToProfile =
+    kNumberOfExceptions + kNumberOfInterrupts + kNumberOfSyscalls + 1;
+
 // Spinlock protecting profiler enable/disable and buffer reset operations.
 InterruptSafeSpinlock g_profiler_lock;
 
@@ -66,9 +70,6 @@ size_t g_idle_cycles_while_profiling_is_enabled;
 // The number of cycles spent in processes that have quit while profiling has
 // been enabled.
 size_t g_cycles_from_processes_that_quit_while_profiling_is_enabled;
-
-constexpr int kItemsToProfile =
-    kNumberOfExceptions + kNumberOfInterrupts + kNumberOfSyscalls + 1;
 
 // Represents a kernel event (exception, interrupt, or syscall).
 struct ProfilingInformation {
@@ -238,10 +239,12 @@ void EnableProfiling(Process *process) {
   process->has_enabled_profiling++;
 
   // Return if profiling is already enabled.
-  if (__atomic_add_fetch(&g_profiling_enabling_count, 1, __ATOMIC_SEQ_CST) != 1)
+  if (__atomic_load_n(&g_profiling_enabling_count, __ATOMIC_RELAXED) > 0) {
+    __atomic_add_fetch(&g_profiling_enabling_count, 1, __ATOMIC_SEQ_CST);
     return;
+  }
 
-  // Initialize the table of profiling events.
+  // Initialize the table of profiling events before publishing the enable count.
   memset((char *)profiling_information, 0, sizeof(profiling_information));
   for (int s = 0; s < kItemsToProfile; s++)
     profiling_information[s].shortest_time = 0xFFFFFFFFFFFFFFFF;
@@ -249,6 +252,13 @@ void EnableProfiling(Process *process) {
   g_kernel_cycles_while_profiling_is_enabled = 0;
   g_idle_cycles_while_profiling_is_enabled = 0;
   g_cycles_from_processes_that_quit_while_profiling_is_enabled = 0;
+
+  // Reset the counters of each process.
+  for (ProcessRef process_to_reset = GetProcessOrNextFromPid(0);
+       process_to_reset;
+       process_to_reset = GetProcessOrNextFromPid(process_to_reset->pid + 1)) {
+    process_to_reset->cycles_spent_executing_while_profiled = 0;
+  }
 
   // Every core measures against its own transition cycle, so seed them all
   // from now.
@@ -262,12 +272,7 @@ void EnableProfiling(Process *process) {
   scheduling::GetCurrentCpuCore().profiling_event_index =
       GetIndexForSyscall((int)Syscall::EnableProfiling);
 
-  // Reset the counters of each process.
-  for (ProcessRef process_to_reset = GetProcessOrNextFromPid(0);
-       process_to_reset;
-       process_to_reset = GetProcessOrNextFromPid(process_to_reset->pid + 1)) {
-    process_to_reset->cycles_spent_executing_while_profiled = 0;
-  }
+  __atomic_add_fetch(&g_profiling_enabling_count, 1, __ATOMIC_SEQ_CST);
 }
 
 void DisableAndOutputProfiling(Process *process) {

@@ -155,3 +155,40 @@ TEST(ServiceDirectoryDirectMethodsTest) {
   ASSERT(svc == nullptr, true);
 }
 
+TEST(ServiceQueryWithEmptyNameMatchesAllTest) {
+  InitializeObjectPools();
+  InitializeProcesses();
+  InitializeServices();
+
+  Process* p = CreateTestProcess("ProcessQueryTest");
+  ASSERT(p != nullptr, true);
+
+  char name1[72];
+  char name2[72];
+  char empty_name[72];
+  SetServiceName(name1, "first_service");
+  SetServiceName(name2, "second_service");
+  SetServiceName(empty_name, "");
+
+  RegisterService(name1, p, 701);
+  RegisterService(name2, p, 702);
+
+  size_t pids[5] = {0};
+  size_t sids[5] = {0};
+  size_t found = ServiceDirectory::Get().QueryServices(empty_name, p->pid, 0,
+                                                       pids, sids, 5);
+  ASSERT(found, (size_t)2);
+  ASSERT(pids[0], p->pid);
+  ASSERT(sids[0], (size_t)701);
+  ASSERT(pids[1], p->pid);
+  ASSERT(sids[1], (size_t)702);
+
+  found = ServiceDirectory::Get().QueryServices(name2, p->pid, 0, pids, sids,
+                                                5);
+  ASSERT(found, (size_t)1);
+  ASSERT(sids[0], (size_t)702);
+
+  UnregisterServiceByMessageId(p, 701);
+  UnregisterServiceByMessageId(p, 702);
+}
+

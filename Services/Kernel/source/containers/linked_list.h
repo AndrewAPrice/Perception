@@ -86,11 +86,11 @@ class LinkedList {
     previous_node->next = item_node;
   }
 
-  // Removes an item from the list. Removing an item that isn't in the list does
-  // nothing.
-  void Remove(C* item) {
+  // Removes an item from the list. Returns true if the item was in the list,
+  // or false if it was not.
+  bool Remove(C* item) {
     auto* node = ItemToNode(item);
-    if (!IsLinked(node)) return;
+    if (!IsLinked(node)) return false;
 
     if (node->previous) {
       node->previous->next = node->next;
@@ -106,6 +106,7 @@ class LinkedList {
 
     node->previous = nullptr;
     node->next = nullptr;
+    return true;
   }
 
   C* PopFront() {

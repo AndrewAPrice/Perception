@@ -19,6 +19,7 @@
 #include "interrupts/interrupts.asm.h"
 #include "ipc/messages.h"
 #include "processes/process.h"
+#include "processes/process_manager.h"
 #include "scheduling/scheduler.h"
 #include "scheduling/thread.h"
 
@@ -30,10 +31,10 @@ using processes::GetProcessName;
 using processes::kProcessNameWords;
 using processes::NotifyProcessOnDeath;
 using processes::Process;
+using processes::ProcessManager;
 using processes::ProcessRef;
 using processes::QueryProcesses;
 using processes::SetChildProcessMemoryPages;
-using processes::StartExecutingChildProcess;
 using processes::StopNotifyingProcessOnDeath;
 using scheduling::SetFocusedProcess;
 
@@ -163,8 +164,9 @@ void StartExecutionProcess(SyscallContext& context) {
   if (!context.has_thread()) return;
 
   ProcessRef child_process = GetProcessFromPid(context.arg0());
-  StartExecutingChildProcess(context.process(), child_process.get(), context.arg1(),
-                             context.arg2());
+  ProcessManager::Get().StartExecutingChildProcess(
+      context.process(), child_process.get(), context.arg1(), context.arg2(),
+      context.arg3());
 }
 
 void DestroyChildProcess(SyscallContext& context) {

@@ -86,6 +86,13 @@ class SharedMemoryManager {
                                      size_t& flags,
                                      size_t& size_in_bytes);
 
+  // Queries shared memory details pertaining to a process, including reference count.
+  void GetDetailsPertainingToProcess(processes::Process* process,
+                                     size_t shared_memory_id,
+                                     size_t& flags,
+                                     size_t& size_in_bytes,
+                                     size_t& references_count);
+
   // Grows the size of a shared memory block in pages.
   SharedMemoryInProcess* Grow(processes::Process* process,
                               size_t shared_memory_id, size_t pages);

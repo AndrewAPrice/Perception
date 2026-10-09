@@ -243,12 +243,21 @@ void UnmapSharedMemoryFromProcess(
     // There are no more references to this shared memory block, so the memory
     // can be released.
     ReleaseSharedMemoryBlock(shared_memory);
-  } else if (process->pid == shared_memory->creator_pid &&
-             (shared_memory->flags & kSmLazilyAllocated) != 0) {
-    // Unmapping lazily allocated shared memory from the creator. Create the
-    // pages of any threads that are sleeping because they're waiting for pages
-    // to be created.
-    // TODO
+  } else {
+    while (auto* event = shared_memory->events.FirstItem()) {
+      ipc::SendKernelMessageToProcess(event->process, event->message_id, 0, 0,
+                                      0, 0, 0);
+      shared_memory->events.Remove(event);
+      event->process->shared_memory_events.Remove(event);
+      ObjectPool<ipc::SharedMemoryEvent>::Release(event);
+    }
+    if (process->pid == shared_memory->creator_pid &&
+        (shared_memory->flags & kSmLazilyAllocated) != 0) {
+      // Unmapping lazily allocated shared memory from the creator. Create the
+      // pages of any threads that are sleeping because they're waiting for
+      // pages to be created.
+      // TODO
+    }
   }
 
   ObjectPool<SharedMemoryInProcess>::Release(shared_memory_in_process);

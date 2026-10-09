@@ -49,6 +49,7 @@ using memory::TemporarilyMapPhysicalPages;
 using output::print;
 using processes::Process;
 using scheduling::kKernelCodeSelector;
+using scheduling::ReprogramTimerForNextDeadline;
 using scheduling::ScheduleNextThread;
 using scheduling::ScheduleThreadIfWeAreHalted;
 using scheduling::TimerHandler;
@@ -385,6 +386,7 @@ extern "C" void CommonHardwareInterruptHandler(int interrupt_number) {
     SendLapicEoi();
 #endif
     ScheduleNextThread();
+    ReprogramTimerForNextDeadline();
   } else if (interrupt_number == kTlbShootdownIpiHandlerNumber) {
     // Cross-core TLB shootdown IPI. A CR3 reload would not evict the kernel's
     // global pages, so acknowledge through the shared shootdown protocol, which

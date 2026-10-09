@@ -179,17 +179,16 @@ void Scheduler::ScheduleNextThread() {
     }
 
     // Save previous thread's FPU state before making it available to other cores.
-    if (prev != nullptr && prev->uses_fpu_registers) {
+    if (prev != nullptr && prev->uses_fpu_registers)
       SaveFpuState(prev->fpu_registers);
-    }
 
     if (prev != nullptr) {
       prev->in_syscall = false;
+      __atomic_store_n(&prev->running_on_core, -1, __ATOMIC_RELEASE);
       if (prev->is_awake()) {
         prev->TransitionToReady();
         int p = static_cast<int>(prev->priority);
         ready_queues_[p].AddBack(prev);
-        SendRescheduleIpiToAnyIdleCore();
       }
     }
 
@@ -202,6 +201,8 @@ void Scheduler::ScheduleNextThread() {
     } else {
       __atomic_fetch_or(&g_idle_cores_mask, 1ULL << core_id, __ATOMIC_SEQ_CST);
     }
+
+    if (prev != nullptr && prev->is_ready()) SendRescheduleIpiToAnyIdleCore();
   }
 
   if (!next) {
@@ -215,9 +216,6 @@ void Scheduler::ScheduleNextThread() {
     // translating kernel addresses through.
     memory::KernelAddressSpace().SwitchToAddressSpace();
     CurrentlyExecutingThreadRegs() = &GetCurrentCpuCore().idle_regs;
-    if (prev != nullptr) {
-      __atomic_store_n(&prev->running_on_core, -1, __ATOMIC_RELEASE);
-    }
     return;
   }
 
@@ -240,9 +238,6 @@ void Scheduler::ScheduleNextThread() {
   LoadThreadSegment(RunningThread());
 
   CurrentlyExecutingThreadRegs() = &RunningThread()->registers;
-  if (prev != nullptr && prev != next) {
-    __atomic_store_n(&prev->running_on_core, -1, __ATOMIC_RELEASE);
-  }
 }
 
 void Scheduler::Schedule(Thread* thread, bool force_preemption) {
@@ -289,22 +284,30 @@ void Scheduler::Unschedule(Thread* thread, ThreadState target_state) {
   int other_core = -1;
   {
     InterruptSafeSpinlockGuard guard(lock_);
-    if (thread == RunningThread()) is_current = true;
+    if (target_state == ThreadState::Halted && thread->wake_signal_pending) {
+      thread->wake_signal_pending = false;
+      return;
+    }
+    int thread_core =
+        __atomic_load_n(&thread->running_on_core, __ATOMIC_ACQUIRE);
+    if (thread == RunningThread() ||
+        thread_core == static_cast<int>(GetCurrentCoreId()))
+      is_current = true;
 
     if (!thread->is_awake()) {
       if (!is_current) return;
     } else {
-      UpdateRunningThreadTimeslice();
+      if (is_current) UpdateRunningThreadTimeslice();
 
       awake_thread_count_--;
 
       if (is_current) {
-        // Handled below; RunningThread() will be switched in ScheduleNextThread.
-      } else if (thread->running_on_core == -1) {
+        __atomic_store_n(&thread->running_on_core, -1, __ATOMIC_RELEASE);
+      } else if (thread_core == -1) {
         int p = static_cast<int>(thread->priority);
         ready_queues_[p].Remove(thread);
       } else {
-        other_core = thread->running_on_core;
+        other_core = thread_core;
       }
     }
 
@@ -336,15 +339,14 @@ void Scheduler::Unschedule(Thread* thread, ThreadState target_state) {
 }
 
 void Scheduler::SetPriority(Thread* thread, ThreadPriority priority_input) {
+  InterruptSafeSpinlockGuard guard(lock_);
   ThreadPriority target_priority = priority_input;
   if (focused_process_ && thread->process == focused_process_ &&
-      priority_input == ThreadPriority::Normal) {
+      priority_input == ThreadPriority::Normal)
     target_priority = ThreadPriority::InteractiveApp;
-  }
 
   if (thread->priority == target_priority) return;
 
-  InterruptSafeSpinlockGuard guard(lock_);
   if (thread->is_ready()) {
     int p = static_cast<int>(thread->priority);
     ready_queues_[p].Remove(thread);
@@ -358,6 +360,9 @@ void Scheduler::SetPriority(Thread* thread, ThreadPriority priority_input) {
 void Scheduler::SetFocusedProcess(Process* process) {
   {
     InterruptSafeSpinlockGuard guard(lock_);
+    if (process != nullptr &&
+        __atomic_load_n(&process->is_dying, __ATOMIC_ACQUIRE))
+      return;
     if (focused_process_ == process) return;
 
     // Revert old focused threads back to Normal under focused_process_->lock.
@@ -396,6 +401,7 @@ void Scheduler::SetFocusedProcess(Process* process) {
   }
 
   ScheduleNextThread();
+  ReprogramTimerForNextDeadline();
 }
 
 Process* Scheduler::GetFocusedProcess() {
@@ -419,7 +425,9 @@ bool Scheduler::NeedsTimesliceInterrupt(Thread* thread) {
 }
 
 void Scheduler::ScheduleIfHalted() {
-  if (RunningThread() == nullptr) ScheduleNextThread();
+  if (RunningThread() != nullptr) return;
+  ScheduleNextThread();
+  ReprogramTimerForNextDeadline();
 }
 
 // Forwarding free functions for backward compatibility.

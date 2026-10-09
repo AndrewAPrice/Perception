@@ -81,7 +81,8 @@ class ProcessManager {
 
   // Starts execution of a child process.
   void StartExecutingChildProcess(Process* parent, Process* child,
-                                  size_t entry_address, size_t params);
+                                  size_t entry_address, size_t params,
+                                  size_t new_parent_pid = 0);
 
   // Destroys a child process in the creating state.
   void DestroyChildProcess(Process* parent, Process* child);

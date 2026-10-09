@@ -272,8 +272,7 @@ SharedMemoryInProcess* SharedMemoryManager::CreateAndMap(
 
   SharedMemoryInProcess* shared_memory_in_process =
       MapSharedMemoryIntoProcess(process, shared_memory);
-  if (shared_memory_in_process == nullptr)
-    ObjectPool<SharedMemory>::Release(shared_memory);
+  if (shared_memory_in_process == nullptr) Release(shared_memory);
   return shared_memory_in_process;
 }
 
@@ -326,6 +325,8 @@ static SharedMemoryInProcess* RejoinSharedMemoryHelper(
   UnmapSharedMemoryFromProcess(shared_memory_in_process);
   shared_memory_in_process = MapSharedMemoryIntoProcess(process, shared_memory);
   shared_memory->processes_referencing_this_block--;
+  if (shared_memory->processes_referencing_this_block == 0)
+    SharedMemoryManager::Get().Release(shared_memory);
   return shared_memory_in_process;
 }
 
@@ -353,10 +354,20 @@ bool SharedMemoryManager::JoinChild(Process* parent, Process* child,
                                     size_t starting_address) {
   RecursiveInterruptSafeSpinlockGuard guard(lock_);
   if (!IsProcessAChildOfParent(parent, child)) return false;
+  {
+    containers::InterruptSafeSpinlockGuard child_guard(child->lock);
+    if (!child->threads.IsEmpty()) return false;
+  }
+
+  if (FindSharedMemoryInProcessHelper(child, shared_memory_id) != nullptr)
+    return false;
 
   SharedMemory* shared_memory =
       all_shared_memories_.SearchForItemEqualToValue(shared_memory_id);
   if (shared_memory == nullptr) return false;
+
+  if (starting_address == 0)
+    return MapSharedMemoryIntoProcess(child, shared_memory) != nullptr;
 
   if (!IsPageAlignedAddress(starting_address)) {
     print << "JoinChildProcessInSharedMemory called with non page aligned "
@@ -503,12 +514,21 @@ bool SharedMemoryManager::CanProcessWrite(Process* process,
 void SharedMemoryManager::GetDetailsPertainingToProcess(
     Process* process, size_t shared_memory_id, size_t& flags,
     size_t& size_in_bytes) {
+  size_t references_count = 0;
+  GetDetailsPertainingToProcess(process, shared_memory_id, flags, size_in_bytes,
+                                references_count);
+}
+
+void SharedMemoryManager::GetDetailsPertainingToProcess(
+    Process* process, size_t shared_memory_id, size_t& flags,
+    size_t& size_in_bytes, size_t& references_count) {
   RecursiveInterruptSafeSpinlockGuard guard(lock_);
   SharedMemory* shared_memory =
       all_shared_memories_.SearchForItemEqualToValue(shared_memory_id);
   if (shared_memory == nullptr) {
     flags = 0;
     size_in_bytes = 0;
+    references_count = 0;
     return;
   }
 
@@ -526,6 +546,7 @@ void SharedMemoryManager::GetDetailsPertainingToProcess(
     flags |= kSmdCanProcessAssignPages;
   }
   size_in_bytes = shared_memory->size_in_pages * kPageSize;
+  references_count = shared_memory->processes_referencing_this_block;
 }
 
 SharedMemoryInProcess* SharedMemoryManager::Grow(Process* process,

@@ -15,6 +15,7 @@
 
 #include "diagnostics/stack_trace.h"
 
+#include "memory/memory.h"
 #include "memory/physical_allocator.h"
 #include "processes/process.h"
 #include "hardware/registers.h"
@@ -27,6 +28,7 @@
 namespace diagnostics {
 
 using hardware::PrintRegisters;
+using memory::IsKernelAddress;
 using memory::KernelAddressSpace;
 using memory::PageOffset;
 using memory::TemporarilyMapPhysicalPages;
@@ -41,6 +43,9 @@ namespace {
 // The maximum number of levels to print up the call stack for a stack trace.
 constexpr int kStackTraceDepth = 100;
 
+// Temporary mapping slot used when reading stack frames.
+constexpr size_t kStackTraceTempSlot = 4;
+
 // Reads a 64-bit word from virtual memory using temporary page mapping slot 4.
 // Returns false if the address is not mapped.
 bool ReadVirtualMemoryWord(VirtualAddressSpace& address_space,
@@ -49,8 +54,8 @@ bool ReadVirtualMemoryWord(VirtualAddressSpace& address_space,
       address_space.GetPhysicalAddress(virtual_address, false);
   if (physical_page == kOutOfMemory) return false;
 
-  auto* memory =
-      static_cast<size_t*>(TemporarilyMapPhysicalPages(physical_page, 4));
+  auto* memory = static_cast<size_t*>(
+      TemporarilyMapPhysicalPages(physical_page, kStackTraceTempSlot));
   value_out = memory[PageOffset(virtual_address) >> 3];
   return true;
 }
@@ -61,9 +66,6 @@ void PrintStackTrace() {
     print << "Can't print stack trace because no thread is executing.\n";
     return;
   }
-  VirtualAddressSpace& address_space =
-      (RunningThread() == nullptr) ? KernelAddressSpace()
-                                   : RunningThread()->process->virtual_address_space;
   size_t rbp = CurrentlyExecutingThreadRegs()->rbp;
   size_t rip = CurrentlyExecutingThreadRegs()->rip;
 
@@ -77,13 +79,22 @@ void PrintStackTrace() {
       return;
     }
 
+    VirtualAddressSpace* frame_space = nullptr;
+    if (IsKernelAddress(rbp)) {
+      frame_space = &KernelAddressSpace();
+    } else if (RunningThread() != nullptr) {
+      frame_space = &RunningThread()->process->virtual_address_space;
+    } else {
+      return;
+    }
+
     // Read the return address (RIP).
-    if (!ReadVirtualMemoryWord(address_space, rbp + 8, rip)) return;
+    if (!ReadVirtualMemoryWord(*frame_space, rbp + 8, rip)) return;
     print << " ^ " << rip << " Stack base: " << rbp << '\n';
 
     // Read the next frame pointer (RBP).
     size_t next_rbp = 0;
-    if (!ReadVirtualMemoryWord(address_space, rbp, next_rbp)) return;
+    if (!ReadVirtualMemoryWord(*frame_space, rbp, next_rbp)) return;
     if (next_rbp <= rbp) return;
     rbp = next_rbp;
   }

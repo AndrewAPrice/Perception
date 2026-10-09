@@ -16,13 +16,13 @@
 #include "syscall/shared_memory_syscalls.h"
 
 #include "ipc/shared_memory.h"
+#include "ipc/shared_memory_manager.h"
 #include "memory/physical_allocator.h"
 #include "processes/process.h"
 #include "scheduling/thread.h"
 
 using ipc::CreateAndMapSharedMemoryBlockIntoProcess;
 using ipc::GetPhysicalAddressOfPageInSharedMemory;
-using ipc::GetSharedMemoryDetailsPertainingToProcess;
 using ipc::GrantPermissionToAllocateIntoSharedMemory;
 using ipc::GrowSharedMemory;
 using ipc::IsAddressAllocatedInSharedMemory;
@@ -32,6 +32,7 @@ using ipc::LeaveSharedMemory;
 using ipc::MovePageIntoSharedMemory;
 using ipc::RegisterSharedMemoryEvent;
 using ipc::SharedMemoryInProcess;
+using ipc::SharedMemoryManager;
 using ipc::TriggerSharedMemoryEvent;
 using ipc::UnregisterSharedMemoryEvent;
 using processes::GetProcessFromPid;
@@ -85,9 +86,9 @@ void LeaveSharedMemory(SyscallContext& context) {
 
 void GetSharedMemoryDetails(SyscallContext& context) {
   if (context.has_thread()) {
-    GetSharedMemoryDetailsPertainingToProcess(
+    SharedMemoryManager::Get().GetDetailsPertainingToProcess(
         context.process(), context.arg0(), context.registers().rax,
-        context.registers().rbx);
+        context.registers().rbx, context.registers().rdx);
   }
 }
 

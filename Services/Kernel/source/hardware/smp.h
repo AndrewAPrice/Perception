@@ -27,10 +27,12 @@ void SendRescheduleIpi(size_t target_core_id);
 // Sends a reschedule IPI to any currently idle CPU core, if one exists.
 void SendRescheduleIpiToAnyIdleCore();
 
-// Invalidates `address` in the TLB of every other online CPU core, blocking
-// until they have all acknowledged. Pass hardware::kFlushEntireTlb to
-// invalidate their entire TLBs, including global pages.
-void BroadcastTlbShootdown(size_t address);
+// Invalidates `address` in the TLB of every online CPU core in
+// `target_cores_mask` (excluding the calling core), blocking until they have
+// all acknowledged. Pass hardware::kFlushEntireTlb to invalidate their entire
+// TLBs including global pages, or hardware::kFlushUserTlb to reload CR3.
+void BroadcastTlbShootdown(size_t address,
+                           uint64 target_cores_mask = ~static_cast<uint64>(0));
 
 }  // namespace hardware
 

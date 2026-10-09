@@ -219,11 +219,14 @@ void Shutdown() {
   WriteIOByte(kQemuDebugExitPort, kQemuDebugExitCode);
 }
 
-// The exception handler.
 extern "C" void ExceptionHandler(int exception_no, size_t cr2,
                                  size_t error_code) {
+  bool in_kernel = CurrentlyExecutingThreadRegs() == nullptr ||
+                   RunningThread() == nullptr ||
+                   ((CurrentlyExecutingThreadRegs()->cs & 3) == 0);
   Exception exception = static_cast<Exception>(exception_no);
-  if (exception == Exception::PageFault && RunningThread() != nullptr) {
+  if (!in_kernel && exception == Exception::PageFault &&
+      RunningThread() != nullptr) {
     // Check present bit (bit 0). If present (1), this is a page protection violation
     // (e.g. write to read-only page or NX violation), which cannot be resolved by retrying.
     if ((error_code & 1) == 0) {
@@ -240,9 +243,6 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
     }
   }
 
-  bool in_kernel = CurrentlyExecutingThreadRegs() == nullptr ||
-                   RunningThread() == nullptr ||
-                   ((CurrentlyExecutingThreadRegs()->cs & 3) == 0);
   EnableBlueScreen();
   PrintException(in_kernel, exception_no, cr2, error_code);
 
@@ -258,12 +258,11 @@ extern "C" void ExceptionHandler(int exception_no, size_t cr2,
   } else {
     // Terminate the process.
     Process* process = RunningThread()->process;
-    RunningThread() = nullptr;
-    CurrentlyExecutingThreadRegs() = nullptr;
     DestroyProcess(process);
     if (!AreAnyProcessesRunning()) print << "All processes terminated.\n";
 
-    ScheduleNextThread();
+    if (RunningThread() == nullptr || RunningThread()->process == process)
+      ScheduleNextThread();
     JumpIntoThread();
   }
 }

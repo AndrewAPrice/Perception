@@ -37,6 +37,9 @@ namespace {
 // The number of stack pages allocated per thread stack.
 constexpr size_t kStackPages = 64;
 
+// Temporary mapping slot used when clearing a thread's termination address.
+constexpr size_t kTerminationClearTempSlot = 4;
+
 size_t g_next_thread_id;
 
 // Initializes the registers for a thread.
@@ -75,9 +78,8 @@ void AcquireThreadReference(Thread& thread) {
 }
 
 void ReleaseThreadReference(Thread& thread) {
-  if (__atomic_sub_fetch(&thread.reference_count, 1, __ATOMIC_RELEASE) == 0) {
+  if (__atomic_sub_fetch(&thread.reference_count, 1, __ATOMIC_ACQ_REL) == 0)
     ObjectPool<Thread>::Release(&thread);
-  }
 }
 
 Thread* CreateThread(Process* process, size_t entry_point, size_t param,
@@ -156,14 +158,17 @@ Thread* CreateThread(Process* process, size_t entry_point, size_t param,
   return thread;
 }
 
-// Destroys a thread.
 void DestroyThread(Thread* thread, bool process_being_destroyed) {
   // Make sure the thread is not scheduled.
   if (thread->is_awake()) UnscheduleThread(thread, ThreadState::Terminated);
 
   // Wait if the thread is currently running on another core until it
   // deschedules.
-  if (thread != RunningThread()) {
+  if (thread == RunningThread() ||
+      __atomic_load_n(&thread->running_on_core, __ATOMIC_ACQUIRE) ==
+          static_cast<int>(GetCurrentCoreId())) {
+    __atomic_store_n(&thread->running_on_core, -1, __ATOMIC_RELEASE);
+  } else {
     while (__atomic_load_n(&thread->running_on_core, __ATOMIC_ACQUIRE) != -1)
       CpuPause();
   }
@@ -216,7 +221,8 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
     if (physical_page != kOutOfMemory) {
       // If this virtual page was actually assigned to a physical address,
       // set the memory location to 0.
-      *(uint64*)((size_t)TemporarilyMapPhysicalPages(physical_page, 1) +
+      *(uint64*)((size_t)TemporarilyMapPhysicalPages(
+                     physical_page, kTerminationClearTempSlot) +
                  offset_in_page) = 0;
 
       AwakeFutexInProcess(process, address_cleared);
@@ -236,23 +242,45 @@ void DestroyThread(Thread* thread, bool process_being_destroyed) {
   if (should_destroy_process) DestroyProcess(process);
 }
 
-
-// Destroys all threads for a process.
 void DestroyThreadsForProcess(Process* process, bool process_being_destroyed) {
+  Thread* current = RunningThread();
   while (true) {
     Thread* thread = nullptr;
     {
       InterruptSafeSpinlockGuard guard(process->lock);
-      thread = process->threads.FirstItem();
+      for (Thread* candidate : process->threads) {
+        if (candidate != current) {
+          thread = candidate;
+          break;
+        }
+      }
     }
     if (thread == nullptr) break;
     DestroyThread(thread, process_being_destroyed);
   }
+
+  Thread* last_thread = nullptr;
+  {
+    InterruptSafeSpinlockGuard guard(process->lock);
+    last_thread = process->threads.FirstItem();
+  }
+  if (last_thread != nullptr)
+    DestroyThread(last_thread, process_being_destroyed);
 }
 
 Thread* GetThreadFromTid(Process* process, size_t tid) {
   InterruptSafeSpinlockGuard guard(process->lock);
-  return process->threads.SearchForItemEqualToValue(tid);
+  Thread* thread = process->threads.SearchForItemEqualToValue(tid);
+  if (thread != nullptr && thread->is_terminated()) return nullptr;
+  return thread;
+}
+
+Thread* GetThreadAndAcquireReference(Process* process, size_t tid) {
+  InterruptSafeSpinlockGuard guard(process->lock);
+  Thread* thread = process->threads.SearchForItemEqualToValue(tid);
+  if (thread == nullptr || thread->is_terminated()) return nullptr;
+  AcquireThreadReference(*thread);
+  return thread;
 }
 
 void Thread::TransitionToReady() {

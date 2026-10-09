@@ -54,6 +54,9 @@ using scheduling::Thread;
 
 namespace {
 
+// Maximum number of death notifications a single process may subscribe to.
+constexpr size_t kMaxDeathNotifications = 128;
+
 // Releases a ProcessToNotifyOnExit object and disconnects it from the linked lists.
 void ReleaseNotification(ProcessToNotifyOnExit* notification) {
   {
@@ -76,6 +79,7 @@ bool RemoveChildProcessOfParent(Process* parent, Process* child) {
 
   if (child == parent->child_processes) {
     parent->child_processes = child->next_child_process_in_parent;
+    child->next_child_process_in_parent = nullptr;
     child->parent = nullptr;
     return true;
   }
@@ -87,6 +91,7 @@ bool RemoveChildProcessOfParent(Process* parent, Process* child) {
     if (child_in_parent == child) {
       previous_child->next_child_process_in_parent =
           child_in_parent->next_child_process_in_parent;
+      child->next_child_process_in_parent = nullptr;
       child->parent = nullptr;
       return true;
     }
@@ -412,7 +417,6 @@ bool ProcessManager::HasRunningProcesses() {
 
 void ProcessManager::NotifyProcessOnDeath(Process* target, Process* notifyee,
                                          size_t event_id) {
-  constexpr size_t kMaxDeathNotifications = 128;
   {
     InterruptSafeSpinlockGuard guard(notifyee->lock);
     size_t count = 0;
@@ -476,8 +480,11 @@ Process* ProcessManager::CreateChildProcess(Process* parent, char* name,
                                            size_t bitfield) {
   if (!parent->can_create_processes) return nullptr;
 
-  // Non-driver processes cannot grant driver privileges.
+  // A parent process cannot grant capabilities that it does not possess itself.
   if (!parent->is_driver) bitfield &= ~(1 << 0);
+  if (!parent->can_create_processes) bitfield &= ~(1 << 1);
+  if (!parent->can_set_focus) bitfield &= ~(1 << 2);
+  if (!parent->can_terminate_processes) bitfield &= ~(1 << 3);
 
   Process* child_process =
       CreateProcess(/*is_driver=*/bitfield & (1 << 0),
@@ -524,6 +531,10 @@ void ProcessManager::SetChildProcessMemoryPages(Process* parent, Process* child,
                                                size_t destination_address,
                                                size_t page_count) {
   if (!IsProcessAChildOfParent(parent, child)) return;
+  {
+    InterruptSafeSpinlockGuard child_guard(child->lock);
+    if (!child->threads.IsEmpty()) return;
+  }
 
   // The page count and both addresses come from userspace. The loop is bounded
   // because the kernel runs with interrupts disabled, so an overlong loop hangs
@@ -572,8 +583,41 @@ void ProcessManager::SetChildProcessMemoryPages(Process* parent, Process* child,
 
 void ProcessManager::StartExecutingChildProcess(Process* parent, Process* child,
                                                size_t entry_address,
-                                               size_t params) {
+                                               size_t params,
+                                               size_t new_parent_pid) {
+  if (!IsProcessAChildOfParent(parent, child)) return;
+  if (new_parent_pid != 0 && new_parent_pid == child->pid) return;
+  {
+    InterruptSafeSpinlockGuard child_guard(child->lock);
+    if (!child->threads.IsEmpty()) return;
+  }
   if (!RemoveChildProcessOfParent(parent, child)) return;
+
+  if (new_parent_pid == 0) {
+    child->parent = nullptr;
+    child->parent_pid = 0;
+  } else {
+    ProcessRef new_parent = Find(new_parent_pid);
+    if (!new_parent || new_parent.get() == child) {
+      DestroyProcess(child);
+      return;
+    }
+    bool reparented = false;
+    {
+      InterruptSafeSpinlockGuard guard(new_parent->lock);
+      if (!new_parent->is_dying) {
+        child->parent_pid = new_parent->pid;
+        child->parent = new_parent.get();
+        child->next_child_process_in_parent = new_parent->child_processes;
+        new_parent->child_processes = child;
+        reparented = true;
+      }
+    }
+    if (!reparented) {
+      DestroyProcess(child);
+      return;
+    }
+  }
 
   Thread* thread = scheduling::CreateThread(child, entry_address, params);
   if (!thread) {
@@ -586,6 +630,11 @@ void ProcessManager::StartExecutingChildProcess(Process* parent, Process* child,
 }
 
 void ProcessManager::DestroyChildProcess(Process* parent, Process* child) {
+  if (!IsProcessAChildOfParent(parent, child)) return;
+  {
+    InterruptSafeSpinlockGuard child_guard(child->lock);
+    if (!child->threads.IsEmpty()) return;
+  }
   if (!RemoveChildProcessOfParent(parent, child)) return;
   DestroyProcess(child);
 }

@@ -115,12 +115,17 @@ bool StringsAreEqual(const char* a, const char* b) {
 // Size of line buffer per core.
 constexpr size_t kPrintBufferSize = 256;
 
+}  // namespace
+
+namespace {
+
 struct CorePrintBuffer {
   char buffer[kPrintBufferSize];
   size_t length = 0;
   int pid = kKernelPid;
   char name[kMaxSourceNameLength + 1] = "Kernel";
   int channel = kDefaultChannel;
+  NumberFormat number_format = NumberFormat::Decimal;
 };
 
 CorePrintBuffer g_print_buffers[kMaxCores];
@@ -259,7 +264,9 @@ Printer& Printer::operator<<(int c) {
 
 Printer& Printer::operator<<(size_t num) {
   RecursiveInterruptSafeSpinlockGuard guard(g_serial_print_spinlock);
-  switch (number_format_) {
+  size_t core_id = GetCurrentCoreId();
+  if (core_id >= kMaxCores) core_id = 0;
+  switch (g_print_buffers[core_id].number_format) {
     case NumberFormat::Decimal:
       PrintDecimal(num, /*with_commas=*/true);
       break;
@@ -275,6 +282,9 @@ Printer& Printer::operator<<(size_t num) {
 
 Printer& Printer::operator<<(NumberFormat format) {
   RecursiveInterruptSafeSpinlockGuard guard(g_serial_print_spinlock);
+  size_t core_id = GetCurrentCoreId();
+  if (core_id >= kMaxCores) core_id = 0;
+  g_print_buffers[core_id].number_format = format;
   number_format_ = format;
   return *this;
 }

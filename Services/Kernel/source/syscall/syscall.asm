@@ -102,7 +102,7 @@ syscall_entry:
     ; Ensure user-mode RIP is canonical (bits 47..63 must be 0). If not canonical,
     ; sysret would cause a #GP in ring 0, so fall back to iretq.
     test dword [rsp + 4], 0xFFFF8000
-    jnz .return_to_kernel
+    jnz .return_to_user_via_iretq
 
     pop rcx ; pop rip into rcx
     add rsp, 8 ; skip cs
@@ -111,6 +111,8 @@ syscall_entry:
     swapgs
     o64 sysret
 
+.return_to_user_via_iretq:
+    swapgs
 .return_to_kernel:
     iretq
 

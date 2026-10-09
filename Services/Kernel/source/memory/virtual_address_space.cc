@@ -106,10 +106,9 @@ constexpr int kMostSignificantAddressBitInTopMostPageTable = 39;
 // The number of address bits per page table level.
 constexpr int kAddressBitsPerPageTableLevel = 9;
 
-// The lowest address covered by PML4 entry 511. That entry is shared by
-// reference with every address space and skipped during teardown, so no part of
-// it may ever be handed out to a process.
-constexpr size_t kLowestAddressInKernelPml4Entry = 0xFFFFFF8000000000ULL;
+// Maximum number of pages in a range to flush individually via invlpg before
+// falling back to a full TLB flush.
+constexpr size_t kMaxPagesForIndividualTlbFlush = 32;
 
 // How often, in iterations, to re-send a reschedule IPI while waiting for other
 // cores to stop using an address space that is being destroyed.
@@ -275,18 +274,6 @@ bool VirtualAddressSpace::InitializeUserSpace() {
   fmr->pages = (max_lower_half - kPageSize) / kPageSize;
   AddFreeMemoryRange(fmr);
 
-  // Now add the higher half memory.
-  fmr = ObjectPool<FreeMemoryRange>::Allocate();
-  if (fmr != nullptr) {
-    // NOTE: Gracefully continue if for some reason another FreeMemoryRange
-    // could not be allocated.
-    fmr->start_address = min_higher_half;
-    // Stop below the PML4 entry that is shared with the kernel, which also
-    // keeps this below kVirtualMemoryOffset where the kernel itself lives.
-    fmr->pages =
-        (kLowestAddressInKernelPml4Entry - min_higher_half) / kPageSize;
-    AddFreeMemoryRange(fmr);
-  }
   return true;
 }
 
@@ -511,8 +498,10 @@ void VirtualAddressSpace::ReleasePages(size_t addr, size_t pages) {
   if (!IsAddressInCorrectSpace(addr) || !IsAddressInCorrectSpace(addr + bytes - 1))
     return;
 
+  size_t start_addr = addr;
   for (size_t i = 0; i < pages; i++, addr += kPageSize)
-    UnmapVirtualPage(addr, /*free=*/false);
+    UnmapVirtualPage(addr, /*free=*/false, /*flush_tlb=*/false);
+  FlushAddressRangeIfActive(start_addr, pages, IsKernelAddress(start_addr));
 }
 
 void VirtualAddressSpace::FreePages(size_t addr, size_t pages) {
@@ -523,8 +512,10 @@ void VirtualAddressSpace::FreePages(size_t addr, size_t pages) {
   if (!IsAddressInCorrectSpace(addr) || !IsAddressInCorrectSpace(addr + bytes - 1))
     return;
 
+  size_t start_addr = addr;
   for (size_t i = 0; i < pages; i++, addr += kPageSize)
-    UnmapVirtualPage(addr, /*free=*/true);
+    UnmapVirtualPage(addr, /*free=*/true, /*flush_tlb=*/false);
+  FlushAddressRangeIfActive(start_addr, pages, IsKernelAddress(start_addr));
 }
 
 size_t VirtualAddressSpace::MapPhysicalPages(size_t addr, size_t pages) {
@@ -723,22 +714,44 @@ void VirtualAddressSpace::SetMemoryAccessRights(size_t address, size_t rights) {
 
 void VirtualAddressSpace::FlushAddressIfActive(size_t virtualaddr,
                                                bool is_kernel_address) {
+  FlushAddressRangeIfActive(virtualaddr, 1, is_kernel_address);
+}
+
+void VirtualAddressSpace::FlushAddressRangeIfActive(size_t virtualaddr,
+                                                    size_t pages,
+                                                    bool is_kernel_address) {
+  if (pages == 0) return;
 #ifndef TEST
   bool is_active_on_current_core =
       (GetCurrentCpuCore().current_address_space == this);
-  if (is_active_on_current_core || is_kernel_address)
-    FlushVirtualPage(virtualaddr);
+  if (is_active_on_current_core || is_kernel_address) {
+    if (pages <= kMaxPagesForIndividualTlbFlush) {
+      for (size_t i = 0; i < pages; i++)
+        FlushVirtualPage(virtualaddr + i * kPageSize);
+    } else if (is_kernel_address) {
+      hardware::FlushEntireTlbIncludingGlobalPages();
+    } else {
+      hardware::FlushUserTlb();
+    }
+  }
 
   // Kernel pages are mapped into every address space, so every core has to be
   // told regardless of what it currently has loaded.
   uint64 other_cores =
       __atomic_load_n(&cores_using_this_address_space_, __ATOMIC_ACQUIRE) &
       ~(1ULL << GetCurrentCoreId());
-  if (other_cores != 0 || is_kernel_address)
-    BroadcastTlbShootdown(virtualaddr);
+  if (is_kernel_address) {
+    BroadcastTlbShootdown(
+        pages == 1 ? virtualaddr : hardware::kFlushEntireTlb);
+  } else if (other_cores != 0) {
+    BroadcastTlbShootdown(
+        pages == 1 ? virtualaddr : hardware::kFlushUserTlb, other_cores);
+  }
 #else
-  if (this == g_current_address_space || is_kernel_address)
-    FlushVirtualPage(virtualaddr);
+  if (this == g_current_address_space || is_kernel_address) {
+    for (size_t i = 0; i < pages; i++)
+      FlushVirtualPage(virtualaddr + i * kPageSize);
+  }
 #endif
 }
 
@@ -1006,11 +1019,11 @@ bool VirtualAddressSpace::MapPhysicalPageImpl(
   return true;
 }
 
-// Unmaps a virtual page - free specifies if that page should be returned to
-// the physical memory manager.
-void VirtualAddressSpace::UnmapVirtualPage(size_t virtualaddr, bool free) {
+void VirtualAddressSpace::UnmapVirtualPage(size_t virtualaddr, bool free,
+                                           bool flush_tlb) {
   RecursiveInterruptSafeSpinlockGuard guard(lock_);
   if (!IsAddressInCorrectSpace(virtualaddr)) return;
+  bool is_kernel_address = IsKernelAddress(virtualaddr);
 
   if (!IsPageAlignedAddress(virtualaddr)) {
     print << "UnmapVirtualPage called with non page aligned "
@@ -1021,8 +1034,6 @@ void VirtualAddressSpace::UnmapVirtualPage(size_t virtualaddr, bool free) {
 
   // The physical addresses of the tables at each level.
   size_t table_addr[kNumPageTableLevels];
-  // Whether the table at this level was allocated during this call.
-  bool allocated_table[kNumPageTableLevels];
   // The mapped tables at each level.
   size_t* tables[kNumPageTableLevels];
 
@@ -1074,7 +1085,7 @@ void VirtualAddressSpace::UnmapVirtualPage(size_t virtualaddr, bool free) {
   // Remove this entry for the deepest page table.
   entry = 0;
 
-  FlushAddressIfActive(virtualaddr, IsKernelAddress(virtualaddr));
+  if (flush_tlb) FlushAddressIfActive(virtualaddr, is_kernel_address);
 
   // Scan the page tables to see if they are completely empty so that the
   // physical pages can be released. Don't release the shallowest level (the
@@ -1104,8 +1115,22 @@ void VirtualAddressSpace::UnmapVirtualPage(size_t virtualaddr, bool free) {
     // translations, and invalidating a single address does not evict them. A
     // core could otherwise keep translating through a page table that has been
     // returned to the allocator and reissued as data.
-    hardware::FlushEntireTlbIncludingGlobalPages();
-    BroadcastTlbShootdown(hardware::kFlushEntireTlb);
+    if (is_kernel_address) {
+      hardware::FlushEntireTlbIncludingGlobalPages();
+      BroadcastTlbShootdown(hardware::kFlushEntireTlb);
+    } else {
+#ifndef TEST
+      if (GetCurrentCpuCore().current_address_space == this)
+        hardware::FlushUserTlb();
+      uint64 other_cores =
+          __atomic_load_n(&cores_using_this_address_space_, __ATOMIC_ACQUIRE) &
+          ~(1ULL << GetCurrentCoreId());
+      if (other_cores != 0)
+        BroadcastTlbShootdown(hardware::kFlushUserTlb, other_cores);
+#else
+      if (this == g_current_address_space) FlushVirtualPage(virtualaddr);
+#endif
+    }
 
     for (int i = 0; i < page_tables_to_free_count; i++)
       FreePhysicalPage(page_tables_to_free[i]);

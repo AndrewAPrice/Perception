@@ -184,6 +184,10 @@ void DestroyThreadsForProcess(processes::Process* process,
 // doesn't exist.
 Thread* GetThreadFromTid(processes::Process* process, size_t tid);
 
+// Returns a thread with the provided tid in process with an acquired reference,
+// or nullptr if it doesn't exist or is terminated.
+Thread* GetThreadAndAcquireReference(processes::Process* process, size_t tid);
+
 // Set the thread's segment offset (FS).
 void SetThreadSegment(Thread *thread, size_t address);
 

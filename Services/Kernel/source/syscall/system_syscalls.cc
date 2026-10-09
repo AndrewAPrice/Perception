@@ -99,11 +99,13 @@ void UnregisterMessageToSendOnInterrupt(SyscallContext& context) {
 }
 
 void SendMessageAfterXMicroseconds(SyscallContext& context) {
-  if (context.has_thread()) {
-    SendMessageToProcessAtMicroseconds(
-        context.process(), context.arg0() + GetCurrentTimestampInMicroseconds(),
-        context.arg1());
-  }
+  if (!context.has_thread()) return;
+
+  size_t now = GetCurrentTimestampInMicroseconds();
+  size_t delay = context.arg0();
+  size_t target = now + delay;
+  if (target < now) target = ~static_cast<size_t>(0);
+  SendMessageToProcessAtMicroseconds(context.process(), target, context.arg1());
 }
 
 void SendMessageAtTimestamp(SyscallContext& context) {

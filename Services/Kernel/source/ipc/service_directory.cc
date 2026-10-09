@@ -36,6 +36,12 @@ bool DoServiceNamesMatch(const char* a, const char* b) {
   return common::WordsEqual(a, b, kServiceNameWords);
 }
 
+// Checks if a service name satisfies a query. An empty query matches every
+// service.
+bool DoesServiceNameMatchQuery(const char* query, const char* name) {
+  return query[0] == '\0' || DoServiceNamesMatch(query, name);
+}
+
 // Maximum number of services that can be registered by a single process.
 constexpr size_t kMaxServicesPerProcess = 128;
 
@@ -138,7 +144,7 @@ size_t ServiceDirectory::QueryServices(const char* service_name, size_t min_pid,
         ? process->services.SearchForItemGreaterThanOrEqualToValue(min_message_id)
         : process->services.FirstItem();
     while (service != nullptr) {
-      if (DoServiceNamesMatch(service_name, service->name)) {
+      if (DoesServiceNameMatchQuery(service_name, service->name)) {
         if (services_found < max_results) {
           pids[services_found] = process->pid;
           sids[services_found] = service->message_id;
@@ -172,7 +178,7 @@ Service* ServiceDirectory::FindNextByPidAndMidWithName(char* service_name,
         ? process->services.SearchForItemGreaterThanOrEqualToValue(min_message_id)
         : process->services.FirstItem();
     while (service != nullptr) {
-      if (DoServiceNamesMatch(service_name, service->name)) return service;
+      if (DoesServiceNameMatchQuery(service_name, service->name)) return service;
       service = process->services.NextItem(service);
     }
   }
@@ -185,14 +191,14 @@ Service* ServiceDirectory::FindNextWithName(char* service_name,
   Process* start_proc = previous_service->process;
   Service* service = start_proc->services.NextItem(previous_service);
   while (service != nullptr) {
-    if (DoServiceNamesMatch(service_name, service->name)) return service;
+    if (DoesServiceNameMatchQuery(service_name, service->name)) return service;
     service = start_proc->services.NextItem(service);
   }
   for (ProcessRef process = GetProcessOrNextFromPid(start_proc->pid + 1); process;
        process = GetProcessOrNextFromPid(process->pid + 1)) {
     service = process->services.FirstItem();
     while (service != nullptr) {
-      if (DoServiceNamesMatch(service_name, service->name)) return service;
+      if (DoesServiceNameMatchQuery(service_name, service->name)) return service;
       service = process->services.NextItem(service);
     }
   }

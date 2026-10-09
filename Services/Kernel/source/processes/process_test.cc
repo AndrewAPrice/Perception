@@ -161,7 +161,7 @@ TEST(ProcessCanSetFocusTest) {
   InitializeProcesses();
   InitializeVirtualAllocator();
 
-  Process* parent = ProcessManager::Get().CreateProcess(false, true);
+  Process* parent = ProcessManager::Get().CreateProcess(false, true, true);
   ASSERT(parent != nullptr, true);
 
   Process* child_no_focus = ProcessManager::Get().CreateChildProcess(
@@ -174,6 +174,16 @@ TEST(ProcessCanSetFocusTest) {
   ASSERT(child_with_focus != nullptr, true);
   ASSERT(child_with_focus->can_set_focus, true);
 
+  Process* unprivileged_parent =
+      ProcessManager::Get().CreateProcess(false, true, false);
+  ASSERT(unprivileged_parent != nullptr, true);
+  Process* denied_child = ProcessManager::Get().CreateChildProcess(
+      unprivileged_parent, (char*)"denied_focus", 1 << 2);
+  ASSERT(denied_child != nullptr, true);
+  ASSERT(denied_child->can_set_focus, false);
+
+  ProcessManager::Get().DestroyChildProcess(unprivileged_parent, denied_child);
+  ProcessManager::Get().DestroyProcess(unprivileged_parent);
   ProcessManager::Get().DestroyChildProcess(parent, child_no_focus);
   ProcessManager::Get().DestroyChildProcess(parent, child_with_focus);
   ProcessManager::Get().DestroyProcess(parent);
@@ -184,7 +194,8 @@ TEST(ProcessCanTerminateProcessesTest) {
   InitializeProcesses();
   InitializeVirtualAllocator();
 
-  Process* parent = ProcessManager::Get().CreateProcess(false, true);
+  Process* parent =
+      ProcessManager::Get().CreateProcess(false, true, false, true);
   ASSERT(parent != nullptr, true);
 
   Process* child_no_terminate = ProcessManager::Get().CreateChildProcess(
@@ -197,6 +208,16 @@ TEST(ProcessCanTerminateProcessesTest) {
   ASSERT(child_with_terminate != nullptr, true);
   ASSERT(child_with_terminate->can_terminate_processes, true);
 
+  Process* unprivileged_parent =
+      ProcessManager::Get().CreateProcess(false, true, false, false);
+  ASSERT(unprivileged_parent != nullptr, true);
+  Process* denied_child = ProcessManager::Get().CreateChildProcess(
+      unprivileged_parent, (char*)"denied_term", 1 << 3);
+  ASSERT(denied_child != nullptr, true);
+  ASSERT(denied_child->can_terminate_processes, false);
+
+  ProcessManager::Get().DestroyChildProcess(unprivileged_parent, denied_child);
+  ProcessManager::Get().DestroyProcess(unprivileged_parent);
   ProcessManager::Get().DestroyChildProcess(parent, child_no_terminate);
   ProcessManager::Get().DestroyChildProcess(parent, child_with_terminate);
   ProcessManager::Get().DestroyProcess(parent);

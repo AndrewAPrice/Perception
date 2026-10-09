@@ -49,7 +49,6 @@ using output::print;
 using scheduling::g_active_core_count;
 using scheduling::g_cpu_cores;
 using scheduling::g_idle_cores_mask;
-using scheduling::g_lapic_ticks_per_microsecond;
 using scheduling::g_online_cores_mask;
 using scheduling::GetCurrentCoreId;
 using scheduling::kMaxCores;
@@ -235,15 +234,9 @@ extern "C" void ApMain(size_t core_id) {
   __atomic_store_n(&g_cpu_cores[core_id].is_online, true, __ATOMIC_RELEASE);
   __atomic_fetch_or(&g_online_cores_mask, 1ULL << core_id, __ATOMIC_SEQ_CST);
 
-  // Periodic LAPIC timer on reschedule vector every 10ms
-  WriteLapicRegister(kLapicTimerLvtRegister,
-                     kLapicTimerPeriodic | kRescheduleIpiInterruptVector);
-  WriteLapicRegister(
-      kLapicTimerInitialCountRegister,
-      static_cast<uint32>(10000 * g_lapic_ticks_per_microsecond));
-
-  // Register as idle before jumping into thread.
+  // Schedule the next thread (or mark idle) and program the one-shot timer.
   scheduling::ScheduleNextThread();
+  scheduling::ReprogramTimerForNextDeadline();
   JumpIntoThread();
 #endif
 }
@@ -270,7 +263,7 @@ void SendRescheduleIpiToAnyIdleCore() {
 #endif
 }
 
-void BroadcastTlbShootdown(size_t address) {
+void BroadcastTlbShootdown(size_t address, uint64 target_cores_mask) {
 #ifndef TEST
   if (__atomic_load_n(&g_active_core_count, __ATOMIC_ACQUIRE) <= 1) return;
 
@@ -279,7 +272,7 @@ void BroadcastTlbShootdown(size_t address) {
   InterruptSafeSpinlockGuard guard(g_shootdown_lock);
 
   uint64 targets = __atomic_load_n(&g_online_cores_mask, __ATOMIC_ACQUIRE) &
-                   ~(1ULL << GetCurrentCoreId());
+                   target_cores_mask & ~(1ULL << GetCurrentCoreId());
   if (targets == 0) return;
 
   __atomic_store_n(&g_shootdown_address, address, __ATOMIC_RELEASE);

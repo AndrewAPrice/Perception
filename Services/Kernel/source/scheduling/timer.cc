@@ -77,6 +77,15 @@ namespace {
 constexpr size_t kProfileIntervalInMicroseconds = 10000000;
 #endif
 
+// Maximum number of scheduled timer events allowed per process.
+constexpr size_t kMaxTimerEventsPerProcess = 256;
+
+// Duration of a CPU usage tracking epoch in microseconds (1 second).
+constexpr size_t kEpochDurationInMicroseconds = 1000000;
+
+// Maximum number of time info change subscriptions allowed per process.
+constexpr size_t kMaxTimeInfoSubscriptionsPerProcess = 16;
+
 // Spinlock protecting scheduled timer events and CPU usage tracking structures.
 InterruptSafeSpinlock g_timer_spinlock;
 
@@ -95,9 +104,9 @@ size_t utc_offset = 0;
 LinkedList<TimeInfoChangeSubscription, &TimeInfoChangeSubscription::node>
     time_info_change_subscriptions;
 
-volatile size_t microseconds_since_kernel_started;
-volatile size_t g_shutdown_timestamp = 0;
-volatile bool g_has_shutdown_deadline = false;
+size_t microseconds_since_kernel_started;
+size_t g_shutdown_timestamp = 0;
+bool g_has_shutdown_deadline = false;
 AATree<TimerEvent, &TimerEvent::node_in_all_timer_events,
        &TimerEvent::timestamp_to_trigger_at>
     scheduled_timer_events;
@@ -246,17 +255,28 @@ void DisableLapicTimer() {
 void TimerHandler() {
 #ifndef TEST
   size_t now = GetCurrentTimestampInMicroseconds();
-  size_t prev_time = microseconds_since_kernel_started;
-  size_t delta_time = now > prev_time ? now - prev_time : 0;
-  microseconds_since_kernel_started = now;
-  if (g_has_shutdown_deadline && now >= g_shutdown_timestamp)
+  size_t delta_time = 0;
+  {
+    InterruptSafeSpinlockGuard guard(g_timer_spinlock);
+    size_t prev_time =
+        __atomic_load_n(&microseconds_since_kernel_started, __ATOMIC_RELAXED);
+    if (now > prev_time) {
+      delta_time = now - prev_time;
+      __atomic_store_n(&microseconds_since_kernel_started, now,
+                       __ATOMIC_RELEASE);
+    }
+  }
+  if (__atomic_load_n(&g_has_shutdown_deadline, __ATOMIC_ACQUIRE) &&
+      now >= __atomic_load_n(&g_shutdown_timestamp, __ATOMIC_RELAXED))
     interrupts::Shutdown();
 
 #ifdef VERBOSE_POLLING
   // Periodic process activity dump to debug freezes
   static size_t last_dump_timestamp = 0;
-  if (microseconds_since_kernel_started - last_dump_timestamp >= 250000) {
-    last_dump_timestamp = microseconds_since_kernel_started;
+  size_t current_time =
+      __atomic_load_n(&microseconds_since_kernel_started, __ATOMIC_RELAXED);
+  if (current_time - last_dump_timestamp >= 250000) {
+    last_dump_timestamp = current_time;
     print << "--- PROCESS ACTIVITY DUMP ---\n";
     for (ProcessRef proc = GetProcessOrNextFromPid(0); proc;
          proc = GetProcessOrNextFromPid(proc->pid + 1)) {
@@ -292,7 +312,7 @@ void TimerHandler() {
 #ifndef TEST
   if (IsCpuTrackingActive()) {
     InterruptSafeSpinlockGuard guard(g_timer_spinlock);
-    if (now >= last_cpu_epoch_timestamp + 1000000) {
+    if (now >= last_cpu_epoch_timestamp + kEpochDurationInMicroseconds) {
       last_cpu_epoch_timestamp = now;
       current_epoch_count++;
 
@@ -323,13 +343,14 @@ void TimerHandler() {
     {
       InterruptSafeSpinlockGuard guard(g_timer_spinlock);
       TimerEvent* first = scheduled_timer_events.FirstItem();
+      size_t current_time =
+          __atomic_load_n(&microseconds_since_kernel_started, __ATOMIC_RELAXED);
       if (first != nullptr &&
-          first->timestamp_to_trigger_at <= microseconds_since_kernel_started) {
+          first->timestamp_to_trigger_at <= current_time) {
         scheduled_timer_events.Remove(first);
         first->process_to_send_message_to->timer_events.Remove(first);
-        if (first->process_to_send_message_to->timer_event_count > 0) {
+        if (first->process_to_send_message_to->timer_event_count > 0)
           first->process_to_send_message_to->timer_event_count--;
-        }
         timer_event = first;
       }
     }
@@ -349,7 +370,6 @@ void TimerHandler() {
   ReprogramTimerForNextDeadline();
 }
 
-// Initializes the timer.
 void InitializeTimer() {
   microseconds_since_kernel_started = 0;
   g_shutdown_timestamp = 0;
@@ -378,24 +398,18 @@ void InitializeTimer() {
 #endif
 }
 
-// Returns the current time, in microseconds, since the kernel has started.
 size_t GetCurrentTimestampInMicroseconds() {
 #ifdef TEST
   return microseconds_since_kernel_started;
 #else
   uint64 current_tsc = ReadTimestampCounter();
-  if (current_tsc < boot_tsc_value) {
-    return 0;
-  }
+  if (current_tsc < boot_tsc_value) return 0;
   return (current_tsc - boot_tsc_value) / g_tsc_ticks_per_microsecond;
 #endif
 }
 
-// Sends a message to the process at or after a specified number of microseconds
-// have elapsed since the kernel started.
 void SendMessageToProcessAtMicroseconds(Process* process, size_t timestamp,
                                         size_t message_id) {
-  constexpr size_t kMaxTimerEventsPerProcess = 256;
   TimerEvent* timer_event = nullptr;
   {
     InterruptSafeSpinlockGuard guard(g_timer_spinlock);
@@ -417,7 +431,6 @@ void SendMessageToProcessAtMicroseconds(Process* process, size_t timestamp,
   ReprogramTimerForNextDeadline();
 }
 
-// Cancel all timer events that could be scheduled for a process.
 void CancelAllTimerEventsForProcess(Process* process) {
   bool changed = false;
   while (true) {
@@ -478,9 +491,14 @@ void UpdateRunningThreadTimeslice() {
 }
 
 void ScheduleShutdownAfterMicroseconds(size_t microseconds) {
-  if (g_has_shutdown_deadline) return;
-  g_shutdown_timestamp = GetCurrentTimestampInMicroseconds() + microseconds;
-  g_has_shutdown_deadline = true;
+  {
+    InterruptSafeSpinlockGuard guard(g_timer_spinlock);
+    if (__atomic_load_n(&g_has_shutdown_deadline, __ATOMIC_RELAXED)) return;
+    __atomic_store_n(&g_shutdown_timestamp,
+                     GetCurrentTimestampInMicroseconds() + microseconds,
+                     __ATOMIC_RELAXED);
+    __atomic_store_n(&g_has_shutdown_deadline, true, __ATOMIC_RELEASE);
+  }
   ReprogramTimerForNextDeadline();
 }
 
@@ -490,17 +508,18 @@ void ReprogramTimerForNextDeadline() {
   size_t next_deadline = ~0ULL;
   bool has_deadline = false;
 
-  if (RunningThread() != nullptr && NeedsTimesliceInterrupt(RunningThread())) {
+  if (RunningThread() != nullptr) {
     next_deadline = RunningThread()->current_run_start_timestamp +
                     RunningThread()->remaining_timeslice_microseconds;
     has_deadline = true;
-  } else if (RunningThread() == nullptr && HasAwakeThreads()) {
+  } else if (HasAwakeThreads()) {
     next_deadline = now;
     has_deadline = true;
   }
 
-  if (g_has_shutdown_deadline) {
-    size_t shutdown_time = g_shutdown_timestamp;
+  if (__atomic_load_n(&g_has_shutdown_deadline, __ATOMIC_ACQUIRE)) {
+    size_t shutdown_time =
+        __atomic_load_n(&g_shutdown_timestamp, __ATOMIC_RELAXED);
     if (!has_deadline || shutdown_time < next_deadline) {
       next_deadline = shutdown_time;
       has_deadline = true;
@@ -554,8 +573,6 @@ void CatchUpProcessCpuUsage(Process* process) {
   }
   size_t epochs_passed = current_epoch_count - process->last_updated_epoch;
   if (epochs_passed == 0) return;
-
-  constexpr size_t kEpochDurationInMicroseconds = 1000000;  // 1-second epoch
 
   for (int c = 0; c < kMaxCores; c++) {
     // Calculation the CPU usage (0 to 255) for the first completed epoch.
@@ -653,7 +670,6 @@ void SetTimeInfo(size_t utc_microseconds) {
 
 void RegisterMessageForWhenTimeInfoChanges(Process* process,
                                            size_t message_id) {
-  constexpr size_t kMaxTimeInfoSubscriptionsPerProcess = 16;
   // Allocate before taking the lock so the heap is never entered while holding
   // it.
   auto* subscription =

@@ -52,7 +52,8 @@ class ServiceDirectory {
 
   // Queries services matching name starting from min_pid and min_message_id,
   // filling pids and sids up to max_results under a single lock acquisition.
-  // Returns total number of matching services found.
+  // Returns total number of matching services found. An empty name matches
+  // every service.
   size_t QueryServices(const char* service_name, size_t min_pid,
                        size_t min_message_id, size_t* pids, size_t* sids,
                        size_t max_results);

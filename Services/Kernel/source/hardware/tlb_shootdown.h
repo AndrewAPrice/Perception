@@ -36,6 +36,11 @@ namespace hardware {
 // Not a valid page address, because it is not page aligned.
 constexpr size_t kFlushEntireTlb = ~static_cast<size_t>(0);
 
+// Shootdown address meaning "invalidate all non-global (user-space) TLB
+// entries and paging-structure caches by reloading CR3".
+// Not a valid page address, because it is not page aligned.
+constexpr size_t kFlushUserTlb = ~static_cast<size_t>(1);
+
 // CR4 bit enabling global pages, which survive a CR3 reload.
 constexpr size_t kCr4PageGlobalEnable = 1 << 7;
 
@@ -58,6 +63,16 @@ inline void FlushEntireTlbIncludingGlobalPages() {
 #endif
 }
 
+// Invalidates all non-global (user-space) TLB entries and paging-structure
+// caches on this core by reloading CR3 without toggling CR4.PGE.
+inline void FlushUserTlb() {
+#ifndef TEST
+  size_t cr3;
+  asm volatile("mov %%cr3, %0" : "=r"(cr3));
+  asm volatile("mov %0, %%cr3" ::"r"(cr3) : "memory");
+#endif
+}
+
 // Services a TLB shootdown targeted at this core, if one is pending. Safe to
 // call from any spin loop: it takes no locks and only touches this core's bit.
 inline void PollTlbShootdown() {
@@ -69,6 +84,8 @@ inline void PollTlbShootdown() {
   size_t address = __atomic_load_n(&g_shootdown_address, __ATOMIC_ACQUIRE);
   if (address == kFlushEntireTlb)
     FlushEntireTlbIncludingGlobalPages();
+  else if (address == kFlushUserTlb)
+    FlushUserTlb();
   else
     asm volatile("invlpg (%0)" ::"r"(address) : "memory");
 

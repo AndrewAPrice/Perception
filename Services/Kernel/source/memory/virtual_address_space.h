@@ -159,11 +159,17 @@ class VirtualAddressSpace {
       size_t (*get_physical_page)(), bool own, bool can_write,
       bool throw_exception_on_access, bool assign_page_table);
 
-  void UnmapVirtualPage(size_t virtualaddr, bool free);
+  void UnmapVirtualPage(size_t virtualaddr, bool free, bool flush_tlb = true);
 
   // Flushes the TLB for the given address if this address space is active on
   // the current CPU, and broadcasts a TLB shootdown if active on other CPUs.
   void FlushAddressIfActive(size_t virtualaddr, bool is_kernel_address);
+
+  // Flushes the TLB for a range of pages if this address space is active on
+  // the current CPU, and broadcasts a single TLB shootdown if active on other
+  // CPUs.
+  void FlushAddressRangeIfActive(size_t virtualaddr, size_t pages,
+                                 bool is_kernel_address);
 
   void AddFreeMemoryRange(FreeMemoryRange *fmr);
 
