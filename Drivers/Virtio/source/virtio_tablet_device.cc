@@ -26,17 +26,40 @@ using ::perception::devices::MouseButton;
 using ::perception::devices::MouseButtonEvent;
 using ::perception::devices::MouseCaptureState;
 using ::perception::devices::PciDevice;
+using ::perception::devices::RelativeMousePositionEvent;
 using ::perception::devices::TabletHoverEvent;
 using ::perception::devices::TabletListener;
 
 namespace {
 
+// Linux evdev synchronization event type.
 constexpr uint16 kEvSyn = 0x00;
+
+// Linux evdev key/button event type.
 constexpr uint16 kEvKey = 0x01;
+
+// Linux evdev relative axis event type.
+constexpr uint16 kEvRel = 0x02;
+
+// Linux evdev absolute axis event type.
 constexpr uint16 kEvAbs = 0x03;
+
+// Linux evdev synchronization report code.
 constexpr uint16 kSynReport = 0x00;
+
+// Linux evdev absolute X axis code.
 constexpr uint16 kAbsX = 0x00;
+
+// Linux evdev absolute Y axis code.
 constexpr uint16 kAbsY = 0x01;
+
+// Linux evdev relative horizontal wheel axis code.
+constexpr uint16 kRelHWheel = 0x06;
+
+// Linux evdev relative vertical wheel axis code.
+constexpr uint16 kRelWheel = 0x08;
+
+// Maximum coordinate value reported by the virtio tablet device.
 constexpr float kVirtioAbsMax = 32767.0f;
 
 }  // namespace
@@ -90,6 +113,15 @@ void VirtioTabletDevice::HandleInterrupt() {
           position_changed_ = true;
         }
         break;
+      case kEvRel:
+        if (ev.code == kRelHWheel) {
+          accum_scroll_x_ += static_cast<float>(static_cast<int32>(ev.value));
+          scroll_changed_ = true;
+        } else if (ev.code == kRelWheel) {
+          accum_scroll_y_ -= static_cast<float>(static_cast<int32>(ev.value));
+          scroll_changed_ = true;
+        }
+        break;
       case kEvKey: {
         MouseButton button = VirtioInputHandler::MapButton(ev.code);
         if (button != MouseButton::Unknown && tablet_listener_) {
@@ -110,6 +142,17 @@ void VirtioTabletDevice::HandleInterrupt() {
               tablet_listener_->TabletHover(pos_event, nullptr);
             }
             position_changed_ = false;
+          }
+          if (scroll_changed_) {
+            if (tablet_listener_) {
+              RelativeMousePositionEvent scroll_event;
+              scroll_event.delta_x = accum_scroll_x_;
+              scroll_event.delta_y = accum_scroll_y_;
+              tablet_listener_->TabletScroll(scroll_event, nullptr);
+            }
+            accum_scroll_x_ = 0.0f;
+            accum_scroll_y_ = 0.0f;
+            scroll_changed_ = false;
           }
         }
         break;

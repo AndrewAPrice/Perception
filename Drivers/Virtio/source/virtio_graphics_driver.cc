@@ -541,6 +541,7 @@ void VirtioGraphicsDriver::BitBlt(ProcessId sender,
   } else {
     dest_ptr = (uint8*)**render_state.destination_texture->shared_memory;
   }
+  if (dest_ptr == nullptr) return;
 
   BitBltToBuffer((uint8*)**render_state.source_texture->shared_memory,
                  render_state.source_texture->width,
@@ -625,6 +626,7 @@ void VirtioGraphicsDriver::FillRectangle(uint32 left, uint32 top, uint32 right,
   } else {
     dest_ptr = (uint8*)**render_state.destination_texture->shared_memory;
   }
+  if (dest_ptr == nullptr) return;
 
   left = std::max((uint32)0, left);
   top = std::max((uint32)0, top);
@@ -725,7 +727,10 @@ void VirtioGraphicsDriver::CreateScanoutResource() {
       (screen_width_ * screen_height_ * kBytesPerPixel + kPageSize - 1) /
       kPageSize;
   framebuffer_ = (uint8*)AllocateMemoryPages(pages);
-  if (!framebuffer_) return;
+  if (!framebuffer_) {
+    textures_.erase(0);
+    return;
+  }
   uint32* fb_pixels = (uint32*)framebuffer_;
   for (size_t i = 0; i < screen_width_ * screen_height_; i++) {
     fb_pixels[i] = kDefaultPixelColorOpaqueBlack;

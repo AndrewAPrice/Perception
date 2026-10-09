@@ -25,16 +25,24 @@ using ::perception::devices::MouseButton;
 
 namespace {
 
-constexpr uint16 kBtnLeft = 0x110;    // 272
-constexpr uint16 kBtnRight = 0x111;   // 273
-constexpr uint16 kBtnMiddle = 0x112;  // 274
+// Linux EV_KEY code for left mouse button.
+constexpr uint16 kBtnLeft = 0x110;
+// Linux EV_KEY code for right mouse button.
+constexpr uint16 kBtnRight = 0x111;
+// Linux EV_KEY code for middle mouse button.
+constexpr uint16 kBtnMiddle = 0x112;
+// Virtqueue descriptor flag indicating buffer is device-writable.
 constexpr uint16 kVringDescFWrite = 2;
 
-constexpr uint32 kVirtioFEventIdx = 1U << 29;
+// Offset of the MSI-X config vector in modern Virtio common config.
 constexpr size_t kCommonCfgMsixConfigOffset = 16;
+// Offset of the queue MSI-X vector in modern Virtio common config.
 constexpr size_t kCommonCfgQueueMsixVectorOffset = 26;
+// Sentinel MSI-X vector value indicating no vector is assigned.
 constexpr uint16 kVirtioMsixNoVector = 0xFFFF;
+// Virtqueue index for input events.
 constexpr uint16 kEventQueueIndex = 0;
+// Virtqueue index for status feedback.
 constexpr uint16 kStatusQueueIndex = 1;
 
 }  // namespace
@@ -42,7 +50,7 @@ constexpr uint16 kStatusQueueIndex = 1;
 void VirtioInputHandler::Enable(VirtioPciDevice& pci_device) {
   if (is_enabled_) return;
 
-  pci_device.NegotiateFeatures(kVirtioFEventIdx);  // Disable VIRTIO_F_EVENT_IDX
+  pci_device.NegotiateFeatures();
 
   if (pci_device.is_modern()) {
     volatile uint8* common_cfg = pci_device.common_cfg();

@@ -184,7 +184,7 @@ uint32 VirtioPciDevice::Reset(uint32 legacy_features) {
   return 0;
 }
 
-void VirtioPciDevice::NegotiateFeatures(uint32 disable_features_mask) {
+void VirtioPciDevice::NegotiateFeatures(uint64 supported_features) {
   if (common_cfg_ == nullptr) return;
 
   common_cfg_[kCommonCfgDeviceStatusOffset] = kVirtioStatusReset;
@@ -199,7 +199,9 @@ void VirtioPciDevice::NegotiateFeatures(uint32 disable_features_mask) {
   uint32 dev_feat1 =
       *(volatile uint32*)(&common_cfg_[kCommonCfgDeviceFeatureOffset]);
 
-  dev_feat0 &= ~disable_features_mask;
+  dev_feat0 &= static_cast<uint32>(supported_features & 0xFFFFFFFF);
+  // Always accept VIRTIO_F_VERSION_1 (bit 0 of feature word 1, i.e., bit 32).
+  dev_feat1 &= static_cast<uint32>((supported_features >> 32) | 1U);
 
   *(volatile uint32*)(&common_cfg_[kCommonCfgDriverFeatureSelectOffset]) = 0;
   *(volatile uint32*)(&common_cfg_[kCommonCfgDriverFeatureOffset]) = dev_feat0;

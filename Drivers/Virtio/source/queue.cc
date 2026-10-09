@@ -216,9 +216,14 @@ void QueueDetails::Setup(uint16 queue_idx, uint16 io_base) {
   size_t total_size = used_ring_offset + used_ring_size;
   size_t pages = (total_size + kPageMask) / kPageSize;
 
-  size_t physical_address = 0;
-  void* virt_addr = AllocateContiguousMemoryPages(pages, physical_address);
-  if (!virt_addr) return;
+  void* virt_addr = mem;
+  size_t physical_address = phys;
+  bool already_allocated =
+      (virt_addr != nullptr && mem_size == pages * kPageSize);
+  if (!already_allocated) {
+    virt_addr = AllocateContiguousMemoryPages(pages, physical_address);
+    if (!virt_addr) return;
+  }
 
   memset(virt_addr, 0, pages * kPageSize);
 
@@ -235,8 +240,10 @@ void QueueDetails::Setup(uint16 queue_idx, uint16 io_base) {
   used = (volatile VirtQueueUsed*)((size_t)virt_addr + used_ring_offset);
 
   for (int i = 0; i < qsize; i++) {
-    buffers_virt[i] = AllocateMemoryPagesBelowPhysicalAddressBase(
-        1, kMax32BitAddress, buffers_phys[i]);
+    if (!buffers_virt[i]) {
+      buffers_virt[i] = AllocateMemoryPagesBelowPhysicalAddressBase(
+          1, kMax32BitAddress, buffers_phys[i]);
+    }
   }
 
   avail->flags = 0;
@@ -256,9 +263,12 @@ void QueueDetails::SetupModern(uint16 queue_idx, volatile uint8* common_cfg) {
 
   notify_off = *(volatile uint16*)(&common_cfg[kCommonCfgQueueNotifyOffOffset]);
 
-  void* desc_virt = AllocateMemoryPages(1);
-  void* avail_virt = AllocateMemoryPages(1);
-  void* used_virt = AllocateMemoryPages(1);
+  void* desc_virt = (void*)desc;
+  void* avail_virt = (void*)avail;
+  void* used_virt = (void*)used;
+  if (!desc_virt) desc_virt = AllocateMemoryPages(1);
+  if (!avail_virt) avail_virt = AllocateMemoryPages(1);
+  if (!used_virt) used_virt = AllocateMemoryPages(1);
   if (!desc_virt || !avail_virt || !used_virt) return;
 
   memset(desc_virt, 0, kPageSize);
@@ -278,9 +288,11 @@ void QueueDetails::SetupModern(uint16 queue_idx, volatile uint8* common_cfg) {
   used = (volatile VirtQueueUsed*)used_virt;
 
   for (int i = 0; i < qsize; i++) {
-    buffers_virt[i] = AllocateMemoryPages(1);
-    buffers_phys[i] =
-        GetPhysicalAddressOfVirtualAddress((size_t)buffers_virt[i]);
+    if (!buffers_virt[i]) {
+      buffers_virt[i] = AllocateMemoryPages(1);
+      buffers_phys[i] =
+          GetPhysicalAddressOfVirtualAddress((size_t)buffers_virt[i]);
+    }
   }
 
   avail->flags = 0;

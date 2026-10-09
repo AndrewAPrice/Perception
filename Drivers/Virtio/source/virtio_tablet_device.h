@@ -52,5 +52,8 @@ class VirtioTabletDevice : public Driver,
   float current_x_ = 0.0f;
   float current_y_ = 0.0f;
   bool position_changed_ = false;
+  float accum_scroll_x_ = 0.0f;
+  float accum_scroll_y_ = 0.0f;
+  bool scroll_changed_ = false;
   bool is_captured_ = false;
 };

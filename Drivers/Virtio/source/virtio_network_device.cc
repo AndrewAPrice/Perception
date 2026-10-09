@@ -399,7 +399,14 @@ void VirtioNetworkDevice::HandleInterrupt() {
     while (rx_queue_.last_seen_used != rx_queue_.used->idx) {
       uint16 ring_idx = rx_queue_.last_seen_used % rx_queue_.size;
       uint32 desc_idx = rx_queue_.used->ring[ring_idx].id;
-      uint32 len = rx_queue_.used->ring[ring_idx].len;
+      uint32 len = std::min(
+          static_cast<uint32>(rx_queue_.used->ring[ring_idx].len),
+          kRxBufferSize);
+
+      if (desc_idx >= rx_queue_.size || desc_idx >= kMaxQueueSize) {
+        rx_queue_.last_seen_used++;
+        continue;
+      }
 
       // Skip the 10-byte VirtioNetHeader when unpacking packet payload.
       if (len > kVirtioNetHeaderSize) {

@@ -47,7 +47,10 @@ class VirtioPciDevice {
   // negotiated and returned. Modern devices negotiate nothing here and return
   // 0.
   uint32 Reset(uint32 legacy_features = 0);
-  void NegotiateFeatures(uint32 disable_features_mask = (1U << 29));
+
+  // Negotiates the intersection of device-offered features and
+  // `supported_features` (plus VIRTIO_F_VERSION_1 on modern devices).
+  void NegotiateFeatures(uint64 supported_features = 0);
   void SetDriverOk();
 
   void KickQueue(const QueueDetails& queue);
