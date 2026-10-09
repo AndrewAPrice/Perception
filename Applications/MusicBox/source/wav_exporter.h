@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <functional>
 #include <string>
 
 #include "track_manager.h"
@@ -24,8 +25,14 @@ struct WavExportOptions {
   bool is_float = false;     // True for 32-bit IEEE float PCM.
 };
 
-// Renders all unmuted tracks in track_manager and writes a .wav file.
-// Returns true on success, false on error.
+// Called with the export progress, from 0.0 to 1.0. Returning false cancels
+// the export.
+using WavExportProgressCallback = std::function<bool(float progress)>;
+
+// Renders all unmuted tracks in track_manager and writes a .wav file. If
+// on_progress is set, it's called as the export advances and can cancel it.
+// Returns true on success, false on error or cancellation.
 bool ExportSongToWav(const std::string& file_path,
                      const TrackManager& track_manager,
-                     const WavExportOptions& options);
+                     const WavExportOptions& options,
+                     const WavExportProgressCallback& on_progress = nullptr);

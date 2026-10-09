@@ -529,10 +529,12 @@ void MusicBoxWindow::BuildUI() {
                       [this](float value) {
                         int idx = std::clamp(
                             static_cast<int>(std::round(value)), 0, 11);
+                        current_snap_ticks_ = 1 << idx;
+                        if (notation_view_)
+                          notation_view_->SetSnapTicks(current_snap_ticks_);
                         if (snap_label_node_) {
-                          if (auto label = snap_label_node_->Get<Label>()) {
+                          if (auto label = snap_label_node_->Get<Label>())
                             label->SetText(kSnapNames[idx]);
-                          }
                         }
                       },
                       [](Layout& layout) { layout.SetWidth(60.0f); }),
@@ -672,6 +674,7 @@ void MusicBoxWindow::SetNotationMode(NotationType type) {
   }
 
   if (notation_view_) {
+    notation_view_->SetSnapTicks(current_snap_ticks_);
     notation_view_->SetBeatsPerBar(current_song_metadata_.beats_per_bar);
     notation_view_->SetNotePerBeat(current_song_metadata_.note_per_beat);
     notation_view_->OnTrackSelected(track_manager_.GetActiveTrackId(),
@@ -1099,21 +1102,28 @@ void MusicBoxWindow::OnTimerTick() {
     }
     last_tick_time_ = now;
 
+    bool was_active =
+        track_manager_.IsPlaying() || track_manager_.IsRecording();
+
     track_manager_.Tick(elapsed_ms, [](int key_index, const Instrument* inst,
                                        float vol, float duration_seconds) {
       PlayNote(key_index, inst, vol, duration_seconds);
     });
 
-    metronome_.Tick(elapsed_ms,
-                    track_manager_.IsPlaying() || track_manager_.IsRecording(),
-                    track_manager_.GetCurrentTimeMs(), track_manager_.GetBpm(),
+    bool is_active =
+        track_manager_.IsPlaying() || track_manager_.IsRecording();
+
+    metronome_.Tick(elapsed_ms, is_active, track_manager_.GetCurrentTimeMs(),
+                    track_manager_.GetBpm(),
                     current_song_metadata_.beats_per_bar);
 
-    UpdateTransportButtonsUI();
+    if (was_active || is_active) {
+      UpdateTransportButtonsUI();
 
-    if (notation_view_) notation_view_->Invalidate();
-    if (keyboard_) keyboard_->Invalidate();
-    if (timeline_ruler_) timeline_ruler_->Invalidate();
+      if (notation_view_) notation_view_->Invalidate();
+      if (keyboard_) keyboard_->Invalidate();
+      if (timeline_ruler_) timeline_ruler_->Invalidate();
+    }
 
     perception::SleepForDuration(std::chrono::milliseconds(30));
   }

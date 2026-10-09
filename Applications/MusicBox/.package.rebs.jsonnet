@@ -33,6 +33,8 @@
     'source/windows/music_box_window.cc',
     'source/panels/tracks_panel.cc',
     'source/windows/environment_window.cc',
+    'source/windows/export_dialog.cc',
+    'source/windows/help_window.cc',
     'source/windows/notation_settings_window.cc',
   ],
 } else {

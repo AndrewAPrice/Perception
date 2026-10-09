@@ -43,6 +43,12 @@ constexpr int kDividers[] = {1, 2, 4, 8, 16, 32};
 // Human-readable display names for each slider beat division option.
 constexpr const char* kNames[] = {"1", "1/2", "1/4", "1/8", "1/16", "1/32"};
 
+// Width of the beats per bar input box in pixels.
+constexpr float kBeatsPerBarInputWidth = 60.0f;
+
+// Width of the note per beat slider in pixels.
+constexpr float kNotePerBeatSliderWidth = 220.0f;
+
 int DividerToSliderIndex(int divider) {
   divider = SanitizeNotePerBeat(divider);
   switch (divider) {
@@ -129,18 +135,11 @@ void NotationSettingsWindow::BuildUI() {
   int initial_slider_idx = DividerToSliderIndex(metadata_.note_per_beat);
 
   auto content = Container::VerticalContainer(
-      [](Layout& layout) {
-        layout.SetWidthPercent(100.0f);
-        layout.SetGap(16.0f);
-        layout.SetPadding(YGEdgeAll, 16.0f);
-      },
+      [](Layout& layout) { layout.SetWidthPercent(100.0f); },
 
       // Beats per bar
       Container::HorizontalContainer(
-          [](Layout& layout) {
-            layout.SetAlignItems(YGAlignCenter);
-            layout.SetGap(8.0f);
-          },
+          [](Layout& layout) { layout.SetAlignItems(YGAlignCenter); },
           Label::BasicLabel("Beats per bar:"),
           InputBox::BasicInputBox(
               std::to_string(metadata_.beats_per_bar),
@@ -158,17 +157,13 @@ void NotationSettingsWindow::BuildUI() {
                   }
                 });
               },
-              [](Layout& layout) { layout.SetWidth(60.0f); },
+              [](Layout& layout) { layout.SetWidth(kBeatsPerBarInputWidth); },
               &beats_per_bar_input_node_)),
 
       // Note per beat
       Container::VerticalContainer(
-          [](Layout& layout) { layout.SetGap(6.0f); },
           Container::HorizontalContainer(
-              [](Layout& layout) {
-                layout.SetAlignItems(YGAlignCenter);
-                layout.SetGap(8.0f);
-              },
+              [](Layout& layout) { layout.SetAlignItems(YGAlignCenter); },
               Label::BasicLabel("Note per beat:"),
               Label::BasicLabel(SliderIndexToName(initial_slider_idx),
                                 &note_per_beat_label_node_)),
@@ -187,24 +182,20 @@ void NotationSettingsWindow::BuildUI() {
                   if (on_note_per_beat_changed_) on_note_per_beat_changed_();
                 }
               },
-              [](Layout& layout) { layout.SetWidth(220.0f); },
+              [](Layout& layout) { layout.SetWidth(kNotePerBeatSliderWidth); },
               &note_per_beat_slider_node_)));
 
   if (window_node_) {
     window_node_->RemoveChildren();
     window_node_->AddChild(content);
   } else {
-    window_node_ = UiWindow::ResizableWindowWithTitleBar(
+    window_node_ = UiWindow::DialogWithTitleBar(
         "Notation Settings",
         [this](UiWindow& window) {
           window.OnClose([this]() {
             window_node_.reset();
             if (on_closed_) on_closed_();
           });
-        },
-        [](Layout& layout) {
-          layout.SetWidth(320.0f);
-          layout.SetHeight(180.0f);
         },
         content);
   }

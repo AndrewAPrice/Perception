@@ -28,6 +28,16 @@
 
 namespace {
 
+// Share of the export progress spent synthesizing notes, which dominates the
+// export time.
+constexpr float kSynthesisProgressShare = 0.85f;
+
+// Export progress reached once reverb has been applied.
+constexpr float kReverbDoneProgress = 0.95f;
+
+// Export progress reached once the samples have been encoded.
+constexpr float kEncodingDoneProgress = 0.97f;
+
 void WriteUint32LE(std::vector<uint8_t>& buf, uint32_t val) {
   buf.push_back(static_cast<uint8_t>(val & 0xFF));
   buf.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
@@ -51,7 +61,13 @@ void WriteFourCC(std::vector<uint8_t>& buf, const char* fourcc) {
 
 bool ExportSongToWav(const std::string& file_path,
                      const TrackManager& track_manager,
-                     const WavExportOptions& options) {
+                     const WavExportOptions& options,
+                     const WavExportProgressCallback& on_progress) {
+  // Reports progress and returns false if the export should stop.
+  auto report_progress = [&on_progress](float progress) {
+    return !on_progress || on_progress(progress);
+  };
+
   if (file_path.empty()) return false;
   if (options.sample_rate <= 0) return false;
 
@@ -74,6 +90,11 @@ bool ExportSongToWav(const std::string& file_path,
   std::vector<double> mix(total_frames, 0.0);
 
   const auto& tracks = track_manager.GetTracks();
+  size_t total_notes = 0;
+  for (const auto& track : tracks)
+    if (!track.muted) total_notes += track.notes.size();
+  size_t notes_done = 0;
+
   for (const auto& track : tracks) {
     if (track.muted) continue;
 
@@ -126,6 +147,10 @@ bool ExportSongToWav(const std::string& file_path,
           mix[frame_idx] += val;
         }
       }
+
+      notes_done++;
+      if (!report_progress(kSynthesisProgressShare * notes_done / total_notes))
+        return false;
     }
   }
 
@@ -137,6 +162,7 @@ bool ExportSongToWav(const std::string& file_path,
     export_reverb.SetDamping(GetReverbDamping());
     export_reverb.Process(mix.data(), total_frames);
   }
+  if (!report_progress(kReverbDoneProgress)) return false;
 
   // Calculate peak level for normalization / master scaling
   double peak = 0.0;
@@ -211,6 +237,8 @@ bool ExportSongToWav(const std::string& file_path,
     }
   }
 
+  if (!report_progress(kEncodingDoneProgress)) return false;
+
   std::error_code ec;
   std::filesystem::path p(file_path);
   if (p.has_parent_path() && p.parent_path() != "/" && p.parent_path() != "/Drive 1") {
@@ -230,5 +258,6 @@ bool ExportSongToWav(const std::string& file_path,
     return false;
   }
   out.close();
+  report_progress(1.0f);
   return true;
 }

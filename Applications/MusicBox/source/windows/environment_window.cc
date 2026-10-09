@@ -14,6 +14,7 @@
 
 #include "windows/environment_window.h"
 
+#include "perception/scheduler.h"
 #include "perception/ui/components/button.h"
 #include "perception/ui/components/checkbox.h"
 #include "perception/ui/components/container.h"
@@ -23,6 +24,7 @@
 #include "perception/ui/layout.h"
 #include "synth_engine.h"
 
+using ::perception::Defer;
 using ::perception::ui::Layout;
 using ::perception::ui::Node;
 using ::perception::ui::components::Button;
@@ -31,6 +33,34 @@ using ::perception::ui::components::Container;
 using ::perception::ui::components::Label;
 using ::perception::ui::components::Slider;
 using ::perception::ui::components::UiWindow;
+
+namespace {
+
+// Width of the environment slider controls in pixels.
+constexpr float kEnvironmentSliderWidth = 180.0f;
+
+// Preset parameters for Studio Room.
+constexpr float kStudioRoomSize = 0.35f;
+// Damping factor for Studio Room.
+constexpr float kStudioRoomDamping = 0.20f;
+// Wet/dry mix for Studio Room.
+constexpr float kStudioRoomMix = 0.15f;
+
+// Preset parameters for Concert Hall.
+constexpr float kConcertHallSize = 0.75f;
+// Damping factor for Concert Hall.
+constexpr float kConcertHallDamping = 0.40f;
+// Wet/dry mix for Concert Hall.
+constexpr float kConcertHallMix = 0.25f;
+
+// Preset parameters for Cathedral.
+constexpr float kCathedralSize = 0.95f;
+// Damping factor for Cathedral.
+constexpr float kCathedralDamping = 0.50f;
+// Wet/dry mix for Cathedral.
+constexpr float kCathedralMix = 0.40f;
+
+}  // namespace
 
 namespace windows {
 
@@ -42,27 +72,21 @@ EnvironmentWindow::EnvironmentWindow(std::function<void()> on_changed,
 
 void EnvironmentWindow::Focus() {
   if (window_node_) {
-    if (auto ui_win = window_node_->Get<UiWindow>()) {
+    if (auto ui_win = window_node_->Get<UiWindow>())
       ui_win->Focus();
-    }
   }
 }
 
 void EnvironmentWindow::Close() {
   if (window_node_) {
-    if (auto ui_win = window_node_->Get<UiWindow>()) {
+    if (auto ui_win = window_node_->Get<UiWindow>())
       ui_win->Close();
-    }
   }
 }
 
 void EnvironmentWindow::BuildUI() {
   auto content = Container::VerticalContainer(
-      [](Layout& layout) {
-        layout.SetWidthPercent(100.0f);
-        layout.SetGap(12.0f);
-        layout.SetPadding(YGEdgeAll, 12.0f);
-      },
+      [](Layout& layout) { layout.SetWidthPercent(100.0f); },
 
       // Enable Reverb Checkbox
       Checkbox::BasicCheckbox("Enable Acoustic Reverb", IsReverbEnabled(),
@@ -75,41 +99,37 @@ void EnvironmentWindow::BuildUI() {
 
       // Preset Buttons
       Container::HorizontalContainer(
-          [](Layout& layout) { layout.SetGap(8.0f); },
           Button::TextButton("Studio Room",
                              [this]() {
                                SetReverbEnabled(true);
-                               SetReverbRoomSize(0.35f);
-                               SetReverbDamping(0.20f);
-                               SetReverbMix(0.15f);
+                               SetReverbRoomSize(kStudioRoomSize);
+                               SetReverbDamping(kStudioRoomDamping);
+                               SetReverbMix(kStudioRoomMix);
                                if (on_changed_) on_changed_();
-                               BuildUI();
+                               Defer([this]() { BuildUI(); });
                              }),
           Button::TextButton("Concert Hall",
                              [this]() {
                                SetReverbEnabled(true);
-                               SetReverbRoomSize(0.75f);
-                               SetReverbDamping(0.40f);
-                               SetReverbMix(0.25f);
+                               SetReverbRoomSize(kConcertHallSize);
+                               SetReverbDamping(kConcertHallDamping);
+                               SetReverbMix(kConcertHallMix);
                                if (on_changed_) on_changed_();
-                               BuildUI();
+                               Defer([this]() { BuildUI(); });
                              }),
           Button::TextButton("Cathedral",
                              [this]() {
                                SetReverbEnabled(true);
-                               SetReverbRoomSize(0.95f);
-                               SetReverbDamping(0.50f);
-                               SetReverbMix(0.40f);
+                               SetReverbRoomSize(kCathedralSize);
+                               SetReverbDamping(kCathedralDamping);
+                               SetReverbMix(kCathedralMix);
                                if (on_changed_) on_changed_();
-                               BuildUI();
+                               Defer([this]() { BuildUI(); });
                              })),
 
       // Manual Sliders
       Container::HorizontalContainer(
-          [](Layout& layout) {
-            layout.SetAlignItems(YGAlignCenter);
-            layout.SetGap(8.0f);
-          },
+          [](Layout& layout) { layout.SetAlignItems(YGAlignCenter); },
           Label::BasicLabel("Room Size:"),
           Slider::BasicSlider(
               0.0f, 1.0f, GetReverbRoomSize(),
@@ -117,13 +137,12 @@ void EnvironmentWindow::BuildUI() {
                 SetReverbRoomSize(val);
                 if (on_changed_) on_changed_();
               },
-              [](Layout& layout) { layout.SetWidth(180.0f); })),
+              [](Layout& layout) {
+                layout.SetWidth(kEnvironmentSliderWidth);
+              })),
 
       Container::HorizontalContainer(
-          [](Layout& layout) {
-            layout.SetAlignItems(YGAlignCenter);
-            layout.SetGap(8.0f);
-          },
+          [](Layout& layout) { layout.SetAlignItems(YGAlignCenter); },
           Label::BasicLabel("Reverb Mix:"),
           Slider::BasicSlider(
               0.0f, 1.0f, GetReverbMix(),
@@ -131,23 +150,27 @@ void EnvironmentWindow::BuildUI() {
                 SetReverbMix(val);
                 if (on_changed_) on_changed_();
               },
-              [](Layout& layout) { layout.SetWidth(180.0f); })));
+              [](Layout& layout) {
+                layout.SetWidth(kEnvironmentSliderWidth);
+              })));
 
-  if (window_node_) {
-    // If window already exists, update its content child
-    window_node_->RemoveChildren();
-    window_node_->AddChild(content);
+  if (content_node_) {
+    content_node_->RemoveChildren();
+    content_node_->AddChild(content);
+    content_node_->Invalidate();
   } else {
-    window_node_ = UiWindow::ResizableWindowWithTitleBar(
+    content_node_ = Container::VerticalContainer(
+        [](Layout& layout) { layout.SetWidthPercent(100.0f); }, content);
+    window_node_ = UiWindow::DialogWithTitleBar(
         "Environment",
         [this](UiWindow& window) {
           window.OnClose([this]() {
             window_node_.reset();
+            content_node_.reset();
             if (on_closed_) on_closed_();
           });
         },
-        [](Layout& layout) { layout.SetWidth(380.0f); },
-        UiWindow::FitContent(YGDimensionHeight), content);
+        content_node_);
   }
 }
 

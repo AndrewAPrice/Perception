@@ -165,9 +165,10 @@ void SynthesizeNoteIntoBuffer(int key_index, const Instrument* instrument,
     if (it != g_note_cache.end() &&
         it->second.size() >= static_cast<size_t>(total_frames)) {
       std::memcpy(buffer, it->second.data(), total_frames * sizeof(int16));
-      for (int i = total_frames; i < max_buffer_frames; ++i) {
+      for (int i = total_frames; i < max_buffer_frames; ++i)
         buffer[i] = 0;
-      }
+      if (GetGlobalReverb().IsEnabled())
+        GetGlobalReverb().Process(buffer, total_frames);
       return;
     }
   }

@@ -595,6 +595,41 @@ void SheetView::BuildNode() {
                                       track_manager_.GetBpm());
                 }
               }
+            } else if (drag_state_ == DragState::ResizingNoteTop) {
+              if (node_->GetCursor() !=
+                  perception::window::Cursor::ResizeHorizontal)
+                node_->SetCursor(perception::window::Cursor::ResizeHorizontal);
+              int target_end_ms = GetTimeMsAtX(pt.x, w);
+              int target_end_tick =
+                  SnapTick(track_manager_.MsToTicks(target_end_ms));
+              int new_dur =
+                  std::max(snap_ticks_, target_end_tick - note.start_tick);
+              if (track_manager_.CanPlaceNote(drag_track_id_, note.key_index,
+                                              note.start_tick, new_dur,
+                                              drag_note_index_)) {
+                note.duration_ticks = new_dur;
+                track_manager_.SyncTrackNotesMs(*drag_track);
+              }
+            } else if (drag_state_ == DragState::ResizingNoteBottom) {
+              if (node_->GetCursor() !=
+                  perception::window::Cursor::ResizeHorizontal)
+                node_->SetCursor(perception::window::Cursor::ResizeHorizontal);
+              int target_start_ms = GetTimeMsAtX(pt.x, w);
+              int target_start_tick =
+                  SnapTick(track_manager_.MsToTicks(target_start_ms));
+              int orig_end_tick =
+                  initial_note_start_tick_ + initial_note_duration_ticks_;
+              if (target_start_tick > orig_end_tick - snap_ticks_)
+                target_start_tick = orig_end_tick - snap_ticks_;
+              if (target_start_tick < 0) target_start_tick = 0;
+              int new_dur = orig_end_tick - target_start_tick;
+              if (track_manager_.CanPlaceNote(drag_track_id_, note.key_index,
+                                              target_start_tick, new_dur,
+                                              drag_note_index_)) {
+                note.start_tick = target_start_tick;
+                note.duration_ticks = new_dur;
+                track_manager_.SyncTrackNotesMs(*drag_track);
+              }
             } else if (drag_state_ == DragState::DrawingNote) {
               int target_time_ms = GetTimeMsAtX(pt.x, w);
               int cur_tick = SnapTick(track_manager_.MsToTicks(target_time_ms));
@@ -743,7 +778,13 @@ void SheetView::BuildNode() {
               initial_note_key_index_ = note.key_index;
               initial_drag_note_ = note;
 
-              drag_state_ = DragState::MovingNote;
+              if (hit.is_left_edge) {
+                drag_state_ = DragState::ResizingNoteBottom;
+              } else if (hit.is_right_edge) {
+                drag_state_ = DragState::ResizingNoteTop;
+              } else {
+                drag_state_ = DragState::MovingNote;
+              }
               TriggerPreviewSound(note.key_index, trk->instrument, trk->volume,
                                   track_manager_.GetBpm());
               Invalidate();

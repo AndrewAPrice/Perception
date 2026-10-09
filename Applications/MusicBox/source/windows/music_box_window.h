@@ -83,6 +83,7 @@ class MusicBoxWindow {
 
   int bottom_octave_ = 3;  // Octave 3 (C3)
   int top_octave_ = 4;     // Octave 4 (C4)
+  int current_snap_ticks_ = 16;
 
   notation::NotationType current_notation_type_ =
       notation::NotationType::FallingNotes;

@@ -17,14 +17,9 @@
 #include <algorithm>
 #include <utility>
 
-namespace notation {
-class NotationView {
- public:
-  virtual ~NotationView() = default;
-  virtual void SetBeatsPerBar(int beats_per_bar) = 0;
-  virtual void SetNotePerBeat(int note_per_beat) = 0;
-};
-}  // namespace notation
+#ifndef TEST
+#include "notation/notation_view.h"
+#endif
 
 namespace {
 
@@ -189,10 +184,12 @@ void ChangeSongSettingsUndoAction::Undo(TrackManager& track_manager,
   song_metadata.beats_per_bar = old_settings_.beats_per_bar;
   song_metadata.note_per_beat = old_settings_.note_per_beat;
 
+#ifndef TEST
   if (notation_view) {
     notation_view->SetBeatsPerBar(old_settings_.beats_per_bar);
     notation_view->SetNotePerBeat(old_settings_.note_per_beat);
   }
+#endif
 }
 
 bool ChangeSongSettingsUndoAction::CanCompressWith(
