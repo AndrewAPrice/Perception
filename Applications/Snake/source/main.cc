@@ -50,7 +50,12 @@ using ::perception::ui::components::UiWindow;
 
 namespace {
 
+// Width and height of the Snake grid in cells.
 constexpr int kGridSize = 16;
+
+// Interval in milliseconds between snake movement ticks.
+constexpr int kGameTickIntervalMs = 150;
+
 std::shared_ptr<Block> blocks[kGridSize][kGridSize];
 std::shared_ptr<Label> score_label;
 
@@ -59,9 +64,11 @@ std::pair<int, int> apple;
 
 enum class Directions { Up, Down, Left, Right };
 Directions direction = Directions::Right;
+Directions last_moved_direction = Directions::Right;
 
 bool game_over = false;
 int score = 0;
+int game_generation = 0;
 
 void SpawnApple() {
   std::vector<std::pair<int, int>> empty;
@@ -103,11 +110,13 @@ void RenderGrid() {
   score_label->SetText(score_string);
 }
 
-void GameLoop() {
-  if (game_over) return;
+void GameLoop(int generation) {
+  if (game_over || generation != game_generation) return;
 
   int nx = snake.front().first;
   int ny = snake.front().second;
+
+  last_moved_direction = direction;
 
   switch (direction) {
     case Directions::Up:
@@ -149,7 +158,8 @@ void GameLoop() {
 
   RenderGrid();
 
-  perception::AfterDuration(std::chrono::milliseconds(150), GameLoop);
+  perception::AfterDuration(std::chrono::milliseconds(kGameTickIntervalMs),
+                            [generation]() { GameLoop(generation); });
 }
 
 void StartGame() {
@@ -159,32 +169,37 @@ void StartGame() {
   snake.push_back({kGridSize / 2 - 2, kGridSize / 2});
 
   direction = Directions::Right;
+  last_moved_direction = Directions::Right;
   score = 0;
   game_over = false;
+  int generation = ++game_generation;
 
   SpawnApple();
   RenderGrid();
 
-  perception::AfterDuration(std::chrono::milliseconds(150), GameLoop);
+  perception::AfterDuration(std::chrono::milliseconds(kGameTickIntervalMs),
+                            [generation]() { GameLoop(generation); });
 }
 
 void HandleKeyDown(const perception::window::KeyboardKeyEvent& event) {
   switch (static_cast<KeyCode>(event.key)) {
     case KeyCode::UpArrow:
     case KeyCode::W:
-      if (direction != Directions::Down) direction = Directions::Up;
+      if (last_moved_direction != Directions::Down) direction = Directions::Up;
       break;
     case KeyCode::DownArrow:
     case KeyCode::S:
-      if (direction != Directions::Up) direction = Directions::Down;
+      if (last_moved_direction != Directions::Up) direction = Directions::Down;
       break;
     case KeyCode::LeftArrow:
     case KeyCode::A:
-      if (direction != Directions::Right) direction = Directions::Left;
+      if (last_moved_direction != Directions::Right)
+        direction = Directions::Left;
       break;
     case KeyCode::RightArrow:
     case KeyCode::D:
-      if (direction != Directions::Left) direction = Directions::Right;
+      if (last_moved_direction != Directions::Left)
+        direction = Directions::Right;
       break;
     default:
       break;
