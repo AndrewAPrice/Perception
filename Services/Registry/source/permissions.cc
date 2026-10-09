@@ -84,15 +84,16 @@ bool CanReadNamespace(const std::shared_ptr<RegistryNamespace>& ns,
 
 bool CanWriteNamespace(const std::shared_ptr<RegistryNamespace>& ns,
                        std::string_view requested_namespace, ProcessId caller) {
-  if (requested_namespace.empty() &&
-      ns->GetCorpus() == RegistryCorpus::APPLICATIONS)
-    return true;  // Caller's own applications namespace.
-
-  std::string caller_name = GetCachedProcessName(caller);
-  if (ns->GetCorpus() == RegistryCorpus::APPLICATIONS &&
-      caller_name == ns->GetName())
-    return true;  // Application can write its own namespace
+  if (IsNamespaceOwner(ns, requested_namespace, caller)) return true;
 
   return ::perception::DoesProcessHavePermission(
       caller, Permission::CanViewAndModifyEntireRegistry);
+}
+
+bool IsNamespaceOwner(const std::shared_ptr<RegistryNamespace>& ns,
+                      std::string_view requested_namespace, ProcessId caller) {
+  if (ns->GetCorpus() != RegistryCorpus::APPLICATIONS) return false;
+  if (requested_namespace.empty())
+    return true;  // Caller's own applications namespace.
+  return GetCachedProcessName(caller) == ns->GetName();
 }

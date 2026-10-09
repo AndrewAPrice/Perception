@@ -108,6 +108,12 @@ RegistryValue::~RegistryValue() {
   }
 }
 
+bool RegistryValue::SetValue(const ::perception::serialization::Value& value) {
+  if (value_ == value) return false;
+  value_ = value;
+  return true;
+}
+
 void RegistryValue::RegisterListener(ProcessId process_id,
                                      MessageId message_id) {
   std::scoped_lock lock(listeners_mutex);

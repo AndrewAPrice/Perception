@@ -20,6 +20,7 @@
 #include "perception/permissions.h"
 #include "permissions.h"
 #include "registry_value.h"
+#include "settings_loader.h"
 
 using ::perception::DeleteRegistryValueRequest;
 using ::perception::GetNamespacesResponse;
@@ -31,7 +32,9 @@ using ::perception::Permission;
 using ::perception::ProcessId;
 using ::perception::RegisterRegistryListenerRequest;
 using ::perception::RegistryCorpus;
+using ::perception::RegistryKeyValue;
 using ::perception::SetRegistryValueRequest;
+using ::perception::SetRegistryValuesRequest;
 using ::perception::UnregisterRegistryListenerRequest;
 
 namespace {
@@ -44,6 +47,32 @@ StatusOr<std::shared_ptr<RegistryNamespace>> ResolveAuthorizedNamespace(
               : CanReadNamespace(ns, r_namespace, sender)))
     return Status::NOT_ALLOWED;
   return ns;
+}
+
+// Writes every value, then notifies listeners of the keys that changed.
+Status SetValuesAndNotify(RegistryCorpus corpus, std::string_view r_namespace,
+                          const std::vector<RegistryKeyValue>& values,
+                          ProcessId sender) {
+  ASSIGN_OR_RETURN(auto ns, ResolveAuthorizedNamespace(corpus, r_namespace,
+                                                       sender, /*write=*/true));
+
+  bool is_owner = IsNamespaceOwner(ns, r_namespace, sender);
+  for (const auto& key_value : values) {
+    if (!is_owner && ns->IsReadOnly(key_value.key))
+      return Status::NOT_ALLOWED;
+  }
+
+  std::vector<std::string_view> changed_keys;
+  bool persistent_value_changed = false;
+  for (const auto& key_value : values) {
+    if (ns->SetValue(key_value.key, key_value.value)) {
+      changed_keys.push_back(key_value.key);
+      if (!ns->IsReadOnly(key_value.key)) persistent_value_changed = true;
+    }
+  }
+  for (std::string_view key : changed_keys) ns->NotifyListeners(key);
+  if (persistent_value_changed) RecordRegistryModification();
+  return Status::OK;
 }
 
 }  // namespace
@@ -61,13 +90,17 @@ StatusOr<GetRegistryValueResponse> RegistryServer::GetRegistryValue(
 
 Status RegistryServer::SetRegistryValue(const SetRegistryValueRequest& request,
                                         ProcessId sender) {
-  ASSIGN_OR_RETURN(
-      auto ns, ResolveAuthorizedNamespace(request.corpus, request.r_namespace,
-                                          sender, /*write=*/true));
+  std::vector<RegistryKeyValue> values(1);
+  values[0].key = request.key;
+  values[0].value = request.value;
+  return SetValuesAndNotify(request.corpus, request.r_namespace, values,
+                            sender);
+}
 
-  ns->SetValue(request.key, request.value);
-  ns->NotifyListeners(request.key);
-  return Status::OK;
+Status RegistryServer::SetRegistryValues(
+    const SetRegistryValuesRequest& request, ProcessId sender) {
+  return SetValuesAndNotify(request.corpus, request.r_namespace,
+                            request.values, sender);
 }
 
 Status RegistryServer::DeleteRegistryValue(
@@ -76,7 +109,13 @@ Status RegistryServer::DeleteRegistryValue(
       auto ns, ResolveAuthorizedNamespace(request.corpus, request.r_namespace,
                                           sender, /*write=*/true));
 
-  if (ns->DeleteValue(request.key)) ns->NotifyListeners(request.key);
+  bool is_read_only = ns->IsReadOnly(request.key);
+  if (is_read_only && !IsNamespaceOwner(ns, request.r_namespace, sender))
+    return Status::NOT_ALLOWED;
+
+  if (ns->DeleteValue(request.key)) {
+    if (!is_read_only) RecordRegistryModification();
+  }
   return Status::OK;
 }
 
@@ -116,4 +155,9 @@ StatusOr<GetNamespacesResponse> RegistryServer::GetNamespaces(
   GetNamespacesResponse response;
   response.namespaces = ::GetNamespaces();
   return response;
+}
+
+Status RegistryServer::FlushRegistry(ProcessId sender) {
+  FlushRegistryToDisk();
+  return Status::OK;
 }

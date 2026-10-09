@@ -127,3 +127,14 @@ std::vector<NamespaceInfo> GetNamespaces() {
   }
   return namespaces;
 }
+
+std::vector<std::shared_ptr<RegistryNamespace>> GetAllNamespaceObjects() {
+  std::scoped_lock db_lock(database_mutex);
+  std::vector<std::shared_ptr<RegistryNamespace>> namespaces;
+  for (const auto& corpus_pair : database) {
+    for (const auto& ns_pair : corpus_pair.second) {
+      namespaces.push_back(ns_pair.second);
+    }
+  }
+  return namespaces;
+}

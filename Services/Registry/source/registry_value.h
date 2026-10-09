@@ -32,7 +32,14 @@ class RegistryValue {
   ~RegistryValue();
 
   const ::perception::serialization::Value& GetValue() const { return value_; }
-  void SetValue(const ::perception::serialization::Value& value) { value_ = value; }
+
+  // Sets the value. Returns true if the new value differs from the old value.
+  bool SetValue(const ::perception::serialization::Value& value);
+
+  // Read-only values are shown in the Settings application but may only be
+  // written by the process that owns the namespace.
+  bool IsReadOnly() const { return read_only_; }
+  void SetReadOnly(bool read_only) { read_only_ = read_only; }
 
   // Registers a listener for this value.
   void RegisterListener(::perception::ProcessId process_id,
@@ -47,6 +54,7 @@ class RegistryValue {
 
  private:
   ::perception::serialization::Value value_;
+  bool read_only_ = false;
   std::vector<ListenerInfo> listeners_;
 };
 

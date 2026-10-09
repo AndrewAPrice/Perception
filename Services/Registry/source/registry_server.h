@@ -48,4 +48,10 @@ class RegistryServer : public ::perception::Registry::Server {
 
   virtual StatusOr<::perception::GetNamespacesResponse> GetNamespaces(
       ::perception::ProcessId sender) override;
+
+  virtual Status SetRegistryValues(
+      const ::perception::SetRegistryValuesRequest& request,
+      ::perception::ProcessId sender) override;
+
+  virtual Status FlushRegistry(::perception::ProcessId sender) override;
 };

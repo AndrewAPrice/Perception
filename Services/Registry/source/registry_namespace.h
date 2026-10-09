@@ -39,8 +39,8 @@ class RegistryNamespace {
   // Retrieve a value.
   StatusOr<::perception::serialization::Value> GetValue(std::string_view key);
 
-  // Set a value.
-  void SetValue(std::string_view key,
+  // Set a value. Returns true if the value changed.
+  bool SetValue(std::string_view key,
                 const ::perception::serialization::Value& value);
 
   // Set default value if key doesn't already exist.
@@ -51,8 +51,22 @@ class RegistryNamespace {
   // Delete a value. Returns true if the value existed.
   bool DeleteValue(std::string_view key);
 
+  // Marks a key as read-only (volatile, excluded from disk persistence).
+  void MarkReadOnly(std::string_view key);
+
+  // Marks any key matching "<prefix><id>/<suffix>" as read-only (volatile).
+  void MarkReadOnlyInstancePattern(std::string_view prefix,
+                                   std::string_view suffix);
+
+  // Returns whether a key is read-only.
+  bool IsReadOnly(std::string_view key);
+
   // Get all keys.
   std::vector<std::string> GetKeys();
+
+  // Returns all persistent (non-read-only, defined) key-value pairs.
+  std::vector<std::pair<std::string, ::perception::serialization::Value>>
+  GetPersistentValues();
 
   // Register a listener for a key.
   void RegisterListener(std::string_view key,
@@ -63,8 +77,21 @@ class RegistryNamespace {
   void NotifyListeners(std::string_view key);
 
  private:
+  struct ReadOnlyInstancePattern {
+    std::string prefix;
+    std::string suffix_with_slash;
+  };
+
+  // Returns the value for a key, creating an empty value if it doesn't exist.
+  // The caller must hold mutex_.
+  RegistryValue& GetOrCreateValueLocked(std::string_view key);
+
+  // Returns whether a key is read-only. The caller must hold mutex_.
+  bool IsReadOnlyLocked(std::string_view key) const;
+
   ::perception::RegistryCorpus corpus_;
   std::string name_;
   std::mutex mutex_;
   std::map<std::string, std::unique_ptr<RegistryValue>, std::less<>> values_;
+  std::vector<ReadOnlyInstancePattern> read_only_patterns_;
 };

@@ -32,3 +32,6 @@ std::shared_ptr<RegistryNamespace> ResolveNamespace(
 
 // Returns all namespaces.
 std::vector<::perception::NamespaceInfo> GetNamespaces();
+
+// Returns all namespace objects in the database.
+std::vector<std::shared_ptr<RegistryNamespace>> GetAllNamespaceObjects();

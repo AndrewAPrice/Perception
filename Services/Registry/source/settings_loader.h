@@ -21,3 +21,9 @@ void ScanAndLoadSettings(std::string_view root_path);
 
 // Parses registry.json JSON format.
 void ParseRegistryData(std::string_view data);
+
+// Records that a persistent registry value changed and schedules an idle flush.
+void RecordRegistryModification();
+
+// Flushes all persistent registry values to disk immediately if dirty.
+void FlushRegistryToDisk();

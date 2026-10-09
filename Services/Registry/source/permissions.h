@@ -29,5 +29,11 @@ bool CanWriteNamespace(const std::shared_ptr<RegistryNamespace>& ns,
                        std::string_view requested_namespace,
                        ::perception::ProcessId caller);
 
+// Checks if the caller is the application that owns the namespace. Only the
+// owner may write read-only keys.
+bool IsNamespaceOwner(const std::shared_ptr<RegistryNamespace>& ns,
+                      std::string_view requested_namespace,
+                      ::perception::ProcessId caller);
+
 // Returns the process name from a PID, caching the result.
 std::string GetCachedProcessName(::perception::ProcessId pid);
