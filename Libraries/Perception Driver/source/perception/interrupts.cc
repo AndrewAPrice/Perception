@@ -23,7 +23,7 @@ MessageId RegisterInterruptHandler(uint8 interrupt,
                                    std::function<void()> handler) {
   MessageId message_id = GenerateUniqueMessageId();
   RegisterMessageHandler(
-      message_id, [handler](ProcessId pid, const MessageData &) {
+      message_id, [handler](ProcessId pid, const MessageData&) {
         if (pid != 0) return;  // Only messages from the kernel are interrupts.
         handler();
       });
@@ -42,10 +42,10 @@ MessageId RegisterInterruptHandler(uint8 interrupt,
 
 MessageId RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
     uint8 interrupt, uint16 status_port, uint8 mask, uint16 read_port,
-    std::function<void(const uint8 *bytes)> handler) {
+    std::function<void(const uint8* bytes)> handler) {
   MessageId message_id = GenerateUniqueMessageId();
   RegisterMessageHandler(
-      message_id, [handler](ProcessId pid, const MessageData &data) {
+      message_id, [handler](ProcessId pid, const MessageData& data) {
         if (pid != 0) return;  // Only messages from the kernel are interrupts.
         handler(data.bytes);
       });
@@ -56,7 +56,8 @@ MessageId RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
   volatile register size_t method_r asm("rdx") = 1;
   volatile register size_t params_r asm("rsi") =
       static_cast<uint64>(status_port) |
-      (static_cast<uint64>(read_port) << 16) | (static_cast<uint64>(mask) << 32);
+      (static_cast<uint64>(read_port) << 16) |
+      (static_cast<uint64>(mask) << 32);
 
   __asm__ __volatile__("syscall\n" ::"r"(syscall), "r"(interrupt_r),
                        "r"(message_id_r), "r"(method_r), "r"(params_r)
@@ -66,11 +67,12 @@ MessageId RegisterInterruptHandlerLoopOverStatusPortReadMaskedPort(
   return message_id;
 }
 
-MessageId RegisterInterruptHandlerClearMmioByte(
-    uint8 interrupt, size_t mmio_address, std::function<void()> handler) {
+MessageId RegisterInterruptHandlerClearMmioByte(uint8 interrupt,
+                                                size_t mmio_address,
+                                                std::function<void()> handler) {
   MessageId message_id = GenerateUniqueMessageId();
   RegisterMessageHandler(
-      message_id, [handler](ProcessId pid, const MessageData &) {
+      message_id, [handler](ProcessId pid, const MessageData&) {
         if (pid != 0) return;  // Only messages from the kernel are interrupts.
         handler();
       });
@@ -89,8 +91,7 @@ MessageId RegisterInterruptHandlerClearMmioByte(
   return message_id;
 }
 
-// Unregisters a handler to call upon receiving an interrupt
-void UnegisterInterruptHandler(uint8 interrupt, MessageId message_id) {
+void UnregisterInterruptHandler(uint8 interrupt, MessageId message_id) {
 #ifdef PERCEPTION
   volatile register size_t syscall asm("rdi") = 21;
   volatile register size_t interrupt_r asm("rax") = (size_t)interrupt;
