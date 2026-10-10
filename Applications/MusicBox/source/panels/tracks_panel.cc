@@ -89,6 +89,7 @@ void TracksPanel::BuildUI() {
       });
 
   if (tracks_list_node_) {
+    tracks_list_node_->SetCursor(perception::window::Cursor::Pointer);
     tracks_list_node_->OnMouseButtonUp(
         [this](const Point&, perception::window::MouseButton button) {
           if (button == perception::window::MouseButton::Left && is_dragging_) {
@@ -245,7 +246,7 @@ void TracksPanel::UpdateTrackListUI() {
     auto track_card = Container::VerticalContainer(
         [this, trk_id, trk_index, num_tracks, idle_color,
          hover_color](Node& node) {
-          node.SetCursor(perception::window::Cursor::Pointer);
+          node.SetCursor(perception::window::Cursor::Poke);
           auto block = node.GetOrAdd<Block>();
           block->SetFillColor(idle_color);
           block->SetBorderRadius(6.0f);
@@ -373,7 +374,7 @@ void TracksPanel::UpdateTrackListUI() {
             Block::SolidColor(
                 track.color,
                 [this, trk_id, track](Node& node) {
-                  node.SetCursor(perception::window::Cursor::Pointer);
+                  node.SetCursor(perception::window::Cursor::Poke);
                   node.OnMouseButtonUp(
                       [this, trk_id, track](
                           const Point&,

@@ -321,14 +321,14 @@ void Keyboard::BuildNode() {
             return;
           }
 
-          node.SetCursor(window::Cursor::Pointer);
-
           int hit_key = GetKeyAtPosition(pt, s);
           if (hit_key >= 0 && hit_key < kTotalPianoKeys) {
+            node.SetCursor(window::Cursor::Poke);
             std::string note_name = TrackManager::KeyIndexToNoteName(hit_key);
             tooltip->SetText(note_name);
             tooltip->ShowTooltipAt(pt);
           } else {
+            node.SetCursor(window::Cursor::Pointer);
             tooltip->HideTooltip();
           }
           if (on_key_hover_) {

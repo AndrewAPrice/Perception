@@ -528,7 +528,7 @@ void SheetView::BuildNode() {
             return;
           }
 
-          // Check Clef Area Hover (pointer cursor when hovering over clef)
+          // Check Clef Area Hover (poke cursor when hovering over clef)
           float staff_left_x = kStaffLeftMargin;
           if (pt.x >= staff_left_x && pt.x <= staff_left_x + kClefHoverWidth) {
             std::vector<const Track*> visible_tracks;
@@ -539,8 +539,8 @@ void SheetView::BuildNode() {
                 std::floor((pt.y + scroll_y_offset_px_) / kStaffHeight));
             if (staff_idx >= 0 &&
                 staff_idx < static_cast<int>(visible_tracks.size())) {
-              if (node_->GetCursor() != perception::window::Cursor::Pointer)
-                node_->SetCursor(perception::window::Cursor::Pointer);
+              if (node_->GetCursor() != perception::window::Cursor::Poke)
+                node_->SetCursor(perception::window::Cursor::Poke);
               return;
             }
           }
