@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "perception/devices/usb_device.h"
 #include "perception/serialization/serializable.h"
 #include "perception/service_macros.h"
 #include "perception/shared_memory.h"
@@ -75,7 +76,14 @@ class PciDeviceFilters : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
-#define METHOD_LIST(X) X(1, QueryPciDevices, PciDevices, PciDeviceFilters)
+#define METHOD_LIST(X)                                                 \
+  X(1, QueryPciDevices, PciDevices, PciDeviceFilters)                  \
+  X(2, QueryUsbInterfaces, UsbInterfaces, UsbInterfaceFilter)          \
+  X(3, RegisterUsbDeviceListener, void, UsbDeviceListener::Client)     \
+  X(4, OpenUsbInterruptEndpoint, UsbEndpointRingInfo,                  \
+    OpenUsbEndpointRequest)                                            \
+  X(5, UsbControlTransfer, UsbControlTransferResponse,                 \
+    UsbControlTransferRequest)
 
 DEFINE_PERCEPTION_SERVICE(DeviceManager, "perception.devices.DeviceManager",
                           METHOD_LIST)
