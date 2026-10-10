@@ -14,12 +14,14 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "perception/serialization/serializable.h"
 #include "perception/service_macros.h"
 #include "perception/shared_memory.h"
+#include "perception/shared_memory_pipe.h"
 #include "types.h"
 
 namespace perception {
@@ -34,6 +36,14 @@ class LoadApplicationRequest : public serialization::Serializable {
 
   // Optional arguments to pass to the application.
   std::vector<std::string> arguments;
+
+  // Whether the new process should be reparented as a child of the caller.
+  bool create_as_child = false;
+
+  // Optional standard stream pipes for the child process.
+  std::shared_ptr<SharedMemoryPipe> stdin_pipe;
+  std::shared_ptr<SharedMemoryPipe> stdout_pipe;
+  std::shared_ptr<SharedMemoryPipe> stderr_pipe;
 
   virtual void Serialize(serialization::Serializer& serializer) override;
 };

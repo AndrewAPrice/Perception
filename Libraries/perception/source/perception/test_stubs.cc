@@ -15,7 +15,10 @@
 #include <chrono>
 #include <cstdlib>
 #include <functional>
+#include <map>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "perception/fibers.h"
 #include "perception/futex.h"
@@ -31,6 +34,50 @@
 #include "perception/shared_memory.h"
 
 namespace perception {
+
+namespace {
+
+struct TestRegistryKey {
+  RegistryCorpus corpus;
+  std::string r_namespace;
+  std::string key;
+
+  bool operator<(const TestRegistryKey& other) const {
+    if (corpus != other.corpus) return corpus < other.corpus;
+    if (r_namespace != other.r_namespace)
+      return r_namespace < other.r_namespace;
+    return key < other.key;
+  }
+};
+
+struct TestRegistryListener {
+  RegistryListenerToken token;
+  TestRegistryKey key;
+  std::function<void()> callback;
+};
+
+std::map<TestRegistryKey, serialization::Value>& GetTestRegistryStore() {
+  static std::map<TestRegistryKey, serialization::Value> store;
+  return store;
+}
+
+std::vector<TestRegistryListener>& GetTestRegistryListeners() {
+  static std::vector<TestRegistryListener> listeners;
+  return listeners;
+}
+
+void NotifyTestRegistryListeners(const TestRegistryKey& key) {
+  std::vector<std::function<void()>> callbacks;
+  for (const auto& listener : GetTestRegistryListeners()) {
+    if (!(listener.key < key) && !(key < listener.key))
+      callbacks.push_back(listener.callback);
+  }
+  for (const auto& cb : callbacks) {
+    if (cb) cb();
+  }
+}
+
+}  // namespace
 
 bool WaitOnFutex(void* address, int value) {
   return false;
@@ -128,12 +175,107 @@ bool FindFirstInstanceOfService(std::string_view name, ProcessId& process_id,
 StatusOr<serialization::Value> GetRegistryValue(RegistryCorpus corpus,
                                                 std::string_view category,
                                                 std::string_view key) {
-  return Status::FILE_NOT_FOUND;
+  TestRegistryKey rk{corpus, std::string(category), std::string(key)};
+  auto& store = GetTestRegistryStore();
+  auto it = store.find(rk);
+  if (it == store.end()) return Status::FILE_NOT_FOUND;
+  return it->second;
 }
 
 StatusOr<serialization::Value> GetRegistryValue(std::string_view key) {
-  return Status::FILE_NOT_FOUND;
+  return GetRegistryValue(RegistryCorpus::APPLICATIONS, "", key);
 }
+
+void SetRegistryValue(std::string_view key, const serialization::Value& value) {
+  SetRegistryValue(RegistryCorpus::APPLICATIONS, "", key, value);
+}
+
+void SetRegistryValue(RegistryCorpus corpus, std::string_view r_namespace,
+                      std::string_view key, const serialization::Value& value) {
+  TestRegistryKey rk{corpus, std::string(r_namespace), std::string(key)};
+  auto& store = GetTestRegistryStore();
+  auto it = store.find(rk);
+  bool changed = (it == store.end() || it->second != value);
+  store[rk] = value;
+  if (changed) NotifyTestRegistryListeners(rk);
+}
+
+Status SetRegistryValues(RegistryCorpus corpus, std::string_view r_namespace,
+                         std::vector<RegistryKeyValue> values) {
+  auto& store = GetTestRegistryStore();
+  std::vector<TestRegistryKey> changed;
+  for (const auto& kv : values) {
+    TestRegistryKey rk{corpus, std::string(r_namespace), kv.key};
+    auto it = store.find(rk);
+    if (it == store.end() || it->second != kv.value) changed.push_back(rk);
+    store[rk] = kv.value;
+  }
+  for (const auto& rk : changed) NotifyTestRegistryListeners(rk);
+  return Status::OK;
+}
+
+void DeleteRegistryValue(std::string_view key) {
+  DeleteRegistryValue(RegistryCorpus::APPLICATIONS, "", key);
+}
+
+void DeleteRegistryValue(RegistryCorpus corpus, std::string_view r_namespace,
+                         std::string_view key) {
+  TestRegistryKey rk{corpus, std::string(r_namespace), std::string(key)};
+  auto& store = GetTestRegistryStore();
+  if (store.erase(rk) > 0) NotifyTestRegistryListeners(rk);
+}
+
+StatusOr<std::vector<std::string>> GetRegistryKeys() {
+  return GetRegistryKeys(RegistryCorpus::APPLICATIONS, "");
+}
+
+StatusOr<std::vector<std::string>> GetRegistryKeys(
+    RegistryCorpus corpus, std::string_view r_namespace) {
+  std::vector<std::string> keys;
+  std::string ns(r_namespace);
+  for (const auto& [rk, val] : GetTestRegistryStore()) {
+    if (rk.corpus == corpus && rk.r_namespace == ns) keys.push_back(rk.key);
+  }
+  return keys;
+}
+
+StatusOr<std::vector<NamespaceInfo>> GetNamespacesInRegistry() {
+  std::vector<NamespaceInfo> namespaces;
+  return namespaces;
+}
+
+StatusOr<RegistryListenerToken> RegisterRegistryListener(
+    std::string_view key, std::function<void()> callback) {
+  return RegisterRegistryListener(RegistryCorpus::APPLICATIONS, "", key,
+                                  std::move(callback));
+}
+
+StatusOr<RegistryListenerToken> RegisterRegistryListener(
+    RegistryCorpus corpus, std::string_view r_namespace, std::string_view key,
+    std::function<void()> callback) {
+  static RegistryListenerToken next_token = 1;
+  RegistryListenerToken token = next_token++;
+  GetTestRegistryListeners().push_back(TestRegistryListener{
+      token,
+      TestRegistryKey{corpus, std::string(r_namespace), std::string(key)},
+      std::move(callback)});
+  return token;
+}
+
+Status UnregisterRegistryListener(RegistryListenerToken token) {
+  auto& listeners = GetTestRegistryListeners();
+  for (auto it = listeners.begin(); it != listeners.end(); ++it) {
+    if (it->token == token) {
+      listeners.erase(it);
+      break;
+    }
+  }
+  return Status::OK;
+}
+
+Status FlushRegistry() { return Status::OK; }
+
+void RegistryKeyValue::Serialize(serialization::Serializer& serializer) {}
 
 // ServiceClient stubs
 ServiceClient::ServiceClient(ProcessId process_id, MessageId message_id)
