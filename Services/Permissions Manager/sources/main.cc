@@ -25,6 +25,7 @@
 #include "perception/fibers.h"
 #include "perception/permissions.h"
 #include "perception/processes.h"
+#include "perception/registry.h"
 #include "perception/scheduler.h"
 #include "perception/services.h"
 #include "perception/ui/components/block.h"
@@ -44,6 +45,7 @@ using ::perception::NotifyUponProcessTermination;
 using ::perception::Permission;
 using ::perception::ProcessId;
 using ::perception::Sleep;
+using ::perception::serialization::Value;
 using ::perception::ui::Layout;
 using ::perception::ui::Node;
 using ::perception::ui::TextAlignment;
@@ -56,11 +58,53 @@ using ::perception::ui::components::UiWindow;
 
 namespace {
 
+// Width of the permission request dialog in logical pixels.
+constexpr float kPermissionDialogWidth = 360.0f;
+
+// Registry key storing persistent granted permissions.
+constexpr std::string_view kGrantedPermissionsRegistryKey =
+    "granted_permissions";
+
 // Mutex to protect the active dialog list.
 std::mutex g_dialogs_mutex;
 
 // Active dialog window nodes to keep them alive.
 std::vector<std::shared_ptr<Node>> g_active_dialogs;
+
+// Persists a process name permission decision to the registry.
+void SavePermissionToRegistry(std::string_view process_name,
+                              Permission permission, bool approved) {
+  auto perm_key = GetPermissionKey(permission);
+  if (!perm_key.has_value()) return;
+
+  std::vector<Value> entries;
+  auto val_or = ::perception::GetRegistryValue(kGrantedPermissionsRegistryKey);
+  bool updated = false;
+  if (val_or.Ok()) {
+    if (const auto* array_val = val_or->ArrayValue()) {
+      for (const auto& entry_val : *array_val) {
+        const auto* entry = entry_val.ArrayValue();
+        if (entry && entry->size() >= 3 &&
+            (*entry)[0].StringValue() == process_name &&
+            (*entry)[1].StringValue() == *perm_key) {
+          entries.push_back(Value(std::vector<Value>{
+              Value(std::string(process_name)), Value(std::string(*perm_key)),
+              Value(approved)}));
+          updated = true;
+        } else {
+          entries.push_back(entry_val);
+        }
+      }
+    }
+  }
+  if (!updated) {
+    entries.push_back(Value(std::vector<Value>{
+        Value(std::string(process_name)), Value(std::string(*perm_key)),
+        Value(approved)}));
+  }
+  ::perception::SetRegistryValue(kGrantedPermissionsRegistryKey,
+                                 Value(entries));
+}
 
 }  // namespace
 
@@ -150,7 +194,7 @@ class PermissionsManager : public ::perception::PermissionsManager::Server {
             }
           });
         },
-        [](Layout& layout) { layout.SetWidth(360.0f); },
+        [](Layout& layout) { layout.SetWidth(kPermissionDialogWidth); },
         Container::VerticalContainer(
             [](Layout& layout) { layout.SetAlignItems(YGAlignStretch); },
             Label::BasicLabel(*verbalization),
@@ -209,6 +253,7 @@ class PermissionsManager : public ::perception::PermissionsManager::Server {
     // Save the permission choice based on remember checkbox setting.
     if (state->remember) {
       SetCachedProcessNamePermission(process_name, permission, state->approved);
+      SavePermissionToRegistry(process_name, permission, state->approved);
     } else {
       SetCachedPidPermission(target_pid, permission, state->approved);
     }
