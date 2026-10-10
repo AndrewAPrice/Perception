@@ -20,6 +20,17 @@
             "extensions": [
                 ".c",
                 ".h"
+            ],
+            "replace": [
+                {
+                    "file": "source/SDLnet.c",
+                    "replacements": [
+                        [
+                            "        if ( address->host == INADDR_NONE ) {\n            struct hostent *hp;\n\n            hp = gethostbyname(host);\n            if ( hp ) {\n                SDL_memcpy(&address->host,hp->h_addr_list[0],hp->h_length);\n            } else {\n                retval = -1;\n            }\n        }",
+                            "        if ( address->host == INADDR_NONE ) {\n            struct addrinfo hints, *res = NULL, *curr;\n            int found = 0;\n\n            SDL_memset(&hints, 0, sizeof(hints));\n            hints.ai_family = AF_UNSPEC;\n            hints.ai_socktype = SOCK_STREAM;\n            if ( getaddrinfo(host, NULL, &hints, &res) == 0 && res != NULL ) {\n                for ( curr = res; curr != NULL; curr = curr->ai_next ) {\n                    if ( curr->ai_family == AF_INET &&\n                         curr->ai_addrlen >= sizeof(struct sockaddr_in) ) {\n                        struct sockaddr_in *sin =\n                            (struct sockaddr_in *)curr->ai_addr;\n                        address->host = sin->sin_addr.s_addr;\n                        found = 1;\n                        break;\n                    }\n                }\n                if ( !found ) {\n                    for ( curr = res; curr != NULL; curr = curr->ai_next ) {\n                        if ( curr->ai_family == AF_INET6 &&\n                             curr->ai_addrlen >= sizeof(struct sockaddr_in6) ) {\n                            struct sockaddr_in6 *sin6 =\n                                (struct sockaddr_in6 *)curr->ai_addr;\n                            SDL_memcpy(&address->host,\n                                       &sin6->sin6_addr.s6_addr[12], 4);\n                            found = 1;\n                            break;\n                        }\n                    }\n                }\n                freeaddrinfo(res);\n            }\n            if ( !found ) {\n                struct hostent *hp = gethostbyname(host);\n                if ( hp ) {\n                    SDL_memcpy(&address->host, hp->h_addr_list[0], hp->h_length);\n                } else {\n                    retval = -1;\n                }\n            }\n        }"
+                        ]
+                    ]
+                }
             ]
         }
     ]
