@@ -231,6 +231,17 @@
             "extensions": [
                 ".c",
                 ".h"
+            ],
+            "replace": [
+                {
+                    "file": "source/timer/unix/SDL_systimer.c",
+                    "replacements": [
+                        [
+                            "return (Uint64)(((Sint64)(now.tv_sec - start_ts.tv_sec) * 1000) + ((now.tv_nsec - start_ts.tv_nsec) / 1000000));",
+                            "Sint64 sec = now.tv_sec - start_ts.tv_sec;\n        Sint64 nsec = now.tv_nsec - start_ts.tv_nsec;\n        if (nsec < 0) {\n            sec -= 1;\n            nsec += 1000000000L;\n        }\n        return (Uint64)(sec * 1000 + nsec / 1000000);"
+                        ]
+                    ]
+                }
             ]
         },
         {
