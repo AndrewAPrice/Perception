@@ -89,17 +89,23 @@ class ExfatFileSystem : public FileSystem {
   // Reads data from cluster chain.
   Status ReadClusters(uint32 first_cluster, bool no_fat_chain,
                       uint64 offset_in_stream, uint64 bytes_to_copy,
-                      uint8* dest_buffer);
+                      uint8* dest_buffer,
+                      uint64* inout_cached_cluster_index = nullptr,
+                      uint32* inout_cached_cluster = nullptr);
 
   // Writes data to cluster chain.
   Status WriteClusters(uint32 first_cluster, bool no_fat_chain,
                        uint64 offset_in_stream, uint64 bytes_to_copy,
-                       const uint8* src_buffer);
+                       const uint8* src_buffer,
+                       uint64* inout_cached_cluster_index = nullptr,
+                       uint32* inout_cached_cluster = nullptr);
 
   // Transfers data to or from a cluster chain.
   Status TransferClusters(uint32 first_cluster, bool no_fat_chain,
                           uint64 offset_in_stream, uint64 bytes_to_copy,
-                          uint8* buffer, bool is_write);
+                          uint8* buffer, bool is_write,
+                          uint64* inout_cached_cluster_index = nullptr,
+                          uint32* inout_cached_cluster = nullptr);
 
   // Allocates clusters and updates FAT if needed.
   StatusOr<uint32> AllocateClusters(uint32 count, bool contiguous,
@@ -145,6 +151,7 @@ class ExfatFileSystem : public FileSystem {
 
   std::mutex fs_mutex_;
   std::vector<uint8> allocation_bitmap_;
+  std::unique_ptr<SectorCache> fat_cache_;
 
   // Converts a byte count to the number of clusters needed.
   uint64 BytesToClusters(uint64 bytes) const {

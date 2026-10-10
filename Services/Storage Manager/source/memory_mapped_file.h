@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
 #include <memory>
 #include <mutex>
 
@@ -35,6 +37,7 @@ class MemoryMappedFile : public ::perception::MemoryMappedFile::Server {
   size_t length_of_file_;
   std::shared_ptr<::perception::SharedMemory> buffer_;
   std::mutex mutex_;
+  std::mutex state_mutex_;
 
   // The optimal size of operations, in bytes.
   size_t optimal_operation_size_;

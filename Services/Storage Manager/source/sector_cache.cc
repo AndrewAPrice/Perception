@@ -24,7 +24,6 @@ bool SectorCache::Read(size_t sector, char* dest, size_t offset_in_sector,
   std::scoped_lock lock(mutex_);
   auto it = cache_.find(sector);
   if (it != cache_.end()) {
-    // Move to front of LRU list
     MoveToFront(it->second);
     std::memcpy(dest, it->second->data.data() + offset_in_sector, size);
     return true;
@@ -42,7 +41,6 @@ void SectorCache::Write(size_t sector, const char* src) {
   }
 
   if (lru_list_.size() >= max_sectors_) {
-    // Evict oldest
     auto oldest = lru_list_.back();
     cache_.erase(oldest.sector);
     lru_list_.pop_back();
@@ -51,6 +49,18 @@ void SectorCache::Write(size_t sector, const char* src) {
   lru_list_.push_front(
       {sector, std::vector<char>(src, src + sector_size_), false});
   cache_[sector] = lru_list_.begin();
+}
+
+void SectorCache::Update(size_t sector, const char* src,
+                         size_t offset_in_sector, size_t size) {
+  std::scoped_lock lock(mutex_);
+  auto it = cache_.find(sector);
+  if (it == cache_.end()) return;
+  if (offset_in_sector <= sector_size_ &&
+      size <= sector_size_ - offset_in_sector) {
+    std::memcpy(it->second->data.data() + offset_in_sector, src, size);
+    MoveToFront(it->second);
+  }
 }
 
 void SectorCache::MoveToFront(std::list<ListEntry>::iterator it) {

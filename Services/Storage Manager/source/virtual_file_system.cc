@@ -92,8 +92,18 @@ static void UnmountFileSystem(const std::string mount_name) {
 Status ExtractMountPointAndPath(std::string_view path,
                                 std::string_view& mount_point,
                                 std::string_view& path_on_mount_point) {
-  if (path.empty() || path[0] != '/') {
+  if (path.empty() || path[0] != '/')
     return Status::FILE_NOT_FOUND;
+
+  size_t pos = 1;
+  while (pos <= path.size()) {
+    size_t slash = path.find('/', pos);
+    std::string_view segment = (slash == std::string_view::npos)
+                                   ? path.substr(pos)
+                                   : path.substr(pos, slash - pos);
+    if (segment == "." || segment == "..") return Status::FILE_NOT_FOUND;
+    if (slash == std::string_view::npos) break;
+    pos = slash + 1;
   }
 
   // Jump over the initial '/'.

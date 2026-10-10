@@ -56,11 +56,18 @@ MemoryMappedFile::MemoryMappedFile(std::unique_ptr<File> file,
     buffer_ =
         SharedMemory::FromSize(length_of_file, SharedMemory::kLazilyAllocated,
                                [this](size_t offset_of_page) {
-                                 if (is_closed_) return;
-                                 running_operations_++;
+                                 {
+                                   std::scoped_lock lock(state_mutex_);
+                                   if (is_closed_ || close_after_all_operations_)
+                                     return;
+                                   running_operations_++;
+                                 }
                                  ReadInPageChunk(offset_of_page);
-                                 running_operations_--;
-                                 MaybeCloseIfUnlocked();
+                                 {
+                                   std::scoped_lock lock(state_mutex_);
+                                   running_operations_--;
+                                   MaybeCloseIfUnlocked();
+                                 }
                                });
     buffer_->GrantPermissionToLazilyAllocatePage(GetProcessId());
 
@@ -77,6 +84,7 @@ MemoryMappedFile::MemoryMappedFile(std::unique_ptr<File> file,
 Status MemoryMappedFile::Close(ProcessId sender) {
   if (sender != allowed_process_) return Status::NOT_ALLOWED;
 
+  std::scoped_lock lock(state_mutex_);
   if (running_operations_ == 0) {
     CloseFile();
   } else {
@@ -89,13 +97,14 @@ Status MemoryMappedFile::Close(ProcessId sender) {
 void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
   std::scoped_lock lock(mutex_);
 
+  if (offset_of_page >= length_of_file_) return;
+
   // Round the page offset down.
   offset_of_page =
       (offset_of_page / optimal_operation_size_) * optimal_operation_size_;
 
-  if (buffer_->IsPageAllocated(offset_of_page)) {
-    return;  // This page is already allocated, so nothing to do.
-  }
+  if (buffer_->IsPageAllocated(offset_of_page))
+    return;
 
   // Read the page in from the file.
   ReadFileRequest request;
@@ -105,6 +114,7 @@ void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
   size_t remaining_bytes_in_file = length_of_file_ - offset_of_page;
   size_t bytes_to_copy =
       std::min(optimal_operation_size_, remaining_bytes_in_file);
+  if (bytes_to_copy == 0) return;
   request.bytes_to_copy = bytes_to_copy;
 
   auto read_status = file_->Read(request, allowed_process_);
@@ -114,6 +124,7 @@ void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
     for (size_t page = first_page; page <= last_page; page += kPageSize) {
       // Create a new page to copy this temporary page into.
       void* new_page = AllocateMemoryPages(1);
+      if (new_page == nullptr) break;
       memset(new_page, 0, kPageSize);
       buffer_->AssignPage(new_page, page);
     }
@@ -123,12 +134,10 @@ void MemoryMappedFile::ReadInPageChunk(size_t offset_of_page) {
 std::shared_ptr<SharedMemory> MemoryMappedFile::GetBuffer() { return buffer_; }
 
 void MemoryMappedFile::MaybeCloseIfUnlocked() {
-  if (close_after_all_operations_ && running_operations_ == 0) {
+  if (close_after_all_operations_ && running_operations_ == 0)
     CloseFile();
-  }
 }
 
-// Closes the file.
 void MemoryMappedFile::CloseFile() {
   if (is_closed_) return;
   is_closed_ = true;

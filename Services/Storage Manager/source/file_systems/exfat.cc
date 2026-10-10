@@ -18,6 +18,7 @@
 #include <cctype>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -75,6 +76,12 @@ constexpr uint8 kStreamFlagNoFatChain = 0x02;
 
 // Flag indicating stream allocation is possible.
 constexpr uint8 kStreamFlagAllocationPossible = 0x01;
+
+// Maximum number of FAT sectors cached in memory.
+constexpr size_t kFatCacheMaxSectors = 64;
+
+// Maximum combined shift for bytes per cluster (32 MiB).
+constexpr uint8 kMaxClusterShift = 25;
 
 // Rotates a 16-bit value right by 1 bit and adds an 8-bit byte.
 constexpr uint16 Ror1Add(uint16 acc, uint8 val) {
@@ -184,9 +191,10 @@ void FinalizeEntrySetChecksum(uint8* entry_set, size_t entry_count) {
 }
 
 // Computes 16-bit name hash of upcased UTF-16 string.
-uint16 ComputeNameHash(const std::u16string& upcased_name) {
+uint16 ComputeNameHash(const std::u16string& name) {
   uint16 hash = 0;
-  for (char16_t ch : upcased_name) {
+  for (char16_t ch : name) {
+    if (ch >= u'a' && ch <= u'z') ch = ch - u'a' + u'A';
     hash = Ror1Add(hash, static_cast<uint8>(ch & 0xFF));
     hash = Ror1Add(hash, static_cast<uint8>((ch >> 8) & 0xFF));
   }
@@ -291,17 +299,25 @@ class ExfatFile : public File {
   virtual Status Read(const ReadFileRequest& request,
                       ProcessId sender) override {
     if (sender != allowed_process_) return Status::NOT_ALLOWED;
-    if (request.offset_in_file + request.bytes_to_copy > data_length_)
+    if (request.offset_in_file > data_length_ ||
+        request.bytes_to_copy > data_length_ - request.offset_in_file)
+      return Status::OVERFLOW;
+    if (!request.buffer_to_copy_into || !request.buffer_to_copy_into->Join() ||
+        **request.buffer_to_copy_into == nullptr)
+      return Status::INVALID_ARGUMENT;
+    size_t buffer_size = request.buffer_to_copy_into->GetSize();
+    if (request.offset_in_destination_buffer > buffer_size ||
+        request.bytes_to_copy >
+            buffer_size - request.offset_in_destination_buffer)
       return Status::OVERFLOW;
     if (request.bytes_to_copy == 0) return Status::OK;
 
-    if (!request.buffer_to_copy_into->Join()) return Status::INVALID_ARGUMENT;
     uint8* dest = static_cast<uint8*>(**request.buffer_to_copy_into) +
                   request.offset_in_destination_buffer;
 
     return fs_.ReadClusters(first_cluster_, no_fat_chain_,
                             request.offset_in_file, request.bytes_to_copy,
-                            dest);
+                            dest, &cached_cluster_index_, &cached_cluster_);
   }
 
   virtual Status Write(const WriteFileRequest& request,
@@ -309,16 +325,29 @@ class ExfatFile : public File {
     if (sender != allowed_process_) return Status::NOT_ALLOWED;
     if (!fs_.IsWritable()) return Status::NOT_ALLOWED;
 
-    if (!request.buffer_to_copy_from->Join()) return Status::INVALID_ARGUMENT;
+    if (!request.buffer_to_copy_from || !request.buffer_to_copy_from->Join() ||
+        **request.buffer_to_copy_from == nullptr)
+      return Status::INVALID_ARGUMENT;
+    if (request.bytes_to_copy > request.buffer_to_copy_from->GetSize())
+      return Status::OVERFLOW;
+    if (request.offset_in_file >
+        std::numeric_limits<uint64>::max() - request.bytes_to_copy)
+      return Status::OVERFLOW;
+
     const uint8* src = static_cast<const uint8*>(**request.buffer_to_copy_from);
 
     uint64 end_offset = request.offset_in_file + request.bytes_to_copy;
-    uint32 cluster_size = fs_.GetClusterSize();
 
     if (end_offset > data_length_) {
+      uint32 old_first = first_cluster_;
+      bool old_no_fat_chain = no_fat_chain_;
       Status extend_status = fs_.ExtendClusters(first_cluster_, no_fat_chain_,
                                                 data_length_, end_offset);
       if (extend_status != Status::OK) return extend_status;
+      if (first_cluster_ != old_first || no_fat_chain_ != old_no_fat_chain) {
+        cached_cluster_index_ = 0;
+        cached_cluster_ = 0;
+      }
 
       data_length_ = end_offset;
       Status status =
@@ -331,7 +360,7 @@ class ExfatFile : public File {
 
     return fs_.WriteClusters(first_cluster_, no_fat_chain_,
                              request.offset_in_file, request.bytes_to_copy,
-                             src);
+                             src, &cached_cluster_index_, &cached_cluster_);
   }
 
   virtual Status GrantStorageDevicePermissionToAllocateSharedMemoryPages(
@@ -339,6 +368,7 @@ class ExfatFile : public File {
           request,
       ::perception::ProcessId sender) override {
     if (sender != allowed_process_) return Status::NOT_ALLOWED;
+    if (!request.buffer) return Status::INVALID_ARGUMENT;
     request.buffer->GrantPermissionToLazilyAllocatePage(
         fs_.GetStorageDevice().ServerProcessId());
     return Status::OK;
@@ -353,6 +383,8 @@ class ExfatFile : public File {
   uint64 data_length_;
   bool no_fat_chain_;
   ProcessId allowed_process_;
+  uint64 cached_cluster_index_ = 0;
+  uint32 cached_cluster_ = 0;
 };
 
 }  // namespace
@@ -380,6 +412,7 @@ ExfatFileSystem::ExfatFileSystem(
   cluster_size_ = 1 << (bytes_per_sector_shift_ + sectors_per_cluster_shift_);
   sectors_per_cluster_ = 1 << sectors_per_cluster_shift_;
   optimal_operation_size_ = cluster_size_;
+  fat_cache_ = std::make_unique<SectorCache>(sector_size_, kFatCacheMaxSectors);
 
   LoadAllocationBitmap();
 }
@@ -403,12 +436,25 @@ StatusOr<uint32> ExfatFileSystem::GetNextCluster(uint32 cluster) {
   if (cluster < 2 || cluster >= cluster_count_ + 2)
     return uint32(kFatEndOfChain);
 
-  uint64 offset = FatEntryToDeviceOffset(cluster);
+  uint64 entry_byte_offset = static_cast<uint64>(cluster) * sizeof(uint32);
+  size_t fat_sector = static_cast<size_t>(entry_byte_offset / sector_size_);
+  size_t offset_in_sector =
+      static_cast<size_t>(entry_byte_offset % sector_size_);
+
+  uint32 next_cluster = 0;
+  if (fat_cache_ &&
+      fat_cache_->Read(fat_sector, reinterpret_cast<char*>(&next_cluster),
+                       offset_in_sector, sizeof(uint32)))
+    return next_cluster;
+
+  uint64 sector_device_offset =
+      start_byte_offset_ +
+      (static_cast<uint64>(fat_offset_) + fat_sector) * sector_size_;
   auto pooled = kSharedMemoryPool.GetSharedMemory();
   StorageDeviceReadRequest req;
-  req.offset_on_device = offset;
+  req.offset_on_device = sector_device_offset;
   req.offset_in_buffer = 0;
-  req.bytes_to_copy = 4;
+  req.bytes_to_copy = sector_size_;
   req.buffer = pooled->shared_memory;
 
   Status status = storage_device_.Read(req);
@@ -417,7 +463,10 @@ StatusOr<uint32> ExfatFileSystem::GetNextCluster(uint32 cluster) {
     return status;
   }
 
-  uint32 next_cluster = *reinterpret_cast<uint32*>(**pooled->shared_memory);
+  const char* sector_ptr =
+      reinterpret_cast<const char*>(**pooled->shared_memory);
+  if (fat_cache_) fat_cache_->Write(fat_sector, sector_ptr);
+  std::memcpy(&next_cluster, sector_ptr + offset_in_sector, sizeof(uint32));
   kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled));
   return next_cluster;
 }
@@ -425,6 +474,15 @@ StatusOr<uint32> ExfatFileSystem::GetNextCluster(uint32 cluster) {
 Status ExfatFileSystem::SetNextCluster(uint32 cluster, uint32 next_cluster) {
   if (cluster < 2 || cluster >= cluster_count_ + 2)
     return Status::INVALID_ARGUMENT;
+
+  uint64 entry_byte_offset = static_cast<uint64>(cluster) * sizeof(uint32);
+  size_t fat_sector = static_cast<size_t>(entry_byte_offset / sector_size_);
+  size_t offset_in_sector =
+      static_cast<size_t>(entry_byte_offset % sector_size_);
+  if (fat_cache_) {
+    fat_cache_->Update(fat_sector, reinterpret_cast<const char*>(&next_cluster),
+                       offset_in_sector, sizeof(uint32));
+  }
 
   uint64 offset = FatEntryToDeviceOffset(cluster);
   auto pooled = kSharedMemoryPool.GetSharedMemory();
@@ -443,12 +501,14 @@ Status ExfatFileSystem::SetNextCluster(uint32 cluster, uint32 next_cluster) {
 
 StatusOr<uint32> ExfatFileSystem::FindLastCluster(uint32 first_cluster) {
   uint32 cur = first_cluster;
-  while (true) {
+  for (uint32 steps = 0; steps < cluster_count_; steps++) {
     auto next_or = GetNextCluster(cur);
-    if (!next_or.Ok() || IsEndOfChain(*next_or)) break;
+    if (!next_or.Ok()) return next_or.Status();
+    if (IsEndOfChain(*next_or)) return cur;
+    if (!IsValidCluster(*next_or)) return Status::INTERNAL_ERROR;
     cur = *next_or;
   }
-  return cur;
+  return Status::INTERNAL_ERROR;
 }
 
 StatusOr<uint32> ExfatFileSystem::AllocateZeroedCluster() {
@@ -518,17 +578,30 @@ Status ExfatFileSystem::FlushAllocationBitmap(size_t byte_start,
 Status ExfatFileSystem::TransferClusters(uint32 first_cluster, bool no_fat_chain,
                                          uint64 offset_in_stream,
                                          uint64 bytes_to_copy, uint8* buffer,
-                                         bool is_write) {
+                                         bool is_write,
+                                         uint64* inout_cached_cluster_index,
+                                         uint32* inout_cached_cluster) {
   if (bytes_to_copy == 0) return Status::OK;
 
   uint32 cur_cluster = first_cluster;
   uint64 cluster_idx = offset_in_stream / cluster_size_;
   uint64 offset_in_cluster = offset_in_stream % cluster_size_;
 
+  if (cluster_idx >= cluster_count_) return Status::OVERFLOW;
+
+  uint64 current_index = 0;
   if (no_fat_chain) {
     cur_cluster += static_cast<uint32>(cluster_idx);
+    current_index = cluster_idx;
   } else {
-    for (uint64 i = 0; i < cluster_idx; i++) {
+    if (inout_cached_cluster != nullptr &&
+        inout_cached_cluster_index != nullptr &&
+        IsValidCluster(*inout_cached_cluster) &&
+        *inout_cached_cluster_index <= cluster_idx) {
+      cur_cluster = *inout_cached_cluster;
+      current_index = *inout_cached_cluster_index;
+    }
+    for (; current_index < cluster_idx; current_index++) {
       auto status_or_next = GetNextCluster(cur_cluster);
       if (!status_or_next.Ok()) return status_or_next.Status();
       cur_cluster = *status_or_next;
@@ -538,17 +611,26 @@ Status ExfatFileSystem::TransferClusters(uint32 first_cluster, bool no_fat_chain
 
   uint64 bytes_remaining = bytes_to_copy;
   uint64 buffer_offset = 0;
+  uint32 clusters_walked = 0;
 
   auto pooled = kSharedMemoryPool.GetSharedMemory();
 
   while (bytes_remaining > 0) {
-    if (!IsValidCluster(cur_cluster)) {
+    if (!IsValidCluster(cur_cluster) || clusters_walked > cluster_count_) {
       kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled));
       return Status::OVERFLOW;
     }
 
+    if (inout_cached_cluster != nullptr &&
+        inout_cached_cluster_index != nullptr) {
+      *inout_cached_cluster = cur_cluster;
+      *inout_cached_cluster_index = current_index;
+    }
+
     uint64 chunk_available = cluster_size_ - offset_in_cluster;
-    uint64 chunk_to_copy = std::min(bytes_remaining, chunk_available);
+    uint64 chunk_to_copy =
+        std::min({bytes_remaining, chunk_available,
+                  static_cast<uint64>(::perception::kPageSize)});
     uint64 dev_offset = ClusterToDeviceOffset(cur_cluster) + offset_in_cluster;
 
     if (is_write) {
@@ -581,18 +663,29 @@ Status ExfatFileSystem::TransferClusters(uint32 first_cluster, bool no_fat_chain
 
     buffer_offset += chunk_to_copy;
     bytes_remaining -= chunk_to_copy;
-    offset_in_cluster = 0;
+    offset_in_cluster += chunk_to_copy;
 
-    if (bytes_remaining > 0) {
-      if (no_fat_chain) {
-        cur_cluster++;
-      } else {
-        auto status_or_next = GetNextCluster(cur_cluster);
-        if (!status_or_next.Ok()) {
-          kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled));
-          return status_or_next.Status();
+    if (offset_in_cluster >= cluster_size_) {
+      offset_in_cluster = 0;
+      current_index++;
+      clusters_walked++;
+      if (bytes_remaining > 0) {
+        if (no_fat_chain) {
+          cur_cluster++;
+        } else {
+          auto status_or_next = GetNextCluster(cur_cluster);
+          if (!status_or_next.Ok()) {
+            kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled));
+            return status_or_next.Status();
+          }
+          cur_cluster = *status_or_next;
+          if (inout_cached_cluster != nullptr &&
+              inout_cached_cluster_index != nullptr &&
+              IsValidCluster(cur_cluster)) {
+            *inout_cached_cluster = cur_cluster;
+            *inout_cached_cluster_index = current_index;
+          }
         }
-        cur_cluster = *status_or_next;
       }
     }
   }
@@ -603,18 +696,24 @@ Status ExfatFileSystem::TransferClusters(uint32 first_cluster, bool no_fat_chain
 
 Status ExfatFileSystem::ReadClusters(uint32 first_cluster, bool no_fat_chain,
                                      uint64 offset_in_stream,
-                                     uint64 bytes_to_copy, uint8* dest_buffer) {
+                                     uint64 bytes_to_copy, uint8* dest_buffer,
+                                     uint64* inout_cached_cluster_index,
+                                     uint32* inout_cached_cluster) {
   return TransferClusters(first_cluster, no_fat_chain, offset_in_stream,
-                          bytes_to_copy, dest_buffer, /*is_write=*/false);
+                          bytes_to_copy, dest_buffer, /*is_write=*/false,
+                          inout_cached_cluster_index, inout_cached_cluster);
 }
 
 Status ExfatFileSystem::WriteClusters(uint32 first_cluster, bool no_fat_chain,
                                       uint64 offset_in_stream,
                                       uint64 bytes_to_copy,
-                                      const uint8* src_buffer) {
+                                      const uint8* src_buffer,
+                                      uint64* inout_cached_cluster_index,
+                                      uint32* inout_cached_cluster) {
   return TransferClusters(
       first_cluster, no_fat_chain, offset_in_stream, bytes_to_copy,
-      const_cast<uint8*>(src_buffer), /*is_write=*/true);
+      const_cast<uint8*>(src_buffer), /*is_write=*/true,
+      inout_cached_cluster_index, inout_cached_cluster);
 }
 
 StatusOr<uint32> ExfatFileSystem::AllocateClusters(
@@ -735,20 +834,22 @@ Status ExfatFileSystem::ExtendClusters(uint32& first_cluster,
 Status ExfatFileSystem::FreeClusterChain(uint32 first_cluster,
                                          bool no_fat_chain,
                                          uint64 data_length) {
-  if (first_cluster < 2) return Status::OK;
+  if (!IsValidCluster(first_cluster)) return Status::OK;
   std::lock_guard<std::mutex> lock(fs_mutex_);
 
-  uint32 cluster_count_to_free =
-      static_cast<uint32>(BytesToClusters(data_length));
   uint32 cur = first_cluster;
-
-  for (uint32 i = 0;
-       i < cluster_count_to_free && IsValidCluster(cur); i++) {
-    SetClusterAllocated(cur, false);
-
-    if (no_fat_chain) {
+  if (no_fat_chain) {
+    uint64 needed = std::max<uint64>(1, BytesToClusters(data_length));
+    uint32 cluster_count_to_free =
+        static_cast<uint32>(std::min<uint64>(needed, cluster_count_));
+    for (uint32 i = 0; i < cluster_count_to_free && IsValidCluster(cur); i++) {
+      SetClusterAllocated(cur, false);
       cur++;
-    } else {
+    }
+  } else {
+    for (uint32 steps = 0; steps < cluster_count_ && IsValidCluster(cur);
+         steps++) {
+      SetClusterAllocated(cur, false);
       auto status_or_next = GetNextCluster(cur);
       SetNextCluster(cur, 0);
       if (!status_or_next.Ok()) break;
@@ -766,7 +867,10 @@ Status ExfatFileSystem::ReadDirectoryClusters(
   uint32 cur_cluster = dir_cluster;
   if (last_cluster != nullptr) *last_cluster = dir_cluster;
 
+  uint32 steps = 0;
   while (IsValidCluster(cur_cluster)) {
+    if (steps >= cluster_count_) return Status::INTERNAL_ERROR;
+    steps++;
     if (last_cluster != nullptr) *last_cluster = cur_cluster;
     size_t old_size = dir_buffer.size();
     dir_buffer.resize(old_size + cluster_size_);
@@ -1282,7 +1386,8 @@ std::unique_ptr<FileSystem> InitializeExfatForStorageDevice(
 
   kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled));
 
-  if (bytes_per_sector_shift < 9 || bytes_per_sector_shift > 12)
+  if (bytes_per_sector_shift < 9 || bytes_per_sector_shift > 12 ||
+      bytes_per_sector_shift + sectors_per_cluster_shift > kMaxClusterShift)
     return nullptr;
 
   auto fs = std::make_unique<ExfatFileSystem>(

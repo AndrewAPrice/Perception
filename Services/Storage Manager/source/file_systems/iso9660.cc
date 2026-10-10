@@ -37,14 +37,17 @@ using ::perception::devices::StorageDeviceReadRequest;
 namespace file_systems {
 namespace {
 
+// Size in bytes of an ISO 9660 sector.
 constexpr int kIso9660SectorSize = 2048;
+
 // Optimal operation size for reads (512KB matching AHCI DMA buffer).
 constexpr size_t kIso9660OptimalOperationSize = 524288;
-std::string kIso9660Name = "ISO 9660";
 
-}  // namespace
+// Standard ISO 9660 file system name.
+constexpr std::string_view kIso9660Name = "ISO 9660";
 
-namespace {
+// Minimum valid size in bytes of an ISO 9660 directory record.
+constexpr size_t kMinDirectoryRecordLength = 33;
 
 class Iso9660File : public File {
  public:
@@ -66,9 +69,21 @@ class Iso9660File : public File {
                       ProcessId sender) override {
     if (sender != allowed_process_) return Status::NOT_ALLOWED;
 
-    if (request.offset_in_file + request.bytes_to_copy > length_of_file_) {
+    if (request.offset_in_file > length_of_file_ ||
+        request.bytes_to_copy > length_of_file_ - request.offset_in_file)
       return Status::OVERFLOW;
-    }
+
+    if (!request.buffer_to_copy_into || !request.buffer_to_copy_into->Join() ||
+        **request.buffer_to_copy_into == nullptr)
+      return Status::INVALID_ARGUMENT;
+
+    size_t buffer_size = request.buffer_to_copy_into->GetSize();
+    if (request.offset_in_destination_buffer > buffer_size ||
+        request.bytes_to_copy >
+            buffer_size - request.offset_in_destination_buffer)
+      return Status::OVERFLOW;
+
+    if (request.bytes_to_copy == 0) return Status::OK;
 
     return parent_->ReadCached(offset_on_device_ + request.offset_in_file,
                                request.offset_in_destination_buffer,
@@ -81,6 +96,7 @@ class Iso9660File : public File {
           request,
       ::perception::ProcessId sender) override {
     if (sender != allowed_process_) return Status::NOT_ALLOWED;
+    if (!request.buffer) return Status::INVALID_ARGUMENT;
     request.buffer->GrantPermissionToLazilyAllocatePage(
         parent_->GetStorageDevice().ServerProcessId());
 
@@ -228,6 +244,16 @@ void Iso9660::CheckFilePermissions(std::string_view path, bool &file_exists,
 Status Iso9660::ReadCached(uint64 offset_on_device, uint64 offset_in_buffer,
                            uint64 bytes_to_copy,
                            std::shared_ptr<::perception::SharedMemory> buffer) {
+  if (!buffer || !buffer->Join() || **buffer == nullptr)
+    return Status::INVALID_ARGUMENT;
+
+  size_t buffer_size = buffer->GetSize();
+  if (offset_in_buffer > buffer_size ||
+      bytes_to_copy > buffer_size - offset_in_buffer)
+    return Status::OVERFLOW;
+
+  if (bytes_to_copy == 0) return Status::OK;
+
   // If the read is larger than 8 sectors (16KB), bypass the cache.
   if (bytes_to_copy > 16384 || buffer->IsLazilyAllocated()) {
     StorageDeviceReadRequest read_request;
@@ -329,7 +355,8 @@ void Iso9660::ForRawEachEntryInDirectory(
     // Loop over items in this directory.
     while (directory_length > 0 && !found_sub_directory) {
       // Maybe read in the sector.
-      if (offset == 0 || offset + 32 > logical_block_size_) {
+      if (offset == 0 ||
+          offset + kMinDirectoryRecordLength > logical_block_size_) {
         // Read in the sector. Note that directory entries aren't allowed to
         // cross sector boundaries.
         size_t directory_start = directory_lba * logical_block_size_;
@@ -351,8 +378,10 @@ void Iso9660::ForRawEachEntryInDirectory(
       // Read this record's length.
       size_t record_length = (size_t)*(uint8 *)&buffer[offset] +
                              (size_t)*(uint8 *)&buffer[offset + 1];
-      if (record_length <= 0) {
-        // End of the sector. Read the next sector.
+      if (record_length < kMinDirectoryRecordLength ||
+          offset + record_length > logical_block_size_ ||
+          offset + record_length > static_cast<size_t>(kIso9660SectorSize)) {
+        // End of the sector or invalid record. Read the next sector.
         size_t remaining_in_sector = logical_block_size_ - offset;
         if (remaining_in_sector >= directory_length)
           directory_length = 0;
@@ -364,7 +393,18 @@ void Iso9660::ForRawEachEntryInDirectory(
       }
 
       // Read in the entry's name.
-      int entry_name_length = (int)*(uint8 *)&buffer[offset + 32];
+      size_t entry_name_length =
+          static_cast<size_t>(*(uint8 *)&buffer[offset + 32]);
+      if (kMinDirectoryRecordLength + entry_name_length > record_length) {
+        size_t remaining_in_sector = logical_block_size_ - offset;
+        if (remaining_in_sector >= directory_length)
+          directory_length = 0;
+        else
+          directory_length -= remaining_in_sector;
+
+        offset = logical_block_size_;
+        continue;
+      }
       std::string_view entry_name =
           std::string_view(&buffer[offset + 33], entry_name_length);
 
@@ -373,7 +413,7 @@ void Iso9660::ForRawEachEntryInDirectory(
       // See if there is a Rock Ridge name to use instead, which supports
       // up to 255 characters, and is stored as an extension just after
       // the entry name.
-      size_t susp_start = entry_name_length + 33;
+      size_t susp_start = entry_name_length + kMinDirectoryRecordLength;
       if (susp_start % 2 == 1) susp_start++;  // Extensions are 2 byte aligned.
 
       // Check the system user area (where extensions are).
@@ -382,30 +422,27 @@ void Iso9660::ForRawEachEntryInDirectory(
         char signature_2 = buffer[offset + susp_start + 1];
         size_t extension_length =
             (size_t)*(uint8 *)&buffer[offset + susp_start + 2];
-        if (extension_length == 0) break;
-        // There is have enough space for Rock Ridge.
-        if (signature_1 == 'N' && signature_2 == 'M') {
-          // This is a Rock Ridge extension.
-          if (susp_start + extension_length <= record_length) {
-            // There is space for Rock Ridge extension.
-            entry_name = std::string_view(&buffer[offset + susp_start + 5],
-                                          extension_length - 5);
-            alternative_name = true;
-          }
+        if (extension_length < 4 ||
+            susp_start + extension_length > record_length)
+          break;
+        if (signature_1 == 'N' && signature_2 == 'M' && extension_length >= 5) {
+          entry_name = std::string_view(&buffer[offset + susp_start + 5],
+                                        extension_length - 5);
+          alternative_name = true;
         }
         // Iterate to the next extension.
         susp_start += extension_length;
       }
 
       if (!alternative_name) {
-        // For some reason, entry names are often padded with a non-printable
-        // character.
-        if (!entry_name.empty() && !std::isprint(entry_name[0]))
+        // Entry names are often padded with a non-printable character.
+        if (!entry_name.empty() &&
+            !std::isprint(static_cast<unsigned char>(entry_name[0])))
           entry_name = entry_name.substr(1);
 
-        // IO 9660 file names have a ';' followed by a revision number.
-        // We'll trim this off the end of the file name.
-        int semi_colon = entry_name.find_last_of(';');
+        // ISO 9660 file names have a ';' followed by a revision number.
+        // Trim this off the end of the file name.
+        size_t semi_colon = entry_name.find_last_of(';');
         if (semi_colon != std::string_view::npos)
           entry_name = entry_name.substr(0, semi_colon);
       }
@@ -458,6 +495,7 @@ std::string_view Iso9660::GetFileSystemType() const { return kIso9660Name; }
 std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
     StorageDevice::Client storage_device) {
   auto status_or_device_details = storage_device.GetDeviceDetails();
+  if (!status_or_device_details.Ok()) return nullptr;
   std::string_view device_name = status_or_device_details->name;
 
   auto pooled_shared_memory = kSharedMemoryPool.GetSharedMemory();
@@ -522,6 +560,10 @@ std::unique_ptr<FileSystem> InitializeIso9960ForStorageDevice(
 
   uint32 size_in_blocks = *(uint32 *)&buffer[80];
   uint16 logical_block_size = *(uint16 *)&buffer[128];
+  if (logical_block_size == 0 || logical_block_size > kIso9660SectorSize) {
+    kSharedMemoryPool.ReleaseSharedMemory(std::move(pooled_shared_memory));
+    return nullptr;
+  }
 
   // Copy root directory entry.
   auto root_directory = std::make_unique<char[]>(34);

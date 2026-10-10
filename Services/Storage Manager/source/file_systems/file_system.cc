@@ -57,10 +57,16 @@ FileSystem::FileSystem() : storage_device_(StorageDevice::Client()) {
 FileSystem::FileSystem(StorageDevice::Client storage_device)
     : storage_device_(storage_device) {
   auto status_or_device_details = storage_device.GetDeviceDetails();
-  device_name_ = status_or_device_details->name;
-  storage_type_ = status_or_device_details->type;
-  is_writable_ = status_or_device_details->is_writable;
-  optimal_operation_size_ = status_or_device_details->optimal_operation_size;
+  if (status_or_device_details.Ok()) {
+    device_name_ = status_or_device_details->name;
+    storage_type_ = status_or_device_details->type;
+    is_writable_ = status_or_device_details->is_writable;
+    optimal_operation_size_ = status_or_device_details->optimal_operation_size;
+  } else {
+    storage_type_ = ::perception::devices::StorageDeviceType::HARD_DRIVE;
+    is_writable_ = false;
+    optimal_operation_size_ = 4096;
+  }
 }
 
 std::unique_ptr<FileSystem> InitializeStorageDevice(

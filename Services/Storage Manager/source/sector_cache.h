@@ -30,6 +30,10 @@ class SectorCache {
   // Writes a sector's data into the cache.
   void Write(size_t sector, const char* src);
 
+  // Updates a portion of a cached sector if it is present in the cache.
+  void Update(size_t sector, const char* src, size_t offset_in_sector,
+              size_t size);
+
  private:
   struct ListEntry {
     size_t sector;

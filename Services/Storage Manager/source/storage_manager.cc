@@ -36,18 +36,35 @@ using ::perception::RequestWithFilePath;
 
 namespace {
 
+// Returns whether the path contains any "." or ".." directory traversal segments.
+bool ContainsTraversalSegment(std::string_view path) {
+  size_t pos = 0;
+  while (pos <= path.size()) {
+    size_t slash = path.find('/', pos);
+    std::string_view segment = (slash == std::string_view::npos)
+                                   ? path.substr(pos)
+                                   : path.substr(pos, slash - pos);
+    if (segment == "." || segment == "..") return true;
+    if (slash == std::string_view::npos) break;
+    pos = slash + 1;
+  }
+  return false;
+}
+
 // Returns whether the path is in the application's own directory, which doesn't
 // require special permission to access.
 bool IsPathWithinApplicationDirectory(std::string_view path,
                                       std::string_view process_name) {
-  if (path.empty() || path[0] != '/') {
+  if (path.empty() || path[0] != '/' || ContainsTraversalSegment(path))
     return false;
-  }
 
-  // Skip the leading '/'
-  std::string_view remaining = path.substr(1);
+  // Skip leading slashes.
+  std::string_view remaining = path;
+  while (!remaining.empty() && remaining[0] == '/')
+    remaining = remaining.substr(1);
+  if (remaining.empty()) return false;
 
-  // Find the first component
+  // Find the first component.
   size_t slash_pos = remaining.find('/');
   std::string_view first_comp = (slash_pos == std::string_view::npos)
                                     ? remaining
@@ -55,12 +72,12 @@ bool IsPathWithinApplicationDirectory(std::string_view path,
 
   if (first_comp != "Applications") {
     // If the first component is not "Applications", it could be the
-    // mount point. So skip the mount point and look at the next
-    // component.
-    if (slash_pos == std::string_view::npos) {
-      return false;  // Just a mount point, like "/Optical 1"
-    }
+    // mount point. Skip the mount point and look at the next component.
+    if (slash_pos == std::string_view::npos)
+      return false;
     remaining = remaining.substr(slash_pos + 1);
+    while (!remaining.empty() && remaining[0] == '/')
+      remaining = remaining.substr(1);
     slash_pos = remaining.find('/');
     first_comp = (slash_pos == std::string_view::npos)
                      ? remaining
@@ -70,11 +87,13 @@ bool IsPathWithinApplicationDirectory(std::string_view path,
   // Now first_comp must be "Applications".
   if (first_comp != "Applications") return false;
 
-  // Skip "Applications"/
-  if (slash_pos == std::string_view::npos) {
-    return false;  // Just "/Applications"
-  }
+  // Skip "Applications/".
+  if (slash_pos == std::string_view::npos)
+    return false;
   remaining = remaining.substr(slash_pos + 1);
+  while (!remaining.empty() && remaining[0] == '/')
+    remaining = remaining.substr(1);
+  if (remaining.empty()) return false;
 
   // The next component must match process_name.
   slash_pos = remaining.find('/');
@@ -89,17 +108,17 @@ bool IsPathWithinApplicationDirectory(std::string_view path,
 // Returns whether a process has permission to read a path.
 bool DoesProcessHavePermissionToReadPath(std::string_view path,
                                          ProcessId sender) {
+  if (ContainsTraversalSegment(path)) return false;
+
   if (path == "/" || path == "/Applications" || path == "/Libraries" ||
       path.starts_with("/Applications/") ||
-      path.starts_with("/Libraries/")) {
+      path.starts_with("/Libraries/"))
     return true;
-  }
 
   std::string process_name = GetProcessName(sender);
   if (!process_name.empty() &&
-      IsPathWithinApplicationDirectory(path, process_name)) {
+      IsPathWithinApplicationDirectory(path, process_name))
     return true;
-  }
 
   return ::perception::DoesProcessHavePermission(
       sender, ::perception::Permission::CanReadAllFiles);
@@ -107,11 +126,12 @@ bool DoesProcessHavePermissionToReadPath(std::string_view path,
 
 bool DoesProcessHavePermissionToWritePath(std::string_view path,
                                           ProcessId sender) {
+  if (ContainsTraversalSegment(path)) return false;
+
   std::string process_name = GetProcessName(sender);
   if (!process_name.empty() &&
-      IsPathWithinApplicationDirectory(path, process_name)) {
+      IsPathWithinApplicationDirectory(path, process_name))
     return true;
-  }
 
   return ::perception::DoesProcessHavePermission(
       sender, ::perception::Permission::CanReadAllFiles);

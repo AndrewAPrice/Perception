@@ -16,6 +16,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <limits>
 
 #include "perception/scheduler.h"
 #include "virtual_file_system.h"
@@ -47,7 +48,8 @@ int RamdiskFileContent::GetInstances() {
 
 namespace {
 
-std::string_view kRamdiskName = "Ramdisk";
+// Standard Ramdisk file system name.
+constexpr std::string_view kRamdiskName = "Ramdisk";
 
 // Returns if path is directly inside parent_dir.
 // e.g. "Applications/Launcher" is directly inside "Applications".
@@ -88,10 +90,20 @@ class RamdiskFile : public File {
   virtual Status Read(const ReadFileRequest& request,
                       ProcessId sender) override {
     if (sender != allowed_process_) return Status::NOT_ALLOWED;
-    if (request.offset_in_file + request.bytes_to_copy > content_->data.size())
+    if (request.offset_in_file > content_->data.size() ||
+        request.bytes_to_copy > content_->data.size() - request.offset_in_file)
       return Status::OVERFLOW;
-    std::memcpy((void*)((size_t)**request.buffer_to_copy_into +
-                        request.offset_in_destination_buffer),
+    if (!request.buffer_to_copy_into || !request.buffer_to_copy_into->Join() ||
+        **request.buffer_to_copy_into == nullptr)
+      return Status::INVALID_ARGUMENT;
+    size_t buffer_size = request.buffer_to_copy_into->GetSize();
+    if (request.offset_in_destination_buffer > buffer_size ||
+        request.bytes_to_copy >
+            buffer_size - request.offset_in_destination_buffer)
+      return Status::OVERFLOW;
+    if (request.bytes_to_copy == 0) return Status::OK;
+    std::memcpy(static_cast<uint8*>(**request.buffer_to_copy_into) +
+                    request.offset_in_destination_buffer,
                 content_->data.data() + request.offset_in_file,
                 request.bytes_to_copy);
     return Status::OK;
@@ -100,11 +112,19 @@ class RamdiskFile : public File {
   virtual Status Write(const WriteFileRequest& request,
                        ProcessId sender) override {
     if (sender != allowed_process_) return Status::NOT_ALLOWED;
+    if (!request.buffer_to_copy_from || !request.buffer_to_copy_from->Join() ||
+        **request.buffer_to_copy_from == nullptr)
+      return Status::INVALID_ARGUMENT;
+    if (request.bytes_to_copy > request.buffer_to_copy_from->GetSize())
+      return Status::OVERFLOW;
+    if (request.offset_in_file >
+        std::numeric_limits<size_t>::max() - request.bytes_to_copy)
+      return Status::OVERFLOW;
     size_t end_offset = request.offset_in_file + request.bytes_to_copy;
     if (end_offset > content_->data.size()) content_->data.resize(end_offset);
+    if (request.bytes_to_copy == 0) return Status::OK;
     std::memcpy(content_->data.data() + request.offset_in_file,
-                (void*)((size_t)**request.buffer_to_copy_from),
-                request.bytes_to_copy);
+                **request.buffer_to_copy_from, request.bytes_to_copy);
     return Status::OK;
   }
 

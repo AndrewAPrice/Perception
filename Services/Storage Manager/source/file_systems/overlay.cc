@@ -277,6 +277,29 @@ Status OverlayFileSystem::CreateDirectory(std::string_view path,
   std::string path_str = std::string(path);
   if (overlay_->IsTombstoned(path_str)) overlay_->ClearTombstone(path_str);
 
+  size_t idx = path_str.find_last_of('/');
+  if (idx != std::string::npos) {
+    std::string parent = path_str.substr(0, idx);
+    if (!parent.empty()) {
+      auto parent_stats = GetFileStatistics(parent);
+      if (!parent_stats.Ok() || !parent_stats->exists ||
+          parent_stats->type != DirectoryEntry::Type::DIRECTORY) {
+        return Status::FILE_NOT_FOUND;
+      }
+      size_t pos = 0;
+      while (pos < parent.size()) {
+        size_t slash = parent.find('/', pos);
+        std::string ancestor = (slash == std::string::npos)
+                                   ? parent
+                                   : parent.substr(0, slash);
+        if (!ancestor.empty() && !overlay_->DirectoryExists(ancestor))
+          overlay_->CreateDirectory(ancestor, sender);
+        if (slash == std::string::npos) break;
+        pos = slash + 1;
+      }
+    }
+  }
+
   return overlay_->CreateDirectory(path_str, sender);
 }
 
