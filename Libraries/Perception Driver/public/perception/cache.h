@@ -17,6 +17,12 @@
 #include "types.h"
 
 namespace perception {
+namespace {
+
+// Size of an x86 CPU cache line in bytes.
+constexpr size_t kCacheLineSize = 64;
+
+}  // namespace
 
 // Flushes a cache line from all CPU levels to RAM.
 inline void FlushCacheLine(volatile void* addr) {
@@ -29,9 +35,13 @@ inline void FlushCacheLine(volatile void* addr) {
 // Required for software emulators (like QEMU TCG) to see coherent DMA updates.
 inline void FlushRange(volatile void* addr, size_t size) {
 #ifdef PERCEPTION
-  uint8* ptr = (uint8*)addr;
-  // NOTE: The standard x86 cache line is 64 bytes.
-  for (size_t i = 0; i < size; i += 64) FlushCacheLine(ptr + i);
+  if (size == 0)
+    return;
+  size_t start_addr = reinterpret_cast<size_t>(addr);
+  size_t end_addr = start_addr + size;
+  size_t aligned_start = start_addr & ~(kCacheLineSize - 1);
+  for (size_t cur = aligned_start; cur < end_addr; cur += kCacheLineSize)
+    FlushCacheLine(reinterpret_cast<volatile void*>(cur));
   __asm__ __volatile__("mfence" ::: "memory");
 #endif
 }
