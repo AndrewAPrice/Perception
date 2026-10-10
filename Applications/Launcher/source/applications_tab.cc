@@ -33,11 +33,14 @@
 #include "perception/ui/components/button.h"
 #include "perception/ui/components/container.h"
 #include "perception/ui/components/focusable.h"
+#include "perception/ui/components/image_button.h"
 #include "perception/ui/components/image_view.h"
 #include "perception/ui/components/label.h"
 #include "perception/ui/components/scroll_container.h"
+#include "perception/ui/components/tooltip.h"
 #include "perception/ui/components/ui_window.h"
 #include "perception/ui/font.h"
+#include "perception/ui/image.h"
 #include "perception/ui/keyboard.h"
 #include "perception/ui/layout.h"
 #include "perception/ui/node.h"
@@ -50,6 +53,7 @@ using ::perception::GetService;
 using ::perception::LoadApplicationRequest;
 using ::perception::Loader;
 using ::perception::ui::GetBold12UiFont;
+using ::perception::ui::Image;
 using ::perception::ui::kBackgroundWindowColor;
 using ::perception::ui::kContainerPadding;
 using ::perception::ui::KeyCode;
@@ -64,19 +68,44 @@ using ::perception::ui::components::Block;
 using ::perception::ui::components::Button;
 using ::perception::ui::components::Container;
 using ::perception::ui::components::Focusable;
+using ::perception::ui::components::ImageButton;
 using ::perception::ui::components::ImageView;
 using ::perception::ui::components::Label;
 using ::perception::ui::components::ScrollContainer;
+using ::perception::ui::components::Tooltip;
 using ::perception::ui::components::UiWindow;
 using ::perception::window::KeyboardKeyEvent;
 using ::perception::window::MouseButton;
 
 namespace {
 
-std::vector<std::weak_ptr<Node>> application_tile_nodes;
-
 // The width of the selected application panel.
-double kSelectedApplicationPanelWidth = 280.0f;
+constexpr float kSelectedApplicationPanelWidth = 280.0f;
+
+// The width of the action buttons area in the selected application panel.
+constexpr float kActionButtonsWidth = 230.0f;
+
+// Path to the settings icon asset.
+constexpr std::string_view kSettingsIconPath =
+    "/Applications/Launcher/settings.svg";
+
+// Tooltip text for the application settings button.
+constexpr std::string_view kSettingsTooltip = "Configure settings";
+
+// Name of the Settings application.
+constexpr std::string_view kSettingsApplicationName = "Settings";
+
+// Path to the terminal icon asset.
+constexpr std::string_view kTerminalIconPath =
+    "/Applications/Launcher/terminal.svg";
+
+// Tooltip text for the launch in terminal button.
+constexpr std::string_view kTerminalTooltip = "Launch in terminal";
+
+// Name of the Terminal application.
+constexpr std::string_view kTerminalApplicationName = "Terminal";
+
+std::vector<std::weak_ptr<Node>> application_tile_nodes;
 
 // The overlay node.
 std::shared_ptr<Node> launcher_overlay;
@@ -223,14 +252,32 @@ std::shared_ptr<Node> selected_application_icon;
 // The button to launch an application.
 std::shared_ptr<Node> launch_button_node;
 
+// The button to configure an application's settings.
+std::shared_ptr<Node> config_button_node;
+
 // The button to open an application's folder.
 std::shared_ptr<Node> open_folder_button_node;
+
+// The button to launch an application in the terminal.
+std::shared_ptr<Node> terminal_button_node;
 
 // The index of the currently selected application.
 int selected_application_index = -1;
 
 // The path of the currently selected application.
 std::string selected_application_path_string;
+
+// Returns the settings gear image, loading it on first access.
+std::shared_ptr<Image> GetSettingsImage() {
+  static auto settings_img = Image::LoadImage(kSettingsIconPath);
+  return settings_img;
+}
+
+// Returns the terminal icon image, loading it on first access.
+std::shared_ptr<Image> GetTerminalImage() {
+  static auto terminal_img = Image::LoadImage(kTerminalIconPath);
+  return terminal_img;
+}
 
 // Launches an application.
 void LaunchApplication(const LoadApplicationRequest& request) {
@@ -239,8 +286,11 @@ void LaunchApplication(const LoadApplicationRequest& request) {
       request,
       [request](StatusOr<::perception::LoadApplicationResponse> response) {
         HideOverlay();
-        if (!response.Ok())
+        if (response.Ok()) {
+          CloseLauncherWindow();
+        } else {
           ShowErrorDialogForApplicationLoading(request.name, response.Status());
+        }
       });
 }
 
@@ -255,6 +305,30 @@ void LaunchApplication(int index) {
   LaunchApplication(request);
 }
 
+// Launches the selected application inside the Terminal application.
+void LaunchApplicationInTerminal(int index) {
+  const std::vector<Application>& applications = GetApplications();
+  if (index < 0 || index >= applications.size()) return;
+
+  LoadApplicationRequest request;
+  request.name = std::string(kTerminalApplicationName);
+  request.arguments.push_back(applications[index].path);
+
+  LaunchApplication(request);
+}
+
+// Opens the Settings application filtered to the selected application.
+void OpenApplicationSettings(int index) {
+  const std::vector<Application>& applications = GetApplications();
+  if (index < 0 || index >= applications.size()) return;
+
+  LoadApplicationRequest request;
+  request.name = std::string(kSettingsApplicationName);
+  request.arguments.push_back(applications[index].name);
+
+  LaunchApplication(request);
+}
+
 // Opens the containing folder of the application.
 void OpenContainingFolder(int index) {
   const std::vector<Application>& applications = GetApplications();
@@ -262,9 +336,8 @@ void OpenContainingFolder(int index) {
 
   std::filesystem::path app_path(applications[index].path);
   std::string containing_folder = app_path.parent_path().string();
-  if (containing_folder.empty() || containing_folder.back() != '/') {
+  if (containing_folder.empty() || containing_folder.back() != '/')
     containing_folder += '/';
-  }
 
   LoadApplicationRequest request;
   request.name = containing_folder;
@@ -307,9 +380,8 @@ std::shared_ptr<Node> CreateApplicationIcon(const Application& application,
       });
 
   std::string first_letter = "";
-  if (!application.name.empty()) {
+  if (!application.name.empty())
     first_letter += std::toupper(application.name[0]);
-  }
 
   auto letter_label = Label::BasicLabel(
       first_letter, [](Layout& layout) { layout.SetFlexGrow(1.0f); },
@@ -325,6 +397,10 @@ std::shared_ptr<Node> CreateApplicationIcon(const Application& application,
 
 // Selects an application based on its index in the list of applications.
 void SelectApplication(int index) {
+  if (!selected_application_icon || !selected_application_title ||
+      !selected_application_description || !selected_application_path) {
+    return;
+  }
   if (selected_application_index == index) return;
   int old_index = selected_application_index;
   selected_application_index = index;
@@ -341,9 +417,17 @@ void SelectApplication(int index) {
       launch_button_node->GetLayout().SetDisplay(YGDisplayNone);
       launch_button_node->Invalidate();
     }
+    if (config_button_node) {
+      config_button_node->GetLayout().SetDisplay(YGDisplayNone);
+      config_button_node->Invalidate();
+    }
     if (open_folder_button_node) {
       open_folder_button_node->GetLayout().SetDisplay(YGDisplayNone);
       open_folder_button_node->Invalidate();
+    }
+    if (terminal_button_node) {
+      terminal_button_node->GetLayout().SetDisplay(YGDisplayNone);
+      terminal_button_node->Invalidate();
     }
   } else {
     const Application& application = applications[index];
@@ -356,9 +440,18 @@ void SelectApplication(int index) {
       launch_button_node->GetLayout().SetDisplay(YGDisplayFlex);
       launch_button_node->Invalidate();
     }
+    if (config_button_node) {
+      config_button_node->GetLayout().SetDisplay(
+          application.has_settings ? YGDisplayFlex : YGDisplayNone);
+      config_button_node->Invalidate();
+    }
     if (open_folder_button_node) {
       open_folder_button_node->GetLayout().SetDisplay(YGDisplayFlex);
       open_folder_button_node->Invalidate();
+    }
+    if (terminal_button_node) {
+      terminal_button_node->GetLayout().SetDisplay(YGDisplayFlex);
+      terminal_button_node->Invalidate();
     }
     if (application.icon) {
       selected_application_icon->AddChild(ImageView::BasicImage(
@@ -492,16 +585,9 @@ std::shared_ptr<Node> CreateApplicationGridTile(const Application& application,
   return tile;
 }
 
-// // Builds the container containing the grid of applications.
+// Builds the container containing the grid of applications.
 std::shared_ptr<Node> BuildApplicationsList() {
   application_tile_nodes.clear();
-  std::vector<std::shared_ptr<Node>> application_widgets;
-  const std::vector<Application>& applications = GetApplications();
-  for (int i = 0; i < applications.size(); i++) {
-    auto tile = CreateApplicationGridTile(applications[i], i);
-    application_tile_nodes.push_back(tile);
-    application_widgets.push_back(tile);
-  }
 
   auto container = Container::HorizontalContainer(
       [](Layout& layout) {
@@ -511,8 +597,9 @@ std::shared_ptr<Node> BuildApplicationsList() {
         layout.SetPadding(YGEdgeAll, 12.0f);
         layout.SetAlignContent(YGAlignFlexStart);
       },
-      application_widgets, &applications_list_container);
+      &applications_list_container);
 
+  container->SetCursor(perception::window::Cursor::Pointer);
   container->OnMouseButtonUp([](const Point&, MouseButton button) {
     if (button == MouseButton::Left) SelectApplication(-1);
   });
@@ -521,7 +608,7 @@ std::shared_ptr<Node> BuildApplicationsList() {
 }
 
 void AddApplicationToUI(const Application& application) {
-  if (!applications_list_container) return;
+  if (!applications_tab || !applications_list_container) return;
 
   int index = (int)GetApplications().size() - 1;
   auto tile = CreateApplicationGridTile(application, index);
@@ -529,13 +616,12 @@ void AddApplicationToUI(const Application& application) {
   applications_list_container->AddChild(tile);
   applications_list_container->Invalidate();
 
-  if (GetApplications().size() == 1) {
+  if (GetApplications().size() == 1)
     SelectApplication(0);
-  }
 }
 
 void RebuildApplicationsListUI() {
-  if (!applications_list_container) return;
+  if (!applications_tab || !applications_list_container) return;
 
   const std::vector<Application>& applications = GetApplications();
 
@@ -562,16 +648,7 @@ void RebuildApplicationsListUI() {
 
 }  // namespace
 
-// Gets or constructs the applications tab of the launcher.
 std::shared_ptr<Node> GetOrConstructApplicationsTab() {
-  static bool callback_registered = false;
-  if (!callback_registered) {
-    RegisterApplicationFoundCallback(
-        [](const Application& app) { AddApplicationToUI(app); });
-    RegisterApplicationsChangedCallback([]() { RebuildApplicationsListUI(); });
-    callback_registered = true;
-  }
-
   if (applications_tab) {
     if (!GetApplications().empty()) {
       SelectApplication(0);
@@ -580,7 +657,10 @@ std::shared_ptr<Node> GetOrConstructApplicationsTab() {
     }
     if (auto focusable = applications_tab->Get<Focusable>()) focusable->Focus();
     return applications_tab;
-  };
+  }
+
+  auto settings_image = GetSettingsImage();
+  auto terminal_image = GetTerminalImage();
 
   launcher_overlay = Node::Empty(
       [](Layout& layout) {
@@ -624,6 +704,7 @@ std::shared_ptr<Node> GetOrConstructApplicationsTab() {
                 layout.SetMinHeight(0.0f);
               },
               [](Node& node) {
+                node.SetCursor(perception::window::Cursor::Pointer);
                 node.OnMouseButtonUp([](const Point&, MouseButton button) {
                   if (button == MouseButton::Left) SelectApplication(-1);
                 });
@@ -637,6 +718,7 @@ std::shared_ptr<Node> GetOrConstructApplicationsTab() {
                 layout.SetPadding(YGEdgeAll, 20.0f);
               },
               [](Node& node) {
+                node.SetCursor(perception::window::Cursor::Pointer);
                 node.OnMouseButtonUp([](const Point&, MouseButton) {});
               },
               Node::Empty(
@@ -680,28 +762,44 @@ std::shared_ptr<Node> GetOrConstructApplicationsTab() {
               Button::TextButton(
                   "Launch",
                   []() { LaunchApplication(selected_application_index); },
-                  [](Layout& layout) {
-                    layout.SetWidth(180.0f);
-                    layout.SetHeight(32.0f);
-                  },
+                  [](Layout& layout) { layout.SetWidth(kActionButtonsWidth); },
                   [](Button& button) {
                     button.SetButtonStyle(Button::ButtonStyle::PRIMARY);
                   },
                   &launch_button_node),
-              Button::TextButton(
-                  "Open containing folder",
-                  []() { OpenContainingFolder(selected_application_index); },
+              Container::HorizontalContainer(
                   [](Layout& layout) {
-                    layout.SetWidth(180.0f);
-                    layout.SetHeight(32.0f);
-                    layout.SetMargin(YGEdgeTop, 8.0f);
+                    layout.SetWidth(kActionButtonsWidth);
+                    layout.SetAlignItems(YGAlignCenter);
                   },
-                  [](Button& button) {
-                    button.SetButtonStyle(Button::ButtonStyle::SECONDARY);
-                  },
-                  &open_folder_button_node))),
+                  Button::TextButton(
+                      "Open containing folder",
+                      []() {
+                        OpenContainingFolder(selected_application_index);
+                      },
+                      [](Layout& layout) {
+                        layout.SetFlexGrow(1.0f);
+                        layout.SetFlexShrink(1.0f);
+                      },
+                      [](Button& button) {
+                        button.SetButtonStyle(Button::ButtonStyle::SECONDARY);
+                      },
+                      &open_folder_button_node),
+                  ImageButton::BasicImageButton(
+                      []() {
+                        LaunchApplicationInTerminal(selected_application_index);
+                      },
+                      terminal_image, Tooltip::ShowTooltip(kTerminalTooltip),
+                      &terminal_button_node),
+                  ImageButton::BasicImageButton(
+                      []() {
+                        OpenApplicationSettings(selected_application_index);
+                      },
+                      settings_image, Tooltip::ShowTooltip(kSettingsTooltip),
+                      &config_button_node)))),
       launcher_overlay);
 
+  applications_tab->SetCursor(perception::window::Cursor::Pointer);
   applications_tab->OnMouseButtonUp([](const Point&, MouseButton button) {
     if (button == MouseButton::Left) SelectApplication(-1);
   });
@@ -754,11 +852,16 @@ std::shared_ptr<Node> GetOrConstructApplicationsTab() {
         if (button == MouseButton::Left) focusable->Focus();
       });
 
-  if (!GetApplications().empty()) {
-    SelectApplication(0);
-  } else {
-    SelectApplication(-1);
+  RebuildApplicationsListUI();
+
+  static bool callback_registered = false;
+  if (!callback_registered) {
+    RegisterApplicationFoundCallback(
+        [](const Application& app) { AddApplicationToUI(app); });
+    RegisterApplicationsChangedCallback([]() { RebuildApplicationsListUI(); });
+    callback_registered = true;
   }
+
   focusable->Focus();
 
   return applications_tab;

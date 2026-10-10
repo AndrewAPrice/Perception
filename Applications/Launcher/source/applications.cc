@@ -33,7 +33,32 @@ using json = ::nlohmann::json;
 
 namespace {
 
+// Filename of the PNG application icon.
+constexpr std::string_view kIconPngFilename = "icon.png";
+
+// Filename of the SVG application icon.
+constexpr std::string_view kIconSvgFilename = "icon.svg";
+
+// Directory name of the Terminal application.
+constexpr std::string_view kTerminalDirectoryName = "Terminal";
+
+// Root-relative path to the Terminal application directory.
+constexpr std::string_view kDefaultTerminalDirectoryPath =
+    "/Applications/Terminal";
+
 std::vector<Application> applications;
+
+// Attempts to load an icon.png or icon.svg from the given directory.
+std::shared_ptr<::perception::ui::Image> TryLoadIconFromDirectory(
+    const std::filesystem::path& directory) {
+  for (std::string_view filename : {kIconPngFilename, kIconSvgFilename}) {
+    std::error_code ec;
+    std::string icon_path = (directory / filename).string();
+    if (std::filesystem::exists(icon_path, ec) && !ec)
+      return ::perception::ui::Image::LoadImage(icon_path);
+  }
+  return nullptr;
+}
 
 std::optional<Application> MaybeLoadApplication(std::string_view path) {
   try {
@@ -59,10 +84,25 @@ std::optional<Application> MaybeLoadApplication(std::string_view path) {
     if (description_itr != data.end() && description_itr->is_string())
       description_itr->get_to(application.description);
 
-    std::error_code ec_exists;
-    std::string png_path = std::string(path) + "/icon.png";
-    if (std::filesystem::exists(png_path, ec_exists) && !ec_exists)
-      application.icon = ::perception::ui::Image::LoadImage(png_path);
+    bool is_terminal_app = false;
+    auto term_itr = data.find("terminal");
+    if (term_itr != data.end() && term_itr->is_boolean())
+      term_itr->get_to(is_terminal_app);
+
+    std::filesystem::path app_dir(path);
+    application.icon = TryLoadIconFromDirectory(app_dir);
+    if (!application.icon && is_terminal_app) {
+      application.icon =
+          TryLoadIconFromDirectory(app_dir.parent_path() / kTerminalDirectoryName);
+      if (!application.icon)
+        application.icon = TryLoadIconFromDirectory(
+            std::filesystem::path(kDefaultTerminalDirectoryPath));
+    }
+
+    std::error_code ec_settings;
+    std::string settings_path = std::string(path) + "/settings.json";
+    application.has_settings =
+        std::filesystem::exists(settings_path, ec_settings) && !ec_settings;
 
     launcher_metadata_file.close();
     return application;

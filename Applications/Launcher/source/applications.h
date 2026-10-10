@@ -34,6 +34,9 @@ struct Application {
 
   // The icon of the application.
   std::shared_ptr<::perception::ui::Image> icon;
+
+  // Whether the application has a settings.json file.
+  bool has_settings = false;
 };
 
 // Scans for applications.
