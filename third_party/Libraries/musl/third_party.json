@@ -340,7 +340,22 @@
             "operation": "copy",
             "source": "${git}/src/network",
             "destination": "source/network",
-            "recursive": true
+            "recursive": true,
+            "replace": [
+                {
+                    "file": "source/network/lookup_name.c",
+                    "replacements": [
+                        [
+                            "int __lookup_name(struct address buf[static MAXADDRS], char canon[static 256], const char *name, int family, int flags)",
+                            "extern int __perception_lookup_name(void *buf, char canon[static 256], const char *name, int family, int flags);\n\nint __lookup_name(struct address buf[static MAXADDRS], char canon[static 256], const char *name, int family, int flags)"
+                        ],
+                        [
+                            "\t\tcnt = name_from_hosts(buf, canon, name, family);\n\t\tif (!cnt) cnt = name_from_dns_search(buf, canon, name, family);",
+                            "\t\tcnt = name_from_hosts(buf, canon, name, family);\n\t\tif (!cnt) cnt = __perception_lookup_name(buf, canon, name, family, flags);\n\t\tif (!cnt) cnt = name_from_dns_search(buf, canon, name, family);"
+                        ]
+                    ]
+                }
+            ]
         },
         {
             "operation": "copy",
