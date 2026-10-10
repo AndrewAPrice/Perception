@@ -87,9 +87,6 @@ class Window {
   // Returns the height of the window.
   virtual int GetHeight() = 0;
 
-  // Gets the size of the system window buttons area in pixels.
-  virtual void GetSystemButtonSize(int& width, int& height) const = 0;
-
   // Sets the desired size. The delegate will be notified if the window's size
   // changes.
   virtual void SetSize(int width, int height) = 0;
@@ -148,6 +145,9 @@ class Window {
   // contents.
   virtual void Present() = 0;
   virtual void Present(std::optional<Rectangle> dirty_rect) { Present(); }
+
+  // Gets the size of the system window buttons area in pixels.
+  virtual void GetSystemButtonSize(int& width, int& height) const = 0;
 };
 
 }  // namespace window

@@ -191,12 +191,29 @@ class PerceptionWindow : public Window,
     WindowDrawBuffer buffer;
     buffer.width = width_;
     buffer.height = height_;
+    bool texture_rebuilt = false;
+    int old_presented_texture_id = 0;
     if (rebuild_texture_) {
+      if (is_double_buffered_ && texture_id_ != 0) {
+        GetService<GraphicsDevice>().DestroyTexture(
+            graphics::TextureReference(texture_id_), [](Status) {});
+        texture_id_ = 0;
+        texture_shared_memory_.reset();
+      }
+      old_presented_texture_id =
+          is_double_buffered_ ? frontbuffer_texture_id_ : texture_id_;
+      texture_id_ = 0;
+      frontbuffer_texture_id_ = 0;
+      texture_shared_memory_.reset();
+      frontbuffer_shared_memory_.reset();
+
       RebuildTextures();
       buffer.has_preserved_contents_from_previous_draw = false;
       if (texture_shared_memory_ &&
-          (!is_double_buffered_ || frontbuffer_shared_memory_))
+          (!is_double_buffered_ || frontbuffer_shared_memory_)) {
         rebuild_texture_ = false;
+        texture_rebuilt = true;
+      }
     } else {
       buffer.has_preserved_contents_from_previous_draw = true;
     }
@@ -204,11 +221,17 @@ class PerceptionWindow : public Window,
     if (width_ == 0 || height_ == 0 || !texture_shared_memory_ ||
         !texture_shared_memory_->Join() ||
         (is_double_buffered_ &&
-         (!frontbuffer_shared_memory_ || !frontbuffer_shared_memory_->Join())))
+         (!frontbuffer_shared_memory_ || !frontbuffer_shared_memory_->Join()))) {
+      if (old_presented_texture_id != 0) {
+        GetService<GraphicsDevice>().DestroyTexture(
+            graphics::TextureReference(old_presented_texture_id),
+            [](Status) {});
+      }
       return;
+    }
 
     Rectangle invalidated_area(0, 0, width_, height_);
-    if (dirty_rect && !rebuild_texture_) {
+    if (dirty_rect && !texture_rebuilt) {
       invalidated_area.min_x = std::max(0, std::min(dirty_rect->min_x, width_));
       invalidated_area.min_y =
           std::max(0, std::min(dirty_rect->min_y, height_));
@@ -246,14 +269,30 @@ class PerceptionWindow : public Window,
       }
     }
 
-    // Tell the window manager there is new data to draw.
-    InvalidateWindowParameters message;
-    message.window = *this;
-    message.left = invalidated_area.min_x;
-    message.top = invalidated_area.min_y;
-    message.right = invalidated_area.max_x;
-    message.bottom = invalidated_area.max_y;
-    (void)GetService<WindowManager>().InvalidateWindow(message);
+    if (texture_rebuilt) {
+      int presented_id =
+          is_double_buffered_ ? frontbuffer_texture_id_ : texture_id_;
+      if (presented_id != 0) {
+        SetWindowTextureParameters message;
+        message.window = *this;
+        message.texture.id = presented_id;
+        GetService<WindowManager>().SetWindowTexture(message);
+      }
+      if (old_presented_texture_id != 0) {
+        GetService<GraphicsDevice>().DestroyTexture(
+            graphics::TextureReference(old_presented_texture_id),
+            [](Status) {});
+      }
+    } else {
+      // Tell the window manager there is new data to draw.
+      InvalidateWindowParameters message;
+      message.window = *this;
+      message.left = invalidated_area.min_x;
+      message.top = invalidated_area.min_y;
+      message.right = invalidated_area.max_x;
+      message.bottom = invalidated_area.max_y;
+      (void)GetService<WindowManager>().InvalidateWindow(message);
+    }
   }
 
   /// MouseListener::Server
@@ -457,15 +496,6 @@ class PerceptionWindow : public Window,
         frontbuffer_texture_id_ = status_or_response->texture.id;
         frontbuffer_shared_memory_ = status_or_response->pixel_buffer;
       }
-    }
-
-    if (texture_id_ != 0) {
-      // Notify the window manager of the front buffer.
-      SetWindowTextureParameters message;
-      message.window = *this;
-      message.texture.id =
-          is_double_buffered_ ? frontbuffer_texture_id_ : texture_id_;
-      GetService<WindowManager>().SetWindowTexture(message);
     }
   }
 };
