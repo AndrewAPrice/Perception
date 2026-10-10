@@ -1,0 +1,10 @@
+{
+  "dependencies": [
+    "libcxx",
+    "musl",
+    "perception",
+    "Perception Driver",
+    "Perception UI",
+    "Perception Window"
+  ]
+}

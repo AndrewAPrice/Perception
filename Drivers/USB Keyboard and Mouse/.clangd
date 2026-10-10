@@ -1,0 +1,40 @@
+CompileFlags:
+  Add: [
+    "-I/Users/andrewaprice/Documents/GitHub/Perception/Libraries/perception/public",
+    "-I/Users/andrewaprice/Documents/GitHub/Perception/Libraries/Perception UI/public",
+    "-I/Users/andrewaprice/Documents/GitHub/Perception/Libraries/Perception Window/public",
+    "-I/Users/andrewaprice/Documents/GitHub/Perception/Libraries/Perception Test/public",
+    "-I/Users/andrewaprice/Documents/GitHub/Perception/Drivers/USB Keyboard and Mouse/source",
+    -DPERCEPTION,
+    -DTEST,
+    -Dfast_BUILD_,
+    -g,
+    -O2,
+    -fno-omit-frame-pointer,
+    -c,
+    -fdata-sections,
+    -ffunction-sections,
+    -fPIC,
+    -fvisibility-inlines-hidden,
+    -std=c++23,
+    -MD,
+    -MF,
+    -o,
+  ]
+---
+If:
+  PathMatch: .*\.c
+CompileFlags:
+  Add: [
+    -g,
+    -O2,
+    -fno-omit-frame-pointer,
+    -c,
+    -fdata-sections,
+    -ffunction-sections,
+    -fPIC,
+    -std=c17,
+    -MD,
+    -MF,
+    -o,
+  ]
