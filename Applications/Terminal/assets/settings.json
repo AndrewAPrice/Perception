@@ -1,0 +1,29 @@
+[
+  {
+    "page": "Applications>Terminal",
+    "groups": [
+      {
+        "title": "Appearance",
+        "settings": [
+          {
+            "key": "theme",
+            "type": "enum",
+            "name": "Theme",
+            "description": "Color scheme used for the terminal background, text, cursor, and ANSI palette",
+            "default": "Dark",
+            "options": [
+              {
+                "name": "Dark",
+                "value": 0
+              },
+              {
+                "name": "Light",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
