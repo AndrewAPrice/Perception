@@ -15,6 +15,7 @@
 #include "screen.h"
 
 #include <iostream>
+#include <vector>
 
 #include "perception/devices/graphics_device.h"
 #include "perception/fibers.h"
@@ -39,7 +40,7 @@ size_t window_manager_texture_id;
 std::shared_ptr<::perception::SharedMemory> window_manager_texture_buffer;
 
 bool screen_is_drawing;
-Fiber* fiber_waiting_on_screen_to_finish_drawing;
+std::vector<Fiber*> fibers_waiting_on_screen_to_finish_drawing;
 
 #ifndef TEST
 class GraphicsListenerServer
@@ -109,7 +110,7 @@ void InitializeScreen() {
                      .height = static_cast<float>(graphics_screen_size.height)};
 #endif
 
-  fiber_waiting_on_screen_to_finish_drawing = nullptr;
+  fibers_waiting_on_screen_to_finish_drawing.clear();
   screen_is_drawing = false;
 }
 
@@ -129,14 +130,9 @@ uint32* GetWindowManagerTextureData() {
 }
 
 void SleepUntilWeAreReadyToStartDrawing() {
-  if (screen_is_drawing) {
-    if (fiber_waiting_on_screen_to_finish_drawing != nullptr) {
-      std::cout << "Multiple fibers shouldn't be queued for the screen to "
-                   "finish drawing."
-                << std::endl;
-    }
-    fiber_waiting_on_screen_to_finish_drawing =
-        perception::GetCurrentlyExecutingFiber();
+  while (screen_is_drawing) {
+    fibers_waiting_on_screen_to_finish_drawing.push_back(
+        perception::GetCurrentlyExecutingFiber());
     Sleep();
   }
 }
@@ -157,15 +153,17 @@ void RunDrawCommands(
 #ifdef TEST
   last_run_draw_commands = commands;
   screen_is_drawing = false;
-  Fiber* waiting_fiber = fiber_waiting_on_screen_to_finish_drawing;
-  fiber_waiting_on_screen_to_finish_drawing = nullptr;
-  if (waiting_fiber) waiting_fiber->WakeUp();
+  auto waiting_fibers = std::move(fibers_waiting_on_screen_to_finish_drawing);
+  fibers_waiting_on_screen_to_finish_drawing.clear();
+  for (Fiber* waiting_fiber : waiting_fibers)
+    if (waiting_fiber) waiting_fiber->WakeUp();
 #else
   graphics_device.RunCommands(commands, [](Status response) {
     screen_is_drawing = false;
-    Fiber* waiting_fiber = fiber_waiting_on_screen_to_finish_drawing;
-    fiber_waiting_on_screen_to_finish_drawing = nullptr;
-    if (waiting_fiber) waiting_fiber->WakeUp();
+    auto waiting_fibers = std::move(fibers_waiting_on_screen_to_finish_drawing);
+    fibers_waiting_on_screen_to_finish_drawing.clear();
+    for (Fiber* waiting_fiber : waiting_fibers)
+      if (waiting_fiber) waiting_fiber->WakeUp();
   });
 #endif
 }

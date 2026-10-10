@@ -91,6 +91,9 @@ constexpr float kMinimumWindowSize = 64;
 constexpr float kMinimumVisibleWindow = 8;
 constexpr float kTitleBarHeight = 30;
 
+// Default fraction of the screen size used for unset window dimensions.
+constexpr float kDefaultWindowScreenFraction = 0.8f;
+
 // Windows, mapped by their listeners.
 std::map<BaseWindow::Client, std::shared_ptr<Window>> windows_by_listeners;
 
@@ -344,6 +347,11 @@ void Window::SetCursor(::perception::window::Cursor cursor) {
 ::perception::window::Cursor Window::GetCursor() const { return cursor_; }
 
 ::perception::window::Cursor Window::GetCursorAtPoint(const Point& point) {
+  if (auto pressed = GetPressedWindow();
+      pressed && pressed->IsVisible() && AreAnyMouseButtonsPressed() &&
+      pressed->is_dragging_content_)
+    return pressed->GetCursor();
+
   if (IsMouseOverToast(point)) return ::perception::window::Cursor::Poke;
 
   ::perception::window::Cursor cursor = ::perception::window::Cursor::Pointer;
@@ -623,6 +631,7 @@ void Window::UnfocusAllWindows() {
   captive_mouse_window = nullptr;
   hovering_window = nullptr;
   dragging_window = nullptr;
+  ClearPressedWindow();
 #ifndef TEST
   GetService<KeyboardDevice>().SetKeyboardListener({}, nullptr);
 #endif
@@ -676,6 +685,8 @@ Window* Window::GetCaptiveMouseWindow() { return captive_mouse_window; }
 void Window::SetCaptureMouse(bool capture) {
   if (is_mouse_captive_ == capture) return;
   is_mouse_captive_ = capture;
+  is_dragging_content_ = false;
+  if (GetPressedWindow().get() == this) ClearPressedWindow();
   if (capture) {
     captive_mouse_window = this;
     if (mouse_listener_) mouse_listener_.MouseTakenCaptive(nullptr);
@@ -773,8 +784,9 @@ void Window::EnsureTitleBarTexture() {
     SkFontMetrics font_metrics;
     font->getMetrics(&font_metrics);
     float line_y = 8.0f - font_metrics.fAscent;
-    canvas->drawString(SkString(title_.data(), title_.length()), 8.0f, line_y,
-                       *font, paint);
+    canvas->drawSimpleText(title_.data(), title_.length(),
+                           SkTextEncoding::kUTF8, 8.0f, line_y,
+                           *font, paint);
     canvas->restore();
   }
 #endif
@@ -800,11 +812,46 @@ bool Window::ForEachBackToFrontWindow(
   return false;
 }
 
+void Window::MouseNotHoveringOverWindowContents() {
+  if (!hovering_window) return;
+  hovering_window->pending_mouse_hover_position_ = std::nullopt;
+  if (hovering_window->mouse_listener_)
+    hovering_window->mouse_listener_.MouseLeave(nullptr);
+  hovering_window->last_mouse_hover_position_ = std::nullopt;
+  hovering_window = nullptr;
+}
+
+void Window::SendMouseHoverEvent(const Point& local_point) {
+  last_mouse_hover_position_ = local_point;
+  if (!mouse_listener_) return;
+  if (mouse_hover_in_flight_) {
+    pending_mouse_hover_position_ = local_point;
+    return;
+  }
+  mouse_hover_in_flight_ = true;
+  pending_mouse_hover_position_ = std::nullopt;
+  MousePositionEvent message;
+  message.x = local_point.x;
+  message.y = local_point.y;
+  std::weak_ptr<Window> weak_this = shared_from_this();
+  mouse_listener_.MouseHover(message, [weak_this](Status) {
+    if (auto strong_this = weak_this.lock()) {
+      strong_this->mouse_hover_in_flight_ = false;
+      if (strong_this->pending_mouse_hover_position_.has_value()) {
+        Point next_point = *strong_this->pending_mouse_hover_position_;
+        strong_this->pending_mouse_hover_position_ = std::nullopt;
+        strong_this->SendMouseHoverEvent(next_point);
+      }
+    }
+  });
+}
+
 bool Window::MouseEvent(const Point& point,
                         std::optional<MouseButtonEvent> button_event) {
   if (!IsVisible()) return false;
 
   if (HasModalChild()) {
+    is_dragging_content_ = false;
     auto screen_area = GetScreenArea();
     Rectangle hit_area = {
         .origin = screen_area.origin - Point{kFrameThickness, kFrameThickness},
@@ -816,11 +863,7 @@ bool Window::MouseEvent(const Point& point,
       hovered_window_button_ = std::nullopt;
       InvalidateScreen(WindowButtonScreenArea());
     }
-    if (IsHovering()) {
-      if (mouse_listener_) mouse_listener_.MouseLeave(nullptr);
-      hovering_window = nullptr;
-      last_mouse_hover_position_ = std::nullopt;
-    }
+    MouseNotHoveringOverWindowContents();
 
     if (button_event && button_event->is_pressed_down) {
       auto* modal_child = GetTopmostModalChild();
@@ -902,6 +945,37 @@ bool Window::MouseEvent(const Point& point,
     return true;
   }
 
+  auto send_content_mouse_event = [&](const Point& local_point) {
+    if (button_event) {
+      last_mouse_hover_position_ = local_point;
+      pending_mouse_hover_position_ = std::nullopt;
+      MouseClickEvent message;
+      message.position.x = local_point.x;
+      message.position.y = local_point.y;
+      message.button.button = button_event->button;
+      message.button.is_pressed_down = button_event->is_pressed_down;
+      if (mouse_listener_) mouse_listener_.MouseClick(message, nullptr);
+    } else if (!last_mouse_hover_position_.has_value() ||
+               *last_mouse_hover_position_ != local_point) {
+      SendMouseHoverEvent(local_point);
+    }
+  };
+
+  if (is_dragging_content_) {
+    if (!button_event && !AreAnyMouseButtonsPressed()) {
+      is_dragging_content_ = false;
+    } else {
+      float title_bar_h =
+          (!is_fullscreen_ && add_title_bar_) ? GetTitleBarHeight() : 0.0f;
+      Point local_point =
+          point - screen_area_.origin - Point{0.0f, title_bar_h};
+      send_content_mouse_event(local_point);
+      if (button_event && !AreAnyMouseButtonsPressed())
+        is_dragging_content_ = false;
+      return true;
+    }
+  }
+
   auto screen_area = GetScreenArea();
   Rectangle hit_area;
 
@@ -924,11 +998,7 @@ bool Window::MouseEvent(const Point& point,
 
   if (!hit_area.Contains(point)) {
     // Not even in the hit area.
-    if (IsHovering()) {
-      if (mouse_listener_) mouse_listener_.MouseLeave(nullptr);
-      hovering_window = nullptr;
-      last_mouse_hover_position_ = std::nullopt;
-    }
+    if (IsHovering()) MouseNotHoveringOverWindowContents();
     if (hovered_window_button_) {
       hovered_window_button_ = std::nullopt;
       InvalidateScreen(WindowButtonScreenArea());
@@ -936,16 +1006,15 @@ bool Window::MouseEvent(const Point& point,
     return false;
   }
 
-  if (button_event && button_event->is_pressed_down && !IsFocused()) {
+  if (button_event && button_event->is_pressed_down && !IsFocused())
     Focus();
-  }
 
   if (is_debugging_) {
+    MouseNotHoveringOverWindowContents();
     if (button_event && button_event->is_pressed_down) {
       StartDragging();
-      if (IsDragging()) {
+      if (IsDragging())
         dragging_origin = point;
-      }
     }
     return true;
   }
@@ -977,6 +1046,7 @@ bool Window::MouseEvent(const Point& point,
 
   if (screen_area.Contains(point)) {
     if (!IsHovering()) {
+      MouseNotHoveringOverWindowContents();
       hovering_window = this;
       if (mouse_listener_) mouse_listener_.MouseEnter(nullptr);
     }
@@ -1006,50 +1076,96 @@ bool Window::MouseEvent(const Point& point,
                    button_event->button == MouseButton::Left &&
                    button_event->is_pressed_down) {
           StartDragging();
-          if (IsDragging()) {
+          if (IsDragging())
             dragging_origin = point;
-          }
         }
         return true;
       }
       local_point.y -= GetTitleBarHeight();
     }
 
-    if (button_event && !IsDragging()) {
-      if (!is_fullscreen_ && hovered_window_button &&
-          button_event->button == MouseButton::Left &&
-          button_event->is_pressed_down) {
-        HandleWindowButtonClick();
-        return true;
+    if (!IsDragging()) {
+      if (button_event) {
+        if (!is_fullscreen_ && hovered_window_button &&
+            button_event->button == MouseButton::Left &&
+            button_event->is_pressed_down) {
+          HandleWindowButtonClick();
+          return true;
+        }
+        if (button_event->is_pressed_down) is_dragging_content_ = true;
       }
-      // Click event.
-      MouseClickEvent message;
-      message.position.x = local_point.x;
-      message.position.y = local_point.y;
-      message.button.button = button_event->button;
-      message.button.is_pressed_down = button_event->is_pressed_down;
-      if (mouse_listener_) mouse_listener_.MouseClick(message, nullptr);
-    } else {
-      // Hover event.
-      if (!last_mouse_hover_position_.has_value() ||
-          *last_mouse_hover_position_ != local_point) {
-        last_mouse_hover_position_ = local_point;
-        MousePositionEvent message;
-        message.x = local_point.x;
-        message.y = local_point.y;
-        if (mouse_listener_) mouse_listener_.MouseHover(message, nullptr);
-      }
+      send_content_mouse_event(local_point);
     }
 
   } else {
-    if (IsHovering()) {
-      if (mouse_listener_) mouse_listener_.MouseLeave(nullptr);
-      hovering_window = nullptr;
-    }
+    MouseNotHoveringOverWindowContents();
     if (hovered_window_button_) {
       hovered_window_button_ = std::nullopt;
       InvalidateScreen(WindowButtonScreenArea());
     }
+  }
+
+  return true;
+}
+
+bool Window::MouseScrollEvent(
+    const Point& point,
+    const ::perception::devices::RelativeMousePositionEvent& delta) {
+  if (!IsVisible()) return false;
+
+  auto screen_area = GetScreenArea();
+  float title_bar_h =
+      (!is_fullscreen_ && add_title_bar_) ? GetTitleBarHeight() : 0.0f;
+
+  if (!is_dragging_content_) {
+    if (IsDragging()) return true;
+
+    Rectangle hit_area;
+    if (is_fullscreen_) {
+      hit_area = screen_area;
+    } else {
+      hit_area = {
+          .origin = screen_area.origin - Point{kFrameThickness, kFrameThickness},
+          .size = screen_area.size +
+                  Size{kFrameThickness * 2.0f, kFrameThickness * 2.0f}};
+    }
+
+    if (!hit_area.Contains(point)) return false;
+    if (HasModalChild() || IsDebugging()) return true;
+    if (!screen_area.Contains(point)) return true;
+
+    if (is_resizable_ && !is_fullscreen_) {
+      bool is_min_x = point.x <= screen_area.origin.x + kDragBorder / 2.0f;
+      bool is_max_x = point.x >=
+                      screen_area.origin.x + screen_area.size.width -
+                          kDragBorder / 2.0f;
+      bool is_min_y = point.y <= screen_area.origin.y + kDragBorder / 2.0f;
+      bool is_max_y = point.y >=
+                      screen_area.origin.y + screen_area.size.height -
+                          kDragBorder / 2.0f;
+      if (is_min_x || is_max_x || is_min_y || is_max_y) return true;
+    }
+
+    if (AreWindowButtonsVisible() && WindowButtonScreenArea().Contains(point))
+      return true;
+
+    if (add_title_bar_ && !is_fullscreen_ &&
+        point.y < screen_area.origin.y + title_bar_h)
+      return true;
+  }
+
+  if (mouse_listener_) {
+    Point local_point = point - screen_area.origin - Point{0.0f, title_bar_h};
+    if (!IsHovering()) {
+      MouseNotHoveringOverWindowContents();
+      hovering_window = this;
+      mouse_listener_.MouseEnter(nullptr);
+    }
+    if (!last_mouse_hover_position_.has_value() ||
+        *last_mouse_hover_position_ != local_point) {
+      SendMouseHoverEvent(local_point);
+    }
+    mouse_listener_.MouseScroll(delta, nullptr);
   }
 
   return true;
@@ -1071,59 +1187,68 @@ void Window::Draw(const Rectangle& screen_area) {
     float vertical_frame_height = bounds.size.height;
 
     // Top frame (1px border).
-    DrawWindowFramePart(
-        screen_area,
-        {.origin = {.x = bounds.origin.x - 1.0f, .y = bounds.origin.y - 1.0f},
-         .size = {.width = horizontal_frame_width, .height = 1.0f}},
-        WINDOW_BORDER_COLOUR);
+    if (screen_area.origin.y <= bounds.origin.y &&
+        screen_area.MaxY() >= bounds.origin.y - 1.0f) {
+      DrawWindowFramePart(
+          screen_area,
+          {.origin = {.x = bounds.origin.x - 1.0f, .y = bounds.origin.y - 1.0f},
+           .size = {.width = horizontal_frame_width, .height = 1.0f}},
+          WINDOW_BORDER_COLOUR);
+    }
 
     // Left frame (1px border).
-    DrawWindowFramePart(
-        screen_area,
-        {.origin = {.x = bounds.origin.x - 1.0f, .y = bounds.origin.y},
-         .size = {.width = 1.0f, .height = vertical_frame_height}},
-        WINDOW_BORDER_COLOUR);
+    if (screen_area.origin.x <= bounds.origin.x &&
+        screen_area.MaxX() >= bounds.origin.x - 1.0f) {
+      DrawWindowFramePart(
+          screen_area,
+          {.origin = {.x = bounds.origin.x - 1.0f, .y = bounds.origin.y},
+           .size = {.width = 1.0f, .height = vertical_frame_height}},
+          WINDOW_BORDER_COLOUR);
+    }
 
     // Bottom frame (1px border + shadow_layers).
-    Rectangle bottom_frame = {
-        .origin = {.x = bounds.origin.x - 1.0f, .y = max_y},
-        .size = {.width = horizontal_frame_width, .height = 1.0f}};
-    DrawWindowFramePart(screen_area, bottom_frame, WINDOW_BORDER_COLOUR);
+    if (screen_area.MaxY() >= max_y) {
+      Rectangle bottom_frame = {
+          .origin = {.x = bounds.origin.x - 1.0f, .y = max_y},
+          .size = {.width = horizontal_frame_width, .height = 1.0f}};
+      DrawWindowFramePart(screen_area, bottom_frame, WINDOW_BORDER_COLOUR);
 
-    for (int i = 1; i <= shadow_layers; i++) {
-      uint32 shadow_color =
-          (i <= shadow_layers / 2) ? WINDOW_SHADOW_1 : WINDOW_SHADOW_2;
-      bottom_frame.origin += {.x = 1.0f, .y = 1.0f};
-      DrawAlphaWindowFramePart(screen_area, bottom_frame, shadow_color);
+      for (int i = 1; i <= shadow_layers; i++) {
+        uint32 shadow_color =
+            (i <= shadow_layers / 2) ? WINDOW_SHADOW_1 : WINDOW_SHADOW_2;
+        bottom_frame.origin += {.x = 1.0f, .y = 1.0f};
+        DrawAlphaWindowFramePart(screen_area, bottom_frame, shadow_color);
+      }
     }
 
     // Right frame (1px border + shadow_layers).
-    Rectangle right_frame = {
-        .origin = {.x = max_x, .y = bounds.origin.y},
-        .size = {.width = 1.0f, .height = vertical_frame_height}};
-    DrawWindowFramePart(screen_area, right_frame, WINDOW_BORDER_COLOUR);
+    if (screen_area.MaxX() >= max_x) {
+      Rectangle right_frame = {
+          .origin = {.x = max_x, .y = bounds.origin.y},
+          .size = {.width = 1.0f, .height = vertical_frame_height}};
+      DrawWindowFramePart(screen_area, right_frame, WINDOW_BORDER_COLOUR);
 
-    right_frame.origin.x += 1.0f;
-    for (int i = 1; i <= shadow_layers; i++) {
-      uint32 shadow_color =
-          (i <= shadow_layers / 2) ? WINDOW_SHADOW_1 : WINDOW_SHADOW_2;
-      right_frame.size.height =
-          vertical_frame_height + static_cast<float>(shadow_layers + 2 - i);
-      DrawAlphaWindowFramePart(screen_area, right_frame, shadow_color);
-      right_frame.origin += {.x = 1.0f, .y = 1.0f};
+      right_frame.origin.x += 1.0f;
+      right_frame.size.height += 1.0f;
+      for (int i = 1; i <= shadow_layers; i++) {
+        uint32 shadow_color =
+            (i <= shadow_layers / 2) ? WINDOW_SHADOW_1 : WINDOW_SHADOW_2;
+        DrawAlphaWindowFramePart(screen_area, right_frame, shadow_color);
+        right_frame.origin += {.x = 1.0f, .y = 1.0f};
+      }
     }
   }
 
   float title_bar_h =
       (!is_fullscreen_ && add_title_bar_) ? GetTitleBarHeight() : 0.0f;
   if (title_bar_h > 0.0f) {
-    EnsureTitleBarTexture();
-    if (title_bar_texture_id_ != 0) {
-      Rectangle title_bar_bounds = {
-          .origin = bounds.origin,
-          .size = {.width = bounds.size.width, .height = title_bar_h}};
-      auto title_bar_intersection = title_bar_bounds.Intersection(screen_area);
-      if (title_bar_intersection) {
+    Rectangle title_bar_bounds = {
+        .origin = bounds.origin,
+        .size = {.width = bounds.size.width, .height = title_bar_h}};
+    auto title_bar_intersection = title_bar_bounds.Intersection(screen_area);
+    if (title_bar_intersection) {
+      EnsureTitleBarTexture();
+      if (title_bar_texture_id_ != 0) {
         CopyOpaqueTexture(
             *title_bar_intersection, title_bar_texture_id_,
             title_bar_intersection->origin - title_bar_bounds.origin);
@@ -1132,26 +1257,37 @@ void Window::Draw(const Rectangle& screen_area) {
   }
 
   // Draw the contents of the window.
+  Rectangle full_content_bounds = {
+      .origin = bounds.origin + Point{0, title_bar_h},
+      .size = {.width = bounds.size.width,
+               .height = bounds.size.height - title_bar_h}};
   if (texture_id_ != 0) {
     float draw_w = (buffer_width_ > 0.0f)
-                       ? std::min(bounds.size.width, buffer_width_)
-                       : bounds.size.width;
+                       ? std::min(full_content_bounds.size.width, buffer_width_)
+                       : full_content_bounds.size.width;
     float draw_h =
         (buffer_height_ > 0.0f)
-            ? std::min(bounds.size.height - title_bar_h, buffer_height_)
-            : (bounds.size.height - title_bar_h);
+            ? std::min(full_content_bounds.size.height, buffer_height_)
+            : full_content_bounds.size.height;
+    if (draw_w < full_content_bounds.size.width ||
+        draw_h < full_content_bounds.size.height) {
+      auto full_intersection = full_content_bounds.Intersection(screen_area);
+      if (full_intersection)
+        DrawOpaqueColor(*full_intersection, WINDOW_NO_CONTENTS_COLOUR);
+    }
     if (draw_w > 0.0f && draw_h > 0.0f) {
-      Rectangle content_bounds = {
-          .origin = bounds.origin + Point{0, title_bar_h},
-          .size = {.width = draw_w, .height = draw_h}};
+      Rectangle content_bounds = {.origin = full_content_bounds.origin,
+                                  .size = {.width = draw_w, .height = draw_h}};
       auto intersection = content_bounds.Intersection(screen_area);
       if (intersection) {
         CopyOpaqueTexture(*intersection, texture_id_,
                           intersection->origin - content_bounds.origin);
-        if (is_debugging_) {
-          DrawAlphaBlendedColor(*intersection, DEBUGGING_TINT);
-        }
       }
+    }
+    if (is_debugging_) {
+      auto full_intersection = full_content_bounds.Intersection(screen_area);
+      if (full_intersection)
+        DrawAlphaBlendedColor(*full_intersection, DEBUGGING_TINT);
     }
   }
 
@@ -1211,6 +1347,7 @@ void Window::InvalidateLocalArea(const Rectangle& window_area) {
 }
 
 void Window::StartDragging() {
+  is_dragging_content_ = false;
   if (!IsFocused() || dragging_window != nullptr) return;
 
   dragging_window = this;
@@ -1252,6 +1389,12 @@ void Window::StartDragging() {
   return {screen_area_.size.width, screen_area_.size.height - title_bar_h};
 }
 
+::perception::window::Size Window::GetSystemButtonSize() const {
+  if (is_fullscreen_ || add_title_bar_) return {0.0f, 0.0f};
+  auto button_size = WindowButtonSize(is_resizable_);
+  return {button_size.width, button_size.height};
+}
+
 Rectangle Window::GetScreenAreaWithFrame() const {
   if (is_fullscreen_) return screen_area_;
   float scale = WindowManager::GetScale();
@@ -1268,6 +1411,29 @@ const Rectangle& Window::GetScreenArea() const { return screen_area_; }
 
 void Window::SetTextureId(int texture_id) {
   texture_id_ = texture_id;
+  if (texture_id != 0) {
+#ifndef TEST
+    auto status_or_info =
+        GetService<::perception::devices::GraphicsDevice>()
+            .GetTextureInformation(
+                ::perception::devices::graphics::TextureReference(texture_id));
+    if (status_or_info) {
+      buffer_width_ = static_cast<float>(status_or_info->size.width);
+      buffer_height_ = static_cast<float>(status_or_info->size.height);
+    } else {
+      auto content_size = GetContentSize();
+      buffer_width_ = content_size.width;
+      buffer_height_ = content_size.height;
+    }
+#else
+    auto content_size = GetContentSize();
+    buffer_width_ = content_size.width;
+    buffer_height_ = content_size.height;
+#endif
+  } else {
+    buffer_width_ = 0.0f;
+    buffer_height_ = 0.0f;
+  }
   if (!is_visible_) {
     Show();
   } else if (!IsSystemSleeping()) {
@@ -1293,8 +1459,6 @@ void Window::SetSize(const ::perception::window::Size& size) {
 
   screen_area_.size.width = new_w;
   screen_area_.size.height = new_h;
-  buffer_width_ = size.width;
-  buffer_height_ = size.height;
   title_bar_texture_dirty_ = true;
 
   ValidateWindowBounds(screen_area_);
@@ -1307,6 +1471,12 @@ void Window::CommonInit() {
   is_fullscreen_ = false;
   is_debugging_ = false;
   is_closed_ = false;
+  is_mouse_captive_ = false;
+  is_dragging_content_ = false;
+  window_listener_already_disappeared_ = false;
+  mouse_hover_in_flight_ = false;
+  set_size_in_flight_ = false;
+  pending_set_size_ = false;
   cursor_ = ::perception::window::Cursor::Pointer;
   texture_id_ = 0;
   buffer_width_ = 0.0f;
@@ -1318,12 +1488,13 @@ void Window::CommonInit() {
   last_drawn_area_with_frame_ = ::perception::ui::Rectangle{};
 
   auto screen_size = GetScreenSize();
-  screen_area_.size = {.width = screen_area_.size.width >= 1.0f
-                                    ? screen_area_.size.width
-                                    : (screen_size.width * 0.75f),
-                       .height = screen_area_.size.height >= 1.0f
-                                     ? screen_area_.size.height
-                                     : (screen_size.height * 0.75f)};
+  screen_area_.size = {
+      .width = screen_area_.size.width >= 1.0f
+                   ? screen_area_.size.width
+                   : (screen_size.width * kDefaultWindowScreenFraction),
+      .height = screen_area_.size.height >= 1.0f
+                    ? screen_area_.size.height
+                    : (screen_size.height * kDefaultWindowScreenFraction)};
 
   // Center the new window in the middle of the screen.
   auto size_delta = screen_size - screen_area_.size;
@@ -1362,9 +1533,12 @@ void Window::Hide() {
     is_fullscreen_ = false;
     screen_area_ = previous_screen_area_;
     ValidateWindowBounds(screen_area_);
+    title_bar_texture_dirty_ = true;
     InvalidateScreen(Rectangle{.origin = {0, 0}, .size = GetScreenSize()});
   }
 
+  is_dragging_content_ = false;
+  if (GetPressedWindow().get() == this) ClearPressedWindow();
   if (IsDragging()) StopDragging();
   if (IsHovering()) hovering_window = nullptr;
 
@@ -1396,15 +1570,39 @@ void Window::Hide() {
 }
 
 void Window::Resized() {
-  if (!window_listener_already_disappeared_) {
-    window_listener_.SetSize(GetContentSize(), nullptr);
+  title_bar_texture_dirty_ = true;
+  SendSetSize();
+}
+
+void Window::SendSetSize() {
+  if (window_listener_already_disappeared_ || !window_listener_) return;
+  if (set_size_in_flight_) {
+    pending_set_size_ = true;
+    return;
   }
+  set_size_in_flight_ = true;
+  pending_set_size_ = false;
+  ::perception::window::SetSizeRequest request;
+  request.window_size = GetContentSize();
+  request.system_button_size = GetSystemButtonSize();
+  std::weak_ptr<Window> weak_this = shared_from_this();
+  window_listener_.SetSize(request, [weak_this](Status) {
+    if (auto strong_this = weak_this.lock()) {
+      strong_this->set_size_in_flight_ = false;
+      if (strong_this->pending_set_size_) {
+        strong_this->pending_set_size_ = false;
+        strong_this->SendSetSize();
+      }
+    }
+  });
 }
 
 void Window::Unfocus() {
   if (!IsFocused()) return;
 
   if (captive_mouse_window == this) SetCaptureMouse(false);
+  is_dragging_content_ = false;
+  if (GetPressedWindow().get() == this) ClearPressedWindow();
   focused_window = nullptr;
   ::perception::SetFocusedProcess(0);
   if (IsDragging()) StopDragging();

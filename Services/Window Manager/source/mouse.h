@@ -14,10 +14,14 @@
 
 #pragma once
 
+#include <memory>
+
 #include "perception/devices/graphics_device.h"
 #include "perception/devices/mouse_listener.h"
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
+
+class Window;
 
 struct MouseButtonEvent {
   ::perception::devices::MouseButton button;
@@ -35,8 +39,21 @@ void SetMousePosition(const ::perception::ui::Point& position);
 void ProcessMouseButtonEvent(
     const ::perception::devices::MouseButtonEvent& message);
 
+// Processes a mouse scroll wheel event.
+void ProcessMouseScrollEvent(
+    const ::perception::devices::RelativeMousePositionEvent& scroll_event);
+
 // Preps the overlays for drawing, which will mark which areas need to be drawn
 // to the window manager's texture and not directly to the screen.
 void DrawMouse(const ::perception::ui::Rectangle& draw_area);
 
 void InvalidateMouse();
+
+// Returns whether any mouse buttons are currently held down.
+bool AreAnyMouseButtonsPressed();
+
+// Returns the window that currently has a mouse button pressed on it.
+std::shared_ptr<Window> GetPressedWindow();
+
+// Clears the pressed window and button state.
+void ClearPressedWindow();

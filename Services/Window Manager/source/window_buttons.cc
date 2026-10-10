@@ -24,20 +24,37 @@ namespace {
 
 int window_buttons_texture_id = 0;
 
+// Path to the window buttons sprite sheet asset.
 constexpr std::string_view kWindowsButtonPath =
     "/Applications/Window Manager/window buttons.png";
+
+// Unscaled width of the full button panel in pixels.
 constexpr int kButtonPanelWidth = 60;
+
+// Unscaled height of a single button panel row in pixels.
 constexpr int kButtonPanelHeight = 24;
+
+// Unscaled width and height of an individual window button in pixels.
 constexpr int kButtonSize = 18;
 
+// Total expected height of the sprite sheet containing all 7 variants.
 constexpr int kExpectedTextureHeight = kButtonPanelHeight * 7;
+
+// Unscaled width of the button panel when the fullscreen toggle is hidden.
 constexpr int kButtonPanelWidthWithoutToggle = kButtonPanelWidth - kButtonSize;
 
+// Horizontal threshold separating the first and second buttons.
 constexpr int kFirstButtonThreshold =
     (kButtonPanelHeight - kButtonSize) / 2 + kButtonSize;
+
+// Horizontal threshold separating the second and third buttons.
 constexpr int kSecondButtonThreshold = kFirstButtonThreshold + kButtonSize;
 
+// Padding distance around window buttons in pixels.
 constexpr int kPaddingDistance = 3;
+
+// Cached unscaled RGBA pixels of the window buttons sprite sheet.
+std::vector<uint32_t> unscaled_button_pixels;
 
 StatusOr<std::vector<char>> LoadWindowButtonsFile() {
   // Open the file in binary mode and position the file pointer at the end.
@@ -85,32 +102,48 @@ int WindowButtonTextureVariant(
 
 Status InitializeWindowButtons() {
 #ifndef TEST
-  // Decode the image data.
-  ASSIGN_OR_RETURN(auto file_buffer, LoadWindowButtonsFile());
+  uint32_t width = kButtonPanelWidth;
+  uint32_t height = kExpectedTextureHeight;
 
-  std::vector<uint8_t> pixel_data;
-  uint32_t width, height, channels_in_file;
+  if (unscaled_button_pixels.empty()) {
+    // Decode the image data once and cache the unscaled pixels.
+    ASSIGN_OR_RETURN(auto file_buffer, LoadWindowButtonsFile());
 
-  int status =
-      fpng::fpng_decode_memory(file_buffer.data(), file_buffer.size(),
-                               pixel_data, width, height, channels_in_file,
-                               /*desired_channels=*/4);
+    std::vector<uint8_t> pixel_data;
+    uint32_t channels_in_file = 0;
 
-  std::unique_ptr<void, VoidPtrDeleter> raw_data(
-      pv_png::load_png(file_buffer.data(), file_buffer.size(),
-                       /*desired_chans=*/4, width, height, channels_in_file),
-      VoidPtrDeleter());
-  if (!raw_data) {
-    std::cout << "Can't decode PNG or FPNG: " << kWindowsButtonPath
-              << std::endl;
-    return Status::INTERNAL_ERROR;
-  }
+    int status =
+        fpng::fpng_decode_memory(file_buffer.data(), file_buffer.size(),
+                                 pixel_data, width, height, channels_in_file,
+                                 /*desired_channels=*/4);
 
-  if (width != kButtonPanelWidth || height != kExpectedTextureHeight) {
-    std::cout << "Expected the size of " << kWindowsButtonPath << " to be "
-              << kButtonPanelWidth << "x" << kExpectedTextureHeight
-              << " but it was " << width << "x" << height << "." << std::endl;
-    return Status::INTERNAL_ERROR;
+    std::unique_ptr<void, VoidPtrDeleter> raw_data;
+    const uint32_t* decoded_pixels = nullptr;
+    if (status == fpng::FPNG_DECODE_SUCCESS) {
+      decoded_pixels = reinterpret_cast<const uint32_t*>(pixel_data.data());
+    } else {
+      raw_data = std::unique_ptr<void, VoidPtrDeleter>(
+          pv_png::load_png(file_buffer.data(), file_buffer.size(),
+                           /*desired_chans=*/4, width, height,
+                           channels_in_file),
+          VoidPtrDeleter());
+      if (!raw_data) {
+        std::cout << "Can't decode PNG or FPNG: " << kWindowsButtonPath
+                  << std::endl;
+        return Status::INTERNAL_ERROR;
+      }
+      decoded_pixels = static_cast<const uint32_t*>(raw_data.get());
+    }
+
+    if (width != kButtonPanelWidth || height != kExpectedTextureHeight) {
+      std::cout << "Expected the size of " << kWindowsButtonPath << " to be "
+                << kButtonPanelWidth << "x" << kExpectedTextureHeight
+                << " but it was " << width << "x" << height << "." << std::endl;
+      return Status::INTERNAL_ERROR;
+    }
+
+    unscaled_button_pixels.assign(decoded_pixels,
+                                  decoded_pixels + width * height);
   }
 
   float scale = WindowManager::GetScale();
@@ -128,7 +161,7 @@ Status InitializeWindowButtons() {
   }
 
   std::vector<uint32_t> scaled_pixels(scaled_width * scaled_height);
-  const uint32_t* src_pixels = static_cast<const uint32_t*>(raw_data.get());
+  const uint32_t* src_pixels = unscaled_button_pixels.data();
 
   for (uint32_t y = 0; y < scaled_height; y++) {
     uint32_t src_y = std::min(

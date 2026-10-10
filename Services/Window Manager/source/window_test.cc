@@ -14,6 +14,7 @@
 
 #include "window.h"
 
+#include "compositor.h"
 #include "perception/ui/point.h"
 #include "perception/ui/rectangle.h"
 #include "perception/window/window_manager.h"
@@ -308,4 +309,173 @@ TEST(WindowDefaultScreenFractionSizing) {
   partial_default_win->Close();
 }
 
+TEST(WindowShadowDoesNotOverlapAtBottomRightCorner) {
+  Window::UnfocusAllWindows();
+  InitializeScreen();
+  InitializeCompositor();
+
+  CreateWindowRequest request;
+  request.window = ::perception::window::BaseWindow::Client(1, 114);
+  request.title = "Shadow Test Window";
+  request.is_resizable = true;
+  request.desired_size.width = 200;
+  request.desired_size.height = 150;
+  request.add_title_bar = true;
+  auto window = *Window::CreateWindow(request);
+  window->SetTextureId(10);
+
+  InvalidateScreen(window->GetScreenAreaWithFrame());
+  DrawScreen();
+
+  const auto& commands = GetLastRunDrawCommands().commands;
+  std::vector<Rectangle> shadow_rects;
+  for (const auto& cmd : commands) {
+    if (cmd.type ==
+            ::perception::devices::graphics::Command::Type::FILL_RECTANGLE &&
+        cmd.fill_rectangle_parameters &&
+        (cmd.fill_rectangle_parameters->color == WINDOW_SHADOW_1 ||
+         cmd.fill_rectangle_parameters->color == WINDOW_SHADOW_2)) {
+      shadow_rects.push_back(Rectangle{
+          .origin = {.x = static_cast<float>(
+                         cmd.fill_rectangle_parameters->destination.left),
+                     .y = static_cast<float>(
+                         cmd.fill_rectangle_parameters->destination.top)},
+          .size = {.width = static_cast<float>(
+                       cmd.fill_rectangle_parameters->size.width),
+                   .height = static_cast<float>(
+                       cmd.fill_rectangle_parameters->size.height)}});
+    }
+  }
+
+  // Both bottom and right shadow strips should be present.
+  EXPECT(true, shadow_rects.size() >= 2);
+
+  // No two shadow rectangles may overlap at the bottom-right corner.
+  for (size_t i = 0; i < shadow_rects.size(); i++) {
+    for (size_t j = i + 1; j < shadow_rects.size(); j++)
+      EXPECT(false, shadow_rects[i].Intersects(shadow_rects[j]));
+  }
+
+  window->Close();
+}
+
+TEST(ContentDragKeepsMouseCapturedUntilAllButtonsReleased) {
+  Window::UnfocusAllWindows();
+  InitializeScreen();
+  InitializeMouse();
+
+  CreateWindowRequest req1;
+  req1.window = ::perception::window::BaseWindow::Client(1, 115);
+  req1.title = "Drag Window";
+  req1.is_resizable = true;
+  req1.desired_size.width = 200;
+  req1.desired_size.height = 150;
+  req1.add_title_bar = true;
+  auto win1 = *Window::CreateWindow(req1);
+  win1->SetTextureId(11);
+  win1->SetCursor(::perception::window::Cursor::Drag);
+
+  Point inside_content = win1->GetScreenArea().origin + Point{100.0f, 80.0f};
+  Point outside_window = Point{10.0f, 10.0f};
+
+  SetMousePosition(inside_content);
+  EXPECT(true, Window::GetCursorAtPoint(GetMousePosition()) ==
+                   ::perception::window::Cursor::Drag);
+
+  // Press left mouse button inside content area.
+  ::perception::devices::MouseButtonEvent left_down;
+  left_down.button = ::perception::devices::MouseButton::Left;
+  left_down.is_pressed_down = true;
+  ProcessMouseButtonEvent(left_down);
+
+  EXPECT(true, AreAnyMouseButtonsPressed());
+  EXPECT(win1.get(), GetPressedWindow().get());
+
+  // Move mouse outside the window while left button is still held down.
+  SetMousePosition(outside_window);
+  EXPECT(true, AreAnyMouseButtonsPressed());
+  EXPECT(win1.get(), GetPressedWindow().get());
+  EXPECT(true, Window::GetCursorAtPoint(GetMousePosition()) ==
+                   ::perception::window::Cursor::Drag);
+
+  // Press right mouse button while outside the window.
+  ::perception::devices::MouseButtonEvent right_down;
+  right_down.button = ::perception::devices::MouseButton::Right;
+  right_down.is_pressed_down = true;
+  ProcessMouseButtonEvent(right_down);
+
+  EXPECT(true, AreAnyMouseButtonsPressed());
+  EXPECT(win1.get(), GetPressedWindow().get());
+
+  // Release left mouse button while right mouse button is still held down.
+  ::perception::devices::MouseButtonEvent left_up;
+  left_up.button = ::perception::devices::MouseButton::Left;
+  left_up.is_pressed_down = false;
+  ProcessMouseButtonEvent(left_up);
+
+  EXPECT(true, AreAnyMouseButtonsPressed());
+  EXPECT(win1.get(), GetPressedWindow().get());
+  EXPECT(true, Window::GetCursorAtPoint(GetMousePosition()) ==
+                   ::perception::window::Cursor::Drag);
+
+  // Release right mouse button (all buttons now released).
+  ::perception::devices::MouseButtonEvent right_up;
+  right_up.button = ::perception::devices::MouseButton::Right;
+  right_up.is_pressed_down = false;
+  ProcessMouseButtonEvent(right_up);
+
+  EXPECT(false, AreAnyMouseButtonsPressed());
+  EXPECT(nullptr, GetPressedWindow().get());
+  EXPECT(true, Window::GetCursorAtPoint(GetMousePosition()) ==
+                   ::perception::window::Cursor::Pointer);
+
+  win1->Close();
+}
+
+TEST(MouseScrollRoutingAndModalBlocking) {
+  Window::UnfocusAllWindows();
+  InitializeScreen();
+  InitializeMouse();
+
+  CreateWindowRequest parent_req;
+  parent_req.window = ::perception::window::BaseWindow::Client(1, 116);
+  parent_req.title = "Scroll Parent Window";
+  parent_req.is_resizable = true;
+  parent_req.desired_size.width = 200;
+  parent_req.desired_size.height = 150;
+  parent_req.add_title_bar = true;
+  auto parent = *Window::CreateWindow(parent_req);
+  parent->SetTextureId(12);
+
+  Point inside_parent = parent->GetScreenArea().origin + Point{50.0f, 50.0f};
+  Point outside_parent = Point{5.0f, 5.0f};
+  ::perception::devices::RelativeMousePositionEvent scroll_delta;
+  scroll_delta.delta_x = 0.0f;
+  scroll_delta.delta_y = 1.0f;
+
+  EXPECT(false, parent->MouseScrollEvent(outside_parent, scroll_delta));
+  EXPECT(true, parent->MouseScrollEvent(inside_parent, scroll_delta));
+
+  SetMousePosition(inside_parent);
+  ProcessMouseScrollEvent(scroll_delta);
+
+  CreateWindowRequest child_req;
+  child_req.window = ::perception::window::BaseWindow::Client(1, 117);
+  child_req.parent_window = parent->GetWindowListener();
+  child_req.title = "Modal Child";
+  child_req.is_resizable = false;
+  child_req.desired_size.width = 100;
+  child_req.desired_size.height = 80;
+  child_req.add_title_bar = true;
+  auto child = *Window::CreateWindow(child_req);
+  child->SetTextureId(13);
+
+  // Scroll event on a parent with a modal child is consumed without crashing.
+  EXPECT(true, parent->MouseScrollEvent(inside_parent, scroll_delta));
+
+  child->Close();
+  parent->Close();
+}
+
 }  // namespace
+

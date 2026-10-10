@@ -70,6 +70,7 @@ StatusOr<CreateWindowResponse> WindowManager::CreateWindow(
 
   CreateWindowResponse response;
   response.window_size = {content_size.width, content_size.height};
+  response.system_button_size = window->GetSystemButtonSize();
   return response;
 }
 
@@ -77,6 +78,8 @@ Status WindowManager::CloseWindow(const BaseWindow::Client& window_listener,
                                   ::perception::ProcessId sender) {
   auto window = GetWindowWithListener(window_listener);
   if (!window) return Status::INVALID_ARGUMENT;
+  if (sender != window->GetWindowListener().ServerProcessId())
+    return Status::NOT_ALLOWED;
 
   window->Close();
   return Status::OK;
@@ -87,6 +90,8 @@ Status WindowManager::SetWindowTexture(
     ::perception::ProcessId sender) {
   auto window = GetWindowWithListener(parameters.window);
   if (!window) return Status::INVALID_ARGUMENT;
+  if (sender != window->GetWindowListener().ServerProcessId())
+    return Status::NOT_ALLOWED;
 
   window->SetTextureId(parameters.texture.id);
   return Status::OK;
@@ -117,6 +122,8 @@ Status WindowManager::InvalidateWindow(
 
   auto window = GetWindowWithListener(parameters.window);
   if (!window) return Status::INVALID_ARGUMENT;
+  if (sender != window->GetWindowListener().ServerProcessId())
+    return Status::NOT_ALLOWED;
 
   window->InvalidateLocalArea(
       Rectangle::FromMinMaxPoints(Point{parameters.left, parameters.top},

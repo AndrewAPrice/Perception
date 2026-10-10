@@ -51,6 +51,11 @@ namespace {
 Point mouse_position;
 Rectangle last_mouse_bounds;
 std::weak_ptr<Window> pressed_window;
+uint8 pressed_mouse_buttons = 0;
+
+uint8 GetMouseButtonMask(MouseButton button) {
+  return static_cast<uint8>(1u << static_cast<uint8>(button));
+}
 
 const char* kPointerSprite =
     "BB.........\n"
@@ -267,6 +272,28 @@ Rectangle MouseBounds() {
   return Rectangle{.origin = mouse_position - def.hotspot, .size = def.size};
 }
 
+void HandleMouseHoverAtCurrentPosition() {
+  if (auto strong_window = pressed_window.lock();
+      strong_window && pressed_mouse_buttons != 0) {
+    if (strong_window->IsVisible()) {
+      (void)strong_window->MouseEvent(mouse_position, std::nullopt);
+      return;
+    }
+    pressed_window.reset();
+    pressed_mouse_buttons = 0;
+  }
+
+  if (IsMouseOverToast(mouse_position)) {
+    Window::MouseNotHoveringOverWindowContents();
+    return;
+  }
+
+  if (!Window::ForEachFrontToBackWindow([](Window& window) {
+        return window.MouseEvent(mouse_position, std::nullopt);
+      }))
+    Window::MouseNotHoveringOverWindowContents();
+}
+
 class MyMouseListener : public MouseListener::Server {
  public:
   Status MouseMove(const RelativeMousePositionEvent& message) override {
@@ -292,12 +319,7 @@ class MyMouseListener : public MouseListener::Server {
 
     // Has the mouse moved?
     if (old_mouse_position != mouse_position) {
-      // Test if any of the dialogs (from front to back) can handle this
-      // click.
-      (void)Window::ForEachFrontToBackWindow([](Window& window) {
-        return window.MouseEvent(mouse_position, std::nullopt);
-      });
-
+      HandleMouseHoverAtCurrentPosition();
       InvalidateMouse();
     }
 
@@ -307,6 +329,11 @@ class MyMouseListener : public MouseListener::Server {
   Status MouseButton(
       const ::perception::devices::MouseButtonEvent& message) override {
     ProcessMouseButtonEvent(message);
+    return Status::OK;
+  }
+
+  Status MouseScroll(const RelativeMousePositionEvent& message) override {
+    ProcessMouseScrollEvent(message);
     return Status::OK;
   }
 };
@@ -328,9 +355,7 @@ void SetMousePosition(const Point& position) {
 
   if (old_mouse_position == mouse_position) return;
 
-  (void)Window::ForEachFrontToBackWindow([](Window& window) {
-    return window.MouseEvent(mouse_position, std::nullopt);
-  });
+  HandleMouseHoverAtCurrentPosition();
   InvalidateMouse();
 }
 
@@ -348,9 +373,18 @@ void ProcessMouseButtonEvent(
     }
   }
 
+  uint8 button_mask = GetMouseButtonMask(message.button);
+  bool was_any_button_pressed = pressed_mouse_buttons != 0;
   std::optional<MouseButtonEvent> mouse_button_event = MouseButtonEvent{
       .button = message.button, .is_pressed_down = message.is_pressed_down};
   if (message.is_pressed_down) {
+    pressed_mouse_buttons |= button_mask;
+    if (auto strong_window = pressed_window.lock();
+        strong_window && was_any_button_pressed && strong_window->IsVisible()) {
+      (void)strong_window->MouseEvent(mouse_position, mouse_button_event);
+      return;
+    }
+
     if (HandleToastClick(mouse_position)) return;
 
     if (Window::ForEachFrontToBackWindow([mouse_button_event](Window& window) {
@@ -359,24 +393,53 @@ void ProcessMouseButtonEvent(
             return true;
           }
           return false;
-        })) {
+        }))
       return;
-    }
+
     pressed_window.reset();
     Window::UnfocusAllWindows();
   } else {
-    if (auto strong_window = pressed_window.lock())
-      strong_window->MouseEvent(mouse_position, mouse_button_event);
+    pressed_mouse_buttons &= ~button_mask;
+    if (auto strong_window = pressed_window.lock()) {
+      if (strong_window->IsVisible())
+        (void)strong_window->MouseEvent(mouse_position, mouse_button_event);
+    }
 
-    pressed_window.reset();
-
-    (void)Window::ForEachFrontToBackWindow([](Window& window) {
-      return window.MouseEvent(mouse_position, std::nullopt);
-    });
+    if (pressed_mouse_buttons == 0) {
+      pressed_window.reset();
+      HandleMouseHoverAtCurrentPosition();
+      InvalidateMouse();
+    }
   }
 }
 
+void ProcessMouseScrollEvent(const RelativeMousePositionEvent& scroll_event) {
+  if (IsSystemSleeping()) return;
+  if (scroll_event.delta_x == 0.0f && scroll_event.delta_y == 0.0f) return;
+
+  if (auto captive_win = Window::GetCaptiveMouseWindow();
+      captive_win && captive_win->IsVisible() && captive_win->IsFocused()) {
+    captive_win->GetMouseListener().MouseScroll(scroll_event, nullptr);
+    return;
+  }
+
+  if (auto strong_window = pressed_window.lock();
+      strong_window && pressed_mouse_buttons != 0 &&
+      strong_window->IsVisible()) {
+    (void)strong_window->MouseScrollEvent(mouse_position, scroll_event);
+    return;
+  }
+
+  if (IsMouseOverToast(mouse_position)) return;
+
+  (void)Window::ForEachFrontToBackWindow([&](Window& window) {
+    return window.MouseScrollEvent(mouse_position, scroll_event);
+  });
+}
+
 void InitializeMouse() {
+  pressed_window.reset();
+  pressed_mouse_buttons = 0;
   mouse_position = GetScreenSize().ToPoint();
   for (int i = 0; i < 2; i++) mouse_position[i] /= 2.0f;
 
@@ -403,6 +466,9 @@ void InitializeMouse() {
 
     auto create_texture_response =
         GetService<GraphicsDevice>().CreateTexture(create_texture_request);
+    if (!create_texture_response.Ok() || !create_texture_response->pixel_buffer)
+      continue;
+
     def.texture_id = create_texture_response->texture.id;
     create_texture_response->pixel_buffer->Apply([&def](void* data, size_t) {
       uint32* destination = (uint32*)data;
@@ -447,4 +513,13 @@ void InvalidateMouse() {
   auto new_bounds = MouseBounds();
   InvalidateScreen(last_mouse_bounds.Union(new_bounds));
   last_mouse_bounds = new_bounds;
+}
+
+bool AreAnyMouseButtonsPressed() { return pressed_mouse_buttons != 0; }
+
+std::shared_ptr<Window> GetPressedWindow() { return pressed_window.lock(); }
+
+void ClearPressedWindow() {
+  pressed_window.reset();
+  pressed_mouse_buttons = 0;
 }

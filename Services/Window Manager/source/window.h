@@ -72,6 +72,9 @@ class Window : public std::enable_shared_from_this<Window> {
       const ::perception::ui::Point& point);
   bool MouseEvent(const ::perception::ui::Point& point,
                   std::optional<MouseButtonEvent> button_event);
+  bool MouseScrollEvent(
+      const ::perception::ui::Point& point,
+      const ::perception::devices::RelativeMousePositionEvent& delta);
 
   void Draw(const ::perception::ui::Rectangle& screen_area);
   void Invalidate();
@@ -83,6 +86,7 @@ class Window : public std::enable_shared_from_this<Window> {
   ::perception::ui::Rectangle GetScreenAreaWithFrame() const;
   const ::perception::ui::Rectangle& GetScreenArea() const;
   ::perception::window::Size GetContentSize() const;
+  ::perception::window::Size GetSystemButtonSize() const;
   bool IsVisible() const { return is_visible_; }
   bool IsFullScreen() const { return is_fullscreen_; }
 
@@ -115,6 +119,8 @@ class Window : public std::enable_shared_from_this<Window> {
   void Show();
   void Hide();
   void Resized();
+  void SendSetSize();
+  void SendMouseHoverEvent(const ::perception::ui::Point& local_point);
 
   void Unfocus();
   bool IsDragging() const;
@@ -179,11 +185,16 @@ class Window : public std::enable_shared_from_this<Window> {
   bool is_debugging_;
   bool is_closed_;
   bool is_mouse_captive_;
+  bool is_dragging_content_;
 
   ::perception::ui::Rectangle last_drawn_area_with_frame_;
   void InvalidateScreenArea();
 
   std::optional<::perception::ui::Point> last_mouse_hover_position_;
+  std::optional<::perception::ui::Point> pending_mouse_hover_position_;
+  bool mouse_hover_in_flight_;
+  bool set_size_in_flight_;
+  bool pending_set_size_;
 };
 
 std::shared_ptr<Window> GetWindowWithListener(

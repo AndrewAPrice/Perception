@@ -219,4 +219,56 @@ TEST(CompositorCopyAlphaBlendedTexture) {
   }
 }
 
+TEST(CompositorDisjointInvalidationAreas) {
+  Window::UnfocusAllWindows();
+  InitializeScreen();
+  InitializeCompositor();
+
+  Rectangle area1{.origin = {.x = 50.0f, .y = 50.0f},
+                  .size = {.width = 100.0f, .height = 100.0f}};
+  Rectangle area2{.origin = {.x = 400.0f, .y = 400.0f},
+                  .size = {.width = 50.0f, .height = 50.0f}};
+
+  InvalidateScreen(area1);
+  InvalidateScreen(area2);
+  DrawScreen();
+
+  const auto& last_cmds = GetLastRunDrawCommands();
+  // Should have SetDestination (Screen) + 2 fill rects for area1 and area2 (coalescing does not merge them because they are disjoint)
+  EXPECT((size_t)3, last_cmds.commands.size());
+  EXPECT(graphics::Command::Type::SET_DESTINATION_TEXTURE,
+         last_cmds.commands[0].type);
+  EXPECT(graphics::Command::Type::FILL_RECTANGLE, last_cmds.commands[1].type);
+  EXPECT(graphics::Command::Type::FILL_RECTANGLE, last_cmds.commands[2].type);
+
+  // Total area filled should be 100*100 + 50*50 = 12500, NOT the union (400*400 = 160000)
+  uint32 total_pixels = 0;
+  for (size_t i = 1; i < last_cmds.commands.size(); i++) {
+    total_pixels += last_cmds.commands[i].fill_rectangle_parameters->size.width *
+                    last_cmds.commands[i].fill_rectangle_parameters->size.height;
+  }
+  EXPECT((uint32)12500, total_pixels);
+}
+
+TEST(CompositorCommandCoalescing) {
+  Window::UnfocusAllWindows();
+  InitializeScreen();
+  InitializeCompositor();
+
+  Rectangle combined_area{.origin = {.x = 100.0f, .y = 100.0f},
+                          .size = {.width = 200.0f, .height = 50.0f}};
+  InvalidateScreen(combined_area);
+  DrawScreen();
+
+  const auto& last_cmds = GetLastRunDrawCommands();
+  EXPECT((size_t)2, last_cmds.commands.size());
+  EXPECT(graphics::Command::Type::SET_DESTINATION_TEXTURE,
+         last_cmds.commands[0].type);
+  EXPECT(graphics::Command::Type::FILL_RECTANGLE, last_cmds.commands[1].type);
+  EXPECT((uint32)200,
+         last_cmds.commands[1].fill_rectangle_parameters->size.width);
+  EXPECT((uint32)50,
+         last_cmds.commands[1].fill_rectangle_parameters->size.height);
+}
+
 }  // namespace

@@ -56,8 +56,8 @@ class TitleBar : public std::enable_shared_from_this<TitleBar>, public UniqueIde
                             RightPaddingForWindowNode(window_node));
         },
         [&window_node, &title_label](TitleBar& title_bar) {
-          title_bar.HookUpWindowNode(window_node);
           title_bar.SetTitleLabelNode(title_label);
+          title_bar.HookUpWindowNode(window_node);
         },
         [&weak_title_bar](Node& node) {
           node.OnMouseButtonDown(

@@ -14,12 +14,17 @@
 
 #include "toasts.h"
 
-#include <algorithm>
-#include <cmath>
-#include <iostream>
-#include <memory>
-#include <vector>
+#ifdef TEST
 
+void InitializeToasts() {}
+void ShowToast(std::string_view, std::string_view) {}
+void DrawToasts(const ::perception::ui::Rectangle&) {}
+bool HandleToastClick(const ::perception::ui::Point&) { return false; }
+void UpdateToasts() {}
+void InvalidateAllToastsArea() {}
+bool IsMouseOverToast(const ::perception::ui::Point&) { return false; }
+
+#else
 #include "compositor.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
@@ -361,9 +366,9 @@ void EnsureToastTexture(Toast& toast, float opacity) {
       SkFontMetrics metrics;
       bold_font->getMetrics(&metrics);
       float title_y = (current_y / scale) - metrics.fAscent;
-      canvas->drawString(SkString(toast.title.data(), toast.title.length()),
-                         text_padding_left / scale, title_y, *bold_font,
-                         title_paint);
+      canvas->drawSimpleText(toast.title.data(), toast.title.length(),
+                             SkTextEncoding::kUTF8, text_padding_left / scale,
+                             title_y, *bold_font, title_paint);
       canvas->restore();
 
       current_y += kToastTitleHeight * scale;
@@ -388,9 +393,9 @@ void EnsureToastTexture(Toast& toast, float opacity) {
         SkFontMetrics metrics;
         book_font->getMetrics(&metrics);
         float msg_y = (current_y / scale) - metrics.fAscent;
-        canvas->drawString(SkString(line.data(), line.length()),
-                           text_padding_left / scale, msg_y, *book_font,
-                           text_paint);
+        canvas->drawSimpleText(line.data(), line.length(),
+                               SkTextEncoding::kUTF8, text_padding_left / scale,
+                               msg_y, *book_font, text_paint);
         canvas->restore();
 
         current_y += kToastTextLineHeight * scale;
@@ -558,3 +563,5 @@ bool HandleToastClick(const Point& mouse_position) {
 bool IsMouseOverToast(const Point& point) {
   return GetActiveToastAtPoint(point, WindowManager::GetScale()) != nullptr;
 }
+
+#endif  // TEST

@@ -36,21 +36,21 @@ enum class QuadRectangleStage {
 
 struct QuadRectangle
     : public ::perception::ui::QuadTree<QuadRectangle>::Object {
-  // The texture ID to copy to the output. May be 0 if we are a solid fill
+  // The texture ID to copy to the output. May be 0 if this is a solid fill
   // color.
-  size_t texture_id;
+  size_t texture_id = 0;
 
   // Coordinates in the texture to start copying from.
   ::perception::ui::Point texture_offset;
 
   // Fixed color to fill with, if texture_id = 0.
-  uint32 color;
+  uint32 color = 0;
 
   // The z-ordering, for alpha blended draws.
-  int z_index;
+  int z_index = 0;
 
   // The draw stage.
-  QuadRectangleStage stage;
+  QuadRectangleStage stage = QuadRectangleStage::OPAQUE_TO_SCREEN;
 
   // Is this a rectangle for a solid color?
   bool IsSolidColor() { return texture_id == 0; }

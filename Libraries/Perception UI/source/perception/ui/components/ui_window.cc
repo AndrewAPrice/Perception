@@ -54,6 +54,12 @@ namespace components {
 
 namespace {
 
+// Number of logical pixels to scroll per mouse wheel step.
+constexpr float kScrollPixelsPerWheelStep = 40.0f;
+
+// Default logical height of the system window buttons area.
+constexpr float kDefaultSystemButtonHeight = 24.0f;
+
 // Translate a screen-space point to be node-space.
 Point ScreenPointToNodePoint(std::shared_ptr<Node> target, Point point) {
   if (!target) return point;
@@ -143,14 +149,23 @@ sk_sp<SkColorSpace> GetGlobalColorSpace() {
 }  // namespace
 
 UiWindow::UiWindow()
-    : created_(false),
-      background_color_(kBackgroundWindowColor),
-      invalidated_(false),
+    : invalidated_(false),
+      created_(false),
+      is_resizable_(false),
+      fit_content_width_(false),
+      fit_content_height_(false),
       is_drawing_(false),
+      full_repaint_needed_(true),
+      dirty_rect_(std::nullopt),
+      last_logical_width_(0.0f),
+      last_logical_height_(0.0f),
+      background_color_(kBackgroundWindowColor),
+      next_focus_changed_handler_id_(1),
+      pixel_data_(nullptr),
       buffer_width_(0),
       buffer_height_(0),
-      pixel_data_(nullptr),
-      next_focus_changed_handler_id_(1) {
+      pressed_mouse_buttons_(0),
+      last_mouse_position_({.x = 0.0f, .y = 0.0f}) {
   static std::once_flag skia_init_flag;
   std::call_once(skia_init_flag, []() { SkGraphics::Init(); });
   EnsureGlobalColorSpaceInitialized();
@@ -247,7 +262,9 @@ void UiWindow::SetNode(std::weak_ptr<Node> node) {
   node_ = node;
   if (node_.expired()) return;
   auto strong_node = node_.lock();
-  strong_node->OnInvalidate(std::bind_front(&UiWindow::InvalidateRender, this));
+  strong_node->OnInvalidate([this](const std::optional<Rectangle>& dirty_area) {
+    InvalidateRender(dirty_area);
+  });
   InvalidateRender();
 }
 
@@ -272,6 +289,14 @@ void UiWindow::SetTitle(std::string_view title) {
   title_ = title;
 
   if (created_ && base_window_) base_window_->SetTitle(title);
+  for (auto& handler : on_title_changed_functions_) handler(title_);
+}
+
+std::string_view UiWindow::GetTitle() const { return title_; }
+
+void UiWindow::OnTitleChanged(
+    std::function<void(std::string_view)> on_title_changed) {
+  on_title_changed_functions_.push_back(std::move(on_title_changed));
 }
 
 void UiWindow::SetIsResizable(bool is_resizable) {
@@ -280,6 +305,32 @@ void UiWindow::SetIsResizable(bool is_resizable) {
 }
 
 bool UiWindow::IsResizable() const { return is_resizable_; }
+
+Size UiWindow::GetSystemButtonSize() const {
+  std::scoped_lock lock(window_mutex_);
+  if (!base_window_) {
+    return Size{
+        .width = is_resizable_ ? kTitleBarRightPaddingWithResizableButtons
+                               : kTitleBarRightPaddingWithNonResizableButtons,
+        .height = kDefaultSystemButtonHeight};
+  }
+  int physical_w = 0;
+  int physical_h = 0;
+  base_window_->GetSystemButtonSize(physical_w, physical_h);
+  float scale = GetScale();
+  return Size{.width = static_cast<float>(physical_w) / scale,
+              .height = static_cast<float>(physical_h) / scale};
+}
+
+void UiWindow::SetFitContent(bool width, bool height) {
+  if (created_) return;
+  fit_content_width_ = width;
+  fit_content_height_ = height;
+}
+
+bool UiWindow::FitsContentWidth() const { return fit_content_width_; }
+
+bool UiWindow::FitsContentHeight() const { return fit_content_height_; }
 
 void UiWindow::OnFocusChanged(std::function<void()> on_focus_changed) {
   (void)NotifyOnFocusChanged(on_focus_changed);
@@ -303,6 +354,8 @@ bool UiWindow::IsFocused() const {
 }
 
 void UiWindow::StartDragging() {
+  pressed_mouse_buttons_ = 0;
+  mouse_captured_node_.reset();
   if (base_window_) base_window_->StartDragging();
 }
 
@@ -391,6 +444,9 @@ void UiWindow::WindowResized() {
   float logical_width = (float)buffer_width_ / scale;
   float logical_height = (float)buffer_height_ / scale;
 
+  last_logical_width_ = logical_width;
+  last_logical_height_ = logical_height;
+
   Layout layout = node->GetLayout();
   layout.SetWidth(logical_width);
   layout.SetHeight(logical_height);
@@ -405,9 +461,10 @@ void UiWindow::WindowFocusChanged() {
   {
     std::scoped_lock lock(window_mutex_);
     if (!IsFocused()) {
-      if (base_window_ && base_window_->IsMouseCaptive()) {
+      pressed_mouse_buttons_ = 0;
+      mouse_captured_node_.reset();
+      if (base_window_ && base_window_->IsMouseCaptive())
         base_window_->SetCaptureMouse(false);
-      }
       if (auto node = GetFocusedNode()) {
         if (auto focusable = node->Get<Focusable>()) focusable->Unfocus();
       }
@@ -447,9 +504,20 @@ void UiWindow::MouseClicked(const window::MouseClickEvent& event) {
 
   float scale = GetScale();
   Point point{.x = (float)event.x / scale, .y = (float)event.y / scale};
+  last_mouse_position_ = point;
   MouseButton button = event.button;
+  uint8 button_mask = static_cast<uint8>(1u << static_cast<uint8>(button));
+  bool was_any_button_pressed = pressed_mouse_buttons_ != 0;
 
   if (event.was_pressed_down) {
+    pressed_mouse_buttons_ |= button_mask;
+    if (auto captured = mouse_captured_node_.lock();
+        captured && was_any_button_pressed) {
+      Point local_point = ScreenPointToNodePoint(captured, point);
+      captured->MouseButtonDown(local_point, button);
+      return;
+    }
+
     Focus();
     std::shared_ptr<Node> focusable_node = nullptr;
     std::shared_ptr<Node> clicked_node = nullptr;
@@ -476,10 +544,16 @@ void UiWindow::MouseClicked(const window::MouseClickEvent& event) {
                        node.MouseButtonDown(point_in_node, button);
                      });
   } else {
+    pressed_mouse_buttons_ &= ~button_mask;
     if (auto captured = mouse_captured_node_.lock()) {
       Point local_point = ScreenPointToNodePoint(captured, point);
       captured->MouseButtonUp(local_point, button);
-      mouse_captured_node_.reset();
+      if (pressed_mouse_buttons_ == 0) {
+        mouse_captured_node_.reset();
+        HandleMouseEvent(point, [](Node&, const Point&) {});
+      }
+    } else if (pressed_mouse_buttons_ == 0) {
+      HandleMouseEvent(point, [](Node&, const Point&) {});
     }
   }
 }
@@ -487,6 +561,8 @@ void UiWindow::MouseClicked(const window::MouseClickEvent& event) {
 void UiWindow::MouseLeft() {
   std::scoped_lock lock(window_mutex_);
 
+  pressed_mouse_buttons_ = 0;
+  mouse_captured_node_.reset();
   for (std::weak_ptr<Node> node : nodes_to_notify_when_mouse_leaves_) {
     if (!node.expired()) node.lock()->MouseLeave();
   }
@@ -497,6 +573,7 @@ void UiWindow::MouseHovered(const window::MouseHoverEvent& event) {
   std::scoped_lock lock(window_mutex_);
   float scale = GetScale();
   Point point{.x = (float)event.x / scale, .y = (float)event.y / scale};
+  last_mouse_position_ = point;
 
   std::optional<window::Cursor> active_cursor;
 
@@ -522,6 +599,23 @@ void UiWindow::MouseHovered(const window::MouseHoverEvent& event) {
     last_cursor_ = preferred_cursor;
     base_window_->SetCursor(preferred_cursor);
   }
+}
+
+void UiWindow::MouseScrolled(const window::MouseScrollEvent& event) {
+  std::scoped_lock lock(window_mutex_);
+  Point remaining_delta{.x = event.delta_x * kScrollPixelsPerWheelStep,
+                        .y = event.delta * kScrollPixelsPerWheelStep};
+  if (remaining_delta.x == 0.0f && remaining_delta.y == 0.0f) return;
+
+  GetNodesAt(last_mouse_position_,
+             [&remaining_delta](Node& node, const Point& point_in_node) {
+               if (remaining_delta.x == 0.0f && remaining_delta.y == 0.0f)
+                 return;
+               if (!node.HasOnMouseScroll()) return;
+               Point consumed =
+                   node.MouseScroll(point_in_node, remaining_delta);
+               remaining_delta -= consumed;
+             });
 }
 
 void UiWindow::PopulateDebuggingNodes(std::shared_ptr<Node> node) {
@@ -616,7 +710,30 @@ void UiWindow::Draw() {
   if (!invalidated_) return;
   invalidated_ = false;
   if (base_window_) {
-    base_window_->Present();
+    if (full_repaint_needed_ || !dirty_rect_.has_value()) {
+      full_repaint_needed_ = false;
+      dirty_rect_ = std::nullopt;
+      base_window_->Present();
+    } else {
+      float scale = GetScale();
+      int min_x = std::max(
+          0, static_cast<int>(std::floor(dirty_rect_->origin.x * scale)));
+      int min_y = std::max(
+          0, static_cast<int>(std::floor(dirty_rect_->origin.y * scale)));
+      int max_x = std::min(
+          buffer_width_,
+          static_cast<int>(std::ceil(
+              (dirty_rect_->origin.x + dirty_rect_->size.width) * scale)));
+      int max_y = std::min(
+          buffer_height_,
+          static_cast<int>(std::ceil(
+              (dirty_rect_->origin.y + dirty_rect_->size.height) * scale)));
+
+      dirty_rect_ = std::nullopt;
+      full_repaint_needed_ = false;
+      if (max_x > min_x && max_y > min_y)
+        base_window_->Present(window::Rectangle(min_x, min_y, max_x, max_y));
+    }
   }
 }
 
@@ -633,10 +750,20 @@ void UiWindow::GetNodesAt(
   (void)node->GetNodesAt(point, on_hit_node);
 }
 
-void UiWindow::InvalidateRender() {
-  if (invalidated_ && !is_drawing_) {
-    return;
+void UiWindow::InvalidateRender(const std::optional<Rectangle>& dirty_area) {
+  std::scoped_lock lock(window_mutex_);
+  if (!dirty_area.has_value()) {
+    full_repaint_needed_ = true;
+    dirty_rect_ = std::nullopt;
+  } else if (!full_repaint_needed_) {
+    if (dirty_rect_.has_value()) {
+      dirty_rect_ = dirty_rect_->Union(*dirty_area);
+    } else {
+      dirty_rect_ = *dirty_area;
+    }
   }
+
+  if (invalidated_ && !is_drawing_) return;
 
   invalidated_ = true;
 
@@ -683,38 +810,43 @@ void UiWindow::WindowDraw(const window::WindowDrawBuffer& buffer,
   draw_context.area = {
       .origin = {.x = 0.0f, .y = 0.0f},
       .size = {.width = logical_width, .height = logical_height}};
-  draw_context.clipping_bounds = draw_context.area;
 
-  if (background_color_) {
-    FillRectangle(0, 0, buffer_width_, buffer_height_, background_color_,
-                  draw_context.buffer, draw_context.buffer_width,
-                  draw_context.buffer_height);
-  }
+  float clip_min_x = (float)invalidated_area.min_x / scale;
+  float clip_min_y = (float)invalidated_area.min_y / scale;
+  float clip_max_x = (float)invalidated_area.max_x / scale;
+  float clip_max_y = (float)invalidated_area.max_y / scale;
+
+  draw_context.clipping_bounds = {
+      .origin = {.x = clip_min_x, .y = clip_min_y},
+      .size = {.width = std::max(0.0f, clip_max_x - clip_min_x),
+               .height = std::max(0.0f, clip_max_y - clip_min_y)}};
+
+  if (background_color_)
+    FillRectangle(invalidated_area.min_x, invalidated_area.min_y,
+                  invalidated_area.max_x, invalidated_area.max_y,
+                  background_color_, draw_context.buffer,
+                  draw_context.buffer_width, draw_context.buffer_height);
 
   Layout layout = node->GetLayout();
-  layout.SetWidth(logical_width);
-  layout.SetHeight(logical_height);
+  if (last_logical_width_ != logical_width ||
+      last_logical_height_ != logical_height) {
+    last_logical_width_ = logical_width;
+    last_logical_height_ = logical_height;
+    layout.SetWidth(logical_width);
+    layout.SetHeight(logical_height);
+  }
   layout.CalculateIfDirty(logical_width, logical_height);
 
-  float root_w = node->GetLayout().GetCalculatedWidth();
-  float root_h = node->GetLayout().GetCalculatedHeight();
-  if (root_w <= 0.0f || root_h <= 0.0f) {
-    std::cout << "[UI Window Warning] Root node has invalid calculated size: "
-              << root_w << "x" << root_h << std::endl;
-  }
-
   draw_context.skia_canvas->save();
+  draw_context.skia_canvas->clipRect(
+      SkRect::MakeLTRB(invalidated_area.min_x, invalidated_area.min_y,
+                       invalidated_area.max_x, invalidated_area.max_y));
   draw_context.skia_canvas->scale(scale, scale);
 
   is_drawing_ = true;
   node->Draw(draw_context);
   is_drawing_ = false;
   draw_context.skia_canvas->restore();
-
-  if (skia_surface_) {
-    SkPixmap pixmap;
-    skia_surface_->peekPixels(&pixmap);
-  }
 }
 
 void UiWindow::Create() {
@@ -746,10 +878,21 @@ void UiWindow::Create() {
       height.unit == YGUnitAuto || height.value <= 0 ? YGUndefined
                                                      : height.value);
   float scale = GetScale();
-  options.prefered_width = static_cast<int>(
+  int calculated_width = static_cast<int>(
       std::round(layout.GetCalculatedWidthWithMargin() * scale));
-  options.prefered_height = static_cast<int>(
+  int calculated_height = static_cast<int>(
       std::round(layout.GetCalculatedHeightWithMargin() * scale));
+
+  if (is_resizable_) {
+    if ((width.unit == YGUnitAuto || width.value <= 0) && !fit_content_width_)
+      calculated_width = 0;
+    if ((height.unit == YGUnitAuto || height.value <= 0) &&
+        !fit_content_height_)
+      calculated_height = 0;
+  }
+
+  options.prefered_width = calculated_width;
+  options.prefered_height = calculated_height;
 
   base_window_ = window::Window::CreateWindow(options);
   if (base_window_) {
@@ -780,27 +923,34 @@ void UiWindow::HandleMouseEvent(
     const Point& point,
     const std::function<void(Node& node, const Point& point_in_node)>&
         on_each_node) {
-  std::set<std::weak_ptr<Node>, NodeWeakPtrComparator>
-      new_nodes_to_notify_when_mouse_leaves;
+  std::vector<std::weak_ptr<Node>> new_nodes_to_notify_when_mouse_leaves;
   std::vector<std::pair<std::shared_ptr<Node>, Point>> hit_nodes;
 
   GetNodesAt(point, [&new_nodes_to_notify_when_mouse_leaves, &hit_nodes,
                      this](Node& node, const Point& point_in_node) {
     hit_nodes.push_back({node.ToSharedPtr(), point_in_node});
     if (node.DoesHandleMouseLeaveEvents())
-      new_nodes_to_notify_when_mouse_leaves.insert(node.ToSharedPtr());
+      new_nodes_to_notify_when_mouse_leaves.push_back(node.ToSharedPtr());
   });
 
-  for (const auto& [node, point_in_node] : hit_nodes) {
+  for (const auto& [node, point_in_node] : hit_nodes)
     on_each_node(*node, point_in_node);
-  }
 
-  for (std::weak_ptr<Node> node : nodes_to_notify_when_mouse_leaves_) {
-    if (new_nodes_to_notify_when_mouse_leaves.count(node) == 0) {
-      if (!node.expired()) node.lock()->MouseLeave();
+  for (const std::weak_ptr<Node>& old_node_weak :
+       nodes_to_notify_when_mouse_leaves_) {
+    auto old_node = old_node_weak.lock();
+    if (!old_node) continue;
+    bool still_hovered = false;
+    for (const auto& new_node_weak : new_nodes_to_notify_when_mouse_leaves) {
+      if (new_node_weak.lock() == old_node) {
+        still_hovered = true;
+        break;
+      }
     }
+    if (!still_hovered) old_node->MouseLeave();
   }
-  nodes_to_notify_when_mouse_leaves_ = new_nodes_to_notify_when_mouse_leaves;
+  nodes_to_notify_when_mouse_leaves_ =
+      std::move(new_nodes_to_notify_when_mouse_leaves);
 }
 
 }  // namespace components

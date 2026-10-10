@@ -124,6 +124,39 @@ class UiWindow : public window::WindowDelegate,
     };
   }
 
+  // Modifier to size both dimensions of a resizable window to fit its content.
+  static auto FitContent() {
+    return [](UiWindow& window) { window.SetFitContent(true, true); };
+  }
+
+  // Modifier to size a specific dimension of a resizable window to fit its
+  // content.
+  static auto FitContent(YGDimension dimension) {
+    return [dimension](UiWindow& window) {
+      if (dimension == YGDimensionWidth)
+        window.SetFitContent(true, window.FitsContentHeight());
+      else if (dimension == YGDimensionHeight)
+        window.SetFitContent(window.FitsContentWidth(), true);
+    };
+  }
+
+  // Modifier to remove the built in edge padding and gap of a window, so the
+  // content is flush with the window edges and the title or tab bar. Must be
+  // applied after the title or tab bar has been added to the window.
+  static auto NoPadding() {
+    return [](Node& node) {
+      Layout layout = node.GetLayout();
+      layout.SetPadding(YGEdgeAll, 0.0f);
+      layout.SetGap(0.0f);
+      for (const auto& child : node.GetChildren()) {
+        if (!child->Get<TitleBar>() && !child->Get<TabBar>()) continue;
+        Layout child_layout = child->GetLayout();
+        for (auto edge : {YGEdgeTop, YGEdgeLeft, YGEdgeRight})
+          child_layout.SetMargin(edge, 0.0f);
+      }
+    };
+  }
+
   UiWindow();
   virtual ~UiWindow();
 
@@ -142,9 +175,15 @@ class UiWindow : public window::WindowDelegate,
                                          float new_scale);
   void OnClose(std::function<void()> on_close_handler);
   void SetTitle(std::string_view title);
+  std::string_view GetTitle() const;
+  void OnTitleChanged(std::function<void(std::string_view)> on_title_changed);
   void SetIsResizable(bool is_resizable);
   void OnResize(std::function<void()> on_resize_handler);
   bool IsResizable() const;
+  Size GetSystemButtonSize() const;
+  void SetFitContent(bool width, bool height);
+  bool FitsContentWidth() const;
+  bool FitsContentHeight() const;
   void FocusOnNode();
   void OnFocusChanged(std::function<void()> on_focus_changed);
   uint64 NotifyOnFocusChanged(std::function<void()> on_focus_changed);
@@ -187,6 +226,8 @@ class UiWindow : public window::WindowDelegate,
 
   virtual void MouseMoved(const window::MouseMoveEvent& event) override;
 
+  virtual void MouseScrolled(const window::MouseScrollEvent& event) override;
+
   virtual window::DebugUiHierarchy GetUiHierarchy() override;
   virtual window::TweakUiResponse TweakUi(
       const window::TweakUiRequest& request) override;
@@ -194,22 +235,22 @@ class UiWindow : public window::WindowDelegate,
   virtual void KeyPressed(const window::KeyboardKeyEvent& event) override;
   virtual void KeyReleased(const window::KeyboardKeyEvent& event) override;
 
-  void InvalidateRender();
+  // Requests a redraw of the window. If dirty_area is provided, only that region
+  // is repainted to the backbuffer and presented; otherwise a full repaint is performed.
+  void InvalidateRender(
+      const std::optional<Rectangle>& dirty_area = std::nullopt);
 
  private:
-  struct NodeWeakPtrComparator {
-    bool operator()(const std::weak_ptr<Node>& a,
-                    const std::weak_ptr<Node>& b) const {
-      if (a.expired() || b.expired()) return b.owner_before(a);
-
-      return a.lock() < b.lock();
-    }
-  };
-
   bool invalidated_;
   bool created_;
   bool is_resizable_;
+  bool fit_content_width_;
+  bool fit_content_height_;
   bool is_drawing_;
+  bool full_repaint_needed_;
+  std::optional<Rectangle> dirty_rect_;
+  float last_logical_width_;
+  float last_logical_height_;
 
   void Create();
 
@@ -221,6 +262,8 @@ class UiWindow : public window::WindowDelegate,
   uint32 background_color_;
   std::vector<std::function<void()>> on_close_functions_;
   std::vector<std::function<void()>> on_resize_functions_;
+  std::vector<std::function<void(std::string_view)>>
+      on_title_changed_functions_;
   std::unordered_map<uint64, std::function<void()>> on_focus_changed_functions_;
   uint64 next_focus_changed_handler_id_;
 
@@ -236,12 +279,13 @@ class UiWindow : public window::WindowDelegate,
 
   mutable std::recursive_mutex window_mutex_;
 
-  std::set<std::weak_ptr<Node>, NodeWeakPtrComparator>
-      nodes_to_notify_when_mouse_leaves_;
+  std::vector<std::weak_ptr<Node>> nodes_to_notify_when_mouse_leaves_;
 
   std::optional<window::Cursor> last_cursor_;
 
   std::weak_ptr<Node> mouse_captured_node_;
+  uint8 pressed_mouse_buttons_;
+  Point last_mouse_position_;
 
   std::unordered_map<uint64, std::weak_ptr<Node>> debugging_nodes_by_id_;
   void PopulateDebuggingNodes(std::shared_ptr<Node> node);

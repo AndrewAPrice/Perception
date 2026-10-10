@@ -41,12 +41,15 @@ using ::perception::devices::GraphicsDevice;
 using ::perception::ui::Point;
 using ::perception::ui::Rectangle;
 
-uint32 background_color = 0xFF4E98FF;
-
 namespace {
 
-bool has_invalidated_area;
-Rectangle invalidated_area;
+// Default desktop background color (opaque blue).
+constexpr uint32 kDefaultBackgroundColor = 0xFF4E98FF;
+
+// Maximum number of disjoint dirty rectangles tracked simultaneously.
+constexpr size_t kMaxDisjointInvalidatedAreas = 8;
+
+std::vector<Rectangle> invalidated_areas;
 
 CompositorQuadTree quad_tree;
 
@@ -56,6 +59,8 @@ int z_index;
 bool is_screen_blanked = false;
 
 }  // namespace
+
+uint32 background_color = kDefaultBackgroundColor;
 
 namespace {
 
@@ -130,6 +135,72 @@ void PopulateCommandsForRectangle(QuadRectangle& rectangle,
   }
 }
 
+// Merges consecutive compatible FILL_RECTANGLE or COPY_PART_OF_A_TEXTURE
+// commands that share an edge (horizontally or vertically) into a single
+// larger command. Quad tree occlusion splitting can fragment a surface into
+// many adjacent sub-rectangles, so coalescing them reduces IPC overhead and
+// per-command dispatch cost in the graphics driver.
+void CoalesceCommands(std::vector<graphics::Command>& commands) {
+  if (commands.size() <= 1) return;
+  std::vector<graphics::Command> optimized;
+  optimized.reserve(commands.size());
+
+  for (auto& cmd : commands) {
+    if (optimized.empty()) {
+      optimized.push_back(std::move(cmd));
+      continue;
+    }
+
+    auto& prev = optimized.back();
+    if (prev.type == graphics::Command::Type::FILL_RECTANGLE &&
+        cmd.type == graphics::Command::Type::FILL_RECTANGLE) {
+      auto& p_params = *prev.fill_rectangle_parameters;
+      auto& c_params = *cmd.fill_rectangle_parameters;
+      if (p_params.color == c_params.color) {
+        if (p_params.destination.top == c_params.destination.top &&
+            p_params.size.height == c_params.size.height &&
+            p_params.destination.left + p_params.size.width ==
+                c_params.destination.left) {
+          p_params.size.width += c_params.size.width;
+          continue;
+        }
+        if (p_params.destination.left == c_params.destination.left &&
+            p_params.size.width == c_params.size.width &&
+            p_params.destination.top + p_params.size.height ==
+                c_params.destination.top) {
+          p_params.size.height += c_params.size.height;
+          continue;
+        }
+      }
+    } else if (prev.type == graphics::Command::Type::COPY_PART_OF_A_TEXTURE &&
+               cmd.type == graphics::Command::Type::COPY_PART_OF_A_TEXTURE) {
+      auto& p_params = *prev.copy_part_of_texture_parameters;
+      auto& c_params = *cmd.copy_part_of_texture_parameters;
+      if (p_params.destination.top == c_params.destination.top &&
+          p_params.size.height == c_params.size.height &&
+          p_params.destination.left + p_params.size.width ==
+              c_params.destination.left &&
+          p_params.source.top == c_params.source.top &&
+          p_params.source.left + p_params.size.width ==
+              c_params.source.left) {
+        p_params.size.width += c_params.size.width;
+        continue;
+      }
+      if (p_params.destination.left == c_params.destination.left &&
+          p_params.size.width == c_params.size.width &&
+          p_params.destination.top + p_params.size.height ==
+              c_params.destination.top &&
+          p_params.source.left == c_params.source.left &&
+          p_params.source.top + p_params.size.height == c_params.source.top) {
+        p_params.size.height += c_params.size.height;
+        continue;
+      }
+    }
+    optimized.push_back(std::move(cmd));
+  }
+  commands = std::move(optimized);
+}
+
 }  // namespace
 
 void DrawBackground(const Rectangle& screen_area) {
@@ -142,7 +213,7 @@ void UpdateBackgroundColor() {
   if (val_or.Ok()) {
     auto val = *val_or;
     if (val.GetType() == ::perception::serialization::Value::Type::COLOR_RGB) {
-      uint32 new_color = val.ColorRGBValue().value_or(0xFF4E98FF);
+      uint32 new_color = val.ColorRGBValue().value_or(kDefaultBackgroundColor);
       if (new_color != background_color) {
         background_color = new_color;
         InvalidateScreen(Rectangle{.size = GetScreenSize()});
@@ -153,51 +224,87 @@ void UpdateBackgroundColor() {
 }
 
 void InitializeCompositor() {
-  has_invalidated_area = false;
+  invalidated_areas.clear();
   z_index = 0;
 }
 
 void InvalidateScreen(const Rectangle& screen_area) {
   Rectangle rounded_area = screen_area.RoundedToLargestWholeInteger();
-  if (has_invalidated_area) {
-    invalidated_area = invalidated_area.Union(rounded_area);
+  Rectangle screen_rectangle{.origin = {0, 0}, .size = GetScreenSize()};
+  auto opt_clipped = rounded_area.Intersection(screen_rectangle);
+  if (!opt_clipped || opt_clipped->Width() <= 0 || opt_clipped->Height() <= 0)
+    return;
+  Rectangle clipped = *opt_clipped;
+
+  // Check if this rectangle overlaps with any existing invalidated area.
+  for (size_t i = 0; i < invalidated_areas.size(); i++) {
+    if (invalidated_areas[i].Intersects(clipped)) {
+      invalidated_areas[i] = invalidated_areas[i].Union(clipped);
+      // See if the newly expanded area now intersects any other area.
+      for (size_t j = i + 1; j < invalidated_areas.size();) {
+        if (invalidated_areas[i].Intersects(invalidated_areas[j])) {
+          invalidated_areas[i] =
+              invalidated_areas[i].Union(invalidated_areas[j]);
+          invalidated_areas.erase(invalidated_areas.begin() + j);
+        } else {
+          j++;
+        }
+      }
+      return;
+    }
+  }
+
+  if (invalidated_areas.size() < kMaxDisjointInvalidatedAreas) {
+    invalidated_areas.push_back(clipped);
   } else {
-    invalidated_area = rounded_area;
-    has_invalidated_area = true;
+    // Merge into the area that results in the smallest union increase.
+    size_t best_idx = 0;
+    float best_area_increase = 1e18f;
+    for (size_t i = 0; i < invalidated_areas.size(); i++) {
+      float original_area =
+          invalidated_areas[i].Width() * invalidated_areas[i].Height();
+      Rectangle combined = invalidated_areas[i].Union(clipped);
+      float new_area = combined.Width() * combined.Height();
+      float increase = new_area - original_area;
+      if (increase < best_area_increase) {
+        best_area_increase = increase;
+        best_idx = i;
+      }
+    }
+    invalidated_areas[best_idx] = invalidated_areas[best_idx].Union(clipped);
   }
 }
 
 void DrawScreen() {
-  if (!has_invalidated_area) return;
+  if (invalidated_areas.empty()) return;
   if (IsSystemSleeping() && is_screen_blanked) return;
 
   SleepUntilWeAreReadyToStartDrawing();
+  if (invalidated_areas.empty()) return;
+  if (IsSystemSleeping() && is_screen_blanked) return;
 
-  has_invalidated_area = false;
-
-  Rectangle screen_rectangle{.origin = {0, 0}, .size = GetScreenSize()};
-  auto opt_draw_area = invalidated_area.Intersection(screen_rectangle);
-  if (!opt_draw_area) return;
-  Rectangle& draw_area = *opt_draw_area;
-
-  if (draw_area.Width() <= 0 || draw_area.Height() <= 0) return;
+  std::vector<Rectangle> draw_areas = std::move(invalidated_areas);
+  invalidated_areas.clear();
 
   if (IsSystemSleeping()) {
-    DrawOpaqueColor(draw_area, 0xFF000000);
+    for (const auto& draw_area : draw_areas)
+      DrawOpaqueColor(draw_area, 0xFF000000);
     is_screen_blanked = true;
   } else {
     is_screen_blanked = false;
-    DrawBackground(draw_area);
+    for (const auto& draw_area : draw_areas) {
+      DrawBackground(draw_area);
 
-    (void)Window::ForEachBackToFrontWindow([&](Window& window) {
-      window.Draw(draw_area);
-      return false;
-    });
-    // Prep the overlays for drawing, which will mark which areas need to be
-    // drawn to the window manager's texture and not directly to the screen.
-    DrawHighlighter(draw_area);
-    DrawToasts(draw_area);
-    DrawMouse(draw_area);
+      (void)Window::ForEachBackToFrontWindow([&](Window& window) {
+        window.Draw(draw_area);
+        return false;
+      });
+      // Prep the overlays for drawing, which will mark which areas need to be
+      // drawn to the window manager's texture and not directly to the screen.
+      DrawHighlighter(draw_area);
+      DrawToasts(draw_area);
+      DrawMouse(draw_area);
+    }
   }
 
   // There are 3 stages of commands to construct:
@@ -265,6 +372,11 @@ void DrawScreen() {
                                  texture_drawing_into_window_manager,
                                  /*alpha_blend=*/true);
   }
+
+  // Coalesce adjacent commands before submission.
+  CoalesceCommands(draw_into_wm_texture_commands);
+  CoalesceCommands(draw_wm_into_framebuffer_commands);
+  CoalesceCommands(draw_into_framebuffer_commands);
 
   // Merge all the draw commands together.
   graphics::Commands commands;
@@ -355,6 +467,7 @@ void CopyOpaqueTexture(const Rectangle& screen_area, size_t texture_id,
         rectangle.bounds = clipped;
         rectangle.texture_id = texture_id;
         rectangle.texture_offset = adjusted_offset;
+        rectangle.color = 0;
       });
 }
 
@@ -372,5 +485,6 @@ void CopyAlphaBlendedTexture(const Rectangle& screen_area, size_t texture_id,
         rectangle.bounds = clipped;
         rectangle.texture_id = texture_id;
         rectangle.texture_offset = adjusted_offset;
+        rectangle.color = 0;
       });
 }

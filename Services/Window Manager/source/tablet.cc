@@ -53,6 +53,13 @@ class WMTabletListener : public TabletListener::Server {
     ProcessMouseButtonEvent(message);
     return Status::OK;
   }
+
+  Status TabletScroll(
+      const ::perception::devices::RelativeMousePositionEvent& message)
+      override {
+    ProcessMouseScrollEvent(message);
+    return Status::OK;
+  }
 };
 
 std::unique_ptr<WMTabletListener> tablet_listener;

@@ -14,6 +14,7 @@
 
 #include "perception/ui/components/title_bar.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "perception/ui/components/ui_window.h"
@@ -48,6 +49,26 @@ void TitleBar::HookUpWindowNode(Node& window_node) {
 
     strong_this->WindowChangedFocus(*strong_window_node->GetOrAdd<UiWindow>());
   });
+  ui_window->OnTitleChanged([weak_this](std::string_view new_title) {
+    auto strong_this = weak_this.lock();
+    if (!strong_this) return;
+
+    if (auto title_label_node = strong_this->title_label_node_.lock())
+      title_label_node->GetOrAdd<Label>()->SetText(new_title);
+  });
+  ui_window->OnResize([weak_this]() {
+    auto strong_this = weak_this.lock();
+    if (!strong_this) return;
+
+    auto strong_window_node = strong_this->window_node_.lock();
+    if (!strong_window_node) return;
+
+    auto node = strong_this->node_.lock();
+    if (!node) return;
+
+    node->GetLayout().SetPadding(
+        YGEdgeRight, RightPaddingForWindowNode(*strong_window_node));
+  });
 }
 
 void TitleBar::StartDraggingWindow() {
@@ -65,9 +86,8 @@ float TitleBar::RightPaddingForWindowNode(Node& window_node) {
   auto ui_window = window_node.Get<UiWindow>();
   if (!ui_window) return kTitleBarRightPaddingWithoutButtons;
 
-  return ui_window->IsResizable()
-             ? kTitleBarRightPaddingWithResizableButtons
-             : kTitleBarRightPaddingWithNonResizableButtons;
+  return std::max(ui_window->GetSystemButtonSize().width,
+                  kTitleBarRightPaddingWithoutButtons);
 }
 
 void TitleBar::WindowChangedFocus(UiWindow& window) {
