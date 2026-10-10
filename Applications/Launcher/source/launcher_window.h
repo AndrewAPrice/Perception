@@ -18,5 +18,8 @@
 // Shows the launcher window, if it's not already opened.
 void ShowLauncherWindow();
 
+// Closes the launcher window, if it's currently opened.
+void CloseLauncherWindow();
+
 // Switches the launcher window to a particular tab.
 void SwitchToTab(Tab tab);

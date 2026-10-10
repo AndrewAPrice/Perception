@@ -186,9 +186,12 @@ void LaunchClockProgram() {
   request.name = clock_program;
   GetService<::perception::Loader>().LaunchApplication(
       request, [](StatusOr<::perception::LoadApplicationResponse> response) {
-        if (!response.Ok())
+        if (response.Ok()) {
+          CloseLauncherWindow();
+        } else {
           std::cout << "Failed to launch clock program: "
                     << (int)response.Status() << std::endl;
+        }
       });
 }
 
@@ -403,4 +406,9 @@ void ShowLauncherWindow() {
 
   for (auto fiber : waiting_window_fibers) fiber->WakeUp();
   waiting_window_fibers.clear();
+}
+
+void CloseLauncherWindow() {
+  if (!launcher_window) return;
+  if (auto ui_window = launcher_window->Get<UiWindow>()) ui_window->Close();
 }
