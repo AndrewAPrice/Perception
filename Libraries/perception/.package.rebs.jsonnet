@@ -35,6 +35,7 @@
     'source/perception/registry_service.cc',
     'source/perception/registry.cc',
     'source/perception/clipboard.cc',
+    'source/perception/power.cc',
   ]
 } else {
   files_to_ignore: [
