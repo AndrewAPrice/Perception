@@ -40,6 +40,8 @@ class MemoryReadStream : public ReadStream {
 
   virtual bool ContainsAtLeast(size_t bytes) override;
 
+  virtual size_t RemainingBytes() const override;
+
   virtual void SkipForward(size_t size) override;
   virtual void ReadSubStream(size_t size,
                              const std::function<void(ReadStream& sub_stream)>&

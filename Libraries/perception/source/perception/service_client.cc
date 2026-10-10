@@ -52,13 +52,14 @@ void ServiceClient::StopNotifyingOnDisappearance(MessageId message_id) {
 
 void ServiceClient::MaybeHandleUnexpectedMemoryInResponse(
     ProcessId process_id, const MessageData& message) {
-  if (message.param2 == SIZE_MAX) return;
+  if (message.param2 == SIZE_MAX || message.param2 == 0) return;
 
   // If there is a message attached, but it's not needed, so clear the
   // status bit.
   auto shared_memory =
       GetMemoryBufferForReceivingFromProcess(process_id, message.param2);
-  SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+  if (shared_memory)
+    SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
 }
 
 void ServiceClient::PrepareRequestMessage(size_t method_id,

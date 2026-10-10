@@ -74,4 +74,16 @@ void GetNamespacesResponse::Serialize(serialization::Serializer& serializer) {
   serializer.ArrayOfSerializables("namespaces", namespaces);
 }
 
+void RegistryKeyValue::Serialize(serialization::Serializer& serializer) {
+  serializer.String("key", key);
+  serializer.Serializable("value", value);
+}
+
+void SetRegistryValuesRequest::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.Enum("corpus", corpus);
+  serializer.String("namespace", r_namespace);
+  serializer.ArrayOfSerializables("values", values);
+}
+
 }  // namespace perception

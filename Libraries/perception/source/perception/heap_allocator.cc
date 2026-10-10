@@ -32,30 +32,44 @@ void liballoc_unlock() {
 }
 
 tlsf_t g_tlsf = nullptr;
+// Size of a virtual memory page in bytes.
 constexpr size_t kPageSize = 4096;
-constexpr size_t kPagesPerChunk = 256; // Allocate 1MB at a time
+// Number of pages to allocate per heap expansion chunk (1MB).
+constexpr size_t kPagesPerChunk = 256;
+// Extra padding bytes added when expanding the heap pool.
+constexpr size_t kHeapPoolExtraPadding = 128;
+// Reserved overhead bytes subtracted when registering a pool with TLSF.
+constexpr size_t kTlsfPoolAlignmentOverhead = 32;
 
 bool ExpandHeap(size_t minimum_size) {
   size_t pages = kPagesPerChunk;
-  size_t needed_bytes = minimum_size * 2 + tlsf_pool_overhead() + tlsf_alloc_overhead() + 128;
-  if (g_tlsf == nullptr) {
-    needed_bytes += tlsf_size();
-  }
-  size_t needed_pages = (needed_bytes + kPageSize - 1) / kPageSize;
-  if (needed_pages > pages) {
+  size_t doubled_size = 0;
+  if (__builtin_mul_overflow(minimum_size, 2, &doubled_size))
+    return false;
+  size_t overhead =
+      tlsf_pool_overhead() + tlsf_alloc_overhead() + kHeapPoolExtraPadding;
+  if (g_tlsf == nullptr)
+    overhead += tlsf_size();
+  size_t needed_bytes = 0;
+  if (__builtin_add_overflow(doubled_size, overhead, &needed_bytes))
+    return false;
+  size_t rounded_bytes = 0;
+  if (__builtin_add_overflow(needed_bytes, kPageSize - 1, &rounded_bytes))
+    return false;
+  size_t needed_pages = rounded_bytes / kPageSize;
+  if (needed_pages > pages)
     pages = needed_pages;
-  }
 
   void* mem = ::perception::AllocateMemoryPages(pages);
-  if (mem == nullptr) {
+  if (mem == nullptr)
     return false;
-  }
   if (g_tlsf == nullptr) {
-    g_tlsf = tlsf_create_with_pool(mem, pages * kPageSize - 32);
+    g_tlsf =
+        tlsf_create_with_pool(mem, pages * kPageSize - kTlsfPoolAlignmentOverhead);
     return g_tlsf != nullptr;
   } else {
-    pool_t pool = tlsf_add_pool(
-        g_tlsf, mem, pages * kPageSize - 32);
+    pool_t pool =
+        tlsf_add_pool(g_tlsf, mem, pages * kPageSize - kTlsfPoolAlignmentOverhead);
     return pool != nullptr;
   }
 }
@@ -109,11 +123,12 @@ void* realloc(void* ptr, size_t size) {
 }
 
 void* calloc(size_t nmemb, size_t size) {
-  size_t total = nmemb * size;
-  void* ptr = malloc(total);
-  if (ptr != nullptr) {
-    std::memset(ptr, 0, total);
-  }
+  size_t total_size = 0;
+  if (__builtin_mul_overflow(nmemb, size, &total_size))
+    return nullptr;
+  void* ptr = malloc(total_size);
+  if (ptr != nullptr)
+    std::memset(ptr, 0, total_size);
   return ptr;
 }
 

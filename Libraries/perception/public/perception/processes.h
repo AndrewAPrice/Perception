@@ -99,10 +99,10 @@ bool CreateChildProcess(std::string_view name, size_t bitfield, ProcessId& pid);
 void SetChildProcessMemoryPages(ProcessId& child_pid, size_t source_address,
                                 size_t destination_address, size_t page_count);
 
-// Creates a thread in the a child process. The child process will begin
-// executing and will no longer terminate if the creator terminates.
+// Creates a thread in a child process. The child process will begin executing
+// and will be reparented to `new_parent_pid` (or detached if 0).
 void StartExecutingChildProcess(ProcessId& child_pid, size_t entry_address,
-                                size_t params);
+                                size_t params, ProcessId new_parent_pid = 0);
 
 // Destroys a child process that hasn't began executing.
 void DestroyChildProcess(ProcessId& child_pid);

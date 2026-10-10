@@ -29,9 +29,10 @@ class TabletHoverEvent : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
-#define METHOD_LIST(X)                      \
-  X(1, TabletHover, void, TabletHoverEvent) \
-  X(2, TabletButton, void, MouseButtonEvent)
+#define METHOD_LIST(X)                               \
+  X(1, TabletHover, void, TabletHoverEvent)          \
+  X(2, TabletButton, void, MouseButtonEvent)         \
+  X(3, TabletScroll, void, RelativeMousePositionEvent)
 
 DEFINE_PERCEPTION_SERVICE(TabletListener, "perception.devices.TabletListener",
                           METHOD_LIST)

@@ -17,6 +17,8 @@
 
 #include <types.h>
 
+#include <algorithm>
+#include <climits>
 #include <string>
 
 #include "perception/serialization/memory_read_stream.h"
@@ -28,14 +30,21 @@ namespace perception {
 namespace serialization {
 
 namespace {
+// Sentinel value indicating that the end of the stream has been reached and no
+// more fields are present.
+constexpr int kEndOfStreamFieldIndex = -1;
+
+// Maximum shift in bits when decoding a 64-bit variable-length integer.
+constexpr unsigned int kMaxVarIntShift = 70;
+
 uint64 ReadVariableLengthIntegerFromStream(ReadStream& read_stream) {
   uint64_t result = 0;
   unsigned int shift = 0;
 
   while (true) {
-    if (shift >= 70) {
+    if (shift >= kMaxVarIntShift || read_stream.HasReachedEndOfStream()) {
       // An encoded 64-bit integer can be at most 10 bytes long (since 10 * 7 =
-      // 70 bits). If the result is shift more than 63 bits, the data is
+      // 70 bits). If the result is shifted more than 63 bits, the data is
       // malformed or represents a number larger than uint64_t.
       return result;
     }
@@ -43,20 +52,27 @@ uint64 ReadVariableLengthIntegerFromStream(ReadStream& read_stream) {
     uint8_t byte;
     read_stream.CopyDataOutOfStream(&byte, 1);
 
-    // 1. Take the lower 7 bits of the byte.
-    // 2. Cast to uint64_t to prevent overflow during the left shift.
-    // 3. Shift the 7 bits into their correct position in the result.
-    // 4. Use bitwise OR to combine with previously processed bits.
+    // Take the lower 7 bits of the byte, cast to uint64_t to prevent overflow
+    // during the left shift, shift the 7 bits into their correct position in
+    // the result, and combine with previously processed bits.
     result |= static_cast<uint64_t>(byte & 0x7F) << shift;
 
     // Check the continuation bit (MSB). If it's 0, this is the last byte.
-    if ((byte & 0x80) == 0) {
+    if ((byte & 0x80) == 0)
       return result;
-    }
 
     // Increment shift for the next 7-bit chunk.
     shift += 7;
   }
+}
+
+int ReadNextFieldIndexFromStream(ReadStream& read_stream) {
+  if (read_stream.HasReachedEndOfStream())
+    return kEndOfStreamFieldIndex;
+  uint64 field_index = ReadVariableLengthIntegerFromStream(read_stream);
+  if (field_index > static_cast<uint64>(INT_MAX))
+    return kEndOfStreamFieldIndex;
+  return static_cast<int>(field_index);
 }
 
 class BinaryDeserializer : public Serializer {
@@ -64,7 +80,7 @@ class BinaryDeserializer : public Serializer {
   BinaryDeserializer(ReadStream* read_stream)
       : read_stream_(read_stream),
         current_field_index_(0),
-        next_field_index_in_stream_(ReadVariableLengthInteger()) {}
+        next_field_index_in_stream_(ReadNextFieldIndex()) {}
 
   virtual bool HasThisField(std::string_view name = "") override {
     return next_field_index_in_stream_ == current_field_index_;
@@ -78,7 +94,7 @@ class BinaryDeserializer : public Serializer {
   virtual void Integer() override {
     if (HasThisField()) {
       (void)ReadVariableLengthInteger();
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     }
     current_field_index_++;
   }
@@ -86,7 +102,7 @@ class BinaryDeserializer : public Serializer {
   virtual void UnsignedInteger(std::string_view name, uint64& value) override {
     if (HasThisField()) {
       value = ReadVariableLengthInteger();
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     } else {
       value = 0;
     }
@@ -96,7 +112,7 @@ class BinaryDeserializer : public Serializer {
   virtual void SignedInteger(std::string_view name, int64& value) override {
     if (HasThisField()) {
       value = ReadVariableLengthSignedInteger();
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     } else {
       value = 0;
     }
@@ -106,7 +122,7 @@ class BinaryDeserializer : public Serializer {
   virtual void Float() override {
     if (HasThisField()) {
       read_stream_->SkipForward(sizeof(float));
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     }
     current_field_index_++;
   }
@@ -114,7 +130,7 @@ class BinaryDeserializer : public Serializer {
   virtual void Float(std::string_view name, float& value) override {
     if (HasThisField()) {
       read_stream_->CopyDataOutOfStream(&value, sizeof(float));
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     } else {
       value = 0;
     }
@@ -124,7 +140,7 @@ class BinaryDeserializer : public Serializer {
   virtual void Double() override {
     if (HasThisField()) {
       read_stream_->SkipForward(sizeof(double));
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     }
     current_field_index_++;
   }
@@ -132,7 +148,7 @@ class BinaryDeserializer : public Serializer {
   virtual void Double(std::string_view name, double& value) override {
     if (HasThisField()) {
       read_stream_->CopyDataOutOfStream(&value, sizeof(double));
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     } else {
       value = 0;
     }
@@ -143,7 +159,7 @@ class BinaryDeserializer : public Serializer {
     if (HasThisField()) {
       uint64 string_length = ReadVariableLengthInteger();
       read_stream_->SkipForward(string_length);
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     }
     current_field_index_++;
   }
@@ -151,9 +167,13 @@ class BinaryDeserializer : public Serializer {
   virtual void String(std::string_view name, std::string& str) override {
     if (HasThisField()) {
       uint64 string_length = ReadVariableLengthInteger();
-      str.resize(string_length);
-      read_stream_->CopyDataOutOfStream(&str[0], string_length);
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      size_t clamped_length = static_cast<size_t>(
+          std::min<uint64>(string_length, read_stream_->RemainingBytes()));
+      str.resize(clamped_length);
+      read_stream_->CopyDataOutOfStream(&str[0], clamped_length);
+      if (string_length > clamped_length)
+        read_stream_->SkipForward(string_length - clamped_length);
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     } else {
       str.clear();
     }
@@ -166,7 +186,7 @@ class BinaryDeserializer : public Serializer {
       uint32 size;
       read_stream_->CopyDataOutOfStream(&size, 4);
       read_stream_->SkipForward(size);
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     }
     current_field_index_++;
   }
@@ -180,7 +200,7 @@ class BinaryDeserializer : public Serializer {
         BinaryDeserializer sub_serializer(&sub_stream);
         obj.Serialize(sub_serializer);
       });
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     } else {
       read_stream_->ReadSubStream(0, [&obj](ReadStream& sub_stream) {
         BinaryDeserializer sub_serializer(&sub_stream);
@@ -213,7 +233,11 @@ class BinaryDeserializer : public Serializer {
       // or it attemps to read past the end of the array.
       read_stream_->ReadSubStream(size, [&deserialization_function](
                                             ReadStream& sub_stream) {
-        uint64 elements = ReadVariableLengthIntegerFromStream(sub_stream);
+        uint64 raw_elements = ReadVariableLengthIntegerFromStream(sub_stream);
+        uint64 max_elements = sub_stream.RemainingBytes() / sizeof(uint32);
+        int elements = static_cast<int>(std::min<uint64>(
+            raw_elements,
+            std::min<uint64>(max_elements, static_cast<uint64>(INT_MAX))));
 
         deserialization_function(
             elements, [&sub_stream](class Serializable& serializable) {
@@ -226,7 +250,7 @@ class BinaryDeserializer : public Serializer {
                   });
             });
       });
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     } else {
       deserialization_function(0, [](class Serializable& serializable) {});
     }
@@ -241,16 +265,24 @@ class BinaryDeserializer : public Serializer {
       uint32 size;
       read_stream_->CopyDataOutOfStream(&size, 4);
       read_stream_->ReadSubStream(size, [&arr](ReadStream& sub_stream) {
-        uint64 elements = ReadVariableLengthIntegerFromStream(sub_stream);
+        uint64 raw_elements = ReadVariableLengthIntegerFromStream(sub_stream);
+        size_t elements = static_cast<size_t>(std::min<uint64>(
+            raw_elements,
+            std::min<uint64>(sub_stream.RemainingBytes(),
+                             static_cast<uint64>(INT_MAX))));
         arr.resize(elements);
-        for (uint64 i = 0; i < elements; i++) {
+        for (size_t i = 0; i < elements; i++) {
           uint64 string_length =
               ReadVariableLengthIntegerFromStream(sub_stream);
-          arr[i].resize(string_length);
-          sub_stream.CopyDataOutOfStream(&arr[i][0], string_length);
+          size_t clamped_length = static_cast<size_t>(
+              std::min<uint64>(string_length, sub_stream.RemainingBytes()));
+          arr[i].resize(clamped_length);
+          sub_stream.CopyDataOutOfStream(&arr[i][0], clamped_length);
+          if (string_length > clamped_length)
+            sub_stream.SkipForward(string_length - clamped_length);
         }
       });
-      next_field_index_in_stream_ = ReadVariableLengthInteger();
+      next_field_index_in_stream_ = ReadNextFieldIndex();
     } else {
       arr.clear();
     }
@@ -260,6 +292,10 @@ class BinaryDeserializer : public Serializer {
  private:
   uint64 ReadVariableLengthInteger() {
     return ReadVariableLengthIntegerFromStream(*read_stream_);
+  }
+
+  int ReadNextFieldIndex() {
+    return ReadNextFieldIndexFromStream(*read_stream_);
   }
 
   int64 ReadVariableLengthSignedInteger() {

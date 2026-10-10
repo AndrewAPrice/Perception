@@ -58,6 +58,11 @@ class Value : public Serializable {
   const std::vector<Value>* ArrayValue() const;
   std::string ToString() const override;
 
+  // Returns whether both values have the same type and contents. Arrays are
+  // compared element by element.
+  bool operator==(const Value& other) const;
+  bool operator!=(const Value& other) const { return !(*this == other); }
+
   // Setters
   void SetBool(bool val);
   void SetInteger(int64 val);

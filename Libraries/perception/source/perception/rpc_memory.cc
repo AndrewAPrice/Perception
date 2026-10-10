@@ -24,7 +24,6 @@
 #include "perception/messages.h"
 #include "perception/processes.h"
 #include "perception/shared_memory.h"
-#include "perception/threads.h"
 
 namespace perception {
 namespace {
@@ -45,9 +44,6 @@ std::mutex mutex_for_shared_memory_for_receiving_from_processes;
 std::set<ProcessId> processes_monitoring_for_death;
 
 std::mutex mutex_for_processes_monitoring_for_death;
-
-// Maximum yield retry attempts when all concurrent buffers are currently in use.
-constexpr int kMaxYieldAttemptsWhenBuffersBusy = 3;
 
 void OnProcessDied(ProcessId process_id) {
   {
@@ -88,6 +84,8 @@ std::shared_ptr<SharedMemory> CreateNewMemoryBufferToSendToProcess(
   // Create new shared memory block.
   std::shared_ptr<SharedMemory> shared_memory =
       SharedMemory::FromSize(1, SharedMemory::kJoinersCanWrite);
+  if (!shared_memory || !shared_memory->Join() || **shared_memory == nullptr)
+    return nullptr;
   // Set first bit to be in use.
   *(unsigned char*)**shared_memory = 1;
   return shared_memory;
@@ -97,7 +95,7 @@ std::shared_ptr<SharedMemory> CreateNewMemoryBufferToSendToProcess(
 
 std::shared_ptr<SharedMemory> GetMemoryBufferForSendingToProcess(
     ProcessId process_id) {
-  std::unique_lock lock(mutex_for_shared_memory_for_sending_to_processes);
+  std::scoped_lock lock(mutex_for_shared_memory_for_sending_to_processes);
 
   auto itr = shared_memory_for_sending_to_processes.find(process_id);
   if (itr == shared_memory_for_sending_to_processes.end()) {
@@ -109,35 +107,30 @@ std::shared_ptr<SharedMemory> GetMemoryBufferForSendingToProcess(
 
   std::shared_ptr<SharedMemory> selected_buffer = nullptr;
 
-  for (int attempt = 0; attempt < kMaxYieldAttemptsWhenBuffersBusy; ++attempt) {
-    auto& vec = itr->second;
-    for (size_t i = 0; i < kMaxConcurrentBuffersPerProcess; ++i) {
-      auto& buf = vec[i];
-      if (buf == nullptr) {
-        selected_buffer = CreateNewMemoryBufferToSendToProcess(process_id);
-        buf = selected_buffer;
+  // A receiver that isn't draining its messages must never block the sender,
+  // so if every buffer is in use the send fails instead of waiting.
+  auto& vec = itr->second;
+  for (size_t i = 0; i < kMaxConcurrentBuffersPerProcess; ++i) {
+    auto& buf = vec[i];
+    if (buf == nullptr) {
+      selected_buffer = CreateNewMemoryBufferToSendToProcess(process_id);
+      buf = selected_buffer;
+      break;
+    } else {
+      if (!buf->Join())
+        continue;
+      std::scoped_lock buf_lock(buf->Mutex());
+      void* shared_status_ptr = **buf;
+      if (shared_status_ptr == nullptr)
+        continue;
+      std::atomic<unsigned char>* atomic_status =
+          reinterpret_cast<std::atomic<unsigned char>*>(shared_status_ptr);
+      if (atomic_status->load() == 0) {
+        atomic_status->store(1);
+        selected_buffer = buf;
         break;
-      } else {
-        std::scoped_lock buf_lock(buf->Mutex());
-        void* shared_status_ptr = **buf;
-        std::atomic<unsigned char>* atomic_status =
-            reinterpret_cast<std::atomic<unsigned char>*>(shared_status_ptr);
-        if (atomic_status->load() == 0) {
-          atomic_status->store(1);
-          selected_buffer = buf;
-          break;
-        }
       }
     }
-    if (selected_buffer != nullptr) break;
-
-    // Release lock and yield so the receiver thread can drain pending RPC messages.
-    lock.unlock();
-    ::perception::SleepThisThread();
-    lock.lock();
-
-    itr = shared_memory_for_sending_to_processes.find(process_id);
-    if (itr == shared_memory_for_sending_to_processes.end()) return nullptr;
   }
 
   if (selected_buffer == nullptr) {

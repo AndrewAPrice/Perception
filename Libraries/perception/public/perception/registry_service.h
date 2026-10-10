@@ -107,6 +107,29 @@ class GetNamespacesResponse : public serialization::Serializable {
   virtual void Serialize(serialization::Serializer& serializer) override;
 };
 
+class RegistryKeyValue : public serialization::Serializable {
+ public:
+  RegistryKeyValue() = default;
+  RegistryKeyValue(std::string key, serialization::Value value)
+      : key(std::move(key)), value(std::move(value)) {}
+
+  std::string key;
+  serialization::Value value;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
+// Sets multiple values in one namespace. Every value is written before any
+// listener is notified, so listeners always observe the complete group.
+class SetRegistryValuesRequest : public serialization::Serializable {
+ public:
+  RegistryCorpus corpus;
+  std::string r_namespace;
+  std::vector<RegistryKeyValue> values;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
 #define METHOD_LIST(X)                                                      \
   X(1, GetRegistryValue, GetRegistryValueResponse, GetRegistryValueRequest) \
   X(2, SetRegistryValue, void, SetRegistryValueRequest)                     \
@@ -114,7 +137,9 @@ class GetNamespacesResponse : public serialization::Serializable {
   X(4, RegisterRegistryListener, void, RegisterRegistryListenerRequest)     \
   X(5, UnregisterRegistryListener, void, UnregisterRegistryListenerRequest) \
   X(6, GetRegistryKeys, GetRegistryKeysResponse, GetRegistryKeysRequest)    \
-  X(7, GetNamespaces, GetNamespacesResponse, void)
+  X(7, GetNamespaces, GetNamespacesResponse, void)                          \
+  X(8, SetRegistryValues, void, SetRegistryValuesRequest)                   \
+  X(9, FlushRegistry, void, void)
 DEFINE_PERCEPTION_SERVICE(Registry, "perception.core.Registry", METHOD_LIST)
 #undef METHOD_LIST
 

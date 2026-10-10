@@ -51,6 +51,16 @@ void SetRegistryValue(RegistryCorpus corpus, std::string_view r_namespace,
   GetService<Registry>().SetRegistryValue(request);
 }
 
+Status SetRegistryValues(RegistryCorpus corpus, std::string_view r_namespace,
+                         std::vector<RegistryKeyValue> values) {
+  SetRegistryValuesRequest request;
+  request.corpus = corpus;
+  request.r_namespace = std::string(r_namespace);
+  request.values = std::move(values);
+
+  return GetService<Registry>().SetRegistryValues(request);
+}
+
 void DeleteRegistryValue(std::string_view key) {
   return DeleteRegistryValue(RegistryCorpus::APPLICATIONS, "", key);
 }
@@ -121,6 +131,12 @@ StatusOr<std::vector<std::string>> GetRegistryKeys(
 StatusOr<std::vector<NamespaceInfo>> GetNamespacesInRegistry() {
   ASSIGN_OR_RETURN(auto response, GetService<Registry>().GetNamespaces());
   return response.namespaces;
+}
+
+Status FlushRegistry() {
+  if (auto registry = FindFirstInstanceOfService<Registry>())
+    return registry->FlushRegistry();
+  return Status::SERVICE_DOESNT_EXIST;
 }
 
 }  // namespace perception

@@ -52,10 +52,17 @@ void MemoryReadStream::CopyDataOutOfStream(void* data, size_t size) {
 }
 
 bool MemoryReadStream::ContainsAtLeast(size_t bytes) {
-  return current_offset_ + bytes <= size_;
+  return bytes <= RemainingBytes();
 }
 
-void MemoryReadStream::SkipForward(size_t size) { current_offset_ += size; }
+size_t MemoryReadStream::RemainingBytes() const {
+  return current_offset_ < size_ ? size_ - current_offset_ : 0;
+}
+
+void MemoryReadStream::SkipForward(size_t size) {
+  size_t remaining = RemainingBytes();
+  current_offset_ += std::min(size, remaining);
+}
 
 void MemoryReadStream::ReadSubStream(
     size_t size,
@@ -95,10 +102,14 @@ void DeserializeFromByteVector(Serializable& object,
 void DeserializeFromSharedMemory(Serializable& object,
                                  SharedMemory& shared_memory, size_t offset,
                                  size_t size) {
-  void* ptr = *shared_memory;
+  if (!shared_memory.Join()) {
+    DeserializeFromMemory(object, nullptr, 0);
+    return;
+  }
   std::scoped_lock lock(shared_memory.Mutex());
+  void* ptr = *shared_memory;
   size_t shared_memory_size = shared_memory.GetSize();
-  if (offset >= shared_memory_size) {
+  if (ptr == nullptr || offset >= shared_memory_size) {
     DeserializeFromMemory(object, nullptr, 0);
     return;
   }

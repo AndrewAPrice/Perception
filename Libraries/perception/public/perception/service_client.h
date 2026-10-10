@@ -43,6 +43,7 @@ class ServiceClient : public serialization::Serializable {
   ResponseType SyncDispatch(const RequestType& request, size_t method_id,
                             std::string_view service_name = "",
                             std::string_view method_name = "") {
+#ifdef ENABLE_TRACING
     std::string full_rpc_name;
     if (!service_name.empty() && !method_name.empty()) {
       full_rpc_name =
@@ -51,6 +52,7 @@ class ServiceClient : public serialization::Serializable {
     PERCEPTION_TRACE_SPAN_CAT(
         full_rpc_name.empty() ? "RPC.SyncDispatch" : full_rpc_name.c_str(),
         "rpc_out");
+#endif
 
     MessageData message = {};
     if (!PrepareRequestMessageWithParameter<RequestType>(request, method_id,
@@ -64,6 +66,7 @@ class ServiceClient : public serialization::Serializable {
   ResponseType SyncDispatch(size_t method_id,
                             std::string_view service_name = "",
                             std::string_view method_name = "") {
+#ifdef ENABLE_TRACING
     std::string full_rpc_name;
     if (!service_name.empty() && !method_name.empty()) {
       full_rpc_name =
@@ -72,6 +75,7 @@ class ServiceClient : public serialization::Serializable {
     PERCEPTION_TRACE_SPAN_CAT(
         full_rpc_name.empty() ? "RPC.SyncDispatch" : full_rpc_name.c_str(),
         "rpc_out");
+#endif
 
     MessageData message = {};
     PrepareRequestMessageWithoutParameters(method_id, message);
@@ -83,6 +87,7 @@ class ServiceClient : public serialization::Serializable {
                      std::function<void(ResponseType)> on_response,
                      std::string_view service_name = "",
                      std::string_view method_name = "") {
+#ifdef ENABLE_TRACING
     std::string full_rpc_name;
     if (!service_name.empty() && !method_name.empty()) {
       full_rpc_name =
@@ -90,6 +95,7 @@ class ServiceClient : public serialization::Serializable {
     }
     const char* rpc_name_ptr =
         full_rpc_name.empty() ? "RPC.AsyncDispatch" : full_rpc_name.c_str();
+#endif
 
     if (on_response) {
 #ifdef ENABLE_TRACING
@@ -111,7 +117,9 @@ class ServiceClient : public serialization::Serializable {
       }
       AsyncDispatch<ResponseType>(message, on_response, trace_span);
     } else {
+#ifdef ENABLE_TRACING
       PERCEPTION_TRACE_EVENT_CAT(rpc_name_ptr, "rpc_out");
+#endif
       MessageData message = {};
       if (!PrepareRequestMessageWithParameter<RequestType>(request, method_id,
                                                            message))
@@ -125,6 +133,7 @@ class ServiceClient : public serialization::Serializable {
                      std::function<void(ResponseType)> on_response,
                      std::string_view service_name = "",
                      std::string_view method_name = "") {
+#ifdef ENABLE_TRACING
     std::string full_rpc_name;
     if (!service_name.empty() && !method_name.empty()) {
       full_rpc_name =
@@ -132,6 +141,7 @@ class ServiceClient : public serialization::Serializable {
     }
     const char* rpc_name_ptr =
         full_rpc_name.empty() ? "RPC.AsyncDispatch" : full_rpc_name.c_str();
+#endif
 
     if (on_response) {
 #ifdef ENABLE_TRACING
@@ -144,7 +154,9 @@ class ServiceClient : public serialization::Serializable {
       PrepareRequestMessageWithoutParameters(method_id, message);
       AsyncDispatch<ResponseType>(message, on_response, trace_span);
     } else {
+#ifdef ENABLE_TRACING
       PERCEPTION_TRACE_EVENT_CAT(rpc_name_ptr, "rpc_out");
+#endif
       MessageData message = {};
       PrepareRequestMessageWithoutParameters(method_id, message);
       AsyncDispatch<ResponseType>(message, on_response, nullptr);
@@ -258,7 +270,14 @@ class ServiceClient : public serialization::Serializable {
     } else {
       // Don't care about waiting for a response.
       SetMessageType(message.metadata, MessageType::ONE_WAY);
-      (void)SendMessage(process_id_, message);
+      auto send_status = SendMessage(process_id_, message);
+      if (send_status != Status::OK && message.param3 != SIZE_MAX) {
+        auto shared_memory =
+            GetMemoryBufferForSendingToProcessRegardlessOfIfInUse(
+                process_id_, message.param3);
+        if (shared_memory)
+          SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+      }
     }
   }
 
@@ -278,10 +297,13 @@ class ServiceClient : public serialization::Serializable {
         } else {
           auto shared_memory = GetMemoryBufferForReceivingFromProcess(
               process_id, message.param2);
-          if (shared_memory->Grow(message.param3)) {
-            serialization::DeserializeFromSharedMemory(*response, *shared_memory, 1,
-                                        message.param4);
-            SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+          if (shared_memory) {
+            if (shared_memory->Grow(message.param3)) {
+              serialization::DeserializeFromSharedMemory(
+                  *response, *shared_memory, 1, message.param4);
+            }
+            SetMemoryBufferAsReadyForSendingNextMessageToProcess(
+                *shared_memory);
           }
         }
       } else {

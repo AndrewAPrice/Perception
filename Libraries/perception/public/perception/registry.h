@@ -46,6 +46,11 @@ void SetRegistryValue(std::string_view key, const serialization::Value& value);
 void SetRegistryValue(RegistryCorpus corpus, std::string_view r_namespace,
                       std::string_view key, const serialization::Value& value);
 
+// Sets multiple values in a specific corpus and namespace. Every value is
+// written before any listener is notified.
+Status SetRegistryValues(RegistryCorpus corpus, std::string_view r_namespace,
+                         std::vector<RegistryKeyValue> values);
+
 // Deletes a value from the registry.
 void DeleteRegistryValue(std::string_view key);
 
@@ -77,5 +82,8 @@ StatusOr<RegistryListenerToken> RegisterRegistryListener(
 
 // Unregisters a listener.
 Status UnregisterRegistryListener(RegistryListenerToken token);
+
+// Flushes all persistent registry values to disk.
+Status FlushRegistry();
 
 }  // namespace perception

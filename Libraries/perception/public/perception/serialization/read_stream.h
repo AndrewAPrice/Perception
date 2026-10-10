@@ -30,6 +30,12 @@ class ReadStream {
   // Returns whether the stream contains at least `bytes` of unread data.
   virtual bool ContainsAtLeast(size_t bytes = 1) = 0;
 
+  // Returns the number of unread bytes remaining in the stream.
+  virtual size_t RemainingBytes() const = 0;
+
+  // Returns whether the end of the stream has been reached.
+  bool HasReachedEndOfStream() const { return RemainingBytes() == 0; }
+
   // Skip forward the current offset.
   virtual void SkipForward(size_t size) = 0;
 

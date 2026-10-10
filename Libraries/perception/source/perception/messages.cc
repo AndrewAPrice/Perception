@@ -19,6 +19,7 @@
 
 #include "perception/fibers.h"
 #include "perception/futex.h"
+#include "perception/rpc_memory.h"
 #include "perception/scheduler.h"
 
 namespace perception {
@@ -92,6 +93,23 @@ MessageId GenerateUniqueMessageId() {
 // responded to.
 void DealWithUnhandledMessage(ProcessId sender,
                               const MessageData& message_data) {
+  MessageType type = GetMessageType(message_data.metadata);
+  if (type == MessageType::CALL || type == MessageType::ONE_WAY) {
+    if (message_data.param3 != SIZE_MAX && message_data.param3 != 0) {
+      auto shared_memory =
+          GetMemoryBufferForReceivingFromProcess(sender, message_data.param3);
+      if (shared_memory)
+        SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+    }
+  } else if (type == MessageType::RESPONSE) {
+    if (message_data.param2 != SIZE_MAX && message_data.param2 != 0) {
+      auto shared_memory =
+          GetMemoryBufferForReceivingFromProcess(sender, message_data.param2);
+      if (shared_memory)
+        SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+    }
+  }
+
   if (IsCallExpectingResponse(message_data.metadata)) {
     // This is an RPC that expects a response. Respond to indicate that the
     // service or channel doesn't exist.

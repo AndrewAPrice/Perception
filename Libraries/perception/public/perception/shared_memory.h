@@ -41,6 +41,9 @@ struct SharedMemoryDetails {
 
   // The size of this shared memory buffer.
   size_t SizeInBytes;
+
+  // The number of processes referencing this shared memory buffer.
+  size_t ReferencesCount = 0;
 };
 
 // Represents a memory block that can be shared between multiple processess.
@@ -100,10 +103,10 @@ class SharedMemory : public serialization::Serializable {
   bool Grow(size_t size_in_bytes);
 
   // Attempts to join the shared memory in a child process, mapped into a
-  // specific address. The receiving process must be created by the calling
-  // process and in the `creating` state. If any of the pages are already
-  // occupied in the child process, nothing is set.
-  bool JoinChildProcess(ProcessId child_pid, size_t address);
+  // specific address (or automatically chosen if 0). The receiving process must
+  // be created by the calling process and in the `creating` state. If any of
+  // the pages are already occupied in the child process, nothing is set.
+  bool JoinChildProcess(ProcessId child_pid, size_t address = 0);
 
   // Can joiners (not the creator) write to this shared memory buffer?
   bool CanJoinersWrite();

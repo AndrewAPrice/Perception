@@ -422,20 +422,19 @@ void SetChildProcessMemoryPages(ProcessId& child_pid, size_t source_address,
 #endif
 }
 
-// Creates a thread in the a child process. The child process will begin
-// executing and will no longer terminate if the creator terminates.
 void StartExecutingChildProcess(ProcessId& child_pid, size_t entry_address,
-                                size_t params) {
+                                size_t params, ProcessId new_parent_pid) {
 #if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 53;
   volatile register size_t pid_r asm("rax") = child_pid;
   volatile register size_t entry_address_r asm("rbx") = entry_address;
   volatile register size_t params_r asm("rdx") = params;
+  volatile register size_t new_parent_pid_r asm("rsi") = new_parent_pid;
 
   __asm__ __volatile__("syscall\n"
                        :
                        : "r"(syscall), "r"(pid_r), "r"(entry_address_r),
-                         "r"(params_r)
+                         "r"(params_r), "r"(new_parent_pid_r)
                        : "rcx", "r11");
 #endif
 }

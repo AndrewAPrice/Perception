@@ -244,9 +244,8 @@ void Fiber::CallMessageHandler(Fiber* fiber) {
     }
   }
 
-  if (!has_handler) {
-    // No longer listening for this message.
-  }
+  if (!has_handler)
+    DealWithUnhandledMessage(fiber->senders_pid_, fiber->message_data_);
 
   fiber->message_handler_.reset();
   TerminateFiber(fiber);

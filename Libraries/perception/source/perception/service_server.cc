@@ -83,6 +83,7 @@ void ServiceServer::HandleUnknownRequest(ProcessId sender,
   MessageData response_data = {};
   response_data.message_id = message.param1;
   response_data.metadata = 0;
+  SetMessageType(response_data.metadata, MessageType::RESPONSE);
   response_data.param1 = static_cast<size_t>(Status::UNIMPLEMENTED);
   response_data.param2 = SIZE_MAX;
   response_data.param3 = 0;
@@ -102,10 +103,11 @@ bool ServiceServer::operator<(const ServiceServer& rhs) const {
 
 void ServiceServer::HandleUnexpectedMessageInRequest(
     ProcessId sender, const MessageData& message) {
-  if (message.param3 == SIZE_MAX) return;
+  if (message.param3 == SIZE_MAX || message.param3 == 0) return;
   auto shared_memory =
       GetMemoryBufferForReceivingFromProcess(sender, message.param3);
-  SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+  if (shared_memory)
+    SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
 }
 
 }  // namespace perception

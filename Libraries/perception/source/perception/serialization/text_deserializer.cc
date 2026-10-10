@@ -17,6 +17,7 @@
 #include <types.h>
 
 #include <cctype>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -203,31 +204,46 @@ class TextParser {
   std::shared_ptr<TextNode> ParseNumber() {
     size_t start = offset_;
     bool is_double = false;
+    bool is_negative = false;
 
     // Check sign
     if (offset_ < text_.size() &&
         (text_[offset_] == '-' || text_[offset_] == '+')) {
+      is_negative = (text_[offset_] == '-');
       offset_++;
     }
 
     // Read digits, decimal point, or exponents
     while (offset_ < text_.size() &&
-           (std::isdigit(text_[offset_]) || text_[offset_] == '.' ||
-            text_[offset_] == 'e' || text_[offset_] == 'E')) {
-      if (text_[offset_] == '.') is_double = true;
+           (std::isdigit(static_cast<unsigned char>(text_[offset_])) ||
+            text_[offset_] == '.' || text_[offset_] == 'e' ||
+            text_[offset_] == 'E' || text_[offset_] == '-' ||
+            text_[offset_] == '+')) {
+      if (text_[offset_] == '.' || text_[offset_] == 'e' ||
+          text_[offset_] == 'E')
+        is_double = true;
       offset_++;
     }
 
     std::string val(text_.substr(start, offset_ - start));
+    if (val.empty())
+      return nullptr;
+    char* end_ptr = nullptr;
     auto node = std::make_shared<TextNode>();
 
     if (is_double) {
       node->type = TextNode::DOUBLE;
-      node->double_value = std::stod(val);
+      node->double_value = std::strtod(val.c_str(), &end_ptr);
     } else {
       node->type = TextNode::INTEGER;
-      node->integer_value = std::stoll(val);
+      if (is_negative)
+        node->integer_value = std::strtoll(val.c_str(), &end_ptr, 10);
+      else
+        node->integer_value =
+            static_cast<int64>(std::strtoull(val.c_str(), &end_ptr, 10));
     }
+    if (end_ptr == val.c_str())
+      return nullptr;
     return node;
   }
 

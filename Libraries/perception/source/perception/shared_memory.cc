@@ -225,6 +225,15 @@ SharedMemory::SharedMemory(SharedMemory&& other) {
 }
 
 SharedMemory& SharedMemory::operator=(SharedMemory&& other) {
+  if (this == &other)
+    return *this;
+
+  std::scoped_lock lock(mutex_, other.mutex_);
+  if (size_in_bytes_ != 0)
+    ReleaseSharedMemory(shared_memory_id_);
+  if (is_creator_of_lazily_allocated_buffer_)
+    UnregisterMessageHandler(on_page_request_message_id_);
+
   shared_memory_id_ = other.shared_memory_id_;
   ptr_ = other.ptr_;
   size_in_bytes_ = other.size_in_bytes_;
@@ -238,6 +247,7 @@ SharedMemory& SharedMemory::operator=(SharedMemory&& other) {
   other.size_in_bytes_ = 0;
   other.flags_ = 0;
   other.is_creator_of_lazily_allocated_buffer_ = false;
+  other.on_page_request_message_id_ = 0;
   return *this;
 }
 
@@ -302,14 +312,16 @@ bool SharedMemory::operator==(const SharedMemory& other) const {
 // just want to hold onto the shared memory.
 bool SharedMemory::Join() {
   if (size_in_bytes_ > 0)
-    // We have already aquired the shared memory.
     return true;
 
   if (shared_memory_id_ == 0)
-    // Invalid SharedMemory object.
     return false;
 
   std::scoped_lock lock(mutex_);
+  if (ptr_ != nullptr || size_in_bytes_ > 0)
+    return true;
+  if (shared_memory_id_ == 0)
+    return false;
   size_t size_in_pages = 0;
   JoinSharedMemory(shared_memory_id_, ptr_, size_in_pages, flags_);
   if (size_in_pages == 0 || ptr_ == nullptr) {
@@ -386,9 +398,10 @@ SharedMemoryDetails SharedMemory::GetDetails() {
   volatile register size_t syscall_num asm("rdi") = 58;
   volatile register size_t id_r asm("rax") = shmem_id;
   volatile register size_t rbx_r asm("rbx") = 0;
+  volatile register size_t rdx_r asm("rdx") = 0;
 
   __asm__ __volatile__("syscall\n"
-                       : "+a"(id_r), "=b"(rbx_r)
+                       : "+a"(id_r), "=b"(rbx_r), "=d"(rdx_r)
                        : "D"(syscall_num)
                        : "rcx", "r11", "memory");
 
@@ -400,6 +413,7 @@ SharedMemoryDetails SharedMemory::GetDetails() {
   details.CanAssignPages =
       (id_r & kDetails_CanAssignPages) == kDetails_CanAssignPages;
   details.SizeInBytes = rbx_r;
+  details.ReferencesCount = rdx_r;
   return details;
 #else
   SharedMemoryDetails details;
@@ -408,6 +422,7 @@ SharedMemoryDetails SharedMemory::GetDetails() {
   details.IsLazilyAllocated = false;
   details.CanAssignPages = false;
   details.SizeInBytes = 0;
+  details.ReferencesCount = 0;
   return details;
 #endif
 }

@@ -133,6 +133,26 @@ std::string Value::ToString() const {
   return "";
 }
 
+bool Value::operator==(const Value& other) const {
+  if (type_ != other.type_) return false;
+  switch (type_) {
+    case Type::UNDEFINED:
+      return true;
+    case Type::BOOLEAN:
+      return bool_value_ == other.bool_value_;
+    case Type::INTEGER:
+    case Type::COLOR_RGB:
+      return int_value_ == other.int_value_;
+    case Type::FLOAT:
+      return float_value_ == other.float_value_;
+    case Type::STRING:
+      return string_value_ == other.string_value_;
+    case Type::ARRAY:
+      return array_value_ == other.array_value_;
+  }
+  return false;
+}
+
 void Value::SetBool(bool val) {
   type_ = Type::BOOLEAN;
   bool_value_ = val;

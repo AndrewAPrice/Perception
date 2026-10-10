@@ -86,7 +86,8 @@ void SetThreadSegments(std::optional<size_t> fs_address,
 // of the currently executing thread.
 void SetAddressToClearOnThreadTermination(size_t address);
 
-// Yields execution of the current thread.
+// Sleeps the current thread until another thread in this process wakes it with
+// WakeThread(). This is not a yield; nothing else wakes the thread.
 inline void SleepThisThread() {
 #if defined(PERCEPTION) && !defined(TEST)
   volatile register size_t syscall asm("rdi") = 3;

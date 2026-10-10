@@ -55,11 +55,11 @@ class ServiceServer {
       ProcessId sender, const MessageData& message,
       std::string_view service_name = "",
       std::string_view method_name = "") {
+#ifdef ENABLE_TRACING
     std::string full_rpc_name;
     if (!service_name.empty() && !method_name.empty()) {
       full_rpc_name = std::string(service_name) + "." + std::string(method_name);
     }
-#ifdef ENABLE_TRACING
     std::unique_ptr<ScopedTraceSpan> trace_span;
     if (IsCallExpectingResponse(message.metadata)) {
       trace_span = std::make_unique<ScopedTraceSpan>(
@@ -77,11 +77,15 @@ class ServiceServer {
       // Deserialized attached memory.
       auto shared_memory =
           GetMemoryBufferForReceivingFromProcess(sender, message.param3);
-      shared_memory->Grow(message.param4);
-      serialization::DeserializeFromSharedMemory(request, *shared_memory, 1,
-                                                 message.param5);
-
-      SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+      if (shared_memory) {
+        if (shared_memory->Grow(message.param4)) {
+          serialization::DeserializeFromSharedMemory(request, *shared_memory, 1,
+                                                     message.param5);
+        }
+        SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+      } else {
+        serialization::DeserializeToEmpty(request);
+      }
     }
 
     if (!IsCallExpectingResponse(message.metadata)) {
@@ -99,11 +103,11 @@ class ServiceServer {
                              ProcessId sender, const MessageData& message,
                              std::string_view service_name = "",
                              std::string_view method_name = "") {
+#ifdef ENABLE_TRACING
     std::string full_rpc_name;
     if (!service_name.empty() && !method_name.empty()) {
       full_rpc_name = std::string(service_name) + "." + std::string(method_name);
     }
-#ifdef ENABLE_TRACING
     std::unique_ptr<ScopedTraceSpan> trace_span;
     if (IsCallExpectingResponse(message.metadata)) {
       trace_span = std::make_unique<ScopedTraceSpan>(
@@ -164,7 +168,14 @@ class ServiceServer {
         // TODO: Could send a status string in the remaining param bytes.
       }
     }
-    SendMessage(sender, response_data);
+    auto send_status = SendMessage(sender, response_data);
+    if (send_status != Status::OK && response_data.param2 != SIZE_MAX) {
+      auto shared_memory =
+          GetMemoryBufferForSendingToProcessRegardlessOfIfInUse(
+              sender, response_data.param2);
+      if (shared_memory)
+        SetMemoryBufferAsReadyForSendingNextMessageToProcess(*shared_memory);
+    }
   }
 
   void HandleUnexpectedMessageInRequest(ProcessId sender,
