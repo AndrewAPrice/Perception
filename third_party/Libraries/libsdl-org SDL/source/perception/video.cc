@@ -23,6 +23,8 @@ extern "C" {
 #include "events/SDL_events_c.h"
 #include "video/SDL_pixels_c.h"
 #include "video/SDL_sysvideo.h"
+#include <GL/gl.h>
+#include <GL/osmesa.h>
 }
 
 #include <algorithm>
@@ -31,17 +33,13 @@ extern "C" {
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include "perception/time.h"
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "perception/clipboard.h"
 #include "perception/scheduler.h"
-#include "perception/ui/components/button.h"
-#include "perception/ui/components/container.h"
-#include "perception/ui/components/label.h"
-#include "perception/ui/components/ui_window.h"
-#include "perception/ui/layout.h"
 #include "perception/window/cursor.h"
 #include "perception/window/rectangle.h"
 #include "perception/window/window.h"
@@ -132,7 +130,10 @@ int VideoInit(_THIS) {
   mode.w = 1024;
   mode.h = 768;
   mode.refresh_rate = 60;
-  SDL_AddBasicVideoDisplay(&mode);
+  if (SDL_AddBasicVideoDisplay(&mode) < 0) {
+    return -1;
+  }
+  SDL_AddDisplayMode(&_this->displays[0], &mode);
 
   SDL_Mouse* mouse = SDL_GetMouse();
   if (mouse) {
@@ -384,47 +385,11 @@ SDL_bool GetWindowWMInfo(_THIS, SDL_Window* window,
 int ShowMessageBoxImpl(const SDL_MessageBoxData* messageboxdata,
                        int* buttonid) {
   if (!messageboxdata) return -1;
-  std::string title = messageboxdata->title ? messageboxdata->title : "Message";
-  std::string message = messageboxdata->message ? messageboxdata->message : "";
-
-  struct State {
-    bool done = false;
-    int selected_id = -1;
-  };
-  auto state = std::make_shared<State>();
-
-  std::vector<std::shared_ptr<perception::ui::Node>> button_nodes;
-  for (int i = 0; i < messageboxdata->numbuttons; ++i) {
-    int btn_id = messageboxdata->buttons[i].buttonid;
-    std::string btn_text = messageboxdata->buttons[i].text
-                               ? messageboxdata->buttons[i].text
-                               : "OK";
-    button_nodes.push_back(perception::ui::components::Button::TextButton(
-        btn_text,
-        [state, btn_id]() {
-          state->selected_id = btn_id;
-          state->done = true;
-        },
-        [](perception::ui::Layout& layout) { layout.SetFlexGrow(1.0f); }));
+  std::cout << "MessageBox: " << (messageboxdata->title ? messageboxdata->title : "")
+            << " - " << (messageboxdata->message ? messageboxdata->message : "") << std::endl;
+  if (buttonid) {
+    *buttonid = messageboxdata->numbuttons > 0 ? messageboxdata->buttons[0].buttonid : 0;
   }
-
-  auto dialog = perception::ui::components::UiWindow::DialogWithTitleBar(
-      title,
-      [state](perception::ui::components::UiWindow& win) {
-        win.OnClose([state]() { state->done = true; });
-      },
-      [](perception::ui::Layout& layout) {
-        layout.SetPadding(YGEdgeAll, 16.0f);
-        layout.SetGap(16.0f);
-        layout.SetWidth(320.0f);
-      },
-      perception::ui::components::Label::BasicLabel(message),
-      perception::ui::components::Container::HorizontalContainer(
-          [](perception::ui::Layout& layout) { layout.SetGap(8.0f); },
-          button_nodes));
-
-  while (!state->done) perception::WaitForMessagesThenReturn();
-  if (buttonid) *buttonid = state->selected_id;
   return 0;
 }
 
@@ -477,6 +442,128 @@ void MinimizeWindow(_THIS, SDL_Window* window) {}
 
 void SetWindowBordered(_THIS, SDL_Window* window, SDL_bool bordered) {}
 
+struct PerceptionGLContext {
+  OSMesaContext osmesa_context;
+  void* pixel_buffer = nullptr;
+  int width = 0;
+  int height = 0;
+};
+
+int PERCEPTION_GL_LoadLibrary(_THIS, const char* path) {
+  return 0;
+}
+
+void* PERCEPTION_GL_GetProcAddress(_THIS, const char* proc) {
+  return (void*)OSMesaGetProcAddress(proc);
+}
+
+void PERCEPTION_GL_UnloadLibrary(_THIS) {}
+
+#include <unistd.h>
+#include <sys/syscall.h>
+
+int PERCEPTION_GL_MakeCurrent(_THIS, SDL_Window* window, SDL_GLContext context);
+
+SDL_GLContext PERCEPTION_GL_CreateContext(_THIS, SDL_Window* window) {
+  syscall(SYS_write, 2, "SDL: PERCEPTION_GL_CreateContext\n", 33);
+  OSMesaContext osmesa_ctx = OSMesaCreateContext(OSMESA_BGRA, NULL);
+  syscall(SYS_write, 2, "SDL: OSMesaCreateContext returned\n", 34);
+  if (!osmesa_ctx) {
+    return nullptr;
+  }
+  
+  auto context = new PerceptionGLContext();
+  context->osmesa_context = osmesa_ctx;
+  
+  PERCEPTION_GL_MakeCurrent(_this, window, (SDL_GLContext)context);
+
+  return (SDL_GLContext)context;
+}
+
+int PERCEPTION_GL_MakeCurrent(_THIS, SDL_Window* window, SDL_GLContext context) {
+  syscall(SYS_write, 2, "SDL: PERCEPTION_GL_MakeCurrent\n", 31);
+  auto ctx = (PerceptionGLContext*)context;
+  if (!ctx) {
+    OSMesaMakeCurrent(NULL, NULL, 0, 0, 0);
+    if (window) {
+      auto data = (PerceptionWindowData*)window->driverdata;
+      if (data && data->ui_window) {
+        std::scoped_lock lock(data->ui_window->mutex_);
+        data->ui_window->gl_pixel_buffer_ = nullptr;
+        data->ui_window->gl_width_ = 0;
+        data->ui_window->gl_height_ = 0;
+      }
+    }
+    return 0;
+  }
+  
+  if (!window) return -1;
+  auto data = (PerceptionWindowData*)window->driverdata;
+  if (!data || !data->ui_window) return -1;
+
+  int w, h;
+  GetWindowSizeInPixels(_this, window, &w, &h);
+  
+  std::scoped_lock lock(data->ui_window->mutex_);
+  if (ctx->width != w || ctx->height != h) {
+    if (ctx->pixel_buffer) {
+      free(ctx->pixel_buffer);
+    }
+    ctx->pixel_buffer = malloc(w * h * 4);
+    ctx->width = w;
+    ctx->height = h;
+  }
+  
+  GLboolean res = OSMesaMakeCurrent(ctx->osmesa_context, ctx->pixel_buffer, GL_UNSIGNED_BYTE, w, h);
+  if (!res) {
+    return -1;
+  }
+
+  data->ui_window->gl_pixel_buffer_ = ctx->pixel_buffer;
+  data->ui_window->gl_width_ = w;
+  data->ui_window->gl_height_ = h;
+
+  return 0;
+}
+
+int PERCEPTION_GL_SwapWindow(_THIS, SDL_Window* window) {
+  glFinish();
+  auto data = (PerceptionWindowData*)window->driverdata;
+  if (data && data->ui_window && data->ui_window->base_window_) {
+    data->ui_window->base_window_->Present();
+  }
+  perception::FinishAnyPendingWork();
+
+  static auto last_swap_time = perception::GetTimeSinceKernelStarted();
+  static bool first_swap = true;
+  if (first_swap) {
+    first_swap = false;
+    last_swap_time = perception::GetTimeSinceKernelStarted();
+  } else {
+    auto now = perception::GetTimeSinceKernelStarted();
+    auto elapsed = now - last_swap_time;
+    if (elapsed > std::chrono::milliseconds(0) && elapsed < std::chrono::milliseconds(16)) {
+      perception::SleepForDuration(std::chrono::milliseconds(16) - elapsed);
+    }
+    last_swap_time = perception::GetTimeSinceKernelStarted();
+  }
+
+  return 0;
+}
+
+void PERCEPTION_GL_DeleteContext(_THIS, SDL_GLContext context) {
+  auto ctx = (PerceptionGLContext*)context;
+  if (ctx) {
+    if (ctx->osmesa_context) {
+      OSMesaDestroyContext(ctx->osmesa_context);
+    }
+    if (ctx->pixel_buffer) {
+      free(ctx->pixel_buffer);
+    }
+    delete ctx;
+  }
+}
+
 void DeleteDevice(SDL_VideoDevice* device) { SDL_free(device); }
 
 }  // namespace
@@ -519,6 +606,14 @@ SDL_VideoDevice* PERCEPTION_CreateDevice(void) {
   device->GetDisplayUsableBounds = GetDisplayUsableBounds;
   device->ShowMessageBox = ShowMessageBoxDevice;
   device->GetWindowWMInfo = GetWindowWMInfo;
+
+  device->GL_LoadLibrary = PERCEPTION_GL_LoadLibrary;
+  device->GL_GetProcAddress = PERCEPTION_GL_GetProcAddress;
+  device->GL_UnloadLibrary = PERCEPTION_GL_UnloadLibrary;
+  device->GL_CreateContext = PERCEPTION_GL_CreateContext;
+  device->GL_MakeCurrent = PERCEPTION_GL_MakeCurrent;
+  device->GL_SwapWindow = PERCEPTION_GL_SwapWindow;
+  device->GL_DeleteContext = PERCEPTION_GL_DeleteContext;
 
   device->free = DeleteDevice;
   return device;

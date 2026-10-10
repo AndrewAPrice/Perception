@@ -14,6 +14,10 @@
 
 #pragma once
 
+#include <memory>
+
+#include "perception/audio.h"
+
 extern "C" {
 #include "SDL_audio.h"
 #include "SDL_internal.h"
@@ -23,7 +27,8 @@ extern "C" {
 #define _THIS SDL_AudioDevice *_this
 
 struct SDL_PrivateAudioData {
-  int dummy;
+  std::shared_ptr<perception::SharedMemory> buffer;
+  uint64 stream_id = 0;
 };
 
 #ifdef __cplusplus

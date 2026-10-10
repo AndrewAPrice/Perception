@@ -45,6 +45,10 @@ class PerceptionSDLWindow
   std::shared_ptr<perception::window::Window> base_window_;
   std::mutex mutex_;
 
+  void* gl_pixel_buffer_ = nullptr;
+  int gl_width_ = 0;
+  int gl_height_ = 0;
+
   PerceptionSDLWindow(SDL_Window* w);
 
   void SetBaseWindow(std::shared_ptr<perception::window::Window> base_window);

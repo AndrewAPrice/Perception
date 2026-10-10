@@ -8,8 +8,9 @@
     'musl',
     'libcxx',
     'perception',
-    'Perception UI',
     'Perception Window',
+    'mesa',
+    'nlohmann json',
   ],
   public_include_directories: [
     'public',

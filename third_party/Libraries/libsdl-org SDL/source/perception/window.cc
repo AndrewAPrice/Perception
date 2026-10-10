@@ -23,6 +23,7 @@ extern "C" {
 
 #include <algorithm>
 #include <cstring>
+#include "perception/debug.h"
 #include <sstream>
 #include <vector>
 
@@ -120,7 +121,40 @@ void PerceptionSDLWindow::WindowDraw(
     const perception::window::WindowDrawBuffer& buffer,
     perception::window::Rectangle& invalidated_area) {
   std::scoped_lock lock(mutex_);
-  if (!surface_ || !surface_->pixels || !buffer.pixel_data) return;
+  if (!buffer.pixel_data) return;
+
+  if (gl_pixel_buffer_) {
+    int copy_w = std::min(buffer.width, gl_width_);
+    int copy_h = std::min(buffer.height, gl_height_);
+    if (copy_w <= 0 || copy_h <= 0) return;
+
+    int min_y = std::max(0, invalidated_area.min_y);
+    int max_y = std::min(copy_h, invalidated_area.max_y);
+    int min_x = std::max(0, invalidated_area.min_x);
+    int max_x = std::min(copy_w, invalidated_area.max_x);
+
+    static int draw_count = 0;
+    int non_zero_pixels = 0;
+    for (int y = min_y; y < max_y; ++y) {
+      int src_y = gl_height_ - 1 - y;
+      const uint8_t* src_row = static_cast<const uint8_t*>(gl_pixel_buffer_) + src_y * gl_width_ * 4;
+      uint8_t* dst_row = static_cast<uint8_t*>(buffer.pixel_data) + y * buffer.width * 4;
+      
+      for (int x = min_x; x < max_x; ++x) {
+        if (src_row[x * 4 + 0] != 0 || src_row[x * 4 + 1] != 0 || src_row[x * 4 + 2] != 0) {
+          non_zero_pixels++;
+        }
+        // Direct BGRA copy from OSMesa
+        dst_row[x * 4 + 0] = src_row[x * 4 + 0]; // B
+        dst_row[x * 4 + 1] = src_row[x * 4 + 1]; // G
+        dst_row[x * 4 + 2] = src_row[x * 4 + 2]; // R
+        dst_row[x * 4 + 3] = 255; // Force Alpha to Opaque (255)
+      }
+    }
+    return;
+  }
+
+  if (!surface_ || !surface_->pixels) return;
   int copy_w = std::min(buffer.width, surface_->w);
   int copy_h = std::min(buffer.height, surface_->h);
   if (copy_w <= 0 || copy_h <= 0) return;
