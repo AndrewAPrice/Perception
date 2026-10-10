@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
   ::perception::SetThreadPriority(
       ::perception::ThreadPriority::RealtimeService);
   InitializeScreen();
+  InitializeKeyboards();
   InitializeMouse();
   InitializeTablets();
   InitializeCompositor();

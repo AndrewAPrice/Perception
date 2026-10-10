@@ -200,6 +200,9 @@ class Window : public std::enable_shared_from_this<Window> {
 std::shared_ptr<Window> GetWindowWithListener(
     const ::perception::window::BaseWindow::Client& window_listener);
 
+void InitializeKeyboards();
+void SetAllKeyboardsListener(
+    const ::perception::devices::KeyboardListener::Client& listener);
 void UpdateUiDebuggerProgram();
 void UpdateWindowCloseTimeout();
 

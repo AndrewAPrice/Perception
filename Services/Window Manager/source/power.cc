@@ -79,8 +79,7 @@ void SetSystemSleeping(bool sleeping) {
   if (is_sleeping) {
     if (!sleep_keyboard_listener)
       sleep_keyboard_listener = std::make_unique<SleepWakeKeyboardListener>();
-    ::perception::GetService<KeyboardDevice>().SetKeyboardListener(
-        *sleep_keyboard_listener, nullptr);
+    SetAllKeyboardsListener(*sleep_keyboard_listener);
 
     InvalidateScreen(Rectangle{.size = GetScreenSize()});
     DrawScreen();

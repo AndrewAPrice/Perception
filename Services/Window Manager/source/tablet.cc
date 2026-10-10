@@ -78,6 +78,10 @@ void InitializeTablets() {
         MouseCaptureState state;
         state.is_captured = is_mouse_captured_state;
         tablet_device.SetMouseCaptured(state, nullptr);
+        ::perception::NotifyWhenServiceDisappears(
+            tablet_device, [tablet_device]() {
+              std::erase(active_tablets, tablet_device);
+            });
       });
 #endif
 }

@@ -18,6 +18,7 @@
 #include <iostream>
 #include <map>
 #include <set>
+#include <vector>
 
 #include "compositor.h"
 #include "highlighter.h"
@@ -129,6 +130,8 @@ bool dragging_max_edge[2] = {false, false};
 
 int window_close_timeout_seconds = 10;
 std::string ui_debugger_program = "UI Debugger";
+std::vector<KeyboardDevice::Client> active_keyboards;
+KeyboardListener::Client current_keyboard_listener;
 
 // Returns whether the window listener can be used for creating a new window.
 bool CanUseWindowListenerForNewWindow(BaseWindow::Client window_listener) {
@@ -464,14 +467,7 @@ bool Window::IsDebugging() const { return is_debugging_; }
 void Window::SetIsDebugging(bool is_debugging) {
   if (is_debugging_ == is_debugging) return;
   is_debugging_ = is_debugging;
-  if (IsFocused()) {
-    if (is_debugging_) {
-      GetService<KeyboardDevice>().SetKeyboardListener({}, nullptr);
-    } else {
-      GetService<KeyboardDevice>().SetKeyboardListener(keyboard_listener_,
-                                                       nullptr);
-    }
-  }
+  if (IsFocused()) UpdateKeyboardListener();
   Invalidate();
 }
 
@@ -527,15 +523,11 @@ void Window::Focus() {
 }
 
 void Window::UpdateKeyboardListener() {
-  if (focused_window) {
-    if (focused_window->is_debugging_) {
-      GetService<KeyboardDevice>().SetKeyboardListener({}, nullptr);
-    } else {
-      GetService<KeyboardDevice>().SetKeyboardListener(
-          focused_window->keyboard_listener_, nullptr);
-    }
+  if (IsSystemSleeping()) return;
+  if (focused_window && !focused_window->is_debugging_) {
+    SetAllKeyboardsListener(focused_window->keyboard_listener_);
   } else {
-    GetService<KeyboardDevice>().SetKeyboardListener({}, nullptr);
+    SetAllKeyboardsListener({});
   }
 }
 
@@ -633,7 +625,7 @@ void Window::UnfocusAllWindows() {
   dragging_window = nullptr;
   ClearPressedWindow();
 #ifndef TEST
-  GetService<KeyboardDevice>().SetKeyboardListener({}, nullptr);
+  UpdateKeyboardListener();
 #endif
 }
 
@@ -1684,6 +1676,32 @@ void Window::ToggleFullScreen() {
     hovered_window_button_ = std::nullopt;
     InvalidateScreen(Rectangle{.origin = {0, 0}, .size = GetScreenSize()});
     Resized();
+  }
+}
+
+void InitializeKeyboards() {
+#ifndef TEST
+  ::perception::NotifyOnEachNewServiceInstance<KeyboardDevice>(
+      [](KeyboardDevice::Client keyboard_device) {
+        active_keyboards.push_back(keyboard_device);
+        keyboard_device.SetKeyboardListener(current_keyboard_listener, nullptr);
+        ::perception::NotifyWhenServiceDisappears(
+            keyboard_device, [keyboard_device]() {
+              std::erase(active_keyboards, keyboard_device);
+            });
+      });
+#endif
+}
+
+void SetAllKeyboardsListener(const KeyboardListener::Client& listener) {
+  current_keyboard_listener = listener;
+  if (active_keyboards.empty()) {
+    GetService<KeyboardDevice>().SetKeyboardListener(listener, nullptr);
+    return;
+  }
+  for (auto& keyboard : active_keyboards) {
+    if (keyboard.IsValid())
+      keyboard.SetKeyboardListener(listener, nullptr);
   }
 }
 
