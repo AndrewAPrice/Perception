@@ -215,7 +215,8 @@ void Button::UpdateLabelColor() {
 
 uint32 Button::GetFillColor() {
   if (!is_enabled_) {
-    if (style_ == ButtonStyle::GHOST) return kButtonGhostIdleColor;
+    if (style_ == ButtonStyle::GHOST || idle_color_ == kButtonGhostIdleColor)
+      return kButtonGhostIdleColor;
     if (auto strong_node = node_.lock()) {
       if (strong_node->Get<ImageButton>()) return kButtonGhostIdleColor;
     }

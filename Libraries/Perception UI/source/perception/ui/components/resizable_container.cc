@@ -80,6 +80,11 @@ void ResizableContainer::Initialize(YGFlexDirection direction) {
     if (IsItemFixed(items_[i])) {
       items_[i]->GetLayout().SetFlexGrow(0.0f);
       items_[i]->GetLayout().SetFlexShrink(0.0f);
+    } else {
+      if (items_[i]->GetLayout().GetFlexGrow() == 0.0f)
+        items_[i]->GetLayout().SetFlexGrow(1.0f);
+      items_[i]->GetLayout().SetFlexShrink(1.0f);
+      items_[i]->GetLayout().SetFlexBasis(0.0f);
     }
     if (i > 0) {
       auto splitter = BuildSplitter(i - 1);
@@ -90,7 +95,7 @@ void ResizableContainer::Initialize(YGFlexDirection direction) {
 }
 
 std::shared_ptr<Node> ResizableContainer::BuildSplitter(size_t index) {
-  auto self = shared_from_this();
+  std::weak_ptr<ResizableContainer> weak_self = shared_from_this();
   auto splitter = Node::Empty(
       [this](Layout& layout) {
         if (direction_ == YGFlexDirectionRow) {
@@ -119,21 +124,37 @@ std::shared_ptr<Node> ResizableContainer::BuildSplitter(size_t index) {
                           ? window::Cursor::ResizeHorizontal
                           : window::Cursor::ResizeVertical);
 
-  splitter->OnMouseHover([self, splitter, index](const Point& point) {
-    self->OnSplitterHover(index, splitter, point);
+  std::weak_ptr<Node> weak_splitter = splitter;
+  splitter->OnMouseHover([weak_self, weak_splitter, index](const Point& point) {
+    auto self = weak_self.lock();
+    auto s = weak_splitter.lock();
+    if (self && s)
+      self->OnSplitterHover(index, s, point);
   });
-  splitter->OnMouseLeave(
-      [self, splitter]() { self->OnSplitterLeave(splitter); });
+  splitter->OnMouseLeave([weak_self, weak_splitter]() {
+    auto self = weak_self.lock();
+    auto s = weak_splitter.lock();
+    if (self && s)
+      self->OnSplitterLeave(s);
+  });
   splitter->OnMouseButtonDown(
-      [self, splitter, index](const Point& point, window::MouseButton button) {
+      [weak_self, weak_splitter, index](const Point& point,
+                                        window::MouseButton button) {
         if (button == window::MouseButton::Left) {
-          self->OnSplitterMouseDown(index, splitter, point);
+          auto self = weak_self.lock();
+          auto s = weak_splitter.lock();
+          if (self && s)
+            self->OnSplitterMouseDown(index, s, point);
         }
       });
   splitter->OnMouseButtonUp(
-      [self, splitter](const Point& point, window::MouseButton button) {
+      [weak_self, weak_splitter](const Point& point,
+                                 window::MouseButton button) {
         if (button == window::MouseButton::Left) {
-          self->OnSplitterMouseUp(splitter);
+          auto self = weak_self.lock();
+          auto s = weak_splitter.lock();
+          if (self && s)
+            self->OnSplitterMouseUp(s);
         }
       });
 
@@ -240,8 +261,10 @@ void ResizableContainer::OnSplitterHover(size_t index,
     bool fixed_b = IsItemFixed(right_item);
     if (!fixed_a && !fixed_b) {
       left_item->GetLayout().SetFlexGrow(start_size_a_ + actual_delta);
+      left_item->GetLayout().SetFlexBasis(0.0f);
       left_item->GetLayout().SetWidthAuto();
       right_item->GetLayout().SetFlexGrow(start_size_b_ - actual_delta);
+      right_item->GetLayout().SetFlexBasis(0.0f);
       right_item->GetLayout().SetWidthAuto();
     } else {
       if (fixed_a) {
@@ -249,12 +272,14 @@ void ResizableContainer::OnSplitterHover(size_t index,
         left_item->GetLayout().SetWidth(start_size_a_ + actual_delta);
       } else {
         left_item->GetLayout().SetWidthAuto();
+        left_item->GetLayout().SetFlexBasis(0.0f);
       }
       if (fixed_b) {
         right_item->GetLayout().SetFlexGrow(0.0f);
         right_item->GetLayout().SetWidth(start_size_b_ - actual_delta);
       } else {
         right_item->GetLayout().SetWidthAuto();
+        right_item->GetLayout().SetFlexBasis(0.0f);
       }
     }
   } else {
@@ -262,8 +287,10 @@ void ResizableContainer::OnSplitterHover(size_t index,
     bool fixed_b = IsItemFixed(right_item);
     if (!fixed_a && !fixed_b) {
       left_item->GetLayout().SetFlexGrow(start_size_a_ + actual_delta);
+      left_item->GetLayout().SetFlexBasis(0.0f);
       left_item->GetLayout().SetHeightAuto();
       right_item->GetLayout().SetFlexGrow(start_size_b_ - actual_delta);
+      right_item->GetLayout().SetFlexBasis(0.0f);
       right_item->GetLayout().SetHeightAuto();
     } else {
       if (fixed_a) {
@@ -271,12 +298,14 @@ void ResizableContainer::OnSplitterHover(size_t index,
         left_item->GetLayout().SetHeight(start_size_a_ + actual_delta);
       } else {
         left_item->GetLayout().SetHeightAuto();
+        left_item->GetLayout().SetFlexBasis(0.0f);
       }
       if (fixed_b) {
         right_item->GetLayout().SetFlexGrow(0.0f);
         right_item->GetLayout().SetHeight(start_size_b_ - actual_delta);
       } else {
         right_item->GetLayout().SetHeightAuto();
+        right_item->GetLayout().SetFlexBasis(0.0f);
       }
     }
   }

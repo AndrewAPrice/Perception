@@ -379,9 +379,9 @@ void Label::Draw(const DrawContext& draw_context) {
     float line_y = draw_context.area.origin.y + block_origin.y -
                    font_metrics.fAscent + i * line_height;
 
-    draw_context.skia_canvas->drawString(
-        SkString(line_text.data(), line_text.length()), line_x, line_y, *font_,
-        paint);
+    draw_context.skia_canvas->drawSimpleText(
+        line_text.data(), line_text.length(), SkTextEncoding::kUTF8, line_x,
+        line_y, *font_, paint);
   }
 }
 

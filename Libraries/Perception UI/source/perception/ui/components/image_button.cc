@@ -70,11 +70,7 @@ void ImageButton::ClearColor() {
   if (auto iv = image_view_.lock()) iv->ClearColor();
 }
 
-std::optional<uint32> ImageButton::GetColor() const {
-  if (custom_color_.has_value()) return custom_color_;
-  if (auto iv = image_view_.lock()) return iv->GetColor();
-  return std::nullopt;
-}
+std::optional<uint32> ImageButton::GetColor() const { return custom_color_; }
 
 }  // namespace components
 }  // namespace ui

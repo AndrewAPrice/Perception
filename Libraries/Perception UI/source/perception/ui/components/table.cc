@@ -98,6 +98,7 @@ void Table::BuildTable() {
         }));
 
     if (columns_[i].sortable) {
+      header_cell_node->SetCursor(window::Cursor::Poke);
       header_cell_node->OnMouseHover([header_cell_node](const Point& point) {
         for (auto& child : header_cell_node->GetChildren()) {
           if (auto label = child->Get<Label>()) {
@@ -151,6 +152,10 @@ void Table::BuildTable() {
             label.SetColor(kTableCellTextColor);
           }));
 
+      bool highlightable = data_source_->GetCellHighlightablity(r, c) !=
+                           CellHighlightability::NotHighlightable;
+      cell_node->SetCursor(highlightable ? window::Cursor::Poke
+                                         : window::Cursor::Pointer);
       cell_node->OnMouseHover(
           [this, r, c](const Point& point) { this->HoverCell(r, c); });
       cell_node->OnMouseLeave([this, r, c]() { this->LeaveCell(r, c); });

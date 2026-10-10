@@ -47,6 +47,7 @@ InputBox::InputBox()
       ctrl_pressed_(false),
       is_hovering_(false),
       is_pushed_(false),
+      draw_border_(true),
       text_color_(kTextBoxTextColor) {}
 
 void InputBox::SetNode(std::weak_ptr<Node> node) {
@@ -54,7 +55,7 @@ void InputBox::SetNode(std::weak_ptr<Node> node) {
   if (node_.expired()) return;
   auto strong_node = node_.lock();
 
-  // Add the focusable component to our node.
+  // Add the focusable component to the node.
   focusable_ = strong_node->GetOrAdd<Focusable>();
 
   strong_node->SetBlocksHitTest(true);
@@ -92,6 +93,7 @@ void InputBox::SetNode(std::weak_ptr<Node> node) {
       });
 
   focusable_->OnFocus([this]() {
+    for (auto& handler : on_focus_changed_handlers_) handler(true);
     if (auto strong = node_.lock()) strong->Invalidate();
   });
 
@@ -99,6 +101,7 @@ void InputBox::SetNode(std::weak_ptr<Node> node) {
     shift_pressed_ = false;
     ctrl_pressed_ = false;
     selection_start_index_ = cursor_index_;
+    for (auto& handler : on_focus_changed_handlers_) handler(false);
     if (auto strong = node_.lock()) strong->Invalidate();
   });
 
@@ -116,9 +119,8 @@ void InputBox::SetText(std::string_view text) {
   selection_start_index_ = cursor_index_;
   scroll_x_ = 0.0f;
   EnsureCursorVisible();
-  if (!node_.expired()) {
+  if (!node_.expired())
     node_.lock()->Invalidate();
-  }
 }
 
 std::string InputBox::GetText() const { return text_; }
@@ -148,12 +150,34 @@ SkFont* InputBox::GetFont() const { return font_; }
 void InputBox::SetTextColor(uint32 color) {
   if (text_color_ == color) return;
   text_color_ = color;
-  if (!node_.expired()) {
+  if (!node_.expired())
     node_.lock()->Invalidate();
-  }
 }
 
 uint32 InputBox::GetTextColor() const { return text_color_; }
+
+void InputBox::SetDrawBorder(bool draw_border) {
+  if (draw_border_ == draw_border) return;
+  draw_border_ = draw_border;
+  if (auto strong = node_.lock()) strong->Invalidate();
+}
+
+bool InputBox::GetDrawBorder() const { return draw_border_; }
+
+void InputBox::SelectAll() {
+  selection_start_index_ = 0;
+  cursor_index_ = text_.length();
+  EnsureCursorVisible();
+  if (auto strong = node_.lock()) strong->Invalidate();
+}
+
+void InputBox::Focus() {
+  if (focusable_) focusable_->Focus();
+}
+
+void InputBox::OnFocusChanged(std::function<void(bool)> handler) {
+  on_focus_changed_handlers_.push_back(handler);
+}
 
 void InputBox::Draw(const DrawContext& draw_context) {
   AssignDefaultFontIfUnassigned();
@@ -165,7 +189,7 @@ void InputBox::Draw(const DrawContext& draw_context) {
 
   bool has_focus = focusable_ && focusable_->HasFocus();
 
-  DrawTextBoxOuter(draw_context, has_focus, is_hovering_);
+  if (draw_border_) DrawTextBoxOuter(draw_context, has_focus, is_hovering_);
 
   // Draw Text with clipping.
   float padding = kTextBoxPadding;
@@ -219,10 +243,11 @@ void InputBox::Draw(const DrawContext& draw_context) {
   text_paint.setAntiAlias(true);
   text_paint.setColor(text_color_);
 
-  draw_context.skia_canvas->drawString(SkString(text_.data(), text_.length()),
-                                       text_draw_x, text_y, *font_, text_paint);
+  draw_context.skia_canvas->drawSimpleText(
+      text_.data(), text_.length(), SkTextEncoding::kUTF8, text_draw_x, text_y,
+      *font_, text_paint);
 
-  // 4. Draw Cursor if focused
+  // Draw cursor if focused.
   if (has_focus && selection_start_index_ == cursor_index_) {
     float cursor_offset_x = 0.0f;
     if (cursor_index_ > 0) {
@@ -434,7 +459,9 @@ void InputBox::HandleKeyDown(const window::KeyboardKeyEvent& event) {
 
   if (ctrl_pressed_) {
     char ascii = ScancodeToAscii(event.key, false);
-    if (ascii == 'c' || ascii == 'C') {
+    if (ascii == 'a' || ascii == 'A') {
+      SelectAll();
+    } else if (ascii == 'c' || ascii == 'C') {
       if (selection_start_index_ != cursor_index_) {
         size_t sel_start = std::min(selection_start_index_, cursor_index_);
         size_t sel_end = std::max(selection_start_index_, cursor_index_);

@@ -117,6 +117,7 @@ std::shared_ptr<PopUp> PopUp::Show(std::shared_ptr<Node> context_node,
   overlay->GetLayout().SetPosition(YGEdgeLeft, 0.f);
   overlay->GetLayout().SetPosition(YGEdgeTop, 0.f);
   overlay->SetBlocksHitTest(true);
+  overlay->SetCursor(window::Cursor::Pointer);
 
   overlay->OnMouseButtonDown(
       [weak_popup](const Point&, window::MouseButton) {

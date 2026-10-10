@@ -95,6 +95,12 @@ extern float kImageButtonWidth;
 // Height for image buttons.
 extern float kImageButtonHeight;
 
+// Default width for the icon inside image buttons.
+extern float kImageButtonIconWidth;
+
+// Default height for the icon inside image buttons.
+extern float kImageButtonIconHeight;
+
 // Background color for ghost buttons when idle.
 extern uint32 kButtonGhostIdleColor;
 
@@ -478,6 +484,9 @@ extern uint32 kSegmentedBarBackgroundColor;
 
 // Border color of segmented bar widgets.
 extern uint32 kSegmentedBarBorderColor;
+
+// Fill color of the completed portion of a progress bar.
+extern uint32 kProgressBarColor;
 
 // Thickness of slider track.
 extern float kSliderTrackThickness;

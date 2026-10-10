@@ -14,13 +14,17 @@
 
 #include "perception/ui/components/tab_bar.h"
 
+#include <algorithm>
+
 #include "include/core/SkRRect.h"
 #include "perception/debug.h"
 #include "perception/scheduler.h"
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/container.h"
+#include "perception/ui/components/image_view.h"
 #include "perception/ui/components/label.h"
 #include "perception/ui/components/ui_window.h"
+#include "perception/ui/image.h"
 #include "perception/ui/node.h"
 #include "perception/ui/rectangle.h"
 #include "perception/ui/theme.h"
@@ -29,6 +33,15 @@ namespace perception {
 template class UniqueIdentifiableType<ui::components::TabBar>;
 namespace ui {
 namespace components {
+namespace {
+
+// Width and height of per-tab icons.
+constexpr float kTabIconSize = 16.0f;
+
+// Right margin between a tab icon and the tab label.
+constexpr float kTabIconMarginRight = 6.0f;
+
+}  // namespace
 
 TabBar::TabBar() : selected_tab_index_(-1) {}
 
@@ -37,6 +50,7 @@ TabBar::~TabBar() {}
 void TabBar::SetNode(std::weak_ptr<Node> node) {
   node_ = node;
   if (node.expired()) return;
+  node.lock()->SetCursor(window::Cursor::Drag);
   RebuildTabs();
 }
 
@@ -56,6 +70,19 @@ void TabBar::HookUpWindowNode(Node& window_node) {
 
     strong_this->WindowChangedFocus(*strong_window_node->GetOrAdd<UiWindow>());
   });
+  ui_window->OnResize([weak_this]() {
+    auto strong_this = weak_this.lock();
+    if (!strong_this) return;
+
+    auto strong_window_node = strong_this->window_node_.lock();
+    if (!strong_window_node) return;
+
+    auto node = strong_this->node_.lock();
+    if (!node) return;
+
+    node->GetLayout().SetPadding(
+        YGEdgeRight, RightPaddingForWindowNode(*strong_window_node));
+  });
 }
 
 void TabBar::StartDraggingWindow() {
@@ -69,9 +96,8 @@ float TabBar::RightPaddingForWindowNode(Node& window_node) {
   auto ui_window = window_node.Get<UiWindow>();
   if (!ui_window) return kTitleBarRightPaddingWithoutButtons;
 
-  return ui_window->IsResizable()
-             ? kTitleBarRightPaddingWithResizableButtons
-             : kTitleBarRightPaddingWithNonResizableButtons;
+  return std::max(ui_window->GetSystemButtonSize().width,
+                  kTitleBarRightPaddingWithoutButtons);
 }
 
 void TabBar::WindowChangedFocus(UiWindow& window) {
@@ -97,7 +123,7 @@ void TabBar::WindowChangedFocus(UiWindow& window) {
     }
     tab_node->Invalidate();
 
-    // Note: We can search children for active color modifications
+    // Search children for active color modifications.
     for (auto& child : tab_node->GetChildren()) {
       if (auto child_lbl = child->Get<Label>()) {
         if (i == selected_tab_index_) {
@@ -110,15 +136,16 @@ void TabBar::WindowChangedFocus(UiWindow& window) {
   }
 }
 
-void TabBar::AddTab(std::string_view label, bool is_dimissable) {
+void TabBar::AddTab(std::string_view label, bool is_dimissable,
+                    std::shared_ptr<Image> icon) {
   Tab new_tab;
   new_tab.label = std::string(label);
   new_tab.is_dimissable = is_dimissable;
+  new_tab.icon = std::move(icon);
   tabs_.push_back(new_tab);
 
-  if (selected_tab_index_ == -1) {
+  if (selected_tab_index_ == -1)
     selected_tab_index_ = 0;
-  }
 
   RebuildTabs();
 }
@@ -169,6 +196,13 @@ void TabBar::SetTabLabel(int index, std::string_view label) {
   }
 }
 
+void TabBar::SetTabIcon(int index, std::shared_ptr<Image> icon) {
+  if (index < 0 || index >= (int)tabs_.size()) return;
+  if (tabs_[index].icon == icon) return;
+  tabs_[index].icon = std::move(icon);
+  RebuildTabs();
+}
+
 int TabBar::GetTabCount() const { return (int)tabs_.size(); }
 
 int TabBar::GetSelectedTab() const { return selected_tab_index_; }
@@ -176,6 +210,11 @@ int TabBar::GetSelectedTab() const { return selected_tab_index_; }
 std::string_view TabBar::GetTabLabel(int index) const {
   if (index < 0 || index >= (int)tabs_.size()) return "";
   return tabs_[index].label;
+}
+
+std::shared_ptr<Image> TabBar::GetTabIcon(int index) const {
+  if (index < 0 || index >= (int)tabs_.size()) return nullptr;
+  return tabs_[index].icon;
 }
 
 void TabBar::OnTabSelected(std::function<void(int)> handler) {
@@ -222,9 +261,8 @@ void TabBar::RebuildTabs() {
   bool is_window_focused = true;
   if (!window_node_.expired()) {
     auto window = window_node_.lock()->Get<UiWindow>();
-    if (window) {
+    if (window)
       is_window_focused = window->IsFocused();
-    }
   }
 
   // Construct the tabs.
@@ -238,17 +276,43 @@ void TabBar::RebuildTabs() {
                                        : kTabBarActiveUnfocusedBackgroundColor)
                   : kTabBarInactiveBackgroundColor;
 
-    auto tab_lbl =
-        Label::SingleLineTruncated(label_text, [is_active](Label& lbl) {
+    auto tab_item = TabBarItem(shared_from_this(), i, is_active, is_dimissable);
+
+    if (tabs_[i].icon) {
+      auto icon_node = ImageView::BasicImage(
+          tabs_[i].icon,
+          [](Layout& layout) {
+            layout.SetWidth(kTabIconSize);
+            layout.SetHeight(kTabIconSize);
+            layout.SetMargin(YGEdgeRight, kTabIconMarginRight);
+            layout.SetFlexShrink(0.0f);
+          },
+          [](ImageView& iv) {
+            iv.SetResizeMethod(ResizeMethod::Contain);
+            iv.SetAlignment(TextAlignment::MiddleCenter);
+          });
+      tab_item->AddChild(icon_node);
+    }
+
+    auto tab_lbl = Label::SingleLineTruncated(
+        label_text,
+        [](Layout& layout) {
+          layout.SetFlexGrow(1.0f);
+          layout.SetFlexShrink(1.0f);
+          layout.SetMinWidth(0.0f);
+        },
+        [is_active](Label& lbl) {
           lbl.SetColor(is_active ? kTabBarActiveTextColor
                                  : kTabBarInactiveTextColor);
+          lbl.SetTextAlignment(TextAlignment::MiddleCenter);
         });
+    tab_item->AddChild(tab_lbl);
 
-    std::shared_ptr<Node> tab_item;
-    if (is_active && is_dimissable) {
+    if (is_dimissable) {
       auto close_btn = Label::SingleLineTruncated(
           "x",
           [](Layout& layout) {
+            layout.SetFlexShrink(0.0f);
             layout.SetMargin(YGEdgeLeft, kTabBarCloseButtonMarginLeft);
             layout.SetPadding(YGEdgeAll, kTabBarCloseButtonPadding);
           },
@@ -259,33 +323,26 @@ void TabBar::RebuildTabs() {
       close_btn->OnMouseHover([weak_close](const Point&) {
         auto strong_close = weak_close.lock();
         if (!strong_close) return;
-        if (auto lbl = strong_close->Get<Label>()) {
+        if (auto lbl = strong_close->Get<Label>())
           lbl->SetColor(kTabBarCloseButtonHoverColor);
-        }
       });
 
       close_btn->OnMouseLeave([weak_close]() {
         auto strong_close = weak_close.lock();
         if (!strong_close) return;
-        if (auto lbl = strong_close->Get<Label>()) {
+        if (auto lbl = strong_close->Get<Label>())
           lbl->SetColor(kTabBarCloseButtonColor);
-        }
       });
 
       close_btn->OnMouseButtonUp(
           [this, i](const Point&, window::MouseButton button) {
             if (button != window::MouseButton::Left) return;
             // Prevent click propagating to tab select
-            for (auto& handler : on_tab_closed_handlers_) {
+            for (auto& handler : on_tab_closed_handlers_)
               ::perception::DeferAfterEvents([handler, i]() { handler(i); });
-            }
           });
 
-      tab_item = TabBarItem(shared_from_this(), i, is_active, is_dimissable,
-                            tab_lbl, close_btn);
-    } else {
-      tab_item =
-          TabBarItem(shared_from_this(), i, is_active, is_dimissable, tab_lbl);
+      tab_item->AddChild(close_btn);
     }
 
     tabs_[i].tab_node = tab_item;

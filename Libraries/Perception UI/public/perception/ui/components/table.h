@@ -129,6 +129,7 @@ class Table : public UniqueIdentifiableType<Table> {
             [](Layout& layout) {
               layout.SetFlexGrow(1.0f);
               layout.SetFlexShrink(1.0f);
+              layout.SetFlexBasis(0.0f);
               layout.SetMinHeight(0.0f);
               layout.SetWidthPercent(100.0f);
               layout.SetGap(0.0f);

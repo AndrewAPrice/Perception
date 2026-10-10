@@ -665,7 +665,7 @@ void ShowFileDialog(const FileDialogOptions& options) {
         layout.SetWidth(kDialogWidth);
         layout.SetHeight(dialog_height);
       },
-      main_container, &state->window_node);
+      UiWindow::NoPadding(), main_container, &state->window_node);
 
   active_dialogs.push_back(window_node);
 

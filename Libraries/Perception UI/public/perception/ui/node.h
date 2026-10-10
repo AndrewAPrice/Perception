@@ -109,6 +109,7 @@ class Node : public std::enable_shared_from_this<Node> {
   bool HasOnMouseLeave() const;
   bool HasOnMouseButtonDown() const;
   bool HasOnMouseButtonUp() const;
+  bool HasOnMouseScroll() const;
   bool HasOnInvalidate() const;
 
   void AddChildren(const std::vector<std::shared_ptr<Node>>& children);
@@ -198,6 +199,17 @@ class Node : public std::enable_shared_from_this<Node> {
   // Tells the node the mouse has released button.
   void MouseButtonUp(const Point& point, window::MouseButton button);
 
+  // Adds a function to call when the mouse wheel scrolls over this element.
+  // Receives the point in the node and the scroll delta in logical pixels,
+  // and returns the consumed scroll delta.
+  void OnMouseScroll(
+      std::function<Point(const Point& point, const Point& delta)>
+          mouse_scroll_function);
+
+  // Tells the node that the mouse wheel scrolled at `point` by `delta`,
+  // returning the portion of `delta` consumed by this node.
+  Point MouseScroll(const Point& point, const Point& delta);
+
   // Gets the nodes at the given point, ordered front to back, and calls
   // `on_hit_node` with the hit node, and where (relative to the node)
   // it hit. If this method returns true, nodes behind this node should not
@@ -217,9 +229,16 @@ class Node : public std::enable_shared_from_this<Node> {
 
   // Adds a function to call when the node becomes invalidated.
   void OnInvalidate(std::function<void()> on_invalidate_function);
+  // Adds a function to call when the node becomes invalidated, passing the
+  // invalidated area in root coordinates, or std::nullopt if the entire node tree
+  // needs to be redrawn.
+  void OnInvalidate(std::function<void(const std::optional<Rectangle>&)>
+                        on_invalidate_function);
 
   // Notifies the node that it needs to be redrawn.
   void Invalidate();
+  // Notifies the node that a sub-region needs to be redrawn.
+  void Invalidate(const Rectangle& local_area);
 
   // Sets the preferred mouse cursor when hovering over this node.
   void SetCursor(window::Cursor cursor);
@@ -274,11 +293,10 @@ class Node : public std::enable_shared_from_this<Node> {
   std::map<size_t, std::shared_ptr<void>> components_;
   std::vector<std::string> component_names_;
 
-  bool invalidated_;
   YGNode* yoga_node_;
   bool invalidate_when_dirtied_;
   bool handles_mouse_events_;
-  bool blocks_hit_test_;
+  bool blocks_hit_test_ = false;
   Point scroll_offset_;
   std::optional<window::Cursor> cursor_;
 
@@ -286,6 +304,8 @@ class Node : public std::enable_shared_from_this<Node> {
       measure_function_;
   std::function<bool(const Point&, const Size&)> hit_test_function_;
   std::vector<std::function<void()>> on_invalidate_functions_;
+  std::vector<std::function<void(const std::optional<Rectangle>&)>>
+      on_invalidate_with_area_functions_;
   std::vector<std::function<void(const DrawContext&)>> on_draw_functions_;
   std::vector<std::function<void(const DrawContext&)>>
       on_draw_post_children_functions_;
@@ -297,9 +317,13 @@ class Node : public std::enable_shared_from_this<Node> {
       on_mouse_button_down_functions_;
   std::vector<std::function<void(const Point&, window::MouseButton)>>
       on_mouse_button_up_functions_;
+  std::vector<std::function<Point(const Point&, const Point&)>>
+      on_mouse_scroll_functions_;
 
   void SetParent(std::weak_ptr<Node> parent);
   void DrawChildren(DrawContext& draw_context);
+  void InvalidateInternal(const std::optional<Rectangle>& area_in_root);
+  void InvalidateFromChild(const std::optional<Rectangle>& area_in_root);
 
   void InvalidateWhenDirtied();
   static void LayoutDirtied(const YGNode* node);

@@ -207,6 +207,7 @@ float kSegmentedBarHeight = 20.0f;
 float kSegmentedBarBorderRadius = 4.0f;
 uint32 kSegmentedBarBackgroundColor = SkColorSetARGB(0xFF, 0xE5, 0xE7, 0xEB);
 uint32 kSegmentedBarBorderColor = SkColorSetARGB(0xFF, 0xD1, 0xD5, 0xDB);
+uint32 kProgressBarColor = 0xFF4F46E5;
 float kSliderTrackThickness = 4.0f;
 float kSliderThumbRadius = 8.0f;
 uint32 kSliderTrackColor = 0xFFD1D5DB;

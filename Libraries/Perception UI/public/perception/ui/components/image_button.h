@@ -60,6 +60,7 @@ class ImageButton : public UniqueIdentifiableType<ImageButton> {
         });
 
     return Node::Empty(
+        image_node,
         [image_view](ImageButton& image_button) {
           image_button.SetImageView(image_view);
         },
@@ -77,7 +78,7 @@ class ImageButton : public UniqueIdentifiableType<ImageButton> {
           block.SetBorderRadius(kButtonBorderRadius);
           block.SetBorderWidth(0.0f);
         },
-        image_node, modifiers...);
+        modifiers...);
   }
 
   ImageButton();

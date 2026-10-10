@@ -25,8 +25,10 @@
 #include "perception/type_id.h"
 #include "perception/ui/components/block.h"
 #include "perception/ui/components/container.h"
+#include "perception/ui/components/image_view.h"
 #include "perception/ui/components/label.h"
 #include "perception/ui/draw_context.h"
+#include "perception/ui/image.h"
 #include "perception/ui/node.h"
 #include "perception/ui/theme.h"
 
@@ -128,14 +130,14 @@ class TabBar : public std::enable_shared_from_this<TabBar>,
               strong_tab_bar->OnMouseLeaveTabBarItem(index);
           });
         },
-        [weak_tab_bar, index, is_active, is_dimissable](Node& node) {
+        [weak_tab_bar, index, is_dimissable](Node& node) {
           std::weak_ptr<Node> weak_node = node.ToSharedPtr();
           node.OnMouseButtonUp(
-              [weak_tab_bar, index, is_active, is_dimissable, weak_node](
+              [weak_tab_bar, index, is_dimissable, weak_node](
                   const Point& p, window::MouseButton button) {
                 if (button != window::MouseButton::Left) return;
                 if (auto strong_tab_bar = weak_tab_bar.lock()) {
-                  if (is_active && is_dimissable) {
+                  if (is_dimissable) {
                     if (auto strong_node = weak_node.lock()) {
                       float tab_width = strong_node->GetSize().width;
                       if (p.x > tab_width - kTabBarCloseButtonWidth) return;
@@ -150,15 +152,18 @@ class TabBar : public std::enable_shared_from_this<TabBar>,
 
   void SetNode(std::weak_ptr<Node> node);
 
-  void AddTab(std::string_view label, bool is_dimissable = false);
+  void AddTab(std::string_view label, bool is_dimissable = false,
+              std::shared_ptr<Image> icon = nullptr);
   void RemoveTab(int index);
   void ClearTabs();
   void SelectTab(int index);
   void SetTabLabel(int index, std::string_view label);
+  void SetTabIcon(int index, std::shared_ptr<Image> icon);
 
   int GetTabCount() const;
   int GetSelectedTab() const;
   std::string_view GetTabLabel(int index) const;
+  std::shared_ptr<Image> GetTabIcon(int index) const;
 
   void OnTabSelected(std::function<void(int index)> handler);
   void OnTabClosed(std::function<void(int index)> handler);
@@ -173,6 +178,7 @@ class TabBar : public std::enable_shared_from_this<TabBar>,
  private:
   struct Tab {
     std::string label;
+    std::shared_ptr<Image> icon;
     std::shared_ptr<Node> tab_node;
     uint32 background_color;
     bool is_dimissable;

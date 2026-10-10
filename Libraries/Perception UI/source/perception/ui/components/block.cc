@@ -129,7 +129,7 @@ void Block::Draw(const DrawContext& draw_context) {
       !std::isfinite(x) || !std::isfinite(y))
     return;
 
-  if (clip_contents_) {
+  if (clip_contents_ && border_radius_ > 0.0f) {
     draw_context.skia_canvas->save();
     SkPath path = SkPath::RRect({x, y, x + width, y + height}, border_radius_,
                                 border_radius_);
@@ -138,7 +138,7 @@ void Block::Draw(const DrawContext& draw_context) {
 
   if (fill_color_) {
     SkPaint p;
-    p.setAntiAlias(true);
+    p.setAntiAlias(border_radius_ > 0);
     p.setColor(fill_color_);
     p.setStyle(SkPaint::kFill_Style);
     if (image_effect_) p.setImageFilter(image_effect_->GetSkiaImageFilter());
@@ -153,17 +153,18 @@ void Block::Draw(const DrawContext& draw_context) {
 }
 
 void Block::DrawPostChildren(const DrawContext& draw_context) {
-  if (clip_contents_) draw_context.skia_canvas->restore();
+  const float& x = draw_context.area.origin.x;
+  const float& y = draw_context.area.origin.y;
+  const float& width = draw_context.area.size.width;
+  const float& height = draw_context.area.size.height;
+
+  if (width <= 0.0f || height <= 0.0f || !std::isfinite(width) || !std::isfinite(height) ||
+      !std::isfinite(x) || !std::isfinite(y))
+    return;
+
+  if (clip_contents_ && border_radius_ > 0.0f)
+    draw_context.skia_canvas->restore();
   if (border_color_ && border_width_ > 0) {
-    const float& x = draw_context.area.origin.x;
-    const float& y = draw_context.area.origin.y;
-    const float& width = draw_context.area.size.width;
-    const float& height = draw_context.area.size.height;
-
-    if (width <= 0.0f || height <= 0.0f || !std::isfinite(width) || !std::isfinite(height) ||
-        !std::isfinite(x) || !std::isfinite(y))
-      return;
-
     SkPaint p;
     if (image_effect_) p.setImageFilter(image_effect_->GetSkiaImageFilter());
 

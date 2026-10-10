@@ -61,6 +61,7 @@ void TextField::SetNode(std::weak_ptr<Node> node) {
   auto strong_node = node_.lock();
 
   focusable_ = strong_node->GetOrAdd<Focusable>();
+  strong_node->SetCursor(window::Cursor::Caret);
 
   strong_node->OnDraw(std::bind_front(&TextField::DrawOuter, this));
 
@@ -341,9 +342,9 @@ void TextField::DrawInner(const DrawContext& draw_context) {
 
     if (!line_view.empty()) {
       float text_draw_y = line_y_top - font_metrics.fAscent;
-      draw_context.skia_canvas->drawString(
-          SkString(line_view.data(), line_view.length()), line_draw_x,
-          text_draw_y, *font_, text_paint);
+      draw_context.skia_canvas->drawSimpleText(
+          line_view.data(), line_view.length(), SkTextEncoding::kUTF8,
+          line_draw_x, text_draw_y, *font_, text_paint);
     }
 
     if (has_focus && !has_sel && p == cursor_line_) {
@@ -677,6 +678,7 @@ void TextField::HandleKeyDown(const window::KeyboardKeyEvent& event) {
       cursor_char_ = prev_idx;
       selection_start_line_ = cursor_line_;
       selection_start_char_ = cursor_char_;
+      layout_is_dirty_ = true;
       EnsureCursorVisible();
       NotifyTextChanged();
     } else if (cursor_line_ > 0) {
@@ -687,6 +689,7 @@ void TextField::HandleKeyDown(const window::KeyboardKeyEvent& event) {
       cursor_char_ = prev_len;
       selection_start_line_ = cursor_line_;
       selection_start_char_ = cursor_char_;
+      layout_is_dirty_ = true;
       EnsureCursorVisible();
       NotifyTextChanged();
     }
@@ -703,11 +706,13 @@ void TextField::HandleKeyDown(const window::KeyboardKeyEvent& event) {
       size_t next_len =
           GetNextUtf8CharLength(lines_[cursor_line_], cursor_char_);
       lines_[cursor_line_].erase(cursor_char_, next_len);
+      layout_is_dirty_ = true;
       EnsureCursorVisible();
       NotifyTextChanged();
     } else if (cursor_line_ + 1 < lines_.size()) {
       lines_[cursor_line_] += lines_[cursor_line_ + 1];
       lines_.erase(lines_.begin() + cursor_line_ + 1);
+      layout_is_dirty_ = true;
       EnsureCursorVisible();
       NotifyTextChanged();
     }
@@ -748,6 +753,7 @@ void TextField::HandleKeyDown(const window::KeyboardKeyEvent& event) {
           }
         }
       }
+      layout_is_dirty_ = true;
     } else {
       if (start_l < end_l) {
         for (size_t l = start_l; l <= end_l; l++) {
@@ -755,6 +761,7 @@ void TextField::HandleKeyDown(const window::KeyboardKeyEvent& event) {
           if (l == cursor_line_) cursor_char_ += 2;
           if (l == selection_start_line_) selection_start_char_ += 2;
         }
+        layout_is_dirty_ = true;
       } else {
         InsertString("  ");
       }
