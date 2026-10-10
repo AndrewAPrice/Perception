@@ -1,0 +1,5 @@
+{
+  "name": "jsshell",
+  "description": "Interactive JavaScript shell and script runner.",
+  "terminal": true
+}
