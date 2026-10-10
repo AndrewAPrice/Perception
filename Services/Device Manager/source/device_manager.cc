@@ -16,12 +16,20 @@
 
 #include "pci.h"
 #include "pci_device_names.h"
+#include "xhci.h"
 
 using ::perception::ProcessId;
+using ::perception::devices::OpenUsbEndpointRequest;
 using ::perception::devices::PciDevice;
 using ::perception::devices::PciDeviceFilter;
 using ::perception::devices::PciDeviceFilters;
 using ::perception::devices::PciDevices;
+using ::perception::devices::UsbControlTransferRequest;
+using ::perception::devices::UsbControlTransferResponse;
+using ::perception::devices::UsbDeviceListener;
+using ::perception::devices::UsbEndpointRingInfo;
+using ::perception::devices::UsbInterfaceFilter;
+using ::perception::devices::UsbInterfaces;
 
 namespace {
 void ParseFiltersIntoParameters(const PciDeviceFilters& filters,
@@ -92,4 +100,24 @@ StatusOr<PciDevices> DeviceManager::QueryPciDevices(
       });
 
   return devices;
+}
+
+StatusOr<UsbInterfaces> DeviceManager::QueryUsbInterfaces(
+    const UsbInterfaceFilter& request) {
+  return QueryXhciUsbInterfaces(request);
+}
+
+Status DeviceManager::RegisterUsbDeviceListener(
+    const UsbDeviceListener::Client& listener) {
+  return RegisterXhciUsbDeviceListener(listener);
+}
+
+StatusOr<UsbEndpointRingInfo> DeviceManager::OpenUsbInterruptEndpoint(
+    const OpenUsbEndpointRequest& request) {
+  return OpenXhciInterruptEndpoint(request);
+}
+
+StatusOr<UsbControlTransferResponse> DeviceManager::UsbControlTransfer(
+    const UsbControlTransferRequest& request) {
+  return ExecuteXhciControlTransfer(request);
 }

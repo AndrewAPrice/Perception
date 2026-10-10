@@ -17,6 +17,7 @@
 #include <iostream>
 
 #include "driver_loader.h"
+#include "xhci.h"
 
 bool LoadPciDriver(uint8 base_class, uint8 sub_class, uint8 prog_if,
                    uint16 vendor_id, uint16 device_id, uint8 bus, uint8 slot,
@@ -63,6 +64,12 @@ bool LoadPciDriver(uint8 base_class, uint8 sub_class, uint8 prog_if,
           return false;
       }
       break;
+    case 0x0C:  // Serial bus controller.
+      if (sub_class == 0x03 && prog_if == 0x30) {
+        RegisterXhciController(bus, slot, function);
+        return true;
+      }
+      return false;
     default:
       return false;
   }

@@ -19,6 +19,7 @@
 #include "perception/multiboot.h"
 #include "perception/scheduler.h"
 #include "types.h"
+#include "xhci.h"
 
 using ::perception::Defer;
 using ::perception::GetMultibootFramebufferDetails;
@@ -47,6 +48,7 @@ void MaybeLoadFallbackVideoDriver() {
 
 int main(int argc, char *argv[]) {
   InitializePci();
+  InitializeXhciControllers();
 
   std::vector<std::string> ps2_args = {"keyboard"};
   if (!HasFoundPointingDevice()) {

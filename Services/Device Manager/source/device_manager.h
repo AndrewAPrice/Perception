@@ -20,4 +20,19 @@ class DeviceManager : public ::perception::devices::DeviceManager::Server {
  public:
   virtual StatusOr<::perception::devices::PciDevices> QueryPciDevices(
       const ::perception::devices::PciDeviceFilters& request) override;
+
+  virtual StatusOr<::perception::devices::UsbInterfaces> QueryUsbInterfaces(
+      const ::perception::devices::UsbInterfaceFilter& request) override;
+
+  virtual Status RegisterUsbDeviceListener(
+      const ::perception::devices::UsbDeviceListener::Client& listener)
+      override;
+
+  virtual StatusOr<::perception::devices::UsbEndpointRingInfo>
+  OpenUsbInterruptEndpoint(
+      const ::perception::devices::OpenUsbEndpointRequest& request) override;
+
+  virtual StatusOr<::perception::devices::UsbControlTransferResponse>
+  UsbControlTransfer(
+      const ::perception::devices::UsbControlTransferRequest& request) override;
 };
