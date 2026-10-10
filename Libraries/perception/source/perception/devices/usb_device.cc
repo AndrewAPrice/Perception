@@ -80,5 +80,11 @@ void UsbControlTransferResponse::Serialize(
   serializer.String("Data", data);
 }
 
+void RegisterUsbDeviceListenerRequest::Serialize(
+    serialization::Serializer& serializer) {
+  serializer.Serializable("Listener", listener);
+  serializer.Serializable("Filter", filter);
+}
+
 }  // namespace devices
 }  // namespace perception

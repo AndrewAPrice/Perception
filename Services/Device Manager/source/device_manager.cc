@@ -24,9 +24,9 @@ using ::perception::devices::PciDevice;
 using ::perception::devices::PciDeviceFilter;
 using ::perception::devices::PciDeviceFilters;
 using ::perception::devices::PciDevices;
+using ::perception::devices::RegisterUsbDeviceListenerRequest;
 using ::perception::devices::UsbControlTransferRequest;
 using ::perception::devices::UsbControlTransferResponse;
-using ::perception::devices::UsbDeviceListener;
 using ::perception::devices::UsbEndpointRingInfo;
 using ::perception::devices::UsbInterfaceFilter;
 using ::perception::devices::UsbInterfaces;
@@ -108,8 +108,8 @@ StatusOr<UsbInterfaces> DeviceManager::QueryUsbInterfaces(
 }
 
 Status DeviceManager::RegisterUsbDeviceListener(
-    const UsbDeviceListener::Client& listener) {
-  return RegisterXhciUsbDeviceListener(listener);
+    const RegisterUsbDeviceListenerRequest& request) {
+  return RegisterXhciUsbDeviceListener(request);
 }
 
 StatusOr<UsbEndpointRingInfo> DeviceManager::OpenUsbInterruptEndpoint(

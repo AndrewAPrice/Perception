@@ -25,7 +25,7 @@ class DeviceManager : public ::perception::devices::DeviceManager::Server {
       const ::perception::devices::UsbInterfaceFilter& request) override;
 
   virtual Status RegisterUsbDeviceListener(
-      const ::perception::devices::UsbDeviceListener::Client& listener)
+      const ::perception::devices::RegisterUsbDeviceListenerRequest& request)
       override;
 
   virtual StatusOr<::perception::devices::UsbEndpointRingInfo>

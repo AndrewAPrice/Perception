@@ -79,7 +79,8 @@ class PciDeviceFilters : public serialization::Serializable {
 #define METHOD_LIST(X)                                                 \
   X(1, QueryPciDevices, PciDevices, PciDeviceFilters)                  \
   X(2, QueryUsbInterfaces, UsbInterfaces, UsbInterfaceFilter)          \
-  X(3, RegisterUsbDeviceListener, void, UsbDeviceListener::Client)     \
+  X(3, RegisterUsbDeviceListener, void,                                \
+    RegisterUsbDeviceListenerRequest)                                  \
   X(4, OpenUsbInterruptEndpoint, UsbEndpointRingInfo,                  \
     OpenUsbEndpointRequest)                                            \
   X(5, UsbControlTransfer, UsbControlTransferResponse,                 \

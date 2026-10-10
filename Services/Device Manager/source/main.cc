@@ -50,11 +50,13 @@ int main(int argc, char *argv[]) {
   InitializePci();
   InitializeXhciControllers();
 
-  std::vector<std::string> ps2_args = {"keyboard"};
-  if (!HasFoundPointingDevice()) {
+  std::vector<std::string> ps2_args;
+  if (!HasFoundKeyboardDevice())
+    ps2_args.push_back("keyboard");
+  if (!HasFoundPointingDevice())
     ps2_args.push_back("mouse");
-  }
-  AddDriverToLoad("PS2 Keyboard and Mouse", ps2_args);
+  if (!ps2_args.empty())
+    AddDriverToLoad("PS2 Keyboard and Mouse", ps2_args);
   AddDriverToLoad("CMOS");
   MaybeLoadFallbackVideoDriver();
 

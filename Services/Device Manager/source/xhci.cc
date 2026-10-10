@@ -24,12 +24,12 @@
 #include "driver_loader.h"
 #include "perception/cache.h"
 #include "perception/fibers.h"
-#include "perception/loader.h"
 #include "perception/memory.h"
 #include "perception/pci.h"
 #include "perception/processes.h"
 #include "perception/services.h"
 #include "perception/time.h"
+#include "usb_drivers.h"
 #include "xhci_types.h"
 
 using ::perception::AllocateMemoryPages;
@@ -37,17 +37,16 @@ using ::perception::DoesProcessExist;
 using ::perception::Fiber;
 using ::perception::FlushRange;
 using ::perception::GetPhysicalAddressOfVirtualAddress;
-using ::perception::GetService;
 using ::perception::kPageSize;
 using ::perception::kPciHdrBar0;
 using ::perception::kPciHdrBar1;
 using ::perception::kPciHdrCommand;
 using ::perception::kPciHdrCommandBitBusMaster;
 using ::perception::kPciHdrCommandBitMemorySpace;
-using ::perception::LoadApplicationRequest;
-using ::perception::Loader;
 using ::perception::MapPhysicalMemory;
+using ::perception::NotifyUponProcessTermination;
 using ::perception::NotifyWhenServiceDisappears;
+using ::perception::ProcessId;
 using ::perception::Read32BitsFromPciConfig;
 using ::perception::Read8BitsFromPciConfig;
 using ::perception::ReleaseMemoryPages;
@@ -59,6 +58,7 @@ using ::perception::devices::kUsbRingHeaderOffset;
 using ::perception::devices::kUsbTransferRingEntries;
 using ::perception::devices::kUsbTransferRingLinkIndex;
 using ::perception::devices::OpenUsbEndpointRequest;
+using ::perception::devices::RegisterUsbDeviceListenerRequest;
 using ::perception::devices::UsbControlTransferRequest;
 using ::perception::devices::UsbControlTransferResponse;
 using ::perception::devices::UsbDeviceId;
@@ -278,17 +278,25 @@ constexpr uint16 kHubFeatureCPortConnection = 16;
 // Hub Port Feature: C_PORT_RESET.
 constexpr uint16 kHubFeatureCPortReset = 20;
 
-// Driver executable name for USB HID keyboards, mice, and tablets.
-constexpr std::string_view kUsbHidDriverName = "USB Keyboard and Mouse";
-
 struct PciAddress {
   uint8 bus;
   uint8 slot;
   uint8 function;
 };
 
+struct RegisteredUsbListener {
+  UsbDeviceListener::Client client;
+  UsbInterfaceFilter filter;
+};
+
 std::vector<PciAddress> pending_xhci_pci_devices;
-std::vector<UsbDeviceListener::Client> usb_device_listeners;
+std::vector<RegisteredUsbListener> usb_device_listeners;
+
+void PruneTerminatedUsbListeners() {
+  std::erase_if(usb_device_listeners, [](const RegisteredUsbListener& entry) {
+    return !DoesProcessExist(entry.client.ServerProcessId());
+  });
+}
 
 class XhciController {
  public:
@@ -1370,11 +1378,11 @@ class XhciController {
       offset += desc_len;
     }
 
-    bool found_hid_device = false;
+    PruneTerminatedUsbListeners();
+
     for (size_t i = 0; i < slot.interfaces.size(); ++i) {
       auto& iface = slot.interfaces[i];
       if (iface.interface_class == kUsbClassHid) {
-        found_hid_device = true;
         uint16 report_len = hid_report_lengths[i];
         if (report_len == 0) report_len = 256;
         report_len = std::min<uint16>(report_len, 1024);
@@ -1389,29 +1397,23 @@ class XhciController {
           report_buf.resize(actual_len);
           iface.hid_report_descriptor = std::move(report_buf);
         }
+      }
 
-        if (iface.interface_protocol == 2 ||
-            (iface.interface_subclass == 0 && iface.interface_protocol == 0)) {
-          FoundPointingDevice();
+      bool handled_by_running_driver = false;
+      for (auto& entry : usb_device_listeners) {
+        if (MatchesFilter(iface, entry.filter)) {
+          entry.client.UsbInterfaceAttached(iface, nullptr);
+          handled_by_running_driver = true;
         }
       }
 
-      for (auto& listener : usb_device_listeners)
-        listener.UsbInterfaceAttached(iface, nullptr);
-    }
-
-    if (found_hid_device) EnsureHidDriverLoaded();
-  }
-
-  void EnsureHidDriverLoaded() {
-    std::string driver_name(kUsbHidDriverName);
-    if (DoesProcessExist(driver_name)) return;
-    if (is_scanning_ && usb_device_listeners.empty()) {
-      AddDriverToLoad(kUsbHidDriverName);
-    } else {
-      LoadApplicationRequest req;
-      req.name = driver_name;
-      GetService<Loader>().LaunchApplication(req, nullptr);
+      if (!LoadUsbDriver(iface, handled_by_running_driver) &&
+          !handled_by_running_driver) {
+        std::cout << "Encountered unknown USB interface "
+                  << static_cast<int>(iface.interface_class) << ":"
+                  << static_cast<int>(iface.interface_subclass) << ":"
+                  << static_cast<int>(iface.interface_protocol) << std::endl;
+      }
     }
   }
 
@@ -1545,10 +1547,11 @@ class XhciController {
       }
     }
 
+    PruneTerminatedUsbListeners();
     UsbDeviceId dev_id;
     dev_id.device_handle = slot->device_handle;
-    for (auto& listener : usb_device_listeners)
-      listener.UsbInterfaceDetached(dev_id, nullptr);
+    for (auto& entry : usb_device_listeners)
+      entry.client.UsbInterfaceDetached(dev_id, nullptr);
 
     (void)SubmitCommand(XhciTrbType::kDisableSlotCommand, 0,
                         static_cast<uint32>(slot_id) << 24);
@@ -1583,19 +1586,31 @@ StatusOr<UsbInterfaces> QueryXhciUsbInterfaces(
   return result;
 }
 
-Status RegisterXhciUsbDeviceListener(const UsbDeviceListener::Client& listener) {
-  if (!listener.IsValid()) return Status::INVALID_ARGUMENT;
-  usb_device_listeners.push_back(listener);
-  NotifyWhenServiceDisappears(listener, [listener]() {
-    for (auto it = usb_device_listeners.begin();
-         it != usb_device_listeners.end(); ++it) {
-      if (it->ServerProcessId() == listener.ServerProcessId() &&
-          it->ServiceId() == listener.ServiceId()) {
-        usb_device_listeners.erase(it);
-        break;
-      }
-    }
+Status RegisterXhciUsbDeviceListener(
+    const RegisterUsbDeviceListenerRequest& request) {
+  if (!request.listener.IsValid() ||
+      !DoesProcessExist(request.listener.ServerProcessId())) {
+    return Status::INVALID_ARGUMENT;
+  }
+  PruneTerminatedUsbListeners();
+  usb_device_listeners.push_back({request.listener, request.filter});
+
+  ProcessId pid = request.listener.ServerProcessId();
+  NotifyUponProcessTermination(pid, [pid]() {
+    std::erase_if(usb_device_listeners, [pid](const RegisteredUsbListener& entry) {
+      return entry.client.ServerProcessId() == pid;
+    });
   });
+
+  NotifyWhenServiceDisappears(
+      request.listener, [listener = request.listener]() {
+        std::erase_if(usb_device_listeners,
+                      [&listener](const RegisteredUsbListener& entry) {
+                        return entry.client.ServerProcessId() ==
+                                   listener.ServerProcessId() &&
+                               entry.client.ServiceId() == listener.ServiceId();
+                      });
+      });
   return Status::OK;
 }
 

@@ -307,8 +307,8 @@ bool LoadElfProcess(size_t memory_start, size_t memory_end, char* name) {
 
   print << name << "...\n";
 
-  Process* process =
-      CreateProcess(is_driver, can_create_processes, can_set_focus);
+  Process* process = CreateProcess(is_driver, can_create_processes,
+                                   can_set_focus, can_create_processes);
   if (!process) {
     print << "Can't load: " << name
           << ": Out of memory to create the process.\n";

@@ -31,8 +31,10 @@ using ::perception::Defer;
 using ::perception::GetService;
 using ::perception::HandOverControl;
 using ::perception::IsDuplicateInstanceOfProcess;
+using ::perception::TerminateProcess;
 using ::perception::devices::DeviceManager;
 using ::perception::devices::OpenUsbEndpointRequest;
+using ::perception::devices::RegisterUsbDeviceListenerRequest;
 using ::perception::devices::UsbControlTransferRequest;
 using ::perception::devices::UsbDeviceId;
 using ::perception::devices::UsbDeviceListener;
@@ -91,6 +93,8 @@ void DetachDeviceByHandle(uint32 device_handle) {
   });
 
   SyncTabletAndMousePairing();
+
+  if (attached_interfaces.empty()) TerminateProcess();
 }
 
 void AttachHidInterface(const UsbInterfaceInfo& iface) {
@@ -191,15 +195,22 @@ int main() {
 
   usb_listener = std::make_unique<HidUsbDeviceListener>();
   auto device_manager = GetService<DeviceManager>();
-  device_manager.RegisterUsbDeviceListener(*usb_listener, nullptr);
 
   UsbInterfaceFilter filter;
   filter.interface_class = kUsbClassHid;
+
+  RegisterUsbDeviceListenerRequest reg_req;
+  reg_req.listener = *usb_listener;
+  reg_req.filter = filter;
+  device_manager.RegisterUsbDeviceListener(reg_req, nullptr);
+
   auto interfaces_or = device_manager.QueryUsbInterfaces(filter);
   if (interfaces_or) {
     for (const auto& iface : interfaces_or->interfaces)
       AttachHidInterface(iface);
   }
+
+  if (attached_interfaces.empty()) return 0;
 
   HandOverControl();
   return 0;

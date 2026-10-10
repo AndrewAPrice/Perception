@@ -173,5 +173,15 @@ DEFINE_PERCEPTION_SERVICE(UsbDeviceListener,
                           "perception.devices.UsbDeviceListener", METHOD_LIST)
 #undef METHOD_LIST
 
+// Request to register a running USB driver's listener and the interface filter
+// it handles.
+class RegisterUsbDeviceListenerRequest : public serialization::Serializable {
+ public:
+  UsbDeviceListener::Client listener;
+  UsbInterfaceFilter filter;
+
+  virtual void Serialize(serialization::Serializer& serializer) override;
+};
+
 }  // namespace devices
 }  // namespace perception

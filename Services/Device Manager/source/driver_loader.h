@@ -18,8 +18,14 @@
 #include <string_view>
 #include <vector>
 
+// Queues a driver to be loaded during initial boot discovery.
 void AddDriverToLoad(std::string_view driver_name,
                      const std::vector<std::string>& arguments = {});
+
+// Requests that a driver be loaded, either by queuing it during initial boot
+// discovery or launching it immediately via Loader on hotplug.
+void RequestDriverLoad(std::string_view driver_name,
+                       const std::vector<std::string>& arguments = {});
 
 // Records that a graphics device has been found, so no need to use a fallback
 // driver.
@@ -28,10 +34,17 @@ void FoundGraphicsDevice();
 // Whether a graphics device has been found.
 bool HasFoundGraphicsDevice();
 
+// Records that a keyboard device has been found.
+void FoundKeyboardDevice();
+
+// Returns whether a keyboard device has been found.
+bool HasFoundKeyboardDevice();
+
 // Records that a pointing device (mouse or tablet) has been found.
 void FoundPointingDevice();
 
 // Returns whether a pointing device has been found.
 bool HasFoundPointingDevice();
 
+// Launches all drivers queued during initial boot discovery.
 void LoadAllRemainingDrivers();

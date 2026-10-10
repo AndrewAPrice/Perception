@@ -30,7 +30,7 @@ StatusOr<::perception::devices::UsbInterfaces> QueryXhciUsbInterfaces(
 
 // Registers a listener to be notified when USB interfaces are attached or detached.
 Status RegisterXhciUsbDeviceListener(
-    const ::perception::devices::UsbDeviceListener::Client& listener);
+    const ::perception::devices::RegisterUsbDeviceListenerRequest& request);
 
 // Configures and opens a shared memory Transfer Ring for a USB interrupt endpoint.
 StatusOr<::perception::devices::UsbEndpointRingInfo> OpenXhciInterruptEndpoint(
