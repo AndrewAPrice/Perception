@@ -1164,25 +1164,6 @@ static void process_http_response(http_fetch_context* ctx) {
         "HTTP response %s%s status=%ld chunked=%d raw=%zu body=%zu",
         ctx->host.c_str(), ctx->path_and_query.c_str(), status_code,
         (int)is_chunked, resp.length(), body.length());
-  if (ctx->path_and_query.find("/search") != std::string::npos) {
-    std::string stripped;
-    size_t p = 0;
-    while (p < body.size()) {
-      size_t s = body.find("<script", p);
-      if (s == std::string::npos) {
-        stripped.append(body.substr(p));
-        break;
-      }
-      stripped.append(body.substr(p, s - p));
-      stripped.append("<SCRIPT_OMITTED/>");
-      size_t e = body.find("</script>", s);
-      if (e == std::string::npos) break;
-      p = e + 9;
-    }
-    for (size_t i = 0; i < stripped.size(); i += 400) {
-      NSLOG(netsurf, INFO, "HTML[%zu]: %.400s", i, stripped.c_str() + i);
-    }
-  }
 
   // Extract Set-Cookie headers before handling redirects or normal response delivery.
   {

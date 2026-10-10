@@ -197,7 +197,6 @@ int main(int argc, char* argv[]) {
 
   netsurf::perception::FbInitResourcePath(nullptr);
 
-  verbose_log = true;
   nslog_init(NslogStreamConfigure, &argc, argv);
 
   /* user options setup */
@@ -214,8 +213,6 @@ int main(int argc, char* argv[]) {
   messages = filepath_find((char**)netsurf::perception::GetResourcePaths(),
                            "FatMessages");
   if (messages) {
-    ::perception::DebugPrinterSingleton
-        << "NetSurf Native: Found FatMessages at " << messages << "\n";
     ret = messages_add_from_file(messages);
     free(messages);
   } else {
